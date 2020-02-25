@@ -183,12 +183,11 @@ function nav_calculate_offset_x (obj)
 function nav_calculate_event_x (e)
 {
   var pos = 0;
-  var off = 0;
 
   if (!e || !e.target)
     return;
   
-  off = nav_calculate_offset_x (e.target);
+  nav_calculate_offset_x (e.target);
 
   if (e.pageX || e.pageY)
   {

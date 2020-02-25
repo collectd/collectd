@@ -27,6 +27,20 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
+#if KERNEL_NETBSD
+// clang-format off
+/*
+ * Explicit order is required or it will not compile, see GitHub issue #3333
+ */
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/sysctl.h>
+#include <nfs/rpcv2.h>
+#include <nfs/nfsproto.h>
+#include <nfs/nfs.h>
+// clang-format on
+#endif
+
 #if HAVE_KSTAT_H
 #include <kstat.h>
 #endif
@@ -82,12 +96,14 @@ Number      Procedures  Procedures
 21                      commit
 */
 
+#if KERNEL_LINUX || HAVE_LIBKSTAT
 static const char *nfs2_procedures_names[] = {
     "null", "getattr", "setattr", "root",   "lookup",  "readlink",
     "read", "wrcache", "write",   "create", "remove",  "rename",
     "link", "symlink", "mkdir",   "rmdir",  "readdir", "fsstat"};
 static size_t nfs2_procedures_names_num =
     STATIC_ARRAY_SIZE(nfs2_procedures_names);
+#endif
 
 static const char *nfs3_procedures_names[] = {
     "null",   "getattr", "setattr",  "lookup", "access",  "readlink",
@@ -320,9 +336,9 @@ static int nfs_config(const char *key, const char *value) {
   return 0;
 }
 
-#if KERNEL_LINUX
+#if KERNEL_LINUX || KERNEL_NETBSD
 static int nfs_init(void) { return 0; }
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
 static int nfs_init(void) {
@@ -594,7 +610,50 @@ static int nfs_read(void) {
 
   return 0;
 }
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
+
+#elif KERNEL_NETBSD
+static int nfs_read(void) {
+  struct nfsstats ns;
+  size_t size = sizeof(ns);
+  int mib[] = {CTL_VFS, 2, NFS_NFSSTATS};
+  value_t values[nfs3_procedures_names_num];
+  int i;
+
+  /* NetBSD reports v2 statistics mapped to v3 and doen't yet support v4 */
+  if (report_v2) {
+    if (!suppress_warning) {
+      WARNING(
+          "nfs plugin: NFSv2 statistics have been requested "
+          "but they are mapped to NFSv3 statistics in the kernel on NetBSD.");
+    }
+    return 0;
+  }
+
+  if (report_v4) {
+    if (!suppress_warning) {
+      WARNING("nfs plugin: NFSv4 statistics have been requested "
+              "but they are not yet supported on NetBSD.");
+    }
+    return 0;
+  }
+
+  if (sysctl(mib, STATIC_ARRAY_SIZE(mib), &ns, &size, NULL, 0) != 0)
+    return 1;
+
+  for (i = 0; i < nfs3_procedures_names_num; i++)
+    values[i].counter = (derive_t)ns.rpccnt[i];
+  nfs_procedures_submit("v3client", nfs3_procedures_names, values,
+                        nfs3_procedures_names_num);
+
+  for (i = 0; i < nfs3_procedures_names_num; i++)
+    values[i].counter = (derive_t)ns.srvrpccnt[i];
+  nfs_procedures_submit("v3server", nfs3_procedures_names, values,
+                        nfs3_procedures_names_num);
+
+  return 0;
+}
+  /* #endif KERNEL_NETBSD */
 
 #elif HAVE_LIBKSTAT
 static int nfs_read(void) {

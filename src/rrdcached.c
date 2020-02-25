@@ -67,7 +67,7 @@ static int value_list_to_string(char *buffer, int buffer_len,
   memset(buffer, '\0', buffer_len);
 
   int status =
-      snprintf(buffer, buffer_len, "%.6f", CDTIME_T_TO_DOUBLE(vl->time));
+      ssnprintf(buffer, buffer_len, "%.6f", CDTIME_T_TO_DOUBLE(vl->time));
   if ((status < 1) || (status >= buffer_len))
     return -1;
   int offset = status;
@@ -80,17 +80,17 @@ static int value_list_to_string(char *buffer, int buffer_len,
       return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                        (uint64_t)vl->values[i].counter);
+      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+                         (uint64_t)vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_GAUGE) {
-      status = snprintf(buffer + offset, buffer_len - offset, ":%f",
-                        vl->values[i].gauge);
+      status = ssnprintf(buffer + offset, buffer_len - offset, ":%f",
+                         vl->values[i].gauge);
     } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
-      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
-                        vl->values[i].derive);
+      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
+                         vl->values[i].derive);
     } else /* if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */ {
-      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                        vl->values[i].absolute);
+      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+                         vl->values[i].absolute);
     }
 
     if ((status < 1) || (status >= (buffer_len - offset)))
@@ -426,7 +426,8 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   char *values_array[2] = {
-          [0] = values, [1] = NULL,
+      [0] = values,
+      [1] = NULL,
   };
 
   while (42) {
@@ -461,9 +462,9 @@ static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
   char filename[PATH_MAX + 1];
 
   if (datadir != NULL)
-    snprintf(filename, sizeof(filename), "%s/%s.rrd", datadir, identifier);
+    ssnprintf(filename, sizeof(filename), "%s/%s.rrd", datadir, identifier);
   else
-    snprintf(filename, sizeof(filename), "%s.rrd", identifier);
+    ssnprintf(filename, sizeof(filename), "%s.rrd", identifier);
 
   rrd_clear_error();
   int status = rrdc_connect(daemon_address);

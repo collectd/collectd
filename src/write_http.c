@@ -27,6 +27,7 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "utils/curl_stats/curl_stats.h"
 #include "utils/format_json/format_json.h"
 #include "utils/format_kairosdb/format_kairosdb.h"
 
@@ -72,6 +73,7 @@ struct wh_callback_s {
   bool send_notifications;
 
   CURL *curl;
+  curl_stats_t *curl_stats;
   struct curl_slist *headers;
   char curl_errbuf[CURL_ERROR_SIZE];
 
@@ -129,6 +131,16 @@ static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
   status = curl_easy_perform(cb->curl);
 
   wh_log_http_error(cb);
+
+  if (cb->curl_stats != NULL) {
+    int rc = curl_stats_dispatch(cb->curl_stats, cb->curl, NULL, "write_http",
+                                 cb->name);
+    if (rc != 0) {
+      ERROR("write_http plugin: curl_stats_dispatch failed with "
+            "status %i",
+            rc);
+    }
+  }
 
   if (status != CURLE_OK) {
     ERROR("write_http plugin: curl_easy_perform failed with "
@@ -316,6 +328,9 @@ static void wh_callback_free(void *data) /* {{{ */
     curl_easy_cleanup(cb->curl);
     cb->curl = NULL;
   }
+
+  curl_stats_destroy(cb->curl_stats);
+  cb->curl_stats = NULL;
 
   if (cb->headers != NULL) {
     curl_slist_free_all(cb->headers);
@@ -636,6 +651,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   cb->send_notifications = false;
   cb->data_ttl = 0;
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
+  cb->curl_stats = NULL;
 
   if (cb->metrics_prefix == NULL) {
     ERROR("write_http plugin: strdup failed.");
@@ -710,7 +726,11 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       status = config_set_format(cb, child);
     else if (strcasecmp("Metrics", child->key) == 0)
       cf_util_get_boolean(child, &cb->send_metrics);
-    else if (strcasecmp("Notifications", child->key) == 0)
+    else if (strcasecmp("Statistics", child->key) == 0) {
+      cb->curl_stats = curl_stats_from_config(child);
+      if (cb->curl_stats == NULL)
+        status = -1;
+    } else if (strcasecmp("Notifications", child->key) == 0)
       cf_util_get_boolean(child, &cb->send_notifications);
     else if (strcasecmp("StoreRates", child->key) == 0)
       status = cf_util_get_boolean(child, &cb->store_rates);
@@ -815,7 +835,8 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
         callback_name, cb->location);
 
   user_data_t user_data = {
-      .data = cb, .free_func = wh_callback_free,
+      .data = cb,
+      .free_func = wh_callback_free,
   };
 
   if (cb->send_metrics) {

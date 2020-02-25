@@ -99,9 +99,12 @@
 #@BUILD_PLUGIN_BAROMETER_TRUE@LoadPlugin barometer
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
+#@BUILD_PLUGIN_BUDDYINFO_TRUE@LoadPlugin buddyinfo
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
+#@BUILD_PLUGIN_CHECK_UPTIME_TRUE@LoadPlugin check_uptime
+#@BUILD_PLUGIN_CONNECTIVITY_TRUE@LoadPlugin connectivity
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
@@ -112,11 +115,13 @@
 #@BUILD_PLUGIN_CURL_JSON_TRUE@LoadPlugin curl_json
 #@BUILD_PLUGIN_CURL_XML_TRUE@LoadPlugin curl_xml
 #@BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
+#@BUILD_PLUGIN_DCPMM_TRUE@LoadPlugin dcpmm
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
 #@BUILD_PLUGIN_DPDKEVENTS_TRUE@LoadPlugin dpdkevents
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
+#@BUILD_PLUGIN_DPDK_TELEMETRY_TRUE@LoadPlugin dpdk_telemetry
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
@@ -142,7 +147,6 @@
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
-#@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MCELOG_TRUE@LoadPlugin mcelog
@@ -180,6 +184,7 @@
 #@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
+#@BUILD_PLUGIN_PROCEVENT_TRUE@LoadPlugin procevent
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
@@ -194,6 +199,7 @@
 #@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
+#@BUILD_PLUGIN_SYSEVENT_TRUE@LoadPlugin sysevent
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
 #@BUILD_PLUGIN_TAIL_CSV_TRUE@LoadPlugin tail_csv
@@ -359,6 +365,10 @@
 #  </View>
 #</Plugin>
 
+#<Plugin buddyinfo>
+#	Zone "Normal"
+#</Plugin>
+
 #<Plugin ceph>
 #  LongRunAvgLatency false
 #  ConvertSpecialMetricTypes true
@@ -380,6 +390,10 @@
 #	Host    "localhost"
 #	Port    "323"
 #	Timeout "2"
+#</Plugin>
+
+#<Plugin connectivity>
+#  Interface eth0
 #</Plugin>
 
 #<Plugin cgroups>
@@ -542,6 +556,13 @@
 #	</Database>
 #</Plugin>
 
+#<Plugin dcpmm>
+#    Interval 10.0
+#    CollectHealth false
+#    CollectPerfMetrics true
+#    EnableDispatchAll false
+#</Plugin>
+
 #<Plugin df>
 #	Device "/dev/hda1"
 #	Device "192.168.0.2:/mnt/nfs"
@@ -600,6 +621,11 @@
 #  EnabledPortMask 0xffff
 #  PortName "interface1"
 #  PortName "interface2"
+#</Plugin>
+
+#<Plugin dpdk_telemetry>
+#	ClientSocketPath "/var/run/.client"
+#	DpdkSocketPath "/var/run/dpdk/rte/telemetry"
 #</Plugin>
 
 #<Plugin email>
@@ -1270,6 +1296,12 @@
 #	</Process>
 #</Plugin>
 
+#<Plugin "procevent">
+#  BufferLength 10
+#  ProcessRegex "/^ovs.*$/"
+#  Process tuned
+#</Plugin>
+
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false
@@ -1402,6 +1434,7 @@
 #       Version 2
 #       Community "another_string"
 #       Collect "std_traffic" "hr_users"
+#       BulkSize 0
 #   </Host>
 #   <Host "some.ups.mydomain.org">
 #       Address "192.168.0.3"
@@ -1411,6 +1444,15 @@
 #       Interval 300
 # 	Timeout 5
 #	Retries 5
+#   </Host>
+#   <Host "highend.switch.example.org">
+#       Address "192.168.0.3"
+#       Version 2
+#       Community "another_string"
+#       Collect "std_traffic"
+#       Interval 10
+#       Timeout 10
+#       BulkSize 100
 #   </Host>
 #</Plugin>
 
@@ -1463,6 +1505,13 @@
 #	ValuesAbsolute true
 #	ValuesPercentage false
 #	ReportIO true
+#</Plugin>
+
+#<Plugin sysevent>
+#       Listen "127.0.0.1" "6666"
+#       BufferSize 1024
+#       BufferLength 10
+#       RegexFilter "regex"
 #</Plugin>
 
 #<Plugin table>

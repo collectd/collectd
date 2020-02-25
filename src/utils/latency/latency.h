@@ -24,6 +24,9 @@
  *   Florian Forster <ff at octo.it>
  **/
 
+#ifndef UTILS_LATENCY_LATENCY_H
+#define UTILS_LATENCY_LATENCY_H 1
+
 #include "collectd.h"
 
 #include "utils_time.h"
@@ -61,3 +64,5 @@ cdtime_t latency_counter_get_percentile(latency_counter_t *lc, double percent);
  */
 double latency_counter_get_rate(const latency_counter_t *lc, cdtime_t lower,
                                 cdtime_t upper, const cdtime_t now);
+
+#endif /* UTILS_LATENCY_LATENCY_H */

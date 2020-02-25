@@ -136,6 +136,7 @@ noinst_LTLIBRARIES = \
 	libheap.la \
 	libignorelist.la \
 	liblatency.la \
+	libllist.la \
 	liblookup.la \
 	libmetadata.la \
 	libmount.la \
@@ -244,8 +245,6 @@ collectd_SOURCES = \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
-	src/daemon/utils_llist.c \
-	src/daemon/utils_llist.h \
 	src/daemon/utils_random.c \
 	src/daemon/utils_random.h \
 	src/daemon/utils_subst.c \
@@ -265,6 +264,7 @@ collectd_LDADD = \
 	libavltree.la \
 	libcommon.la \
 	libheap.la \
+	libllist.la \
 	liboconfig.la \
 	-lm \
 	$(COMMON_LIBS) \
@@ -376,11 +376,6 @@ test_utils_config_cores_SOURCES = \
 	src/testing.h
 test_utils_config_cores_LDADD = libplugin_mock.la
 
-test_utils_proc_pids_SOURCES = \
-	src/utils/proc_pids/proc_pids_test.c \
-	src/testing.h
-test_utils_proc_pids_LDADD = libplugin_mock.la
-
 libavltree_la_SOURCES = \
 	src/utils/avltree/avltree.c \
 	src/utils/avltree/avltree.h
@@ -397,6 +392,10 @@ libheap_la_SOURCES = \
 libignorelist_la_SOURCES = \
 	src/utils/ignorelist/ignorelist.c \
 	src/utils/ignorelist/ignorelist.h
+
+libllist_la_SOURCES = \
+	src/daemon/utils_llist.c \
+	src/daemon/utils_llist.h
 
 libmetadata_la_SOURCES = \
 	src/utils/metadata/meta_data.c \
@@ -751,6 +750,13 @@ bind_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 bind_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 endif
 
+if BUILD_PLUGIN_BUDDYINFO
+pkglib_LTLIBRARIES += buddyinfo.la
+buddyinfo_la_SOURCES = src/buddyinfo.c
+buddyinfo_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+buddyinfo_la_LIBADD = libignorelist.la
+endif
+
 if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = src/ceph.c
@@ -771,6 +777,21 @@ pkglib_LTLIBRARIES += chrony.la
 chrony_la_SOURCES = src/chrony.c
 chrony_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 chrony_la_LIBADD = -lm
+endif
+
+if BUILD_PLUGIN_CHECK_UPTIME
+pkglib_LTLIBRARIES += check_uptime.la
+check_uptime_la_SOURCES = src/check_uptime.c
+check_uptime_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_CONNECTIVITY
+pkglib_LTLIBRARIES += connectivity.la
+connectivity_la_SOURCES = src/connectivity.c
+connectivity_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+connectivity_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+connectivity_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+connectivity_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS) $(BUILD_WITH_LIBMNL_LIBS) libignorelist.la
 endif
 
 if BUILD_PLUGIN_CONNTRACK
@@ -885,6 +906,14 @@ dbi_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBDBI_LDFLAGS)
 dbi_la_LIBADD = $(BUILD_WITH_LIBDBI_LIBS)
 endif
 
+if BUILD_PLUGIN_DCPMM
+pkglib_LTLIBRARIES += dcpmm.la
+dcpmm_la_SOURCES = src/dcpmm.c
+dcpmm_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPMWAPI_CPPFLAGS)
+dcpmm_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPMWAPI_LDFLAGS)
+dcpmm_la_LIBADD = -lpmwapi
+endif
+
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = src/df.c
@@ -952,6 +981,13 @@ dpdkstat_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
 dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
 dpdkstat_la_LIBADD = $(LIBDPDK_LIBS)
+endif
+if BUILD_PLUGIN_DPDK_TELEMETRY
+pkglib_LTLIBRARIES += dpdk_telemetry.la
+dpdk_telemetry_la_SOURCES = src/dpdk_telemetry.c
+dpdk_telemetry_la_CFLAGS = $(AM_CFLAGS)
+dpdk_telemetry_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJANSSON_LDFLAGS)
+dpdk_telemetry_la_LIBADD = $(BUILD_WITH_LIBJANSSON_LIBS)
 endif
 
 if BUILD_PLUGIN_DRBD
@@ -1088,8 +1124,14 @@ test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_intel_rdt_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la
 check_PROGRAMS += test_plugin_intel_rdt
-TESTS += test_utils_proc_pids
 TESTS += test_plugin_intel_rdt
+
+test_utils_proc_pids_SOURCES = \
+	src/utils/proc_pids/proc_pids_test.c \
+	src/testing.h
+test_utils_proc_pids_LDADD = libplugin_mock.la
+check_PROGRAMS += test_utils_proc_pids
+TESTS += test_utils_proc_pids
 endif
 
 if BUILD_PLUGIN_INTERFACE
@@ -1204,14 +1246,6 @@ lua_la_SOURCES = \
 lua_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBLUA_CFLAGS)
 lua_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
-endif
-
-if BUILD_PLUGIN_LVM
-pkglib_LTLIBRARIES += lvm.la
-lvm_la_SOURCES = src/lvm.c
-lvm_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLVM2APP_CPPFLAGS)
-lvm_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBLVM2APP_LDFLAGS)
-lvm_la_LIBADD = $(BUILD_WITH_LIBLVM2APP_LIBS)
 endif
 
 if BUILD_PLUGIN_MADWIFI
@@ -1390,6 +1424,27 @@ network_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
 network_la_LDFLAGS += $(GCRYPT_LDFLAGS)
 network_la_LIBADD += $(GCRYPT_LIBS)
 endif
+
+test_plugin_network_SOURCES = \
+	src/network_test.c \
+	src/utils_fbhash.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CPPFLAGS)
+test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS) $(GCRYPT_LDFLAGS)
+test_plugin_network_LDADD = \
+	libavltree.la \
+	liboconfig.la \
+	libplugin_mock.la \
+	libmetadata.la \
+	$(GCRYPT_LIBS)
+if BUILD_WITH_LIBSOCKET
+test_plugin_network_LDADD += -lsocket
+endif
+if BUILD_WITH_LIBNSL
+test_plugin_network_LDADD += -lnsl
+endif
+check_PROGRAMS += test_plugin_network
 endif
 
 if BUILD_PLUGIN_NFS
@@ -1630,6 +1685,14 @@ processes_la_LIBADD += libtaskstats.la
 endif
 endif
 
+if BUILD_PLUGIN_PROCEVENT
+pkglib_LTLIBRARIES += procevent.la
+procevent_la_SOURCES = src/procevent.c
+procevent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+procevent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+procevent_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS) libignorelist.la
+endif
+
 if BUILD_PLUGIN_PROTOCOLS
 pkglib_LTLIBRARIES += protocols.la
 protocols_la_SOURCES = src/protocols.c
@@ -1776,6 +1839,14 @@ if BUILD_PLUGIN_SYNPROXY
 pkglib_LTLIBRARIES += synproxy.la
 synproxy_la_SOURCES = src/synproxy.c
 synproxy_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_SYSEVENT
+pkglib_LTLIBRARIES += sysevent.la
+sysevent_la_SOURCES = src/sysevent.c
+sysevent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+sysevent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+sysevent_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS) libignorelist.la
 endif
 
 if BUILD_PLUGIN_SYSLOG
@@ -2007,6 +2078,8 @@ if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = \
 	src/write_http.c \
+	src/utils/curl_stats/curl_stats.c \
+	src/utils/curl_stats/curl_stats.h \
 	src/utils/format_kairosdb/format_kairosdb.c \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
@@ -2179,13 +2252,16 @@ BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
 
 collectd.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
-		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $<
+		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) \
+	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 collectd.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 types.pb.cc: $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(srcdir)/proto/types.proto
 endif
 endif
 

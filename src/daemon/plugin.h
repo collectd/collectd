@@ -171,6 +171,15 @@ struct user_data_s {
 };
 typedef struct user_data_s user_data_t;
 
+enum cache_event_type_e { CE_VALUE_NEW, CE_VALUE_UPDATE, CE_VALUE_EXPIRED };
+
+typedef struct cache_event_s {
+  enum cache_event_type_e type;
+  const value_list_t *value_list;
+  const char *value_list_name;
+  int ret;
+} cache_event_t;
+
 struct plugin_ctx_s {
   char *name;
   cdtime_t interval;
@@ -192,6 +201,11 @@ typedef int (*plugin_flush_cb)(cdtime_t timeout, const char *identifier,
  * callbacks should be called, greater than zero if no more callbacks should be
  * called. */
 typedef int (*plugin_missing_cb)(const value_list_t *, user_data_t *);
+/* "cache event" callback. CE_VALUE_NEW events are sent to all registered
+ * callbacks. Callback should check if it interested in further CE_VALUE_UPDATE
+ * and CE_VALUE_EXPIRED events for metric and set event->ret = 1 if so.
+ */
+typedef int (*plugin_cache_event_cb)(cache_event_t *, user_data_t *);
 typedef void (*plugin_log_cb)(int severity, const char *message, user_data_t *);
 typedef int (*plugin_shutdown_cb)(void);
 typedef int (*plugin_notification_cb)(const notification_t *, user_data_t *);
@@ -233,6 +247,7 @@ void plugin_set_dir(const char *dir);
  *  this case.
  */
 int plugin_load(const char *name, bool global);
+bool plugin_is_loaded(char const *name);
 
 int plugin_init_all(void);
 void plugin_read_all(void);
@@ -294,6 +309,9 @@ int plugin_register_flush(const char *name, plugin_flush_cb callback,
                           user_data_t const *user_data);
 int plugin_register_missing(const char *name, plugin_missing_cb callback,
                             user_data_t const *user_data);
+int plugin_register_cache_event(const char *name,
+                                plugin_cache_event_cb callback,
+                                user_data_t const *ud);
 int plugin_register_shutdown(const char *name, plugin_shutdown_cb callback);
 int plugin_register_data_set(const data_set_t *ds);
 int plugin_register_log(const char *name, plugin_log_cb callback,
@@ -310,6 +328,7 @@ int plugin_unregister_read_group(const char *group);
 int plugin_unregister_write(const char *name);
 int plugin_unregister_flush(const char *name);
 int plugin_unregister_missing(const char *name);
+int plugin_unregister_cache_event(const char *name);
 int plugin_unregister_shutdown(const char *name);
 int plugin_unregister_data_set(const char *name);
 int plugin_unregister_log(const char *name);
@@ -380,6 +399,9 @@ __attribute__((sentinel)) int plugin_dispatch_multivalue(value_list_t const *vl,
                                                          int store_type, ...);
 
 int plugin_dispatch_missing(const value_list_t *vl);
+void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
+                                 unsigned long callbacks_mask, const char *name,
+                                 const value_list_t *vl);
 
 int plugin_dispatch_notification(const notification_t *notif);
 

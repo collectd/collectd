@@ -59,9 +59,6 @@
 #include <libgeom.h>
 #endif
 
-#if HAVE_LIMITS_H
-#include <limits.h>
-#endif
 #ifndef UINT_MAX
 #define UINT_MAX 4294967295U
 #endif
@@ -138,6 +135,16 @@ static int numdisk;
 static int pnumdisk;
 /* #endif HAVE_PERFSTAT */
 
+#elif HAVE_SYSCTL && KERNEL_NETBSD
+
+#include <sys/iostat.h>
+#include <sys/sysctl.h>
+
+static struct io_sysctl *drives = NULL;
+static size_t ndrive = 0;
+
+/* #endif HAVE_SYSCTL && KERNEL_NETBSD */
+
 #else
 #error "No applicable input method."
 #endif
@@ -209,7 +216,7 @@ static int disk_init(void) {
     io_master_port = MACH_PORT_NULL;
     return -1;
   }
-/* #endif HAVE_IOKIT_IOKITLIB_H */
+    /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
 #if HAVE_LIBUDEV_H
@@ -221,7 +228,7 @@ static int disk_init(void) {
     }
   }
 #endif /* HAVE_LIBUDEV_H */
-/* #endif KERNEL_LINUX */
+    /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
   int rv;
@@ -236,7 +243,7 @@ static int disk_init(void) {
     ERROR("geom_stats_open() failed, returned %d", rv);
     return -1;
   }
-/* #endif KERNEL_FREEBSD */
+    /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp_chain;
@@ -256,7 +263,31 @@ static int disk_init(void) {
       continue;
     ksp[numdisk++] = ksp_chain;
   }
-#endif /* HAVE_LIBKSTAT */
+/* #endif HAVE_LIBKSTAT */
+#elif HAVE_SYSCTL && KERNEL_NETBSD
+  int mib[3];
+  size_t size;
+
+  /* figure out number of drives */
+  mib[0] = CTL_HW;
+  mib[1] = HW_IOSTATS;
+  mib[2] = sizeof(struct io_sysctl);
+  if (sysctl(mib, 3, NULL, &size, NULL, 0) == -1) {
+    ERROR("disk plugin: sysctl for ndrives failed");
+    return -1;
+  }
+  ndrive = size / sizeof(struct io_sysctl);
+
+  if (size == 0) {
+    ERROR("disk plugin: no drives found");
+    return -1;
+  }
+  drives = (struct io_sysctl *)malloc(size);
+  if (drives == NULL) {
+    ERROR("disk plugin: memory allocation failure");
+    return -1;
+  }
+#endif /* HAVE_SYSCTL && KERNEL_NETBSD */
 
   return 0;
 } /* int disk_init */
@@ -275,7 +306,8 @@ static void disk_submit(const char *plugin_instance, const char *type,
                         derive_t read, derive_t write) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = read}, {.derive = write},
+      {.derive = read},
+      {.derive = write},
   };
 
   vl.values = values;
@@ -287,12 +319,13 @@ static void disk_submit(const char *plugin_instance, const char *type,
   plugin_dispatch_values(&vl);
 } /* void disk_submit */
 
-#if KERNEL_FREEBSD || KERNEL_LINUX
+#if KERNEL_FREEBSD || (HAVE_SYSCTL && KERNEL_NETBSD) || KERNEL_LINUX
 static void submit_io_time(char const *plugin_instance, derive_t io_time,
                            derive_t weighted_time) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = io_time}, {.derive = weighted_time},
+      {.derive = io_time},
+      {.derive = weighted_time},
   };
 
   vl.values = values;
@@ -303,7 +336,9 @@ static void submit_io_time(char const *plugin_instance, derive_t io_time,
 
   plugin_dispatch_values(&vl);
 } /* void submit_io_time */
+#endif /* KERNEL_FREEBSD || (HAVE_SYSCTL && KERNEL_NETBSD) || KERNEL_LINUX */
 
+#if KERNEL_FREEBSD || KERNEL_LINUX
 static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -493,10 +528,11 @@ static int disk_read(void) {
         sstrncpy(disk_name, props_disk_name_bsd, sizeof(disk_name));
       else {
         ERROR("disk plugin: can't find bsd disk name.");
-        snprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
+        ssnprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major,
+                  disk_minor);
       }
     } else
-      snprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
+      ssnprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
 
     DEBUG("disk plugin: disk_name = \"%s\"", disk_name);
 
@@ -532,7 +568,7 @@ static int disk_read(void) {
       disk_submit(disk_name, "disk_time", read_tme / 1000, write_tme / 1000);
   }
   IOObjectRelease(disk_list);
-/* #endif HAVE_IOKIT_IOKITLIB_H */
+  /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_FREEBSD
   int retry, dirty;
@@ -896,7 +932,7 @@ static int disk_read(void) {
     free(missing_ds);
   }
   fclose(fh);
-/* #endif defined(KERNEL_LINUX) */
+  /* #endif defined(KERNEL_LINUX) */
 
 #elif HAVE_LIBKSTAT
 #if HAVE_KSTAT_IO_T_WRITES && HAVE_KSTAT_IO_T_NWRITES && HAVE_KSTAT_IO_T_WTIME
@@ -944,7 +980,7 @@ static int disk_read(void) {
       disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
     }
   }
-/* #endif defined(HAVE_LIBKSTAT) */
+    /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_disk_io_stats *ds;
@@ -971,7 +1007,7 @@ static int disk_read(void) {
     disk_submit(name, "disk_octets", ds->read_bytes, ds->write_bytes);
     ds++;
   }
-/* #endif defined(HAVE_LIBSTATGRAB) */
+    /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
   derive_t read_sectors;
@@ -1023,7 +1059,57 @@ static int disk_read(void) {
                   1000000.0;
     disk_submit(stat_disk[i].name, "disk_time", read_time, write_time);
   }
-#endif /* defined(HAVE_PERFSTAT) */
+/* #endif defined(HAVE_PERFSTAT) */
+#elif HAVE_SYSCTL && KERNEL_NETBSD
+  int mib[3];
+  size_t size, i, nndrive;
+
+  /* figure out number of drives */
+  mib[0] = CTL_HW;
+  mib[1] = HW_IOSTATS;
+  mib[2] = sizeof(struct io_sysctl);
+  if (sysctl(mib, 3, NULL, &size, NULL, 0) == -1) {
+    ERROR("disk plugin: sysctl for ndrives failed");
+    return -1;
+  }
+  nndrive = size / sizeof(struct io_sysctl);
+
+  if (size == 0) {
+    ERROR("disk plugin: no drives found");
+    return -1;
+  }
+  /* number of drives changed, reallocate buffer */
+  if (nndrive != ndrive) {
+    drives = (struct io_sysctl *)realloc(drives, size);
+    if (drives == NULL) {
+      ERROR("disk plugin: memory allocation failure");
+      return -1;
+    }
+    ndrive = nndrive;
+  }
+
+  /* get stats for all drives */
+  mib[0] = CTL_HW;
+  mib[1] = HW_IOSTATS;
+  mib[2] = sizeof(struct io_sysctl);
+  if (sysctl(mib, 3, drives, &size, NULL, 0) == -1) {
+    ERROR("disk plugin: sysctl for drive stats failed");
+    return -1;
+  }
+
+  for (i = 0; i < ndrive; i++) {
+    if (drives[i].type != IOSTAT_DISK)
+      continue;
+    if (ignorelist_match(ignorelist, drives[i].name))
+      continue;
+
+    disk_submit(drives[i].name, "disk_octets", drives[i].rbytes,
+                drives[i].wbytes);
+    disk_submit(drives[i].name, "disk_ops", drives[i].rxfer, drives[i].wxfer);
+    submit_io_time(drives[i].name,
+                   drives[i].time_sec * 1000 + drives[i].time_usec / 1000, 0);
+  }
+#endif /* HAVE_SYSCTL && KERNEL_NETBSD */
 
   return 0;
 } /* int disk_read */

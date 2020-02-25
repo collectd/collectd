@@ -757,7 +757,7 @@ static int ps_init(void) {
     pset_list_len = 0;
     return -1;
   }
-/* #endif HAVE_THREAD_INFO */
+    /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
   pagesize_g = sysconf(_SC_PAGESIZE);
@@ -771,13 +771,13 @@ static int ps_init(void) {
     }
   }
 #endif
-/* #endif KERNEL_LINUX */
+    /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS &&                                                  \
     (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD)
   pagesize = getpagesize();
-/* #endif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD ||
- * HAVE_STRUCT_KINFO_PROC_OPENBSD) */
+  /* #endif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD ||
+   * HAVE_STRUCT_KINFO_PROC_OPENBSD) */
 
 #elif HAVE_PROCINFO_H
   pagesize = getpagesize();
@@ -1316,11 +1316,10 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   snprintf(filename, sizeof(filename), "/proc/%li/stat", pid);
 
-  status = read_file_contents(filename, buffer, sizeof(buffer) - 1);
+  status = read_text_file_contents(filename, buffer, sizeof(buffer));
   if (status <= 0)
     return -1;
   buffer_len = (size_t)status;
-  buffer[buffer_len] = 0;
 
   /* The name of the process is enclosed in parens. Since the name can
    * contain parens itself, spaces, numbers and pretty much everything
@@ -1569,7 +1568,7 @@ static char *ps_get_cmdline(long pid,
 
   snprintf(path, sizeof(path), "/proc/%li/psinfo", pid);
 
-  status = read_file_contents(path, (void *)&info, sizeof(info));
+  status = read_file_contents(path, &info, sizeof(info));
   if ((status < 0) || (((size_t)status) != sizeof(info))) {
     ERROR("processes plugin: Unexpected return value "
           "while reading \"%s\": "
@@ -1681,7 +1680,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   /*
    * TODO: context switch counters for Solaris
-*/
+   */
   ps->cswitch_vol = -1;
   ps->cswitch_invol = -1;
 
@@ -2013,7 +2012,7 @@ static int ps_read(void) {
 
   for (ps = list_head_g; ps != NULL; ps = ps->next)
     ps_submit_proc_list(ps);
-/* #endif HAVE_THREAD_INFO */
+    /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
   int running = 0;
@@ -2095,7 +2094,7 @@ static int ps_read(void) {
     ps_submit_proc_list(ps_ptr);
 
   read_fork_rate();
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
   int running = 0;
@@ -2250,7 +2249,7 @@ static int ps_read(void) {
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
-/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+    /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD
   int running = 0;
@@ -2394,7 +2393,7 @@ static int ps_read(void) {
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
-/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD */
+    /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD */
 
 #elif HAVE_PROCINFO_H
   /* AIX */
@@ -2533,7 +2532,7 @@ static int ps_read(void) {
 
   for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
     ps_submit_proc_list(ps);
-/* #endif HAVE_PROCINFO_H */
+    /* #endif HAVE_PROCINFO_H */
 
 #elif KERNEL_SOLARIS
   /*

@@ -171,7 +171,8 @@ static int memcached_connect_inet(memcached_t *st) {
 
     /* Wait until connection establishes */
     struct pollfd pollfd = {
-        .fd = fd, .events = POLLOUT,
+        .fd = fd,
+        .events = POLLOUT,
     };
     do
       status = poll(&pollfd, 1, MEMCACHED_CONNECT_TIMEOUT);
@@ -226,7 +227,8 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
   }
 
   struct pollfd pollfd = {
-      .fd = st->fd, .events = POLLOUT,
+      .fd = st->fd,
+      .events = POLLOUT,
   };
 
   do
@@ -346,7 +348,8 @@ static void submit_derive2(const char *type, const char *type_inst,
                            derive_t value0, derive_t value1, memcached_t *st) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = value0}, {.derive = value1},
+      {.derive = value0},
+      {.derive = value1},
   };
 
   memcached_init_vl(&vl, st);
@@ -377,7 +380,8 @@ static void submit_gauge2(const char *type, const char *type_inst,
                           gauge_t value0, gauge_t value1, memcached_t *st) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.gauge = value0}, {.gauge = value1},
+      {.gauge = value0},
+      {.gauge = value1},
   };
 
   memcached_init_vl(&vl, st);
@@ -692,7 +696,8 @@ static int memcached_add_read_callback(memcached_t *st) {
       /* callback  = */ memcached_read,
       /* interval  = */ 0,
       &(user_data_t){
-          .data = st, .free_func = memcached_free,
+          .data = st,
+          .free_func = memcached_free,
       });
 } /* int memcached_add_read_callback */
 

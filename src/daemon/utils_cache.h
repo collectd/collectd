@@ -56,6 +56,8 @@ int uc_get_hits(const data_set_t *ds, const value_list_t *vl);
 int uc_set_hits(const data_set_t *ds, const value_list_t *vl, int hits);
 int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step);
 
+int uc_set_callbacks_mask(const char *name, unsigned long callbacks_mask);
+
 int uc_get_history(const data_set_t *ds, const value_list_t *vl,
                    gauge_t *ret_history, size_t num_steps, size_t num_ds);
 int uc_get_history_by_name(const char *name, gauge_t *ret_history,
@@ -116,6 +118,8 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta);
  */
 int uc_meta_data_exists(const value_list_t *vl, const char *key);
 int uc_meta_data_delete(const value_list_t *vl, const char *key);
+/* Same API as meta_data_toc. */
+int uc_meta_data_toc(const value_list_t *vl, char ***toc);
 
 int uc_meta_data_add_string(const value_list_t *vl, const char *key,
                             const char *value);

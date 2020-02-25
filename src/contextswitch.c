@@ -26,11 +26,8 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#ifdef HAVE_SYS_SYSCTL_H
+#if defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYS_SYSCTL_H)
 #include <sys/sysctl.h>
-#endif
-
-#if HAVE_SYSCTLBYNAME
 /* no global variables */
 /* #endif HAVE_SYSCTLBYNAME */
 
@@ -73,7 +70,7 @@ static int cs_read(void) {
   }
 
   cs_submit(value);
-/* #endif HAVE_SYSCTLBYNAME */
+  /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
   FILE *fh;
@@ -116,7 +113,7 @@ static int cs_read(void) {
 
   if (status == -2)
     ERROR("contextswitch plugin: Unable to find context switch value.");
-/* #endif  KERNEL_LINUX */
+    /* #endif  KERNEL_LINUX */
 
 #elif HAVE_PERFSTAT
   int status = 0;

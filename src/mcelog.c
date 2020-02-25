@@ -90,14 +90,16 @@ static int socket_reinit(socket_adapter_t *self);
 static int socket_receive(socket_adapter_t *self, FILE **p_file);
 
 static mcelog_config_t g_mcelog_config = {
-    .logfile = "/var/log/mcelog", .persist = false,
+    .logfile = "/var/log/mcelog",
+    .persist = false,
 };
 
 static socket_adapter_t socket_adapter = {
     .sock_fd = -1,
     .unix_sock =
         {
-            .sun_family = AF_UNIX, .sun_path = "/var/run/mcelog-client",
+            .sun_family = AF_UNIX,
+            .sun_path = "/var/run/mcelog-client",
         },
     .lock = PTHREAD_RWLOCK_INITIALIZER,
     .close = socket_close,
@@ -523,7 +525,8 @@ static int socket_receive(socket_adapter_t *self, FILE **pp_file) {
   int res = -1;
   pthread_rwlock_rdlock(&self->lock);
   struct pollfd poll_fd = {
-      .fd = self->sock_fd, .events = POLLIN | POLLPRI,
+      .fd = self->sock_fd,
+      .events = POLLIN | POLLPRI,
   };
 
   if ((res = poll(&poll_fd, 1, MCELOG_POLL_TIMEOUT)) <= 0) {

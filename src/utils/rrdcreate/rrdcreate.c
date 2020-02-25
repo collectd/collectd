@@ -208,8 +208,8 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
       if (rra_num >= rra_max)
         break;
 
-      status = snprintf(buffer, sizeof(buffer), "RRA:%s:%.10f:%u:%u",
-                        rra_types[j], cfg->xff, cdp_len, cdp_num);
+      status = ssnprintf(buffer, sizeof(buffer), "RRA:%s:%.10f:%u:%u",
+                         rra_types[j], cfg->xff, cdp_len, cdp_num);
 
       if ((status < 0) || ((size_t)status >= sizeof(buffer))) {
         P_ERROR("rra_get: Buffer would have been truncated.");
@@ -278,14 +278,14 @@ static int ds_get(char ***ret, /* {{{ */
     if (isnan(d->min)) {
       sstrncpy(min, "U", sizeof(min));
     } else
-      snprintf(min, sizeof(min), "%f", d->min);
+      ssnprintf(min, sizeof(min), "%f", d->min);
 
     if (isnan(d->max)) {
       sstrncpy(max, "U", sizeof(max));
     } else
-      snprintf(max, sizeof(max), "%f", d->max);
+      ssnprintf(max, sizeof(max), "%f", d->max);
 
-    status = snprintf(
+    status = ssnprintf(
         buffer, sizeof(buffer), "DS:%s:%s:%i:%s:%s", d->name, type,
         (cfg->heartbeat > 0) ? cfg->heartbeat
                              : (int)CDTIME_T_TO_TIME_T(2 * vl->interval),
@@ -343,7 +343,7 @@ static int srrd_create(const char *filename, /* {{{ */
 
   return status;
 } /* }}} int srrd_create */
-/* #endif HAVE_THREADSAFE_LIBRRD */
+  /* #endif HAVE_THREADSAFE_LIBRRD */
 
 #else  /* !HAVE_THREADSAFE_LIBRRD */
 static int srrd_create(const char *filename, /* {{{ */
@@ -367,8 +367,8 @@ static int srrd_create(const char *filename, /* {{{ */
   if (last_up == 0)
     last_up = time(NULL) - 10;
 
-  snprintf(pdp_step_str, sizeof(pdp_step_str), "%lu", pdp_step);
-  snprintf(last_up_str, sizeof(last_up_str), "%lu", (unsigned long)last_up);
+  ssnprintf(pdp_step_str, sizeof(pdp_step_str), "%lu", pdp_step);
+  ssnprintf(last_up_str, sizeof(last_up_str), "%lu", (unsigned long)last_up);
 
   new_argv[0] = "create";
   new_argv[1] = (void *)filename;
@@ -496,7 +496,7 @@ static void *srrd_create_thread(void *targs) /* {{{ */
     return 0;
   }
 
-  snprintf(tmpfile, sizeof(tmpfile), "%s.async", args->filename);
+  ssnprintf(tmpfile, sizeof(tmpfile), "%s.async", args->filename);
 
   status = srrd_create(tmpfile, args->pdp_step, args->last_up, args->argc,
                        (void *)args->argv);

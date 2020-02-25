@@ -987,6 +987,8 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     /* Ivy Bridge */
     case 0x3A: /* IVB */
     case 0x3E: /* IVB Xeon */
+    case 0x55: /* SKX,CLX Xeon */
+    case 0x6A: /* ICX Xeon */
       do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
@@ -1042,6 +1044,8 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
       break;
     case 0x2D: /* SNB Xeon */
     case 0x3E: /* IVB Xeon */
+    case 0x55: /* SKX,CLX Xeon */
+    case 0x6A: /* ICX Xeon */
       do_rapl = RAPL_PKG | RAPL_CORES | RAPL_DRAM;
       do_power_fields = TURBO_PLATFORM | PSTATES_PLATFORM;
       break;
@@ -1099,7 +1103,11 @@ static int __attribute__((format(printf, 1, 2)))
 parse_int_file(const char *fmt, ...) {
   va_list args;
   char path[PATH_MAX];
+  char buf[256];
   int len;
+  value_t v;
+  char *c;
+  FILE *fp;
 
   va_start(args, fmt);
   len = vsnprintf(path, sizeof(path), fmt, args);
@@ -1109,8 +1117,29 @@ parse_int_file(const char *fmt, ...) {
     return -1;
   }
 
-  value_t v;
-  if (parse_value_file(path, &v, DS_TYPE_DERIVE) != 0) {
+  fp = fopen(path, "r");
+  if (fp == NULL) {
+    ERROR("turbostat plugin: unable to open: '%s': %s", path, strerror(errno));
+    return -1;
+  }
+
+  if (fgets(buf, sizeof(buf), fp) == NULL) {
+    ERROR("turbostat plugin: unable to read: '%s': %s", path, strerror(errno));
+    fclose(fp);
+    return -1;
+  }
+  fclose(fp);
+
+  /* We only care about the first integer in the range */
+  c = strchr(buf, '-');
+  if (c != NULL)
+    *c = '\0';
+  c = strchr(buf, ',');
+  if (c != NULL)
+    *c = '\0';
+  strstripnewline(buf);
+
+  if (parse_value(buf, &v, DS_TYPE_DERIVE) != 0) {
     ERROR("turbostat plugin: Parsing \"%s\" failed.", path);
     return -1;
   }
@@ -1434,9 +1463,9 @@ static void free_all_buffers(void) {
   package_delta = NULL;
 }
 
-/**********************
- * Collectd functions *
- **********************/
+  /**********************
+   * Collectd functions *
+   **********************/
 
 #define DO_OR_GOTO_ERR(something)                                              \
   do {                                                                         \

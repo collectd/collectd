@@ -295,14 +295,14 @@ DEF_TEST(parse) {
     memset(&cmd, 0, sizeof(cmd));
 
     status = cmd_parse(input, &cmd, parse_data[i].opts, &err);
-    snprintf(description, sizeof(description),
-             "cmd_parse (\"%s\", opts=%p) = "
-             "%d (type=%d [%s]); want %d "
-             "(type=%d [%s])",
-             parse_data[i].input, parse_data[i].opts, status, cmd.type,
-             CMD_TO_STRING(cmd.type), parse_data[i].expected_status,
-             parse_data[i].expected_type,
-             CMD_TO_STRING(parse_data[i].expected_type));
+    ssnprintf(description, sizeof(description),
+              "cmd_parse (\"%s\", opts=%p) = "
+              "%d (type=%d [%s]); want %d "
+              "(type=%d [%s])",
+              parse_data[i].input, parse_data[i].opts, status, cmd.type,
+              CMD_TO_STRING(cmd.type), parse_data[i].expected_status,
+              parse_data[i].expected_type,
+              CMD_TO_STRING(parse_data[i].expected_type));
     result = (status == parse_data[i].expected_status) &&
              (cmd.type == parse_data[i].expected_type);
     LOG(result, description);

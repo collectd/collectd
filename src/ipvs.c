@@ -207,7 +207,8 @@ static void cipvs_submit_connections(const char *pi, const char *ti,
 static void cipvs_submit_if(const char *pi, const char *t, const char *ti,
                             derive_t rx, derive_t tx) {
   value_t values[] = {
-      {.derive = rx}, {.derive = tx},
+      {.derive = rx},
+      {.derive = tx},
   };
   value_list_t vl = VALUE_LIST_INIT;
 

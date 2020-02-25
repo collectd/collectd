@@ -227,8 +227,8 @@ char *gce_scope(char const *email) /* {{{ */
 {
   char url[1024];
 
-  snprintf(url, sizeof(url), GCE_SCOPE_URL_FORMAT,
-           (email != NULL) ? email : GCE_DEFAULT_SERVICE_ACCOUNT);
+  ssnprintf(url, sizeof(url), GCE_SCOPE_URL_FORMAT,
+            (email != NULL) ? email : GCE_DEFAULT_SERVICE_ACCOUNT);
 
   return read_url(url);
 } /* }}} char *gce_scope */
@@ -252,7 +252,7 @@ int gce_access_token(char const *email, char *buffer,
     return 0;
   }
 
-  snprintf(url, sizeof(url), GCE_TOKEN_URL_FORMAT, email);
+  ssnprintf(url, sizeof(url), GCE_TOKEN_URL_FORMAT, email);
   json = read_url(url);
   if (json == NULL) {
     pthread_mutex_unlock(&token_lock);

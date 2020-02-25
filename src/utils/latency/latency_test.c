@@ -159,58 +159,75 @@ DEF_TEST(get_rate) {
   } cases[] = {
       {
           // bucket 6 is zero
-          DOUBLE_TO_CDTIME_T_STATIC(0.750), DOUBLE_TO_CDTIME_T_STATIC(0.875),
+          DOUBLE_TO_CDTIME_T_STATIC(0.750),
+          DOUBLE_TO_CDTIME_T_STATIC(0.875),
           0.00,
       },
       {
           // bucket 7 contains the t=1 update
-          DOUBLE_TO_CDTIME_T_STATIC(0.875), DOUBLE_TO_CDTIME_T_STATIC(1.000),
+          DOUBLE_TO_CDTIME_T_STATIC(0.875),
+          DOUBLE_TO_CDTIME_T_STATIC(1.000),
           1.00,
       },
       {
           // range: bucket 7 - bucket 15; contains the t=1 and t=2 updates
-          DOUBLE_TO_CDTIME_T_STATIC(0.875), DOUBLE_TO_CDTIME_T_STATIC(2.000),
+          DOUBLE_TO_CDTIME_T_STATIC(0.875),
+          DOUBLE_TO_CDTIME_T_STATIC(2.000),
           2.00,
       },
       {
           // lower bucket is only partially applied
           DOUBLE_TO_CDTIME_T_STATIC(0.875 + (0.125 / 4)),
-          DOUBLE_TO_CDTIME_T_STATIC(2.000), 1.75,
+          DOUBLE_TO_CDTIME_T_STATIC(2.000),
+          1.75,
       },
       {
           // upper bucket is only partially applied
           DOUBLE_TO_CDTIME_T_STATIC(0.875),
-          DOUBLE_TO_CDTIME_T_STATIC(2.000 - (0.125 / 4)), 1.75,
+          DOUBLE_TO_CDTIME_T_STATIC(2.000 - (0.125 / 4)),
+          1.75,
       },
       {
           // both buckets are only partially applied
           DOUBLE_TO_CDTIME_T_STATIC(0.875 + (0.125 / 4)),
-          DOUBLE_TO_CDTIME_T_STATIC(2.000 - (0.125 / 4)), 1.50,
+          DOUBLE_TO_CDTIME_T_STATIC(2.000 - (0.125 / 4)),
+          1.50,
       },
       {
           // lower bound is unspecified
-          0, DOUBLE_TO_CDTIME_T_STATIC(2.000), 2.00,
+          0,
+          DOUBLE_TO_CDTIME_T_STATIC(2.000),
+          2.00,
       },
       {
           // upper bound is unspecified
-          DOUBLE_TO_CDTIME_T_STATIC(125.000 - 0.125), 0, 1.00,
+          DOUBLE_TO_CDTIME_T_STATIC(125.000 - 0.125),
+          0,
+          1.00,
       },
       {
           // overflow test: upper >> longest latency
-          DOUBLE_TO_CDTIME_T_STATIC(1.000), DOUBLE_TO_CDTIME_T_STATIC(999999),
+          DOUBLE_TO_CDTIME_T_STATIC(1.000),
+          DOUBLE_TO_CDTIME_T_STATIC(999999),
           124.00,
       },
       {
           // overflow test: lower > longest latency
-          DOUBLE_TO_CDTIME_T_STATIC(130), 0, 0.00,
+          DOUBLE_TO_CDTIME_T_STATIC(130),
+          0,
+          0.00,
       },
       {
           // lower > upper => error
-          DOUBLE_TO_CDTIME_T_STATIC(10), DOUBLE_TO_CDTIME_T_STATIC(9), NAN,
+          DOUBLE_TO_CDTIME_T_STATIC(10),
+          DOUBLE_TO_CDTIME_T_STATIC(9),
+          NAN,
       },
       {
           // lower == upper => zero
-          DOUBLE_TO_CDTIME_T_STATIC(9), DOUBLE_TO_CDTIME_T_STATIC(9), 0.00,
+          DOUBLE_TO_CDTIME_T_STATIC(9),
+          DOUBLE_TO_CDTIME_T_STATIC(9),
+          0.00,
       },
   };
 

@@ -763,7 +763,8 @@ static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
 
     plugin_register_complex_read(/* group = */ NULL, cb_name, cj_read, interval,
                                  &(user_data_t){
-                                     .data = db, .free_func = cj_free,
+                                     .data = db,
+                                     .free_func = cj_free,
                                  });
     sfree(cb_name);
   } else {

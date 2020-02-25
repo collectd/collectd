@@ -140,7 +140,7 @@ int pids_list_contains_pid(pids_list_t *list, const pid_t pid) {
  * RETURN VALUE
  *   On success, the number of read bytes (includes stripped \n).
  *   -1 on file open error
-*/
+ */
 static int read_proc_name(const char *procfs_path,
                           const struct dirent *pid_entry, char *name,
                           const size_t out_size) {

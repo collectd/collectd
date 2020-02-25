@@ -552,7 +552,8 @@ static int wg_config_node(oconfig_item_t *ci) {
 
   plugin_register_write(callback_name, wg_write,
                         &(user_data_t){
-                            .data = cb, .free_func = wg_callback_free,
+                            .data = cb,
+                            .free_func = wg_callback_free,
                         });
 
   plugin_register_flush(callback_name, wg_flush, &(user_data_t){.data = cb});

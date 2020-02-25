@@ -24,6 +24,9 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
+#ifndef UTILS_RANDOM_H
+#define UTILS_RANDOM_H 1
+
 /**
  * Returns a random double value in the range [0..1), i.e. excluding 1.
  *
@@ -46,3 +49,5 @@ uint32_t cdrand_u(void);
  * outside the intended range. This function is thread- and reentrant-safe.
  */
 long cdrand_range(long min, long max);
+
+#endif /* !UTILS_RANDOM_H */

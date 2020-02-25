@@ -335,22 +335,22 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
 
   n.time = vl->time;
 
-  status = snprintf(buf, bufsize, "Host %s, plugin %s", vl->host, vl->plugin);
+  status = ssnprintf(buf, bufsize, "Host %s, plugin %s", vl->host, vl->plugin);
   buf += status;
   bufsize -= status;
 
   if (vl->plugin_instance[0] != '\0') {
-    status = snprintf(buf, bufsize, " (instance %s)", vl->plugin_instance);
+    status = ssnprintf(buf, bufsize, " (instance %s)", vl->plugin_instance);
     buf += status;
     bufsize -= status;
   }
 
-  status = snprintf(buf, bufsize, " type %s", vl->type);
+  status = ssnprintf(buf, bufsize, " type %s", vl->type);
   buf += status;
   bufsize -= status;
 
   if (vl->type_instance[0] != '\0') {
-    status = snprintf(buf, bufsize, " (instance %s)", vl->type_instance);
+    status = ssnprintf(buf, bufsize, " (instance %s)", vl->type_instance);
     buf += status;
     bufsize -= status;
   }
@@ -365,11 +365,12 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
   /* Send an okay notification */
   if (state == STATE_OKAY) {
     if (state_old == STATE_MISSING)
-      snprintf(buf, bufsize, ": Value is no longer missing.");
+      ssnprintf(buf, bufsize, ": Value is no longer missing.");
     else
-      snprintf(buf, bufsize, ": All data sources are within range again. "
-                             "Current value of \"%s\" is %f.",
-               ds->ds[ds_index].name, values[ds_index]);
+      ssnprintf(buf, bufsize,
+                ": All data sources are within range again. "
+                "Current value of \"%s\" is %f.",
+                ds->ds[ds_index].name, values[ds_index]);
   } else if (state == STATE_UNKNOWN) {
     ERROR("ut_report_state: metric transition to UNKNOWN from a different "
           "state. This shouldn't happen.");
@@ -383,21 +384,22 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
 
     if (th->flags & UT_FLAG_INVERT) {
       if (!isnan(min) && !isnan(max)) {
-        snprintf(buf, bufsize,
-                 ": Data source \"%s\" is currently "
-                 "%f. That is within the %s region of %f%s and %f%s.",
-                 ds->ds[ds_index].name, values[ds_index],
-                 (state == STATE_ERROR) ? "failure" : "warning", min,
-                 ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "", max,
-                 ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
+        ssnprintf(buf, bufsize,
+                  ": Data source \"%s\" is currently "
+                  "%f. That is within the %s region of %f%s and %f%s.",
+                  ds->ds[ds_index].name, values[ds_index],
+                  (state == STATE_ERROR) ? "failure" : "warning", min,
+                  ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "", max,
+                  ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       } else {
-        snprintf(buf, bufsize, ": Data source \"%s\" is currently "
-                               "%f. That is %s the %s threshold of %f%s.",
-                 ds->ds[ds_index].name, values[ds_index],
-                 isnan(min) ? "below" : "above",
-                 (state == STATE_ERROR) ? "failure" : "warning",
-                 isnan(min) ? max : min,
-                 ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
+        ssnprintf(buf, bufsize,
+                  ": Data source \"%s\" is currently "
+                  "%f. That is %s the %s threshold of %f%s.",
+                  ds->ds[ds_index].name, values[ds_index],
+                  isnan(min) ? "below" : "above",
+                  (state == STATE_ERROR) ? "failure" : "warning",
+                  isnan(min) ? max : min,
+                  ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       }
     } else if (th->flags & UT_FLAG_PERCENTAGE) {
       gauge_t value;
@@ -416,21 +418,22 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
       else
         value = 100.0 * values[ds_index] / sum;
 
-      snprintf(buf, bufsize,
-               ": Data source \"%s\" is currently "
-               "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
-               ds->ds[ds_index].name, values[ds_index], value,
-               (value < min) ? "below" : "above",
-               (state == STATE_ERROR) ? "failure" : "warning",
-               (value < min) ? min : max);
+      ssnprintf(buf, bufsize,
+                ": Data source \"%s\" is currently "
+                "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
+                ds->ds[ds_index].name, values[ds_index], value,
+                (value < min) ? "below" : "above",
+                (state == STATE_ERROR) ? "failure" : "warning",
+                (value < min) ? min : max);
     } else /* is not inverted */
     {
-      snprintf(buf, bufsize, ": Data source \"%s\" is currently "
-                             "%f. That is %s the %s threshold of %f.",
-               ds->ds[ds_index].name, values[ds_index],
-               (values[ds_index] < min) ? "below" : "above",
-               (state == STATE_ERROR) ? "failure" : "warning",
-               (values[ds_index] < min) ? min : max);
+      ssnprintf(buf, bufsize,
+                ": Data source \"%s\" is currently "
+                "%f. That is %s the %s threshold of %f.",
+                ds->ds[ds_index].name, values[ds_index],
+                (values[ds_index] < min) ? "below" : "above",
+                (state == STATE_ERROR) ? "failure" : "warning",
+                (values[ds_index] < min) ? min : max);
     }
   }
 
@@ -689,9 +692,9 @@ static int ut_missing(const value_list_t *vl,
   FORMAT_VL(identifier, sizeof(identifier), vl);
 
   NOTIFICATION_INIT_VL(&n, vl);
-  snprintf(n.message, sizeof(n.message),
-           "%s has not been updated for %.3f seconds.", identifier,
-           CDTIME_T_TO_DOUBLE(missing_time));
+  ssnprintf(n.message, sizeof(n.message),
+            "%s has not been updated for %.3f seconds.", identifier,
+            CDTIME_T_TO_DOUBLE(missing_time));
   n.time = now;
 
   plugin_dispatch_notification(&n);

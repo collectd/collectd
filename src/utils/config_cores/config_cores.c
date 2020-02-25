@@ -254,7 +254,7 @@ int config_cores_parse(const oconfig_item_t *ci, core_groups_list_t *cgl) {
     } else {
       for (size_t j = 0; j < n && cg_idx < STATIC_ARRAY_SIZE(cgroups); j++) {
         char desc[DATA_MAX_NAME_LEN];
-        snprintf(desc, sizeof(desc), "%u", cores[j]);
+        ssnprintf(desc, sizeof(desc), "%u", cores[j]);
 
         cgroups[cg_idx].desc = strdup(desc);
         if (cgroups[cg_idx].desc == NULL) {
@@ -313,7 +313,7 @@ int config_cores_default(int num_cores, core_groups_list_t *cgl) {
 
   for (int i = 0; i < num_cores; i++) {
     char desc[DATA_MAX_NAME_LEN];
-    snprintf(desc, sizeof(desc), "%d", i);
+    ssnprintf(desc, sizeof(desc), "%d", i);
 
     cgl->cgroups[i].cores = calloc(1, sizeof(*(cgl->cgroups[i].cores)));
     if (cgl->cgroups[i].cores == NULL) {
