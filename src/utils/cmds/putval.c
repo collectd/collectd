@@ -71,7 +71,7 @@ static int set_option(value_list_t *vl, const char *key, const char *value,
 
     if (is_quoted(value, value_len)) {
       int metadata_err;
-      const char *value_str = strndup(value + 1, value_len - 2);
+      const char *value_str = sstrndup(value + 1, value_len - 2);
       if (value_str == NULL) {
         return CMD_ERROR;
       }
@@ -201,6 +201,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
         result = option_err;
         break;
       }
+      continue;
     } else if (status != CMD_NO_OPTION) {
       /* parse_option failed, buffer has been modified.
        * => we need to abort */
