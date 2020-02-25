@@ -1601,6 +1601,7 @@
 #       Interval 600
 #       Collect "dropped" "mbps" "alerts" "kpps"
 #       TimeFrom 0
+#       LastLineOnly false
 #   </File>
 #</Plugin>
 
