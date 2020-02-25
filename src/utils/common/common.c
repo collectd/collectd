@@ -160,6 +160,28 @@ char *sstrdup(const char *s) {
   return r;
 } /* char *sstrdup */
 
+char *sstrndup(const char *s, size_t n) {
+  char *r;
+  size_t sz;
+
+  if (s == NULL)
+    return NULL;
+
+  sz = strlen(s);
+  if (sz > n) {
+    sz = n;
+  }
+  r = malloc(sz + 1);
+  if (r == NULL) {
+    ERROR("sstrndup: Out of memory.");
+    exit(3);
+  }
+  memcpy(r, s, sz);
+  r[sz] = '\0';
+
+  return r;
+} /* char *sstrdup */
+
 /* Even though Posix requires "strerror_r" to return an "int",
  * some systems (e.g. the GNU libc) return a "char *" _and_
  * ignore the second argument ... -tokkee */
