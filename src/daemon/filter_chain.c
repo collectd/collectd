@@ -218,6 +218,34 @@ static int fc_config_add_match(fc_match_t **matches_head, /* {{{ */
     ptr = ptr->next;
   }
 
+  if (ptr == NULL && IS_TRUE(global_option_get("AutoLoadPlugin"))) {
+    char plugin_name[NAME_MAX];
+
+    status = ssnprintf(plugin_name, sizeof(plugin_name), "match_%s",
+                       ci->values[0].value.string);
+    if ((status < 0) || ((size_t)status >= sizeof(plugin_name))) {
+      ERROR("Automatically loading plugin \"match_%s\" failed:"
+            " plugin name would have been truncated.",
+            ci->values[0].value.string);
+      return -1;
+    }
+
+    status = plugin_load(plugin_name, /* flags = */ 0);
+    if (status != 0) {
+      ERROR("Automatically loading plugin \"%s\" failed "
+            "with status %i.",
+            plugin_name, status);
+      return status;
+    }
+
+    ptr = match_list_head;
+    while (ptr != NULL) {
+      if (strcasecmp(ptr->name, ci->values[0].value.string) == 0)
+        break;
+      ptr = ptr->next;
+    }
+  }
+
   if (ptr == NULL) {
     WARNING("Filter subsystem: Cannot find a \"%s\" match. "
             "Did you load the appropriate plugin?",
@@ -275,6 +303,34 @@ static int fc_config_add_target(fc_target_t **targets_head, /* {{{ */
     if (strcasecmp(ptr->name, ci->values[0].value.string) == 0)
       break;
     ptr = ptr->next;
+  }
+
+  if (ptr == NULL && IS_TRUE(global_option_get("AutoLoadPlugin"))) {
+    char plugin_name[NAME_MAX];
+
+    status = ssnprintf(plugin_name, sizeof(plugin_name), "target_%s",
+                       ci->values[0].value.string);
+    if ((status < 0) || ((size_t)status >= sizeof(plugin_name))) {
+      ERROR("Automatically loading plugin \"target_%s\" failed:"
+            " plugin name would have been truncated.",
+            ci->values[0].value.string);
+      return -1;
+    }
+
+    status = plugin_load(plugin_name, /* flags = */ 0);
+    if (status != 0) {
+      ERROR("Automatically loading plugin \"%s\" failed "
+            "with status %i.",
+            plugin_name, status);
+      return status;
+    }
+
+    ptr = target_list_head;
+    while (ptr != NULL) {
+      if (strcasecmp(ptr->name, ci->values[0].value.string) == 0)
+        break;
+      ptr = ptr->next;
+    }
   }
 
   if (ptr == NULL) {
