@@ -2122,7 +2122,8 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   assert(0 == strcmp(ds->type, vl->type));
 #else
   if (0 != strcmp(ds->type, vl->type))
-    WARNING("plugin_dispatch_values: (ds->type = %s) != (vl->type = %s)",
+    WARNING("plugin_dispatch_values: <%s/%s-%s> (ds->type = %s) != (vl->type = %s)",
+            vl->host, vl->plugin, vl->plugin_instance,
             ds->type, vl->type);
 #endif
 
@@ -2130,9 +2131,11 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   assert(ds->ds_num == vl->values_len);
 #else
   if (ds->ds_num != vl->values_len) {
-    ERROR("plugin_dispatch_values: ds->type = %s: "
+    ERROR("plugin_dispatch_values: <%s/%s-%s/%s-%s> ds->type = %s: "
           "(ds->ds_num = %" PRIsz ") != "
           "(vl->values_len = %" PRIsz ")",
+          vl->host, vl->plugin, vl->plugin_instance,
+          vl->type, vl->type_instance,
           ds->type, ds->ds_num, vl->values_len);
     return -1;
   }
