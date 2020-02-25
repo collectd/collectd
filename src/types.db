@@ -200,7 +200,7 @@ pg_numbackends          value:GAUGE:0:U
 pg_scan                 value:DERIVE:0:U
 pg_xact                 value:DERIVE:0:U
 ping                    value:GAUGE:0:65535
-ping_droprate           value:GAUGE:0:100
+ping_droprate           value:GAUGE:0:1
 ping_stddev             value:GAUGE:0:65535
 players                 value:GAUGE:0:1000000
 pools                   value:GAUGE:0:U
