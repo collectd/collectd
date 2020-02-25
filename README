@@ -192,6 +192,9 @@ Features
     - ipmi
       IPMI (Intelligent Platform Management Interface) sensors information.
 
+    - ipstats
+      IPv4 and IPv6; incoming, outgoing, forwarded counters. FreeBSD only.
+
     - iptables
       Iptables' counters: Number of bytes that were matched by a certain
       iptables rule.

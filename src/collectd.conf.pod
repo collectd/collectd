@@ -3940,6 +3940,86 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<ipstats>
+
+This plugin collects counts for ipv4 and ipv6 various types of packets passing
+through the system in total.  At the moment it's only supported on FreeBSD.
+
+The full list of options available to include in the counted statistics is:
+  ip4receive         IPv4 total packets received
+  ip4badsum          IPv4 checksum bad
+  ip4tooshort        IPv4 packet too short
+  ip4toosmall        IPv4 not enough data
+  ip4badhlen         IPv4 ip header length < data size
+  ip4badlen          IPv4 ip length < ip header length
+  ip4fragment        IPv4 fragments received
+  ip4fragdrop        IPv4 frags dropped (dups, out of space)
+  ip4fragtimeout     IPv4 fragments timed out
+  ip4forward         IPv4 packets forwarded
+  ip4fastforward     IPv4 packets fast forwarded
+  ip4cantforward     IPv4 packets rcvd for unreachable dest
+  ip4redirectsent    IPv4 packets forwarded on same net
+  ip4noproto         IPv4 unknown or unsupported protocol
+  ip4deliver         IPv4 datagrams delivered to upper level
+  ip4transmit        IPv4 total ip packets generated here
+  ip4odrop           IPv4 lost packets due to nobufs, etc.
+  ip4reassemble      IPv4 total packets reassembled ok
+  ip4fragmented      IPv4 datagrams successfully fragmented
+  ip4ofragment       IPv4 output fragments created
+  ip4cantfrag        IPv4 don't fragment flag was set, etc.
+  ip4badoptions      IPv4 error in option processing
+  ip4noroute         IPv4 packets discarded due to no route
+  ip4badvers         IPv4 ip version != 4
+  ip4rawout          IPv4 total raw ip packets generated
+  ip4toolong         IPv4 ip length > max ip packet size
+  ip4notmember       IPv4 multicasts for unregistered grps
+  ip4nogif           IPv4 no match gif found
+  ip4badaddr         IPv4 invalid address on header
+
+  ip6receive         IPv6 total packets received
+  ip6tooshort        IPv6 packet too short
+  ip6toosmall        IPv6 not enough data
+  ip6fragment        IPv6 fragments received
+  ip6fragdrop        IPv6 frags dropped(dups, out of space)
+  ip6fragtimeout     IPv6 fragments timed out
+  ip6fragoverflow    IPv6 fragments that exceeded limit
+  ip6forward         IPv6 packets forwarded
+  ip6cantforward     IPv6 packets rcvd for unreachable dest
+  ip6redirectsent    IPv6 packets forwarded on same net
+  ip6deliver         IPv6 datagrams delivered to upper level
+  ip6transmit        IPv6 total ip packets generated here
+  ip6odrop           IPv6 lost packets due to nobufs, etc.
+  ip6reassemble      IPv6 total packets reassembled ok
+  ip6fragmented      IPv6 datagrams successfully fragmented
+  ip6ofragment       IPv6 output fragments created
+  ip6cantfrag        IPv6 don't fragment flag was set, etc.
+  ip6badoptions      IPv6 error in option processing
+  ip6noroute         IPv6 packets discarded due to no route
+  ip6badvers         IPv6 ip6 version != 6
+  ip6rawout          IPv6 total raw ip packets generated
+  ip6badscope        IPv6 scope error
+  ip6notmember       IPv6 don't join this multicast group
+  ip6nogif           IPv6 no match gif found
+  ip6toomanyhdr      IPv6 discarded due to too many headers
+
+By default the following options are included in the counted packets:
+
+- ip4receive
+- ip4forward
+- ip4transmit
+
+- ip6receive
+- ip6forward
+- ip6transmit
+
+For example to also count IPv4 and IPv6 fragments received, include the
+following configuration:
+
+  <Plugin ipstats>
+    ip4fragment true
+    ip6fragment true
+  </Plugin>
+
 =head2 Plugin C<iptables>
 
 =over 4

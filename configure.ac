@@ -6454,6 +6454,7 @@ plugin_intel_rdt="no"
 plugin_interface="no"
 plugin_ipc="no"
 plugin_ipmi="no"
+plugin_ipstats="no"
 plugin_ipvs="no"
 plugin_irq="no"
 plugin_load="no"
@@ -6588,6 +6589,7 @@ fi
 if test "x$ac_system" = "xFreeBSD"; then
   plugin_cpufreq="yes"
   plugin_disk="yes"
+  plugin_ipstats="yes"
   plugin_zfs_arc="yes"
 fi
 
@@ -6906,6 +6908,7 @@ AC_PLUGIN([interface],           [$plugin_interface],         [Interface traffic
 AC_PLUGIN([ipc],                 [$plugin_ipc],               [IPC statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],              [IPMI sensor statistics])
 AC_PLUGIN([iptables],            [$with_libiptc],             [IPTables rule counters])
+AC_PLUGIN([ipstats],             [$plugin_ipstats],           [IP packet statistics])
 AC_PLUGIN([ipvs],                [$plugin_ipvs],              [IPVS connection statistics])
 AC_PLUGIN([irq],                 [$plugin_irq],               [IRQ statistics])
 AC_PLUGIN([java],                [$with_java],                [Embed the Java Virtual Machine])
@@ -7342,6 +7345,7 @@ AC_MSG_RESULT([    interface . . . . . . $enable_interface])
 AC_MSG_RESULT([    ipc . . . . . . . . . $enable_ipc])
 AC_MSG_RESULT([    ipmi  . . . . . . . . $enable_ipmi])
 AC_MSG_RESULT([    iptables  . . . . . . $enable_iptables])
+AC_MSG_RESULT([    ipstats . . . . . . . $enable_ipstats])
 AC_MSG_RESULT([    ipvs  . . . . . . . . $enable_ipvs])
 AC_MSG_RESULT([    irq . . . . . . . . . $enable_irq])
 AC_MSG_RESULT([    java  . . . . . . . . $enable_java])
