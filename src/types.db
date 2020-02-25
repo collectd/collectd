@@ -232,11 +232,15 @@ signal_noise            value:GAUGE:U:0
 signal_power            value:GAUGE:U:0
 signal_quality          value:GAUGE:0:U
 slurm_job_state         value:GAUGE:0:U
-slurm_stats_load        server_thread_count:GAUGE:0:U, agent_thread_count:GAUGE:0:U, agent_queue_size:GAUGE:0:U, dbd_agent_queue_size:GAUGE:0:U
 slurm_node_state        value:GAUGE:0:U
-slurm_stats_backfill    backfilled_jobs:DERIVE:0:U, backfilled_pack_jobs:DERIVE:0:U, cycle_counter:COUNTER:0:U, cycle_last:GAUGE:0:U, cycle_max:COUNTER:0:U, cycle_sum:COUNTER:0:U, cycle_last_depth:GAUGE:0:U, cycle_last_depth_try:GAUGE:0:U, depth_sum:COUNTER:0:U, depth_try_sum:COUNTER:0:U, queue_len:GAUGE:0:U, queue_len_sum:COUNTER:0:U
-slurm_stats_cycles      max:COUNTER:0:U, last:GAUGE:0:U, sum:COUNTER:0:U, counter:COUNTER:0:U, depth:DERIVE:0:U, queue_len:GAUGE:0:U
-slurm_stats_jobs        submitted:DERIVE:0:U, started:DERIVE:0:U, completed:DERIVE:0:U, canceled:DERIVE:0:U, failed:DERIVE:0:U
+slurm_backfilled_jobs   value:DERIVE:0:U
+slurm_cycles            value:DERIVE:0:U
+slurm_cycle_last        value:GAUGE:0:U
+slurm_cycle_duration    value:DERIVE:0:U
+slurm_last_cycle_depth  value:GAUGE:0:U
+slurm_cycle_depth       value:DERIVE:0:U
+slurm_job_stats         value:DERIVE:0:U
+slurm_queue_length      value:DERIVE:0:U
 smart_attribute         current:GAUGE:0:255, worst:GAUGE:0:255, threshold:GAUGE:0:255, pretty:GAUGE:0:U
 smart_badsectors        value:GAUGE:0:U
 smart_powercycles       value:GAUGE:0:U
