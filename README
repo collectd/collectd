@@ -451,6 +451,10 @@ Features
       Reads CPU frequency and C-state residency on modern Intel
       turbo-capable processors.
 
+    - ubi
+      Reads the count of bad physical eraseblocks and the current
+      maximum erase counter value on UBI volumes.
+
     - uptime
       System uptime statistics.
 

@@ -9335,6 +9335,38 @@ L<https://bugzilla.kernel.org/show_bug.cgi?id=151821>
 
 =back
 
+=head2 Plugin C<ubi>
+
+The I<Ubi plugin> collects some statistics about the UBI (Unsorted Block Image).
+Values collected are the number of bad physical eraseblocks on the underlying MTD
+(Memory Technology Device) and the maximum erase counter value concerning one volume.
+
+See following links for details:
+
+L<http://www.linux-mtd.infradead.org/doc/ubi.html>
+L<http://www.linux-mtd.infradead.org/doc/ubifs.html>
+L<https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-class-ubi>
+
+=over 4
+
+=item B<Device> I<Name>
+
+Select the device I<Name> of the UBI volume. Whether it is collected or ignored
+depends on the B<IgnoreSelected> setting, see below.
+
+See F</"IGNORELISTS"> for details.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Sets whether selected devices, i.E<nbsp>e. the ones matches by any of the B<Device>
+statements, are ignored or if all other devices are ignored. If no B<Device> option
+is configured, all devices are collected. If at least one B<Device> is given and no
+B<IgnoreSelected> or set to B<false>, B<only> matching disks will be collected. If
+B<IgnoreSelected>is set to B<true>, all devices are collected B<except> the ones
+matched.
+
+=back
+
 =head2 Plugin C<unixsock>
 
 =over 4

@@ -1981,6 +1981,13 @@ turbostat_la_SOURCES = \
 turbostat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_UBI
+pkglib_LTLIBRARIES += ubi.la
+ubi_la_SOURCES = src/ubi.c
+ubi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+ubi_la_LIBADD = libignorelist.la
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = src/unixsock.c
