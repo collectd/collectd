@@ -3265,9 +3265,8 @@ static int network_init(void) {
 
   if (dispatch_thread_running == 0) {
     int status;
-    status = plugin_thread_create(&dispatch_thread_id, NULL /* no attributes */,
-                                  dispatch_thread, NULL /* no argument */,
-                                  "network disp");
+    status = plugin_thread_create(&dispatch_thread_id, dispatch_thread,
+                                  NULL /* no argument */, "network disp");
     if (status != 0) {
       ERROR("network: pthread_create failed: %s", STRERRNO);
     } else {
@@ -3277,9 +3276,8 @@ static int network_init(void) {
 
   if (receive_thread_running == 0) {
     int status;
-    status = plugin_thread_create(&receive_thread_id, NULL /* no attributes */,
-                                  receive_thread, NULL /* no argument */,
-                                  "network recv");
+    status = plugin_thread_create(&receive_thread_id, receive_thread,
+                                  NULL /* no argument */, "network recv");
     if (status != 0) {
       ERROR("network: pthread_create failed: %s", STRERRNO);
     } else {

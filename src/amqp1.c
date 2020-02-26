@@ -739,9 +739,8 @@ static int amqp1_init(void) /* {{{ */
   if (proactor == NULL) {
     pthread_mutex_init(&send_lock, /* attr = */ NULL);
     /* start_thread */
-    int status =
-        plugin_thread_create(&event_thread_id, NULL /* no attributes */,
-                             event_thread, NULL /* no argument */, "handle");
+    int status = plugin_thread_create(&event_thread_id, event_thread,
+                                      NULL /* no argument */, "handle");
     if (status != 0) {
       ERROR("amqp1 plugin: pthread_create failed: %s", STRERRNO);
     } else {
