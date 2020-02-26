@@ -219,7 +219,7 @@ static int fc_config_add_match(fc_match_t **matches_head, /* {{{ */
   }
 
   if (ptr == NULL && IS_TRUE(global_option_get("AutoLoadPlugin"))) {
-    char plugin_name[NAME_MAX];
+    char plugin_name[DATA_MAX_NAME_LEN];
 
     status = ssnprintf(plugin_name, sizeof(plugin_name), "match_%s",
                        ci->values[0].value.string);
@@ -306,7 +306,7 @@ static int fc_config_add_target(fc_target_t **targets_head, /* {{{ */
   }
 
   if (ptr == NULL && IS_TRUE(global_option_get("AutoLoadPlugin"))) {
-    char plugin_name[NAME_MAX];
+    char plugin_name[DATA_MAX_NAME_LEN];
 
     status = ssnprintf(plugin_name, sizeof(plugin_name), "target_%s",
                        ci->values[0].value.string);
