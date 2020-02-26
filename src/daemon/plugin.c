@@ -1357,7 +1357,8 @@ EXPORT int plugin_register_cache_event(const char *name,
   user_data_t user_data;
   if (ud == NULL) {
     user_data = (user_data_t){
-        .data = NULL, .free_func = NULL,
+        .data = NULL,
+        .free_func = NULL,
     };
   } else {
     user_data = *ud;
@@ -2122,9 +2123,9 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   assert(0 == strcmp(ds->type, vl->type));
 #else
   if (0 != strcmp(ds->type, vl->type))
-    WARNING("plugin_dispatch_values: <%s/%s-%s> (ds->type = %s) != (vl->type = %s)",
-            vl->host, vl->plugin, vl->plugin_instance,
-            ds->type, vl->type);
+    WARNING(
+        "plugin_dispatch_values: <%s/%s-%s> (ds->type = %s) != (vl->type = %s)",
+        vl->host, vl->plugin, vl->plugin_instance, ds->type, vl->type);
 #endif
 
 #if COLLECT_DEBUG
@@ -2134,9 +2135,8 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
     ERROR("plugin_dispatch_values: <%s/%s-%s/%s-%s> ds->type = %s: "
           "(ds->ds_num = %" PRIsz ") != "
           "(vl->values_len = %" PRIsz ")",
-          vl->host, vl->plugin, vl->plugin_instance,
-          vl->type, vl->type_instance,
-          ds->type, ds->ds_num, vl->values_len);
+          vl->host, vl->plugin, vl->plugin_instance, vl->type,
+          vl->type_instance, ds->type, ds->ds_num, vl->values_len);
     return -1;
   }
 #endif
