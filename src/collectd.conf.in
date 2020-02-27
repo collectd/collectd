@@ -168,6 +168,7 @@
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NOTIFY_NAGIOS_TRUE@LoadPlugin notify_nagios
+#@BUILD_PLUGIN_NOTIFY_SNMP_TRUE@LoadPlugin notify_snmp
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 #@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
@@ -1088,6 +1089,30 @@
 
 #<Plugin notify_nagios>
 #	CommandFile "/usr/local/nagios/var/rw/nagios.cmd"
+#</Plugin>
+
+#<Plugin notify_snmp>
+#        <OIDs collectd>
+#                EnterpriseOID     "SNMPv2-SMI::experimental.100"
+#                TrapOID           "SNMPv2-SMI::experimental.100.1"
+#                TimeStampOID      "SNMPv2-SMI::experimental.100.2.1"
+#                SeverityOID       "SNMPv2-SMI::experimental.100.2.2"
+#                HostOID           "SNMPv2-SMI::experimental.100.2.3"
+#                PluginOID         "SNMPv2-SMI::experimental.100.2.4"
+#                PluginInstanceOID "SNMPv2-SMI::experimental.100.2.5"
+#                TypeOID           "SNMPv2-SMI::experimental.100.2.6"
+#                TypeInstanceOID   "SNMPv2-SMI::experimental.100.2.7"
+#                DataSourceOID     "SNMPv2-SMI::experimental.100.2.8"
+#                ValueOID          "SNMPv2-SMI::experimental.100.2.9"
+#                MessageOID        "SNMPv2-SMI::experimental.100.2.10"
+#        </OIDs>
+#        <Target localhost>
+#                Address "localhost:162"
+#                Version 2
+#                Community "public"
+#                SessionReuse true
+#                OIDs collectd
+#        </Target>
 #</Plugin>
 
 #<Plugin ntpd>
