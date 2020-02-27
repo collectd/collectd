@@ -90,7 +90,7 @@ struct notify_snmp_target_s {
     int     version;
     notify_snmp_oids_t *oids;
     void    *sess_handle;
-    _Bool   sess_reuse;
+    bool    sess_reuse;
     pthread_mutex_t session_lock;
 
     struct notify_snmp_target_s *next;
@@ -468,7 +468,7 @@ static int notify_snmp_config_add_target (oconfig_item_t *ci) /* {{{ */
     }
 
     target->version = 1;
-    target->sess_reuse = 0;
+    target->sess_reuse = false;
 
     for (i = 0; i < ci->children_num; i++)
     {
