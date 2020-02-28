@@ -3617,6 +3617,7 @@ B<Synopsis:>
     EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
     HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
     Cores "0-3" "4,6" "[12-15]"
+    DispatchMultiPmu false
   </Plugin>
 
 B<Options:>
@@ -3704,6 +3705,12 @@ Allowed formats are:
 
 If an empty string is provided as value for this field default cores
 configuration is applied - that is separate group is created for each core.
+
+=item B<DispatchMultiPmu> B<false>|B<true>
+
+Enable or disable dispatching of cloned multi PMU for uncore events. If
+disabled only total sum is dispatched as single event. If enabled separate
+metric is dispatched for every counter.
 
 =back
 
