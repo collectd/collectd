@@ -551,6 +551,12 @@ B<Synopsis:>
  #   ConnectionRetryDelay 0
  #   Format "command"
  #   StoreRates false
+ #   TLSEnabled false
+ #   TLSVerifyPeer true
+ #   TLSVerifyHostName true
+ #   TLSCACert "/path/to/ca.pem"
+ #   TLSClientCert "/path/to/client-cert.pem"
+ #   TLSClientKey "/path/to/client-key.pem"
  #   GraphitePrefix "collectd."
  #   GraphiteEscapeChar "_"
  #   GraphiteSeparateInstances false
@@ -572,6 +578,12 @@ B<Synopsis:>
  #   QueueAutoDelete true
  #   RoutingKey "collectd.#"
  #   ConnectionRetryDelay 0
+ #   TLSEnabled false
+ #   TLSVerifyPeer true
+ #   TLSVerifyHostName true
+ #   TLSCACert "/path/to/ca.pem"
+ #   TLSClientCert "/path/to/client-cert.pem"
+ #   TLSClientKey "/path/to/client-key.pem"
    </Subscribe>
  </Plugin>
 
@@ -735,6 +747,41 @@ more than one DS.
 If set to B<false> (the default) the C<.> (dot) character is replaced with
 I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
 is preserved, i.e. passed through.
+
+=item B<TLSEnabled> B<true>|B<false>
+
+If set to B<true> then connect to the broker using a TLS connection.
+If set to B<false> (the default), then a plain text connection is used.
+
+Requires rabbitmq-c >= 0.4.
+
+=item B<TLSVerifyPeer> B<true>|B<false>
+
+If set to B<true> (the default) then the server certificate chain is verified.
+Setting this to B<false> will skip verification (insecure).
+
+Requires rabbitmq-c >= 0.8.
+
+=item B<TLSVerifyHostName> B<true>|B<false>
+
+If set to B<true> (the default) then the server host name is verified.
+Setting this to B<false> will skip verification (insecure).
+
+Requires rabbitmq-c >= 0.8.
+
+=item B<TLSCACert> I<Path>
+
+Path to the CA cert file in PEM format.
+
+=item B<TLSClientCert> I<Path>
+
+Path to the client certificate in PEM format.
+If this is set, then B<TLSClientKey> must be set as well.
+
+=item B<TLSClientKey> I<Path>
+
+Path to the client key in PEM format.
+If this is set, then B<TLSClientCert> must be set as well.
 
 =back
 
