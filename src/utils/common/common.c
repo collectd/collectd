@@ -163,7 +163,7 @@ char *sstrdup(const char *s) {
 size_t sstrnlen(const char *s, size_t n) {
   const char *p = s;
 
-  while(n-- > 0 && *p)
+  while (n-- > 0 && *p)
     p++;
 
   return p - s;
