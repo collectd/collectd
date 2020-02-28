@@ -2198,6 +2198,61 @@ AC_SUBST([BUILD_WITH_LIBHIREDIS_CPPFLAGS])
 AC_SUBST([BUILD_WITH_LIBHIREDIS_LDFLAGS])
 # }}}
 
+# --with-libredfish {{{
+AC_ARG_WITH([libredfish],
+  [AS_HELP_STRING([--with-libredfish@<:@=PREFIX@:>@], [Path to libredfish.])],
+  [
+    if test "x$withval" = "xyes"; then
+      with_libredfish="yes"
+    else if test "x$withval" = "xno"; then
+      with_libredfish="no"
+    else
+      with_libredfish="yes"
+      LIBREDFISH_CPPFLAGS="$LIBREDFISH_CPPFLAGS -I$withval/include"
+      LIBREDFISH_LDFLAGS="$LIBREDFISH_LDFLAGS -L$withval/lib"
+    fi; fi
+  ],
+  [with_libredfish="yes"]
+)
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBREDFISH_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBREDFISH_LDFLAGS"
+
+if test "x$with_libredfish" = "xyes"; then
+  if test "x$LIBREDFISH_CPPFLAGS" != "x"; then
+    AC_MSG_NOTICE([libredfish CPPFLAGS: $LIBHIREDFISH_CPPFLAGS])
+  fi
+  AC_CHECK_HEADERS([redfish.h],
+    [with_libredfish="yes"],
+    [with_libredfish="no (redfish.h not found)"]
+  )
+fi
+
+if test "x$with_libredfish" = "xyes"; then
+  if test "x$LIBREDFISH_LDFLAGS" != "x"; then
+    AC_MSG_NOTICE([libredfish LDFLAGS: $LIBREDFISH_LDFLAGS])
+  fi
+  AC_CHECK_LIB([redfish], [createServiceEnumerator],
+    [with_libredfish="yes"],
+    [with_libredfish="no (symbol 'createServiceEnumerator' not found)"]
+  )
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libredfish" = "xyes"; then
+  BUILD_WITH_LIBREDFISH_CPPFLAGS="$LIBREDFISH_CPPFLAGS"
+  BUILD_WITH_LIBREDFISH_LDFLAGS="$LIBREDFISH_LDFLAGS"
+fi
+
+AC_SUBST([BUILD_WITH_LIBREDFISH_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBREDFISH_LDFLAGS])
+
+# }}}
+
 # --with-libcurl {{{
 with_curl_config="curl-config"
 with_curl_cflags=""
@@ -6966,6 +7021,7 @@ AC_PLUGIN([processes],           [$plugin_processes],         [Process statistic
 AC_PLUGIN([procevent],           [$plugin_procevent],         [Process event (start, stop) statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],         [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],            [Embed a Python interpreter])
+AC_PLUGIN([redfish],             [$with_libredfish],          [Redfish plugin])
 AC_PLUGIN([redis],               [$with_libhiredis],          [Redis plugin])
 AC_PLUGIN([routeros],            [$with_librouteros],         [RouterOS plugin])
 AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],       [RRDTool output plugin])
@@ -7404,6 +7460,7 @@ AC_MSG_RESULT([    processes . . . . . . $enable_processes])
 AC_MSG_RESULT([    procevent . . . . . . $enable_procevent])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
+AC_MSG_RESULT([    redfish . . . . . . . $enable_redfish])
 AC_MSG_RESULT([    redis . . . . . . . . $enable_redis])
 AC_MSG_RESULT([    routeros  . . . . . . $enable_routeros])
 AC_MSG_RESULT([    rrdcached . . . . . . $enable_rrdcached])

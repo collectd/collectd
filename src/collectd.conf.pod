@@ -7652,6 +7652,97 @@ matching values will be ignored.
 This plugin embeds a Python-interpreter into collectd and provides an interface
 to collectd's plugin system. See L<collectd-python(5)> for its documentation.
 
+=head2 Plugin C<redfish>
+
+The C<redfish> plugin collects sensor data using REST protocol called
+Redfish.
+
+B<Sample configuration:>
+
+  <Plugin redfish>
+    <Query "fans">
+      Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
+      <Resource "Fans">
+        <Property "ReadingRPM">
+          PluginInstance "chassis-1"
+          Type "rpm"
+        </Property>
+      </Resource>
+    </Query>
+    <Query "temperatures">
+      Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
+      <Resource "Temperatures">
+        <Property "ReadingCelsius">
+          PluginInstance "chassis-1"
+          Type "degrees"
+        </Property>
+      </Resource>
+    </Query>
+    <Query "voltages">
+      Endpoint "/redfish/v1/Chassis/Chassis-1/Power"
+      <Resource "Voltages">
+        <Property "ReadingVolts">
+          PluginInstance "chassis-1"
+          Type "volts"
+        </Property>
+      </Resource>
+    </Query>
+    <Service "local">
+      Host "127.0.0.1:5000"
+      User "user"
+      Passwd "passwd"
+      Queries "fans" "voltages" "temperatures"
+    </Service>
+  </Plugin>
+
+=over 4
+
+=item B<Query>
+
+Section defining a query performed on Redfish interface
+
+=item B<Endpoint>
+
+URI of the REST API Endpoint for accessing the BMC
+
+=item B<Resource>
+
+Selects single resource or array to collect data.
+
+=item B<Property>
+
+Selects property from which data is gathered
+
+=item B<PluginInstance>
+
+Plugin instance of dispatched collectd metric
+
+=item B<Type>
+
+Type of dispatched collectd metric
+
+=item B<TypeInstance>
+
+Type instance of collectd metric
+
+=item B<Service>
+
+Section defining service to be sent requests
+
+=item B<Username>
+
+BMC username
+
+=item B<Password>
+
+BMC password
+
+=item B<Queries>
+
+Queries to run
+
+=back
+
 =head2 Plugin C<routeros>
 
 The C<routeros> plugin connects to a device running I<RouterOS>, the

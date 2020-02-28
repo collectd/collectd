@@ -1706,6 +1706,26 @@ protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 protocols_la_LIBADD = libignorelist.la
 endif
 
+if BUILD_PLUGIN_REDFISH
+pkglib_LTLIBRARIES += redfish.la
+redfish_la_SOURCES = src/redfish.c
+redfish_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
+redfish_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
+redfish_la_LIBADD = $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish
+
+test_plugin_redfish_SOURCES = src/redfish_test.c \
+                              src/utils/avltree/avltree.c \
+                              src/daemon/utils_llist.c \
+                              src/daemon/configfile.c \
+                              src/daemon/types_list.c
+test_plugin_redfish_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
+test_plugin_redfish_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
+test_plugin_redfish_LDADD = liboconfig.la libplugin_mock.la \
+                            $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish -ljansson
+check_PROGRAMS += test_plugin_redfish
+TESTS += test_plugin_redfish
+endif
+
 if BUILD_PLUGIN_REDIS
 pkglib_LTLIBRARIES += redis.la
 redis_la_SOURCES = src/redis.c
