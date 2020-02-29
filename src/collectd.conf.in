@@ -147,6 +147,7 @@
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
+#@BUILD_PLUGIN_LOGPARSER_TRUE@LoadPlugin logparser
 #@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
@@ -814,6 +815,65 @@
 #<Plugin lpar>
 #	CpuPoolStats   false
 #	ReportBySerial false
+#</Plugin>
+
+#<Plugin logparser>
+#  <Logfile "/var/log/syslog">
+#    FirstFullRead false
+#    <Message "pcie_errors">
+#      DefaultType "pcie_error"
+#      DefaultSeverity "warning"
+#      <Match "aer error">
+#        Regex "AER:.*error received"
+#        SubmatchIdx -1
+#      </Match>
+#      <Match "incident time">
+#        Regex "(... .. ..:..:..) .* pcieport.*AER"
+#        SubmatchIdx 1
+#        IsMandatory false
+#      </Match>
+#      <Match "root port">
+#        Regex "pcieport (.*): AER:"
+#        SubmatchIdx 1
+#        IsMandatory true
+#      </Match>
+#      <Match "device">
+#        PluginInstance true
+#        Regex " ([0-9a-fA-F:\\.]*): PCIe Bus Error"
+#        SubmatchIdx 1
+#        IsMandatory false
+#      </Match>
+#      <Match "severity_mandatory">
+#        Regex "severity="
+#        SubMatchIdx -1
+#      </Match>
+#      <Match "nonfatal">
+#        Regex "severity=.*\\([nN]on-[fF]atal"
+#        TypeInstance "non_fatal"
+#        IsMandatory false
+#      </Match>
+#      <Match "fatal">
+#        Regex "severity=.*\\([fF]atal"
+#        Severity "failure"
+#        TypeInstance "fatal"
+#        IsMandatory false
+#      </Match>
+#      <Match "corrected">
+#        Regex "severity=Corrected"
+#        TypeInstance "correctable"
+#        IsMandatory false
+#      </Match>
+#      <Match "error type">
+#        Regex "type=(.*),"
+#        SubmatchIdx 1
+#        IsMandatory false
+#      </Match>
+#     <Match "id">
+#        Regex ", id=(.*)"
+#        SubmatchIdx 1
+#      </Match>
+#    </Message>
+#  </Logfile>
 #</Plugin>
 
 #<Plugin lua>

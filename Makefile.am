@@ -155,6 +155,7 @@ check_PROGRAMS = \
 	test_utils_cmds \
 	test_utils_heap \
 	test_utils_latency \
+	test_utils_message_parser \
 	test_utils_mount \
 	test_utils_subst \
 	test_utils_time \
@@ -359,6 +360,19 @@ test_utils_heap_SOURCES = \
 	src/utils/heap/heap_test.c \
 	src/testing.h
 test_utils_heap_LDADD = libheap.la $(COMMON_LIBS)
+
+test_utils_message_parser_SOURCES = \
+	src/utils/message_parser/message_parser_test.c \
+	src/testing.h \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c \
+	src/utils_tail_match.c src/utils_tail_match.h \
+	src/utils/tail/tail.c src/utils/tail/tail.h \
+	src/utils/match/match.c src/utils/match/match.h \
+	src/utils/latency/latency.c src/utils/latency/latency.h \
+	src/utils/latency/latency_config.c src/utils/latency/latency_config.h
+test_utils_message_parser_CPPFLAGS = $(AM_CPPFLAGS)
+test_utils_message_parser_LDADD = liboconfig.la libplugin_mock.la -lm
 
 test_utils_time_SOURCES = \
 	src/daemon/utils_time_test.c \
@@ -1226,6 +1240,32 @@ pkglib_LTLIBRARIES += logfile.la
 logfile_la_SOURCES = src/logfile.c
 logfile_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 logfile_la_DEPENDENCIES = $(COMMON_DEPS)
+endif
+
+if BUILD_PLUGIN_LOGPARSER
+pkglib_LTLIBRARIES += logparser.la
+logparser_la_SOURCES = src/logparser.c \
+	src/utils/message_parser/message_parser.c src/utils/message_parser/message_parser.h \
+	src/utils_tail_match.c src/utils_tail_match.h \
+	src/utils/tail/tail.c src/utils/tail/tail.h \
+	src/utils/match/match.c src/utils/match/match.h \
+	src/utils/latency/latency.c src/utils/latency/latency.h \
+	src/utils/latency/latency_config.c src/utils/latency/latency_config.h
+logparser_la_CPPFLAGS = $(AM_CPPFLAGS)
+logparser_la_LDFLAGS = $(PLUGIN_LDFLAGS) -lm
+
+test_plugin_logparser_SOURCES = src/logparser_test.c \
+       src/utils/message_parser/message_parser.c \
+       src/utils_tail_match.c src/utils_tail_match.h \
+       src/utils/tail/tail.c src/utils/tail/tail.h \
+       src/utils/match/match.c src/utils/match/match.h \
+       src/daemon/configfile.c \
+       src/daemon/types_list.c
+test_plugin_logparser_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_logparser_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_logparser_LDADD = liboconfig.la libplugin_mock.la liblatency.la
+check_PROGRAMS += test_plugin_logparser
+TESTS += test_plugin_logparser
 endif
 
 if BUILD_PLUGIN_LOG_LOGSTASH

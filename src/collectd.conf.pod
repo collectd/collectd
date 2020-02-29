@@ -4182,6 +4182,161 @@ B<Note>: There is no need to notify the daemon after moving or removing the
 log file (e.E<nbsp>g. when rotating the logs). The plugin reopens the file
 for each line it writes.
 
+=head2 Plugin C<logparser>
+
+The I<logparser> plugin is used to parse different kinds of logs. Setting proper
+options you can choose strings to collect. Plugin searches the log file for
+messages which contain several matches (two or more). When all mandatory matches
+are found then it sends proper notification containing all fetched values.
+
+B<Synopsis:>
+
+  <Plugin logparser>
+    <Logfile "/var/log/syslog">
+      FirstFullRead false
+      <Message "pcie_errors">
+        DefaultType "pcie_error"
+        DefaultSeverity "warning"
+        <Match "aer error">
+          Regex "AER:.*error received"
+          SubmatchIdx -1
+        </Match>
+        <Match "incident time">
+          Regex "(... .. ..:..:..) .* pcieport.*AER"
+          SubmatchIdx 1
+          IsMandatory false
+        </Match>
+        <Match "root port">
+          Regex "pcieport (.*): AER:"
+          SubmatchIdx 1
+          IsMandatory true
+        </Match>
+        <Match "device">
+          PluginInstance true
+          Regex " ([0-9a-fA-F:\\.]*): PCIe Bus Error"
+          SubmatchIdx 1
+          IsMandatory false
+        </Match>
+        <Match "severity_mandatory">
+          Regex "severity="
+          SubMatchIdx -1
+        </Match>
+        <Match "nonfatal">
+          Regex "severity=.*\\([nN]on-[fF]atal"
+          TypeInstance "non_fatal"
+          IsMandatory false
+        </Match>
+        <Match "fatal">
+          Regex "severity=.*\\([fF]atal"
+          Severity "failure"
+          TypeInstance "fatal"
+          IsMandatory false
+        </Match>
+        <Match "corrected">
+          Regex "severity=Corrected"
+          TypeInstance "correctable"
+          IsMandatory false
+        </Match>
+        <Match "error type">
+          Regex "type=(.*),"
+          SubmatchIdx 1
+          IsMandatory false
+        </Match>
+       <Match "id">
+          Regex ", id=(.*)"
+          SubmatchIdx 1
+        </Match>
+      </Message>
+    </Logfile>
+  </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Logfile> I<File>
+
+The B<Logfile> block defines file to search. It may contain one or more
+B<Message> blocks which are defined below.
+
+=item B<FirstFullRead> I<true>|I<false>
+
+Set to true if the file has to be parsed from the beginning on the first read.
+If false only subsequent writes to log file will be parsed.
+
+=item B<Message> I<Name>
+
+B<Message> block contains matches to search the log file for. Each B<Message>
+block builds a notification message using matched elements if its mandatory
+B<Match> blocks are matched.
+
+=item B<DefaultPluginInstance> I<String>
+
+Sets the default value for the plugin instance of the notification.
+
+=item B<DefaultType> I<String>
+
+Sets the default value for the type of the notification.
+
+=item B<DefaultTypeInstance> I<String>
+
+Sets the default value for the type instance of the notification.
+
+=item B<DefaultSeverity> I<String>
+
+Sets the default severity. Must be set to "OK", "WARNING" or "FAILURE".
+Default value is "OK".
+
+=item B<Match> I<Name>
+
+Multiple I<Match> blocks define regular expression patterns for extracting or
+excluding specific string patterns from parsing. First and last I<Match> items
+in the same I<Message> set boundaries of multiline message and are mandatory.
+If these matches are not found then the whole message is discarded.
+
+=item B<Regex> I<Regex>
+
+Regular expression with pattern matching string. It may contain subexpressions,
+so next option B<SubmatchIdx> specifies which subexpression should be stored.
+
+=item B<SubmatchIdx> I<Integer>
+
+Index of subexpression to be used for notification. Multiple subexpressions are
+allowed. Index value 0 takes whole regular expression match as a result.
+Index value -1 does not add result to message item. Can be omitted, default
+value is 0.
+
+=item B<Excluderegex> I<Regex>
+
+Regular expression for excluding lines containing specific matching strings.
+This is processed before checking I<Regex> pattern. It is optional and can
+be omitted.
+
+=item B<IsMandatory>  I<true>|I<false>
+
+Flag indicating if I<Match> item is mandatory for message validation. If set to
+true, whole message is discarded if it's missing. For false its presence is
+optional. Default value is set to true.
+
+=item B<PluginInstance> I<true>|I<String>
+
+If set to true, it sets plugin instance to string returned by regex. It can be
+overridden by user string.
+
+=item B<Type> I<true>|I<String>
+
+Sets notification type using rules like B<PluginInstance>.
+
+=item B<TypeInstance> I<true>|I<String>
+
+Sets notification type instance using rules like above.
+
+=item B<Severity> I<String>
+
+Sets notification severity to one of the options: "OK", "WARNING", "FAILURE".
+
+=back
+
 =head2 Plugin C<log_logstash>
 
 The I<log logstash plugin> behaves like the logfile plugin but formats
