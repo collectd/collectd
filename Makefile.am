@@ -771,6 +771,32 @@ buddyinfo_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 buddyinfo_la_LIBADD = libignorelist.la
 endif
 
+if BUILD_PLUGIN_CAPABILITIES
+pkglib_LTLIBRARIES += capabilities.la
+capabilities_la_SOURCES = src/capabilities.c \
+                          src/utils/dmi/dmi.c \
+                          src/utils/dmi/dmi.h
+capabilities_la_CPPFLAGS = $(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS) $(BUILD_WITH_LIBJANSSON_CPPFLAGS)
+capabilities_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBMICROHTTPD_LDFLAGS) $(BUILD_WITH_LIBJANSSON_LDFLAGS)
+capabilities_la_LIBADD = $(BUILD_WITH_LIBMICROHTTPD_LIBS) \
+	$(BUILD_WITH_LIBJANSSON_LIBS)
+
+test_plugin_capabilities_SOURCES = \
+        src/capabilities_test.c \
+        src/daemon/configfile.c \
+        src/daemon/types_list.c
+test_plugin_capabilities_CPPFLAGS = $(AM_CPPFLAGS) \
+        $(BUILD_WITH_LIBJANSSON_CPPFLAGS)
+test_plugin_capabilities_LDFLAGS = $(PLUGIN_LDFLAGS) \
+        $(BUILD_WITH_LIBJANSSON_LDFLAGS)
+test_plugin_capabilities_LDADD = liboconfig.la libplugin_mock.la \
+        $(BUILD_WITH_LIBJANSSON_LIBS)
+check_PROGRAMS += test_plugin_capabilities
+TESTS += test_plugin_capabilities
+endif
+
 if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = src/ceph.c

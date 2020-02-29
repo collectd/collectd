@@ -4646,7 +4646,7 @@ if test "x$with_libjansson" = "xyes"; then
 
   AC_CHECK_LIB([jansson], [json_loads],
     [with_libjansson="yes"],
-    [with_libjansson="no (Symbol 'json_loads' not found)"]
+    [with_libjansson="no (symbol 'json_loads' not found)"]
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
@@ -6480,6 +6480,7 @@ plugin_barometer="no"
 plugin_battery="no"
 plugin_bind="no"
 plugin_buddyinfo="no"
+plugin_capabilities="no"
 plugin_ceph="no"
 plugin_cgroups="no"
 plugin_connectivity="no"
@@ -6613,6 +6614,10 @@ if test "x$ac_system" = "xLinux"; then
 
   if test "x$have_pci_regs_h" = "xyes"; then
     plugin_pcie_errors="yes"
+  fi
+
+  if test "x$with_libmicrohttpd" = "xyes" && test "x$with_libjansson" = "xyes"; then
+    plugin_capabilities="yes"
   fi
 fi
 
@@ -6923,6 +6928,7 @@ AC_PLUGIN([barometer],           [$plugin_barometer],         [Barometer sensor 
 AC_PLUGIN([battery],             [$plugin_battery],           [Battery statistics])
 AC_PLUGIN([bind],                [$plugin_bind],              [ISC Bind nameserver statistics])
 AC_PLUGIN([buddyinfo],           [$plugin_buddyinfo],         [buddyinfo statistics])
+AC_PLUGIN([capabilities],        [$plugin_capabilities],      [Platform static capabilities])
 AC_PLUGIN([ceph],                [$plugin_ceph],              [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],           [CGroups CPU usage accounting])
 AC_PLUGIN([chrony],              [yes],                       [Chrony statistics])
@@ -7364,6 +7370,7 @@ AC_MSG_RESULT([    barometer . . . . . . $enable_barometer])
 AC_MSG_RESULT([    battery . . . . . . . $enable_battery])
 AC_MSG_RESULT([    bind  . . . . . . . . $enable_bind])
 AC_MSG_RESULT([    buddyinfo . . . . . . $enable_buddyinfo])
+AC_MSG_RESULT([    capabilities  . . . . $enable_capabilities])
 AC_MSG_RESULT([    ceph  . . . . . . . . $enable_ceph])
 AC_MSG_RESULT([    cgroups . . . . . . . $enable_cgroups])
 AC_MSG_RESULT([    chrony. . . . . . . . $enable_chrony])

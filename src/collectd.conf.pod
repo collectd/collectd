@@ -1469,6 +1469,36 @@ Zone to collect info about. Will collect all zones by default.
 
 =back
 
+=head2 Plugin C<capabilities>
+
+The C<capabilities> plugin collects selected static platform data using
+I<dmidecode> and expose it through micro embedded webserver. The data
+returned by plugin is in json format.
+
+B<Synopsis:>
+
+  <Plugin capabilities>
+    Host "localhost"
+    Port "9104"
+  </Plugin>
+
+Available configuration options for the C<capabilities> plugin:
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Bind to the hostname / address I<Host>. By default, the plugin will bind to the
+"any" address, i.e. accept packets sent to any of the hosts addresses.
+
+This option is supported only for libmicrohttpd newer than 0.9.0.
+
+=item B<Port> I<Port>
+
+Port the embedded webserver should listen on. Defaults to B<9104>.
+
+=back
+
 =head2 Plugin C<ceph>
 
 The ceph plugin collects values from JSON data to be parsed by B<libyajl>
