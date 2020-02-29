@@ -643,6 +643,8 @@ static int rrd_cache_insert(const char *filename, const char *value,
     DEBUG("rrdtool plugin: (rc->last_value = %" PRIu64 ") "
           ">= (value_time = %" PRIu64 ")",
           rc->last_value, value_time);
+    sfree(rc->values);
+    sfree(rc);
     return -1;
   }
 

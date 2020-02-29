@@ -1306,7 +1306,6 @@ EXPORT int plugin_register_flush(const char *name, plugin_flush_cb callback,
             .data = cb,
             .free_func = plugin_flush_timeout_callback_free,
         });
-    sfree(cb);
     sfree(flush_name);
     return status;
   }
