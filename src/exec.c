@@ -38,6 +38,7 @@
 #include "utils/cmds/putval.h"
 
 #include <grp.h>
+#include <poll.h>
 #include <pwd.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -569,8 +570,8 @@ static int parse_line(char *buffer) /* {{{ */
 static void *exec_read_one(void *arg) /* {{{ */
 {
   program_list_t *pl = (program_list_t *)arg;
-  int fd, fd_err, highest_fd;
-  fd_set fdset, copy;
+  int fd, fd_err;
+  struct pollfd fds[2] = {{0}};
   int status;
   char buffer[1200]; /* if not completely read */
   char buffer_err[1024];
@@ -589,27 +590,22 @@ static void *exec_read_one(void *arg) /* {{{ */
 
   assert(pl->pid != 0);
 
-  FD_ZERO(&fdset);
-  FD_SET(fd, &fdset);
-  FD_SET(fd_err, &fdset);
-
-  /* Determine the highest file descriptor */
-  highest_fd = (fd > fd_err) ? fd : fd_err;
-
-  /* We use a copy of fdset, as select modifies it */
-  copy = fdset;
+  fds[0].fd = fd;
+  fds[0].events = POLLIN;
+  fds[1].fd = fd_err;
+  fds[1].events = POLLIN;
 
   while (1) {
     int len;
 
-    status = select(highest_fd + 1, &copy, NULL, NULL, NULL);
+    status = poll(fds, STATIC_ARRAY_SIZE(fds), -1);
     if (status < 0) {
       if (errno == EINTR)
         continue;
       break;
     }
 
-    if (FD_ISSET(fd, &copy)) {
+    if (fds[0].revents & (POLLIN | POLLHUP)) {
       char *pnl;
 
       len = read(fd, pbuffer, sizeof(buffer) - 1 - (pbuffer - buffer));
@@ -642,7 +638,10 @@ static void *exec_read_one(void *arg) /* {{{ */
         pbuffer = buffer + len;
       } else
         pbuffer = buffer;
-    } else if (FD_ISSET(fd_err, &copy)) {
+    } else if (fds[0].revents & (POLLERR | POLLNVAL)) {
+      ERROR("exec plugin: Failed to read pipe from `%s'.", pl->exec);
+      break;
+    } else if (fds[1].revents & (POLLIN | POLLHUP)) {
       char *pnl;
 
       len = read(fd_err, pbuffer_err,
@@ -656,14 +655,11 @@ static void *exec_read_one(void *arg) /* {{{ */
         /* We've reached EOF */
         NOTICE("exec plugin: Program `%s' has closed STDERR.", pl->exec);
 
-        /* Remove file descriptor form select() set. */
-        FD_CLR(fd_err, &fdset);
-        copy = fdset;
-        highest_fd = fd;
-
         /* Clean up file descriptor */
         close(fd_err);
         fd_err = -1;
+        fds[1].fd = -1;
+        fds[1].events = 0;
         continue;
       }
 
@@ -688,9 +684,16 @@ static void *exec_read_one(void *arg) /* {{{ */
         pbuffer_err = buffer_err + len;
       } else
         pbuffer_err = buffer_err;
+    } else if (fds[1].revents & (POLLERR | POLLNVAL)) {
+      WARNING("exec plugin: Ignoring STDERR for program `%s'.", pl->exec);
+      /* Clean up file descriptor */
+      if ((fds[1].revents & POLLNVAL) == 0) {
+        close(fd_err);
+        fd_err = -1;
+      }
+      fds[1].fd = -1;
+      fds[1].events = 0;
     }
-    /* reset copy */
-    copy = fdset;
   }
 
   DEBUG("exec plugin: exec_read_one: Waiting for `%s' to exit.", pl->exec);
