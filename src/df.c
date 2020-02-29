@@ -47,8 +47,9 @@
 #endif
 
 static const char *config_keys[] = {
-    "Device",         "MountPoint",   "FSType",         "IgnoreSelected",
-    "ReportByDevice", "ReportInodes", "ValuesAbsolute", "ValuesPercentage"};
+    "Device",         "MountPoint",      "FSType",
+    "IgnoreSelected", "ReportAvailUsed", "ReportByDevice",
+    "ReportInodes",   "ValuesAbsolute",  "ValuesPercentage"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *il_device;
@@ -56,6 +57,7 @@ static ignorelist_t *il_mountpoint;
 static ignorelist_t *il_fstype;
 
 static bool by_device;
+static bool report_availused = false;
 static bool report_inodes;
 static bool values_absolute = true;
 static bool values_percentage;
@@ -97,6 +99,12 @@ static int df_config(const char *key, const char *value) {
       ignorelist_set_invert(il_fstype, 1);
     }
     return 0;
+  } else if (strcasecmp(key, "ReportAvailUsed") == 0) {
+    if (IS_TRUE(value))
+      report_availused = 1;
+    else
+      report_availused = 0;
+    return (0);
   } else if (strcasecmp(key, "ReportByDevice") == 0) {
     if (IS_TRUE(value))
       by_device = true;
@@ -281,6 +289,12 @@ static int df_read(void) {
             (gauge_t)((float_t)(blk_reserved) / statbuf.f_blocks * 100));
         df_submit_one(disk_name, "percent_bytes", "used",
                       (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100));
+        if (report_availused) {
+          uint64_t available = blk_free + blk_used;
+
+          df_submit_one(disk_name, "percent_avail", "availused",
+                        (gauge_t)((float_t)(blk_used) / available * 100));
+        }
       } else {
         retval = -1;
         break;

@@ -188,6 +188,7 @@ pending_operations      value:GAUGE:0:U
 percent                 value:GAUGE:0:100.1
 percent_bytes           value:GAUGE:0:100.1
 percent_inodes          value:GAUGE:0:100.1
+percent_avail           value:GAUGE:0:110.1
 perf                    value:DERIVE:0:U
 pf_counters             value:DERIVE:0:U
 pf_limits               value:DERIVE:0:U

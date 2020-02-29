@@ -2745,6 +2745,14 @@ match any one of the criteria are collected. By default only selected
 partitions are collected if a selection is made. If no selection is configured
 at all, B<all> partitions are selected.
 
+=item B<ReportAvailUsed> B<true>|B<false>
+
+When set to B<true>, this option results in an extra metric for each filesystem
+to be reported: the amount of available space to non-root users that has been
+consued. In situations where all of the disk space available to non-root users
+has been consumed, the value reported here may exceed 100%. This option requires
+that B<ValuesPercentage> be set to true. The default for this option is I<false>.
+
 =item B<ReportByDevice> B<true>|B<false>
 
 Report using the device name rather than the mountpoint. i.e. with this I<false>,

@@ -578,6 +578,7 @@
 #	MountPoint "/home"
 #	FSType "ext3"
 #	IgnoreSelected false
+#	ReportAvailUsed false
 #	ReportByDevice false
 #	ReportInodes false
 #	ValuesAbsolute true
