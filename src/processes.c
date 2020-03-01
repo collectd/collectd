@@ -2119,7 +2119,14 @@ static int ps_read(void) {
 
   closedir(proc);
 
-  /* get procs_running from /proc/stat */
+  /* get procs_running from /proc/stat
+   * scanning /proc/stat AND computing other process stats takes too much time.
+   * Consequently, the number of running processes based on the occurences
+   * of 'R' as character indicating the running state is typically zero. Due
+   * to processes are actually changing state during the evaluation of it's
+   * stat(s).
+   * The 'procs_running' number in /proc/stat on the other hand is more
+   * accurate, and can be retrieved in a single 'read' call. */
   running = procs_running();
 
   ps_submit_state("running", running);
