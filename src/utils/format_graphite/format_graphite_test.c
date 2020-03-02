@@ -81,6 +81,12 @@ DEF_TEST(metric_name) {
           .type_instance = "test: \"hello\"",
           .want_name = "example@com.test-foo@@test@.single-test@@@hello@",
       },
+      /* test escaping comma */
+      {
+          .plugin_instance = "foo (test)",
+          .type_instance = "test,123,",
+          .want_name = "example@com.test-foo@@test@.single-test@123@",
+      },
       /* flag GRAPHITE_SEPARATE_INSTANCES */
       {
           .plugin_instance = "foo",
@@ -154,7 +160,7 @@ DEF_TEST(metric_name) {
     };
 
     char want[1024];
-    snprintf(want, sizeof(want), "%s 42 1480063672\r\n", cases[i].want_name);
+    ssnprintf(want, sizeof(want), "%s 42 1480063672\r\n", cases[i].want_name);
 
     if (cases[i].plugin_instance != NULL)
       sstrncpy(vl.plugin_instance, cases[i].plugin_instance,

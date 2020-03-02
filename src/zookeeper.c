@@ -176,9 +176,11 @@ static int zookeeper_read(void) {
   char *save_ptr;
   char *line;
   char *fields[2];
+  long followers = 0;
 
   if (zookeeper_query(buf, sizeof(buf)) < 0) {
-    return -1;
+    zookeeper_submit_gauge("count", "quorum", -1);
+    return 0;
   }
 
   ptr = buf;
@@ -218,7 +220,8 @@ static int zookeeper_read(void) {
     } else if (FIELD_CHECK(fields[0], "zk_approximate_data_size")) {
       zookeeper_submit_gauge("bytes", "approximate_data_size", atol(fields[1]));
     } else if (FIELD_CHECK(fields[0], "zk_followers")) {
-      zookeeper_submit_gauge("count", "followers", atol(fields[1]));
+      followers = atol(fields[1]);
+      zookeeper_submit_gauge("count", "followers", followers);
     } else if (FIELD_CHECK(fields[0], "zk_synced_followers")) {
       zookeeper_submit_gauge("count", "synced_followers", atol(fields[1]));
     } else if (FIELD_CHECK(fields[0], "zk_pending_syncs")) {
@@ -227,6 +230,9 @@ static int zookeeper_read(void) {
       DEBUG("Uncollected zookeeper MNTR field %s", fields[0]);
     }
   }
+  /* Reports 0 for followers, # when zk_followers present. Intended to be used
+   * for quorum detection by taking max for each time period. */
+  zookeeper_submit_gauge("count", "quorum", followers);
 
   return 0;
 } /* zookeeper_read */

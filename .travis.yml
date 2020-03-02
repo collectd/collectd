@@ -12,17 +12,21 @@ env:
 matrix:
   include:
     - os: osx
-      osx_image: xcode10.1
+      osx_image: xcode11.2
       compiler: clang
+      jdk: openjdk10
       env:
         - CXX=clang++
         - PATH="/usr/local/opt/mysql-client/bin:$PATH"
+        - JAVA_HOME="/Library/Java/JavaVirtualMachines/openjdk-13.jdk/Contents/Home"
     - os: linux
       dist: xenial
       compiler: clang
+      jdk: openjdk10
     - os: linux
       dist: xenial
       compiler: gcc
+      jdk: openjdk10
     - os: linux-ppc64le
       dist: xenial
       compiler: gcc
@@ -39,7 +43,10 @@ before_script: autoreconf -vif
 script:
   - if [ $(uname -m) == x86_64 && "$TRAVIS_OS_NAME" != "osx"]; then sudo apt-get install -y libxen-dev; fi
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
+  - type pkg-config
+  - pkg-config --list-all | sort -u
   - ./configure
+  - cat config.log
   - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
 
 addons:
@@ -63,7 +70,6 @@ addons:
     - liblua50-dev
     - liblua5.1-0-dev
     - liblua5.2-dev
-    - liblvm2-dev
     - libmemcached-dev
     - libmicrohttpd-dev
     - libmnl-dev
@@ -85,7 +91,6 @@ addons:
     - libsensors4-dev
     - libsigrok-dev
     - libsnmp-dev
-    - libstatgrab-dev
     - libtokyocabinet-dev
     - libtokyotyrant-dev
     - libudev-dev
@@ -121,9 +126,10 @@ addons:
     - liboping
     - libpcap
     - librdkafka
-    - libstatgrab
     - libvirt
+    - libxml2
     - lua
+    - mongo-c-driver
     - mosquitto
     - mysql-client
     - net-snmp

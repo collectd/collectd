@@ -25,7 +25,7 @@
  *   Niki W. Waibel <niki.waibel@gmx.net>
  *   Sebastian Harl <sh at tokkee.org>
  *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
-**/
+ **/
 
 #include "collectd.h"
 
@@ -89,6 +89,18 @@ char *sstrncpy(char *dest, const char *src, size_t n) {
   return dest;
 } /* char *sstrncpy */
 
+/* ssnprintf returns result from vsnprintf conistent with snprintf */
+int ssnprintf(char *str, size_t sz, const char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+
+  int ret = vsnprintf(str, sz, format, ap);
+
+  va_end(ap);
+
+  return ret;
+} /* int ssnprintf */
+
 char *ssnprintf_alloc(char const *format, ...) /* {{{ */
 {
   char static_buffer[1024] = "";
@@ -148,6 +160,34 @@ char *sstrdup(const char *s) {
   return r;
 } /* char *sstrdup */
 
+size_t sstrnlen(const char *s, size_t n) {
+  const char *p = s;
+
+  while (n-- > 0 && *p)
+    p++;
+
+  return p - s;
+} /* size_t sstrnlen */
+
+char *sstrndup(const char *s, size_t n) {
+  char *r;
+  size_t sz;
+
+  if (s == NULL)
+    return NULL;
+
+  sz = sstrnlen(s, n);
+  r = malloc(sz + 1);
+  if (r == NULL) {
+    ERROR("sstrndup: Out of memory.");
+    exit(3);
+  }
+  memcpy(r, s, sz);
+  r[sz] = '\0';
+
+  return r;
+} /* char *sstrndup */
+
 /* Even though Posix requires "strerror_r" to return an "int",
  * some systems (e.g. the GNU libc) return a "char *" _and_
  * ignore the second argument ... -tokkee */
@@ -165,7 +205,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
     pthread_mutex_unlock(&strerror_r_lock);
   }
-/* #endif !HAVE_STRERROR_R */
+    /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
   {
@@ -175,17 +215,19 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
       if ((temp != NULL) && (temp != buf) && (temp[0] != '\0'))
         sstrncpy(buf, temp, buflen);
       else
-        sstrncpy(buf, "strerror_r did not return "
-                      "an error message",
+        sstrncpy(buf,
+                 "strerror_r did not return "
+                 "an error message",
                  buflen);
     }
   }
-/* #endif STRERROR_R_CHAR_P */
+    /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
-    snprintf(buf, buflen, "Error #%i; "
-                          "Additionally, strerror_r failed.",
+    snprintf(buf, buflen,
+             "Error #%i; "
+             "Additionally, strerror_r failed.",
              errnum);
   }
 #endif /* STRERROR_R_CHAR_P */
@@ -721,9 +763,8 @@ long long get_kstat_value(kstat_t *ksp, char *name) {
   else if (kn->data_type == KSTAT_DATA_UINT32)
     retval = (long long)kn->value.ui32;
   else if (kn->data_type == KSTAT_DATA_INT64)
-    retval =
-        (long long)kn->value.i64; /* According to ANSI C99 `long long' must hold
-                                     at least 64 bits */
+    retval = (long long)kn->value.i64; /* According to ANSI C99 `long long' must
+                                          hold at least 64 bits */
   else if (kn->data_type == KSTAT_DATA_UINT64)
     retval = (long long)kn->value.ui64; /* XXX: Might overflow! */
   else
@@ -752,8 +793,8 @@ unsigned long long htonll(unsigned long long n) {
 #endif /* HAVE_HTONLL */
 
 #if FP_LAYOUT_NEED_NOTHING
-/* Well, we need nothing.. */
-/* #endif FP_LAYOUT_NEED_NOTHING */
+  /* Well, we need nothing.. */
+  /* #endif FP_LAYOUT_NEED_NOTHING */
 
 #elif FP_LAYOUT_NEED_ENDIANFLIP || FP_LAYOUT_NEED_INTSWAP
 #if FP_LAYOUT_NEED_ENDIANFLIP
@@ -1250,7 +1291,7 @@ int walk_directory(const char *dir, dirwalk_callback_f callback,
   return 0;
 }
 
-ssize_t read_file_contents(const char *filename, char *buf, size_t bufsize) {
+ssize_t read_file_contents(const char *filename, void *buf, size_t bufsize) {
   FILE *fh;
   ssize_t ret;
 
@@ -1266,6 +1307,16 @@ ssize_t read_file_contents(const char *filename, char *buf, size_t bufsize) {
 
   fclose(fh);
   return ret;
+}
+
+ssize_t read_text_file_contents(const char *filename, char *buf,
+                                size_t bufsize) {
+  ssize_t ret = read_file_contents(filename, buf, bufsize - 1);
+  if (ret < 0)
+    return ret;
+
+  buf[ret] = '\0';
+  return ret + 1;
 }
 
 counter_t counter_diff(counter_t old_value, counter_t new_value) {
@@ -1439,13 +1490,13 @@ int service_name_to_port_number(const char *service_name) {
       service_number = (int)ntohs(sa->sin6_port);
     }
 
-    if ((service_number > 0) && (service_number <= 65535))
+    if (service_number > 0)
       break;
   }
 
   freeaddrinfo(ai_list);
 
-  if ((service_number > 0) && (service_number <= 65535))
+  if (service_number > 0)
     return service_number;
   return -1;
 } /* int service_name_to_port_number */

@@ -221,7 +221,7 @@ static int tcsv_read(user_data_t *ud) {
     size_t buffer_len;
     int status;
 
-    status = cu_tail_readline(id->tail, buffer, (int)sizeof(buffer));
+    status = cu_tail_readline(id->tail, buffer, (int)sizeof(buffer), 0);
     if (status != 0) {
       ERROR("tail_csv plugin: File \"%s\": cu_tail_readline failed "
             "with status %i.",
@@ -482,7 +482,8 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
   status = plugin_register_complex_read(
       NULL, cb_name, tcsv_read, interval,
       &(user_data_t){
-          .data = id, .free_func = tcsv_instance_definition_destroy,
+          .data = id,
+          .free_func = tcsv_instance_definition_destroy,
       });
   if (status != 0) {
     ERROR("tail_csv plugin: Registering complex read function failed.");

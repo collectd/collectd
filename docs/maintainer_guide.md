@@ -24,14 +24,3 @@ using your commit rights to merge the pull request.
 
 You have write access to the *collectd/collectd* repository. Please use it
 responsibly.
-
-#### Own work
-
-Open *pull requests* for your own changes, too:
-
-*   For simple changes it's okay to self-approve and merge after a
-    successful build on the CI systems.
-*   Trivial changes, cherry-picks from *master* and roll-up merges are
-    excempt and may be pushed to the version branches and *master* directly.
-*   "Simple" and "trivial" are not further defined; use your best judgement.
-    We'll revisit this if and when it becomes necessary.

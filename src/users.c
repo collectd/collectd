@@ -71,7 +71,7 @@ static int users_read(void) {
   endutxent();
 
   users_submit(users);
-/* #endif HAVE_GETUTXENT */
+  /* #endif HAVE_GETUTXENT */
 
 #elif HAVE_GETUTENT
   unsigned int users = 0;
@@ -89,7 +89,7 @@ static int users_read(void) {
   endutent();
 
   users_submit(users);
-/* #endif HAVE_GETUTENT */
+  /* #endif HAVE_GETUTENT */
 
 #elif HAVE_LIBSTATGRAB
   sg_user_stats *us;
@@ -109,7 +109,7 @@ static int users_read(void) {
 #else
                    us->num_entries);
 #endif
-/* #endif HAVE_LIBSTATGRAB */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #else
 #error "No applicable input method."

@@ -30,6 +30,7 @@
 #include "utils_cache.h"
 #include "utils_time.h"
 
+#include <math.h>
 #include <yajl/yajl_gen.h>
 #include <yajl/yajl_parse.h>
 #if HAVE_YAJL_YAJL_VERSION_H
@@ -144,16 +145,16 @@ static int format_typed_value(yajl_gen gen, int ds_type, value_t v,
   }
   case DS_TYPE_DERIVE: {
     derive_t diff = v.derive - (derive_t)start_value;
-    snprintf(integer, sizeof(integer), "%" PRIi64, diff);
+    ssnprintf(integer, sizeof(integer), "%" PRIi64, diff);
     break;
   }
   case DS_TYPE_COUNTER: {
     counter_t diff = counter_diff((counter_t)start_value, v.counter);
-    snprintf(integer, sizeof(integer), "%llu", diff);
+    ssnprintf(integer, sizeof(integer), "%llu", diff);
     break;
   }
   case DS_TYPE_ABSOLUTE: {
-    snprintf(integer, sizeof(integer), "%" PRIu64, v.absolute);
+    ssnprintf(integer, sizeof(integer), "%" PRIu64, v.absolute);
     break;
   }
   default: {
@@ -177,7 +178,7 @@ static int format_typed_value(yajl_gen gen, int ds_type, value_t v,
  *   "CUMULATIVE",
  *   "GAUGE"
  * )
-*/
+ */
 static int format_metric_kind(yajl_gen gen, int ds_type) {
   switch (ds_type) {
   case DS_TYPE_GAUGE:
@@ -198,7 +199,7 @@ static int format_metric_kind(yajl_gen gen, int ds_type) {
  *   "DOUBLE",
  *   "INT64"
  * )
-*/
+ */
 static int format_value_type(yajl_gen gen, int ds_type) {
   return json_string(gen, (ds_type == DS_TYPE_GAUGE) ? "DOUBLE" : "INT64");
 }
@@ -210,10 +211,10 @@ static int metric_type(char *buffer, size_t buffer_size, data_set_t const *ds,
 
 #define GCM_PREFIX "custom.googleapis.com/collectd/"
   if ((ds_index != 0) || strcmp("value", ds_name) != 0) {
-    snprintf(buffer, buffer_size, GCM_PREFIX "%s/%s_%s", vl->plugin, vl->type,
-             ds_name);
+    ssnprintf(buffer, buffer_size, GCM_PREFIX "%s/%s_%s", vl->plugin, vl->type,
+              ds_name);
   } else {
-    snprintf(buffer, buffer_size, GCM_PREFIX "%s/%s", vl->plugin, vl->type);
+    ssnprintf(buffer, buffer_size, GCM_PREFIX "%s/%s", vl->plugin, vl->type);
   }
 
   char const *whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -280,8 +281,8 @@ static int read_cumulative_state(data_set_t const *ds, value_list_t const *vl,
   }
 
   char start_value_key[DATA_MAX_NAME_LEN];
-  snprintf(start_value_key, sizeof(start_value_key),
-           "stackdriver:start_value[%d]", ds_index);
+  ssnprintf(start_value_key, sizeof(start_value_key),
+            "stackdriver:start_value[%d]", ds_index);
 
   int status =
       uc_meta_data_get_signed_int(vl, start_value_key, ret_start_value);
@@ -410,6 +411,12 @@ static int format_time_series(yajl_gen gen, data_set_t const *ds,
   if (start_time == vl->time) {
     /* for cumulative metrics, the interval must not be zero. */
     return EAGAIN;
+  }
+  if (ds_type == DS_TYPE_GAUGE) {
+    double d = (double)vl->values[ds_index].gauge;
+    if (isnan(d) || isinf(d)) {
+      return EAGAIN;
+    }
   }
 
   yajl_gen_map_open(gen);
@@ -564,7 +571,7 @@ int sd_output_add(sd_output_t *out, data_set_t const *ds,
   for (size_t i = 0; i < ds->ds_num; i++) {
     int status = format_time_series(out->gen, ds, vl, i, out->res);
     if (status == EAGAIN) {
-      /* first instance of a cumulative metric */
+      /* first instance of a cumulative metric or NaN value */
       continue;
     }
     if (status != 0) {

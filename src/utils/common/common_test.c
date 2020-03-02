@@ -24,8 +24,14 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
+// clang-format off
+/*
+ * Explicit order is required or _FILE_OFFSET_BITS will have definition mismatches on Solaris
+ * See Github Issue #3193 for details
+ */
 #include "utils/common/common.h"
+#include "testing.h"
+// clang-format on
 
 #if HAVE_KSTAT_H
 #include <kstat.h>
@@ -190,9 +196,9 @@ DEF_TEST(escape_slashes) {
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
-    char buffer[32];
+    char buffer[32] = {0};
 
-    strncpy(buffer, cases[i].str, sizeof(buffer));
+    strncpy(buffer, cases[i].str, sizeof(buffer) - 1);
     OK(escape_slashes(buffer, sizeof(buffer)) == 0);
     EXPECT_EQ_STR(cases[i].want, buffer);
   }
@@ -215,9 +221,9 @@ DEF_TEST(escape_string) {
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
-    char buffer[16];
+    char buffer[16] = {0};
 
-    strncpy(buffer, cases[i].str, sizeof(buffer));
+    strncpy(buffer, cases[i].str, sizeof(buffer) - 1);
     OK(escape_string(buffer, sizeof(buffer)) == 0);
     EXPECT_EQ_STR(cases[i].want, buffer);
   }
@@ -226,33 +232,33 @@ DEF_TEST(escape_string) {
 }
 
 DEF_TEST(strunescape) {
-  char buffer[16];
+  char buffer[32] = {0};
   int status;
 
-  strncpy(buffer, "foo\\tbar", sizeof(buffer));
+  strncpy(buffer, "foo\\tbar", sizeof(buffer) - 1);
   status = strunescape(buffer, sizeof(buffer));
   OK(status == 0);
   EXPECT_EQ_STR("foo\tbar", buffer);
 
-  strncpy(buffer, "\\tfoo\\r\\n", sizeof(buffer));
+  strncpy(buffer, "\\tfoo\\r\\n", sizeof(buffer) - 1);
   status = strunescape(buffer, sizeof(buffer));
   OK(status == 0);
   EXPECT_EQ_STR("\tfoo\r\n", buffer);
 
-  strncpy(buffer, "With \\\"quotes\\\"", sizeof(buffer));
+  strncpy(buffer, "With \\\"quotes\\\"", sizeof(buffer) - 1);
   status = strunescape(buffer, sizeof(buffer));
   OK(status == 0);
   EXPECT_EQ_STR("With \"quotes\"", buffer);
 
   /* Backslash before null byte */
-  strncpy(buffer, "\\tbackslash end\\", sizeof(buffer));
+  strncpy(buffer, "\\tbackslash end\\", sizeof(buffer) - 1);
   status = strunescape(buffer, sizeof(buffer));
   OK(status != 0);
   EXPECT_EQ_STR("\tbackslash end", buffer);
   return 0;
 
   /* Backslash at buffer end */
-  strncpy(buffer, "\\t3\\56", sizeof(buffer));
+  strncpy(buffer, "\\t3\\56", sizeof(buffer) - 1);
   status = strunescape(buffer, 4);
   OK(status != 0);
   OK(buffer[0] == '\t');
@@ -280,10 +286,15 @@ DEF_TEST(parse_values) {
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     data_source_t dsrc = {
-        .name = "value", .type = DS_TYPE_GAUGE, .min = 0.0, .max = NAN,
+        .name = "value",
+        .type = DS_TYPE_GAUGE,
+        .min = 0.0,
+        .max = NAN,
     };
     data_set_t ds = {
-        .type = "example", .ds_num = 1, .ds = &dsrc,
+        .type = "example",
+        .ds_num = 1,
+        .ds = &dsrc,
     };
 
     value_t v = {
@@ -344,7 +355,8 @@ DEF_TEST(value_to_rate) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     cdtime_t t0 = TIME_T_TO_CDTIME_T(cases[i].t0);
     value_to_rate_state_t state = {
-        .last_value = cases[i].v0, .last_time = t0,
+        .last_value = cases[i].v0,
+        .last_time = t0,
     };
     gauge_t got;
 

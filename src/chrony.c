@@ -111,7 +111,9 @@ typedef enum {
 #define ATTRIB_PACKED
 #endif
 
-typedef struct ATTRIB_PACKED { int32_t value; } tFloat;
+typedef struct ATTRIB_PACKED {
+  int32_t value;
+} tFloat;
 
 typedef struct ATTRIB_PACKED {
   uint32_t tv_sec_high;
@@ -148,7 +150,9 @@ typedef struct ATTRIB_PACKED {
                            Amplification) */
 } tChrony_Req_Tracking;
 
-typedef struct ATTRIB_PACKED { uint32_t f_n_sources; } tChrony_Req_N_Sources;
+typedef struct ATTRIB_PACKED {
+  uint32_t f_n_sources;
+} tChrony_Req_N_Sources;
 
 typedef struct ATTRIB_PACKED {
   int32_t f_index;
@@ -183,7 +187,9 @@ typedef struct ATTRIB_PACKED {
 } tChrony_Request;
 
 /* Chrony daemon response packets */
-typedef struct ATTRIB_PACKED { uint32_t f_n_sources; } tChrony_Resp_N_Sources;
+typedef struct ATTRIB_PACKED {
+  uint32_t f_n_sources;
+} tChrony_Resp_N_Sources;
 
 typedef struct ATTRIB_PACKED {
   union {

@@ -18,7 +18,7 @@
  *
  * Author:
  *   Niki W. Waibel <niki.waibel@gmx.net>
-**/
+ **/
 
 #if HAVE_CONFIG_H
 #include "config.h"
@@ -250,14 +250,14 @@ static void uuidcache_init(void) {
 
       if (isdigit((int)s[-1])) {
         /*
-        * Note: this is a heuristic only - there is no reason
-        * why these devices should live in /dev.
-        * Perhaps this directory should be specifiable by option.
-        * One might for example have /devlabel with links to /dev
-        * for the devices that may be accessed in this way.
-        * (This is useful, if the cdrom on /dev/hdc must not
-        * be accessed.)
-        */
+         * Note: this is a heuristic only - there is no reason
+         * why these devices should live in /dev.
+         * Perhaps this directory should be specifiable by option.
+         * One might for example have /devlabel with links to /dev
+         * for the devices that may be accessed in this way.
+         * (This is useful, if the cdrom on /dev/hdc must not
+         * be accessed.)
+         */
         snprintf(device, sizeof(device), "%s/%s", DEVLABELDIR, ptname);
         if (!get_label_uuid(device, &label, uuid)) {
           uuidcache_addentry(sstrdup(device), label, uuid);
@@ -522,7 +522,7 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
 
 #elif HAVE_SEQ_GETMNTENT
 #warn "This version of `getmntent' hat not yet been implemented!"
-/* #endif HAVE_SEQ_GETMNTENT */
+  /* #endif HAVE_SEQ_GETMNTENT */
 
 #elif HAVE_GETMNTENT_R
 static cu_mount_t *cu_mount_getmntent(void) {

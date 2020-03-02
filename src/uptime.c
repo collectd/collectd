@@ -96,7 +96,7 @@ static time_t uptime_get_sys(void) { /* {{{ */
   }
 
   result = (time_t)info.uptime;
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp;
@@ -136,7 +136,7 @@ static time_t uptime_get_sys(void) { /* {{{ */
   }
 
   result = time(NULL) - (time_t)knp->value.ui32;
-/* #endif HAVE_LIBKSTAT */
+  /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYS_SYSCTL_H
   struct timeval boottv = {0};
@@ -161,7 +161,7 @@ static time_t uptime_get_sys(void) { /* {{{ */
   }
 
   result = time(NULL) - boottv.tv_sec;
-/* #endif HAVE_SYS_SYSCTL_H */
+  /* #endif HAVE_SYS_SYSCTL_H */
 
 #elif HAVE_PERFSTAT
   int status;

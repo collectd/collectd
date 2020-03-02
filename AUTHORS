@@ -56,11 +56,23 @@ Amit Gupta <amit.gupta221 at gmail.com>
 Andreas Henriksson <andreas at fatal.se>
  - libmnl support in the netlink plugin.
 
+Andrew Bays <abays at redhat.com>
+ - connectivity plugin.
+ - procevent plugin.
+ - sysevent plugin.
+ - connectivity plugin.
+
 Andy Parkins <andyp at fussylogic.co.uk>
  - battery plugin: sysfs code.
 
+Aneesh Puttur <aputtur at redhat.com>
+ - connectivity plugin.
+
 Andy Smith <ansmith at redhat.com>
  - AMQP 1.0 plugin.
+
+Aneesh Puttur <aputtur at redhat.com>
+ - connectivity plugin.
 
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
@@ -70,6 +82,9 @@ Anthony Gialluca <tonyabg at charter.net>
 
 Antony Dovgal <tony at daylessday.org>
  - memcached plugin.
+
+Asaf Kahlon <asafka7 at gmail.com>
+ - buddyinfo plugin
 
 Aurélien Reynaud <collectd at wattapower.net>
  - LPAR plugin.
@@ -152,6 +167,9 @@ Franck Lombardi
 
 Gergely Nagy <algernon at madhouse-project.org>
  - Write-Riemann plugin.
+
+Hari TG <hari.tg at intel.com>
+ - dcpmm plugin.
 
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.

@@ -541,7 +541,8 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   plugin_register_complex_read(/* group = */ NULL, cb_name, cc_read_page,
                                interval,
                                &(user_data_t){
-                                   .data = page, .free_func = cc_web_page_free,
+                                   .data = page,
+                                   .free_func = cc_web_page_free,
                                });
   sfree(cb_name);
 

@@ -122,7 +122,8 @@ DEF_TEST(rdt_config_ngroups__one_process) {
       {.value.string = "proc1", .type = OCONFIG_TYPE_STRING},
   };
   oconfig_item_t config_item = {
-      .values = values, .values_num = STATIC_ARRAY_SIZE(values),
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
   };
 
   /* check */
@@ -147,7 +148,8 @@ DEF_TEST(rdt_config_ngroups__two_groups) {
       {.value.string = "proc21,proc22,proc23", .type = OCONFIG_TYPE_STRING},
   };
   oconfig_item_t config_item = {
-      .values = values, .values_num = STATIC_ARRAY_SIZE(values),
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
   };
 
   /* check */
@@ -178,7 +180,8 @@ DEF_TEST(rdt_config_ngroups__too_long_proc_name) {
       {.value.string = "_seventeen_chars_", .type = OCONFIG_TYPE_STRING},
   };
   oconfig_item_t config_item = {
-      .values = values, .values_num = STATIC_ARRAY_SIZE(values),
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
   };
 
   /* check */
@@ -200,7 +203,8 @@ DEF_TEST(rdt_config_ngroups__duplicate_proc_name_between_groups) {
       {.value.string = "proc21,proc,proc23", .type = OCONFIG_TYPE_STRING},
   };
   oconfig_item_t config_item = {
-      .values = values, .values_num = STATIC_ARRAY_SIZE(values),
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
   };
 
   /* check */
@@ -221,7 +225,8 @@ DEF_TEST(rdt_config_ngroups__duplicate_proc_name_in_group) {
       {.value.string = "proc11,proc,proc,proc14", .type = OCONFIG_TYPE_STRING},
   };
   oconfig_item_t config_item = {
-      .values = values, .values_num = STATIC_ARRAY_SIZE(values),
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
   };
 
   /* check */
@@ -244,7 +249,8 @@ DEF_TEST(rdt_config_ngroups__empty_group) {
 
   };
   oconfig_item_t config_item = {
-      .values = values, .values_num = STATIC_ARRAY_SIZE(values),
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
   };
 
   /* check */
@@ -265,7 +271,8 @@ DEF_TEST(rdt_config_ngroups__empty_proc_name) {
       {.value.string = "proc11,,proc13", .type = OCONFIG_TYPE_STRING},
   };
   oconfig_item_t config_item = {
-      .values = values, .values_num = STATIC_ARRAY_SIZE(values),
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
   };
 
   /* check */

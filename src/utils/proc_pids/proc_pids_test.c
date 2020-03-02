@@ -1,5 +1,11 @@
-#include "testing.h"
+// clang-format off
+/*
+ * Explicit order is required or _FILE_OFFSET_BITS will have definition mismatches on Solaris
+ * See Github Issue #3193 for details
+ */
 #include "utils/proc_pids/proc_pids.c" /* sic */
+#include "testing.h"
+// clang-format on
 #include <sys/stat.h>
 
 /***************************************************************************

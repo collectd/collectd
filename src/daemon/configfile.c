@@ -137,40 +137,58 @@ static cf_callback_t *cf_search(const char *type) {
   return cf_cb;
 }
 
-static int cf_dispatch(const char *type, const char *orig_key,
-                       const char *orig_value) {
-  cf_callback_t *cf_cb;
-  plugin_ctx_t old_ctx;
-  char *key;
-  char *value;
-  int ret;
-  int i = 0;
+static int cf_dispatch_option(const cf_callback_t *cf_cb, oconfig_item_t *ci) {
 
+  const char *plugin = cf_cb->type;
+  const char *orig_key = ci->key;
   if (orig_key == NULL)
     return EINVAL;
 
-  DEBUG("type = %s, key = %s, value = %s", ESCAPE_NULL(type), orig_key,
-        ESCAPE_NULL(orig_value));
+  /* (Re)construct string value for option */
+  char buffer[4096];
+  int buffer_free = sizeof(buffer);
+  char *buffer_ptr = buffer;
 
-  if ((cf_cb = cf_search(type)) == NULL) {
-    WARNING("Found a configuration for the `%s' plugin, but "
-            "the plugin isn't loaded or didn't register "
-            "a configuration callback.",
-            type);
-    return -1;
+  for (int i = 0; i < ci->values_num; i++) {
+    int status = -1;
+
+    if (ci->values[i].type == OCONFIG_TYPE_STRING)
+      status =
+          ssnprintf(buffer_ptr, buffer_free, " %s", ci->values[i].value.string);
+    else if (ci->values[i].type == OCONFIG_TYPE_NUMBER)
+      status = ssnprintf(buffer_ptr, buffer_free, " %lf",
+                         ci->values[i].value.number);
+    else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
+      status = ssnprintf(buffer_ptr, buffer_free, " %s",
+                         ci->values[i].value.boolean ? "true" : "false");
+
+    if ((status < 0) || (status >= buffer_free))
+      return -1;
+    buffer_free -= status;
+    buffer_ptr += status;
   }
 
-  if ((key = strdup(orig_key)) == NULL)
+  /* skip the initial space */
+  const char *orig_value = buffer + 1;
+
+  DEBUG("plugin = %s, key = %s, value = %s", ESCAPE_NULL(plugin), orig_key,
+        ESCAPE_NULL(orig_value));
+
+  char *key = strdup(orig_key);
+  if (key == NULL)
     return 1;
-  if ((value = strdup(orig_value)) == NULL) {
+
+  char *value = strdup(orig_value);
+  if (value == NULL) {
     free(key);
     return 2;
   }
 
-  ret = -1;
+  int ret = -1;
 
-  old_ctx = plugin_set_ctx(cf_cb->ctx);
+  plugin_ctx_t old_ctx = plugin_set_ctx(cf_cb->ctx);
 
+  int i;
   for (i = 0; i < cf_cb->keys_num; i++) {
     if ((cf_cb->keys[i] != NULL) && (strcasecmp(cf_cb->keys[i], key) == 0)) {
       ret = (*cf_cb->callback)(key, value);
@@ -181,13 +199,13 @@ static int cf_dispatch(const char *type, const char *orig_key,
   plugin_set_ctx(old_ctx);
 
   if (i >= cf_cb->keys_num)
-    WARNING("Plugin `%s' did not register for value `%s'.", type, key);
+    WARNING("Plugin `%s' did not register for value `%s'.", plugin, key);
 
   free(key);
   free(value);
 
   return ret;
-} /* int cf_dispatch */
+} /* int cf_dispatch_option */
 
 static int dispatch_global_option(const oconfig_item_t *ci) {
   if (ci->values_num != 1) {
@@ -200,7 +218,7 @@ static int dispatch_global_option(const oconfig_item_t *ci) {
     return global_option_set(ci->key, ci->values[0].value.string, 0);
   else if (ci->values[0].type == OCONFIG_TYPE_NUMBER) {
     char tmp[128];
-    snprintf(tmp, sizeof(tmp), "%lf", ci->values[0].value.number);
+    ssnprintf(tmp, sizeof(tmp), "%lf", ci->values[0].value.number);
     return global_option_set(ci->key, tmp, 0);
   } else if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN) {
     if (ci->values[0].value.boolean)
@@ -267,7 +285,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   /* default to the global interval set before loading this plugin */
   plugin_ctx_t ctx = {
-      .interval = cf_get_default_interval(), .name = strdup(name),
+      .interval = cf_get_default_interval(),
+      .name = strdup(name),
   };
   if (ctx.name == NULL)
     return ENOMEM;
@@ -297,38 +316,6 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   return ret_val;
 } /* int dispatch_value_loadplugin */
-
-static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
-  char buffer[4096];
-  char *buffer_ptr;
-  int buffer_free;
-
-  buffer_ptr = buffer;
-  buffer_free = sizeof(buffer);
-
-  for (int i = 0; i < ci->values_num; i++) {
-    int status = -1;
-
-    if (ci->values[i].type == OCONFIG_TYPE_STRING)
-      status =
-          snprintf(buffer_ptr, buffer_free, " %s", ci->values[i].value.string);
-    else if (ci->values[i].type == OCONFIG_TYPE_NUMBER)
-      status =
-          snprintf(buffer_ptr, buffer_free, " %lf", ci->values[i].value.number);
-    else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
-      status = snprintf(buffer_ptr, buffer_free, " %s",
-                        ci->values[i].value.boolean ? "true" : "false");
-
-    if ((status < 0) || (status >= buffer_free))
-      return -1;
-    buffer_free -= status;
-    buffer_ptr += status;
-  }
-  /* skip the initial space */
-  buffer_ptr = buffer + 1;
-
-  return cf_dispatch(plugin, ci->key, buffer_ptr);
-} /* int dispatch_value_plugin */
 
 static int dispatch_value(oconfig_item_t *ci) {
   int ret = 0;
@@ -363,67 +350,88 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
     return -1;
   }
 
-  const char *name = ci->values[0].value.string;
-  if (strcmp("libvirt", name) == 0) {
+  const char *plugin_name = ci->values[0].value.string;
+  if (strcmp("libvirt", plugin_name) == 0) {
     /* TODO(octo): Remove this legacy. */
     WARNING("The \"libvirt\" plugin has been renamed to \"virt\" to avoid "
             "problems with the build system. "
             "Your configuration is still using the old name. "
             "Please change it to use \"virt\" as soon as possible. "
             "This compatibility code will go away eventually.");
-    name = "virt";
+    plugin_name = "virt";
   }
 
-  if (IS_TRUE(global_option_get("AutoLoadPlugin"))) {
+  bool plugin_loaded = plugin_is_loaded(plugin_name);
+
+  if (!plugin_loaded && IS_TRUE(global_option_get("AutoLoadPlugin"))) {
     plugin_ctx_t ctx = {0};
-    plugin_ctx_t old_ctx;
-    int status;
 
     /* default to the global interval set before loading this plugin */
     ctx.interval = cf_get_default_interval();
-    ctx.name = strdup(name);
+    ctx.name = strdup(plugin_name);
 
-    old_ctx = plugin_set_ctx(ctx);
-    status = plugin_load(name, /* flags = */ false);
+    plugin_ctx_t old_ctx = plugin_set_ctx(ctx);
+    int status = plugin_load(plugin_name, /* flags = */ false);
     /* reset to the "global" context */
     plugin_set_ctx(old_ctx);
 
     if (status != 0) {
-      ERROR("Automatically loading plugin \"%s\" failed "
+      ERROR("Automatically loading plugin `%s' failed "
             "with status %i.",
-            name, status);
+            plugin_name, status);
       return status;
     }
+    plugin_loaded = true;
+  }
+
+  if (!plugin_loaded) {
+    WARNING("There is configuration for the `%s' plugin, but the plugin isn't "
+            "loaded. Please check your configuration.",
+            plugin_name);
+
+    /* Try to be backward-compatible with previous versions */
+    return 0;
   }
 
   /* Check for a complex callback first */
   for (cf_complex_callback_t *cb = complex_callback_head; cb != NULL;
        cb = cb->next) {
-    if (strcasecmp(name, cb->type) == 0) {
-      plugin_ctx_t old_ctx;
-      int ret_val;
-
-      old_ctx = plugin_set_ctx(cb->ctx);
-      ret_val = (cb->callback(ci));
+    if (strcasecmp(plugin_name, cb->type) == 0) {
+      plugin_ctx_t old_ctx = plugin_set_ctx(cb->ctx);
+      int ret_val = (cb->callback(ci));
       plugin_set_ctx(old_ctx);
       return ret_val;
     }
   }
 
+  /* Try to be backward-compatible with previous versions */
+  if (ci->children_num == 0)
+    return 0;
+
   /* Hm, no complex plugin found. Dispatch the values one by one */
-  for (int i = 0, ret = 0; i < ci->children_num; i++) {
+  cf_callback_t *cf_cb = cf_search(plugin_name);
+  if (cf_cb == NULL) {
+    WARNING("Found a configuration for the `%s' plugin, but "
+            "the plugin didn't register a configuration callback.",
+            plugin_name);
+    return -1;
+  }
+
+  for (int i = 0; i < ci->children_num; i++) {
     if (ci->children[i].children == NULL) {
-      ret = dispatch_value_plugin(name, ci->children + i);
-      if (ret != 0)
+      oconfig_item_t *child = ci->children + i;
+      int ret = cf_dispatch_option(cf_cb, child);
+      if (ret != 0) {
+        ERROR("Plugin `%s' failed to handle option `%s', return code: %i",
+              plugin_name, child->key, ret);
         return ret;
+      }
     } else {
       WARNING("There is a `%s' block within the "
-              "configuration for the %s plugin. "
-              "The plugin either only expects "
-              "\"simple\" configuration statements "
-              "or wasn't loaded using `LoadPlugin'."
-              " Please check your configuration.",
-              ci->children[i].key, name);
+              "configuration for the `%s' plugin. "
+              "The plugin only expects \"simple\" configuration options. "
+              "Blocks are not supported. Please check your configuration.",
+              ci->children[i].key, plugin_name);
     }
   }
 
@@ -475,9 +483,9 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
     return 0;
   }
 
-  temp = realloc(dst->children,
-                 sizeof(oconfig_item_t) *
-                     (dst->children_num + src->children_num - 1));
+  temp =
+      realloc(dst->children, sizeof(oconfig_item_t) *
+                                 (dst->children_num + src->children_num - 1));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -516,9 +524,8 @@ static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
   if ((src == NULL) || (src->children_num == 0))
     return 0;
 
-  temp =
-      realloc(dst->children,
-              sizeof(oconfig_item_t) * (dst->children_num + src->children_num));
+  temp = realloc(dst->children, sizeof(oconfig_item_t) *
+                                    (dst->children_num + src->children_num));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -666,7 +673,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
     if ((de->d_name[0] == '.') || (de->d_name[0] == 0))
       continue;
 
-    status = snprintf(name, sizeof(name), "%s/%s", dir, de->d_name);
+    status = ssnprintf(name, sizeof(name), "%s/%s", dir, de->d_name);
     if ((status < 0) || ((size_t)status >= sizeof(name))) {
       ERROR("configfile: Not including `%s/%s' because its"
             " name is too long.",
@@ -806,7 +813,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   return root;
 } /* oconfig_item_t *cf_read_generic */
-/* #endif HAVE_WORDEXP_H */
+  /* #endif HAVE_WORDEXP_H */
 
 #else  /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
@@ -1235,7 +1242,7 @@ int cf_util_get_service(const oconfig_item_t *ci, char **ret_string) /* {{{ */
     P_ERROR("cf_util_get_service: Out of memory.");
     return -1;
   }
-  snprintf(service, 6, "%i", port);
+  ssnprintf(service, 6, "%i", port);
 
   sfree(*ret_string);
   *ret_string = service;

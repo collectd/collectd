@@ -57,7 +57,8 @@ static void traffic_submit(const char *plugin_instance,
                            derive_t tx) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = rx}, {.derive = tx},
+      {.derive = rx},
+      {.derive = tx},
   };
 
   vl.values = values;
@@ -74,7 +75,9 @@ static void load_submit(const char *plugin_instance, gauge_t snum, gauge_t mnum,
                         gauge_t lnum) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.gauge = snum}, {.gauge = mnum}, {.gauge = lnum},
+      {.gauge = snum},
+      {.gauge = mnum},
+      {.gauge = lnum},
   };
 
   vl.values = values;

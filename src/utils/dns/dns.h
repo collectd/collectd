@@ -38,7 +38,6 @@
 
 #include "config.h"
 
-#include <arpa/nameser.h>
 #include <stdint.h>
 
 #if HAVE_PCAP_H

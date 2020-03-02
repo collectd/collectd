@@ -41,7 +41,8 @@ static int log_level = LOG_INFO;
 static int notif_severity;
 
 static const char *config_keys[] = {
-    "LogLevel", "NotifyLevel",
+    "LogLevel",
+    "NotifyLevel",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -50,13 +51,14 @@ static int sl_config(const char *key, const char *value) {
     log_level = parse_log_severity(value);
     if (log_level < 0) {
       log_level = LOG_INFO;
-      ERROR("syslog: invalid loglevel [%s] defaulting to 'info'", value);
-      return 1;
+      WARNING("syslog: invalid loglevel [%s] defaulting to 'info'", value);
     }
   } else if (strcasecmp(key, "NotifyLevel") == 0) {
     notif_severity = parse_notif_severity(value);
-    if (notif_severity < 0)
+    if (notif_severity < 0) {
+      ERROR("syslog: invalid notification severity [%s]", value);
       return 1;
+    }
   }
 
   return 0;

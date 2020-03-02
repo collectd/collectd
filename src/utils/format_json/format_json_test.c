@@ -131,7 +131,8 @@ static int test_string(void *ctx, unsigned char const *value,
 
 static int expect_json_labels(char *json, label_t *labels, size_t labels_num) {
   yajl_callbacks funcs = {
-      .yajl_string = test_string, .yajl_map_key = test_map_key,
+      .yajl_string = test_string,
+      .yajl_map_key = test_map_key,
   };
 
   test_case_t c = {labels, labels_num, NULL};

@@ -284,7 +284,7 @@ static int dns_init(void) {
   if (listen_thread_init != 0)
     return -1;
 
-  status = plugin_thread_create(&listen_thread, NULL, dns_child_loop, (void *)0,
+  status = plugin_thread_create(&listen_thread, dns_child_loop, (void *)0,
                                 "dns listen");
   if (status != 0) {
     ERROR("dns plugin: pthread_create failed: %s", STRERRNO);
@@ -324,7 +324,8 @@ static void submit_derive(const char *type, const char *type_instance,
 
 static void submit_octets(derive_t queries, derive_t responses) {
   value_t values[] = {
-      {.derive = queries}, {.derive = responses},
+      {.derive = queries},
+      {.derive = responses},
   };
   value_list_t vl = VALUE_LIST_INIT;
 

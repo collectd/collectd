@@ -45,6 +45,14 @@ Features
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
 
+    - buddyinfo
+      Statistics from buddyinfo file about memory fragmentation.
+
+    - capabilities
+      Platform capabilities decoded from hardware subsystems, for example from
+      SMBIOS using dmidecode.
+      <https://www.nongnu.org/dmidecode/>
+
     - ceph
       Statistics from the Ceph distributed storage system.
 
@@ -53,6 +61,9 @@ Features
 
     - chrony
       Chrony daemon statistics: Local clock drift, offset to peers, etc.
+
+    - connectivity
+      Event-based interface status.
 
     - conntrack
       Number of nf_conntrack entries.
@@ -85,6 +96,9 @@ Features
       Executes SQL statements on various databases and interprets the returned
       data.
 
+    - dcpmm
+      Collects Intel Optane DC Presistent Memory (DCPMM) performance and health statistics.
+
     - df
       Mountpoint usage (Basically the values `df(1)' delivers)
 
@@ -102,6 +116,15 @@ Features
 
       This plugin should be compiled with compiler defenses enabled, for
       example -fstack-protector.
+
+    - dpdk_telemetry
+      Collect DPDK interface, application and global statistics.
+      This plugin can be used as substitute to dpdkstat plugin.
+
+      This plugin is dependent on DPDK 19.08 release and must be used
+      along with the DPDK application.
+
+      Also, this plugin has dependency on Jansson library.
 
     - drbd
       Collect individual drbd resource statistics.
@@ -174,6 +197,9 @@ Features
     - ipmi
       IPMI (Intelligent Platform Management Interface) sensors information.
 
+    - ipstats
+      IPv4 and IPv6; incoming, outgoing, forwarded counters. FreeBSD only.
+
     - iptables
       Iptables' counters: Number of bytes that were matched by a certain
       iptables rule.
@@ -203,10 +229,6 @@ Features
       makes it possible to write plugins in Lua which are executed by
       collectd without the need to start a heavy interpreter every interval.
       See collectd-lua(5) for details.
-
-    - lvm
-      Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
-      “Logical Volume Manager” (LVM).
 
     - madwifi
       Queries very detailed usage statistics from wireless LAN adapters and
@@ -347,6 +369,9 @@ Features
     - processes
       Process counts: Number of running, sleeping, zombie, ... processes.
 
+    - procevent
+      Listens for process starts and exits via netlink.
+
     - protocols
       Counts various aspects of network protocols such as IP, TCP, UDP, etc.
 
@@ -391,6 +416,9 @@ Features
       Acts as a StatsD server, reading values sent over the network from StatsD
       clients and calculating rates and other aggregates out of these values.
 
+    - sysevent
+      Listens to rsyslog events and submits matched values.
+
     - swap
       Pages swapped out onto hard disk or whatever is called `swap' by the OS..
 
@@ -427,6 +455,10 @@ Features
     - turbostat
       Reads CPU frequency and C-state residency on modern Intel
       turbo-capable processors.
+
+    - ubi
+      Reads the count of bad physical eraseblocks and the current
+      maximum erase counter value on UBI volumes.
 
     - uptime
       System uptime statistics.
@@ -815,6 +847,10 @@ Prerequisites
     For querying iptables counters.
     <http://netfilter.org/>
 
+  * libjansson (optional)
+    Parse JSON data. This is used for the `capabilities' and `dpdk_telemetry` plugins.
+    <http://www.digip.org/jansson/>
+
   * libjevents (optional)
     The jevents library is used by the `intel_pmu' plugin to access the Linux
     kernel perf interface.
@@ -835,10 +871,6 @@ Prerequisites
   * liblua (optional)
     Used by the `lua' plugin. Currently, Lua 5.1 and later are supported.
     <https://www.lua.org/>
-
-  * liblvm2 (optional)
-    Used by the `lvm' plugin.
-    <ftp://sources.redhat.com/pub/lvm2/>
 
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
@@ -902,6 +934,12 @@ Prerequisites
     Obviously used by the `perl' plugin. The library has to be compiled with
     ithread support (introduced in Perl 5.6.0).
     <http://www.perl.org/>
+
+  * libpmwapi (optional)
+    Used by the `dcpmm` plugin.
+    The library github: https://github.com/intel/intel-pmwatch
+    Follow the pmwatch build instructions mentioned for dcpmm plugin and
+    use the install path to resolve the dependency here.
 
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.

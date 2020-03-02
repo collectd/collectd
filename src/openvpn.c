@@ -139,7 +139,8 @@ static void iostats_submit(const char *pinst, const char *tinst, derive_t rx,
                            derive_t tx) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = rx}, {.derive = tx},
+      {.derive = rx},
+      {.derive = tx},
   };
 
   /* NOTE ON THE NEW NAMING SCHEMA:
@@ -165,7 +166,8 @@ static void compression_submit(const char *pinst, const char *tinst,
                                derive_t uncompressed, derive_t compressed) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = uncompressed}, {.derive = compressed},
+      {.derive = uncompressed},
+      {.derive = compressed},
   };
 
   vl.values = values;
@@ -502,14 +504,15 @@ static int openvpn_config(const char *key, const char *value) {
         /* callback  = */ openvpn_read,
         /* interval  = */ 0,
         &(user_data_t){
-            .data = instance, .free_func = openvpn_free,
+            .data = instance,
+            .free_func = openvpn_free,
         });
 
     if (status == EINVAL) {
-      WARNING("openvpn plugin: status filename \"%s\" "
-              "already used, please choose a "
-              "different one.",
-              status_name);
+      ERROR("openvpn plugin: status filename \"%s\" "
+            "already used, please choose a "
+            "different one.",
+            status_name);
       return -1;
     }
 

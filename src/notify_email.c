@@ -104,8 +104,8 @@ static void monitor_cb(const char *buf, int buflen, int writing,
 static int notify_email_init(void) {
   char server[MAXSTRING];
 
-  snprintf(server, sizeof(server), "%s:%i",
-           (smtp_host == NULL) ? DEFAULT_SMTP_HOST : smtp_host, smtp_port);
+  ssnprintf(server, sizeof(server), "%s:%i",
+            (smtp_host == NULL) ? DEFAULT_SMTP_HOST : smtp_host, smtp_port);
 
   pthread_mutex_lock(&session_lock);
 
@@ -214,16 +214,16 @@ static int notify_email_notification(const notification_t *n,
   char *buf_ptr = buf;
   int buf_len = sizeof(buf);
 
-  snprintf(severity, sizeof(severity), "%s",
-           (n->severity == NOTIF_FAILURE)
-               ? "FAILURE"
-               : ((n->severity == NOTIF_WARNING)
-                      ? "WARNING"
-                      : ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
+  ssnprintf(severity, sizeof(severity), "%s",
+            (n->severity == NOTIF_FAILURE)
+                ? "FAILURE"
+                : ((n->severity == NOTIF_WARNING)
+                       ? "WARNING"
+                       : ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
 
-  snprintf(subject, sizeof(subject),
-           (email_subject == NULL) ? DEFAULT_SMTP_SUBJECT : email_subject,
-           severity, n->host);
+  ssnprintf(subject, sizeof(subject),
+            (email_subject == NULL) ? DEFAULT_SMTP_SUBJECT : email_subject,
+            severity, n->host);
 
   localtime_r(&CDTIME_T_TO_TIME_T(n->time), &timestamp_tm);
   strftime(timestamp_str, sizeof(timestamp_str), "%Y-%m-%d %H:%M:%S",
@@ -231,15 +231,15 @@ static int notify_email_notification(const notification_t *n,
   timestamp_str[sizeof(timestamp_str) - 1] = '\0';
 
   /* Let's make RFC822 message text with \r\n EOLs */
-  int status = snprintf(buf, buf_len,
-                        "MIME-Version: 1.0\r\n"
-                        "Content-Type: text/plain; charset=\"US-ASCII\"\r\n"
-                        "Content-Transfer-Encoding: 8bit\r\n"
-                        "Subject: %s\r\n"
-                        "\r\n"
-                        "%s - %s@%s\r\n"
-                        "\r\n",
-                        subject, timestamp_str, severity, n->host);
+  int status = ssnprintf(buf, buf_len,
+                         "MIME-Version: 1.0\r\n"
+                         "Content-Type: text/plain; charset=\"US-ASCII\"\r\n"
+                         "Content-Transfer-Encoding: 8bit\r\n"
+                         "Subject: %s\r\n"
+                         "\r\n"
+                         "%s - %s@%s\r\n"
+                         "\r\n",
+                         subject, timestamp_str, severity, n->host);
 
   if (status > 0) {
     buf_ptr += status;
@@ -248,7 +248,7 @@ static int notify_email_notification(const notification_t *n,
 
 #define APPEND(format, value)                                                  \
   if ((buf_len > 0) && (strlen(value) > 0)) {                                  \
-    status = snprintf(buf_ptr, buf_len, format "\r\n", value);                 \
+    status = ssnprintf(buf_ptr, buf_len, format "\r\n", value);                \
     if (status > 0) {                                                          \
       buf_ptr += status;                                                       \
       buf_len -= status;                                                       \

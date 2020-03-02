@@ -99,6 +99,7 @@ struct host_definition_s {
   c_complain_t complaint;
   data_definition_t **data_list;
   int data_list_len;
+  int bulk_size;
 };
 typedef struct host_definition_s host_definition_t;
 
@@ -171,7 +172,7 @@ static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
   char *oid_str_ptr[MAX_OID_LEN];
 
   for (size_t i = 0; i < o->oid_len; i++) {
-    snprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
+    ssnprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
     oid_str_ptr[i] = oid_str[i];
   }
 
@@ -762,6 +763,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   /* These mean that we have not set a timeout or retry value */
   hd->timeout = 0;
   hd->retries = -1;
+  hd->bulk_size = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
@@ -794,6 +796,8 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       status = csnmp_config_add_host_security_level(hd, option);
     else if (strcasecmp("Context", option->key) == 0)
       status = cf_util_get_string(option, &hd->context);
+    else if (strcasecmp("BulkSize", option->key) == 0)
+      status = cf_util_get_int(option, &hd->bulk_size);
     else {
       WARNING(
           "snmp plugin: csnmp_config_add_host: Option `%s' not allowed here.",
@@ -815,6 +819,11 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       WARNING("snmp plugin: `Community' not given for host `%s'", hd->name);
       status = -1;
       break;
+    }
+    if (hd->bulk_size > 0 && hd->version < 2) {
+      WARNING("snmp plugin: Bulk transfers is only available for SNMP v2 and "
+              "later, host '%s' is configured as version '%d'",
+              hd->name, hd->version);
     }
     if (hd->version == 3) {
       if (hd->username == NULL) {
@@ -871,12 +880,13 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
         "= %i }",
         hd->name, hd->address, hd->community, hd->version);
 
-  snprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
+  ssnprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
 
   status = plugin_register_complex_read(
       /* group = */ NULL, cb_name, csnmp_read_host, interval,
       &(user_data_t){
-          .data = hd, .free_func = csnmp_host_definition_destroy,
+          .data = hd,
+          .free_func = csnmp_host_definition_destroy,
       });
   if (status != 0) {
     ERROR("snmp plugin: Registering complex read function failed.");
@@ -1140,8 +1150,8 @@ static int csnmp_strvbcopy_hexstring(char *dst, /* {{{ */
   for (size_t i = 0; i < vb->val_len; i++) {
     int status;
 
-    status = snprintf(buffer_ptr, buffer_free, (i == 0) ? "%02x" : ":%02x",
-                      (unsigned int)vb->val.bitstring[i]);
+    status = ssnprintf(buffer_ptr, buffer_free, (i == 0) ? "%02x" : ":%02x",
+                       (unsigned int)vb->val.bitstring[i]);
     assert(status >= 0);
 
     if (((size_t)status) >= buffer_free) /* truncated */
@@ -1173,10 +1183,10 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
   else if (vb->type == ASN_BIT_STR)
     src = (char *)vb->val.bitstring;
   else if (vb->type == ASN_IPADDRESS) {
-    return snprintf(dst, dst_size,
-                    "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
-                    (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
-                    (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
+    return ssnprintf(dst, dst_size,
+                     "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
+                     (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
+                     (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
   } else {
     dst[0] = 0;
     return EINVAL;
@@ -1234,7 +1244,7 @@ static csnmp_cell_char_t *csnmp_get_char_cell(const struct variable_list *vb,
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
         /* scale = */ 1.0, /* shift = */ 0.0, hd->name, dd->name);
-    snprintf(il->value, sizeof(il->value), "%" PRIu64, (uint64_t)val.counter);
+    ssnprintf(il->value, sizeof(il->value), "%" PRIu64, (uint64_t)val.counter);
   }
 
   return il;
@@ -1479,7 +1489,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
       if (data->host.prefix == NULL)
         sstrncpy(vl.host, temp, sizeof(vl.host));
       else
-        snprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
+        ssnprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
     } else {
       sstrncpy(vl.host, host->name, sizeof(vl.host));
     }
@@ -1495,8 +1505,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
       if (data->type_instance.prefix == NULL)
         sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
       else
-        snprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                 data->type_instance.prefix, temp);
+        ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
+                  data->type_instance.prefix, temp);
     } else if (data->type_instance.value) {
       sstrncpy(vl.type_instance, data->type_instance.value,
                sizeof(vl.type_instance));
@@ -1513,8 +1523,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
       if (data->plugin_instance.prefix == NULL)
         sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
       else
-        snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
-                 data->plugin_instance.prefix, temp);
+        ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
+                  data->plugin_instance.prefix, temp);
     } else if (data->plugin_instance.value) {
       sstrncpy(vl.plugin_instance, data->plugin_instance.value,
                sizeof(vl.plugin_instance));
@@ -1654,7 +1664,14 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
   status = 0;
   while (status == 0) {
-    req = snmp_pdu_create(SNMP_MSG_GETNEXT);
+    /* If SNMP v2 and later and bulk transfers enabled, use GETBULK PDU */
+    if (host->version > 1 && host->bulk_size > 0) {
+      req = snmp_pdu_create(SNMP_MSG_GETBULK);
+      req->non_repeaters = 0;
+      req->max_repetitions = host->bulk_size;
+    } else {
+      req = snmp_pdu_create(SNMP_MSG_GETNEXT);
+    }
     if (req == NULL) {
       ERROR("snmp plugin: snmp_pdu_create failed.");
       status = -1;
@@ -1680,6 +1697,13 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       snmp_free_pdu(req);
       status = 0;
       break;
+    }
+
+    if (req->command == SNMP_MSG_GETBULK) {
+      /* In bulk mode the host will send 'max_repetitions' values per
+         requested variable, so we need to split it per number of variable
+         to stay 'in budget' */
+      req->max_repetitions = floor(host->bulk_size / oid_list_todo_num);
     }
 
     res = NULL;
@@ -1753,11 +1777,18 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       continue;
     }
 
-    for (vb = res->variables, i = 0; (vb != NULL);
-         vb = vb->next_variable, i++) {
+    size_t j;
+    for (vb = res->variables, j = 0; (vb != NULL);
+         vb = vb->next_variable, j++) {
+      i = j;
+      /* If bulk request is active convert value index of the extra value */
+      if (host->version > 1 && host->bulk_size > 0) {
+        i %= oid_list_todo_num;
+      }
       /* Calculate value index from todo list */
       while ((i < oid_list_len) && !oid_list_todo[i]) {
         i++;
+        j++;
       }
       if (i >= oid_list_len) {
         break;

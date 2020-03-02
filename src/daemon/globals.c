@@ -21,8 +21,14 @@
  * DEALINGS IN THE SOFTWARE.
  **/
 
-#include "globals.h"
+// clang-format off
+/*
+ * Explicit order is required or _FILE_OFFSET_BITS will have definition mismatches on Solaris
+ * See Github Issue #3193 for details
+ */
 #include "utils/common/common.h"
+#include "globals.h"
+// clang-format on
 
 #if HAVE_KSTAT_H
 #include <kstat.h>

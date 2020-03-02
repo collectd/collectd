@@ -28,7 +28,9 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#ifdef HAVE_SYS_SYSCTL_H
+#if (defined(HAVE_SYS_SYSCTL_H) && defined(HAVE_SYSCTLBYNAME)) ||              \
+    defined(__OpenBSD__)
+/* Implies BSD variant */
 #include <sys/sysctl.h>
 #endif
 #ifdef HAVE_SYS_VMMETER_H
@@ -80,9 +82,10 @@ static kstat_t *ksp;
 static kstat_t *ksz;
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL
+#elif HAVE_SYSCTL && __OpenBSD__
+/* OpenBSD variant does not have sysctlbyname */
 static int pagesize;
-/* #endif HAVE_SYSCTL */
+/* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
 /* no global variables */
@@ -118,7 +121,7 @@ static int memory_init(void) {
 #if HAVE_HOST_STATISTICS
   port_host = mach_host_self();
   host_page_size(port_host, &pagesize);
-/* #endif HAVE_HOST_STATISTICS */
+  /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
 /* no init stuff */
@@ -140,15 +143,16 @@ static int memory_init(void) {
     return -1;
   }
 
-/* #endif HAVE_LIBKSTAT */
+    /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL
+#elif HAVE_SYSCTL && __OpenBSD__
+  /* OpenBSD variant does not have sysctlbyname */
   pagesize = getpagesize();
   if (pagesize <= 0) {
     ERROR("memory plugin: Invalid pagesize: %i", pagesize);
     return -1;
   }
-/* #endif HAVE_SYSCTL */
+    /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
 /* no init stuff */
@@ -218,7 +222,7 @@ static int memory_read_internal(value_list_t *vl) {
 
   MEMORY_SUBMIT("wired", wired, "active", active, "inactive", inactive, "free",
                 free);
-/* #endif HAVE_HOST_STATISTICS */
+  /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
   /*
@@ -259,7 +263,7 @@ static int memory_read_internal(value_list_t *vl) {
                 (gauge_t)sysctl_vals[3], "active", (gauge_t)sysctl_vals[4],
                 "inactive", (gauge_t)sysctl_vals[5], "cache",
                 (gauge_t)sysctl_vals[6]);
-/* #endif HAVE_SYSCTLBYNAME */
+  /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
   FILE *fh;
@@ -334,7 +338,7 @@ static int memory_read_internal(value_list_t *vl) {
   else
     MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
                   mem_cached, "free", mem_free, "slab", mem_slab_total);
-/* #endif KERNEL_LINUX */
+    /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
   /* Most of the additions here were taken as-is from the k9toolkit from
@@ -406,9 +410,10 @@ static int memory_read_internal(value_list_t *vl) {
   MEMORY_SUBMIT("used", (gauge_t)mem_used, "free", (gauge_t)mem_free, "locked",
                 (gauge_t)mem_lock, "kernel", (gauge_t)mem_kern, "arc",
                 (gauge_t)arcsize, "unusable", (gauge_t)mem_unus);
-/* #endif HAVE_LIBKSTAT */
+  /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL
+#elif HAVE_SYSCTL && __OpenBSD__
+  /* OpenBSD variant does not have HAVE_SYSCTLBYNAME */
   int mib[] = {CTL_VM, VM_METER};
   struct vmtotal vmtotal = {0};
   gauge_t mem_active;
@@ -430,7 +435,7 @@ static int memory_read_internal(value_list_t *vl) {
 
   MEMORY_SUBMIT("active", mem_active, "inactive", mem_inactive, "free",
                 mem_free);
-/* #endif HAVE_SYSCTL */
+  /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
   sg_mem_stats *ios;
@@ -441,7 +446,7 @@ static int memory_read_internal(value_list_t *vl) {
 
   MEMORY_SUBMIT("used", (gauge_t)ios->used, "cached", (gauge_t)ios->cache,
                 "free", (gauge_t)ios->free);
-/* #endif HAVE_LIBSTATGRAB */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
   perfstat_memory_total_t pmemory = {0};

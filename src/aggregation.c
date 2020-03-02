@@ -194,19 +194,25 @@ static int agg_instance_create_name(agg_instance_t *inst, /* {{{ */
       sstrncpy(tmp_plugin_instance, agg->ident.plugin_instance,
                sizeof(tmp_plugin_instance));
 
+    // Both tmp_plugin and tmp_plugin_instance are empty.
     if ((strcmp("", tmp_plugin) == 0) && (strcmp("", tmp_plugin_instance) == 0))
       sstrncpy(inst->ident.plugin_instance, AGG_FUNC_PLACEHOLDER,
                sizeof(inst->ident.plugin_instance));
-    else if (strcmp("", tmp_plugin) != 0)
-      snprintf(inst->ident.plugin_instance, sizeof(inst->ident.plugin_instance),
-               "%s-%s", tmp_plugin, AGG_FUNC_PLACEHOLDER);
-    else if (strcmp("", tmp_plugin_instance) != 0)
-      snprintf(inst->ident.plugin_instance, sizeof(inst->ident.plugin_instance),
-               "%s-%s", tmp_plugin_instance, AGG_FUNC_PLACEHOLDER);
+    // tmp_plugin is non-empty, and tmp_plugin_instance is empty.
+    else if (strcmp("", tmp_plugin_instance) == 0)
+      ssnprintf(inst->ident.plugin_instance,
+                sizeof(inst->ident.plugin_instance), "%s-%s", tmp_plugin,
+                AGG_FUNC_PLACEHOLDER);
+    // tmp_plugin is empty, and tmp_plugin_instance is non-empty.
+    else if (strcmp("", tmp_plugin) == 0)
+      ssnprintf(inst->ident.plugin_instance,
+                sizeof(inst->ident.plugin_instance), "%s-%s",
+                tmp_plugin_instance, AGG_FUNC_PLACEHOLDER);
+    // Both tmp_plugin and tmp_plugin_instance are non-empty.
     else
-      snprintf(inst->ident.plugin_instance, sizeof(inst->ident.plugin_instance),
-               "%s-%s-%s", tmp_plugin, tmp_plugin_instance,
-               AGG_FUNC_PLACEHOLDER);
+      ssnprintf(inst->ident.plugin_instance,
+                sizeof(inst->ident.plugin_instance), "%s-%s-%s", tmp_plugin,
+                tmp_plugin_instance, AGG_FUNC_PLACEHOLDER);
   }
 
   /* Type */
@@ -396,10 +402,9 @@ static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
     READ_FUNC(average, (inst->sum / ((gauge_t)inst->num)));
     READ_FUNC(min, inst->min);
     READ_FUNC(max, inst->max);
-    READ_FUNC(stddev,
-              sqrt((((gauge_t)inst->num) * inst->squares_sum) -
-                   (inst->sum * inst->sum)) /
-                  ((gauge_t)inst->num));
+    READ_FUNC(stddev, sqrt((((gauge_t)inst->num) * inst->squares_sum) -
+                           (inst->sum * inst->sum)) /
+                          ((gauge_t)inst->num));
   }
 
   /* Reset internal state. */

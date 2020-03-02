@@ -307,11 +307,12 @@ static int do_shutdown(void) {
 static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
-    int c = getopt(argc, argv, "BhtTC:"
+    int c = getopt(argc, argv,
+                   "BhtTC:"
 #if COLLECT_DAEMON
-                               "fP:"
+                   "fP:"
 #endif
-                   );
+    );
 
     if (c == -1)
       break;
@@ -391,7 +392,9 @@ void stop_collectd(void) { loop++; }
 
 struct cmdline_config init_config(int argc, char **argv) {
   struct cmdline_config config = {
-      .daemonize = true, .create_basedir = true, .configfile = CONFIGFILE,
+      .daemonize = true,
+      .create_basedir = true,
+      .configfile = CONFIGFILE,
   };
 
   read_cmdline(argc, argv, &config);

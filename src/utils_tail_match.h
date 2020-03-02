@@ -33,6 +33,9 @@
  *   regular expressions.
  */
 
+#ifndef UTILS_TAIL_MATCH_H
+#define UTILS_TAIL_MATCH_H 1
+
 #include "utils/latency/latency_config.h"
 #include "utils/match/match.h"
 
@@ -131,5 +134,7 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
  *
  * RETURN VALUE
  *   Zero on success, nonzero on failure.
-*/
-int tail_match_read(cu_tail_match_t *obj);
+ */
+int tail_match_read(cu_tail_match_t *obj, bool force_rewind);
+
+#endif /* UTILS_TAIL_MATCH_H */

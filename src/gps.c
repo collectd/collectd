@@ -287,8 +287,7 @@ static int cgps_init(void) {
         CDTIME_T_TO_DOUBLE(cgps_config_data.timeout),
         CDTIME_T_TO_DOUBLE(cgps_config_data.pause_connect));
 
-  status =
-      plugin_thread_create(&cgps_thread_id, NULL, cgps_thread, NULL, "gps");
+  status = plugin_thread_create(&cgps_thread_id, cgps_thread, NULL, "gps");
   if (status != 0) {
     ERROR("gps plugin: pthread_create() failed.");
     return -1;

@@ -41,6 +41,8 @@ void plugin_set_dir(const char *dir) { /* nop */
 
 int plugin_load(const char *name, bool global) { return ENOTSUP; }
 
+bool plugin_is_loaded(const char *name) { return false; }
+
 int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),
                            const char **keys, int keys_num) {
@@ -67,6 +69,13 @@ int plugin_register_write(__attribute__((unused)) const char *name,
   return ENOTSUP;
 }
 
+int plugin_register_flush(__attribute__((unused)) const char *name,
+                          __attribute__((unused)) plugin_flush_cb callback,
+                          __attribute__((unused))
+                          user_data_t const *user_data) {
+  return ENOTSUP;
+}
+
 int plugin_register_missing(const char *name, plugin_missing_cb callback,
                             user_data_t const *ud) {
   return ENOTSUP;
@@ -84,6 +93,31 @@ int plugin_register_shutdown(const char *name, int (*callback)(void)) {
 }
 
 int plugin_register_data_set(const data_set_t *ds) { return ENOTSUP; }
+
+int plugin_register_notification(__attribute__((unused)) const char *name,
+                                 __attribute__((unused))
+                                 plugin_notification_cb callback,
+                                 __attribute__((unused))
+                                 user_data_t const *user_data) {
+  return ENOTSUP;
+}
+
+#define DECLARE_UNREGISTER(t)                                                  \
+  int plugin_unregister_##t(__attribute__((unused)) char const *name) {        \
+    return ENOTSUP;                                                            \
+  }
+DECLARE_UNREGISTER(config)
+DECLARE_UNREGISTER(complex_config)
+DECLARE_UNREGISTER(init)
+DECLARE_UNREGISTER(read)
+DECLARE_UNREGISTER(read_group)
+DECLARE_UNREGISTER(write)
+DECLARE_UNREGISTER(flush)
+DECLARE_UNREGISTER(missing)
+DECLARE_UNREGISTER(shutdown)
+DECLARE_UNREGISTER(data_set)
+DECLARE_UNREGISTER(log)
+DECLARE_UNREGISTER(notification)
 
 int plugin_dispatch_values(value_list_t const *vl) { return ENOTSUP; }
 
@@ -197,6 +231,13 @@ plugin_ctx_t plugin_set_ctx(plugin_ctx_t ctx) {
 }
 
 cdtime_t plugin_get_interval(void) { return mock_context.interval; }
+
+int plugin_thread_create(__attribute__((unused)) pthread_t *thread,
+                         __attribute__((unused)) void *(*start_routine)(void *),
+                         __attribute__((unused)) void *arg,
+                         __attribute__((unused)) char const *name) {
+  return ENOTSUP;
+}
 
 /* TODO(octo): this function is actually from filter_chain.h, but in order not
  * to tumble down that rabbit hole, we're declaring it here. A better solution

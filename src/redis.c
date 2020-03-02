@@ -115,7 +115,7 @@ static int redis_node_add(redis_node_t *rn) /* {{{ */
   redis_have_instances = true;
 
   char cb_name[sizeof("redis/") + DATA_MAX_NAME_LEN];
-  snprintf(cb_name, sizeof(cb_name), "redis/%s", rn->name);
+  ssnprintf(cb_name, sizeof(cb_name), "redis/%s", rn->name);
 
   return plugin_register_complex_read(
       /* group = */ "redis",
@@ -123,7 +123,8 @@ static int redis_node_add(redis_node_t *rn) /* {{{ */
       /* callback  = */ redis_read,
       /* interval  = */ 0,
       &(user_data_t){
-          .data = rn, .free_func = redis_node_free,
+          .data = rn,
+          .free_func = redis_node_free,
       });
 } /* }}} */
 
@@ -486,7 +487,7 @@ static int redis_db_stats(const char *node, char const *info_line) /* {{{ */
     char *str;
     int i;
 
-    snprintf(field_name, sizeof(field_name), "db%d:keys=", db);
+    ssnprintf(field_name, sizeof(field_name), "db%d:keys=", db);
 
     str = strstr(info_line, field_name);
     if (!str)
@@ -502,7 +503,7 @@ static int redis_db_stats(const char *node, char const *info_line) /* {{{ */
       return -1;
     }
 
-    snprintf(db_id, sizeof(db_id), "%d", db);
+    ssnprintf(db_id, sizeof(db_id), "%d", db);
     redis_submit(node, "records", db_id, val);
   }
   return 0;

@@ -82,7 +82,9 @@ static int pnif;
  * (Module-)Global variables
  */
 static const char *config_keys[] = {
-    "Interface", "IgnoreSelected", "ReportInactive",
+    "Interface",
+    "IgnoreSelected",
+    "ReportInactive",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -160,7 +162,8 @@ static void if_submit(const char *dev, const char *type, derive_t rx,
                       derive_t tx) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = rx}, {.derive = tx},
+      {.derive = rx},
+      {.derive = tx},
   };
 
   if (ignorelist_match(ignorelist, dev) != 0)
@@ -176,59 +179,7 @@ static void if_submit(const char *dev, const char *type, derive_t rx,
 } /* void if_submit */
 
 static int interface_read(void) {
-#if HAVE_GETIFADDRS
-  struct ifaddrs *if_list;
-
-/* Darwin/Mac OS X and possible other *BSDs */
-#if HAVE_STRUCT_IF_DATA
-#define IFA_DATA if_data
-#define IFA_RX_BYTES ifi_ibytes
-#define IFA_TX_BYTES ifi_obytes
-#define IFA_RX_PACKT ifi_ipackets
-#define IFA_TX_PACKT ifi_opackets
-#define IFA_RX_ERROR ifi_ierrors
-#define IFA_TX_ERROR ifi_oerrors
-/* #endif HAVE_STRUCT_IF_DATA */
-
-#elif HAVE_STRUCT_NET_DEVICE_STATS
-#define IFA_DATA net_device_stats
-#define IFA_RX_BYTES rx_bytes
-#define IFA_TX_BYTES tx_bytes
-#define IFA_RX_PACKT rx_packets
-#define IFA_TX_PACKT tx_packets
-#define IFA_RX_ERROR rx_errors
-#define IFA_TX_ERROR tx_errors
-#else
-#error "No suitable type for `struct ifaddrs->ifa_data' found."
-#endif
-
-  struct IFA_DATA *if_data;
-
-  if (getifaddrs(&if_list) != 0)
-    return -1;
-
-  for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL;
-       if_ptr = if_ptr->ifa_next) {
-    if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
-      if_data = (struct IFA_DATA *)if_ptr->ifa_data;
-
-      if (!report_inactive && if_data->IFA_RX_PACKT == 0 &&
-          if_data->IFA_TX_PACKT == 0)
-        continue;
-
-      if_submit(if_ptr->ifa_name, "if_octets", if_data->IFA_RX_BYTES,
-                if_data->IFA_TX_BYTES);
-      if_submit(if_ptr->ifa_name, "if_packets", if_data->IFA_RX_PACKT,
-                if_data->IFA_TX_PACKT);
-      if_submit(if_ptr->ifa_name, "if_errors", if_data->IFA_RX_ERROR,
-                if_data->IFA_TX_ERROR);
-    }
-  }
-
-  freeifaddrs(if_list);
-/* #endif HAVE_GETIFADDRS */
-
-#elif KERNEL_LINUX
+#if KERNEL_LINUX
   FILE *fh;
   char buffer[1024];
   derive_t incoming, outgoing;
@@ -282,7 +233,59 @@ static int interface_read(void) {
   }
 
   fclose(fh);
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
+
+#elif HAVE_GETIFADDRS
+  struct ifaddrs *if_list;
+
+/* Darwin/Mac OS X and possible other *BSDs */
+#if HAVE_STRUCT_IF_DATA
+#define IFA_DATA if_data
+#define IFA_RX_BYTES ifi_ibytes
+#define IFA_TX_BYTES ifi_obytes
+#define IFA_RX_PACKT ifi_ipackets
+#define IFA_TX_PACKT ifi_opackets
+#define IFA_RX_ERROR ifi_ierrors
+#define IFA_TX_ERROR ifi_oerrors
+  /* #endif HAVE_STRUCT_IF_DATA */
+
+#elif HAVE_STRUCT_NET_DEVICE_STATS
+#define IFA_DATA net_device_stats
+#define IFA_RX_BYTES rx_bytes
+#define IFA_TX_BYTES tx_bytes
+#define IFA_RX_PACKT rx_packets
+#define IFA_TX_PACKT tx_packets
+#define IFA_RX_ERROR rx_errors
+#define IFA_TX_ERROR tx_errors
+#else
+#error "No suitable type for `struct ifaddrs->ifa_data' found."
+#endif
+
+  struct IFA_DATA *if_data;
+
+  if (getifaddrs(&if_list) != 0)
+    return -1;
+
+  for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL;
+       if_ptr = if_ptr->ifa_next) {
+    if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
+      if_data = (struct IFA_DATA *)if_ptr->ifa_data;
+
+      if (!report_inactive && if_data->IFA_RX_PACKT == 0 &&
+          if_data->IFA_TX_PACKT == 0)
+        continue;
+
+      if_submit(if_ptr->ifa_name, "if_octets", if_data->IFA_RX_BYTES,
+                if_data->IFA_TX_BYTES);
+      if_submit(if_ptr->ifa_name, "if_packets", if_data->IFA_RX_PACKT,
+                if_data->IFA_TX_PACKT);
+      if_submit(if_ptr->ifa_name, "if_errors", if_data->IFA_RX_ERROR,
+                if_data->IFA_TX_ERROR);
+    }
+  }
+
+  freeifaddrs(if_list);
+  /* #endif HAVE_GETIFADDRS */
 
 #elif HAVE_LIBKSTAT
   derive_t rx;
@@ -297,8 +300,8 @@ static int interface_read(void) {
       continue;
 
     if (unique_name)
-      snprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
-               ksp[i]->ks_instance, ksp[i]->ks_name);
+      ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
+                ksp[i]->ks_instance, ksp[i]->ks_name);
     else
       sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
 
@@ -332,7 +335,7 @@ static int interface_read(void) {
     if ((rx != -1LL) || (tx != -1LL))
       if_submit(iname, "if_errors", rx, tx);
   }
-/* #endif HAVE_LIBKSTAT */
+    /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_network_io_stats *ios;
@@ -345,7 +348,7 @@ static int interface_read(void) {
       continue;
     if_submit(ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
   }
-/* #endif HAVE_LIBSTATGRAB */
+    /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
   perfstat_id_t id;
