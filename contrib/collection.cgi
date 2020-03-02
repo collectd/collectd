@@ -77,9 +77,9 @@ sub read_types_db
 		my ($type, $specs) = split(m/\s+/, $line, 2);
 		my @specs = split(m/,?\s+/, $specs);
 		$Types->{$type} = [];
-		for (my $i = 0; $i < @specs; $i++)
+		foreach my $spec (@specs)
 		{
-			my ($name, $ds_type, $min, $max) = split(m/:/, $specs[$i]);
+			my ($name, $ds_type, $min, $max) = split(m/:/, $spec);
 			push (@{$Types->{$type}}, $name);
 		}
 	}
