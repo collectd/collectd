@@ -281,6 +281,12 @@
 #    Persistent false
 #    StoreRates false
 #    ConnectionRetryDelay 0
+#    TLSEnabled false
+#    TLSVerifyPeer true
+#    TLSVerifyHostName true
+#    TLSCACert "/path/to/ca.pem"
+#    TLSClientCert "/path/to/client-cert.pem"
+#    TLSClientKey "/path/to/client-key.pem"
 #  </Publish>
 #</Plugin>
 

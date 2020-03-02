@@ -38,6 +38,7 @@
 #include <amqp_framing.h>
 
 #ifdef HAVE_AMQP_TCP_SOCKET_H
+#include <amqp_ssl_socket.h>
 #include <amqp_tcp_socket.h>
 #endif
 #ifdef HAVE_AMQP_SOCKET_H
@@ -74,6 +75,13 @@ struct camqp_config_s {
   char *vhost;
   char *user;
   char *password;
+
+  bool tls_enabled;
+  bool tls_verify_peer;
+  bool tls_verify_hostname;
+  char *tls_cacert;
+  char *tls_client_cert;
+  char *tls_client_key;
 
   char *exchange;
   char *routing_key;
@@ -149,6 +157,9 @@ static void camqp_config_free(void *ptr) /* {{{ */
   sfree(conf->vhost);
   sfree(conf->user);
   sfree(conf->password);
+  sfree(conf->tls_cacert);
+  sfree(conf->tls_client_cert);
+  sfree(conf->tls_client_key);
   sfree(conf->exchange);
   sfree(conf->exchange_type);
   sfree(conf->queue);
@@ -430,20 +441,56 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
 #ifdef HAVE_AMQP_TCP_SOCKET
 #define CLOSE_SOCKET() /* amqp_destroy_connection() closes the socket for us   \
                         */
-  /* TODO: add support for SSL using amqp_ssl_socket_new
-   *       and related functions */
-  socket = amqp_tcp_socket_new(conf->connection);
-  if (!socket) {
-    ERROR("amqp plugin: amqp_tcp_socket_new failed.");
-    amqp_destroy_connection(conf->connection);
-    conf->connection = NULL;
-    return ENOMEM;
+
+  if (conf->tls_enabled) {
+    socket = amqp_ssl_socket_new(conf->connection);
+    if (!socket) {
+      ERROR("amqp plugin: amqp_ssl_socket_new failed.");
+      amqp_destroy_connection(conf->connection);
+      conf->connection = NULL;
+      return ENOMEM;
+    }
+
+#if AMQP_VERSION >= 0x00080000
+    amqp_ssl_socket_set_verify_peer(socket, conf->tls_verify_peer);
+    amqp_ssl_socket_set_verify_hostname(socket, conf->tls_verify_hostname);
+#endif
+
+    if (conf->tls_cacert) {
+      status = amqp_ssl_socket_set_cacert(socket, conf->tls_cacert);
+      if (status < 0) {
+        ERROR("amqp plugin: amqp_ssl_socket_set_cacert failed: %s",
+              amqp_error_string2(status));
+        amqp_destroy_connection(conf->connection);
+        conf->connection = NULL;
+        return status;
+      }
+    }
+    if (conf->tls_client_cert && conf->tls_client_key) {
+      status = amqp_ssl_socket_set_key(socket, conf->tls_client_cert,
+                                       conf->tls_client_key);
+      if (status < 0) {
+        ERROR("amqp plugin: amqp_ssl_socket_set_key failed: %s",
+              amqp_error_string2(status));
+        amqp_destroy_connection(conf->connection);
+        conf->connection = NULL;
+        return status;
+      }
+    }
+  } else {
+    socket = amqp_tcp_socket_new(conf->connection);
+    if (!socket) {
+      ERROR("amqp plugin: amqp_tcp_socket_new failed.");
+      amqp_destroy_connection(conf->connection);
+      conf->connection = NULL;
+      return ENOMEM;
+    }
   }
 
   status = amqp_socket_open(socket, CONF(conf, host), conf->port);
   if (status < 0) {
-    status *= -1;
-    ERROR("amqp plugin: amqp_socket_open failed: %s", STRERROR(status));
+    ERROR("amqp plugin: amqp_socket_open failed: %s",
+          amqp_error_string2(status));
     amqp_destroy_connection(conf->connection);
     conf->connection = NULL;
     return status;
@@ -845,6 +892,12 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
   conf->vhost = NULL;
   conf->user = NULL;
   conf->password = NULL;
+  conf->tls_enabled = false;
+  conf->tls_verify_peer = true;
+  conf->tls_verify_hostname = true;
+  conf->tls_cacert = NULL;
+  conf->tls_client_cert = NULL;
+  conf->tls_client_key = NULL;
   conf->exchange = NULL;
   conf->routing_key = NULL;
   conf->connection_retry_delay = 0;
@@ -890,6 +943,18 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
       status = cf_util_get_string(child, &conf->user);
     else if (strcasecmp("Password", child->key) == 0)
       status = cf_util_get_string(child, &conf->password);
+    else if (strcasecmp("TLSEnabled", child->key) == 0)
+      status = cf_util_get_boolean(child, &conf->tls_enabled);
+    else if (strcasecmp("TLSVerifyPeer", child->key) == 0)
+      status = cf_util_get_boolean(child, &conf->tls_verify_peer);
+    else if (strcasecmp("TLSVerifyHostName", child->key) == 0)
+      status = cf_util_get_boolean(child, &conf->tls_verify_hostname);
+    else if (strcasecmp("TLSCACert", child->key) == 0)
+      status = cf_util_get_string(child, &conf->tls_cacert);
+    else if (strcasecmp("TLSClientCert", child->key) == 0)
+      status = cf_util_get_string(child, &conf->tls_client_cert);
+    else if (strcasecmp("TLSClientKey", child->key) == 0)
+      status = cf_util_get_string(child, &conf->tls_client_key);
     else if (strcasecmp("Exchange", child->key) == 0)
       status = cf_util_get_string(child, &conf->exchange);
     else if (strcasecmp("ExchangeType", child->key) == 0)
@@ -957,6 +1022,29 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
     if (!publish && (conf->routing_key != NULL))
       WARNING("amqp plugin: The option \"RoutingKey\" was given "
               "without the \"Exchange\" option. It will be ignored.");
+  }
+
+#if !defined(AMQP_VERSION) || AMQP_VERSION < 0x00040000
+  if (status == 0 && conf->tls_enabled) {
+    ERROR("amqp plugin: TLSEnabled is set but not supported. "
+          "rebuild collectd with rabbitmq-c >= 0.4");
+    status = 1;
+  }
+#endif
+#if !defined(AMQP_VERSION) || AMQP_VERSION < 0x00080000
+  if (status == 0 && (!conf->tls_verify_peer || !conf->tls_verify_hostname)) {
+    ERROR("amqp plugin: disabling TLSVerify* is not supported. "
+          "rebuild collectd with rabbitmq-c >= 0.8");
+    status = 1;
+  }
+#endif
+  if (status == 0 &&
+      (conf->tls_client_cert != NULL || conf->tls_client_key != NULL)) {
+    if (conf->tls_client_cert == NULL || conf->tls_client_key == NULL) {
+      ERROR("amqp plugin: only one of TLSClientCert/TLSClientKey is "
+            "configured. need both or neither.");
+      status = 1;
+    }
   }
 
   if (status != 0) {
