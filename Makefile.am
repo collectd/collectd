@@ -1296,8 +1296,8 @@ mdevents_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 mdevents_la_LIBADD = libignorelist.la
 
 test_plugin_mdevents_SOURCES = src/mdevents_test.c
-test_plugin_mdevents_CFLAGS = $(AM_FLAGS) -fprofile-arcs -ftest-coverage -O0 -g
-test_plugin_mdevents_LDFLAGS = $(PLUGIN_LDFLAGS) -fprofile-arcs
+test_plugin_mdevents_CFLAGS = $(AM_FLAGS)
+test_plugin_mdevents_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_mdevents_LDADD = libplugin_mock.la
 check_PROGRAMS += test_plugin_mdevents
 TESTS += test_plugin_mdevents
