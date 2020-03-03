@@ -321,7 +321,7 @@ static void cjo_submit(cjo_t *db) /* {{{ */
 #define CJO_CB_ABORT 0
 #define CJO_CB_CONTINUE 1
 
-static int cjo_cb_string(void *ctx, const unsigned char *val, size_t len) {
+static int cjo_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
   cjo_t *db = (cjo_t *)ctx;
 
   switch (db->expect) {
@@ -354,7 +354,7 @@ static int cjo_cb_string(void *ctx, const unsigned char *val, size_t len) {
   return CJO_CB_CONTINUE;
 } /* int cjo_cb_string */
 
-static int cjo_cb_number(void *ctx, const char *number, size_t number_len) {
+static int cjo_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
   cjo_t *db = (cjo_t *)ctx;
 
   switch (db->expect) {
@@ -378,7 +378,7 @@ static int cjo_cb_number(void *ctx, const char *number, size_t number_len) {
 } /* int cjo_cb_number */
 
 static int cjo_cb_map_key(void *ctx, unsigned char const *in_name,
-                          size_t in_name_len) {
+                          yajl_len_t in_name_len) {
   cjo_t *db = (cjo_t *)ctx;
 
   if ((in_name_len == 5) && !strncmp((const char *)in_name, "value", 5)) {
@@ -594,7 +594,11 @@ static int cjo_perform(cjo_t *db) /* {{{ */
   yajl_handle yprev = db->yajl;
 
   db->yajl = yajl_alloc(&ycallbacks,
+#if HAVE_YAJL_V2
                         /* alloc funcs = */ NULL,
+#else
+                        /* alloc funcs = */ NULL, NULL,
+#endif
                         /* context = */ (void *)db);
   if (db->yajl == NULL) {
     ERROR("curl_jolokia plugin: yajl_alloc failed.");
@@ -613,7 +617,11 @@ static int cjo_perform(cjo_t *db) /* {{{ */
     return -1;
   }
 
+#if HAVE_YAJL_V2
   status = yajl_complete_parse(db->yajl);
+#else
+  status = yajl_parse_complete(db->yajl);
+#endif
   if (status != yajl_status_ok) {
     unsigned char *errmsg;
 
