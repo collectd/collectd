@@ -11316,10 +11316,6 @@ The I<write_sensu plugin> will send values to I<Sensu>, a powerful stream
 aggregation and monitoring system. The plugin sends I<JSON> encoded data to
 a local I<Sensu> client using a TCP socket.
 
-At the moment, the I<write_sensu plugin> does not send over a collectd_host
-parameter so it is not possible to use one collectd instance as a gateway for
-others. Each collectd host must pair with one I<Sensu> client.
-
 Synopsis:
 
  <Plugin "write_sensu">
@@ -11328,6 +11324,7 @@ Synopsis:
      Port "3030"
      StoreRates true
      AlwaysAppendDS false
+     IncludeSource false
      MetricHandler "influx"
      MetricHandler "default"
      NotificationHandler "flapjack"
@@ -11417,6 +11414,15 @@ I<Sensu>.
 
 Consider the two given strings to be the key and value of an additional
 attribute for each metric being sent out to I<Sensu>.
+
+=item B<IncludeSource> B<false>|B<true>
+
+If set to B<true>, then the source host of the metrics/notification is passed
+on to sensu using the source attribute. This may register the host as a proxy
+client in sensu.
+
+If set to B<false> (the default), then the hostname is discarded, making it appear
+as if the event originated from the connected sensu agent.
 
 =back
 

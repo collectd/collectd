@@ -1969,6 +1969,7 @@
 #		Port 3030
 #		StoreRates true
 #		AlwaysAppendDS false
+#		IncludeSource false
 #		Notifications true
 #		Metrics true
 #		EventServicePrefix ""
