@@ -24,7 +24,7 @@
 
 #include "collectd.h"
 
-#include "common.h"
+#include "utils/common/common.h"
 #include "configfile.h"
 #include "plugin.h"
 #include "utils_complain.h"
