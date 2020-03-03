@@ -37,6 +37,13 @@
 #include <curl/curl.h>
 
 #include <yajl/yajl_parse.h>
+#if HAVE_YAJL_YAJL_VERSION_H
+#include <yajl/yajl_version.h>
+#endif
+
+#if defined(YAJL_MAJOR) && (YAJL_MAJOR > 1)
+#define HAVE_YAJL_V2 1
+#endif
 
 #define CJO_DEFAULT_HOST "localhost"
 
@@ -130,6 +137,12 @@ struct cjo_s /* {{{ */
   int max_value_len;
 };
 typedef struct cjo_s cjo_t; /* }}} */
+
+#if HAVE_YAJL_V2
+typedef size_t yajl_len_t;
+#else
+typedef unsigned int yajl_len_t;
+#endif
 
 static void cjo_init_buffer(cjo_membuffer_t *buf, size_t initial_size) {
   buf->buffer = calloc(1, initial_size);
