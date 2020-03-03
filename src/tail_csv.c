@@ -47,6 +47,7 @@ struct instance_definition_s {
   char *plugin_name;
   char *instance;
   char *path;
+  char field_separator;
   cu_tail_t *tail;
   metric_definition_t **metric_list;
   size_t metric_list_len;
@@ -157,7 +158,7 @@ static int tcsv_read_buffer(instance_definition_t *id, char *buffer,
   /* Count the number of fields. */
   metrics_num = 1;
   for (i = 0; i < buffer_size; i++) {
-    if (buffer[i] == ',')
+    if (buffer[i] == id->field_separator)
       metrics_num++;
   }
 
@@ -179,7 +180,7 @@ static int tcsv_read_buffer(instance_definition_t *id, char *buffer,
   metrics[0] = ptr;
   i = 1;
   for (ptr = buffer; *ptr != 0; ptr++) {
-    if (*ptr != ',')
+    if (*ptr != id->field_separator)
       continue;
 
     *ptr = 0;
@@ -274,6 +275,28 @@ static int tcsv_config_get_index(oconfig_item_t *ci, ssize_t *ret_index) {
   }
 
   *ret_index = (ssize_t)ci->values[0].value.number;
+  return 0;
+}
+
+static int tcsv_config_get_separator(oconfig_item_t *ci, char *ret_char) {
+  size_t len_opt;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    WARNING("tail_csv plugin: The \"%s\" config option needs exactly one "
+            "string argument.",
+            ci->key);
+    return -1;
+  }
+
+  len_opt = strlen(ci->values[0].value.string);
+  if (len_opt != 1) {
+    WARNING("tail_csv plugin: The \"%s\" config option must be a "
+            "single character",
+            ci->key);
+    return -1;
+  }
+
+  *ret_char = ci->values[0].value.string[0];
   return 0;
 }
 
@@ -427,6 +450,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
   id->path = NULL;
   id->metric_list = NULL;
   id->time_from = -1;
+  id->field_separator = ',';
   id->next = NULL;
 
   status = cf_util_get_string(ci, &id->path);
@@ -449,6 +473,8 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
       status = tcsv_config_get_index(option, &id->time_from);
     else if (strcasecmp("Plugin", option->key) == 0)
       status = cf_util_get_string(option, &id->plugin_name);
+    else if (strcasecmp("FieldSeparator", option->key) == 0)
+      status = tcsv_config_get_separator(option, &id->field_separator);
     else {
       WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
       status = -1;
