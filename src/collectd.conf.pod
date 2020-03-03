@@ -2259,6 +2259,7 @@ option is mandatory.
 Type-instance to use. Defaults to the current map key or current string array element value.
 
 =back
+
 =head2 Plugin C<curl_jolokia>
 
 The B<curl_jolokia plugin> collects values from MBeanServevr - servlet engines equipped 
@@ -2386,6 +2387,7 @@ about types and their configuration can be found in L<types.db(5)>. This
 option is mandatory.
 
 =back
+
 =back
 
 =head2 Plugin C<curl_xml>
