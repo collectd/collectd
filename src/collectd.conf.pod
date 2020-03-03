@@ -3544,6 +3544,16 @@ B<GPUIndex> entries are collected. For greater clarity, setting IgnoreSelected
 without any GPUIndex directives will result in B<no> statistics being
 collected.
 
+=item B<InstanceByGPUIndex>
+
+If set to false, the GPU ID will not be part of the plugin instance. The default
+is 'GPU ID'-'GPU name'
+
+=item B<InstanceByGPUName>
+
+If set to false, the GPU name will not be part of the plugin instance. The 
+default is 'GPU ID'-'GPU name'
+
 =back
 
 =head2 Plugin C<grpc>

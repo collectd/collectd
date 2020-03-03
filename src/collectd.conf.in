@@ -709,6 +709,8 @@
 #   GPUIndex 0
 #   GPUIndex 2
 #   IgnoreSelected false
+#   InstanceByGPUIndex true
+#   InstanceByGPUName true
 #</Plugin>
 
 #<Plugin grpc>
