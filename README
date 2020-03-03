@@ -403,6 +403,10 @@ Features
       to have its measurements fed to collectd. This includes multimeters,
       sound level meters, thermometers, and much more.
 
+    - slurm
+      Gathers per-partition node and job state information using libslurm,
+      as well as internal health statistics.
+
     - smart
       Collect SMART statistics, notably load cycle count, temperature
       and bad sectors.
@@ -1002,6 +1006,10 @@ Prerequisites
     Used by the `sigrok' plugin. In addition, libsigrok depends on glib,
     libzip, and optionally (depending on which drivers are enabled) on
     libusb, libftdi and libudev.
+
+  * libslurm (optional)
+    Used by the `slurm` plugin.
+    <https://slurm.schedmd.com/>
 
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux

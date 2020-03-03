@@ -198,6 +198,7 @@
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 #@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
 #@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
+#@BUILD_PLUGIN_SLURM_TRUE@LoadPlugin slurm
 #@BUILD_PLUGIN_SMART_TRUE@LoadPlugin smart
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 #@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent

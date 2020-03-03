@@ -266,6 +266,10 @@ Oleg King <king2 at kaluga.ru>
 Ondrej Zajicek <santiago at crfreenet.org>
  - madwifi plugin.
 
+Pablo Llopis <pablo.llopis at gmail.com>
+ - Slurm plugin
+ - RestoreAffinityPolicy in turbostat plugin
+
 Patrik Weiskircher <weiskircher at inqnet.at>
  - Contextswitch plugin.
  - Forkrate counter in the processes plugin.

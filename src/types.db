@@ -239,6 +239,16 @@ serial_octets           rx:DERIVE:0:U, tx:DERIVE:0:U
 signal_noise            value:GAUGE:U:0
 signal_power            value:GAUGE:U:0
 signal_quality          value:GAUGE:0:U
+slurm_job_state         value:GAUGE:0:U
+slurm_node_state        value:GAUGE:0:U
+slurm_backfilled_jobs   value:DERIVE:0:U
+slurm_cycles            value:DERIVE:0:U
+slurm_cycle_last        value:GAUGE:0:U
+slurm_cycle_duration    value:DERIVE:0:U
+slurm_last_cycle_depth  value:GAUGE:0:U
+slurm_cycle_depth       value:DERIVE:0:U
+slurm_job_stats         value:DERIVE:0:U
+slurm_queue_length      value:DERIVE:0:U
 smart_attribute         current:GAUGE:0:255, worst:GAUGE:0:255, threshold:GAUGE:0:255, pretty:GAUGE:0:U
 smart_badsectors        value:GAUGE:0:U
 smart_powercycles       value:GAUGE:0:U

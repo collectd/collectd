@@ -6454,6 +6454,83 @@ AC_DEFUN(
   ]
 )# AC_PLUGIN(name, default, info)
 
+# --with-libslurm {{{
+AC_ARG_WITH([libslurm],
+  [AS_HELP_STRING([--with-libslurm@<:@=PREFIX@:>@], [Path to the libslurm library.])],
+  [
+    if test "x$withval" = "xno"; then
+      with_libslurm="no"
+    else if test "x$withval" = "xyes"; then
+      with_libslurm="use_pkgconfig"
+    else if test -d "$with_libslurm/lib"; then
+      AC_MSG_NOTICE([Not checking for libslurm: Manually configured])
+      with_libslurm_cflags="-I$withval/include"
+      with_libslurm_libs="-L$withval/lib -llibslurm"
+      with_libslurm="yes"
+    fi; fi; fi
+  ],
+  [with_libslurm="use_pkgconfig"]
+)
+
+# configure using pkg-config
+if test "x$with_libslurm" = "xuse_pkgconfig"; then
+  AC_MSG_NOTICE([Checking for libslurm using $PKG_CONFIG])
+  $PKG_CONFIG --exists 'slurm' 2>/dev/null
+  if test $? -ne 0; then
+    with_libslurm="no (pkg-config doesn't know libslurm)"
+  fi
+fi
+
+if test "x$with_libslurm" = "xuse_pkgconfig"; then
+  with_libslurm_cflags="`$PKG_CONFIG --cflags 'slurm'`"
+  if test $? -ne 0; then
+    with_libslurm="no ($PKG_CONFIG failed)"
+  fi
+
+  with_libslurm_libs="`$PKG_CONFIG --libs 'slurm'`"
+  if test $? -ne 0; then
+    with_libslurm="no ($PKG_CONFIG failed)"
+  fi
+fi
+
+if test "x$with_libslurm" = "xuse_pkgconfig"; then
+  with_libslurm="yes"
+fi
+
+if test "x$with_libslurm" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libslurm_cflags"
+
+  AC_CHECK_HEADERS([slurm/slurm.h],
+    [with_libslurm="yes"],
+    [with_libslurm="no (slurm/slurm.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libslurm" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libslurm_libs"
+
+  AC_CHECK_LIB([slurm], [slurm_load_jobs],
+    [with_libslurm="yes"],
+    [with_libslurm="no (symbol slurm_load_jobs not found)"]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libslurm" = "xyes"; then
+  BUILD_WITH_LIBSLURM_CFLAGS="$with_libslurm_cflags"
+  BUILD_WITH_LIBSLURM_LIBS="$with_libslurm_libs"
+fi
+
+AC_SUBST([BUILD_WITH_LIBSLURM_CFLAGS])
+AC_SUBST([BUILD_WITH_LIBSLURM_LIBS])
+# }}}
+
+
 m4_divert_once([HELP_ENABLE], [
 collectd features:])
 # FIXME: Remove these calls to `AC_COLLECTD' and then remove that macro.
@@ -7026,6 +7103,7 @@ AC_PLUGIN([rrdtool],             [$with_librrd],              [RRDTool output pl
 AC_PLUGIN([sensors],             [$with_libsensors],          [lm_sensors statistics])
 AC_PLUGIN([serial],              [$plugin_serial],            [serial port traffic])
 AC_PLUGIN([sigrok],              [$with_libsigrok],           [sigrok acquisition sources])
+AC_PLUGIN([slurm],               [$with_libslurm],            [SLURM jobs and nodes status])
 AC_PLUGIN([smart],               [$plugin_smart],             [SMART statistics])
 AC_PLUGIN([snmp],                [$with_libnetsnmp],          [SNMP querying plugin])
 AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],     [SNMP agent plugin])
@@ -7326,6 +7404,7 @@ AC_MSG_RESULT([    librrd  . . . . . . . $with_librrd])
 AC_MSG_RESULT([    libsensors  . . . . . $with_libsensors])
 AC_MSG_RESULT([    libsigrok   . . . . . $with_libsigrok])
 AC_MSG_RESULT([    libssl  . . . . . . . $with_libssl])
+AC_MSG_RESULT([    libslurm .  . . . . . $with_libslurm])
 AC_MSG_RESULT([    libstatgrab . . . . . $with_libstatgrab])
 AC_MSG_RESULT([    libtokyotyrant  . . . $with_libtokyotyrant])
 AC_MSG_RESULT([    libudev . . . . . . . $with_libudev])
@@ -7467,6 +7546,7 @@ AC_MSG_RESULT([    rrdtool . . . . . . . $enable_rrdtool])
 AC_MSG_RESULT([    sensors . . . . . . . $enable_sensors])
 AC_MSG_RESULT([    serial  . . . . . . . $enable_serial])
 AC_MSG_RESULT([    sigrok  . . . . . . . $enable_sigrok])
+AC_MSG_RESULT([    slurm . . . . . . . . $enable_slurm])
 AC_MSG_RESULT([    smart . . . . . . . . $enable_smart])
 AC_MSG_RESULT([    snmp  . . . . . . . . $enable_snmp])
 AC_MSG_RESULT([    snmp_agent  . . . . . $enable_snmp_agent])

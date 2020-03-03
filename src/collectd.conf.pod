@@ -8544,6 +8544,16 @@ measurements are discarded.
 
 =back
 
+=head2 Plugin C<slurm>
+
+This plugin collects per-partition SLURM node and job state information, as
+well as internal health statistics.
+It takes no options. It should run on a node that is capable of running the
+I<sinfo> and I<squeue> commands, i.e. it has a running slurmd and a valid
+slurm.conf.
+Note that this plugin needs the B<Globals> option set to I<true> in order to
+function properly.
+
 =head2 Plugin C<smart>
 
 The C<smart> plugin collects SMART information from physical
