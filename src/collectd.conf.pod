@@ -9328,6 +9328,7 @@ B<Synopsis:>
        Instance "eth0"
        Interval 600
        Collect "snort-dropped"
+       FieldSeparator ","
        #TimeFrom 0
    </File>
  </Plugin>
@@ -9403,6 +9404,11 @@ Defaults to the plugin's default interval.
 Rather than using the local time when dispatching a value, read the timestamp
 from the field with the zero-based index I<Index>. The value is interpreted as
 seconds since epoch. The value is parsed as a double and may be factional.
+
+=item B<FieldSeparator> I<Character>
+
+Specify the character to use as field separator while parsing the CSV.
+Defaults to ',' if not specified. The value can only be a single character.
 
 =back
 
