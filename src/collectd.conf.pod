@@ -10737,6 +10737,7 @@ Synopsis:
      URL "http://example.com/post-collectd"
      User "collectd"
      Password "weCh3ik0"
+     Proxy "http://proxyuser:proxypass@10.0.1.2:3128"
      Format JSON
    </Node>
  </Plugin>
@@ -10758,6 +10759,11 @@ Optional user name needed for authentication.
 =item B<Password> I<Password>
 
 Optional password needed for authentication.
+
+=item B<Proxy> I<URL>
+
+Enable the use of a proxy server for HTTP requests. See
+L<http://curl.haxx.se/libcurl/c/CURLOPT_PROXY.html> for details and syntax.
 
 =item B<VerifyPeer> B<true>|B<false>
 
@@ -10894,7 +10900,6 @@ server. How frequently this happens depends on how much data you are collecting
 and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
 slightly below this interval, which you can estimate by monitoring the network
 traffic between collectd and the HTTP server.
-
 
 =back
 
