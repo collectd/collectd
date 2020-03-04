@@ -285,10 +285,10 @@ int ignorelist_add(ignorelist_t *il, const char *entry) {
 int ignorelist_remove(ignorelist_t *il, const char *entry) {
   /* if no entries, nothing to remove */
   if ((il == NULL) || (il->head == NULL))
-    return (1);
+    return 1;
 
   if ((entry == NULL) || (strlen(entry) == 0))
-    return (1);
+    return 1;
 
   /* traverse list and check entries */
   for (ignorelist_item_t *prev = NULL, *traverse = il->head; traverse != NULL;
@@ -302,11 +302,11 @@ int ignorelist_remove(ignorelist_t *il, const char *entry) {
       sfree(traverse->smatch);
       traverse->smatch = NULL;
       sfree(traverse);
-      return (0);
+      return 0;
     }
   } /* for traverse */
 
-  return (1);
+  return 1;
 } /* int ignorelist_remove (ignorelist_t *il, const char *entry) */
 
 /*
