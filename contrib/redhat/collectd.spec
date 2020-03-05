@@ -997,6 +997,16 @@ The write_stackdriver collectd plugin writes metrics to the
 Google Stackdriver Monitoring service.
 %endif
 
+%if %{with_write_syslog}
+%package write_syslog
+Summary:	write_syslog plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description write_syslog
+The write_syslog collectd plugin writes metrics to syslog
+using JSON or RFC5424 formatting
+%endif
+
 %if %{with_gpu_nvidia}
 %package gpu_nvidia
 Summary:	stackdriver plugin for collectd
