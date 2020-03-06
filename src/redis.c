@@ -394,6 +394,49 @@ static int redis_handle_info(char *node, char const *info_line,
   return 0;
 } /* }}} int redis_handle_info */
 
+static int redis_slave_info(char *node, char const *info_line) /* {{{ */
+{
+  char *saveptr = NULL;
+  char *str = strstr(info_line, "connected_slaves");
+  char slave[] = "slave";
+  if (str != NULL) {
+    str = strtok_r(str, ":\n", &saveptr);
+    while (str != NULL) {
+      // slaveXXX:ip=XXXX,port=XXXX,state=online,offset=XXXX,lag=XXXX
+      if (strncmp(str, slave, sizeof(slave) - 1) == 0 &&
+          isdigit((unsigned char)*(str + sizeof(slave) - 1))) {
+        value_t val;
+        static char slavename[64];
+        char *ip;
+        char *port;
+        char *lag;
+        do {
+          strtok_r(NULL, "=", &saveptr);
+          ip = strtok_r(NULL, ",", &saveptr);
+          strtok_r(NULL, "=", &saveptr);
+          port = strtok_r(NULL, ",", &saveptr);
+          ssnprintf(slavename, sizeof(slavename), "slave_%s_%s", ip, port);
+          strtok_r(NULL, ",", &saveptr);
+          strtok_r(NULL, ",", &saveptr);
+          strtok_r(NULL, "=", &saveptr);
+          lag = strtok_r(NULL, "\n", &saveptr);
+          if (parse_value(lag, &val, DS_TYPE_DERIVE) != 0) {
+            WARNING("redis plugin: Unable to parse lag value of slave `%s'.",
+                    slavename);
+            return -1;
+          }
+          redis_submit(node, "lag", slavename, val);
+          str = strtok_r(NULL, ":\n", &saveptr);
+        } while (strncmp(str, slave, sizeof(slave) - 1) == 0 &&
+                 isdigit((unsigned char)*(str + sizeof(slave) - 1)));
+        break;
+      }
+      str = strtok_r(NULL, ":\n", &saveptr);
+    }
+  }
+  return 0;
+} /* }}} int redis_slave_info */
+
 static int redis_handle_query(redis_node_t *rn, redis_query_t *rq) /* {{{ */
 {
   redisReply *rr;
@@ -689,6 +732,8 @@ static void redis_read_server_info(redis_node_t *rn) {
 
   if (rn->report_cpu_usage)
     redis_cpu_usage(rn->name, rr->str);
+
+  redis_slave_info(rn->name, rr->str);
 
   freeReplyObject(rr);
 } /* void redis_read_server_info */
