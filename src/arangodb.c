@@ -900,7 +900,7 @@ static void service_get_engine(service_t * service) {
 
       if (good) {
         service->engine = sstrdup(engine_val->u.string);
-        printf("engine is: %s\n", service->engine);
+        DEBUG("engine is: %s\n", service->engine);
       } // if
     } else {
       WARNING("arangodb plugin: service_get_engine failed");
@@ -1110,6 +1110,7 @@ static const char * rocks_gauge_list[] = {
   "rocksdb.is-write-stopped",
   "cache.limit",
   "cache.allocated",
+  "rocksdbengine.write.amplification.x100",
   "rocksdbengine.throttle.bps"
 };
 
