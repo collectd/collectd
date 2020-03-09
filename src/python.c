@@ -1261,31 +1261,31 @@ static int cpy_init_python(void) {
   Py_Initialize();
   python_sigint_handler = PyOS_setsig(SIGINT, cur_sig);
 
-  if (PyType_Ready(&ConfigType) < 0) {
+  if (PyType_Ready(&ConfigType) == -1) {
     cpy_log_exception("python initialization: ConfigType");
     return 1;
   }
-  if (PyType_Ready(&PluginDataType) < 0) {
+  if (PyType_Ready(&PluginDataType) == -1) {
     cpy_log_exception("python initialization: PluginDataType");
     return 1;
   }
   ValuesType.tp_base = &PluginDataType;
-  if (PyType_Ready(&ValuesType) < 0) {
+  if (PyType_Ready(&ValuesType) == -1) {
     cpy_log_exception("python initialization: ValuesType");
     return 1;
   }
   NotificationType.tp_base = &PluginDataType;
-  if (PyType_Ready(&NotificationType) < 0) {
+  if (PyType_Ready(&NotificationType) == -1) {
     cpy_log_exception("python initialization: NotificationType");
     return 1;
   }
   SignedType.tp_base = &PyLong_Type;
-  if (PyType_Ready(&SignedType) < 0) {
+  if (PyType_Ready(&SignedType) == -1) {
     cpy_log_exception("python initialization: SignedType");
     return 1;
   }
   UnsignedType.tp_base = &PyLong_Type;
-  if (PyType_Ready(&UnsignedType) < 0) {
+  if (PyType_Ready(&UnsignedType) == -1) {
     cpy_log_exception("python initialization: UnsignedType");
     return 1;
   }
