@@ -20,11 +20,11 @@ matrix:
         - PATH="/usr/local/opt/mysql-client/bin:$PATH"
         - JAVA_HOME="/Library/Java/JavaVirtualMachines/openjdk-13.jdk/Contents/Home"
     - os: linux
-      dist: xenial
+      dist: bionic
       compiler: clang
       jdk: openjdk10
     - os: linux
-      dist: xenial
+      dist: bionic
       compiler: gcc
       jdk: openjdk10
 
@@ -38,9 +38,9 @@ script:
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
   - type pkg-config
   - pkg-config --list-all | sort -u
-  - ./configure
+  - ./configure --disable-lvm
   - cat config.log
-  - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+  - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug --disable-lvm"
 
 addons:
   apt:
