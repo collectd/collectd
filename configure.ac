@@ -4694,6 +4694,14 @@ if test "x$with_libjevents" = "xyes"; then
   LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_libjevents" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libjevents_ldflags"
+
+  AC_CHECK_LIB([jevents], [event_scaled_value_sum], [with_libjevents="yes"], [with_libjevents="no (libjevents is too old)"])
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libjevents" = "xyes"; then
   BUILD_WITH_LIBJEVENTS_CPPFLAGS="$with_libjevents_cppflags"
   BUILD_WITH_LIBJEVENTS_LDFLAGS="$with_libjevents_ldflags"
   BUILD_WITH_LIBJEVENTS_LIBS="-ljevents"
