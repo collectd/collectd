@@ -414,20 +414,19 @@ static int varnish_monitor(void *priv,
 #if HAVE_VARNISH_V6
     else if (strcmp(name, "sess_fail_econnaborted") == 0)
       return varnish_submit_derive(conf->instance, "session",
-                                   "total_operations", "failed_econnaborted",
-                                   val);
+                                   "total_operations", "failed_econnaborted", val);
     else if (strcmp(name, "sess_fail_eintr") == 0)
       return varnish_submit_derive(conf->instance, "session",
-                                   "total_operations", "failed_eintr", val);
+                                  "total_operations", "failed_eintr", val);
     else if (strcmp(name, "sess_fail_emfile") == 0)
       return varnish_submit_derive(conf->instance, "session",
-                                   "total_operations", "failed_emfile", val);
+                                  "total_operations", "failed_emfile", val);
     else if (strcmp(name, "sess_fail_ebadf") == 0)
       return varnish_submit_derive(conf->instance, "session",
-                                   "total_operations", "failedi_ebadf", val);
+                                  "total_operations", "failedi_ebadf", val);
     else if (strcmp(name, "sess_fail_enomem") == 0)
       return varnish_submit_derive(conf->instance, "session",
-                                   "total_operations", "failed_enomem", val);
+                                  "total_operations", "failed_enomem", val);
     else if (strcmp(name, "sess_fail_other") == 0)
       return varnish_submit_derive(conf->instance, "session",
                                    "total_operations", "failed_other", val);
@@ -933,6 +932,7 @@ static int varnish_monitor(void *priv,
                                    "total_operations", "sniped_objects", val);
   }
 
+
   return 0;
 
 } /* }}} static int varnish_monitor */
@@ -1212,16 +1212,21 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
   }
 
   if (!conf->collect_cache && !conf->collect_connections &&
-      !conf->collect_esi && !conf->collect_backend && !conf->collect_fetch &&
-      !conf->collect_hcb && !conf->collect_objects && !conf->collect_ban &&
-      !conf->collect_session && !conf->collect_shm && !conf->collect_sms &&
-      !conf->collect_sma && !conf->collect_struct && !conf->collect_totals &&
-      !conf->collect_uptime && !conf->collect_vcl && !conf->collect_workers
+      !conf->collect_esi && !conf->collect_backend
+      && !conf->collect_fetch && !conf->collect_hcb && !conf->collect_objects
+      && !conf->collect_ban
+      && !conf->collect_session && !conf->collect_shm && !conf->collect_sms
+      && !conf->collect_sma
+      && !conf->collect_struct && !conf->collect_totals
+      && !conf->collect_uptime
+      && !conf->collect_vcl && !conf->collect_workers
 #if HAVE_VARNISH_V4
-      && !conf->collect_vsm
+      && !conf->collect_vsm 
 #endif
-      && !conf->collect_vbe && !conf->collect_smf && !conf->collect_mgt &&
-      !conf->collect_lck && !conf->collect_mempool && !conf->collect_mse) {
+      && !conf->collect_vbe && !conf->collect_smf &&
+      !conf->collect_mgt && !conf->collect_lck && !conf->collect_mempool &&
+      !conf->collect_mse
+  ) {
     WARNING("Varnish plugin: No metric has been configured for "
             "instance \"%s\". Disabling this instance.",
             (conf->instance == NULL) ? "localhost" : conf->instance);
