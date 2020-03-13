@@ -72,9 +72,6 @@ Andrew Bays <abays at redhat.com>
 Andy Parkins <andyp at fussylogic.co.uk>
  - battery plugin: sysfs code.
 
-Aneesh Puttur <aputtur at redhat.com>
- - connectivity plugin.
-
 Andy Smith <ansmith at redhat.com>
  - AMQP 1.0 plugin.
 
