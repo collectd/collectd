@@ -6084,13 +6084,23 @@ if test "x$with_libvarnish" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
 
-  $PKG_CONFIG --atleast-version=6 'varnishapi' 2>/dev/null
+  $PKG_CONFIG --atleast-version=5.2 'varnishapi' 2>/dev/null
   if test $? -eq 0; then
-    AC_DEFINE([HAVE_VARNISH_V6], [1], [Varnish 6 API support])
+    AC_DEFINE([HAVE_VARNISH_V5], [1], [Varnish 5 API support])
   else
     AC_CHECK_HEADERS([vapi/vsc.h],
       [AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
-      [with_libvarnish="no (found none of the varnish header files)"]
+      [
+        AC_CHECK_HEADERS([vsc.h],
+          [AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support]) ],
+          [
+            AC_CHECK_HEADERS([varnishapi.h],
+              [AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
+              [with_libvarnish="no (found none of the varnish header files)"]
+            )
+          ]
+        )
+      ]
     )
   fi
 
