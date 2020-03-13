@@ -2950,6 +2950,11 @@ fi
 %{_libdir}/%{name}/write_stackdriver.so
 %endif
 
+%if %{with_write_syslog}
+%files write_syslog
+%{_libdir}/%{name}/write_syslog.so
+%endif
+
 %if %{with_gpu_nvidia}
 %files write_gpu_nvidia
 %{_libdir}/%{name}/write_gpu_nvidia.so
@@ -2977,6 +2982,9 @@ fi
 %doc contrib/
 
 %changelog
+* Fri Oct 18 2019 Matthias Runge <mrunge@redhat.com> - 5.10.0-1
+- update to 5.10.0
+
 * Mon Oct 14 2019 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.9.2-2
 - Remove lvm plugin, liblvmapp has been deprecated upstream
 

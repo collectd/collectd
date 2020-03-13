@@ -7860,7 +7860,7 @@ name will be monitored for EXECs and EXITs.
 
 =item B<ProcessRegex> I<regex>
 
-Enumerate a process pattern to monitor.  All processes that match this
+Enumerate a process pattern to monitor.  All processes that match this 
 regular expression will be monitored for EXECs and EXITs.
 
 =back
@@ -8947,7 +8947,7 @@ Listen on this IP on this port for incoming rsyslog messages.
 
 =item B<BufferSize> I<length>
 
-Maximum allowed size for incoming rsyslog messages.  Messages that exceed
+Maximum allowed size for incoming rsyslog messages.  Messages that exceed 
 this number will be truncated to this size.  Default is 4096 bytes.
 
 =item B<BufferLength> I<length>
@@ -9812,6 +9812,7 @@ Synopsis:
      CollectBan         false
      CollectCache       true
      CollectConnections true
+     CollectDirectorDNS false
      CollectESI         false
      CollectFetch       false
      CollectHCB         false
@@ -9821,6 +9822,7 @@ Synopsis:
      CollectSHM         true
      CollectSMA         false
      CollectSMS         false
+     CollectSM          false
      CollectStruct      false
      CollectTotals      false
      CollectUptime      false
@@ -9863,6 +9865,11 @@ Cache hits and misses. True by default.
 =item B<CollectConnections> B<true>|B<false>
 
 Number of client connections received, accepted and dropped. True by default.
+
+=item B<CollectDirectorDNS> B<true>|B<false>
+
+DNS director lookup cache statistics. Only available with Varnish 3.x. False by
+default.
 
 =item B<CollectESI> B<true>|B<false>
 
@@ -9974,10 +9981,6 @@ Varnish Massive Storage Engine 2.0 (MSE2) is an improved storage backend for
 Varnish, replacing the traditional malloc and file storages. Only available
 with Varnish-Plus 4.x. Note: SMA, SMF and MSE share counters, enable only the
 one used by the Varnish instance. False by default.
-
-=item B<CollectGOTO> B<true>|B<false>
-
-vmod-goto counters. Only available with Varnish Plus 6.x. False by default.
 
 =back
 
