@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEFAULT_VERSION="5.9.2.git"
+DEFAULT_VERSION="5.10.0.git"
 
 if [ -d .git ]; then
 	VERSION="`git describe --dirty=+ --abbrev=7 2> /dev/null | sed -e '/^collectd-/!d' -e 's///' -e 'y/-/./'`"
