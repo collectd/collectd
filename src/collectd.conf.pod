@@ -9975,10 +9975,6 @@ Varnish, replacing the traditional malloc and file storages. Only available
 with Varnish-Plus 4.x. Note: SMA, SMF and MSE share counters, enable only the
 one used by the Varnish instance. False by default.
 
-=item B<CollectGOTO> B<true>|B<false>
-
-vmod-goto counters. Only available with Varnish Plus 6.x. False by default.
-
 =back
 
 =head2 Plugin C<virt>
