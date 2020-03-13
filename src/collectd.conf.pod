@@ -540,6 +540,7 @@ B<Synopsis:>
    # Send values to an AMQP broker
    <Publish "some_name">
      Host "localhost"
+#    Host "amqp1.example.com" "amqp2.example.com" "amqp3.example.com"
      Port "5672"
      VHost "/"
      User "guest"
@@ -596,10 +597,13 @@ I<Publish> blocks in the future.
 
 =over 4
 
-=item B<Host> I<Host>
+=item B<Host> I<Host> [I<Host> ...]
 
 Hostname or IP-address of the AMQP broker. Defaults to the default behavior of
 the underlying communications library, I<rabbitmq-c>, which is "localhost".
+
+If multiple hosts are specified, then a random one is chosen at each
+(re)connection attempt. This is useful for failover with a clustered broker.
 
 =item B<Port> I<Port>
 
