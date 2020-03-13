@@ -631,6 +631,33 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "thread_queue_len") == 0)
       return varnish_submit_gauge(conf->instance, "workers", "queue_length",
                                   "threads", val);
+    else if (strcmp(name, "n_wrk") == 0)
+      return varnish_submit_gauge(conf->instance, "workers", "threads",
+                                  "worker", val);
+    else if (strcmp(name, "n_wrk_create") == 0)
+      return varnish_submit_derive(conf->instance, "workers", "total_threads",
+                                   "created", val);
+    else if (strcmp(name, "n_wrk_failed") == 0)
+      return varnish_submit_derive(conf->instance, "workers", "total_threads",
+                                   "failed", val);
+    else if (strcmp(name, "n_wrk_max") == 0)
+      return varnish_submit_derive(conf->instance, "workers", "total_threads",
+                                   "limited", val);
+    else if (strcmp(name, "n_wrk_drop") == 0)
+      return varnish_submit_derive(conf->instance, "workers", "total_threads",
+                                   "dropped", val);
+    else if (strcmp(name, "n_wrk_queue") == 0)
+      return varnish_submit_derive(conf->instance, "workers", "total_requests",
+                                   "queued", val);
+    else if (strcmp(name, "n_wrk_overflow") == 0)
+      return varnish_submit_derive(conf->instance, "workers", "total_requests",
+                                   "overflowed", val);
+    else if (strcmp(name, "n_wrk_queued") == 0)
+      return varnish_submit_derive(conf->instance, "workers", "total_requests",
+                                   "queued", val);
+    else if (strcmp(name, "n_wrk_lqueue") == 0)
+      return varnish_submit_derive(conf->instance, "workers", "total_requests",
+                                   "queue_length", val);
     else if (strcmp(name, "pools") == 0)
       return varnish_submit_gauge(conf->instance, "workers", "pools", "pools",
                                   val);
