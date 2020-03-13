@@ -1808,30 +1808,32 @@
 #   so by using <Instance "myinstance">
 #   <Instance>
 #      CollectBackend true
-#      CollectBan false
+#      CollectBan false           # Varnish 3 and above
 #      CollectCache true
 #      CollectConnections true
+#      CollectDirectorDNS false   # Varnish 3 only
 #      CollectESI false
 #      CollectFetch false
 #      CollectHCB false
 #      CollectObjects false
+#      CollectPurge false         # Varnish 2 only
 #      CollectSession false
 #      CollectSHM true
-#      CollectSMA false
+#      CollectSMA false           # Varnish 2 & 4 only
 #      CollectSMS false
+#      CollectSM false            # Varnish 2 only
 #      CollectStruct false
 #      CollectTotals false
-#      CollectUptime false
+#      CollectUptime false        # Varnish 3 and above
 #      CollectVCL false
 #      CollectVSM false           # Varnish 4 only
 #      CollectWorkers false
-#      CollectLock false
-#      CollectMempool false
-#      CollectManagement false
-#      CollectSMF false
-#      CollectVBE false
-#      CollectMSE false           # Varnish-Plus only
-#      CollectGOTO false           # Varnish-Plus 6 only
+#      CollectLock false          # Varnish 4 only
+#      CollectMempool false       # Varnish 4 only
+#      CollectManagement false    # Varnish 4 only
+#      CollectSMF false           # Varnish 4 only
+#      CollectVBE false           # Varnish 4 only
+#      CollectMSE false           # Varnish-Plus 4 only
 #   </Instance>
 #</Plugin>
 
