@@ -1280,7 +1280,7 @@
 
 #<Plugin "procevent">
 #  BufferLength 10
-#  ProcessRegex "/^ovs.*$/" 
+#  ProcessRegex "/^ovs.*$/"
 #  Process tuned
 #</Plugin>
 
