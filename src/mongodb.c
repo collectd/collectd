@@ -995,7 +995,9 @@ static int mdb_config_node(oconfig_item_t *ci) {
     status = -1;
     goto err;
   }
+#if MONGOC_CHECK_VERSION(1, 4, 0)
   mongoc_client_set_error_api(node->client, 2);
+#endif
 
   char cb_name[sizeof("mongodb/") + sizeof(node->name)];
   snprintf(cb_name, sizeof(cb_name), "mongodb/%s", node->name);
