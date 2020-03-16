@@ -1,3 +1,116 @@
+2020-03-15, Version 5.11.0
+	* collectd: A Code of Conduct has been added. Thanks to octo. #3401
+	* text protocol: Support for meta_data in PUTVAL has been added. Thanks
+	  to RafaelMarinheiro, dago. #3381, #2726
+	* utils_cache: Internal API has changed - exposed meta_data_toc
+	  function. Thanks to jkohen. #3339
+	* filter_chain: Auto load matches and targets if AutoLoadPlugin option
+	  is set. Thanks to manuelluis. #1034
+	* AMQP plugin: TLS support has been added. Thanks to mbakhoff. #3391
+	* Battery plugin: Read from Linux sysfs charge files has been added.
+	  Thanks to maclomhair. #3190
+	* Buddyinfo plugin: New plugin for memory fragmentation info has been
+	  added. Thanks to asafkahlon. #3303
+	* capabilities plugin: New plugin to read static platform data has been
+	  added. Thanks to kwiatrox, dago. #3384, #3292
+	* DCPMM plugin: New plugin for Intel Optane DC Presistent Memory (DCPMM)
+	  has been added. Thanks to htg1. #3274
+	* DF plugin: LogOnce option has been added. Thanks to themylogin. #2910
+	* DPDK Telemetry plugin: New plugin to fetch DPDK metrics (with intent
+	  to replace dpdk_stat) has been added. Thanks to reshmapattan. #3273
+	* Disk plugin: A native (sysctl-based) implementation for NetBSD has
+	  been added. Thanks to efuss, dago. #3379, #3334
+	* GPU_Nvidia‏‎ plugin: Configurable plugin instance by GPU name
+	  and/or GPU index has been added. Thanks to rdietric. #3264
+	* Intel_PMU plugin: Support for uncore multi pmu has been added. Thanks
+	  to kwiatrox. #3388
+	* Ipstats plugin: New plugin to count incoming, outgoing, forwarded
+	  packets on FreeBSD has been added. Thanks to ometol. #3187
+	* Java plugin: Support boolean input has been added. Thanks to Caden94.
+	  #3044
+	* Logparser plugin: New plugin for filtering and parsing log messages
+	  has been added. Thanks to kwiatrox, krzysztofx, mmozejkx, aboczkox,
+	  rjablonx. #3045
+	* Network plugin: New metadata "network:ip_address" has been added.
+	  Thanks to ashie. #3191
+	* NFS plugin: An implementation for NetBSD (using sysctl) has been
+	  added. Thanks to efuss, dago. #3377, #3333
+	* NUT plugin: Support for the "output.realpower" value from the ups code
+	  has been added. Thanks to elratt0r. #2528
+	* Redfish plugin: New read plugin to collect out-of-band sensor data
+	  from Redfish endpoints has been added. Thanks to mmozejkx, aboczkox,
+	  mkobyli, kkepka, mansingh82, Zoltan Szabo. #2926
+	* Slurm plugin: The new SLURM plugin gathers metrics from the SLURM
+	  workload manager has been added. Thanks to pllopis. #3037
+	* Tail_CSV plugin: FieldSeparator option has been added. Thanks to
+	  redbaron4. #3394
+	* UBI plugin: The new "ubifs" plugin reports block state for flash
+	  memory devices with UBIFS filesystem has been added. Thanks to pticon.
+	  #3204
+	* Varnish plugin: Support for Varnish 6 has been added, deprecated for
+	  ver 2, 3 and 5. Thanks to ismaelpuerto. #3360
+	  This has been reverted. Thanks to Matthias Runge #3414
+	* Write_HTTP plugin: Ability to configure cURL statistics has been
+	  added. Thanks to n2yen. #3265
+	* Write_Influxdb_UDP plugin: New plugin to send values to InfluxDB using
+	  line protocol via udp has been added. Thanks to carlospeon. #3162
+	* Zookeeper plugin: 'quorum' stat has been added. Thanks to chris9871.
+	  #2991
+	* collectd: Missing package in specfile has been fixed. Thanks to
+	  faxm0dem. #3399
+	* collectd: Factored out read_text_file_contents for reading text files
+	  and used it to fix a potential unterminated string in the thermal
+	  plugin. Thanks to igorpeshansky. #3359
+	* collectd: Error/warning messages has been extended with more
+	  information. Thanks to dago. #3386
+	* collectd: Regression caused by #3217 has been fixed. Thanks to
+	  rpv-tomsk. #3349
+	* build: version-gen.sh has been cleaned up. Thanks to wrp. #2635
+	* build: Linking with Python 3.8 has been fixed. Thanks to
+	  Self-Perfection. #3344
+	* build: Avoid $< (implied source) in non-inference rules / Building
+	  grpc with non-GNU make has been fixed. Thanks to efuss, dago. #3376,
+	  #3330
+	* filter_chain: Constant for max plugin name length introduced in #1034
+	  has been fixed. Thanks to dago. #3385
+	* ignorelist: Coding style has been fixed. Thanks to dago. #3397
+	* match_regex: Accept all data types of meta data. Thanks to ashie.
+	  #3231
+	* perl unixsock: Made the module robust against socket errors and
+	  disconnects. Thanks to guillemj. #3083
+	* tree-wide: Race condition when setting thread names has been fixed.
+	  Thanks to mkauf. #2762
+	* types.db: ping_droprate range spec has been fixed. Thanks to yousong.
+	  #3244
+	* utils/format_graphite: Comma sign has been added to the list of
+	  prohibited characters. Thanks to salemgolemugoo. #2998
+	* Aggregation plugin: Unreachable clause where both tmp_plugin and
+	  tmp_plugin_instance are non-empty has been fixed. Thanks to
+	  qingling128. #3350
+	* AMQP1 plugin: Leaks on error paths has been fixed. Thanks to
+	  ryan-mccabe. #3352
+	* Apache plugin: BusyWorkers/IdleWorkers update has been fixed. Thanks
+	  to zuckschwerdt. #3131
+	* CPU plugin, Memory plugin, Swap plugin, UUID plugin: Contain use of
+	  sysctl / sysctrlbyname to BSD variants, as deprecated on Linux. Thanks
+	  to zebity. #3342
+	* Exec plugin: Select has been replaced with poll to allow more then
+	  1024 open file descriptors. Thanks to kwiatrox. #3363
+	* GPU_Nvidia plugin: Build issues has been fixed. Thanks to rubenk.
+	  #3393
+	* Interface plugin: Reorder so that Linux-specific code is actually
+	  executed. Thanks to dago. #3378
+	* NFS plugin: Condition on existence of libkstat has been fixed. Thanks
+	  to dago. #3382
+	* Network plugin: Memory leak has been fixed. Thanks to ryan-mccabe.
+	  #3352
+	* Processes plugin: Number of running processes has been fixed. Thanks
+	  to badevos. #3243
+	* Write_Riemann plugin: Memory leak has been fixed. Thanks to faxm0dem.
+	  #3351
+	* Write_Stackdriver plugin: NaN value handing with gauge metrics has
+	  been fixed. Thanks to jaroslawprzybylowicz. #3226
+
 2019-10-17, Version 5.10.0
 	* turbostat plugin: Power metrics update for recent server CPUs. Thanks
 	  to Chris MacNamara. #3276
