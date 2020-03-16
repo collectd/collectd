@@ -5056,6 +5056,106 @@ B<Collect> option is mandatory.
 
 =back
 
+=head2 Plugin C<mongodb>
+
+The B<mongodb plugin> allows to gather various metrics about MongoDB and it's
+contained databases state. Metrics are based on documents, returned by
+'serverStatus' and 'dbstats' commands.
+
+The plugin configuration consists of one or more B<Node> blocks which specify
+one connection each. Each block requires one unique string argument as the
+instance name.
+
+Within the B<Node> blocks, the following options are allowed:
+
+=over 4
+
+=item B<Host> I<Host>
+
+Hostname or IP-address of the MongoDB instance. Defaults to "localhost".
+Option can't be used together with B<URI> option.
+
+=item B<Port> I<Port>
+
+Port number to connect MongoDB instance.
+If the port number is not specified, the default port 27017 is used.
+Option can't be used together with B<URI> option.
+
+=item B<User> I<User>
+
+=item B<Password> I<Password>
+
+=item B<Database> I<Database>
+
+Authentication credentials - username, password and database name associated
+with credentials. B<Database> defaults to "admin".
+
+These options can't be used together with B<URI> option.
+
+=item B<URI> I<URI>
+
+Instead of using B<Host>, B<User>, B<Password>, B<Database>, you can setup
+connection by providing connection URI.
+
+This option can't be used together with B<Host>, B<Port>, B<User>, B<Password>
+and B<Database> options.
+
+=item B<ReportHost> I<Name>
+
+Use I<Name> as the host name when submitting values. Defaults to the global
+hostname setting.
+
+=item B<NotifyRoleChanges> I<true>|I<false>
+
+If enabled, the plugin sends a notification if the replication role changes.
+Defaults to B<false>.
+
+=item B<ReportTotalSize> I<true>|I<false>
+
+Reports total size of databases files on disk.
+Defaults to B<false>.
+
+=item B<ReportDBSize> I<true>|I<false>
+
+Reports total size of each database files on disk.
+Defaults to B<false>.
+
+=item B<ReportDBStorageStats> I<true>|I<false>
+
+Reports storage statistics of each database.
+Defaults to B<false>.
+
+=item B<ReportDB_HideAdminDB> I<true>|I<false>
+
+Option allows to not report storage statistics for 'admin' database.
+Defaults to B<false>.
+
+=item B<ReportDB_AsPluginInstance> I<true>|I<false>
+
+Option allows to choose where to put database name, in 'plugin_instance' or
+in 'type_instance' field.
+Defaults to B<false>.
+
+=item B<ServerStatusMetric> I<"some.path.0.dot.notation"> I<Type> [I<type_instance>] [I<plugin_instance>]
+
+Option B<ServerStatusMetric> allows user to configure custom metrics based on
+fields from 'serverStatus' document.
+
+Dot notation I<"some.path.0.dot.notation"> is used to find required fields
+(field should contain numeric value).
+
+I<Type> sets the type used to dispatch field values. Detailed information about
+types and their configuration can be found in L<types.db(5)>.
+
+I<type_instance> and <plugin_instance> allows to configure type-instance and
+plugin-instance of reported metric. You can use an empty string as value if
+I<type_instance> is not needed.
+
+Option B<ServerStatusMetric> could be used repeatedly to configure several
+metrics. First two arguments are mandatory.
+
+=back
+
 =head2 Plugin C<mqtt>
 
 The I<MQTT plugin> can send metrics to MQTT (B<Publish> blocks) and receive

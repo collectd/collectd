@@ -1440,6 +1440,14 @@ modbus_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 modbus_la_LIBADD = $(BUILD_WITH_LIBMODBUS_LIBS)
 endif
 
+if BUILD_PLUGIN_MONGODB
+pkglib_LTLIBRARIES += mongodb.la
+mongodb_la_SOURCES = src/mongodb.c
+mongodb_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMONGOC_CFLAGS)
+mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
+mongodb_la_LIBADD = $(BUILD_WITH_LIBMONGOC_LIBS)
+endif
+
 if BUILD_PLUGIN_MQTT
 pkglib_LTLIBRARIES += mqtt.la
 mqtt_la_SOURCES = src/mqtt.c

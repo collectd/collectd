@@ -159,6 +159,7 @@
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
 #@BUILD_PLUGIN_MIC_TRUE@LoadPlugin mic
 #@BUILD_PLUGIN_MODBUS_TRUE@LoadPlugin modbus
+#@BUILD_PLUGIN_MONGODB_TRUE@LoadPlugin mongodb
 #@BUILD_PLUGIN_MQTT_TRUE@LoadPlugin mqtt
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
@@ -974,6 +975,23 @@
 #			Collect "data_name"
 #		</Slave>
 #	</Host>
+#</Plugin>
+
+#<Plugin mongodb>
+#	<Node slave2>
+#		#URI "mongodb://UserName:PaSSw0Rd@1.2.3.4:27017/?authSource=admin"
+#		Host 1.2.3.4
+#		#Port 27017
+#		User "UserName"
+#		Password "PaSSw0Rd"
+#		Database "admin"
+#		ReportHost slave2.example.tld
+#		#NotifyRoleChanges true
+#		#ReportTotalSize true
+#		#ReportDBSize true
+#		#ReportDBStorageStats true
+#		#ServerStatusMetric "some.path.0.dot.notation" "types.db_type" ["type_instance"] ["plugin_instance"]
+#	</Node>
 #</Plugin>
 
 #<Plugin mqtt>
