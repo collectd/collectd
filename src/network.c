@@ -443,9 +443,9 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
 
   if (address != NULL) {
     char host[48];
-    status = getnameinfo((struct sockaddr *)address,
-                         sizeof(struct sockaddr_storage), host, sizeof(host),
-                         NULL, 0, NI_NUMERICHOST | NI_NUMERICSERV);
+    status =
+        getnameinfo((struct sockaddr *)address, sizeof(struct sockaddr_storage),
+                    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
     if (status != 0) {
       ERROR("network plugin: getnameinfo failed: %s", gai_strerror(status));
       meta_data_destroy(vl->meta);
@@ -1133,7 +1133,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_sign_sha256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
@@ -1288,7 +1288,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_encr_aes256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
@@ -1697,7 +1697,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-      /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+    /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "
@@ -2284,19 +2284,28 @@ static int network_receive(void) /* {{{ */
     }
 
     for (size_t i = 0; (i < listen_sockets_num) && (status > 0); i++) {
-      receive_list_entry_t *ent;
 
       if ((listen_sockets_pollfd[i].revents & (POLLIN | POLLPRI)) == 0)
         continue;
       status--;
 
-      struct sockaddr_storage address;
-      socklen_t length = sizeof(address);
-      memset(&address, 0, length);
-      buffer_len =
-          recvfrom(listen_sockets_pollfd[i].fd, buffer, sizeof(buffer),
-                   0 /* no flags */, (struct sockaddr *)&address, &length);
+      /* TODO: Possible performance enhancement: Do not free
+       * these entries in the dispatch thread but put them in
+       * another list, so we don't have to allocate more and
+       * more of these structures. */
+      receive_list_entry_t *ent = calloc(1, sizeof(*ent));
+      if (ent == NULL) {
+        ERROR("network plugin: calloc failed.");
+        status = ENOMEM;
+        break;
+      }
+
+      socklen_t sender_length = sizeof(ent->sender);
+      buffer_len = recvfrom(listen_sockets_pollfd[i].fd, buffer, sizeof(buffer),
+                            0 /* no flags */, (struct sockaddr *)&ent->sender,
+                            &sender_length);
       if (buffer_len < 0) {
+        sfree(ent);
         status = (errno != 0) ? errno : -1;
         ERROR("network plugin: recv(2) failed: %s", STRERRNO);
         break;
@@ -2304,17 +2313,6 @@ static int network_receive(void) /* {{{ */
 
       stats_octets_rx += ((uint64_t)buffer_len);
       stats_packets_rx++;
-
-      /* TODO: Possible performance enhancement: Do not free
-       * these entries in the dispatch thread but put them in
-       * another list, so we don't have to allocate more and
-       * more of these structures. */
-      ent = calloc(1, sizeof(*ent));
-      if (ent == NULL) {
-        ERROR("network plugin: calloc failed.");
-        status = ENOMEM;
-        break;
-      }
 
       ent->data = malloc(network_config_packet_size);
       if (ent->data == NULL) {
@@ -2328,7 +2326,6 @@ static int network_receive(void) /* {{{ */
 
       memcpy(ent->data, buffer, buffer_len);
       ent->data_len = buffer_len;
-      memcpy(&ent->sender, &address, sizeof(ent->sender));
 
       if (private_list_head == NULL)
         private_list_head = ent;
