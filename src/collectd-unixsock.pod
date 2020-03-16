@@ -120,10 +120,6 @@ The currently defined B<Options> are:
 Gives the interval in which the data identified by I<Identifier> is being
 collected.
 
-=item meta:B<key>=I<value>
-
-Add meta data with the key B<key> and the value I<value>.
-
 =back
 
 Please note that this is the same format as used in the B<exec plugin>, see
