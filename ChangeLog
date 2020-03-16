@@ -64,7 +64,7 @@
 	* collectd: Error/warning messages has been extended with more
 	  information. Thanks to dago. #3386
 	* collectd: Regression caused by #3217 has been fixed. Thanks to
-	  rpv-tomsk. #3349
+	  Pavel Rochnyak. #3349
 	* build: version-gen.sh has been cleaned up. Thanks to wrp. #2635
 	* build: Linking with Python 3.8 has been fixed. Thanks to
 	  Self-Perfection. #3344
