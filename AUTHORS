@@ -282,6 +282,7 @@ Paul Sadauskas <psadauskas at gmail.com>
 
 Pavel Rochnyack <pavel2000 at ngs.ru>
  - xencpu plugin.
+ - check_uptime plugin.
  - mongodb plugin.
  - Bugfixes and enhancements in many places all around the project.
 
