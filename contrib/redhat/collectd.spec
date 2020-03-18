@@ -264,7 +264,7 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.10.0
+Version:	5.11.0
 Release:	1%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -2919,6 +2919,9 @@ fi
 %doc contrib/
 
 %changelog
+* Mon Mar 16 2020 Matthias Runge <mrunge@redhat.com> - 5.11.0-1
+- update to 5.11.0
+
 * Fri Oct 18 2019 Matthias Runge <mrunge@redhat.com> - 5.10.0-1
 - update to 5.10.0
 
