@@ -253,11 +253,11 @@ struct part_encryption_aes256_s {
 typedef struct part_encryption_aes256_s part_encryption_aes256_t;
 
 struct receive_list_entry_s {
-  char *data;
   int data_len;
   int fd;
   struct sockaddr_storage sender;
   struct receive_list_entry_s *next;
+  char data[];
 };
 typedef struct receive_list_entry_s receive_list_entry_t;
 
@@ -2174,7 +2174,6 @@ static int sockent_add(sockent_t *se) /* {{{ */
 static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
 {
   while (42) {
-    receive_list_entry_t *ent;
     sockent_t *se;
 
     /* Lock and wait for more data to come in */
@@ -2183,7 +2182,7 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
       pthread_cond_wait(&receive_list_cond, &receive_list_lock);
 
     /* Remove the head entry and unlock */
-    ent = receive_list_head;
+    receive_list_entry_t *ent = receive_list_head;
     if (ent != NULL)
       receive_list_head = ent->next;
     receive_list_length--;
@@ -2213,7 +2212,6 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
       ERROR("network plugin: Got packet from FD %i, but can't "
             "find an appropriate socket entry.",
             ent->fd);
-      sfree(ent->data);
       sfree(ent);
       continue;
     }
@@ -2224,14 +2222,12 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
                              sizeof(host), NULL, 0, NI_NUMERICHOST);
     if (status != 0) {
       ERROR("network plugin: getnameinfo failed: %s", gai_strerror(status));
-      sfree(ent->data);
       sfree(ent);
       continue;
     }
 
     parse_packet(se, ent->data, ent->data_len, /* flags = */ 0,
                  /* username = */ NULL, host);
-    sfree(ent->data);
     sfree(ent);
   } /* while (42) */
 
@@ -2240,9 +2236,6 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
 
 static int network_receive(void) /* {{{ */
 {
-  char buffer[network_config_packet_size];
-  int buffer_len;
-
   int status = 0;
 
   receive_list_entry_t *private_list_head;
@@ -2274,7 +2267,8 @@ static int network_receive(void) /* {{{ */
        * these entries in the dispatch thread but put them in
        * another list, so we don't have to allocate more and
        * more of these structures. */
-      receive_list_entry_t *ent = calloc(1, sizeof(*ent));
+      receive_list_entry_t *ent =
+          malloc(sizeof(*ent) + network_config_packet_size);
       if (ent == NULL) {
         ERROR("network plugin: calloc failed.");
         status = ENOMEM;
@@ -2282,31 +2276,21 @@ static int network_receive(void) /* {{{ */
       }
 
       socklen_t sender_length = sizeof(ent->sender);
-      buffer_len = recvfrom(listen_sockets_pollfd[i].fd, buffer, sizeof(buffer),
-                            0 /* no flags */, (struct sockaddr *)&ent->sender,
-                            &sender_length);
-      if (buffer_len < 0) {
+      ent->data_len = recvfrom(listen_sockets_pollfd[i].fd, ent->data,
+                               network_config_packet_size, 0 /* no flags */,
+                               (struct sockaddr *)&ent->sender, &sender_length);
+      if (ent->data_len < 0) {
         sfree(ent);
         status = (errno != 0) ? errno : -1;
         ERROR("network plugin: recv(2) failed: %s", STRERRNO);
         break;
       }
 
-      stats_octets_rx += ((uint64_t)buffer_len);
+      stats_octets_rx += ((uint64_t)ent->data_len);
       stats_packets_rx++;
 
-      ent->data = malloc(network_config_packet_size);
-      if (ent->data == NULL) {
-        sfree(ent);
-        ERROR("network plugin: malloc failed.");
-        status = ENOMEM;
-        break;
-      }
       ent->fd = listen_sockets_pollfd[i].fd;
       ent->next = NULL;
-
-      memcpy(ent->data, buffer, buffer_len);
-      ent->data_len = buffer_len;
 
       if (private_list_head == NULL)
         private_list_head = ent;
