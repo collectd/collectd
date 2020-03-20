@@ -241,7 +241,8 @@ DEF_TEST(parse_packet) {
     size_t buffer_size = sizeof(buffer);
 
     EXPECT_EQ_INT(0, decode_string(raw_packet_data[i], buffer, &buffer_size));
-    EXPECT_EQ_INT(0, parse_packet(&se, buffer, buffer_size, 0, NULL, NULL));
+    EXPECT_EQ_INT(0,
+                  parse_packet(&se, buffer, buffer_size, 0, NULL, "127.0.0.1"));
   }
   EXPECT_EQ_INT(139, (int)stats_values_dispatched);
 

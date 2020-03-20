@@ -394,9 +394,7 @@ static bool check_send_notify_okay(const notification_t *n) /* {{{ */
 } /* }}} bool check_send_notify_okay */
 
 static int network_dispatch_values(value_list_t *vl, /* {{{ */
-                                   const char *username,
-                                   struct sockaddr_storage *address) {
-  int status;
+                                   const char *username, const char *address) {
 
   if ((vl->time == 0) || (strlen(vl->host) == 0) || (strlen(vl->plugin) == 0) ||
       (strlen(vl->type) == 0))
@@ -423,7 +421,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
     return -ENOMEM;
   }
 
-  status = meta_data_add_boolean(vl->meta, "network:received", 1);
+  int status = meta_data_add_boolean(vl->meta, "network:received", 1);
   if (status != 0) {
     ERROR("network plugin: meta_data_add_boolean failed.");
     meta_data_destroy(vl->meta);
@@ -441,25 +439,12 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
     }
   }
 
-  if (address != NULL) {
-    char host[48];
-    status =
-        getnameinfo((struct sockaddr *)address, sizeof(struct sockaddr_storage),
-                    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
-    if (status != 0) {
-      ERROR("network plugin: getnameinfo failed: %s", gai_strerror(status));
-      meta_data_destroy(vl->meta);
-      vl->meta = NULL;
-      return status;
-    }
-
-    status = meta_data_add_string(vl->meta, "network:ip_address", host);
-    if (status != 0) {
-      ERROR("network plugin: meta_data_add_string failed.");
-      meta_data_destroy(vl->meta);
-      vl->meta = NULL;
-      return status;
-    }
+  status = meta_data_add_string(vl->meta, "network:ip_address", address);
+  if (status != 0) {
+    ERROR("network plugin: meta_data_add_string failed.");
+    meta_data_destroy(vl->meta);
+    vl->meta = NULL;
+    return status;
   }
 
   plugin_dispatch_values(vl);
@@ -995,8 +980,7 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
 #define PP_SIGNED 0x01
 #define PP_ENCRYPTED 0x02
 static int parse_packet(sockent_t *se, void *buffer, size_t buffer_size,
-                        int flags, const char *username,
-                        struct sockaddr_storage *sender);
+                        int flags, const char *username, const char *address);
 
 #define BUFFER_READ(p, s)                                                      \
   do {                                                                         \
@@ -1007,7 +991,7 @@ static int parse_packet(sockent_t *se, void *buffer, size_t buffer_size,
 #if HAVE_GCRYPT_H
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_len,
-                                  int flags, struct sockaddr_storage *sender) {
+                                  int flags, const char *address) {
   static c_complain_t complain_no_users = C_COMPLAIN_INIT_STATIC;
 
   char *buffer;
@@ -1122,7 +1106,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
             pss.username);
   } else {
     parse_packet(se, buffer + buffer_offset, buffer_len - buffer_offset,
-                 flags | PP_SIGNED, pss.username, sender);
+                 flags | PP_SIGNED, pss.username, address);
   }
 
   sfree(secret);
@@ -1138,7 +1122,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_size,
-                                  int flags, struct sockaddr_storage *sender) {
+                                  int flags, const char *address) {
   static int warning_has_been_printed;
 
   char *buffer;
@@ -1170,7 +1154,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   }
 
   parse_packet(se, buffer + part_len, buffer_size - part_len, flags,
-               /* username = */ NULL, sender);
+               /* username = */ NULL, address);
 
   *ret_buffer = buffer + buffer_size;
   *ret_buffer_size = 0;
@@ -1182,7 +1166,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 #if HAVE_GCRYPT_H
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_len,
-                                  int flags, struct sockaddr_storage *sender) {
+                                  int flags, const char *address) {
   char *buffer = *ret_buffer;
   size_t buffer_len = *ret_buffer_len;
   size_t payload_len;
@@ -1278,7 +1262,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   }
 
   parse_packet(se, buffer + buffer_offset, payload_len, flags | PP_ENCRYPTED,
-               pea.username, sender);
+               pea.username, address);
 
   /* Update return values */
   *ret_buffer = buffer + part_size;
@@ -1293,7 +1277,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_size,
-                                  int flags, struct sockaddr_storage *sender) {
+                                  int flags, const char *address) {
   static int warning_has_been_printed;
 
   char *buffer;
@@ -1338,9 +1322,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
 static int parse_packet(sockent_t *se, /* {{{ */
                         void *buffer, size_t buffer_size, int flags,
-                        const char *username,
-                        struct sockaddr_storage *address) {
-  int status;
+                        const char *username, const char *address) {
 
   value_list_t vl = VALUE_LIST_INIT;
   notification_t n = {0};
@@ -1352,7 +1334,7 @@ static int parse_packet(sockent_t *se, /* {{{ */
 #endif /* HAVE_GCRYPT_H */
 
   memset(&vl, '\0', sizeof(vl));
-  status = 0;
+  int status = 0;
 
   while ((status == 0) && (0 < buffer_size) &&
          ((unsigned int)buffer_size > sizeof(part_header_t))) {
@@ -1376,9 +1358,7 @@ static int parse_packet(sockent_t *se, /* {{{ */
       status =
           parse_part_encr_aes256(se, &buffer, &buffer_size, flags, address);
       if (status != 0) {
-        ERROR("network plugin: Decrypting AES256 "
-              "part failed "
-              "with status %i.",
+        ERROR("network plugin: Decrypting AES256 part failed with status %i.",
               status);
         break;
       }
@@ -1387,8 +1367,7 @@ static int parse_packet(sockent_t *se, /* {{{ */
     else if ((se->data.server.security_level == SECURITY_LEVEL_ENCRYPT) &&
              (packet_was_encrypted == 0)) {
       if (printed_ignore_warning == 0) {
-        INFO("network plugin: Unencrypted packet or "
-             "part has been ignored.");
+        INFO("network plugin: Unencrypted packet or part has been ignored.");
         printed_ignore_warning = 1;
       }
       buffer = ((char *)buffer) + pkg_length;
@@ -1400,8 +1379,7 @@ static int parse_packet(sockent_t *se, /* {{{ */
       status =
           parse_part_sign_sha256(se, &buffer, &buffer_size, flags, address);
       if (status != 0) {
-        ERROR("network plugin: Verifying HMAC-SHA-256 "
-              "signature failed "
+        ERROR("network plugin: Verifying HMAC-SHA-256 signature failed "
               "with status %i.",
               status);
         break;
@@ -1411,8 +1389,7 @@ static int parse_packet(sockent_t *se, /* {{{ */
     else if ((se->data.server.security_level == SECURITY_LEVEL_SIGN) &&
              (packet_was_encrypted == 0) && (packet_was_signed == 0)) {
       if (printed_ignore_warning == 0) {
-        INFO("network plugin: Unsigned packet or "
-             "part has been ignored.");
+        INFO("network plugin: Unsigned packet or part has been ignored.");
         printed_ignore_warning = 1;
       }
       buffer = ((char *)buffer) + pkg_length;
@@ -1487,18 +1464,12 @@ static int parse_packet(sockent_t *se, /* {{{ */
         /* do nothing */
       } else if ((n.severity != NOTIF_FAILURE) &&
                  (n.severity != NOTIF_WARNING) && (n.severity != NOTIF_OKAY)) {
-        INFO("network plugin: "
-             "Ignoring notification with "
-             "unknown severity %i.",
+        INFO("network plugin: Ignoring notification with unknown severity %i.",
              n.severity);
       } else if (n.time == 0) {
-        INFO("network plugin: "
-             "Ignoring notification with "
-             "time == 0.");
+        INFO("network plugin: Ignoring notification with time == 0.");
       } else if (strlen(n.message) == 0) {
-        INFO("network plugin: "
-             "Ignoring notification with "
-             "an empty message.");
+        INFO("network plugin: Ignoring notification with an empty message.");
       } else {
         network_dispatch_notification(&n);
       }
@@ -1508,8 +1479,7 @@ static int parse_packet(sockent_t *se, /* {{{ */
       if (status == 0)
         n.severity = (int)tmp;
     } else {
-      DEBUG("network plugin: parse_packet: Unknown part"
-            " type: 0x%04hx",
+      DEBUG("network plugin: parse_packet: Unknown part type: 0x%04hx",
             pkg_type);
       buffer = ((char *)buffer) + pkg_length;
       buffer_size -= (size_t)pkg_length;
@@ -2248,8 +2218,19 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
       continue;
     }
 
+    char host[48];
+    int status = getnameinfo((struct sockaddr *)&ent->sender,
+                             sizeof(struct sockaddr_storage), host,
+                             sizeof(host), NULL, 0, NI_NUMERICHOST);
+    if (status != 0) {
+      ERROR("network plugin: getnameinfo failed: %s", gai_strerror(status));
+      sfree(ent->data);
+      sfree(ent);
+      continue;
+    }
+
     parse_packet(se, ent->data, ent->data_len, /* flags = */ 0,
-                 /* username = */ NULL, &ent->sender);
+                 /* username = */ NULL, host);
     sfree(ent->data);
     sfree(ent);
   } /* while (42) */
