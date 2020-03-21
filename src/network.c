@@ -530,14 +530,12 @@ static gcry_cipher_hd_t network_get_aes256_cypher(sockent_t *se, /* {{{ */
     cyper_ptr = &se->data.client.cypher;
     memcpy(password_hash, se->data.client.password_hash, sizeof(password_hash));
   } else {
-    char *secret;
-
     cyper_ptr = &se->data.server.cypher;
 
     if (username == NULL)
       return NULL;
 
-    secret = fbh_get(se->data.server.userdb, username);
+    char *secret = fbh_get(se->data.server.userdb, username);
     if (secret == NULL)
       return NULL;
 
@@ -758,9 +756,6 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
   uint16_t pkg_type;
   size_t pkg_numval;
 
-  uint8_t *pkg_types;
-  value_t *pkg_values;
-
   if (buffer_len < 15) {
     NOTICE("network plugin: packet is too short: "
            "buffer_len = %" PRIsz,
@@ -801,8 +796,8 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
     return -1;
   }
 
-  pkg_types = calloc(pkg_numval, sizeof(*pkg_types));
-  pkg_values = calloc(pkg_numval, sizeof(*pkg_values));
+  uint8_t *pkg_types = calloc(pkg_numval, sizeof(*pkg_types));
+  value_t *pkg_values = calloc(pkg_numval, sizeof(*pkg_values));
   if ((pkg_types == NULL) || (pkg_values == NULL)) {
     sfree(pkg_types);
     sfree(pkg_values);
@@ -1025,7 +1020,8 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   /* Check if the `pss_head_length' is within bounds. */
   if ((pss_head_length <= PART_SIGNATURE_SHA256_SIZE) ||
       (pss_head_length > buffer_len)) {
-    ERROR("network plugin: HMAC-SHA-256 with invalid length received.");
+    ERROR("network plugin: HMAC-SHA-256 with invalid length received from %s.",
+          address);
     return -1;
   }
 
@@ -1059,7 +1055,8 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   /* Query the password */
   secret = fbh_get(se->data.server.userdb, pss.username);
   if (secret == NULL) {
-    ERROR("network plugin: Unknown user: %s", pss.username);
+    ERROR("network plugin: Received packet from %s with unknown user: %s",
+          address, pss.username);
     sfree(pss.username);
     return -ENOENT;
   }
@@ -1101,9 +1098,9 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   hd = NULL;
 
   if (memcmp(pss.hash, hash, sizeof(pss.hash)) != 0) {
-    WARNING("network plugin: Verifying HMAC-SHA-256 signature failed: "
+    WARNING("network plugin: Verifying HMAC-SHA-256 signature from %s failed: "
             "Hash mismatch. Username: %s",
-            pss.username);
+            address, pss.username);
   } else {
     parse_packet(se, buffer + buffer_offset, buffer_len - buffer_offset,
                  flags | PP_SIGNED, pss.username, address);
@@ -1182,7 +1179,8 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   /* Make sure at least the header if available. */
   if (buffer_len <= PART_ENCRYPTION_AES256_SIZE) {
     NOTICE("network plugin: parse_part_encr_aes256: "
-           "Discarding short packet.");
+           "Discarding short packet from %s.",
+           address);
     return -1;
   }
 
@@ -1196,7 +1194,8 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   part_size = ntohs(pea.head.length);
   if ((part_size <= PART_ENCRYPTION_AES256_SIZE) || (part_size > buffer_len)) {
     NOTICE("network plugin: parse_part_encr_aes256: "
-           "Discarding part with invalid size.");
+           "Discarding part with invalid size from %s.",
+           address);
     return -1;
   }
 
@@ -1207,7 +1206,8 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   if ((username_len == 0) ||
       (username_len > (part_size - (PART_ENCRYPTION_AES256_SIZE + 1)))) {
     NOTICE("network plugin: parse_part_encr_aes256: "
-           "Discarding part with invalid username length.");
+           "Discarding part with invalid username length from %s.",
+           address);
     return -1;
   }
 
@@ -1227,7 +1227,8 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   cypher = network_get_aes256_cypher(se, pea.iv, sizeof(pea.iv), pea.username);
   if (cypher == NULL) {
-    ERROR("network plugin: Failed to get cypher. Username: %s", pea.username);
+    ERROR("network plugin: Failed to get cypher. Source IP: %s, username: %s",
+          address, pea.username);
     sfree(pea.username);
     return -1;
   }
@@ -1240,8 +1241,9 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
                             part_size - buffer_offset,
                             /* in = */ NULL, /* in len = */ 0);
   if (err != 0) {
-    ERROR("network plugin: gcry_cipher_decrypt returned: %s. Username: %s",
-          gcry_strerror(err), pea.username);
+    ERROR("network plugin: gcry_cipher_decrypt returned: %s. "
+          "Source IP: %s, username: %s",
+          gcry_strerror(err), address, pea.username);
     sfree(pea.username);
     return -1;
   }
@@ -1256,7 +1258,8 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   /* Check hash sum */
   gcry_md_hash_buffer(GCRY_MD_SHA1, hash, buffer + buffer_offset, payload_len);
   if (memcmp(hash, pea.hash, sizeof(hash)) != 0) {
-    ERROR("network plugin: Checksum mismatch. Username: %s", pea.username);
+    ERROR("network plugin: Checksum mismatch. Source IP: %s, username: %s",
+          address, pea.username);
     sfree(pea.username);
     return -1;
   }
@@ -1299,8 +1302,9 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   ph_length = ntohs(ph.length);
 
   if ((ph_length <= PART_ENCRYPTION_AES256_SIZE) || (ph_length > buffer_size)) {
-    ERROR("network plugin: AES-256 encrypted part "
-          "with invalid length received.");
+    ERROR("network plugin: AES-256 encrypted part with invalid length "
+          "received from %s.",
+          address);
     return -1;
   }
 
@@ -1367,7 +1371,9 @@ static int parse_packet(sockent_t *se, /* {{{ */
     else if ((se->data.server.security_level == SECURITY_LEVEL_ENCRYPT) &&
              (packet_was_encrypted == 0)) {
       if (printed_ignore_warning == 0) {
-        INFO("network plugin: Unencrypted packet or part has been ignored.");
+        INFO("network plugin: Unencrypted packet or part from %s "
+             "has been ignored.",
+             address);
         printed_ignore_warning = 1;
       }
       buffer = ((char *)buffer) + pkg_length;
@@ -1389,7 +1395,9 @@ static int parse_packet(sockent_t *se, /* {{{ */
     else if ((se->data.server.security_level == SECURITY_LEVEL_SIGN) &&
              (packet_was_encrypted == 0) && (packet_was_signed == 0)) {
       if (printed_ignore_warning == 0) {
-        INFO("network plugin: Unsigned packet or part has been ignored.");
+        INFO("network plugin: Unsigned packet or part from %s "
+             "has been ignored.",
+             address);
         printed_ignore_warning = 1;
       }
       buffer = ((char *)buffer) + pkg_length;
@@ -1488,7 +1496,8 @@ static int parse_packet(sockent_t *se, /* {{{ */
 
   if (status == 0 && buffer_size > 0)
     WARNING("network plugin: parse_packet: Received truncated "
-            "packet, try increasing `MaxPacketSize'");
+            "packet from %s, try increasing `MaxPacketSize'.",
+            address);
 
   return status;
 } /* }}} int parse_packet */
@@ -2270,7 +2279,7 @@ static int network_receive(void) /* {{{ */
       receive_list_entry_t *ent =
           malloc(sizeof(*ent) + network_config_packet_size);
       if (ent == NULL) {
-        ERROR("network plugin: calloc failed.");
+        ERROR("network plugin: malloc failed.");
         status = ENOMEM;
         break;
       }
@@ -3017,15 +3026,14 @@ static int network_notification(const notification_t *n,
   char buffer[network_config_packet_size];
   char *buffer_ptr = buffer;
   size_t buffer_free = sizeof(buffer);
-  int status;
 
   if (!check_send_notify_okay(n))
     return 0;
 
   memset(buffer, 0, sizeof(buffer));
 
-  status = write_part_number(&buffer_ptr, &buffer_free, TYPE_TIME_HR,
-                             (uint64_t)n->time);
+  int status = write_part_number(&buffer_ptr, &buffer_free, TYPE_TIME_HR,
+                                 (uint64_t)n->time);
   if (status != 0)
     return -1;
 
