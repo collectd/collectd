@@ -16,7 +16,7 @@
 Collectd network protocol implementation.
 """
 
-import socket,struct,sys
+import socket,struct
 import platform
 if platform.python_version() < '2.8.0':
     # Python 2.7 and below io.StringIO does not like unicode

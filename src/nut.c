@@ -317,6 +317,10 @@ static int nut_read(user_data_t *user_data) {
         nut_submit(ups, "frequency", "output", value);
       else if (strcmp("output.voltage", key) == 0)
         nut_submit(ups, "voltage", "output", value);
+      else if (strcmp("output.realpower", key) == 0)
+        nut_submit(ups, "power", "watt-output", value);
+      else if (strcmp("output.power", key) == 0)
+        nut_submit(ups, "power", "voltampere-output", value);
     } else if (strncmp("ups.", key, 4) == 0) {
       if (strcmp("ups.load", key) == 0)
         nut_submit(ups, "percent", "load", value);

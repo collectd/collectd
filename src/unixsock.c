@@ -274,10 +274,6 @@ static void *us_server_thread(void __attribute__((unused)) * arg) {
   int status;
   int *remote_fd;
   pthread_t th;
-  pthread_attr_t th_attr;
-
-  pthread_attr_init(&th_attr);
-  pthread_attr_setdetachstate(&th_attr, PTHREAD_CREATE_DETACHED);
 
   if (us_open_socket() != 0)
     pthread_exit((void *)1);
@@ -293,7 +289,6 @@ static void *us_server_thread(void __attribute__((unused)) * arg) {
       ERROR("unixsock plugin: accept failed: %s", STRERRNO);
       close(sock_fd);
       sock_fd = -1;
-      pthread_attr_destroy(&th_attr);
       pthread_exit((void *)1);
     }
 
@@ -307,9 +302,11 @@ static void *us_server_thread(void __attribute__((unused)) * arg) {
 
     DEBUG("Spawning child to handle connection on fd #%i", *remote_fd);
 
-    status = plugin_thread_create(&th, &th_attr, us_handle_client,
-                                  (void *)remote_fd, "unixsock conn");
-    if (status != 0) {
+    status = plugin_thread_create(&th, us_handle_client, (void *)remote_fd,
+                                  "unixsock conn");
+    if (status == 0) {
+      pthread_detach(th);
+    } else {
       WARNING("unixsock plugin: pthread_create failed: %s", STRERRNO);
       close(*remote_fd);
       free(remote_fd);
@@ -319,7 +316,6 @@ static void *us_server_thread(void __attribute__((unused)) * arg) {
 
   close(sock_fd);
   sock_fd = -1;
-  pthread_attr_destroy(&th_attr);
 
   status = unlink((sock_file != NULL) ? sock_file : US_DEFAULT_PATH);
   if (status != 0) {
@@ -371,7 +367,7 @@ static int us_init(void) {
 
   loop = 1;
 
-  status = plugin_thread_create(&listen_thread, NULL, us_server_thread, NULL,
+  status = plugin_thread_create(&listen_thread, us_server_thread, NULL,
                                 "unixsock listen");
   if (status != 0) {
     ERROR("unixsock plugin: pthread_create failed: %s", STRERRNO);

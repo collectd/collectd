@@ -58,15 +58,14 @@
 #include <sys/sysinfo.h>
 #endif /* HAVE_LIBKSTAT */
 
-#if (defined(HAVE_SYSCTL) && HAVE_SYSCTL) ||                                   \
-    (defined(HAVE_SYSCTLBYNAME) && HAVE_SYSCTLBYNAME)
-#ifdef HAVE_SYS_SYSCTL_H
+#if (defined(HAVE_SYSCTL) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
+/* Implies BSD variant */
 #include <sys/sysctl.h>
 #endif
 
 #ifdef HAVE_SYS_DKSTAT_H
+/* implies BSD variant */
 #include <sys/dkstat.h>
-#endif
 
 #if !defined(CP_USER) || !defined(CP_NICE) || !defined(CP_SYS) ||              \
     !defined(CP_INTR) || !defined(CP_IDLE) || !defined(CPUSTATES)
@@ -77,18 +76,16 @@
 #define CP_IDLE 4
 #define CPUSTATES 5
 #endif
-#endif /* HAVE_SYSCTL || HAVE_SYSCTLBYNAME */
+#endif /* HAVE_SYS_DKSTAT_H */
 
-#if HAVE_SYSCTL
+#define CAN_USE_SYSCTL 0
+#if (defined(HAVE_SYSCTL) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
+/* Implies BSD variant */
 #if defined(CTL_HW) && defined(HW_NCPU) && defined(CTL_KERN) &&                \
     defined(KERN_CPTIME) && defined(CPUSTATES)
 #define CAN_USE_SYSCTL 1
-#else
-#define CAN_USE_SYSCTL 0
 #endif
-#else
-#define CAN_USE_SYSCTL 0
-#endif
+#endif /* HAVE_SYSCTL_H && HAVE_SYSCTLBYNAME || __OpenBSD__ */
 
 #define COLLECTD_CPU_STATE_USER 0
 #define COLLECTD_CPU_STATE_SYSTEM 1
@@ -146,10 +143,12 @@ static int numcpu;
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
+/* Only possible for (Open) BSD variant */
 static int numcpu;
 /* #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME)
+/* Implies BSD variant */
 static int numcpu;
 #ifdef HAVE_SYSCTL_KERN_CP_TIMES
 static int maxcpu;
@@ -270,6 +269,7 @@ static int init(void) {
       /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
+  /* Only on (Open) BSD variant */
   size_t numcpu_size;
   int mib[2] = {CTL_HW, HW_NCPU};
   int status;
@@ -285,6 +285,7 @@ static int init(void) {
     /* #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME)
+  /* Only on BSD varient */
   size_t numcpu_size;
 
   numcpu_size = sizeof(numcpu);
@@ -732,6 +733,7 @@ static int cpu_read(void) {
     /* }}} #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL /* {{{ */
+  /* Only on (Open) BSD variant */
   uint64_t cpuinfo[numcpu][CPUSTATES];
   size_t cpuinfo_size;
   int status;
@@ -790,6 +792,7 @@ static int cpu_read(void) {
 
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES) /* {{{  \
                                                                         */
+  /* Only on BSD variant */
   long cpuinfo[maxcpu][CPUSTATES];
   size_t cpuinfo_size;
 
@@ -812,6 +815,7 @@ static int cpu_read(void) {
     /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
 #elif defined(HAVE_SYSCTLBYNAME) /* {{{ */
+  /* Only on BSD variant */
   long cpuinfo[CPUSTATES];
   size_t cpuinfo_size;
 

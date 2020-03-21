@@ -551,6 +551,12 @@ B<Synopsis:>
  #   ConnectionRetryDelay 0
  #   Format "command"
  #   StoreRates false
+ #   TLSEnabled false
+ #   TLSVerifyPeer true
+ #   TLSVerifyHostName true
+ #   TLSCACert "/path/to/ca.pem"
+ #   TLSClientCert "/path/to/client-cert.pem"
+ #   TLSClientKey "/path/to/client-key.pem"
  #   GraphitePrefix "collectd."
  #   GraphiteEscapeChar "_"
  #   GraphiteSeparateInstances false
@@ -572,6 +578,12 @@ B<Synopsis:>
  #   QueueAutoDelete true
  #   RoutingKey "collectd.#"
  #   ConnectionRetryDelay 0
+ #   TLSEnabled false
+ #   TLSVerifyPeer true
+ #   TLSVerifyHostName true
+ #   TLSCACert "/path/to/ca.pem"
+ #   TLSClientCert "/path/to/client-cert.pem"
+ #   TLSClientKey "/path/to/client-key.pem"
    </Subscribe>
  </Plugin>
 
@@ -735,6 +747,41 @@ more than one DS.
 If set to B<false> (the default) the C<.> (dot) character is replaced with
 I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
 is preserved, i.e. passed through.
+
+=item B<TLSEnabled> B<true>|B<false>
+
+If set to B<true> then connect to the broker using a TLS connection.
+If set to B<false> (the default), then a plain text connection is used.
+
+Requires rabbitmq-c >= 0.4.
+
+=item B<TLSVerifyPeer> B<true>|B<false>
+
+If set to B<true> (the default) then the server certificate chain is verified.
+Setting this to B<false> will skip verification (insecure).
+
+Requires rabbitmq-c >= 0.8.
+
+=item B<TLSVerifyHostName> B<true>|B<false>
+
+If set to B<true> (the default) then the server host name is verified.
+Setting this to B<false> will skip verification (insecure).
+
+Requires rabbitmq-c >= 0.8.
+
+=item B<TLSCACert> I<Path>
+
+Path to the CA cert file in PEM format.
+
+=item B<TLSClientCert> I<Path>
+
+Path to the client certificate in PEM format.
+If this is set, then B<TLSClientKey> must be set as well.
+
+=item B<TLSClientKey> I<Path>
+
+Path to the client key in PEM format.
+If this is set, then B<TLSClientCert> must be set as well.
 
 =back
 
@@ -1455,6 +1502,50 @@ By default no detailed zone information is collected.
 
 =back
 
+=head2 Plugin C<buddyinfo>
+
+The B<buddyinfo> plugin collects information by reading "/proc/buddyinfo".
+This file contains information about the number of available contagious
+physical pages at the moment.
+
+=over 4
+
+=item B<Zone> I<ZoneName>
+
+Zone to collect info about. Will collect all zones by default.
+
+=back
+
+=head2 Plugin C<capabilities>
+
+The C<capabilities> plugin collects selected static platform data using
+I<dmidecode> and expose it through micro embedded webserver. The data
+returned by plugin is in json format.
+
+B<Synopsis:>
+
+  <Plugin capabilities>
+    Host "localhost"
+    Port "9104"
+  </Plugin>
+
+Available configuration options for the C<capabilities> plugin:
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Bind to the hostname / address I<Host>. By default, the plugin will bind to the
+"any" address, i.e. accept packets sent to any of the hosts addresses.
+
+This option is supported only for libmicrohttpd newer than 0.9.0.
+
+=item B<Port> I<Port>
+
+Port the embedded webserver should listen on. Defaults to B<9104>.
+
+=back
+
 =head2 Plugin C<ceph>
 
 The ceph plugin collects values from JSON data to be parsed by B<libyajl>
@@ -1548,6 +1639,35 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<check_uptime>
+
+The I<check_uptime plugin> designed to check and notify about host or service
+status based on I<uptime> metric.
+
+When new metric of I<uptime> type appears in cache, OK notification is sent.
+When new value for metric is less than previous value, WARNING notification is
+sent about host/service restart.
+When no new updates comes for metric and cache entry expires, then FAILURE
+notification is sent about unreachable host or service.
+
+By default (when no explicit configuration), plugin checks for I<uptime> metric.
+
+B<Synopsis:>
+
+ <Plugin "check_uptime">
+   Type "uptime"
+   Type "my_uptime_type"
+ </Plugin>
+
+=over 4
+
+=item B<Type> I<Type>
+
+Metric type to check for status/values. The type should consist single GAUGE
+data source.
+
+=back
+
 =head2 Plugin C<chrony>
 
 The C<chrony> plugin collects ntp data from a B<chronyd> server, such as clock
@@ -1571,6 +1691,47 @@ UDP-Port to connect to. Defaults to B<323>.
 =item B<Timeout> I<Timeout>
 
 Connection timeout in seconds. Defaults to B<2>.
+
+=back
+
+=head2 Plugin Connectivity
+
+connectivity - Documentation of collectd's C<connectivity plugin>
+
+
+  LoadPlugin connectivity
+  # ...
+  <Plugin connectivity>
+    Interface eth0
+  </Plugin>
+
+The C<connectivity plugin> queries interface status using netlink (man 7 netlink) which provides information about network interfaces via the NETLINK_ROUTE family (man 7 rtnetlink). The plugin translates the value it receives to collectd's internal format and, depending on the write plugins you have loaded, it may be written to disk or submitted to another instance.
+The plugin listens to interfaces enumerated within the plugin configuration (see below).  If no interfaces are listed, then the default is for all interfaces to be monitored.
+
+This example shows C<connectivity plugin> monitoring all interfaces.
+LoadPlugin connectivity
+<Plugin connectivity>
+</Plugin>
+
+This example shows C<connectivity plugin> monitoring 2 interfaces, "eth0" and "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth0
+  Interface eth1
+</Plugin>
+
+This example shows C<connectivity plugin> monitoring all interfaces except "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth1
+  IgnoreSelected true
+</Plugin>
+
+=over 4
+
+=item B<Interface> I<interface_name>
+
+interface(s) to monitor connect to.
 
 =back
 
@@ -2538,6 +2699,70 @@ values. Defaults to the global hostname setting.
 
 =back
 
+=head2 Plugin C<dcpmm>
+
+The I<dcpmm plugin> will collect Intel(R) Optane(TM) DC Persistent Memory related performance statistics.
+The plugin requires root privileges to perform the statistics collection.
+
+B<Synopsis:>
+
+ <Plugin "dcpmm">
+   Interval 10.0
+   CollectHealth false
+   CollectPerfMetrics true
+   EnableDispatchAll false
+ </Plugin>
+
+=over 4
+
+=item B<Interval> I<time in seconds>
+
+Sets the I<Interval (in seconds)> in which the values will be collected. Defaults to C<global Interval> value.
+This will override the I<global Interval> for I<dcpmm> plugin. None of the other plugins will be affected.
+
+=item B<CollectHealth> I<true>|I<false>
+
+Collects health information. I<CollectHealth and CollectPerfMetrics cannot be true at the same time>. Defaults to C<false>.
+
+The health information metrics are the following:
+  health_status              Overall health summary (0: normal | 1: non-critical | 2: critical | 3: fatal).
+  lifespan_remaining         The module’s remaining life as a percentage value of factory expected life span.
+  lifespan_used              The module’s used life as a percentage value of factory expected life span.
+  power_on_time              The lifetime the DIMM has been powered on in seconds.
+  uptime                     The current uptime of the DIMM for the current power cycle in seconds.
+  last_shutdown_time         The time the system was last shutdown. The time is represented in epoch (seconds).
+  media_temperature          The media’s current temperature in degree Celsius.
+  controller_temperature     The controller’s current temperature in degree Celsius.
+  max_media_temperature      The media’s the highest temperature reported in degree Celsius.
+  max_controller_temperature The controller’s highest temperature reported in degree Celsius.
+  tsc_cycles                 The number of tsc cycles during each interval.
+  epoch                      The timestamp in seconds at which the metrics are collected from DCPMM DIMMs.
+
+=item B<CollectPerfMetrics> I<true>|I<false>
+
+Collects memory performance metrics. I<CollectHealth and CollectPerfMetrics cannot be true at the same time>. Defaults to C<true>.
+
+The memory performance metrics are the following:
+  total_bytes_read    Number of bytes transacted by the read operations.
+  total_bytes_written Number of bytes transacted by the write operations.
+  read_64B_ops_rcvd   Number of read operations performed to the physical media in 64 bytes granularity.
+  write_64B_ops_rcvd  Number of write operations performed to the physical media in 64 bytes granularity.
+  media_read_ops      Number of read operations performed to the physical media.
+  media_write_ops     Number of write operations performed to the physical media.
+  host_reads          Number of read operations received from the CPU (memory controller).
+  host_writes         Number of write operations received from the CPU (memory controller).
+  read_hit_ratio      Measures the efficiency of the buffer in the read path. Range of 0.0 - 1.0.
+  write_hit_ratio     Measures the efficiency of the buffer in the write path. Range of 0.0 - 1.0.
+  tsc_cycles          The number of tsc cycles during each interval.
+  epoch               The timestamp in seconds at which the metrics are collected from DCPMM DIMMs.
+
+=item B<EnableDispatchAll> I<false>
+
+This parameter helps to seamlessly enable simultaneous health and memory perf metrics collection in future.
+This is unused at the moment and I<must> always be I<false>.
+
+=back
+
 =head2 Plugin C<df>
 
 =over 4
@@ -2566,6 +2791,10 @@ Invert the selection: If set to true, all partitions B<except> the ones that
 match any one of the criteria are collected. By default only selected
 partitions are collected if a selection is made. If no selection is configured
 at all, B<all> partitions are selected.
+
+=item B<LogOnce> B<false>|B<false>
+
+Only log stat() errors once.
 
 =item B<ReportByDevice> B<true>|B<false>
 
@@ -2871,6 +3100,41 @@ option should contain only one port name; specify as many PortName options as
 desired. Default naming convention will be used if PortName is blank. If there
 are less PortName options than there are enabled ports, the default naming
 convention will be used for the additional ports.
+
+=back
+
+=head2 Plugin C<dpdk_telemetry>
+
+
+The I< dpdk_telemetry > plugin collects DPDK ethernet device metrics via
+dpdk_telemetry library.
+
+The plugin retrieves metrics from a DPDK packet forwarding application
+by sending the JSON formatted message via a UNIX domain socket.
+The DPDK telemetry component will respond with a JSON formatted reply,
+delivering the requested metrics. The plugin parses the JSON data,
+and publishes the metric values to collectd for further use.
+
+B<Synopsis:>
+
+  <Plugin dpdk_telemetry>
+    ClientSocketPath "/var/run/.client"
+    DpdkSocketPath "/var/run/dpdk/rte/telemetry"
+  </Plugin>
+
+B<Options:>
+
+=over 2
+
+=item B<ClientSocketPath> I<Client_Path>
+
+The UNIX domain client socket at I<Client_Path> to receive messages from DPDK
+telemetry library. Defaults to B<"/var/run/.client">.
+
+=item B<DpdkSocketPath> I<Dpdk_Path>
+
+The UNIX domain DPDK telemetry socket to be connected at I<Dpdk_Path> to send
+messages. Defaults to B<"/var/run/dpdk/rte/telemetry">.
 
 =back
 
@@ -3280,6 +3544,16 @@ B<GPUIndex> entries are collected. For greater clarity, setting IgnoreSelected
 without any GPUIndex directives will result in B<no> statistics being
 collected.
 
+=item B<InstanceByGPUIndex>
+
+If set to false, the GPU ID will not be part of the plugin instance. The default
+is 'GPU ID'-'GPU name'
+
+=item B<InstanceByGPUName>
+
+If set to false, the GPU name will not be part of the plugin instance. The 
+default is 'GPU ID'-'GPU name'
+
 =back
 
 =head2 Plugin C<grpc>
@@ -3434,6 +3708,7 @@ B<Synopsis:>
     EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
     HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
     Cores "0-3" "4,6" "[12-15]"
+    DispatchMultiPmu false
   </Plugin>
 
 B<Options:>
@@ -3521,6 +3796,12 @@ Allowed formats are:
 
 If an empty string is provided as value for this field default cores
 configuration is applied - that is separate group is created for each core.
+
+=item B<DispatchMultiPmu> B<false>|B<true>
+
+Enable or disable dispatching of cloned multi PMU for uncore events. If
+disabled only total sum is dispatched as single event. If enabled separate
+metric is dispatched for every counter.
 
 =back
 
@@ -3757,6 +4038,86 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<ipstats>
+
+This plugin collects counts for ipv4 and ipv6 various types of packets passing
+through the system in total.  At the moment it's only supported on FreeBSD.
+
+The full list of options available to include in the counted statistics is:
+  ip4receive         IPv4 total packets received
+  ip4badsum          IPv4 checksum bad
+  ip4tooshort        IPv4 packet too short
+  ip4toosmall        IPv4 not enough data
+  ip4badhlen         IPv4 ip header length < data size
+  ip4badlen          IPv4 ip length < ip header length
+  ip4fragment        IPv4 fragments received
+  ip4fragdrop        IPv4 frags dropped (dups, out of space)
+  ip4fragtimeout     IPv4 fragments timed out
+  ip4forward         IPv4 packets forwarded
+  ip4fastforward     IPv4 packets fast forwarded
+  ip4cantforward     IPv4 packets rcvd for unreachable dest
+  ip4redirectsent    IPv4 packets forwarded on same net
+  ip4noproto         IPv4 unknown or unsupported protocol
+  ip4deliver         IPv4 datagrams delivered to upper level
+  ip4transmit        IPv4 total ip packets generated here
+  ip4odrop           IPv4 lost packets due to nobufs, etc.
+  ip4reassemble      IPv4 total packets reassembled ok
+  ip4fragmented      IPv4 datagrams successfully fragmented
+  ip4ofragment       IPv4 output fragments created
+  ip4cantfrag        IPv4 don't fragment flag was set, etc.
+  ip4badoptions      IPv4 error in option processing
+  ip4noroute         IPv4 packets discarded due to no route
+  ip4badvers         IPv4 ip version != 4
+  ip4rawout          IPv4 total raw ip packets generated
+  ip4toolong         IPv4 ip length > max ip packet size
+  ip4notmember       IPv4 multicasts for unregistered grps
+  ip4nogif           IPv4 no match gif found
+  ip4badaddr         IPv4 invalid address on header
+
+  ip6receive         IPv6 total packets received
+  ip6tooshort        IPv6 packet too short
+  ip6toosmall        IPv6 not enough data
+  ip6fragment        IPv6 fragments received
+  ip6fragdrop        IPv6 frags dropped(dups, out of space)
+  ip6fragtimeout     IPv6 fragments timed out
+  ip6fragoverflow    IPv6 fragments that exceeded limit
+  ip6forward         IPv6 packets forwarded
+  ip6cantforward     IPv6 packets rcvd for unreachable dest
+  ip6redirectsent    IPv6 packets forwarded on same net
+  ip6deliver         IPv6 datagrams delivered to upper level
+  ip6transmit        IPv6 total ip packets generated here
+  ip6odrop           IPv6 lost packets due to nobufs, etc.
+  ip6reassemble      IPv6 total packets reassembled ok
+  ip6fragmented      IPv6 datagrams successfully fragmented
+  ip6ofragment       IPv6 output fragments created
+  ip6cantfrag        IPv6 don't fragment flag was set, etc.
+  ip6badoptions      IPv6 error in option processing
+  ip6noroute         IPv6 packets discarded due to no route
+  ip6badvers         IPv6 ip6 version != 6
+  ip6rawout          IPv6 total raw ip packets generated
+  ip6badscope        IPv6 scope error
+  ip6notmember       IPv6 don't join this multicast group
+  ip6nogif           IPv6 no match gif found
+  ip6toomanyhdr      IPv6 discarded due to too many headers
+
+By default the following options are included in the counted packets:
+
+- ip4receive
+- ip4forward
+- ip4transmit
+
+- ip6receive
+- ip6forward
+- ip6transmit
+
+For example to also count IPv4 and IPv6 fragments received, include the
+following configuration:
+
+  <Plugin ipstats>
+    ip4fragment true
+    ip6fragment true
+  </Plugin>
+
 =head2 Plugin C<iptables>
 
 =over 4
@@ -3911,6 +4272,161 @@ example "warning". Defaults to B<false>.
 B<Note>: There is no need to notify the daemon after moving or removing the
 log file (e.E<nbsp>g. when rotating the logs). The plugin reopens the file
 for each line it writes.
+
+=head2 Plugin C<logparser>
+
+The I<logparser> plugin is used to parse different kinds of logs. Setting proper
+options you can choose strings to collect. Plugin searches the log file for
+messages which contain several matches (two or more). When all mandatory matches
+are found then it sends proper notification containing all fetched values.
+
+B<Synopsis:>
+
+  <Plugin logparser>
+    <Logfile "/var/log/syslog">
+      FirstFullRead false
+      <Message "pcie_errors">
+        DefaultType "pcie_error"
+        DefaultSeverity "warning"
+        <Match "aer error">
+          Regex "AER:.*error received"
+          SubmatchIdx -1
+        </Match>
+        <Match "incident time">
+          Regex "(... .. ..:..:..) .* pcieport.*AER"
+          SubmatchIdx 1
+          IsMandatory false
+        </Match>
+        <Match "root port">
+          Regex "pcieport (.*): AER:"
+          SubmatchIdx 1
+          IsMandatory true
+        </Match>
+        <Match "device">
+          PluginInstance true
+          Regex " ([0-9a-fA-F:\\.]*): PCIe Bus Error"
+          SubmatchIdx 1
+          IsMandatory false
+        </Match>
+        <Match "severity_mandatory">
+          Regex "severity="
+          SubMatchIdx -1
+        </Match>
+        <Match "nonfatal">
+          Regex "severity=.*\\([nN]on-[fF]atal"
+          TypeInstance "non_fatal"
+          IsMandatory false
+        </Match>
+        <Match "fatal">
+          Regex "severity=.*\\([fF]atal"
+          Severity "failure"
+          TypeInstance "fatal"
+          IsMandatory false
+        </Match>
+        <Match "corrected">
+          Regex "severity=Corrected"
+          TypeInstance "correctable"
+          IsMandatory false
+        </Match>
+        <Match "error type">
+          Regex "type=(.*),"
+          SubmatchIdx 1
+          IsMandatory false
+        </Match>
+       <Match "id">
+          Regex ", id=(.*)"
+          SubmatchIdx 1
+        </Match>
+      </Message>
+    </Logfile>
+  </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Logfile> I<File>
+
+The B<Logfile> block defines file to search. It may contain one or more
+B<Message> blocks which are defined below.
+
+=item B<FirstFullRead> I<true>|I<false>
+
+Set to true if the file has to be parsed from the beginning on the first read.
+If false only subsequent writes to log file will be parsed.
+
+=item B<Message> I<Name>
+
+B<Message> block contains matches to search the log file for. Each B<Message>
+block builds a notification message using matched elements if its mandatory
+B<Match> blocks are matched.
+
+=item B<DefaultPluginInstance> I<String>
+
+Sets the default value for the plugin instance of the notification.
+
+=item B<DefaultType> I<String>
+
+Sets the default value for the type of the notification.
+
+=item B<DefaultTypeInstance> I<String>
+
+Sets the default value for the type instance of the notification.
+
+=item B<DefaultSeverity> I<String>
+
+Sets the default severity. Must be set to "OK", "WARNING" or "FAILURE".
+Default value is "OK".
+
+=item B<Match> I<Name>
+
+Multiple I<Match> blocks define regular expression patterns for extracting or
+excluding specific string patterns from parsing. First and last I<Match> items
+in the same I<Message> set boundaries of multiline message and are mandatory.
+If these matches are not found then the whole message is discarded.
+
+=item B<Regex> I<Regex>
+
+Regular expression with pattern matching string. It may contain subexpressions,
+so next option B<SubmatchIdx> specifies which subexpression should be stored.
+
+=item B<SubmatchIdx> I<Integer>
+
+Index of subexpression to be used for notification. Multiple subexpressions are
+allowed. Index value 0 takes whole regular expression match as a result.
+Index value -1 does not add result to message item. Can be omitted, default
+value is 0.
+
+=item B<Excluderegex> I<Regex>
+
+Regular expression for excluding lines containing specific matching strings.
+This is processed before checking I<Regex> pattern. It is optional and can
+be omitted.
+
+=item B<IsMandatory>  I<true>|I<false>
+
+Flag indicating if I<Match> item is mandatory for message validation. If set to
+true, whole message is discarded if it's missing. For false its presence is
+optional. Default value is set to true.
+
+=item B<PluginInstance> I<true>|I<String>
+
+If set to true, it sets plugin instance to string returned by regex. It can be
+overridden by user string.
+
+=item B<Type> I<true>|I<String>
+
+Sets notification type using rules like B<PluginInstance>.
+
+=item B<TypeInstance> I<true>|I<String>
+
+Sets notification type instance using rules like above.
+
+=item B<Severity> I<String>
+
+Sets notification severity to one of the options: "OK", "WARNING", "FAILURE".
+
+=back
 
 =head2 Plugin C<log_logstash>
 
@@ -4758,7 +5274,7 @@ Hostname of the database server. Defaults to B<localhost>.
 
 Username to use when connecting to the database. The user does not have to be
 granted any privileges (which is synonym to granting the C<USAGE> privilege),
-unless you want to collectd replication statistics (see B<MasterStats> and
+unless you want to collect replication statistics (see B<MasterStats> and
 B<SlaveStats> below). In this case, the user needs the C<REPLICATION CLIENT>
 (or C<SUPER>) privileges. Else, any existing MySQL user will do.
 
@@ -4808,9 +5324,10 @@ or SQL threads are not running. Defaults to B<false>.
 
 =item B<WsrepStats> I<true|false>
 
- Enable the collection of wsrep plugin statistics, used in Master-Master
- replication setups like in MySQL Galera/Percona XtraDB Cluster.
- User needs only privileges to execute 'SHOW GLOBAL STATUS'
+Enable the collection of wsrep plugin statistics, used in Master-Master
+replication setups like in MySQL Galera/Percona XtraDB Cluster.
+User needs only privileges to execute 'SHOW GLOBAL STATUS'.
+Defaults to B<false>.
 
 =item B<ConnectTimeout> I<Seconds>
 
@@ -5544,7 +6061,7 @@ necessary in rare cases.
 
 Set the outgoing IP address for IP packets. This option can be used instead of
 the I<Interface> option to explicitly define the IP address which will be used
-to send Packets to the remote server. 
+to send Packets to the remote server.
 
 =item B<ResolveInterval> I<Seconds>
 
@@ -7314,6 +7831,40 @@ reporting the corresponding processes only. Outside of B<Process> and
 B<ProcessMatch> blocks these options set the default value for subsequent
 matches.
 
+=head2 Plugin C<procevent>
+
+The I<procevent> plugin monitors when processes start (EXEC) and stop (EXIT).
+
+B<Synopsis:>
+
+  <Plugin procevent>
+    BufferLength 10
+    Process "name"
+    ProcessRegex "regex"
+  </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<BufferLength> I<length>
+
+Maximum number of process events that can be stored in plugin's ring buffer.
+By default, this is set to 10.  Once an event has been read, its location
+becomes available for storing a new event.
+
+=item B<Process> I<name>
+
+Enumerate a process name to monitor.  All processes that match this exact
+name will be monitored for EXECs and EXITs.
+
+=item B<ProcessRegex> I<regex>
+
+Enumerate a process pattern to monitor.  All processes that match this 
+regular expression will be monitored for EXECs and EXITs.
+
+=back
+
 =head2 Plugin C<protocols>
 
 Collects a lot of information about various network protocols, such as I<IP>,
@@ -7353,6 +7904,97 @@ matching values will be ignored.
 
 This plugin embeds a Python-interpreter into collectd and provides an interface
 to collectd's plugin system. See L<collectd-python(5)> for its documentation.
+
+=head2 Plugin C<redfish>
+
+The C<redfish> plugin collects sensor data using REST protocol called
+Redfish.
+
+B<Sample configuration:>
+
+  <Plugin redfish>
+    <Query "fans">
+      Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
+      <Resource "Fans">
+        <Property "ReadingRPM">
+          PluginInstance "chassis-1"
+          Type "rpm"
+        </Property>
+      </Resource>
+    </Query>
+    <Query "temperatures">
+      Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
+      <Resource "Temperatures">
+        <Property "ReadingCelsius">
+          PluginInstance "chassis-1"
+          Type "degrees"
+        </Property>
+      </Resource>
+    </Query>
+    <Query "voltages">
+      Endpoint "/redfish/v1/Chassis/Chassis-1/Power"
+      <Resource "Voltages">
+        <Property "ReadingVolts">
+          PluginInstance "chassis-1"
+          Type "volts"
+        </Property>
+      </Resource>
+    </Query>
+    <Service "local">
+      Host "127.0.0.1:5000"
+      User "user"
+      Passwd "passwd"
+      Queries "fans" "voltages" "temperatures"
+    </Service>
+  </Plugin>
+
+=over 4
+
+=item B<Query>
+
+Section defining a query performed on Redfish interface
+
+=item B<Endpoint>
+
+URI of the REST API Endpoint for accessing the BMC
+
+=item B<Resource>
+
+Selects single resource or array to collect data.
+
+=item B<Property>
+
+Selects property from which data is gathered
+
+=item B<PluginInstance>
+
+Plugin instance of dispatched collectd metric
+
+=item B<Type>
+
+Type of dispatched collectd metric
+
+=item B<TypeInstance>
+
+Type instance of collectd metric
+
+=item B<Service>
+
+Section defining service to be sent requests
+
+=item B<Username>
+
+BMC username
+
+=item B<Password>
+
+BMC password
+
+=item B<Queries>
+
+Queries to run
+
+=back
 
 =head2 Plugin C<routeros>
 
@@ -7902,6 +8544,16 @@ measurements are discarded.
 
 =back
 
+=head2 Plugin C<slurm>
+
+This plugin collects per-partition SLURM node and job state information, as
+well as internal health statistics.
+It takes no options. It should run on a node that is capable of running the
+I<sinfo> and I<squeue> commands, i.e. it has a running slurmd and a valid
+slurm.conf.
+Note that this plugin needs the B<Globals> option set to I<true> in order to
+function properly.
+
 =head2 Plugin C<smart>
 
 The C<smart> plugin collects SMART information from physical
@@ -8247,6 +8899,70 @@ or is not reliable.
 
 =back
 
+=head2 Plugin C<sysevent>
+
+The I<sysevent> plugin monitors rsyslog messages.
+
+B<Synopsis:>
+
+  <Plugin sysevent>
+    Listen "192.168.0.2" "6666"
+    BufferSize 1024
+    BufferLength 10
+    RegexFilter "regex"
+  </Plugin>
+
+  rsyslog should be configured such that it sends data to the IP and port you
+  include in the plugin configuration.  For example, given the configuration
+  above, something like this would be set in /etc/rsyslog.conf:
+
+    if $programname != 'collectd' then
+    *.* @192.168.0.2:6666
+
+  This plugin is designed to consume JSON rsyslog data, so a more complete
+  rsyslog configuration would look like so (where we define a JSON template
+  and use it when sending data to our IP and port):
+
+    $template ls_json,"{%timestamp:::date-rfc3339,jsonf:@timestamp%, \
+    %source:::jsonf:@source_host%,\"@source\":\"syslog://%fromhost-ip:::json%\", \
+    \"@message\":\"%timestamp% %app-name%:%msg:::json%\",\"@fields\": \
+    {%syslogfacility-text:::jsonf:facility%,%syslogseverity:::jsonf:severity-num%, \
+    %syslogseverity-text:::jsonf:severity%,%programname:::jsonf:program%, \
+    %procid:::jsonf:processid%}}"
+
+    if $programname != 'collectd' then
+    *.* @192.168.0.2:6666;ls_json
+
+  Please note that these rsyslog.conf examples are *not* complete, as rsyslog
+  requires more than these options in the configuration file.  These examples
+  are meant to demonstration the proper remote logging and JSON format syntax.
+
+B<Options:>
+
+=over 4
+
+=item B<Listen> I<host> I<port>
+
+Listen on this IP on this port for incoming rsyslog messages.
+
+=item B<BufferSize> I<length>
+
+Maximum allowed size for incoming rsyslog messages.  Messages that exceed 
+this number will be truncated to this size.  Default is 4096 bytes.
+
+=item B<BufferLength> I<length>
+
+Maximum number of rsyslog events that can be stored in plugin's ring buffer.
+By default, this is set to 10.  Once an event has been read, its location
+becomes available for storing a new event.
+
+=item B<RegexFilter> I<regex>
+
+Enumerate a regex filter to apply to all incoming rsyslog messages.  If a
+message matches this filter, it will be published.
+
+=back
+
 =head2 Plugin C<syslog>
 
 =over 4
@@ -8567,7 +9283,7 @@ the following schema:
   Bucket  20  50
   Bucket  50   0
 
-Metrics are reported with the I<type> set by B<BucketType> option (C<bucket> 
+Metrics are reported with the I<type> set by B<BucketType> option (C<bucket>
 by default) and the I<type instance>
 C<E<lt>TypeE<gt>[-E<lt>InstanceE<gt>]-E<lt>lower_boundE<gt>_E<lt>upper_boundE<gt>>.
 
@@ -8622,6 +9338,7 @@ B<Synopsis:>
        Instance "eth0"
        Interval 600
        Collect "snort-dropped"
+       FieldSeparator ","
        #TimeFrom 0
    </File>
  </Plugin>
@@ -8697,6 +9414,11 @@ Defaults to the plugin's default interval.
 Rather than using the local time when dispatching a value, read the timestamp
 from the field with the zero-based index I<Index>. The value is interpreted as
 seconds since epoch. The value is parsed as a double and may be factional.
+
+=item B<FieldSeparator> I<Character>
+
+Specify the character to use as field separator while parsing the CSV.
+Defaults to ',' if not specified. The value can only be a single character.
 
 =back
 
@@ -8970,6 +9692,38 @@ See following links for details:
 L<https://github.com/collectd/collectd/issues/1593>
 L<https://sourceware.org/bugzilla/show_bug.cgi?id=15630>
 L<https://bugzilla.kernel.org/show_bug.cgi?id=151821>
+
+=back
+
+=head2 Plugin C<ubi>
+
+The I<Ubi plugin> collects some statistics about the UBI (Unsorted Block Image).
+Values collected are the number of bad physical eraseblocks on the underlying MTD
+(Memory Technology Device) and the maximum erase counter value concerning one volume.
+
+See following links for details:
+
+L<http://www.linux-mtd.infradead.org/doc/ubi.html>
+L<http://www.linux-mtd.infradead.org/doc/ubifs.html>
+L<https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-class-ubi>
+
+=over 4
+
+=item B<Device> I<Name>
+
+Select the device I<Name> of the UBI volume. Whether it is collected or ignored
+depends on the B<IgnoreSelected> setting, see below.
+
+See F</"IGNORELISTS"> for details.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Sets whether selected devices, i.E<nbsp>e. the ones matches by any of the B<Device>
+statements, are ignored or if all other devices are ignored. If no B<Device> option
+is configured, all devices are collected. If at least one B<Device> is given and no
+B<IgnoreSelected> or set to B<false>, B<only> matching disks will be collected. If
+B<IgnoreSelected>is set to B<true>, all devices are collected B<except> the ones
+matched.
 
 =back
 
@@ -10132,11 +10886,60 @@ which means the connection never times out.
 
 Enables printing of HTTP error code to log. Turned off by default.
 
+=item E<lt>B<Statistics> I<Name>E<gt>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote URL. See the section "cURL Statistics" above
+for details.
+
 The C<write_http> plugin regularly submits the collected values to the HTTP
 server. How frequently this happens depends on how much data you are collecting
 and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
 slightly below this interval, which you can estimate by monitoring the network
 traffic between collectd and the HTTP server.
+
+
+=back
+
+=head2 Plugin C<write_influxdb_udp>
+
+The write_influxdb_udp plugin sends data to a instance of InfluxDB using the
+"Line Protocol". Each plugin is sent as a measurement with a time precision of
+miliseconds while plugin instance, type and type instance are sent as tags.
+
+ <Plugin "write_influxdb_udp">
+   Server "influxdb.internal.tld"
+   StoreRates "yes"
+ </Plugin>
+
+=over 4
+
+=item B<E<lt>Server> I<Host> [I<Port>]B<E<gt>>
+
+The B<Server> statement sets the server to send datagrams to.
+
+The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. The
+optional second argument specifies a port number or a service name. If not
+given, the default, B<8089>, is used.
+
+=item B<TimeToLive> I<1-255>
+
+Set the time-to-live of sent packets. This applies to all, unicast and
+multicast, and IPv4 and IPv6 packets. The default is to not change this value.
+That means that multicast packets will be sent with a TTL of C<1> (one) on most
+operating systems.
+
+=item B<MaxPacketSize> I<1024-65535>
+
+Set the maximum size for datagrams received over the network. Packets larger
+than this will be truncated. Defaults to 1452E<nbsp>bytes, which is the maximum
+payload size that can be transmitted in one Ethernet frame using IPv6E<nbsp>/
+UDP.
+
+=item B<StoreRates> B<true|false>
+
+If set to B<true>, convert absolute, counter and derive values to rates. If set
+to B<false> (the default) absolute, counter and derive values are sent as is.
 
 =back
 

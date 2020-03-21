@@ -1,7 +1,7 @@
 /**
  * collectd - src/intel_pmu.c
  *
- * Copyright(c) 2017-2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017-2020 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -75,6 +75,7 @@ struct intel_pmu_ctx_s {
   size_t hw_events_count;
   core_groups_list_t cores;
   struct eventlist *event_list;
+  bool dispatch_cloned_pmus;
 };
 typedef struct intel_pmu_ctx_s intel_pmu_ctx_t;
 
@@ -181,27 +182,41 @@ static void pmu_dump_events() {
   for (e = g_ctx.event_list->eventlist; e; e = e->next) {
     DEBUG(PMU_PLUGIN ":   event       : %s", e->event);
     DEBUG(PMU_PLUGIN ":     group_lead: %d", e->group_leader);
+    DEBUG(PMU_PLUGIN ":     in_group  : %d", e->ingroup);
     DEBUG(PMU_PLUGIN ":     end_group : %d", e->end_group);
     DEBUG(PMU_PLUGIN ":     type      : %#x", e->attr.type);
     DEBUG(PMU_PLUGIN ":     config    : %#x", (unsigned)e->attr.config);
     DEBUG(PMU_PLUGIN ":     size      : %d", e->attr.size);
+    if (e->attr.sample_period > 0)
+      DEBUG(PMU_PLUGIN ":     period    : %lld", e->attr.sample_period);
+    if (e->extra.decoded)
+      DEBUG(PMU_PLUGIN ":     perf      : %s", e->extra.decoded);
+    DEBUG(PMU_PLUGIN ":     uncore    : %d", e->uncore);
   }
 }
 
 static void pmu_dump_config(void) {
 
   DEBUG(PMU_PLUGIN ": Config:");
-  DEBUG(PMU_PLUGIN ":   hw_cache_events   : %d", g_ctx.hw_cache_events);
-  DEBUG(PMU_PLUGIN ":   kernel_pmu_events : %d", g_ctx.kernel_pmu_events);
-  DEBUG(PMU_PLUGIN ":   software_events   : %d", g_ctx.sw_events);
+  DEBUG(PMU_PLUGIN ":   dispatch_cloned_pmus: %d", g_ctx.dispatch_cloned_pmus);
+  DEBUG(PMU_PLUGIN ":   hw_cache_events     : %d", g_ctx.hw_cache_events);
+  DEBUG(PMU_PLUGIN ":   kernel_pmu_events   : %d", g_ctx.kernel_pmu_events);
+  DEBUG(PMU_PLUGIN ":   software_events     : %d", g_ctx.sw_events);
 
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
-    DEBUG(PMU_PLUGIN ":   hardware_events[%" PRIsz "]: %s", i,
+    DEBUG(PMU_PLUGIN ":   hardware_events[%" PRIsz "]  : %s", i,
           g_ctx.hw_events[i]);
   }
 }
 
 static void pmu_dump_cgroups(void) {
+
+  DEBUG(PMU_PLUGIN ": num cpus   : %d", g_ctx.event_list->num_cpus);
+  DEBUG(PMU_PLUGIN ": num sockets: %d", g_ctx.event_list->num_sockets);
+  for (size_t i = 0; i < g_ctx.event_list->num_sockets; i++) {
+    DEBUG(PMU_PLUGIN ":   socket [%" PRIsz "] core: %d", i,
+          g_ctx.event_list->socket_cpus[i]);
+  }
 
   DEBUG(PMU_PLUGIN ": Core groups:");
 
@@ -312,6 +327,8 @@ static int pmu_config(oconfig_item_t *ci) {
       ret = cf_util_get_boolean(child, &g_ctx.sw_events);
     } else if (strcasecmp("Cores", child->key) == 0) {
       ret = config_cores_parse(child, &g_ctx.cores);
+    } else if (strcasecmp("DispatchMultiPmu", child->key) == 0) {
+      ret = cf_util_get_boolean(child, &g_ctx.dispatch_cloned_pmus);
     } else {
       ERROR(PMU_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
       ret = -1;
@@ -331,7 +348,8 @@ static int pmu_config(oconfig_item_t *ci) {
 }
 
 static void pmu_submit_counter(const char *cgroup, const char *event,
-                               counter_t value, meta_data_t *meta) {
+                               const uint32_t *event_type, counter_t value,
+                               meta_data_t *meta) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.counter = value};
@@ -342,7 +360,11 @@ static void pmu_submit_counter(const char *cgroup, const char *event,
   if (meta)
     vl.meta = meta;
   sstrncpy(vl.type, "counter", sizeof(vl.type));
-  sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
+  if (event_type)
+    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s:type=%d", event,
+              *event_type);
+  else
+    sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
 }
@@ -361,6 +383,8 @@ meta_data_t *pmu_meta_data_create(const struct efd *efd) {
     return NULL;
   }
 
+  DEBUG(PMU_PLUGIN ": scaled value = [raw]%lu * [enabled]%lu / [running]%lu",
+        efd->val[0], efd->val[1], efd->val[2]);
   meta_data_add_unsigned_int(meta, "intel_pmu:raw_count", efd->val[0]);
   meta_data_add_unsigned_int(meta, "intel_pmu:time_enabled", efd->val[1]);
   meta_data_add_unsigned_int(meta, "intel_pmu:time_running", efd->val[2]);
@@ -373,6 +397,12 @@ static void pmu_dispatch_data(void) {
   struct event *e;
 
   for (e = g_ctx.event_list->eventlist; e; e = e->next) {
+    const uint32_t *event_type = NULL;
+    if (e->orig && !g_ctx.dispatch_cloned_pmus)
+      continue;
+    if ((e->extra.multi_pmu || e->orig) && g_ctx.dispatch_cloned_pmus)
+      event_type = &e->attr.type;
+
     for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
       core_group_t *cgroup = g_ctx.cores.cgroups + i;
       uint64_t cgroup_value = 0;
@@ -391,18 +421,29 @@ static void pmu_dispatch_data(void) {
          * the counter is scaled basing on total time enabled vs time running.
          * final_count = raw_count * time_enabled/time_running
          */
-        uint64_t value = event_scaled_value(e, core);
-        cgroup_value += value;
+        if (e->extra.multi_pmu && !g_ctx.dispatch_cloned_pmus)
+          cgroup_value += event_scaled_value_sum(e, core);
+        else {
+          cgroup_value += event_scaled_value(e, core);
 
-        /* get meta data with information about scaling */
-        if (cgroup->num_cores == 1)
-          meta = pmu_meta_data_create(&e->efd[core]);
+          /* get meta data with information about scaling */
+          if (cgroup->num_cores == 1)
+            meta = pmu_meta_data_create(&e->efd[core]);
+        }
       }
 
       if (event_enabled_cgroup > 0) {
-        DEBUG(PMU_PLUGIN ": %s/%s = %lu", e->event, cgroup->desc, cgroup_value);
+#if COLLECT_DEBUG
+        if (event_type)
+          DEBUG(PMU_PLUGIN ": %s:type=%d/%s = %lu", e->event, *event_type,
+                cgroup->desc, cgroup_value);
+        else
+          DEBUG(PMU_PLUGIN ": %s/%s = %lu", e->event, cgroup->desc,
+                cgroup_value);
+#endif
         /* dispatch per core group value */
-        pmu_submit_counter(cgroup->desc, e->event, cgroup_value, meta);
+        pmu_submit_counter(cgroup->desc, e->event, event_type, cgroup_value,
+                           meta);
         meta_data_destroy(meta);
       }
     }
@@ -466,6 +507,44 @@ static int pmu_add_events(struct eventlist *el, uint32_t type,
   return 0;
 }
 
+static int pmu_add_cloned_pmus(struct eventlist *el, struct event *e) {
+  struct perf_event_attr attr = e->attr;
+  int ret;
+
+  while ((ret = jevent_next_pmu(&e->extra, &attr)) == 1) {
+    /* Allocate memory for event struct that contains array of efd structs
+       for all cores */
+    struct event *ne =
+        calloc(1, sizeof(struct event) + sizeof(struct efd) * el->num_cpus);
+    if (ne == NULL) {
+      return -ENOMEM;
+    }
+    for (size_t i = 0; i < el->num_cpus; i++)
+      ne->efd[i].fd = -1;
+
+    ne->attr = attr;
+    ne->orig = e;
+    ne->uncore = e->uncore;
+    e->num_clones++;
+    jevent_copy_extra(&ne->extra, &e->extra);
+
+    ne->next = NULL;
+    if (!el->eventlist)
+      el->eventlist = ne;
+    if (el->eventlist_last)
+      el->eventlist_last->next = ne;
+    el->eventlist_last = ne;
+    ne->event = strdup(e->event);
+  }
+
+  if (ret < 0) {
+    ERROR(PMU_PLUGIN ": Cannot find PMU for event %s", e->event);
+    return ret;
+  }
+
+  return 0;
+}
+
 static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
 
   for (size_t i = 0; i < count; i++) {
@@ -475,6 +554,8 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
     char *events = strdup(e[i]);
     if (!events)
       return -1;
+
+    bool group = strrchr(events, ',') != NULL ? true : false;
 
     char *s, *tmp = NULL;
     for (s = strtok_r(events, ",", &tmp); s; s = strtok_r(NULL, ",", &tmp)) {
@@ -487,17 +568,32 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
         free(events);
         return -ENOMEM;
       }
+      for (size_t j = 0; j < el->num_cpus; j++)
+        e->efd[j].fd = -1;
 
-      if (resolve_event(s, &e->attr) != 0) {
+      if (resolve_event_extra(s, &e->attr, &e->extra) != 0) {
         WARNING(PMU_PLUGIN ": Cannot resolve %s", s);
         sfree(e);
         continue;
       }
 
+      e->uncore = jevent_pmu_uncore(e->extra.decoded);
+
       /* Multiple events parsed in one entry */
-      if (group_events_count == 1) {
-        /* Mark previously added event as group leader */
-        el->eventlist_last->group_leader = 1;
+      if (group) {
+        if (e->extra.multi_pmu) {
+          ERROR(PMU_PLUGIN ": Cannot handle multi pmu event %s in a group\n",
+                s);
+          jevent_free_extra(&e->extra);
+          sfree(e);
+          sfree(events);
+          return -1;
+        }
+        if (group_events_count == 0)
+          /* Mark first added event as group leader */
+          e->group_leader = 1;
+
+        e->ingroup = 1;
       }
 
       e->next = NULL;
@@ -508,11 +604,14 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
       el->eventlist_last = e;
       e->event = strdup(s);
 
+      if (e->extra.multi_pmu && pmu_add_cloned_pmus(el, e) != 0)
+        return -1;
+
       group_events_count++;
     }
 
     /* Multiple events parsed in one entry */
-    if (group_events_count > 1) {
+    if (group) {
       /* Mark last added event as group end */
       el->eventlist_last->end_group = 1;
     }
@@ -528,16 +627,7 @@ static void pmu_free_events(struct eventlist *el) {
   if (el == NULL)
     return;
 
-  struct event *e = el->eventlist;
-
-  while (e) {
-    struct event *next = e->next;
-    sfree(e->event);
-    sfree(e);
-    e = next;
-  }
-
-  el->eventlist = NULL;
+  free_eventlist(el);
 }
 
 static int pmu_setup_events(struct eventlist *el, bool measure_all,
@@ -551,6 +641,17 @@ static int pmu_setup_events(struct eventlist *el, bool measure_all,
       core_group_t *cgroup = g_ctx.cores.cgroups + i;
       for (size_t j = 0; j < cgroup->num_cores; j++) {
         int core = (int)cgroup->cores[j];
+
+        if (e->uncore) {
+          bool match = false;
+          for (size_t k = 0; k < el->num_sockets; k++)
+            if (el->socket_cpus[k] == core) {
+              match = true;
+              break;
+            }
+          if (!match)
+            continue;
+        }
 
         if (setup_event(e, core, leader, measure_all, measure_pid) < 0) {
           WARNING(PMU_PLUGIN ": perf event '%s' is not available (cpu=%d).",
@@ -668,7 +769,7 @@ static int pmu_init(void) {
 init_error:
 
   pmu_free_events(g_ctx.event_list);
-  sfree(g_ctx.event_list);
+  g_ctx.event_list = NULL;
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
     sfree(g_ctx.hw_events[i]);
   }
@@ -685,7 +786,7 @@ static int pmu_shutdown(void) {
   DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
 
   pmu_free_events(g_ctx.event_list);
-  sfree(g_ctx.event_list);
+  g_ctx.event_list = NULL;
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
     sfree(g_ctx.hw_events[i]);
   }

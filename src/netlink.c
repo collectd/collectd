@@ -638,7 +638,7 @@ static int ir_config(const char *key, const char *value) {
   } else if ((strcasecmp(key, "QDisc") == 0) ||
              (strcasecmp(key, "Class") == 0) ||
              (strcasecmp(key, "Filter") == 0)) {
-    if ((fields_num < 1) || (fields_num > 2)) {
+    if (fields_num > 2) {
       ERROR("netlink plugin: Invalid number of fields for option "
             "`%s'. Got %i, expected 1 or 2.",
             key, fields_num);

@@ -1316,11 +1316,10 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   snprintf(filename, sizeof(filename), "/proc/%li/stat", pid);
 
-  status = read_file_contents(filename, buffer, sizeof(buffer) - 1);
+  status = read_text_file_contents(filename, buffer, sizeof(buffer));
   if (status <= 0)
     return -1;
   buffer_len = (size_t)status;
-  buffer[buffer_len] = 0;
 
   /* The name of the process is enclosed in parens. Since the name can
    * contain parens itself, spaces, numbers and pretty much everything
@@ -1428,6 +1427,41 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   /* success */
   return 0;
 } /* int ps_read_process (...) */
+
+static int procs_running(void) {
+  char buffer[4096] = {};
+  char id[] = "procs_running "; /* white space terminated */
+  char *running;
+  char *endptr = NULL;
+  long result = 0L;
+
+  ssize_t status;
+
+  status = read_file_contents("/proc/stat", buffer, sizeof(buffer) - 1);
+  if (status <= 0) {
+    return -1;
+  }
+
+  /* the data contains :
+   * the literal string 'procs_running',
+   * a whitespace
+   * the number of running processes.
+   * The parser does include the white-space character.
+   */
+  running = strstr(buffer, id);
+  if (!running) {
+    WARNING("procs_running not found");
+    return -1;
+  }
+  running += strlen(id);
+
+  result = strtol(running, &endptr, 10);
+  if ((*running != '\0') && ((*endptr == '\0') || (*endptr == '\n'))) {
+    return (int)result;
+  }
+
+  return -1;
+}
 
 static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   char *buf_ptr;
@@ -1569,7 +1603,7 @@ static char *ps_get_cmdline(long pid,
 
   snprintf(path, sizeof(path), "/proc/%li/psinfo", pid);
 
-  status = read_file_contents(path, (void *)&info, sizeof(info));
+  status = read_file_contents(path, &info, sizeof(info));
   if ((status < 0) || (((size_t)status) != sizeof(info))) {
     ERROR("processes plugin: Unexpected return value "
           "while reading \"%s\": "
@@ -2083,6 +2117,16 @@ static int ps_read(void) {
   }
 
   closedir(proc);
+
+  /* get procs_running from /proc/stat
+   * scanning /proc/stat AND computing other process stats takes too much time.
+   * Consequently, the number of running processes based on the occurences
+   * of 'R' as character indicating the running state is typically zero. Due
+   * to processes are actually changing state during the evaluation of it's
+   * stat(s).
+   * The 'procs_running' number in /proc/stat on the other hand is more
+   * accurate, and can be retrieved in a single 'read' call. */
+  running = procs_running();
 
   ps_submit_state("running", running);
   ps_submit_state("sleeping", sleeping);

@@ -12,6 +12,9 @@ Marc Fournier <marc.fournier at camptocamp.com>
  - openldap plugin.
  - continuous integration system.
 
+Matthias Runge <mrunge@redhat.com>
+ - general house keeping.
+
 Pierre-Yves Ritschard <pyr at spootnik.org>
  - Write-Riemann plugin.
  - Write-Graphite plugin: Notification support.
@@ -37,6 +40,10 @@ Sebastian "tokkee" Harl <sh at tokkee.org>
 Contributors (sorted alphabetically)
 ====================================
 
+Adrian Boczkowski
+ - Logparser plugin.
+ - Redfish plugin.
+
 Akkarit Sangpetch <asangpet at andrew.cmu.edu>
  - write_mongodb plugin.
 
@@ -56,11 +63,23 @@ Amit Gupta <amit.gupta221 at gmail.com>
 Andreas Henriksson <andreas at fatal.se>
  - libmnl support in the netlink plugin.
 
+Andrew Bays <abays at redhat.com>
+ - connectivity plugin.
+ - procevent plugin.
+ - sysevent plugin.
+ - connectivity plugin.
+
 Andy Parkins <andyp at fussylogic.co.uk>
  - battery plugin: sysfs code.
 
+Aneesh Puttur <aputtur at redhat.com>
+ - connectivity plugin.
+
 Andy Smith <ansmith at redhat.com>
  - AMQP 1.0 plugin.
+
+Aneesh Puttur <aputtur at redhat.com>
+ - connectivity plugin.
 
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
@@ -70,6 +89,9 @@ Anthony Gialluca <tonyabg at charter.net>
 
 Antony Dovgal <tony at daylessday.org>
  - memcached plugin.
+
+Asaf Kahlon <asafka7 at gmail.com>
+ - buddyinfo plugin
 
 Aurélien Reynaud <collectd at wattapower.net>
  - LPAR plugin.
@@ -90,8 +112,14 @@ Bruno Prémont <bonbons at linux-vserver.org>
    especially a nasty bug in the network plugin.
  - Wireshark dissector.
 
+Carlos Peon Costa
+ - Write_Influxdb_UDP plugin
+
 Chad Malfait <malfaitc at yahoo.com>
  - LVM plugin.
+
+Chris Brown
+ - Zookeeper plugin, add quorum stat.
 
 Chris Lundquist <clundquist at bluebox.net>
  - Improvements to the write_mongodb plugin.
@@ -109,6 +137,8 @@ Cyril Feraudet <cyril at feraudet.com>
 Dagobert Michelsen <dam at opencsw.org>
  - zone plugin.
  - Many Solaris related hints and fixes.
+ - Capabilities plugin.
+ - NFS plugin for BSD
 
 Dan Berrange <berrange at redhat.com>
  - uuid plugin.
@@ -122,12 +152,18 @@ David Bacher <drbacher at gmail.com>
 Denis Pompilio <denis.pompilio at gmail.com>
  - Improvements to the write_http plugin.
 
+Dheeraj Gupta
+ - Tail_CSV plugin, field separator option
+
 Doug MacEachern <dougm at hyperic.com>
  - The `-T' option (config testing mode).
  - OpenVPN plugin.
  - jcollectd (two-way JMX integration).
  - A few other patches to various plugins.
  - curl_json plugin.
+
+Edgar Fuß
+ - NFS plugin implementation on NetBSD
 
 Edward “Koko” Konetzko <konetzed at quixoticagony.com>
  - fscache plugin.
@@ -153,6 +189,9 @@ Franck Lombardi
 Gergely Nagy <algernon at madhouse-project.org>
  - Write-Riemann plugin.
 
+Hari TG <hari.tg at intel.com>
+ - dcpmm plugin.
+
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.
 
@@ -172,8 +211,9 @@ Jiri Tyr <jiri.tyr at gmail.com>
 Julien Ammous <j.ammous at gmail.com>
  - Lua plugin.
 
-Shirly Radco <sradco at redhat.com>
- - write_syslog plugin.
+Kamil Wiatrowski
+ - Capabilities plugin.
+ - Logparser plugin.
 
 Kevin Bowling <kbowling at llnw.com>
  - write_tsdb plugin for http://opentsdb.net/
@@ -183,6 +223,12 @@ Kimo Rosenbaum <kimor79 at yahoo.com>
 
 Kris Nielander <nielander at fox-it.com>
  - tail_csv plugin.
+
+Krzysztof Kepka
+ - Redfish plugin.
+
+Krzysztof Matczak
+ - Logparser plugin.
 
 Luboš Staněk <kolektor at atlas.cz>
  - sensors plugin improvements.
@@ -195,6 +241,9 @@ Luke Herberling <collectd at c-ware.com>
 Lyonel Vincent <lyonel at ezix.org>
  - processes plugin.
 
+Man Singh
+ - Redfish plugin.
+
 Manuel Sanmartin
  - AIX port of the following plugins:
    + cpu
@@ -206,10 +255,17 @@ Manuel Sanmartin
    + swap
  - Various AIX-related fixes and hacks.
 
+Marcin Mozejko
+ - Logparser plugin.
+ - Redfish plugin.
+
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
  - ip6tables support in the iptables plugin.
  - openvpn plugin (support for more status file formats)
+
+Märt Bakhof
+ - TLS support for AMQP plugin
 
 Mathijs Möhlmann <collectd at mmrc.nl>
  - zone plugin.
@@ -223,6 +279,9 @@ Michael Schenck <mschenck at digitalocean.com>
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
  - cgroups plugin.
+
+Michal Kobylinski
+ - Redfish plugin.
 
 Michał Mirosław <mirq-linux at rere.qmqm.pl>
  - thermal plugin.
@@ -248,6 +307,10 @@ Oleg King <king2 at kaluga.ru>
 Ondrej Zajicek <santiago at crfreenet.org>
  - madwifi plugin.
 
+Pablo Llopis <pablo.llopis at gmail.com>
+ - Slurm plugin
+ - RestoreAffinityPolicy in turbostat plugin
+
 Patrik Weiskircher <weiskircher at inqnet.at>
  - Contextswitch plugin.
  - Forkrate counter in the processes plugin.
@@ -269,11 +332,20 @@ Peter Holik <peter at holik.at>
  - Some bugfixes in the exec plugin.
  - Notifications in the ipmi plugin.
 
+Pierre Lebleu
+ - UBI plugin.
+
 Phoenix Kayo <kayo.k11.4 at gmail.com>
  - pinba plugin.
 
 Piotr Hosowicz <the55 at wp.pl>
  - SMF manifest for collectd.
+
+Radoslaw Jablonski
+ - Logparser plugin.
+
+Reshma Pattan
+ - DPDK Telemetry plugin.
 
 Richard W. M. Jones <rjones at redhat.com>
  - virt plugin.
@@ -299,6 +371,9 @@ Serhiy Pshyk <serhiyx.pshyk at intel.com>
  - intel_rdt plugin
  - snmp_agent plugin
 
+Shirly Radco <sradco at redhat.com>
+ - write_syslog plugin.
+
 Simon Kuhnle <simon at blarzwurst.de>
  - OpenBSD code for the cpu and memory plugins.
 
@@ -314,6 +389,9 @@ Steven Bell <stv.bell07 at gmail.com>
 Sven Trenkel <collectd at semidefinite.de>
  - netapp plugin.
  - python plugin.
+
+Takuro Ashie
+ - Network plugin fixes.
 
 Tim Laszlo <tim.laszlo at gmail.com>
  - drbd plugin.
@@ -341,6 +419,9 @@ Wilfried Goesgens <dothebart at citadel.org>
 
 Xin Li <delphij at freebsd.org>
  - FreeBSD port of the ZFS-ARC plugin.
+
+Zoltan Szabo
+ - Redfish plugin.
 
 collectd is available at:
   <http://collectd.org/>
