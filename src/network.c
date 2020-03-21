@@ -295,11 +295,12 @@ static char *send_buffer_ptr;
 static int send_buffer_fill;
 static cdtime_t send_buffer_last_update;
 static value_list_t send_buffer_vl = VALUE_LIST_INIT;
-static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
+/* Is used to protect send_buffer and sending_sockets both */
+static pthread_mutex_t send_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* XXX: These counters are incremented from one place only. The spot in which
  * the values are incremented is either only reachable by one thread (the
- * dispatch thread, for example) or locked by some lock (send_buffer_lock for
+ * dispatch thread, for example) or locked by some lock (send_lock for
  * example). Only if neither is true, the stats_lock is acquired. The counters
  * are always read without holding a lock in the hope that writing 8 bytes to
  * memory is an atomic operation. */
@@ -2572,7 +2573,7 @@ static void network_send_buffer_encrypted(sockent_t *se, /* {{{ */
 #endif /* HAVE_GCRYPT_H */
 
 /*
- * Should be called with send_buffer_lock locked
+ * Should be called with send_lock locked
  * to avoid data race accessing sending_sockets
  */
 static void network_send_buffer(char *buffer, size_t buffer_len) /* {{{ */
@@ -2695,7 +2696,7 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
 
   uc_meta_data_add_unsigned_int(vl, "network:time_sent", (uint64_t)vl->time);
 
-  pthread_mutex_lock(&send_buffer_lock);
+  pthread_mutex_lock(&send_lock);
 
   status = add_to_buffer(send_buffer_ptr,
                          network_config_packet_size -
@@ -2731,7 +2732,7 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
     flush_buffer();
   }
 
-  pthread_mutex_unlock(&send_buffer_lock);
+  pthread_mutex_unlock(&send_lock);
 
   return (status < 0) ? -1 : 0;
 } /* int network_write */
@@ -3112,9 +3113,9 @@ static int network_notification(const notification_t *n,
     return -1;
 
   // Calling locked to avoid data race accessing sending_sockets
-  pthread_mutex_lock(&send_buffer_lock);
+  pthread_mutex_lock(&send_lock);
   network_send_buffer(buffer, sizeof(buffer) - buffer_free);
-  pthread_mutex_unlock(&send_buffer_lock);
+  pthread_mutex_unlock(&send_lock);
 
   return 0;
 } /* int network_notification */
@@ -3300,19 +3301,19 @@ static int network_init(void) {
 static int network_flush(cdtime_t timeout,
                          __attribute__((unused)) const char *identifier,
                          __attribute__((unused)) user_data_t *user_data) {
-  pthread_mutex_lock(&send_buffer_lock);
+  pthread_mutex_lock(&send_lock);
 
   if (send_buffer_fill > 0) {
     if (timeout > 0) {
       cdtime_t now = cdtime();
       if ((send_buffer_last_update + timeout) > now) {
-        pthread_mutex_unlock(&send_buffer_lock);
+        pthread_mutex_unlock(&send_lock);
         return 0;
       }
     }
     flush_buffer();
   }
-  pthread_mutex_unlock(&send_buffer_lock);
+  pthread_mutex_unlock(&send_lock);
 
   return 0;
 } /* int network_flush */
