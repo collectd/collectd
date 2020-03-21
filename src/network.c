@@ -102,7 +102,7 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 struct sockent_client {
   int fd;
-  struct sockaddr_storage *addr;
+  struct sockaddr_storage addr;
   socklen_t addrlen;
 #if HAVE_GCRYPT_H
   int security_level;
@@ -1508,7 +1508,6 @@ static void free_sockent_client(struct sockent_client *sec) /* {{{ */
     close(sec->fd);
     sec->fd = -1;
   }
-  sfree(sec->addr);
   sfree(sec->bind_addr);
 #if HAVE_GCRYPT_H
   sfree(sec->username);
@@ -1879,7 +1878,6 @@ static sockent_t *sockent_create(int type) /* {{{ */
 #endif
   } else {
     se->data.client.fd = -1;
-    se->data.client.addr = NULL;
     se->data.client.bind_addr = NULL;
     se->data.client.resolve_interval = 0;
     se->data.client.next_resolve_reconnect = 0;
@@ -1946,21 +1944,17 @@ static int sockent_init_crypto(sockent_t *se) /* {{{ */
 
 static int sockent_client_disconnect(sockent_t *se) /* {{{ */
 {
-  struct sockent_client *client;
 
   if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
     return EINVAL;
 
-  client = &se->data.client;
+  struct sockent_client *client = &se->data.client;
   if (client->fd >= 0) /* connected */
   {
     close(client->fd);
     client->fd = -1;
   }
 
-  DEBUG("network plugin: free (se = %p, addr = %p);", (void *)se,
-        (void *)client->addr);
-  sfree(client->addr);
   client->addrlen = 0;
 
   return 0;
@@ -1970,18 +1964,15 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
 {
   static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
-  struct sockent_client *client;
   struct addrinfo *ai_list;
-  int status;
-  bool reconnect = false;
-  cdtime_t now;
 
   if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
     return EINVAL;
 
-  client = &se->data.client;
+  struct sockent_client *client = &se->data.client;
 
-  now = cdtime();
+  cdtime_t now = cdtime();
+  bool reconnect = false;
   if (client->resolve_interval != 0 && client->next_resolve_reconnect < now) {
     DEBUG("network plugin: Reconnecting socket, resolve_interval = %lf, "
           "next_resolve_reconnect = %lf",
@@ -1998,9 +1989,9 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
                               .ai_protocol = IPPROTO_UDP,
                               .ai_socktype = SOCK_DGRAM};
 
-  status = getaddrinfo(se->node,
-                       (se->service != NULL) ? se->service : NET_DEFAULT_PORT,
-                       &ai_hints, &ai_list);
+  int status = getaddrinfo(
+      se->node, (se->service != NULL) ? se->service : NET_DEFAULT_PORT,
+      &ai_hints, &ai_list);
   if (status != 0) {
     c_complain(
         LOG_ERR, &complaint, "network plugin: getaddrinfo (%s, %s) failed: %s",
@@ -2024,18 +2015,8 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
       continue;
     }
 
-    client->addr = calloc(1, sizeof(*client->addr));
-    if (client->addr == NULL) {
-      ERROR("network plugin: calloc failed.");
-      close(client->fd);
-      client->fd = -1;
-      continue;
-    }
-    DEBUG("network plugin: alloc (se = %p, addr = %p);", (void *)se,
-          (void *)client->addr);
-
-    assert(sizeof(*client->addr) >= ai_ptr->ai_addrlen);
-    memcpy(client->addr, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+    assert(sizeof(client->addr) >= ai_ptr->ai_addrlen);
+    memcpy(&client->addr, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     client->addrlen = ai_ptr->ai_addrlen;
 
     network_set_ttl(se, ai_ptr);
@@ -2377,7 +2358,7 @@ static void network_send_buffer_plain(sockent_t *se, /* {{{ */
       return;
 
     status = sendto(se->data.client.fd, buffer, buffer_size,
-                    /* flags = */ 0, (struct sockaddr *)se->data.client.addr,
+                    /* flags = */ 0, (struct sockaddr *)&se->data.client.addr,
                     se->data.client.addrlen);
     if (status < 0) {
       if ((errno == EINTR) || (errno == EAGAIN))
