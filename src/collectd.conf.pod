@@ -860,6 +860,18 @@ When the AMQP1 connection is lost, defines the time in seconds to wait
 before attempting to reconnect. Defaults to 1, which implies attempt
 to reconnect at 1 second intervals.
 
+=item B<SendQueueLimit> I<SendQueueLimit>
+If there is no AMQP1 connection, the plugin will continue to queue
+messages to send, which could result in unbounded memory consumption. This
+parameter is used to limit the number of messages in the outbound queue to
+the specified value. The default value is 0, which disables this feature.
+
+=item B<SendQueueDropNew> I<SendQueueDropNew>
+If the I<SendQueueLimit> parameter is set to a positive integer value and
+this parameter is set to true, new messages will be discarded if the queue is
+full. The default value is false, which results in the oldest message in the
+queue being dropped if the queue is full and a new message is enqueued.
+
 =back
 
 The following options are accepted within each I<Instance> block:

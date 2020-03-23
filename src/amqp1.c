@@ -63,6 +63,8 @@ typedef struct amqp1_config_transport_s {
   char *password;
   char *address;
   int retry_delay;
+  int sendq_limit;
+  bool sendq_drop_new;
 } amqp1_config_transport_t;
 
 typedef struct amqp1_config_instance_s {
@@ -308,9 +310,25 @@ static int encqueue(cd_message_t *cdm,
                     amqp1_config_instance_t *instance) /* {{{ */
 {
   /* encode message */
-  pn_message_t *message = pn_message();
+  pn_message_t *message;
+  pn_data_t *body;
+
+  if (transport->sendq_limit > 0) {
+    pthread_mutex_lock(&send_lock);
+    if (DEQ_SIZE(out_messages) >= transport->sendq_limit &&
+        transport->sendq_drop_new) {
+      pthread_mutex_unlock(&send_lock);
+      cd_message_free(cdm);
+      DEBUG("amqp1 plugin: dropping new message because sendq is full");
+      return 0;
+    }
+    pthread_mutex_unlock(&send_lock);
+  }
+
+  message = pn_message();
   pn_message_set_address(message, instance->send_to);
-  pn_data_t *body = pn_message_body(message);
+  body = pn_message_body(message);
+
   pn_data_clear(body);
   pn_data_put_binary(body, pn_bytes(cdm->mbuf.size, cdm->mbuf.start));
   pn_data_exit(body);
@@ -341,6 +359,18 @@ static int encqueue(cd_message_t *cdm,
   }
 
   pthread_mutex_lock(&send_lock);
+  /* Queue length could have changed, so check again if full and
+   * discarding oldest
+   */
+  if (DEQ_SIZE(out_messages) >= transport->sendq_limit &&
+      !transport->sendq_drop_new) {
+    cd_message_t *evict;
+
+    DEBUG("amqp1 plugin: dropping oldest message because sendq is full");
+    evict = DEQ_HEAD(out_messages);
+    DEQ_REMOVE_HEAD(out_messages);
+    cd_message_free(evict);
+  }
   DEQ_INSERT_TAIL(out_messages, cdm);
   pthread_mutex_unlock(&send_lock);
 
@@ -697,6 +727,10 @@ static int amqp1_config_transport(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int(child, &transport->retry_delay);
     else if (strcasecmp("Instance", child->key) == 0)
       amqp1_config_instance(child);
+    else if (strcasecmp("SendQueueLimit", child->key) == 0)
+      status = cf_util_get_int(child, &transport->sendq_limit);
+    else if (strcasecmp("SendQueueDropNew", child->key) == 0)
+      status = cf_util_get_boolean(child, &transport->sendq_drop_new);
     else
       WARNING("amqp1 plugin: Ignoring unknown "
               "transport configuration option "
