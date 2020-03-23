@@ -28,7 +28,9 @@ before_install:
   # When building the coverity_scan branch, allow only the first job to continue to avoid travis-ci/travis-ci#1975.
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" && ! "${TRAVIS_JOB_NUMBER}" =~ \.1$ ]]; then exit 0; fi
 
-before_script: autoreconf -vif
+before_script:
+  - if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then dpkg -l ; fi
+  - autoreconf -vif
 
 script:
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
