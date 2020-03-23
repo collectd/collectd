@@ -29,7 +29,7 @@ before_install:
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" && ! "${TRAVIS_JOB_NUMBER}" =~ \.1$ ]]; then exit 0; fi
 
 before_script:
-  - [ "$TRAVIS_BRANCH" = "linux" ] && dpkg -l
+  - if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then dpkg -l ; fi
   - autoreconf -vif
 
 script:
