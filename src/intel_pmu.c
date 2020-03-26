@@ -611,7 +611,7 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
     }
 
     /* Multiple events parsed in one entry */
-    if (group) {
+    if (group && group_events_count > 0) {
       /* Mark last added event as group end */
       el->eventlist_last->end_group = 1;
     }
