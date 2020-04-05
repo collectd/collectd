@@ -109,18 +109,21 @@ static size_t wh_curl_write_callback(char *ptr, size_t size, size_t nmemb,
   wh_callback_t *cb = (wh_callback_t *)userdata;
   unsigned int len = 0;
 
-  if ( (cb->response_buffer_pos + nmemb) > sizeof(cb->response_buffer))
-    len = sizeof(cb->response_buffer) - cb -> response_buffer_pos;
+  if ((cb->response_buffer_pos + nmemb) > sizeof(cb->response_buffer))
+    len = sizeof(cb->response_buffer) - cb->response_buffer_pos;
   else
     len = nmemb;
 
-  DEBUG("write_http plugin: curl callback nmemb=%zu buffer_pos=%u write_len=%u ", nmemb, cb->response_buffer_pos, len);
+  DEBUG(
+      "write_http plugin: curl callback nmemb=%zu buffer_pos=%u write_len=%u ",
+      nmemb, cb->response_buffer_pos, len);
 
   memcpy(cb->response_buffer + cb->response_buffer_pos, ptr, len);
   cb->response_buffer_pos += len;
-  cb->response_buffer[sizeof(cb->response_buffer)-1] = '\0';
+  cb->response_buffer[sizeof(cb->response_buffer) - 1] = '\0';
 
-  /* Always return nmemb even if we write less so libcurl won't throw an error */
+  /* Always return nmemb even if we write less so libcurl won't throw an error
+   */
   return nmemb;
 
 } /* }}} wh_curl_write_callback */
@@ -153,7 +156,7 @@ static void wh_reset_buffer(wh_callback_t *cb) /* {{{ */
   }
 
   memset(cb->response_buffer, 0, sizeof(cb->response_buffer));
-  cb->response_buffer_pos=0;
+  cb->response_buffer_pos = 0;
 
 } /* }}} wh_reset_buffer */
 
