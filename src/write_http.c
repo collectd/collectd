@@ -42,7 +42,7 @@
 #endif
 
 #ifndef WRITE_HTTP_RESPONSE_BUFFER_SIZE
-#define WRITE_HTTP_RESPONSE_BUFFER_SIZE 4096
+#define WRITE_HTTP_RESPONSE_BUFFER_SIZE 1024
 #endif
 
 /*
@@ -89,8 +89,8 @@ struct wh_callback_s {
 
   pthread_mutex_t send_lock;
 
-  char *response_buffer;
-  size_t response_buffer_size;
+  char response_buffer[WRITE_HTTP_RESPONSE_BUFFER_SIZE];
+  unsigned int response_buffer_pos;
 
   int data_ttl;
   char *metrics_prefix;
@@ -100,23 +100,30 @@ typedef struct wh_callback_s wh_callback_t;
 static char **http_attrs;
 static size_t http_attrs_num;
 
+/* libcurl may call this multiple times depending on how big the server's
+ * http response is
+ */
 static size_t wh_curl_write_callback(char *ptr, size_t size, size_t nmemb,
                                      void *userdata) {
 
   wh_callback_t *cb = (wh_callback_t *)userdata;
-  int len = 0;
+  unsigned int len = 0;
 
-  DEBUG("write_http plugin: curl callback writing %zu bytes of output.", nmemb);
-  if (nmemb > cb->response_buffer_size - 1)
-    len = cb->response_buffer_size - 1;
+  if ( (cb->response_buffer_pos + nmemb) > sizeof(cb->response_buffer))
+    len = sizeof(cb->response_buffer) - cb -> response_buffer_pos;
   else
     len = nmemb;
 
-  memcpy(cb->response_buffer, ptr, len);
-  cb->response_buffer[cb->response_buffer_size] = '\0';
+  DEBUG("write_http plugin: curl callback nmemb=%zu buffer_pos=%u write_len=%u ", nmemb, cb->response_buffer_pos, len);
 
+  memcpy(cb->response_buffer + cb->response_buffer_pos, ptr, len);
+  cb->response_buffer_pos += len;
+  cb->response_buffer[sizeof(cb->response_buffer)-1] = '\0';
+
+  /* Always return nmemb even if we write less so libcurl won't throw an error */
   return nmemb;
-}
+
+} /* }}} wh_curl_write_callback */
 
 static void wh_log_http_error(wh_callback_t *cb) {
   if (!cb->log_http_error)
@@ -145,10 +152,8 @@ static void wh_reset_buffer(wh_callback_t *cb) /* {{{ */
                            &cb->send_buffer_free);
   }
 
-  if (cb->response_buffer == NULL)
-    return;
-  memset(cb->response_buffer, 0, cb->response_buffer_size);
-  cb->send_buffer_fill = 0;
+  memset(cb->response_buffer, 0, sizeof(cb->response_buffer));
+  cb->response_buffer_pos=0;
 
 } /* }}} wh_reset_buffer */
 
@@ -860,15 +865,6 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   /* Allocate the buffer. */
   cb->send_buffer = malloc(cb->send_buffer_size);
   if (cb->send_buffer == NULL) {
-    ERROR("write_http plugin: malloc(%" PRIsz ") failed.",
-          cb->send_buffer_size);
-    wh_callback_free(cb);
-    return -1;
-  }
-
-  cb->response_buffer_size = WRITE_HTTP_RESPONSE_BUFFER_SIZE;
-  cb->response_buffer = malloc(cb->response_buffer_size);
-  if (cb->response_buffer == NULL) {
     ERROR("write_http plugin: malloc(%" PRIsz ") failed.",
           cb->send_buffer_size);
     wh_callback_free(cb);
