@@ -63,6 +63,7 @@ typedef struct amqp1_config_transport_s {
   char *password;
   char *address;
   int retry_delay;
+  int sendq_limit;
 } amqp1_config_transport_t;
 
 typedef struct amqp1_config_instance_s {
@@ -341,6 +342,15 @@ static int encqueue(cd_message_t *cdm,
   }
 
   pthread_mutex_lock(&send_lock);
+  if (transport->sendq_limit > 0 &&
+      DEQ_SIZE(out_messages) >= transport->sendq_limit) {
+    cd_message_t *evict;
+
+    DEBUG("amqp1 plugin: dropping oldest message because sendq is full");
+    evict = DEQ_HEAD(out_messages);
+    DEQ_REMOVE_HEAD(out_messages);
+    cd_message_free(evict);
+  }
   DEQ_INSERT_TAIL(out_messages, cdm);
   pthread_mutex_unlock(&send_lock);
 
@@ -697,6 +707,8 @@ static int amqp1_config_transport(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int(child, &transport->retry_delay);
     else if (strcasecmp("Instance", child->key) == 0)
       amqp1_config_instance(child);
+    else if (strcasecmp("SendQueueLimit", child->key) == 0)
+      status = cf_util_get_int(child, &transport->sendq_limit);
     else
       WARNING("amqp1 plugin: Ignoring unknown "
               "transport configuration option "
