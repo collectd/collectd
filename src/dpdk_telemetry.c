@@ -40,7 +40,7 @@
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/unistd.h>
+#include <unistd.h>
 
 #define BUF_SIZE 100000
 #define PLUGIN_NAME "dpdk_telemetry"
