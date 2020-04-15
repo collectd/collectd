@@ -4,6 +4,7 @@
  * Copyright (C) 2008-2012  Sebastian Harl
  * Copyright (C) 2013       Andreas Henriksson
  * Copyright (C) 2013       Marc Fournier
+ * Copyright (C) 2020       Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,12 +24,17 @@
  *   Sebastian Harl <sh at tokkee.org>
  *   Andreas Henriksson <andreas at fatal.se>
  *   Marc Fournier <marc.fournier at camptocamp.com>
+ *   Kamil Wiatrowski <kamilx.wiatrowski at intel.com>
  **/
 
 #include "collectd.h"
 
 #include "plugin.h"
 #include "utils/common/common.h"
+
+#if HAVE_REGEX_H
+#include <regex.h>
+#endif
 
 #include <asm/types.h>
 
@@ -81,6 +87,9 @@ union ir_link_stats_u {
 
 typedef struct ir_ignorelist_s {
   char *device;
+#if HAVE_REGEX_H
+  regex_t *rdevice; /* regular expression device identification */
+#endif
   char *type;
   char *inst;
   struct ir_ignorelist_s *next;
@@ -111,7 +120,42 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
   if (entry == NULL)
     return -1;
 
-  if (strcasecmp(dev, "All") != 0) {
+#if HAVE_REGEX_H
+  size_t len = strlen(dev);
+  /* regex string is enclosed in "/.../" */
+  if ((len > 2) && (dev[0] == '/') && dev[len - 1] == '/') {
+    char *copy = strdup(dev + 1);
+    if (copy == NULL) {
+      sfree(entry);
+      return -1;
+    }
+    copy[strlen(copy) - 1] = '\0';
+
+    regex_t *re = calloc(1, sizeof(*re));
+    if (re == NULL) {
+      sfree(entry);
+      sfree(copy);
+      return -1;
+    }
+
+    int status = regcomp(re, copy, REG_EXTENDED);
+    if (status != 0) {
+      char errbuf[1024];
+      (void)regerror(status, re, errbuf, sizeof(errbuf));
+      ERROR("netlink plugin: add_ignorelist: regcomp for %s failed: %s", dev,
+            errbuf);
+      regfree(re);
+      sfree(entry);
+      sfree(copy);
+      sfree(re);
+      return -1;
+    }
+
+    entry->rdevice = re;
+    sfree(copy);
+  } else
+#endif
+      if (strcasecmp(dev, "All") != 0) {
     entry->device = strdup(dev);
     if (entry->device == NULL) {
       sfree(entry);
@@ -122,6 +166,9 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
   entry->type = strdup(type);
   if (entry->type == NULL) {
     sfree(entry->device);
+#if HAVE_REGEX_H
+    sfree(entry->rdevice);
+#endif
     sfree(entry);
     return -1;
   }
@@ -131,6 +178,9 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
     if (entry->inst == NULL) {
       sfree(entry->type);
       sfree(entry->device);
+#if HAVE_REGEX_H
+      sfree(entry->rdevice);
+#endif
       sfree(entry);
       return -1;
     }
@@ -154,8 +204,14 @@ static int check_ignorelist(const char *dev, const char *type,
     return ir_ignorelist_invert ? 0 : 1;
 
   for (ir_ignorelist_t *i = ir_ignorelist_head; i != NULL; i = i->next) {
-    /* i->device == NULL  =>  match all devices */
-    if ((i->device != NULL) && (strcasecmp(i->device, dev) != 0))
+#if HAVE_REGEX_H
+    if (i->rdevice != NULL) {
+      if (regexec(i->rdevice, dev, 0, NULL, 0) != REG_NOERROR)
+        continue;
+    } else
+#endif
+        /* i->device == NULL  =>  match all devices */
+        if ((i->device != NULL) && (strcasecmp(i->device, dev) != 0))
       continue;
 
     if (strcasecmp(i->type, type) != 0)
@@ -169,8 +225,13 @@ static int check_ignorelist(const char *dev, const char *type,
           "(dev = %s; type = %s; inst = %s) matched "
           "(dev = %s; type = %s; inst = %s)",
           dev, type, type_instance == NULL ? "(nil)" : type_instance,
-          i->device == NULL ? "(nil)" : i->device, i->type,
-          i->inst == NULL ? "(nil)" : i->inst);
+          i->device == NULL ?
+#if HAVE_REGEX_H
+                            i->rdevice != NULL ? "(regexp)" :
+#endif
+                                               "(nil)"
+                            : i->device,
+          i->type, i->inst == NULL ? "(nil)" : i->inst);
 
     return ir_ignorelist_invert ? 0 : 1;
   } /* for i */
@@ -630,10 +691,9 @@ static int ir_config(const char *key, const char *value) {
             key, fields_num);
       status = -1;
     } else {
-      add_ignorelist(fields[0], "interface", NULL);
+      status = add_ignorelist(fields[0], "interface", NULL);
       if (strcasecmp(key, "VerboseInterface") == 0)
-        add_ignorelist(fields[0], "if_detail", NULL);
-      status = 0;
+        status += add_ignorelist(fields[0], "if_detail", NULL);
     }
   } else if ((strcasecmp(key, "QDisc") == 0) ||
              (strcasecmp(key, "Class") == 0) ||
@@ -644,8 +704,8 @@ static int ir_config(const char *key, const char *value) {
             key, fields_num);
       return -1;
     } else {
-      add_ignorelist(fields[0], key, (fields_num == 2) ? fields[1] : NULL);
-      status = 0;
+      status =
+          add_ignorelist(fields[0], key, (fields_num == 2) ? fields[1] : NULL);
     }
   } else if (strcasecmp(key, "IgnoreSelected") == 0) {
     if (fields_num != 1) {
@@ -774,6 +834,22 @@ static int ir_shutdown(void) {
     mnl_socket_close(nl);
     nl = NULL;
   }
+
+  ir_ignorelist_t *next = NULL;
+  for (ir_ignorelist_t *i = ir_ignorelist_head; i != NULL; i = next) {
+    next = i->next;
+#if HAVE_REGEX_H
+    if (i->rdevice != NULL) {
+      regfree(i->rdevice);
+      sfree(i->rdevice);
+    }
+#endif
+    sfree(i->inst);
+    sfree(i->type);
+    sfree(i->device);
+    sfree(i);
+  }
+  ir_ignorelist_head = NULL;
 
   return 0;
 } /* int ir_shutdown */

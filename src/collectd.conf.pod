@@ -6066,6 +6066,19 @@ options described above, only these statistics are collected. If you set
 B<IgnoreSelected> to B<true>, this behavior is inverted, i.E<nbsp>e. the
 specified statistics will not be collected.
 
+It is possible to use regular expressions to match interface names, if the
+name is surrounded by I</.../> and collectd was compiled with support for
+regexps. This is useful if there's a need to collect (or ignore) data
+for a group of interfaces that are similarly named, without the need to
+explicitly list all of them (especially useful if the list is dynamic).
+Examples:
+
+ Interface "/^eth/"
+ VerboseInterface "/^eno[0-9]+/"
+
+This will match all interfaces with names starting with I<eth> and all
+interfaces with names starting with I<eno> followed by at least one digit.
+
 =back
 
 =head2 Plugin C<network>
