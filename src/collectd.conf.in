@@ -51,20 +51,14 @@
 #WriteQueueLimitLow   800000
 
 #----------------------------------------------------------------------------#
-# If set to a value greater than or equal to zero and less than 3600 (1h),   #
-# the calls to read callbacks are temporally aligned. The value is in        #
-# seconds. Modulo 60, it determines the second in a minute. The integer part #
-# of the value divided by 60 determines the minute in an hour. Optionally,   #
-# decimal places can be used to set the fraction of a second. Make sure to   #
-# set an appropriate 'Interval' in order not to lose alignment over time.    #
-# Additionally, 'AlignRead' has to be smaller than 'Interval'. The value may #
-# be overwritten on a per-plugin base by using the 'AlignRead' option of the #
-# LoadPlugin block:                                                           #
+# When enabled, calls to read functions are temporally aligned to a multiple #
+# of 'Interval'. This may be overwritten on a per-plugin base by using the   #
+# 'AlignRead' option of the LoadPlugin block:                                #
 #   <LoadPlugin foo>                                                         #
-#       AlignRead 301.4 # minute 5, second 1, 4th tenth of a second          #
+#       AlignRead true                                                       #
 #   </LoadPlugin>                                                            #
 #----------------------------------------------------------------------------#
-#AlignRead -1.0
+#AlignRead false
 
 ##############################################################################
 # Logging                                                                    #

@@ -89,11 +89,6 @@ static int dispatch_loadplugin(oconfig_item_t *ci);
 static int dispatch_block_plugin(oconfig_item_t *ci);
 
 /*
- * Prototype of local functions.
- */
-static double global_option_get_double(const char *name, double def);
-
-/*
  * Private variables
  */
 static cf_callback_t *first_callback;
@@ -111,7 +106,7 @@ static cf_global_option_t cf_global_options[] = {
     {"Hostname", NULL, 0, NULL},
     {"FQDNLookup", NULL, 0, "true"},
     {"Interval", NULL, 0, NULL},
-    {"AlignRead", NULL, 0, NULL},
+    {"AlignRead", NULL, 0, "false"},
     {"ReadThreads", NULL, 0, "5"},
     {"WriteThreads", NULL, 0, "5"},
     {"WriteQueueLimitHigh", NULL, 0, NULL},
@@ -289,9 +284,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
   if (strcmp("libvirt", name) == 0)
     name = "virt";
 
-  /* default to global AlignRead and Interval, set before loading this plugin */
+  /* default to the global interval set before loading this plugin */
   plugin_ctx_t ctx = {
-      .align_read = global_option_get_double("AlignRead", NO_ALIGN_READ),
       .interval = cf_get_default_interval(),
       .name = strdup(name),
   };
@@ -303,31 +297,22 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
     if (strcasecmp("Globals", child->key) == 0)
       cf_util_get_boolean(child, &global);
-    else if (strcasecmp("AlignRead", child->key) == 0)
-      cf_util_get_double(child, &ctx.align_read);
     else if (strcasecmp("Interval", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.interval);
     else if (strcasecmp("FlushInterval", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.flush_interval);
     else if (strcasecmp("FlushTimeout", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.flush_timeout);
-    else {
+    else if (strcasecmp("AlignRead", child->key) == 0)
+      cf_util_get_boolean(child, &ctx.align_read);
+    else if (strcasecmp("AlignReadOffset", child->key) == 0) {
+      cf_util_get_cdtime(child, &ctx.align_read_offset);
+      ctx.align_read = true;
+    } else {
       WARNING("Ignoring unknown LoadPlugin option \"%s\" "
               "for plugin \"%s\"",
               child->key, name);
     }
-  }
-
-  /* AlignRead values smaller than zero disable read alignment. */
-  if (ctx.align_read < 0) {
-    ctx.align_read = NO_ALIGN_READ;
-  }
-
-  if (ctx.align_read >= 3600) {
-    WARNING("configfile: Read alignment to hours is not supported. Ignoring "
-            "option for plugin \"%s\".",
-            name);
-    ctx.align_read = NO_ALIGN_READ;
   }
 
   plugin_ctx_t old_ctx = plugin_set_ctx(ctx);
@@ -830,7 +815,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   return root;
 } /* oconfig_item_t *cf_read_generic */
-  /* #endif HAVE_WORDEXP_H */
+/* #endif HAVE_WORDEXP_H */
 
 #else  /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
@@ -926,24 +911,6 @@ long global_option_get_long(const char *option, long default_value) {
 
   return value;
 } /* char *global_option_get_long */
-
-static double global_option_get_double(const char *name, double def) /* {{{ */
-{
-  char const *optstr;
-  char *endptr = NULL;
-  double v;
-
-  optstr = global_option_get(name);
-  if (optstr == NULL)
-    return def;
-
-  errno = 0;
-  v = (float)strtod(optstr, &endptr);
-  if ((endptr == NULL) || (*endptr != 0) || (errno != 0))
-    return def;
-
-  return v;
-} /* }}} double global_option_get_double */
 
 cdtime_t global_option_get_time(const char *name, cdtime_t def) /* {{{ */
 {

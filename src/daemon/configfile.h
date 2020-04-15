@@ -32,10 +32,6 @@
 #include "liboconfig/oconfig.h"
 #include "utils_time.h"
 
-#ifndef NO_ALIGN_READ
-#define NO_ALIGN_READ -1.0
-#endif
-
 /*
  * DESCRIPTION
  *  Remove a registered plugin from the internal data structures.
