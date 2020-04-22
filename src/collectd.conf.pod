@@ -6066,6 +6066,13 @@ options described above, only these statistics are collected. If you set
 B<IgnoreSelected> to B<true>, this behavior is inverted, i.E<nbsp>e. the
 specified statistics will not be collected.
 
+=item B<CollectVFStats> B<true|false>
+
+Allow plugin to collect VF's statistics if there are Virtual Functions
+available for interfaces specified in B<Interface> or B<VerboseInterface>.
+All available stats are collected no matter if parent interface is set
+by B<Interface> or B<VerboseInterface>.
+
 It is possible to use regular expressions to match interface names, if the
 name is surrounded by I</.../> and collectd was compiled with support for
 regexps. This is useful if there's a need to collect (or ignore) data
@@ -6074,9 +6081,11 @@ explicitly list all of them (especially useful if the list is dynamic).
 Examples:
 
  Interface "/^eth/"
+ Interface "/^ens[1-4]$|^enp[0-3]$/"
  VerboseInterface "/^eno[0-9]+/"
 
-This will match all interfaces with names starting with I<eth> and all
+This will match all interfaces with names starting with I<eth>, all interfaces
+in range I<ens1 - ens4> and I<enp0 - enp3>, and for verbose metrics all
 interfaces with names starting with I<eno> followed by at least one digit.
 
 =back

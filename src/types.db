@@ -289,6 +289,12 @@ uncore_ratio            value:GAUGE:0:U
 users                   value:GAUGE:0:65535
 vcl                     value:GAUGE:0:65535
 vcpu                    value:GAUGE:0:U
+vf_broadcast            vf_value:DERIVE:0:U
+vf_bytes                vf_rx:DERIVE:0:U, vf_tx:DERIVE:0:U
+vf_dropped              vf_rx:DERIVE:0:U, vf_tx:DERIVE:0:U
+vf_link_info            vf_value:GAUGE:0:U
+vf_multicast            vf_value:DERIVE:0:U
+vf_packets              vf_rx:DERIVE:0:U, vf_tx:DERIVE:0:U
 virt_cpu_total          value:DERIVE:0:U
 virt_vcpu               value:DERIVE:0:U
 vmpage_action           value:DERIVE:0:U
