@@ -185,6 +185,14 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "cache_hitpass") == 0)
       return varnish_submit_derive(conf->instance, "cache", "cache_result",
                                    "hitpass", val);
+#if HAVE_VARNISH_V6
+    else if (strcmp(name, "cache_hit_grace") == 0)
+      return varnish_submit_derive(conf->instance, "cache", "cache_result",
+                                   "hit_grace", val);
+    else if (strcmp(name, "cache_hitmiss") == 0)
+      return varnish_submit_derive(conf->instance, "cache", "cache_result",
+                                   "hitmiss", val);
+#endif
   }
 
   if (conf->collect_connections) {
@@ -353,6 +361,11 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "n_lru_moved") == 0)
       return varnish_submit_derive(conf->instance, "objects", "total_objects",
                                    "lru_moved", val);
+#if HAVE_VARNISH_V6
+    else if (strcmp(name, "n_lru_limited") == 0)
+      return varnish_submit_derive(conf->instance, "objects", "total_objects",
+                                   "lru_limited", val);
+#endif
     else if (strcmp(name, "n_deathrow") == 0)
       return varnish_submit_derive(conf->instance, "objects", "total_objects",
                                    "deathrow", val);
@@ -478,6 +491,27 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "sess_fail") == 0)
       return varnish_submit_derive(conf->instance, "session",
                                    "total_operations", "failed", val);
+#if HAVE_VARNISH_V6
+    else if (strcmp(name, "sess_fail_econnaborted") == 0)
+      return varnish_submit_derive(conf->instance, "session",
+                                   "total_operations", "failed_econnaborted",
+                                   val);
+    else if (strcmp(name, "sess_fail_eintr") == 0)
+      return varnish_submit_derive(conf->instance, "session",
+                                   "total_operations", "failed_eintr", val);
+    else if (strcmp(name, "sess_fail_emfile") == 0)
+      return varnish_submit_derive(conf->instance, "session",
+                                   "total_operations", "failed_emfile", val);
+    else if (strcmp(name, "sess_fail_ebadf") == 0)
+      return varnish_submit_derive(conf->instance, "session",
+                                   "total_operations", "failed_ebadf", val);
+    else if (strcmp(name, "sess_fail_enomem") == 0)
+      return varnish_submit_derive(conf->instance, "session",
+                                   "total_operations", "failed_enomem", val);
+    else if (strcmp(name, "sess_fail_other") == 0)
+      return varnish_submit_derive(conf->instance, "session",
+                                   "total_operations", "failed_other", val);
+#endif
     else if (strcmp(name, "sess_pipe_overflow") == 0)
       return varnish_submit_derive(conf->instance, "session",
                                    "total_operations", "overflow", val);
