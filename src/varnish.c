@@ -715,6 +715,7 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "thread_queue_len") == 0)
       return varnish_submit_gauge(conf->instance, "workers", "queue_length",
                                   "threads", val);
+#if HAVE_VARNISH_V2 || HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
     else if (strcmp(name, "n_wrk") == 0)
       return varnish_submit_gauge(conf->instance, "workers", "threads",
                                   "worker", val);
@@ -742,6 +743,7 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "n_wrk_lqueue") == 0)
       return varnish_submit_derive(conf->instance, "workers", "total_requests",
                                    "queue_length", val);
+#endif
 #if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
     else if (strcmp(name, "pools") == 0)
       return varnish_submit_gauge(conf->instance, "workers", "pools", "pools",
