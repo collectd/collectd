@@ -1827,7 +1827,7 @@
 #      CollectPurge false         # Varnish 2 only
 #      CollectSession false
 #      CollectSHM true
-#      CollectSMA false           # Varnish 2 & 4 only
+#      CollectSMA false           # Varnish 2 & Varnish 4 and above
 #      CollectSMS false
 #      CollectSM false            # Varnish 2 only
 #      CollectStruct false
@@ -1836,12 +1836,12 @@
 #      CollectVCL false
 #      CollectVSM false           # Varnish 4 only
 #      CollectWorkers false
-#      CollectLock false          # Varnish 4 only
-#      CollectMempool false       # Varnish 4 only
-#      CollectManagement false    # Varnish 4 only
-#      CollectSMF false           # Varnish 4 only
-#      CollectVBE false           # Varnish 4 only
-#      CollectMSE false           # Varnish-Plus 4 only
+#      CollectLock false          # Varnish 4 and above
+#      CollectMempool false       # Varnish 4 and above
+#      CollectManagement false    # Varnish 4 and above
+#      CollectSMF false           # Varnish 4 and above
+#      CollectVBE false           # Varnish 4 and above
+#      CollectMSE false           # Varnish-Plus only
 #   </Instance>
 #</Plugin>
 
