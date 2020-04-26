@@ -2881,6 +2881,12 @@ given device, the default name is used. Example:
 
   UdevNameAttr "DM_NAME"
 
+Please note that using an attribute that does not differentiate between the
+whole disk and its particular partitions (like B<ID_SERIAL>) will result in
+data about the whole disk and each partition being mixed together incorrectly.
+In this case, you can use B<ID_COLLECTD> attribute that is provided by
+I<contrib/99-storage-collectd.rules> udev rule file instead.
+
 =back
 
 =head2 Plugin C<dns>
