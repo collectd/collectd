@@ -540,7 +540,7 @@ B<Synopsis:>
    # Send values to an AMQP broker
    <Publish "some_name">
      Host "localhost"
-#    Host "amqp1.example.com" "amqp2.example.com" "amqp3.example.com"
+     Host "fallback-amqp.example.com"
      Port "5672"
      VHost "/"
      User "guest"
