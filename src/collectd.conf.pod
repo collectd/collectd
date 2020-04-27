@@ -10015,7 +10015,8 @@ log messages which is flushed to disk when full. True by default.
 
 malloc or umem (umem_alloc(3MALLOC) based) storage statistics. The umem storage
 component is Solaris specific. Note: SMA, SMF and MSE share counters, enable
-only the one used by the Varnish instance. Only available with Varnish 2.x.
+only the one used by the Varnish instance. Available with Varnish 2.x,
+varnish 4.x and above (Not available in varnish 3.x).
 False by default.
 
 =item B<CollectSMS> B<true>|B<false>
@@ -10025,8 +10026,8 @@ component is used internally only. False by default.
 
 =item B<CollectSM> B<true>|B<false>
 
-file (memory mapped file) storage statistics. Only available with Varnish 2.x.,
-in varnish 4.x. use CollectSMF.
+file (memory mapped file) storage statistics. Only available with Varnish 2.x,
+in varnish 4.x and above use CollectSMF.
 False by default.
 
 =item B<CollectStruct> B<true>|B<false>
@@ -10059,32 +10060,36 @@ Collect statistics about worker threads. False by default.
 
 =item B<CollectVBE> B<true>|B<false>
 
-Backend counters. Only available with Varnish 4.x. False by default.
+Backend counters. Only available with Varnish 4.x and above. False by default.
 
 =item B<CollectSMF> B<true>|B<false>
 
-file (memory mapped file) storage statistics. Only available with Varnish 4.x.
+file (memory mapped file) storage statistics. Only available with Varnish 4.x and above.
 Note: SMA, SMF and MSE share counters, enable only the one used by the Varnish
 instance. Used to be called SM in Varnish 2.x. False by default.
 
 =item B<CollectManagement> B<true>|B<false>
 
-Management process counters. Only available with Varnish 4.x. False by default.
+Management process counters. Only available with Varnish 4.x and above. False by default.
 
 =item B<CollectLock> B<true>|B<false>
 
-Lock counters. Only available with Varnish 4.x. False by default.
+Lock counters. Only available with Varnish 4.x and above. False by default.
 
 =item B<CollectMempool> B<true>|B<false>
 
-Memory pool counters. Only available with Varnish 4.x. False by default.
+Memory pool counters. Only available with Varnish 4.x and above. False by default.
 
 =item B<CollectMSE> B<true>|B<false>
 
 Varnish Massive Storage Engine 2.0 (MSE2) is an improved storage backend for
 Varnish, replacing the traditional malloc and file storages. Only available
-with Varnish-Plus 4.x. Note: SMA, SMF and MSE share counters, enable only the
+with Varnish-Plus 4.x and above. Note: SMA, SMF and MSE share counters, enable only the
 one used by the Varnish instance. False by default.
+
+=item B<CollectGOTO> B<true>|B<false>
+
+vmod-goto counters. Only available with Varnish Plus 6.x. False by default.
 
 =back
 
