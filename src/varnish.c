@@ -858,38 +858,45 @@ static int varnish_monitor(void *priv,
                                    "bitmap", "happy_hprobes", val);
     */
     if (strcmp(name, "bereq_hdrbytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "bereq_hdrbytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "bereq_hdrbytes", val);
     else if (strcmp(name, "bereq_bodybytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "bereq_bodybytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "bereq_bodybytes", val);
     else if (strcmp(name, "bereq_protobytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "bereq_protobytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "bereq_protobytes", val);
     else if (strcmp(name, "beresp_hdrbytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "beresp_hdrbytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "beresp_hdrbytes", val);
     else if (strcmp(name, "beresp_bodybytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "beresp_bodybytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "beresp_bodybytes", val);
     else if (strcmp(name, "beresp_protobytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "beresp_protobytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "beresp_protobytes", val);
     else if (strcmp(name, "pipe_hdrbytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "pipe_hdrbytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "pipe_hdrbytes", val);
     else if (strcmp(name, "pipe_out") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "pipe_out", val);
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "total_bytes", "pipe_out", val);
     else if (strcmp(name, "pipe_in") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "pipe_in", val);
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "total_bytes", "pipe_in", val);
     else if (strcmp(name, "conn") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "connections",
-                                   "c_conns", val);
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "connections", "c_conns", val);
     else if (strcmp(name, "req") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "http_requests",
-                                   "b_reqs", val);
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "http_requests", "b_reqs", val);
   }
 
   /* All Stevedores support these counters */
