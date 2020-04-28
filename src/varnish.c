@@ -101,8 +101,9 @@ typedef struct user_config_s user_config_t; /* }}} */
 static bool have_instance;
 
 static int varnish_submit(const char *plugin_instance, /* {{{ */
-                          const char *category, const char *type,
-                          const char *type_instance, value_t value) {
+                          const char *category, const char *target,
+                          const char *type, const char *type_instance,
+                          value_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &value;
@@ -112,8 +113,14 @@ static int varnish_submit(const char *plugin_instance, /* {{{ */
 
   if (plugin_instance == NULL)
     plugin_instance = "default";
-  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
-            plugin_instance, category);
+
+  if (target != NULL) {
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s-%s",
+              plugin_instance, category, target);
+  } else {
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
+              plugin_instance, category);
+  }
 
   sstrncpy(vl.type, type, sizeof(vl.type));
 
@@ -127,21 +134,48 @@ static int varnish_submit_gauge(const char *plugin_instance, /* {{{ */
                                 const char *category, const char *type,
                                 const char *type_instance,
                                 uint64_t gauge_value) {
-  return varnish_submit(plugin_instance, category, type, type_instance,
+  return varnish_submit(plugin_instance, category, NULL, type, type_instance,
                         (value_t){
                             .gauge = (gauge_t)gauge_value,
                         });
 } /* }}} int varnish_submit_gauge */
 
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
+static int
+varnish_submit_gauge_with_target(const char *plugin_instance, /* {{{ */
+                                 const char *category, const char *target,
+                                 const char *type, const char *type_instance,
+                                 uint64_t gauge_value) {
+
+  return varnish_submit(plugin_instance, category, target, type, type_instance,
+                        (value_t){
+                            .gauge = (gauge_t)gauge_value,
+                        });
+} /* }}} int varnish_submit_gauge_with_target */
+#endif
+
 static int varnish_submit_derive(const char *plugin_instance, /* {{{ */
                                  const char *category, const char *type,
                                  const char *type_instance,
                                  uint64_t derive_value) {
-  return varnish_submit(plugin_instance, category, type, type_instance,
+  return varnish_submit(plugin_instance, category, NULL, type, type_instance,
                         (value_t){
                             .derive = (derive_t)derive_value,
                         });
 } /* }}} int varnish_submit_derive */
+
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
+static int
+varnish_submit_derive_with_target(const char *plugin_instance, /* {{{ */
+                                  const char *category, const char *target,
+                                  const char *type, const char *type_instance,
+                                  uint64_t derive_value) {
+  return varnish_submit(plugin_instance, category, target, type, type_instance,
+                        (value_t){
+                            .derive = (derive_t)derive_value,
+                        });
+} /* }}} int varnish_submit_derive_with_target */
+#endif
 
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
 static int varnish_monitor(void *priv,
@@ -150,13 +184,57 @@ static int varnish_monitor(void *priv,
   uint64_t val;
   const user_config_t *conf;
   const char *name;
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
+  const char *stat_target = NULL;
+#endif
 
   if (pt == NULL)
     return 0;
 
   conf = priv;
 
-#if HAVE_VARNISH_V5 || HAVE_VARNISH_V6
+#if HAVE_VARNISH_V6
+  /*
+   stats examples:
+   MAIN.threads => name=threads
+   SMA.s0.c_req => name=c_req, stat_target=s0
+   SMA.Transient.c_req => name=c_req, stat_target=Transient
+   VBE.vclName.backendName.req  => name=req, stat_target=backendName
+  */
+
+  char namebuff[DATA_MAX_NAME_LEN];
+  char targetbuff[DATA_MAX_NAME_LEN];
+
+  char *buffer = strdup(pt->name);
+  char *tokens[4] = {NULL};
+  size_t tokens_num = 0;
+  char *ptr = buffer;
+  char *saveptr = NULL;
+  char *token = NULL;
+
+  while ((token = strtok_r(ptr, ".", &saveptr)) != NULL) {
+    ptr = NULL;
+    if (tokens_num < STATIC_ARRAY_SIZE(tokens)) {
+      tokens[tokens_num] = token;
+    }
+    tokens_num++;
+  }
+
+  if ((tokens_num < 2) || (tokens_num > STATIC_ARRAY_SIZE(tokens))) {
+    free(buffer);
+    return EINVAL;
+  }
+
+  sstrncpy(namebuff, tokens[tokens_num - 1], sizeof(namebuff));
+  name = namebuff;
+  if (tokens_num >= 3) {
+    sstrncpy(targetbuff, tokens[tokens_num - 2], sizeof(targetbuff));
+    stat_target = targetbuff;
+  }
+
+  free(buffer);
+
+#elif HAVE_VARNISH_V5
   char namebuff[DATA_MAX_NAME_LEN];
 
   char const *c = strrchr(pt->name, '.');
@@ -780,38 +858,45 @@ static int varnish_monitor(void *priv,
                                    "bitmap", "happy_hprobes", val);
     */
     if (strcmp(name, "bereq_hdrbytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "bereq_hdrbytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "bereq_hdrbytes", val);
     else if (strcmp(name, "bereq_bodybytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "bereq_bodybytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "bereq_bodybytes", val);
     else if (strcmp(name, "bereq_protobytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "bereq_protobytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "bereq_protobytes", val);
     else if (strcmp(name, "beresp_hdrbytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "beresp_hdrbytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "beresp_hdrbytes", val);
     else if (strcmp(name, "beresp_bodybytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "beresp_bodybytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "beresp_bodybytes", val);
     else if (strcmp(name, "beresp_protobytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "beresp_protobytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "beresp_protobytes", val);
     else if (strcmp(name, "pipe_hdrbytes") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "pipe_hdrbytes", val);
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "pipe_hdrbytes", val);
     else if (strcmp(name, "pipe_out") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "pipe_out", val);
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "total_bytes", "pipe_out", val);
     else if (strcmp(name, "pipe_in") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "total_bytes",
-                                   "pipe_in", val);
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "total_bytes", "pipe_in", val);
     else if (strcmp(name, "conn") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "connections",
-                                   "c_conns", val);
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "connections", "c_conns", val);
     else if (strcmp(name, "req") == 0)
-      return varnish_submit_derive(conf->instance, "vbe", "http_requests",
-                                   "b_reqs", val);
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "http_requests", "b_reqs", val);
   }
 
   /* All Stevedores support these counters */
@@ -826,26 +911,33 @@ static int varnish_monitor(void *priv,
       strncpy(category, "mse", 4);
 
     if (strcmp(name, "c_req") == 0)
-      return varnish_submit_derive(conf->instance, category, "total_operations",
-                                   "alloc_req", val);
+      return varnish_submit_derive_with_target(conf->instance, category,
+                                               stat_target, "total_operations",
+                                               "alloc_req", val);
     else if (strcmp(name, "c_fail") == 0)
-      return varnish_submit_derive(conf->instance, category, "total_operations",
-                                   "alloc_fail", val);
+      return varnish_submit_derive_with_target(conf->instance, category,
+                                               stat_target, "total_operations",
+                                               "alloc_fail", val);
     else if (strcmp(name, "c_bytes") == 0)
-      return varnish_submit_derive(conf->instance, category, "total_bytes",
-                                   "bytes_allocated", val);
+      return varnish_submit_derive_with_target(conf->instance, category,
+                                               stat_target, "total_bytes",
+                                               "bytes_allocated", val);
     else if (strcmp(name, "c_freed") == 0)
-      return varnish_submit_derive(conf->instance, category, "total_bytes",
-                                   "bytes_freed", val);
+      return varnish_submit_derive_with_target(conf->instance, category,
+                                               stat_target, "total_bytes",
+                                               "bytes_freed", val);
     else if (strcmp(name, "g_alloc") == 0)
-      return varnish_submit_derive(conf->instance, category, "total_operations",
-                                   "alloc_outstanding", val);
+      return varnish_submit_derive_with_target(conf->instance, category,
+                                               stat_target, "total_operations",
+                                               "alloc_outstanding", val);
     else if (strcmp(name, "g_bytes") == 0)
-      return varnish_submit_gauge(conf->instance, category, "bytes",
-                                  "bytes_outstanding", val);
+      return varnish_submit_gauge_with_target(conf->instance, category,
+                                              stat_target, "bytes",
+                                              "bytes_outstanding", val);
     else if (strcmp(name, "g_space") == 0)
-      return varnish_submit_gauge(conf->instance, category, "bytes",
-                                  "bytes_available", val);
+      return varnish_submit_gauge_with_target(conf->instance, category,
+                                              stat_target, "bytes",
+                                              "bytes_available", val);
   }
 
 #if HAVE_VARNISH_V6
