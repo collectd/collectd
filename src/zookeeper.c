@@ -226,6 +226,12 @@ static int zookeeper_read(void) {
       zookeeper_submit_gauge("count", "synced_followers", atol(fields[1]));
     } else if (FIELD_CHECK(fields[0], "zk_pending_syncs")) {
       zookeeper_submit_gauge("count", "pending_syncs", atol(fields[1]));
+    } else if (FIELD_CHECK(fields[0], "zk_last_proposal_size")) {
+      zookeeper_submit_gauge("bytes", "last_proposal", atol(fields[1]));
+    } else if (FIELD_CHECK(fields[0], "zk_min_proposal_size")) {
+      zookeeper_submit_gauge("bytes", "min_proposal", atol(fields[1]));
+    } else if (FIELD_CHECK(fields[0], "zk_max_proposal_size")) {
+      zookeeper_submit_gauge("bytes", "max_proposal", atol(fields[1]));
     } else {
       DEBUG("Uncollected zookeeper MNTR field %s", fields[0]);
     }
