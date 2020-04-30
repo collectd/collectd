@@ -19,7 +19,7 @@ BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
 BuildRequires:	rrdtool-devel, autoconf, automake, libtool, bison, flex
 BuildRequires:  libkeepalive-glib, libkeepalive-glib-devel, dbus-glib-devel
 
-Requires:	systemd, libxml2, rrdtool, libkeepalive-glib, dbus-glib
+Requires:	systemd, libxml2, rrdtool, libkeepalive-glib, dbus-glib, rsync
 
 %description
 collectd is a small daemon which collects system information periodically and
