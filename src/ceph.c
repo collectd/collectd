@@ -205,6 +205,7 @@ enum cstate_t {
   CSTATE_READ_VERSION,
   CSTATE_READ_AMT,
   CSTATE_READ_JSON,
+  CSTATE_NOT_EXISTING,
 };
 
 enum request_type_t {
@@ -977,6 +978,13 @@ static int node_handler_fetch_data(void *arg, const char *val,
 static int cconn_connect(struct cconn *io) {
   struct sockaddr_un address = {0};
   int flags, fd, err;
+
+  if (access(io->d->asok_path, F_OK) == -1) {
+    /* file does not exist */
+    io->state = CSTATE_NOT_EXISTING;
+    return 0;
+  }
+
   if (io->state != CSTATE_UNCONNECTED) {
     ERROR("ceph plugin: cconn_connect: io->state != CSTATE_UNCONNECTED");
     return -EDOM;
@@ -1016,6 +1024,8 @@ static int cconn_connect(struct cconn *io) {
 }
 
 static void cconn_close(struct cconn *io) {
+  if (io->state == CSTATE_NOT_EXISTING)
+    return;
   io->state = CSTATE_UNCONNECTED;
   if (io->asok != -1) {
     int res;
@@ -1127,6 +1137,8 @@ static int cconn_validate_revents(struct cconn *io, int revents) {
     return -EIO;
   }
   switch (io->state) {
+  case CSTATE_NOT_EXISTING:
+    return 0;
   case CSTATE_WRITE_REQUEST:
     return (revents & POLLOUT) ? 0 : -EINVAL;
   case CSTATE_READ_VERSION:
@@ -1243,6 +1255,8 @@ static ssize_t cconn_handle_event(struct cconn *io) {
     }
     return 0;
   }
+  case CSTATE_NOT_EXISTING:
+    return 0;
   default:
     ERROR("ceph plugin: cconn_handle_event(name=%s) got to illegal "
           "state on line %d",
@@ -1283,6 +1297,8 @@ static int cconn_prepare(struct cconn *io, struct pollfd *fds) {
     fds->fd = io->asok;
     fds->events = POLLIN;
     return 1;
+  case CSTATE_NOT_EXISTING:
+    return 0;
   default:
     ERROR("ceph plugin: cconn_prepare(name=%s) got to illegal state "
           "on line %d",
