@@ -8,7 +8,7 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.0.git.2018.01.20
+Version:	5.5.0.git.2020.04.29
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -321,25 +321,25 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-python.5*
 rm -rf %{buildroot}
 
 %pre
-su nemo -c "systemctl --user stop %{name}.service"
+su nemo -c "systemctl --user stop %{name}.service" || systemctl-user stop %{name}.service || true
 #su nemo -c "systemctl --user stop collectd2tmpfs.timer"
 exit 0
 
 %preun
-su nemo -c "systemctl --user disable %{name}.service"
-su nemo -c "systemctl --user stop %{name}.service"
+su nemo -c "systemctl --user disable %{name}.service" || systemctl-user disable %{name}.service || true
+su nemo -c "systemctl --user stop %{name}.service" || systemctl-user stop %{name}.service || true
 #su nemo -c "systemctl --user disable collectd2tmpfs.timer"
 #su nemo -c "systemctl --user stop collectd2tmpfs.timer"
 
 %post
-su nemo -c "systemctl --user daemon-reload"
+su nemo -c "systemctl --user daemon-reload" || systemctl-user daemon-reload || true
 # su nemo -c "systemctl --user enable %{name}.service"
 # su nemo -c "systemctl --user start %{name}.service"
 # su nemo -c "systemctl --user enable collectd2tmpfs.timer"
 # su nemo -c "systemctl --user start collectd2tmpfs.timer"
 
 %postun
-su nemo -c "systemctl --user daemon-reload"
+su nemo -c "systemctl --user daemon-reload" || systemctl-user daemon-reload || true
 
 
 %post -n libcollectdclient -p /sbin/ldconfig
