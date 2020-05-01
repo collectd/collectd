@@ -238,6 +238,19 @@ static void on_message(
   sfree(vl.values);
 } /* void on_message */
 
+static int mqtt_subscribe(mqtt_client_conf_t *conf) {
+  int status = mosquitto_subscribe(conf->mosq, /* message_id = */ NULL,
+                                   conf->topic, conf->qos);
+  if (status != MOSQ_ERR_SUCCESS) {
+    ERROR("mqtt plugin: Subscribing to \"%s\" failed: %s", conf->topic,
+          mosquitto_strerror(status));
+    mosquitto_disconnect(conf->mosq);
+    return -1;
+  }
+
+  return 0;
+}
+
 /* must hold conf->lock when calling. */
 static int mqtt_reconnect(mqtt_client_conf_t *conf) {
   int status;
@@ -250,6 +263,12 @@ static int mqtt_reconnect(mqtt_client_conf_t *conf) {
     ERROR("mqtt_connect_broker: mosquitto_connect failed: %s",
           (status == MOSQ_ERR_ERRNO) ? STRERRNO : mosquitto_strerror(status));
     return -1;
+  }
+
+  if (!conf->publish) {
+    status = mqtt_subscribe(conf);
+    if (status != 0)
+      return status;
   }
 
   conf->connected = true;
@@ -352,17 +371,11 @@ static int mqtt_connect(mqtt_client_conf_t *conf) {
   if (!conf->publish) {
     mosquitto_message_callback_set(conf->mosq, on_message);
 
-    status =
-        mosquitto_subscribe(conf->mosq,
-                            /* message_id = */ NULL, conf->topic, conf->qos);
-    if (status != MOSQ_ERR_SUCCESS) {
-      ERROR("mqtt plugin: Subscribing to \"%s\" failed: %s", conf->topic,
-            mosquitto_strerror(status));
-
-      mosquitto_disconnect(conf->mosq);
+    status = mqtt_subscribe(conf);
+    if (status != 0) {
       mosquitto_destroy(conf->mosq);
       conf->mosq = NULL;
-      return -1;
+      return status;
     }
   }
 
