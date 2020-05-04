@@ -217,7 +217,8 @@ Collectd utilities
 # 	%{?_with_write_sensu} \
 # 	%{?_with_write_tsdb}
 
-%configure --enable-keepalive \
+%configure --disable-werror \
+           --enable-keepalive \
 	   --disable-all-plugins \
 	   --with-perl-bindings="INSTALLDIRS=vendor" \
 	   --enable-aggregation \
