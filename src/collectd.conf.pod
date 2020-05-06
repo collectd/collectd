@@ -8560,6 +8560,9 @@ on the B<IgnoreSelected> below. For example, the option "B<Sensor>
 I<it8712-isa-0290/voltage-in1>" will cause collectd to gather data for the
 voltage sensor I<in1> of the I<it8712> on the isa bus at the address 0290.
 
+The value passed to this option has the format
+"I<plugin_instance>/I<type>-I<type_instance>".
+
 See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> I<true>|I<false>
