@@ -44,6 +44,12 @@ typedef uint64_t cdtime_t;
 /* hostname_set updates hostname_g */
 void hostname_set(char const *hostname);
 
+/* collectd_version returns the sanitized version of the collectd binary.
+ * "sanitized" means that everything following the patch version is dropped.
+ * E.g. if collectd is built from the Git repository, PACKAGE_VERSION may
+ * contain "5.11.0.32.g86275a6+". If so, this function returns "5.11.0". */
+char const *collectd_version(void);
+
 extern char *hostname_g;
 extern cdtime_t interval_g;
 extern int pidfile_from_cli;
