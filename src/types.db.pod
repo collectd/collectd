@@ -13,21 +13,49 @@ B<collectd>
 
 =head1 DESCRIPTION
 
-The types.db file contains one line for each data-set specification. Each line
-consists of two fields delimited by spaces and/or horizontal tabs. The first
-field defines the name of the data-set, while the second field defines a list
-of data-source specifications, delimited by spaces and, optionally, a comma
-(",") right after each list-entry.
+The C<types.db> file contains collectd's metric type specifications. Each line
+describes one metric type, which is called "data set" in collectd. Each line
+consists of two or more fields delimited by spaces and/or horizontal tabs.
 
-The format of the data-source specification has been inspired by RRDtool's
-data-source specification. Each data-source is defined by a quadruple made up
-of the data-source name, type, minimal and maximal values, delimited by colons
-(":"): I<ds-name>:I<ds-type>:I<min>:I<max>. I<ds-type> may be either
-B<ABSOLUTE>, B<COUNTER>, B<DERIVE>, or B<GAUGE>. I<min> and I<max> define the
-range of valid values for
-data stored for this data-source. If B<U> is specified for either the min or
-max value, it will be set to unknown, meaning that no range checks will
-happen. See L<rrdcreate(1)> for more details.
+For example, the following defines two data sets, "bytes" and "total_bytes".
+
+  bytes        value:GAUGE:0:U
+  total_bytes  value:DERIVE:0:U
+
+The first field defines the name of the data set. By convention, data set names
+use lower-case alphanumeric characters and underscores (C<_>) only. Also by
+convention, if a metric makes sense both as a cumulative metric (e.g.
+C<DERIVE>) I<and> a non-cumulative metric (i.e. C<GAUGE>), the cumulative
+metric gets a C<total_> prefix. For example, C<bytes> is a C<GAUGE> and
+C<total_bytes> is a C<DERIVE>.
+
+The second and each following field defines a named metric value, called "data
+source".  New data sets with multiple data sources are strongly discouraged.
+Each field is a colon-separated tuple of the data source name, value type,
+minimum and maximum values: I<ds-name>B<:>I<ds-type>B<:>I<min>B<:>I<max>.
+
+=over 4
+
+=item
+
+I<ds-name> is, by convention, a lower-case alphanumeric string. If the data set
+contains a single data source, it is called "value" by convention. Data source
+names must be unique within a data set.
+
+=item
+
+I<ds-type> may be B<DERIVE>, B<GAUGE>, or B<COUNTER>. For historic reasons a
+type called B<ABSOLUTE> is also supported, but its use is strongly discouraged,
+and it should not be used for new metric type definitions.
+
+=item
+
+I<min> and I<max> define the range of valid values this data source. Either or
+both may be unbounded, which is specified by providing C<U> instead of a
+number. For cumulative metric values, I<min> and I<max> apply to the value's
+rate, not the raw cumulative metric value.
+
+=back
 
 =head1 FILES
 
