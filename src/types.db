@@ -249,6 +249,7 @@ slurm_last_cycle_depth  value:GAUGE:0:U
 slurm_cycle_depth       value:DERIVE:0:U
 slurm_job_stats         value:DERIVE:0:U
 slurm_queue_length      value:DERIVE:0:U
+slave_running           value:GAUGE:0:U
 smart_attribute         current:GAUGE:0:255, worst:GAUGE:0:255, threshold:GAUGE:0:255, pretty:GAUGE:0:U
 smart_badsectors        value:GAUGE:0:U
 smart_powercycles       value:GAUGE:0:U
