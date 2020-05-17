@@ -231,14 +231,12 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     }
 
     for (int j = 0; j < LIVESTATUS_EXPECTED_FIELDS_RESP_NB; j++) {
-      fields[j] = malloc(sizeof(char *) * 32);
+      fields[j] = calloc(1, sizeof(char *) * 32);
       if (fields[j] == NULL) {
         ERROR("livestatus plugin: malloc failed: %s", STRERRNO);
         rc = -1;
         goto free_all_fields;
       }
-
-      memset(fields[j], 0x0, 32);
     }
 
     pchar = (char *)lresponse;
