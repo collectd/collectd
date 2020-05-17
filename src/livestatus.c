@@ -124,6 +124,30 @@ livestatus_status_t c_to_livestatus_status(const char **fields) {
   return status;
 } /* livestatus_status_t c_to_livestatus_status */
 
+// Borrowed from https://stackoverflow.com/a/29378380
+static long ls_strtol_subrange(const char *s, char **endptr, int base, long min,
+                               long max) {
+  long y = strtol(s, endptr, base);
+  if (y > max) {
+    errno = ERANGE;
+    return max;
+  }
+  if (y < min) {
+    errno = ERANGE;
+    return min;
+  }
+  return y;
+} /* static long ls_strtol_subrange */
+
+// Borrowed from https://stackoverflow.com/a/29378380
+static int ls_strtoi(const char *s, char **endptr, int base) {
+#if INT_MAX == LONG_MAX && INT_MIN == LONG_MIN
+  return (int)strtol(s, endptr, base);
+#else
+  return (int)ls_strtol_subrange(s, endptr, base, INT_MIN, INT_MAX);
+#endif
+} /* static int ls_strtoi */
+
 static int ls_init(void) {
   livestatus_obj.socket_file = "/var/cache/naemon/live";
   livestatus_obj.max_retry = 20;
@@ -151,7 +175,12 @@ static int ls_config(const char *key, const char *value) /* {{{ */
       return 1;
     }
 
-    livestatus_obj.max_retry = atoi(value);
+    livestatus_obj.max_retry = ls_strtoi(value, NULL, 10);
+    if (errno != 0) {
+      ERROR("livestatus plugin: strtoi failed for OnFailureMaxRetry: %s",
+            STRERRNO);
+      return 1;
+    }
   }
 
   if (strcasecmp("OnFailureBackOffSeconds", key) == 0) {
@@ -161,197 +190,201 @@ static int ls_config(const char *key, const char *value) /* {{{ */
       return 1;
     }
 
-    livestatus_obj.backoff_sec = atoi(value);
-  }
-
-  return 0;
-} /* static int ls_config */
-
-static int unix_connect(const char *sockfile, int *sockfd) {
-  struct sockaddr_un sun;
-  int rc = -1;
-  int sfd = -1;
-
-  sfd = socket(AF_UNIX, SOCK_STREAM, 0);
-  if (sfd < 0) {
-    ERROR("livestatus plugin: creating client socket: %s", STRERRNO);
-    return -1;
-  }
-
-  memset(&sun, 0x0, sizeof(sun));
-  sun.sun_family = AF_UNIX;
-  strcpy(sun.sun_path, sockfile);
-
-again:
-  rc = connect(sfd, (struct sockaddr *)&sun, sizeof(sun));
-  if (rc < 0) {
-    if (errno != EINTR) {
-      ERROR("livestatus plugin: connect to socket file %s: %s", sockfile,
+    livestatus_obj.backoff_sec = ls_strtoi(value, NULL, 10);
+    if (errno != 0) {
+      ERROR("livestatus plugin: strtoi failed for OnFailureBackOffSeconds: %s",
             STRERRNO);
+      return 1;
+    }
+
+    return 0;
+  } /* static int ls_config */
+
+  static int unix_connect(const char *sockfile, int *sockfd) {
+    struct sockaddr_un sun;
+    int rc = -1;
+    int sfd = -1;
+
+    sfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sfd < 0) {
+      ERROR("livestatus plugin: creating client socket: %s", STRERRNO);
       return -1;
     }
-    goto again;
-  }
 
-  *sockfd = sfd;
+    memset(&sun, 0x0, sizeof(sun));
+    sun.sun_family = AF_UNIX;
+    strcpy(sun.sun_path, sockfile);
 
-  return 0;
-} /* unix_connect */
+  again:
+    rc = connect(sfd, (struct sockaddr *)&sun, sizeof(sun));
+    if (rc < 0) {
+      if (errno != EINTR) {
+        ERROR("livestatus plugin: connect to socket file %s: %s", sockfile,
+              STRERRNO);
+        return -1;
+      }
+      goto again;
+    }
 
-static int ls_parse(const char *lresponse, livestatus_status_t *lstatus) {
-  int rc = -1;
-  int i = 0;
-  char **fields = NULL;
-  char *pchar = NULL;
+    *sockfd = sfd;
 
-  fields = malloc(sizeof(char **) * LIVESTATUS_EXPECTED_FIELDS_RESP_NB);
-  if (fields == NULL) {
-    ERROR("livestatus plugin: malloc failed: %s", STRERRNO);
-    return -1;
-  }
+    return 0;
+  } /* unix_connect */
 
-  for (int j = 0; j < LIVESTATUS_EXPECTED_FIELDS_RESP_NB; j++) {
-    fields[j] = malloc(sizeof(char *) * 32);
-    if (fields[j] == NULL) {
+  static int ls_parse(const char *lresponse, livestatus_status_t *lstatus) {
+    int rc = -1;
+    int i = 0;
+    char **fields = NULL;
+    char *pchar = NULL;
+
+    fields = malloc(sizeof(char **) * LIVESTATUS_EXPECTED_FIELDS_RESP_NB);
+    if (fields == NULL) {
       ERROR("livestatus plugin: malloc failed: %s", STRERRNO);
-      rc = -1;
+      return -1;
+    }
+
+    for (int j = 0; j < LIVESTATUS_EXPECTED_FIELDS_RESP_NB; j++) {
+      fields[j] = malloc(sizeof(char *) * 32);
+      if (fields[j] == NULL) {
+        ERROR("livestatus plugin: malloc failed: %s", STRERRNO);
+        rc = -1;
+        goto free_all_fields;
+      }
+
+      memset(fields[j], 0x0, 32);
+    }
+
+    pchar = (char *)lresponse;
+    char *wstart = (char *)lresponse;
+    int exit = 0;
+    while (!exit) {
+      if (*pchar == '\0' || *pchar == '\n') {
+        exit = 1;
+      } else {
+        if (*pchar != ';') {
+          pchar++;
+          continue;
+        }
+      }
+
+      strncpy(fields[i], wstart, pchar - wstart);
+      wstart = pchar + 1;
+      i++;
+      pchar++;
+
+      if (!exit) {
+        if (i >= LIVESTATUS_EXPECTED_FIELDS_RESP_NB) {
+          ERROR("livestatus plugin: too many fields in livestatus output");
+          rc = -2;
+          goto free_all_fields;
+        }
+      }
+    }
+
+    if (i < LIVESTATUS_EXPECTED_FIELDS_RESP_NB) {
+      ERROR("livestatus plugin: not enough fields in livestatus output");
+      rc = -3;
       goto free_all_fields;
     }
 
-    memset(fields[j], 0x0, 32);
-  }
+    *lstatus = c_to_livestatus_status((const char **)fields);
 
-  pchar = (char *)lresponse;
-  char *wstart = (char *)lresponse;
-  int exit = 0;
-  while (!exit) {
-    if (*pchar == '\0' || *pchar == '\n') {
-      exit = 1;
-    } else {
-      if (*pchar != ';') {
-        pchar++;
-        continue;
+    rc = 0;
+
+  free_all_fields:
+    for (int j = 0; j < LIVESTATUS_EXPECTED_FIELDS_RESP_NB; j++) {
+      if (fields[j] != NULL) {
+        free(fields[j]);
+        fields[j] = NULL;
       }
     }
 
-    strncpy(fields[i], wstart, pchar - wstart);
-    wstart = pchar + 1;
-    i++;
-    pchar++;
+    free(fields);
+    fields = NULL;
 
-    if (!exit) {
-      if (i >= LIVESTATUS_EXPECTED_FIELDS_RESP_NB) {
-        ERROR("livestatus plugin: too many fields in livestatus output");
-        rc = -2;
-        goto free_all_fields;
+    return rc;
+  } /* int ls_parse */
+
+  static int ls_read_parse(const int sockfd, livestatus_status_t *lstatus) {
+    ssize_t bread = -1;
+    char buffer[IO_BUFFER_SIZE];
+
+  again:
+    memset(&buffer, 0x0, sizeof(buffer));
+
+    bread = read((int)sockfd, &buffer, IO_BUFFER_SIZE - 1);
+    if (bread < 0) {
+      if (errno != EINTR) {
+        ERROR("livestatus plugin: reading from socket: %s", STRERRNO);
+        return -1;
       }
+      goto again;
     }
-  }
 
-  if (i < LIVESTATUS_EXPECTED_FIELDS_RESP_NB) {
-    ERROR("livestatus plugin: not enough fields in livestatus output");
-    rc = -3;
-    goto free_all_fields;
-  }
+    buffer[IO_BUFFER_SIZE - 1] = '\0';
 
-  *lstatus = c_to_livestatus_status((const char **)fields);
+    return ls_parse((const char *)&buffer, lstatus);
+  } /* int ls_read_parse */
 
-  rc = 0;
+  static int ls_send_request(const int sockfd) {
+    int written = -1;
+    char request[512];
 
-free_all_fields:
-  for (int j = 0; j < LIVESTATUS_EXPECTED_FIELDS_RESP_NB; j++) {
-    if (fields[j] != NULL) {
-      free(fields[j]);
-      fields[j] = NULL;
+    memset(&request, 0x0, sizeof(request));
+
+    snprintf(request, sizeof(request) - 1, "GET status\nColumns: %s\n\n",
+             LIVESTATUS_QUERY_COLUMNS);
+
+  again:
+    written = write(sockfd, request, sizeof(request));
+    if (written < 0) {
+      if (errno != EINTR) {
+        ERROR("livestatus plugin: writing to socket: %s", STRERRNO);
+        return -1;
+      }
+      goto again;
     }
-  }
 
-  free(fields);
-  fields = NULL;
-
-  return rc;
-} /* int ls_parse */
-
-static int ls_read_parse(const int sockfd, livestatus_status_t *lstatus) {
-  ssize_t bread = -1;
-  char buffer[IO_BUFFER_SIZE];
-
-again:
-  memset(&buffer, 0x0, sizeof(buffer));
-
-  bread = read((int)sockfd, &buffer, IO_BUFFER_SIZE - 1);
-  if (bread < 0) {
-    if (errno != EINTR) {
-      ERROR("livestatus plugin: reading from socket: %s", STRERRNO);
-      return -1;
+    if (shutdown(sockfd, SHUT_WR) < 0) {
+      ERROR("livestatus plugin: closing socket write: %s", STRERRNO);
+      return -2;
     }
-    goto again;
-  }
 
-  buffer[IO_BUFFER_SIZE - 1] = '\0';
+    return 0;
+  } /* int ls_send_request */
 
-  return ls_parse((const char *)&buffer, lstatus);
-} /* int ls_read_parse */
+  static value_list_t ls_collectd_init_vl(void) {
+    value_list_t vl = VALUE_LIST_INIT;
 
-static int ls_send_request(const int sockfd) {
-  int written = -1;
-  char request[512];
+    vl.values_len = 1;
+    sstrncpy(vl.plugin, LIVESTATUS_PLUGIN_NAME, sizeof(vl.plugin));
 
-  memset(&request, 0x0, sizeof(request));
+    return vl;
+  } /* value_list_t ls_collectd_init_vl */
 
-  snprintf(request, sizeof(request) - 1, "GET status\nColumns: %s\n\n",
-           LIVESTATUS_QUERY_COLUMNS);
-
-again:
-  written = write(sockfd, request, sizeof(request));
-  if (written < 0) {
-    if (errno != EINTR) {
-      ERROR("livestatus plugin: writing to socket: %s", STRERRNO);
-      return -1;
-    }
-    goto again;
-  }
-
-  if (shutdown(sockfd, SHUT_WR) < 0) {
-    ERROR("livestatus plugin: closing socket write: %s", STRERRNO);
-    return -2;
-  }
-
-  return 0;
-} /* int ls_send_request */
-
-static value_list_t ls_collectd_init_vl(void) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, LIVESTATUS_PLUGIN_NAME, sizeof(vl.plugin));
-
-  return vl;
-} /* value_list_t ls_collectd_init_vl */
-
-static int ls_collectd_dispatch_count(gauge_t value,
-                                      const char *plugin_instance) {
-  value_list_t vl = ls_collectd_init_vl();
-
-  sstrncpy(vl.type, "count", sizeof(vl.type));
-  sstrncpy(vl.plugin_instance, (char *)plugin_instance,
-           sizeof(vl.plugin_instance));
-  vl.values = &(value_t){.gauge = value};
-
-  return plugin_dispatch_values(&vl);
-} /* int ls_collectd_dispatch_count */
-
-static int ls_collectd_dispatch_counter(counter_t value,
+  static int ls_collectd_dispatch_count(gauge_t value,
                                         const char *plugin_instance) {
-  value_list_t vl = ls_collectd_init_vl();
+    value_list_t vl = ls_collectd_init_vl();
 
-  sstrncpy(vl.type, "counter", sizeof(vl.type));
-  sstrncpy(vl.plugin_instance, (char *)plugin_instance,
-           sizeof(vl.plugin_instance));
-  vl.values = &(value_t){.counter = value};
+    sstrncpy(vl.type, "count", sizeof(vl.type));
+    sstrncpy(vl.plugin_instance, (char *)plugin_instance,
+             sizeof(vl.plugin_instance));
+    vl.values = &(value_t){.gauge = value};
 
-  return plugin_dispatch_values(&vl);
-} /* int ls_collectd_dispatch_counter */
+    return plugin_dispatch_values(&vl);
+  } /* int ls_collectd_dispatch_count */
+
+  static int ls_collectd_dispatch_counter(counter_t value,
+                                          const char *plugin_instance) {
+    value_list_t vl = ls_collectd_init_vl();
+
+    sstrncpy(vl.type, "counter", sizeof(vl.type));
+    sstrncpy(vl.plugin_instance, (char *)plugin_instance,
+             sizeof(vl.plugin_instance));
+    vl.values = &(value_t){.counter = value};
+
+    return plugin_dispatch_values(&vl);
+  } /* int ls_collectd_dispatch_counter */
 
 #define L_DISPATCH(f, v, plinst)                                               \
   if (f(v, plinst) < 0) {                                                      \
@@ -359,105 +392,109 @@ static int ls_collectd_dispatch_counter(counter_t value,
     rc = -1;                                                                   \
   }
 
-static int ls_collectd_dispatch(const livestatus_status_t *status) {
-  int rc = 0;
+  static int ls_collectd_dispatch(const livestatus_status_t *status) {
+    int rc = 0;
 
-  L_DISPATCH(ls_collectd_dispatch_count, status->cached_log_messages,
-             "cached_log_messages");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->connections, "connections");
-  L_DISPATCH(ls_collectd_dispatch_count, status->connections_rate,
-             "connections_rate");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->forks, "forks");
-  L_DISPATCH(ls_collectd_dispatch_count, status->forks_rate, "forks_rate");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->host_checks, "host_checks");
-  L_DISPATCH(ls_collectd_dispatch_count, status->host_checks_rate,
-             "host_checks_rate");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->livecheck_overflows,
-             "livecheck_overflows");
-  L_DISPATCH(ls_collectd_dispatch_count, status->livecheck_overflows_rate,
-             "livecheck_overflows_rate");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->livechecks, "livechecks");
-  L_DISPATCH(ls_collectd_dispatch_count, status->livechecks_rate,
-             "livechecks_rate");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->log_messages,
-             "log_messages");
-  L_DISPATCH(ls_collectd_dispatch_count, status->log_messages_rate,
-             "log_messages_rate");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->neb_callbacks,
-             "neb_callbacks");
-  L_DISPATCH(ls_collectd_dispatch_count, status->neb_callbacks_rate,
-             "neb_callbacks_rate");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->requests, "requests");
-  L_DISPATCH(ls_collectd_dispatch_count, status->requests_rate,
-             "requests_rate");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->service_checks,
-             "service_checks");
-  L_DISPATCH(ls_collectd_dispatch_count, status->service_checks_rate,
-             "service_checks_rate");
+    L_DISPATCH(ls_collectd_dispatch_count, status->cached_log_messages,
+               "cached_log_messages");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->connections,
+               "connections");
+    L_DISPATCH(ls_collectd_dispatch_count, status->connections_rate,
+               "connections_rate");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->forks, "forks");
+    L_DISPATCH(ls_collectd_dispatch_count, status->forks_rate, "forks_rate");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->host_checks,
+               "host_checks");
+    L_DISPATCH(ls_collectd_dispatch_count, status->host_checks_rate,
+               "host_checks_rate");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->livecheck_overflows,
+               "livecheck_overflows");
+    L_DISPATCH(ls_collectd_dispatch_count, status->livecheck_overflows_rate,
+               "livecheck_overflows_rate");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->livechecks, "livechecks");
+    L_DISPATCH(ls_collectd_dispatch_count, status->livechecks_rate,
+               "livechecks_rate");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->log_messages,
+               "log_messages");
+    L_DISPATCH(ls_collectd_dispatch_count, status->log_messages_rate,
+               "log_messages_rate");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->neb_callbacks,
+               "neb_callbacks");
+    L_DISPATCH(ls_collectd_dispatch_count, status->neb_callbacks_rate,
+               "neb_callbacks_rate");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->requests, "requests");
+    L_DISPATCH(ls_collectd_dispatch_count, status->requests_rate,
+               "requests_rate");
+    L_DISPATCH(ls_collectd_dispatch_counter, status->service_checks,
+               "service_checks");
+    L_DISPATCH(ls_collectd_dispatch_count, status->service_checks_rate,
+               "service_checks_rate");
 
-  return rc;
-} /* int ls_collectd_dispatch */
+    return rc;
+  } /* int ls_collectd_dispatch */
 
-static int ls_read(void) /* {{{ */
-{
-  int connected = 0;
-  int sockfd = -1;
-  int rc = -1;
-  int attempt = 0;
-  livestatus_status_t lstatus;
+  static int ls_read(void) /* {{{ */
+  {
+    int connected = 0;
+    int sockfd = -1;
+    int rc = -1;
+    int attempt = 0;
+    livestatus_status_t lstatus;
 
-  while (attempt < livestatus_obj.max_retry) {
-    rc = unix_connect(livestatus_obj.socket_file, &sockfd);
-    if (rc < 0) {
-      WARNING("livestatus plugin: fail to connect to livestatus on attempt %d "
-              "/ %d, will retry after backoff",
-              attempt, livestatus_obj.max_retry);
-      attempt++;
-      sleep(livestatus_obj.backoff_sec);
-      continue;
+    while (attempt < livestatus_obj.max_retry) {
+      rc = unix_connect(livestatus_obj.socket_file, &sockfd);
+      if (rc < 0) {
+        WARNING(
+            "livestatus plugin: fail to connect to livestatus on attempt %d "
+            "/ %d, will retry after backoff",
+            attempt, livestatus_obj.max_retry);
+        attempt++;
+        sleep(livestatus_obj.backoff_sec);
+        continue;
+      }
+      connected = 1;
+      break;
     }
-    connected = 1;
-    break;
-  }
 
-  if (!connected) {
-    ERROR("livestatus plugin: fail to connect to livestatus");
-    rc = -1;
-    goto close_sock;
-  }
+    if (!connected) {
+      ERROR("livestatus plugin: fail to connect to livestatus");
+      rc = -1;
+      goto close_sock;
+    }
 
-  rc = ls_send_request(sockfd);
-  if (rc < 0) {
-    ERROR("livestatus plugin: sending livestatus request");
-    goto close_sock;
-  }
+    rc = ls_send_request(sockfd);
+    if (rc < 0) {
+      ERROR("livestatus plugin: sending livestatus request");
+      goto close_sock;
+    }
 
-  memset(&lstatus, 0x0, sizeof(lstatus));
+    memset(&lstatus, 0x0, sizeof(lstatus));
 
-  rc = ls_read_parse(sockfd, &lstatus);
-  if (rc < 0) {
-    ERROR("livestatus plugin: reading or parsing livestatus response: %s",
-          STRERRNO);
-    goto close_sock;
-  }
+    rc = ls_read_parse(sockfd, &lstatus);
+    if (rc < 0) {
+      ERROR("livestatus plugin: reading or parsing livestatus response: %s",
+            STRERRNO);
+      goto close_sock;
+    }
 
-  rc = ls_collectd_dispatch(&lstatus);
-  if (rc < 0) {
-    ERROR("livestatus plugin: dispatching values to collectd");
-    goto close_sock;
-  }
+    rc = ls_collectd_dispatch(&lstatus);
+    if (rc < 0) {
+      ERROR("livestatus plugin: dispatching values to collectd");
+      goto close_sock;
+    }
 
-close_sock:
-  if (sockfd > 0) {
-    close(sockfd);
-    sockfd = -1;
-  }
+  close_sock:
+    if (sockfd > 0) {
+      close(sockfd);
+      sockfd = -1;
+    }
 
-  return rc;
-} /* static int ls_read */
+    return rc;
+  } /* static int ls_read */
 
-void module_register(void) {
-  plugin_register_config("livestatus", ls_config, config_keys, config_keys_num);
-  plugin_register_init("livestatus", ls_init);
-  plugin_register_read("livestatus", ls_read);
-} /* void module_register */
+  void module_register(void) {
+    plugin_register_config("livestatus", ls_config, config_keys,
+                           config_keys_num);
+    plugin_register_init("livestatus", ls_init);
+    plugin_register_read("livestatus", ls_read);
+  } /* void module_register */
