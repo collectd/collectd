@@ -169,12 +169,6 @@ static int ls_config(const char *key, const char *value) /* {{{ */
   }
 
   if (strcasecmp("OnFailureMaxRetry", key) == 0) {
-    char *max_retry_str = strdup(value);
-    if (max_retry_str == NULL) {
-      ERROR("livestatus plugin: strdup failed: %s", STRERRNO);
-      return -1;
-    }
-
     livestatus_obj.max_retry = ls_strtoi(value, NULL, 10);
     if (errno != 0) {
       ERROR("livestatus plugin: strtoi failed for OnFailureMaxRetry: %s",
@@ -184,12 +178,6 @@ static int ls_config(const char *key, const char *value) /* {{{ */
   }
 
   if (strcasecmp("OnFailureBackOffSeconds", key) == 0) {
-    char *backoff_str = strdup(value);
-    if (backoff_str == NULL) {
-      ERROR("livestatus plugin: strdup failed: %s", STRERRNO);
-      return -1;
-    }
-
     livestatus_obj.backoff_sec = ls_strtoi(value, NULL, 10);
     if (errno != 0) {
       ERROR("livestatus plugin: strtoi failed for OnFailureBackOffSeconds: %s",
