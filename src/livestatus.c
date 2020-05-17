@@ -260,17 +260,14 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     while (!exit) {
       if (*pchar == '\0' || *pchar == '\n') {
         exit = 1;
-      } else {
-        if (*pchar != ';') {
-          pchar++;
-          continue;
-        }
+      } else if (*pchar != LIVESTATUS_FIELD_SEP) {
+        pchar++;
+        continue;
       }
 
       strncpy(fields[i], wstart, pchar - wstart);
-      wstart = pchar + 1;
+      wstart = ++pchar;
       i++;
-      pchar++;
 
       if (!exit) {
         if (i >= LIVESTATUS_EXPECTED_FIELDS_RESP_NB) {
@@ -310,9 +307,9 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     char buffer[IO_BUFFER_SIZE];
 
   again:
-    memset(&buffer, 0x0, sizeof(buffer));
+    memset(buffer, 0x0, sizeof(buffer));
 
-    bread = read((int)sockfd, &buffer, IO_BUFFER_SIZE - 1);
+    bread = read((int)sockfd, buffer, IO_BUFFER_SIZE - 1);
     if (bread < 0) {
       if (errno != EINTR) {
         ERROR("livestatus plugin: reading from socket: %s", STRERRNO);
@@ -323,14 +320,14 @@ static int ls_config(const char *key, const char *value) /* {{{ */
 
     buffer[IO_BUFFER_SIZE - 1] = '\0';
 
-    return ls_parse((const char *)&buffer, lstatus);
+    return ls_parse((const char *)buffer, lstatus);
   } /* int ls_read_parse */
 
   static int ls_send_request(const int sockfd) {
     int written = -1;
     char request[512];
 
-    memset(&request, 0x0, sizeof(request));
+    memset(request, 0x0, sizeof(request));
 
     snprintf(request, sizeof(request) - 1, "GET status\nColumns: %s\n\n",
              LIVESTATUS_QUERY_COLUMNS);
