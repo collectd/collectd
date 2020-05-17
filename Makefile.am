@@ -1291,7 +1291,6 @@ pkglib_LTLIBRARIES += livestatus.la
 livestatus_la_SOURCES = src/livestatus.c
 livestatus_la_CFLAGS = $(AM_CFLAGS)
 livestatus_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-livestatus_la_LIBADD =
 
 test_plugin_livestatus_SOURCES = src/livestatus_test.c
 test_plugin_livestatus_CFLAGS = $(AM_CFLAGS)
