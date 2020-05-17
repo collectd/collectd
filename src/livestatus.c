@@ -162,7 +162,7 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     char *socket_file = strdup(value);
     if (socket_file == NULL) {
       ERROR("livestatus plugin: strdup failed: %s", STRERRNO);
-      return 1;
+      return -1;
     }
 
     livestatus_obj.socket_file = socket_file;
@@ -172,14 +172,14 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     char *max_retry_str = strdup(value);
     if (max_retry_str == NULL) {
       ERROR("livestatus plugin: strdup failed: %s", STRERRNO);
-      return 1;
+      return -1;
     }
 
     livestatus_obj.max_retry = ls_strtoi(value, NULL, 10);
     if (errno != 0) {
       ERROR("livestatus plugin: strtoi failed for OnFailureMaxRetry: %s",
             STRERRNO);
-      return 1;
+      return -1;
     }
   }
 
@@ -187,14 +187,14 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     char *backoff_str = strdup(value);
     if (backoff_str == NULL) {
       ERROR("livestatus plugin: strdup failed: %s", STRERRNO);
-      return 1;
+      return -1;
     }
 
     livestatus_obj.backoff_sec = ls_strtoi(value, NULL, 10);
     if (errno != 0) {
       ERROR("livestatus plugin: strtoi failed for OnFailureBackOffSeconds: %s",
             STRERRNO);
-      return 1;
+      return -1;
     }
 
     return 0;
