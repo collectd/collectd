@@ -215,15 +215,14 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     sun.sun_family = AF_UNIX;
     strcpy(sun.sun_path, sockfile);
 
-  again:
-    rc = connect(sfd, (struct sockaddr *)&sun, sizeof(sun));
+    do {
+      rc = connect(sfd, (struct sockaddr *)&sun, sizeof(sun));
+    } while (errno == EINTR);
+
     if (rc < 0) {
-      if (errno != EINTR) {
-        ERROR("livestatus plugin: connect to socket file %s: %s", sockfile,
-              STRERRNO);
-        return -1;
-      }
-      goto again;
+      ERROR("livestatus plugin: connect to socket file %s: %s", sockfile,
+            STRERRNO);
+      return -1;
     }
 
     *sockfd = sfd;
@@ -306,16 +305,14 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     ssize_t bread = -1;
     char buffer[IO_BUFFER_SIZE];
 
-  again:
-    memset(buffer, 0x0, sizeof(buffer));
+    do {
+      memset(buffer, 0x0, sizeof(buffer));
+      bread = read((int)sockfd, buffer, IO_BUFFER_SIZE - 1);
+    } while (errno == EINTR);
 
-    bread = read((int)sockfd, buffer, IO_BUFFER_SIZE - 1);
     if (bread < 0) {
-      if (errno != EINTR) {
-        ERROR("livestatus plugin: reading from socket: %s", STRERRNO);
-        return -1;
-      }
-      goto again;
+      ERROR("livestatus plugin: reading from socket: %s", STRERRNO);
+      return -1;
     }
 
     buffer[IO_BUFFER_SIZE - 1] = '\0';
@@ -332,14 +329,13 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     snprintf(request, sizeof(request) - 1, "GET status\nColumns: %s\n\n",
              LIVESTATUS_QUERY_COLUMNS);
 
-  again:
-    written = write(sockfd, request, sizeof(request));
+    do {
+      written = write(sockfd, request, sizeof(request));
+    } while (errno == EINTR);
+
     if (written < 0) {
-      if (errno != EINTR) {
-        ERROR("livestatus plugin: writing to socket: %s", STRERRNO);
-        return -1;
-      }
-      goto again;
+      ERROR("livestatus plugin: writing to socket: %s", STRERRNO);
+      return -1;
     }
 
     if (shutdown(sockfd, SHUT_WR) < 0) {
