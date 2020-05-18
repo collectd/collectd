@@ -249,17 +249,20 @@ static int check_ignorelist(const char *dev, const char *type,
         (strcasecmp(i->inst, type_instance) != 0))
       continue;
 
+#if COLLECT_DEBUG
+#if HAVE_REGEX_H
+    const char *device = i->device == NULL
+                             ? (i->rdevice != NULL ? "(regexp)" : "(nil)")
+                             : i->device;
+#else
+    const char *device = i->device == NULL ? "(nil)" : i->device;
+#endif
     DEBUG("netlink plugin: check_ignorelist: "
           "(dev = %s; type = %s; inst = %s) matched "
           "(dev = %s; type = %s; inst = %s)",
-          dev, type, type_instance == NULL ? "(nil)" : type_instance,
-          i->device == NULL ?
-#if HAVE_REGEX_H
-                            i->rdevice != NULL ? "(regexp)" :
-#endif
-                                               "(nil)"
-                            : i->device,
+          dev, type, type_instance == NULL ? "(nil)" : type_instance, device,
           i->type, i->inst == NULL ? "(nil)" : i->inst);
+#endif
 
     return ir_ignorelist_invert ? 0 : 1;
   } /* for i */

@@ -1491,6 +1491,19 @@ netlink_la_SOURCES = src/netlink.c
 netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
 netlink_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 netlink_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
+
+test_plugin_netlink_SOURCES = \
+	src/netlink_test.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_netlink_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+test_plugin_netlink_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_netlink_LDADD = \
+	liboconfig.la \
+	libplugin_mock.la \
+	$(BUILD_WITH_LIBMNL_LIBS)
+check_PROGRAMS += test_plugin_netlink
+TESTS += test_plugin_netlink
 endif
 
 if BUILD_PLUGIN_NETWORK
