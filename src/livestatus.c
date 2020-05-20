@@ -186,7 +186,9 @@ static int ls_config(const char *key, const char *value) /* {{{ */
 } /* static int ls_config */
 
 static int unix_connect(const char *sockfile, int *sockfd) {
-  struct sockaddr_un sun;
+  struct sockaddr_un sun = {
+    .sun_family = AF_UNIX,
+  };
   int rc = -1;
   int sfd = -1;
 
@@ -196,8 +198,6 @@ static int unix_connect(const char *sockfile, int *sockfd) {
     return -1;
   }
 
-  memset(&sun, 0x0, sizeof(sun));
-  sun.sun_family = AF_UNIX;
   sstrncpy(sun.sun_path, sockfile, strlen(sockfile));
 
   do {
