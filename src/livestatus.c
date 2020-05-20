@@ -97,9 +97,9 @@ struct livestatus_status_s {
 typedef struct livestatus_status_s livestatus_status_t;
 
 static livestatus_t livestatus_obj = {
-  .socket_file = "/var/cache/naemon/live",
-  .max_retry = 20,
-  .backoff_sec = 1,
+    .socket_file = "/var/cache/naemon/live",
+    .max_retry = 20,
+    .backoff_sec = 1,
 };
 
 livestatus_status_t c_to_livestatus_status(const char **fields) {
@@ -182,8 +182,8 @@ static int ls_config(const char *key, const char *value) /* {{{ */
     }
   }
 
-    return 0;
-  } /* static int ls_config */
+  return 0;
+} /* static int ls_config */
 
 static int unix_connect(const char *sockfile, int *sockfd) {
   struct sockaddr_un sun;
@@ -353,8 +353,7 @@ static int ls_collectd_dispatch_counter(counter_t value,
   value_list_t vl = ls_collectd_init_vl();
 
   sstrncpy(vl.type, "counter", sizeof(vl.type));
-  sstrncpy(vl.plugin_instance, plugin_instance,
-           sizeof(vl.plugin_instance));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
   vl.values = &(value_t){.counter = value};
 
   return plugin_dispatch_values(&vl);
