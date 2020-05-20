@@ -216,17 +216,14 @@ static int unix_connect(const char *sockfile, int *sockfd) {
 } /* unix_connect */
 
 static int ls_parse(const char *lresponse, livestatus_status_t *lstatus) {
-  int rc = -1;
-  int i = 0;
-  char **fields = NULL;
-  char *pchar = NULL;
 
-  fields = malloc(sizeof(char **) * LIVESTATUS_EXPECTED_FIELDS_RESP_NB);
+  char **fields = malloc(sizeof(char **) * LIVESTATUS_EXPECTED_FIELDS_RESP_NB);
   if (fields == NULL) {
     ERROR("livestatus plugin: malloc failed: %s", STRERRNO);
     return -1;
   }
 
+  int rc = -1;
   for (int j = 0; j < LIVESTATUS_EXPECTED_FIELDS_RESP_NB; j++) {
     fields[j] = calloc(1, sizeof(char *) * 32);
     if (fields[j] == NULL) {
@@ -236,9 +233,10 @@ static int ls_parse(const char *lresponse, livestatus_status_t *lstatus) {
     }
   }
 
-  pchar = (char *)lresponse;
+  char *pchar = (char *)lresponse;
   char *wstart = (char *)lresponse;
   int exit = 0;
+  int i = 0;
   while (!exit) {
     if (*pchar == '\0' || *pchar == '\n') {
       exit = 1;
@@ -304,12 +302,12 @@ static int ls_read_parse(const int sockfd, livestatus_status_t *lstatus) {
 } /* int ls_read_parse */
 
 static int ls_send_request(const int sockfd) {
-  int written = -1;
   char request[512] = "";
 
   snprintf(request, sizeof(request) - 1, "GET status\nColumns: %s\n\n",
            LIVESTATUS_QUERY_COLUMNS);
 
+  int written = -1;
   do {
     written = write(sockfd, request, sizeof(request));
   } while (errno == EINTR);
