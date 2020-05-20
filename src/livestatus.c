@@ -339,8 +339,7 @@ static int ls_collectd_dispatch_count(gauge_t value,
   value_list_t vl = ls_collectd_init_vl();
 
   sstrncpy(vl.type, "count", sizeof(vl.type));
-  sstrncpy(vl.plugin_instance, (char *)plugin_instance,
-           sizeof(vl.plugin_instance));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
   vl.values = &(value_t){.gauge = value};
 
   return plugin_dispatch_values(&vl);
