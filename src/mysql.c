@@ -472,20 +472,13 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     unsigned long long counter;
     double gauge;
 
-    if (row[SLAVE_SQL_RUNNING_IDX] == NULL) {
-      gauge_submit("slave_running", "sql", 1, db);
-    } else if (strcasecmp(row[SLAVE_SQL_RUNNING_IDX], "yes") != 0) {
-      gauge_submit("slave_running", "sql", 1, db);
-    } else {
-      gauge_submit("slave_running", "sql", 0, db);
-    }
-    if (row[SLAVE_IO_RUNNING_IDX] == NULL) {
-      gauge_submit("slave_running", "io", 1, db);
-    } else if (strcasecmp(row[SLAVE_IO_RUNNING_IDX], "yes") != 0) {
-      gauge_submit("slave_running", "io", 1, db);
-    } else {
-      gauge_submit("slave_running", "io", 0, db);
-    }
+    gauge_submit("bool", "slave-sql-running",
+      (row[SLAVE_SQL_RUNNING_IDX] != NULL) && (strcasecmp(row[SLAVE_SQL_RUNNING_IDX], "yes") == 0),
+       db);
+
+    gauge_submit("bool", "slave-io-running",
+      (row[SLAVE_IO_RUNNING_IDX] != NULL) && (strcasecmp(row[SLAVE_IO_RUNNING_IDX], "yes") == 0),
+       db);
 
     counter = atoll(row[READ_MASTER_LOG_POS_IDX]);
     derive_submit("mysql_log_position", "slave-read", counter, db);
