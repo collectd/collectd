@@ -10,6 +10,7 @@ backends                value:GAUGE:0:65535
 bad_peb_count           value:COUNTER:0:U
 bitrate                 value:GAUGE:0:4294967295
 blocked_clients         value:GAUGE:0:U
+bool                    value:GAUGE:0:1
 bucket                  value:GAUGE:0:U
 buffer                  value:GAUGE:0:18446744073709551615
 bytes                   value:GAUGE:0:U
@@ -249,7 +250,6 @@ slurm_last_cycle_depth  value:GAUGE:0:U
 slurm_cycle_depth       value:DERIVE:0:U
 slurm_job_stats         value:DERIVE:0:U
 slurm_queue_length      value:DERIVE:0:U
-slave_running           value:GAUGE:0:U
 smart_attribute         current:GAUGE:0:255, worst:GAUGE:0:255, threshold:GAUGE:0:255, pretty:GAUGE:0:U
 smart_badsectors        value:GAUGE:0:U
 smart_powercycles       value:GAUGE:0:U
