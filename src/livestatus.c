@@ -96,7 +96,11 @@ struct livestatus_status_s {
 };
 typedef struct livestatus_status_s livestatus_status_t;
 
-static livestatus_t livestatus_obj;
+static livestatus_t livestatus_obj = {
+  .socket_file = "/var/cache/naemon/live",
+  .max_retry = 20,
+  .backoff_sec = 1,
+};
 
 livestatus_status_t c_to_livestatus_status(const char **fields) {
   livestatus_status_t status = {
@@ -147,14 +151,6 @@ static int ls_strtoi(const char *s, char **endptr, int base) {
   return (int)ls_strtol_subrange(s, endptr, base, INT_MIN, INT_MAX);
 #endif
 } /* static int ls_strtoi */
-
-static int ls_init(void) {
-  livestatus_obj.socket_file = "/var/cache/naemon/live";
-  livestatus_obj.max_retry = 20;
-  livestatus_obj.backoff_sec = 1;
-
-  return 0;
-} /* int ls_init */
 
 static int ls_config(const char *key, const char *value) /* {{{ */
 {
@@ -469,6 +465,5 @@ close_sock:
 
 void module_register(void) {
   plugin_register_config("livestatus", ls_config, config_keys, config_keys_num);
-  plugin_register_init("livestatus", ls_init);
   plugin_register_read("livestatus", ls_read);
 } /* void module_register */
