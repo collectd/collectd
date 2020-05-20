@@ -96,8 +96,10 @@ struct livestatus_status_s {
 };
 typedef struct livestatus_status_s livestatus_status_t;
 
+#define LIVESTATUS_DEFAULT_SOCKET_FILE "/var/cache/naemon/live"
+
 static livestatus_t livestatus_obj = {
-    .socket_file = "/var/cache/naemon/live",
+    .socket_file = NULL,
     .max_retry = 20,
     .backoff_sec = 1,
 };
@@ -155,13 +157,13 @@ static int ls_strtoi(const char *s, char **endptr, int base) {
 static int ls_config(const char *key, const char *value) /* {{{ */
 {
   if (strcasecmp("LivestatusSocketFile", key) == 0) {
-    char *socket_file = strdup(value);
-    if (socket_file == NULL) {
+    if (livestatus_obj.socket_file != NULL)
+      free(livestatus_obj.socket_file);
+
+    if ((livestatus_obj.socket_file = strdup(value)) == NULL) {
       ERROR("livestatus plugin: strdup failed: %s", STRERRNO);
       return -1;
     }
-
-    livestatus_obj.socket_file = socket_file;
   }
 
   if (strcasecmp("OnFailureMaxRetry", key) == 0) {
@@ -409,6 +411,14 @@ static int ls_read(void) /* {{{ */
   int attempt = 0;
   livestatus_status_t lstatus;
 
+  if (livestatus_obj.socket_file == NULL) {
+    livestatus_obj.socket_file = strdup(LIVESTATUS_DEFAULT_SOCKET_FILE);
+    if (livestatus_obj.socket_file == NULL) {
+      ERROR("livestatus plugin: strdup failed: %s", STRERRNO);
+      return -1;
+    }
+  }
+
   while (attempt < livestatus_obj.max_retry) {
     rc = unix_connect(livestatus_obj.socket_file, &sockfd);
     if (rc < 0) {
@@ -459,7 +469,15 @@ close_sock:
   return rc;
 } /* static int ls_read */
 
+static int ls_shutdown(void) {
+  if (livestatus_obj.socket_file != NULL)
+    sfree(livestatus_obj.socket_file);
+
+  return 0;
+}
+
 void module_register(void) {
   plugin_register_config("livestatus", ls_config, config_keys, config_keys_num);
   plugin_register_read("livestatus", ls_read);
+  plugin_register_shutdown("livestatus", ls_shutdown);
 } /* void module_register */
