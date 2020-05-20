@@ -357,7 +357,7 @@ static int ls_collectd_dispatch_counter(counter_t value,
   value_list_t vl = ls_collectd_init_vl();
 
   sstrncpy(vl.type, "counter", sizeof(vl.type));
-  sstrncpy(vl.plugin_instance, (char *)plugin_instance,
+  sstrncpy(vl.plugin_instance, plugin_instance,
            sizeof(vl.plugin_instance));
   vl.values = &(value_t){.counter = value};
 
