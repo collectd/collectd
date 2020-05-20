@@ -309,9 +309,7 @@ static int ls_read_parse(const int sockfd, livestatus_status_t *lstatus) {
 
 static int ls_send_request(const int sockfd) {
   int written = -1;
-  char request[512];
-
-  memset(request, 0x0, sizeof(request));
+  char request[512] = "";
 
   snprintf(request, sizeof(request) - 1, "GET status\nColumns: %s\n\n",
            LIVESTATUS_QUERY_COLUMNS);
