@@ -187,7 +187,7 @@ static int ls_config(const char *key, const char *value) /* {{{ */
 
 static int unix_connect(const char *sockfile, int *sockfd) {
   struct sockaddr_un sun = {
-    .sun_family = AF_UNIX,
+      .sun_family = AF_UNIX,
   };
   int rc = -1;
   int sfd = -1;
