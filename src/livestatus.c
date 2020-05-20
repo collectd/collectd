@@ -198,7 +198,7 @@ static int unix_connect(const char *sockfile, int *sockfd) {
 
   memset(&sun, 0x0, sizeof(sun));
   sun.sun_family = AF_UNIX;
-  strcpy(sun.sun_path, sockfile);
+  sstrncpy(sun.sun_path, sockfile, strlen(sockfile));
 
   do {
     rc = connect(sfd, (struct sockaddr *)&sun, sizeof(sun));
