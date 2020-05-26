@@ -181,9 +181,7 @@ static void *presence_thread(void *arg) /* {{{ */
 
       const char *host = key.mv_data;
 
-      struct timeval *tv_then = {0};
-
-      tv_then = data.mv_data;
+      struct timeval *tv_then = data.mv_data;
 
       if (tv_now.tv_sec - tv_then->tv_sec >= host_timeout + thread_interval) {
 
