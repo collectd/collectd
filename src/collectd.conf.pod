@@ -1675,6 +1675,9 @@ Path and filename of the LMDB hosts key/value store. Defaults to B<check-presenc
 
 =item B<HostTimeout> I<Seconds>
 
+Number of seconds after a host has last been seen before the host is considered
+missing. Defaults to B<20>.
+
 =item B<StartupDelay> I<Seconds>
 
 Number of seconds after startup to suppress missing notifications. Defaults to B<20>,
