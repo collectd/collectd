@@ -2100,7 +2100,7 @@ Collectd utilities
 	%{?_with_capabilities} \
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
-  %{?_with_check_presence} \
+	%{?_with_check_presence} \
 	%{?_with_chrony} \
 	%{?_with_connectivity} \
 	%{?_with_conntrack} \
