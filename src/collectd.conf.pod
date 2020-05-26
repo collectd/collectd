@@ -1679,8 +1679,7 @@ missing. Defaults to B<20>.
 
 =item B<StartupDelay> I<Seconds>
 
-Number of seconds after startup to suppress missing notifications. Defaults to B<20>,
-which is twice the value of Interval.
+Number of seconds after startup to suppress missing notifications. Defaults to B<20>.
 
 =item B<CheckInterval> I<Seconds>
 
