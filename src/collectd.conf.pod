@@ -1659,8 +1659,8 @@ B<HostTimeout> option.
 
 To ensure that no notifications are missed or duplicated, the hosts are
 persisted in an LMDB key/value store, which is kept across collectd restarts.
-The hosts plugin provides a grace period after starting up for hosts to tell
-us they are still present, catching hosts that have gone missing during our
+The check_presence plugin provides a grace period after starting up for hosts to
+tell us they are still present, catching hosts that have gone missing during our
 restart. The grace period is controlled with the B<StartupDelay> option.
 
 An additional two seconds are added on top of B<HostTimeout> and B<StartupDelay>
