@@ -194,17 +194,21 @@ static int agg_instance_create_name(agg_instance_t *inst, /* {{{ */
       sstrncpy(tmp_plugin_instance, agg->ident.plugin_instance,
                sizeof(tmp_plugin_instance));
 
+    // Both tmp_plugin and tmp_plugin_instance are empty.
     if ((strcmp("", tmp_plugin) == 0) && (strcmp("", tmp_plugin_instance) == 0))
       sstrncpy(inst->ident.plugin_instance, AGG_FUNC_PLACEHOLDER,
                sizeof(inst->ident.plugin_instance));
-    else if (strcmp("", tmp_plugin) != 0)
+    // tmp_plugin is non-empty, and tmp_plugin_instance is empty.
+    else if (strcmp("", tmp_plugin_instance) == 0)
       ssnprintf(inst->ident.plugin_instance,
                 sizeof(inst->ident.plugin_instance), "%s-%s", tmp_plugin,
                 AGG_FUNC_PLACEHOLDER);
-    else if (strcmp("", tmp_plugin_instance) != 0)
+    // tmp_plugin is empty, and tmp_plugin_instance is non-empty.
+    else if (strcmp("", tmp_plugin) == 0)
       ssnprintf(inst->ident.plugin_instance,
                 sizeof(inst->ident.plugin_instance), "%s-%s",
                 tmp_plugin_instance, AGG_FUNC_PLACEHOLDER);
+    // Both tmp_plugin and tmp_plugin_instance are non-empty.
     else
       ssnprintf(inst->ident.plugin_instance,
                 sizeof(inst->ident.plugin_instance), "%s-%s-%s", tmp_plugin,

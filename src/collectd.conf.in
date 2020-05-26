@@ -99,6 +99,8 @@
 #@BUILD_PLUGIN_BAROMETER_TRUE@LoadPlugin barometer
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
+#@BUILD_PLUGIN_BUDDYINFO_TRUE@LoadPlugin buddyinfo
+#@BUILD_PLUGIN_CAPABILITIES_TRUE@LoadPlugin capabilities
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
@@ -115,11 +117,13 @@
 #@BUILD_PLUGIN_CURL_JSON_TRUE@LoadPlugin curl_json
 #@BUILD_PLUGIN_CURL_XML_TRUE@LoadPlugin curl_xml
 #@BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
+#@BUILD_PLUGIN_DCPMM_TRUE@LoadPlugin dcpmm
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
 #@BUILD_PLUGIN_DPDKEVENTS_TRUE@LoadPlugin dpdkevents
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
+#@BUILD_PLUGIN_DPDK_TELEMETRY_TRUE@LoadPlugin dpdk_telemetry
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
@@ -138,17 +142,20 @@
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
+#@BUILD_PLUGIN_IPSTATS_TRUE@LoadPlugin ipstats
 #@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
 #@BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
 #@BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
+#@BUILD_PLUGIN_LOGPARSER_TRUE@LoadPlugin logparser
 #@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MCELOG_TRUE@LoadPlugin mcelog
 #@BUILD_PLUGIN_MD_TRUE@LoadPlugin md
+#@BUILD_PLUGIN_MDEVENTS_TRUE@LoadPlugin mdevents
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
@@ -185,6 +192,7 @@
 #@BUILD_PLUGIN_PROCEVENT_TRUE@LoadPlugin procevent
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
+#@BUILD_PLUGIN_REDFISH_TRUE@LoadPlugin redfish
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
@@ -192,6 +200,7 @@
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 #@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
 #@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
+#@BUILD_PLUGIN_SLURM_TRUE@LoadPlugin slurm
 #@BUILD_PLUGIN_SMART_TRUE@LoadPlugin smart
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 #@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent
@@ -219,6 +228,7 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
+#@BUILD_PLUGIN_WRITE_INFLUXDB_UDP_TRUE@LoadPlugin write_influxdb_udp
 #@BUILD_PLUGIN_WRITE_KAFKA_TRUE@LoadPlugin write_kafka
 #@BUILD_PLUGIN_WRITE_LOG_TRUE@LoadPlugin write_log
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
@@ -274,6 +284,12 @@
 #    Persistent false
 #    StoreRates false
 #    ConnectionRetryDelay 0
+#    TLSEnabled false
+#    TLSVerifyPeer true
+#    TLSVerifyHostName true
+#    TLSCACert "/path/to/ca.pem"
+#    TLSClientCert "/path/to/client-cert.pem"
+#    TLSClientKey "/path/to/client-key.pem"
 #  </Publish>
 #</Plugin>
 
@@ -361,6 +377,14 @@
 #
 #    Zone "127.in-addr.arpa/IN"
 #  </View>
+#</Plugin>
+
+#<Plugin buddyinfo>
+#  Zone "Normal"
+#</Plugin>
+
+#<Plugin capabilities>
+#  Port "9104"
 #</Plugin>
 
 #<Plugin ceph>
@@ -556,12 +580,20 @@
 #	</Database>
 #</Plugin>
 
+#<Plugin dcpmm>
+#    Interval 10.0
+#    CollectHealth false
+#    CollectPerfMetrics true
+#    EnableDispatchAll false
+#</Plugin>
+
 #<Plugin df>
 #	Device "/dev/hda1"
 #	Device "192.168.0.2:/mnt/nfs"
 #	MountPoint "/home"
 #	FSType "ext3"
 #	IgnoreSelected false
+#	LogOnce false
 #	ReportByDevice false
 #	ReportInodes false
 #	ValuesAbsolute true
@@ -614,6 +646,11 @@
 #  EnabledPortMask 0xffff
 #  PortName "interface1"
 #  PortName "interface2"
+#</Plugin>
+
+#<Plugin dpdk_telemetry>
+#	ClientSocketPath "/var/run/.client"
+#	DpdkSocketPath "/var/run/dpdk/rte/telemetry"
 #</Plugin>
 
 #<Plugin email>
@@ -681,6 +718,8 @@
 #   GPUIndex 0
 #   GPUIndex 2
 #   IgnoreSelected false
+#   InstanceByGPUIndex true
+#   InstanceByGPUName true
 #</Plugin>
 
 #<Plugin grpc>
@@ -719,6 +758,7 @@
 #    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
 #    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
 #    Cores "[0-3]"
+#    DispatchMultiPmu false
 #</Plugin>
 
 #<Plugin "intel_rdt">
@@ -800,6 +840,65 @@
 #	ReportBySerial false
 #</Plugin>
 
+#<Plugin logparser>
+#  <Logfile "/var/log/syslog">
+#    FirstFullRead false
+#    <Message "pcie_errors">
+#      DefaultType "pcie_error"
+#      DefaultSeverity "warning"
+#      <Match "aer error">
+#        Regex "AER:.*error received"
+#        SubmatchIdx -1
+#      </Match>
+#      <Match "incident time">
+#        Regex "(... .. ..:..:..) .* pcieport.*AER"
+#        SubmatchIdx 1
+#        IsMandatory false
+#      </Match>
+#      <Match "root port">
+#        Regex "pcieport (.*): AER:"
+#        SubmatchIdx 1
+#        IsMandatory true
+#      </Match>
+#      <Match "device">
+#        PluginInstance true
+#        Regex " ([0-9a-fA-F:\\.]*): PCIe Bus Error"
+#        SubmatchIdx 1
+#        IsMandatory false
+#      </Match>
+#      <Match "severity_mandatory">
+#        Regex "severity="
+#        SubMatchIdx -1
+#      </Match>
+#      <Match "nonfatal">
+#        Regex "severity=.*\\([nN]on-[fF]atal"
+#        TypeInstance "non_fatal"
+#        IsMandatory false
+#      </Match>
+#      <Match "fatal">
+#        Regex "severity=.*\\([fF]atal"
+#        Severity "failure"
+#        TypeInstance "fatal"
+#        IsMandatory false
+#      </Match>
+#      <Match "corrected">
+#        Regex "severity=Corrected"
+#        TypeInstance "correctable"
+#        IsMandatory false
+#      </Match>
+#      <Match "error type">
+#        Regex "type=(.*),"
+#        SubmatchIdx 1
+#        IsMandatory false
+#      </Match>
+#     <Match "id">
+#        Regex ", id=(.*)"
+#        SubmatchIdx 1
+#      </Match>
+#    </Message>
+#  </Logfile>
+#</Plugin>
+
 #<Plugin lua>
 #	BasePath "@prefix@/share/@PACKAGE_NAME@/lua"
 #	Script "script1.lua"
@@ -833,6 +932,13 @@
 #<Plugin md>
 #	Device "/dev/md0"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin mdevents>
+# Event ""
+# IgnoreEvent False
+# Array ""
+# IgnoreArray False
 #</Plugin>
 
 #<Plugin memcachec>
@@ -1286,7 +1392,7 @@
 
 #<Plugin "procevent">
 #  BufferLength 10
-#  ProcessRegex "/^ovs.*$/" 
+#  ProcessRegex "/^ovs.*$/"
 #  Process tuned
 #</Plugin>
 
@@ -1319,6 +1425,43 @@
 #      <Query>
 #   </Node>
 #</Plugin>
+
+#<Plugin redfish>
+#  <Query "fans">
+#    Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
+#    <Resource "Fans">
+#      <Property "ReadingRPM">
+#        PluginInstance "chassis-1"
+#        Type "rpm"
+#      </Property>
+#    </Resource>
+#  </Query>
+#  <Query "temperatures">
+#    Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
+#    <Resource "Temperatures">
+#      <Property "ReadingCelsius">
+#        PluginInstance "chassis-1"
+#        Type "degrees"
+#      </Property>
+#    </Resource>
+#  </Query>
+#  <Query "voltages">
+#    Endpoint "/redfish/v1/Chassis/Chassis-1/Power"
+#    <Resource "Voltages">
+#      <Property "ReadingVolts">
+#        PluginInstance "chassis-1"
+#        Type "volts"
+#      </Property>
+#    </Resource>
+#  </Query>
+#  <Service "local">
+#    Host "127.0.0.1:5000"
+#    User "user"
+#    Passwd "passwd"
+#    Queries "fans" "voltages" "temperatures"
+#  </Service>
+#</Plugin>
+#
 
 #<Plugin routeros>
 #	<Router>
@@ -1639,6 +1782,11 @@
 #	RunningAveragePowerLimit "7"
 #</Plugin>
 
+#<Plugin ubi>
+#	Device "ubi0"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin unixsock>
 #	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-unixsock"
 #	SocketGroup "collectd"
@@ -1686,7 +1834,7 @@
 #      CollectPurge false         # Varnish 2 only
 #      CollectSession false
 #      CollectSHM true
-#      CollectSMA false           # Varnish 2 & 4 only
+#      CollectSMA false           # Varnish 2 & Varnish 4 and above
 #      CollectSMS false
 #      CollectSM false            # Varnish 2 only
 #      CollectStruct false
@@ -1695,12 +1843,13 @@
 #      CollectVCL false
 #      CollectVSM false           # Varnish 4 only
 #      CollectWorkers false
-#      CollectLock false          # Varnish 4 only
-#      CollectMempool false       # Varnish 4 only
-#      CollectManagement false    # Varnish 4 only
-#      CollectSMF false           # Varnish 4 only
-#      CollectVBE false           # Varnish 4 only
-#      CollectMSE false           # Varnish-Plus 4 only
+#      CollectLock false          # Varnish 4 and above
+#      CollectMempool false       # Varnish 4 and above
+#      CollectManagement false    # Varnish 4 and above
+#      CollectSMF false           # Varnish 4 and above
+#      CollectVBE false           # Varnish 4 and above
+#      CollectMSE false           # Varnish-Plus only
+#      CollectGOTO false          # Varnish-Plus 6 only
 #   </Instance>
 #</Plugin>
 
@@ -1775,6 +1924,13 @@
 #	</Node>
 #</Plugin>
 
+#<Plugin write_influxdb_udp>
+#  Server "localhost"
+#  StoreRates true
+#  MaxPacketSize 32768
+#  TimeToLive 128
+#</Plugin>
+
 #<Plugin write_kafka>
 #  Property "metadata.broker.list" "localhost:9092"
 #  <Topic "collectd">
@@ -1831,6 +1987,7 @@
 #		Port 3030
 #		StoreRates true
 #		AlwaysAppendDS false
+#		IncludeSource false
 #		Notifications true
 #		Metrics true
 #		EventServicePrefix ""

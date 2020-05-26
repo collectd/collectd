@@ -636,8 +636,8 @@ static int mcelog_init(void) {
   }
 
   if (strlen(socket_adapter.unix_sock.sun_path)) {
-    if (plugin_thread_create(&g_mcelog_config.tid, NULL, poll_worker, NULL,
-                             NULL) != 0) {
+    if (plugin_thread_create(&g_mcelog_config.tid, poll_worker, NULL, NULL) !=
+        0) {
       ERROR(MCELOG_PLUGIN ": Error creating poll thread.");
       return -1;
     }

@@ -20,11 +20,11 @@ matrix:
         - PATH="/usr/local/opt/mysql-client/bin:$PATH"
         - JAVA_HOME="/Library/Java/JavaVirtualMachines/openjdk-13.jdk/Contents/Home"
     - os: linux
-      dist: xenial
+      dist: bionic
       compiler: clang
       jdk: openjdk10
     - os: linux
-      dist: xenial
+      dist: bionic
       compiler: gcc
       jdk: openjdk10
 

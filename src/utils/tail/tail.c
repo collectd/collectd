@@ -41,7 +41,7 @@ struct cu_tail_s {
   struct stat stat;
 };
 
-static int cu_tail_reopen(cu_tail_t *obj) {
+static int cu_tail_reopen(cu_tail_t *obj, bool force_rewind) {
   int seek_end = 0;
   struct stat stat_buf = {0};
 
@@ -68,10 +68,11 @@ static int cu_tail_reopen(cu_tail_t *obj) {
     return 1;
   }
 
-  /* Seek to the end if we re-open the same file again or the file opened
-   * is the first at all or the first after an error */
+  /* Unless flag for rewinding to the start is set, seek to the end
+   * if we re-open the same file again or the file opened is the first at all
+   * or the first after an error */
   if ((obj->stat.st_ino == 0) || (obj->stat.st_ino == stat_buf.st_ino))
-    seek_end = 1;
+    seek_end = !force_rewind;
 
   FILE *fh = fopen(obj->file, "r");
   if (fh == NULL) {
@@ -123,7 +124,7 @@ int cu_tail_destroy(cu_tail_t *obj) {
   return 0;
 } /* int cu_tail_destroy */
 
-int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen) {
+int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen, bool force_rewind) {
   int status;
 
   if (buflen < 1) {
@@ -132,7 +133,7 @@ int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen) {
   }
 
   if (obj->fh == NULL) {
-    status = cu_tail_reopen(obj);
+    status = cu_tail_reopen(obj, force_rewind);
     if (status < 0)
       return status;
   }
@@ -155,7 +156,7 @@ int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen) {
   /* else: eof -> check if the file was moved away and reopen the new file if
    * so.. */
 
-  status = cu_tail_reopen(obj);
+  status = cu_tail_reopen(obj, force_rewind);
   /* error -> return with error */
   if (status < 0)
     return status;
@@ -186,13 +187,13 @@ int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen) {
 } /* int cu_tail_readline */
 
 int cu_tail_read(cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
-                 void *data) {
+                 void *data, bool force_rewind) {
   int status;
 
   while (42) {
     size_t len;
 
-    status = cu_tail_readline(obj, buf, buflen);
+    status = cu_tail_readline(obj, buf, buflen, force_rewind);
     if (status != 0) {
       ERROR("utils_tail: cu_tail_read: cu_tail_readline "
             "failed.");

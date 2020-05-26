@@ -349,11 +349,9 @@ static int sysfs_file_to_buffer(char const *dir, /* {{{ */
 
   snprintf(filename, sizeof(filename), "%s/%s/%s", dir, power_supply, basename);
 
-  status = (int)read_file_contents(filename, buffer, buffer_size - 1);
+  status = (int)read_text_file_contents(filename, buffer, buffer_size);
   if (status < 0)
     return status;
-
-  buffer[status] = '\0';
 
   strstripnewline(buffer);
   return 0;
@@ -403,6 +401,44 @@ static int read_sysfs_capacity(char const *dir, /* {{{ */
   return 0;
 } /* }}} int read_sysfs_capacity */
 
+static int read_sysfs_capacity_from_charge(char const *dir, /* {{{ */
+                                           char const *power_supply,
+                                           char const *plugin_instance) {
+  gauge_t capacity_charged = NAN;
+  gauge_t capacity_full = NAN;
+  gauge_t capacity_design = NAN;
+  gauge_t voltage_min_design = NAN;
+  int status;
+
+  status = sysfs_file_to_gauge(dir, power_supply, "voltage_min_design",
+                               &voltage_min_design);
+  if (status != 0)
+    return status;
+  voltage_min_design *= SYSFS_FACTOR;
+
+  status =
+      sysfs_file_to_gauge(dir, power_supply, "charge_now", &capacity_charged);
+  if (status != 0)
+    return status;
+  capacity_charged *= voltage_min_design;
+
+  status =
+      sysfs_file_to_gauge(dir, power_supply, "charge_full", &capacity_full);
+  if (status != 0)
+    return status;
+  capacity_full *= voltage_min_design;
+
+  status = sysfs_file_to_gauge(dir, power_supply, "charge_full_design",
+                               &capacity_design);
+  if (status != 0)
+    return status;
+  capacity_design *= voltage_min_design;
+
+  submit_capacity(plugin_instance, capacity_charged * SYSFS_FACTOR,
+                  capacity_full * SYSFS_FACTOR, capacity_design * SYSFS_FACTOR);
+  return 0;
+} /* }}} int read_sysfs_capacity_from_charge */
+
 static int read_sysfs_callback(char const *dir, /* {{{ */
                                char const *power_supply, void *user_data) {
   int *battery_index = user_data;
@@ -434,7 +470,10 @@ static int read_sysfs_callback(char const *dir, /* {{{ */
   plugin_instance = (*battery_index == 0) ? "0" : power_supply;
   (*battery_index)++;
 
-  read_sysfs_capacity(dir, power_supply, plugin_instance);
+  if (sysfs_file_to_gauge(dir, power_supply, "energy_now", &v) == 0)
+    read_sysfs_capacity(dir, power_supply, plugin_instance);
+  else
+    read_sysfs_capacity_from_charge(dir, power_supply, plugin_instance);
 
   if (sysfs_file_to_gauge(dir, power_supply, "power_now", &v) == 0) {
     if (discharging)

@@ -306,12 +306,12 @@ out:
   return status;
 } /* int tail_match_add_match_simple */
 
-int tail_match_read(cu_tail_match_t *obj) {
+int tail_match_read(cu_tail_match_t *obj, bool force_rewind) {
   char buffer[4096];
   int status;
 
   status = cu_tail_read(obj->tail, buffer, sizeof(buffer), tail_callback,
-                        (void *)obj);
+                        (void *)obj, force_rewind);
   if (status != 0) {
     ERROR("tail_match: cu_tail_read failed.");
     return status;

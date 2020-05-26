@@ -1275,8 +1275,7 @@ static int c_ipmi_init(void) {
     st->init_in_progress = cycles;
     st->active = true;
 
-    status = plugin_thread_create(&st->thread_id, /* attr = */ NULL,
-                                  c_ipmi_thread_main,
+    status = plugin_thread_create(&st->thread_id, c_ipmi_thread_main,
                                   /* user data = */ (void *)st, "ipmi");
 
     if (status != 0) {

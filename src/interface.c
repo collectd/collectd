@@ -179,59 +179,7 @@ static void if_submit(const char *dev, const char *type, derive_t rx,
 } /* void if_submit */
 
 static int interface_read(void) {
-#if HAVE_GETIFADDRS
-  struct ifaddrs *if_list;
-
-/* Darwin/Mac OS X and possible other *BSDs */
-#if HAVE_STRUCT_IF_DATA
-#define IFA_DATA if_data
-#define IFA_RX_BYTES ifi_ibytes
-#define IFA_TX_BYTES ifi_obytes
-#define IFA_RX_PACKT ifi_ipackets
-#define IFA_TX_PACKT ifi_opackets
-#define IFA_RX_ERROR ifi_ierrors
-#define IFA_TX_ERROR ifi_oerrors
-  /* #endif HAVE_STRUCT_IF_DATA */
-
-#elif HAVE_STRUCT_NET_DEVICE_STATS
-#define IFA_DATA net_device_stats
-#define IFA_RX_BYTES rx_bytes
-#define IFA_TX_BYTES tx_bytes
-#define IFA_RX_PACKT rx_packets
-#define IFA_TX_PACKT tx_packets
-#define IFA_RX_ERROR rx_errors
-#define IFA_TX_ERROR tx_errors
-#else
-#error "No suitable type for `struct ifaddrs->ifa_data' found."
-#endif
-
-  struct IFA_DATA *if_data;
-
-  if (getifaddrs(&if_list) != 0)
-    return -1;
-
-  for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL;
-       if_ptr = if_ptr->ifa_next) {
-    if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
-      if_data = (struct IFA_DATA *)if_ptr->ifa_data;
-
-      if (!report_inactive && if_data->IFA_RX_PACKT == 0 &&
-          if_data->IFA_TX_PACKT == 0)
-        continue;
-
-      if_submit(if_ptr->ifa_name, "if_octets", if_data->IFA_RX_BYTES,
-                if_data->IFA_TX_BYTES);
-      if_submit(if_ptr->ifa_name, "if_packets", if_data->IFA_RX_PACKT,
-                if_data->IFA_TX_PACKT);
-      if_submit(if_ptr->ifa_name, "if_errors", if_data->IFA_RX_ERROR,
-                if_data->IFA_TX_ERROR);
-    }
-  }
-
-  freeifaddrs(if_list);
-  /* #endif HAVE_GETIFADDRS */
-
-#elif KERNEL_LINUX
+#if KERNEL_LINUX
   FILE *fh;
   char buffer[1024];
   derive_t incoming, outgoing;
@@ -286,6 +234,58 @@ static int interface_read(void) {
 
   fclose(fh);
   /* #endif KERNEL_LINUX */
+
+#elif HAVE_GETIFADDRS
+  struct ifaddrs *if_list;
+
+/* Darwin/Mac OS X and possible other *BSDs */
+#if HAVE_STRUCT_IF_DATA
+#define IFA_DATA if_data
+#define IFA_RX_BYTES ifi_ibytes
+#define IFA_TX_BYTES ifi_obytes
+#define IFA_RX_PACKT ifi_ipackets
+#define IFA_TX_PACKT ifi_opackets
+#define IFA_RX_ERROR ifi_ierrors
+#define IFA_TX_ERROR ifi_oerrors
+  /* #endif HAVE_STRUCT_IF_DATA */
+
+#elif HAVE_STRUCT_NET_DEVICE_STATS
+#define IFA_DATA net_device_stats
+#define IFA_RX_BYTES rx_bytes
+#define IFA_TX_BYTES tx_bytes
+#define IFA_RX_PACKT rx_packets
+#define IFA_TX_PACKT tx_packets
+#define IFA_RX_ERROR rx_errors
+#define IFA_TX_ERROR tx_errors
+#else
+#error "No suitable type for `struct ifaddrs->ifa_data' found."
+#endif
+
+  struct IFA_DATA *if_data;
+
+  if (getifaddrs(&if_list) != 0)
+    return -1;
+
+  for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL;
+       if_ptr = if_ptr->ifa_next) {
+    if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
+      if_data = (struct IFA_DATA *)if_ptr->ifa_data;
+
+      if (!report_inactive && if_data->IFA_RX_PACKT == 0 &&
+          if_data->IFA_TX_PACKT == 0)
+        continue;
+
+      if_submit(if_ptr->ifa_name, "if_octets", if_data->IFA_RX_BYTES,
+                if_data->IFA_TX_BYTES);
+      if_submit(if_ptr->ifa_name, "if_packets", if_data->IFA_RX_PACKT,
+                if_data->IFA_TX_PACKT);
+      if_submit(if_ptr->ifa_name, "if_errors", if_data->IFA_RX_ERROR,
+                if_data->IFA_TX_ERROR);
+    }
+  }
+
+  freeifaddrs(if_list);
+  /* #endif HAVE_GETIFADDRS */
 
 #elif HAVE_LIBKSTAT
   derive_t rx;

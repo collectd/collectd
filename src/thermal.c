@@ -103,7 +103,7 @@ static int thermal_procfs_device_read(const char __attribute__((unused)) * dir,
   if ((len < 0) || ((size_t)len >= sizeof(filename)))
     return -1;
 
-  len = (ssize_t)read_file_contents(filename, data, sizeof(data));
+  len = (ssize_t)read_text_file_contents(filename, data, sizeof(data));
   if ((len > 0) && ((size_t)len > sizeof(str_temp)) && (data[--len] == '\n') &&
       (!strncmp(data, str_temp, sizeof(str_temp) - 1))) {
     char *endptr = NULL;
