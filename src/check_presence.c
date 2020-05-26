@@ -285,31 +285,6 @@ static int stop_thread(void) /* {{{ */
   return status;
 } /* }}} int stop_thread */
 
-static int presence_init(void) {
-
-  if (!state_datastore) {
-    return 0;
-  }
-
-  int rc = mdb_env_create(&env);
-  if (rc) {
-    ERROR(PLUGIN_NAME " plugin: mdb_env_create failed: %s (%d)",
-          mdb_strerror(rc), rc);
-    return -1;
-  }
-
-  rc = mdb_env_open(env, state_datastore, MDB_NOSUBDIR, 0664);
-  if (rc) {
-    ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)",
-          state_datastore, mdb_strerror(rc), rc);
-    mdb_env_close(env);
-    env = NULL;
-    return -1;
-  }
-
-  return start_thread();
-}
-
 static int presence_shutdown(void) {
 
   if (env) {
@@ -326,11 +301,6 @@ static int presence_shutdown(void) {
 
 static int presence_write(const data_set_t *ds, const value_list_t *vl,
                           __attribute__((unused)) user_data_t *user_data) {
-
-  /* step aside quitely if not configured */
-  if (!env) {
-    return 0;
-  }
 
   struct timeval tv_now = {0};
 
@@ -499,6 +469,35 @@ static int presence_write(const data_set_t *ds, const value_list_t *vl,
   return 0;
 }
 
+static int presence_init(void) {
+
+  if (!state_datastore) {
+    INFO(PLUGIN_NAME " plugin: StateDataStore is unset, plugin is disabled.");
+    return 0;
+  }
+
+  int rc = mdb_env_create(&env);
+  if (rc) {
+    ERROR(PLUGIN_NAME " plugin: mdb_env_create failed: %s (%d)",
+          mdb_strerror(rc), rc);
+    return -1;
+  }
+
+  rc = mdb_env_open(env, state_datastore, MDB_NOSUBDIR, 0664);
+  if (rc) {
+    ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)",
+          state_datastore, mdb_strerror(rc), rc);
+    mdb_env_close(env);
+    env = NULL;
+    return -1;
+  }
+
+  plugin_register_write(PLUGIN_NAME, presence_write, NULL);
+  plugin_register_shutdown(PLUGIN_NAME, presence_shutdown);
+
+  return start_thread();
+}
+
 static int presence_config(const char *key, const char *value) {
   if (strcasecmp(key, "STATEDATASTORE") == 0) {
     if (value != NULL && strcmp(value, "") != 0) {
@@ -530,6 +529,4 @@ void module_register(void) {
   plugin_register_init(PLUGIN_NAME, presence_init);
   plugin_register_config(PLUGIN_NAME, presence_config, config_keys,
                          config_keys_num);
-  plugin_register_write(PLUGIN_NAME, presence_write, NULL);
-  plugin_register_shutdown(PLUGIN_NAME, presence_shutdown);
 }
