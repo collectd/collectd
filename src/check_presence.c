@@ -42,16 +42,16 @@
 
 #define DEFAULT_STATE_DATASTORE "check-presence"
 #define DEFAULT_HOST_TIMEOUT 20
-#define DEFAULT_THREAD_INTERVAL 2
+#define DEFAULT_CHECK_INTERVAL 10
 #define DEFAULT_STARTUP_DELAY 20
 
 static const char *config_keys[] = {"STATEDATASTORE", "HOSTTIMEOUT",
-                                    "STARTUPDELAY"};
+                                    "STARTUPDELAY", "CHECKINTERVAL"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static char *state_datastore = DEFAULT_STATE_DATASTORE;
 static int host_timeout = DEFAULT_HOST_TIMEOUT;
 static int startup_delay = DEFAULT_STARTUP_DELAY;
-static int thread_interval = DEFAULT_THREAD_INTERVAL;
+static int check_interval = DEFAULT_CHECK_INTERVAL;
 
 static pthread_mutex_t presence_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t presence_cond = PTHREAD_COND_INITIALIZER;
@@ -221,7 +221,7 @@ static void *presence_thread(void *arg) /* {{{ */
     if (presence_thread_loop <= 0)
       break;
 
-    ts_wait.tv_sec = tv_now.tv_sec + thread_interval;
+    ts_wait.tv_sec = tv_now.tv_sec + check_interval;
     ts_wait.tv_nsec = 0;
 
     pthread_cond_timedwait(&presence_cond, &presence_lock, &ts_wait);
@@ -515,6 +515,11 @@ static int presence_config(const char *key, const char *value) {
   } else if (strcasecmp(key, "STARTUPDELAY") == 0) {
     if (value != NULL) {
       startup_delay = atoi(value);
+    }
+    return 0;
+  } else if (strcasecmp(key, "CHECKINTERVAL") == 0) {
+    if (value != NULL) {
+      check_interval = atoi(value);
     }
     return 0;
   } else

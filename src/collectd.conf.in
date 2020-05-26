@@ -408,6 +408,7 @@
 #    StateDatastore "check-presence"
 #    HostTimeout 20
 #    StartupDelay 20
+#    CheckInterval 10
 #</Plugin>
 
 #<Plugin chrony>

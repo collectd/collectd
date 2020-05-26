@@ -1682,6 +1682,12 @@ missing. Defaults to B<20>.
 Number of seconds after startup to suppress missing notifications. Defaults to B<20>,
 which is twice the value of Interval.
 
+=item B<CheckInterval> I<Seconds>
+
+Interval in seconds between checking that hosts are present. Defaults to B<10>,
+which is half the value of B<HostTimeout>. The lower this value, the sooner a
+missing host is detected, but at the cost of more CPU usage.
+
 =back
 
 =head2 Plugin C<check_uptime>
