@@ -247,8 +247,7 @@ static int start_thread(void) /* {{{ */
   }
 
   presence_thread_loop = 1;
-  int status = plugin_thread_create(&presence_thread_id,
-                                    presence_thread,
+  int status = plugin_thread_create(&presence_thread_id, presence_thread,
                                     /* arg = */ (void *)0, PLUGIN_NAME);
   if (status != 0) {
     presence_thread_loop = 0;
