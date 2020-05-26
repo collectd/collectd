@@ -247,9 +247,9 @@ static int start_thread(void) /* {{{ */
   }
 
   presence_thread_loop = 1;
-  int status = plugin_thread_create(&presence_thread_id, /* attr = */ NULL,
+  int status = plugin_thread_create(&presence_thread_id,
                                     presence_thread,
-                                    /* arg = */ (void *)0, "host");
+                                    /* arg = */ (void *)0, PLUGIN_NAME);
   if (status != 0) {
     presence_thread_loop = 0;
     ERROR(PLUGIN_NAME " plugin: starting thread failed.");
@@ -417,7 +417,7 @@ static int presence_write(const data_set_t *ds, const value_list_t *vl,
      * it is good enough, exit cheaply
      */
 
-    struct timeval *tv_then = data.mv_data;
+    struct timeval *tv_then;
 
     if (data.mv_size == sizeof(struct timespec) && ((tv_then = data.mv_data)) &&
         (tv_then->tv_sec == tv_now.tv_sec)) {
