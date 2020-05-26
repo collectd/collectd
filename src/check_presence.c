@@ -87,7 +87,7 @@ static void *presence_thread(void *arg) /* {{{ */
    */
   struct timespec ts_wait = {0};
 
-  ts_wait.tv_sec = tv_begin.tv_sec + startup_delay + thread_interval;
+  ts_wait.tv_sec = tv_begin.tv_sec + startup_delay;
   ts_wait.tv_nsec = 0;
 
   pthread_cond_timedwait(&presence_cond, &presence_lock, &ts_wait);
@@ -183,7 +183,7 @@ static void *presence_thread(void *arg) /* {{{ */
 
       struct timeval *tv_then = data.mv_data;
 
-      if (tv_now.tv_sec - tv_then->tv_sec >= host_timeout + thread_interval) {
+      if (tv_now.tv_sec - tv_then->tv_sec >= host_timeout) {
 
         char message[NOTIF_MAX_MSG_LEN];
 

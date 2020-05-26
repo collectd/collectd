@@ -1663,9 +1663,8 @@ The check_presence plugin provides a grace period after starting up for hosts to
 tell us they are still present, catching hosts that have gone missing during our
 restart. The grace period is controlled with the B<StartupDelay> option.
 
-An additional two seconds are added on top of B<HostTimeout> and B<StartupDelay>
-automatically to ensure there are no race conditions where a host might be
-declared missing but then immediately found.
+Note: Both the B<HostTimeout> and B<StartupDelay> values must be greater than
+the Interval, otherwise hosts will be marked missing and then newly rediscovered.
 
 =over 4
 
