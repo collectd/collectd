@@ -213,10 +213,10 @@ static int zookeeper_read(void) {
       zookeeper_submit_gauge("gauge", "watch", atol(fields[1]));
     } else if (FIELD_CHECK(fields[0], "zk_ephemerals_count")) {
       zookeeper_submit_gauge("gauge", "ephemerals", atol(fields[1]));
-    } else if (FIELD_CHECK(fields[0], "zk_ephemerals_count")) {
-      zookeeper_submit_gauge("gauge", "ephemerals", atol(fields[1]));
-    } else if (FIELD_CHECK(fields[0], "zk_ephemerals_count")) {
-      zookeeper_submit_gauge("gauge", "ephemerals", atol(fields[1]));
+    } else if (FIELD_CHECK(fields[0], "zk_open_file_descriptor_count")) {
+      zookeeper_submit_gauge("file_handles", "open", atol(fields[1]));
+    } else if (FIELD_CHECK(fields[0], "zk_max_file_descriptor_count")) {
+      zookeeper_submit_gauge("file_handles", "max", atol(fields[1]));
     } else if (FIELD_CHECK(fields[0], "zk_approximate_data_size")) {
       zookeeper_submit_gauge("bytes", "approximate_data_size", atol(fields[1]));
     } else if (FIELD_CHECK(fields[0], "zk_followers")) {
