@@ -47,7 +47,10 @@
 #include <linux/pkt_sched.h>
 #endif
 
+#include <glob.h>
 #include <libmnl/libmnl.h>
+
+#define NETLINK_VF_DEFAULT_BUF_SIZE_KB 16
 
 struct ir_link_stats_storage_s {
 
@@ -135,6 +138,7 @@ static char **iflist;
 static size_t iflist_len;
 
 static bool collect_vf_stats = false;
+static size_t nl_socket_buffer_size = NETLINK_VF_DEFAULT_BUF_SIZE_KB * 1024;
 
 static const char *config_keys[] = {
     "Interface", "VerboseInterface", "QDisc",         "Class",
@@ -987,6 +991,62 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
   return MNL_CB_OK;
 } /* int qos_filter_cb */
 
+static size_t ir_get_buffer_size() {
+  if (collect_vf_stats == false) {
+    return MNL_SOCKET_BUFFER_SIZE;
+  }
+
+  glob_t g;
+  unsigned int max_num = 0;
+  if (glob("/sys/class/net/*/device/sriov_totalvfs", GLOB_NOSORT, NULL, &g)) {
+    ERROR("netlink plugin: ir_get_buffer_size: glob failed");
+    /* using default value */
+    return NETLINK_VF_DEFAULT_BUF_SIZE_KB * 1024;
+  }
+
+  for (size_t i = 0; i < g.gl_pathc; i++) {
+    char buf[16];
+    ssize_t len;
+    int num = 0;
+    int fd = open(g.gl_pathv[i], O_RDONLY);
+    if (fd < 0) {
+      WARNING("netlink plugin: ir_get_buffer_size: failed to open `%s.`",
+              g.gl_pathv[i]);
+      continue;
+    }
+
+    if ((len = read(fd, buf, sizeof(buf) - 1)) <= 0) {
+      WARNING("netlink plugin: ir_get_buffer_size: failed to read `%s.`",
+              g.gl_pathv[i]);
+      close(fd);
+      continue;
+    }
+    buf[len] = '\0';
+
+    if (sscanf(buf, "%d", &num) != 1) {
+      WARNING("netlink plugin: ir_get_buffer_size: failed to read number from "
+              "`%s.`",
+              buf);
+      close(fd);
+      continue;
+    }
+
+    if (num > max_num)
+      max_num = num;
+
+    close(fd);
+  }
+  globfree(&g);
+  DEBUG("netlink plugin: ir_get_buffer_size: max sriov_totalvfs = %u", max_num);
+
+  unsigned int mp = NETLINK_VF_DEFAULT_BUF_SIZE_KB;
+  /* allign to power of two, buffer size should be at least totalvfs/2 kb */
+  while (mp < max_num / 2)
+    mp *= 2;
+
+  return mp * 1024;
+}
+
 static int ir_config(const char *key, const char *value) {
   char *new_val;
   char *fields[8];
@@ -1072,11 +1132,14 @@ static int ir_init(void) {
     return -1;
   }
 
+  nl_socket_buffer_size = ir_get_buffer_size();
+  INFO("netlink plugin: ir_init: buffer size = %zu", nl_socket_buffer_size);
+
   return 0;
 } /* int ir_init */
 
 static int ir_read(void) {
-  char buf[MNL_SOCKET_BUFFER_SIZE];
+  char buf[nl_socket_buffer_size];
   struct nlmsghdr *nlh;
   struct rtgenmsg *rt;
   int ret;
