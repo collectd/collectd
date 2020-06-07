@@ -48,13 +48,14 @@ cgroups_submit_one(char const *plugin_instance, char const *type_instance,
   plugin_dispatch_values(&vl);
 } /* void cgroups_submit_one */
 
+static int read_cpuacct_walk(const char *, const char *, void *);
+
 /*
- * This callback reads the user/system CPU time for each cgroup.
+ * Read cpuacct info starting from dirname. This function is called recursively
+ * for child cgroups.
  */
-static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
-                              void *user_data) {
+static int read_cpuacct(const char *dirname, const char *cgroup_name) {
   char abs_path[PATH_MAX];
-  struct stat statbuf;
   char buf[1024];
   int status;
 
@@ -63,20 +64,8 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
   if (ignorelist_match(il_cgroup, cgroup_name))
     return 0;
 
-  snprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, cgroup_name);
+  snprintf(abs_path, sizeof(abs_path), "%s/cpuacct.stat", dirname);
 
-  status = lstat(abs_path, &statbuf);
-  if (status != 0) {
-    ERROR("cgroups plugin: stat (\"%s\") failed.", abs_path);
-    return -1;
-  }
-
-  /* We are only interested in directories, so skip everything else. */
-  if (!S_ISDIR(statbuf.st_mode))
-    return 0;
-
-  snprintf(abs_path, sizeof(abs_path), "%s/%s/cpuacct.stat", dirname,
-           cgroup_name);
   fh = fopen(abs_path, "r");
   if (fh == NULL) {
     ERROR("cgroups plugin: fopen (\"%s\") failed: %s", abs_path, STRERRNO);
@@ -120,17 +109,15 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
 
     cgroups_submit_one(cgroup_name, key, value);
   }
-
   fclose(fh);
-  return 0;
-} /* int read_cpuacct_procs */
 
-/*
- * Gets called for every file/folder in /sys/fs/cgroup/cpu,cpuacct (or
- * wherever cpuacct is mounted on the system). Calls walk_directory with the
- * read_cpuacct_procs callback on every folder it finds, such as "system".
- */
-static int read_cpuacct_root(const char *dirname, const char *filename,
+  /* Walk child directories to find child cgroups */
+  return walk_directory(dirname, read_cpuacct_walk,
+                        /* user_data = */ (void *)cgroup_name,
+                        /* include_hidden = */ 0);
+} /* int read_cpuacct */
+
+static int read_cpuacct_walk(const char *dirname, const char *filename,
                              void *user_data) {
   char abs_path[PATH_MAX];
   struct stat statbuf;
@@ -143,16 +130,20 @@ static int read_cpuacct_root(const char *dirname, const char *filename,
     ERROR("cgroups plugin: stat (%s) failed.", abs_path);
     return -1;
   }
+  /* We are only interested in directories, so skip everything else. */
+  if (!S_ISDIR(statbuf.st_mode))
+    return 0;
 
-  if (S_ISDIR(statbuf.st_mode)) {
-    status = walk_directory(abs_path, read_cpuacct_procs,
-                            /* user_data = */ NULL,
-                            /* include_hidden = */ 0);
-    return status;
+  const char *cgroup_name = user_data;
+  char new_cgroup_name[PATH_MAX];
+  if (strcmp(cgroup_name, "/") == 0) {
+    snprintf(new_cgroup_name, sizeof(new_cgroup_name), "/%s", filename);
+  } else {
+    snprintf(new_cgroup_name, sizeof(new_cgroup_name), "%s/%s", cgroup_name,
+             filename);
   }
-
-  return 0;
-}
+  return read_cpuacct(abs_path, new_cgroup_name);
+} /* read_cpuacct_walk */
 
 static int cgroups_init(void) {
   if (il_cgroup == NULL)
@@ -196,9 +187,7 @@ static int cgroups_read(void) {
         !cu_mount_checkoption(mnt_ptr->options, "cpuacct", /* full = */ 1))
       continue;
 
-    walk_directory(mnt_ptr->dir, read_cpuacct_root,
-                   /* user_data = */ NULL,
-                   /* include_hidden = */ 0);
+    read_cpuacct(mnt_ptr->dir, "/");
     cgroup_found = true;
     /* It doesn't make sense to check other cpuacct mount-points
      * (if any), they contain the same data. */
