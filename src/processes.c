@@ -757,7 +757,7 @@ static int ps_init(void) {
     pset_list_len = 0;
     return -1;
   }
-    /* #endif HAVE_THREAD_INFO */
+  /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
   pagesize_g = sysconf(_SC_PAGESIZE);
@@ -771,7 +771,7 @@ static int ps_init(void) {
     }
   }
 #endif
-    /* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS &&                                                  \
     (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD)
@@ -1429,7 +1429,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 } /* int ps_read_process (...) */
 
 static int procs_running(void) {
-  char buffer[4096] = {};
+  char buffer[65536] = {};
   char id[] = "procs_running "; /* white space terminated */
   char *running;
   char *endptr = NULL;
