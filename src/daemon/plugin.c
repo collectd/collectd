@@ -685,6 +685,22 @@ static void stop_read_threads(void) {
   read_threads_num = 0;
 } /* void stop_read_threads */
 
+EXPORT identity_t *identity_create(char const *name) {
+  identity_t *id = calloc(1, sizeof(*id));
+  if (id == NULL) {
+    return NULL;
+  }
+
+  id->name = strdup(name);
+  id->labels = c_avl_create((void *)strcmp);
+  if ((id->name == NULL) || (id->labels == NULL)) {
+    sfree(id);
+    return NULL;
+  }
+
+  return id;
+}
+
 EXPORT identity_t *identity_create_legacy(const char *plugin, const char *type,
                                           const char *ds_name,
                                           const char *host) {
@@ -745,20 +761,54 @@ EXPORT identity_t *identity_clone(identity_t const *id_orig) {
   return id;
 }
 
-EXPORT identity_t *identity_create(char const *name) {
-  identity_t *id = calloc(1, sizeof(*id));
-  if (id == NULL) {
-    return NULL;
+EXPORT int identity_compare(identity_t const *a, identity_t const *b) {
+  if (a == b) {
+    return 0;
+  }
+  if (a == NULL) {
+    return -1;
+  }
+  if (b == NULL) {
+    return 1;
   }
 
-  id->name = strdup(name);
-  id->labels = c_avl_create((void *)strcmp);
-  if ((id->name == NULL) || (id->labels == NULL)) {
-    sfree(id);
-    return NULL;
+  assert((a != NULL) && (b != NULL));
+  int cmp = strcmp(a->name, b->name);
+  if (cmp != 0) {
+    return cmp;
   }
 
-  return id;
+  int a_num = c_avl_size(a->labels);
+  int b_num = c_avl_size(b->labels);
+  if (a_num != b_num) {
+    return (a_num < b_num) ? -1 : 1;
+  }
+
+  c_avl_iterator_t *a_iter = c_avl_get_iterator(a->labels);
+  c_avl_iterator_t *b_iter = c_avl_get_iterator(b->labels);
+
+  while (cmp == 0) {
+    char *a_key = NULL, *a_value = NULL;
+    char *b_key = NULL, *b_value = NULL;
+
+    int status = c_avl_iterator_next(a_iter, (void *)&a_key, (void *)&a_value);
+    if (status != 0) {
+      break;
+    }
+
+    status = c_avl_iterator_next(b_iter, (void *)&b_key, (void *)&b_value);
+    assert(status != 0);
+
+    cmp = strcmp(a_key, b_key);
+    if (cmp == 0) {
+      cmp = strcmp(a_value, b_value);
+    }
+  }
+
+  c_avl_iterator_destroy(a_iter);
+  c_avl_iterator_destroy(b_iter);
+
+  return cmp;
 }
 
 EXPORT int identity_add_label(identity_t *id, char const *key,

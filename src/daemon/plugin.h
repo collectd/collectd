@@ -448,6 +448,12 @@ identity_t *identity_create_legacy(const char *plugin_p, const char *type_p,
  */
 identity_t *identity_clone(identity_t const *identity_orig);
 
+/* identity_compare compares two identities. It returns zero if a and
+ * b are equal, and -1 or 1 otherwise. The comparison is stable, i.e.
+ * identity_compare can be used for sorting. NULL pointers are
+ * handled gracefully. */
+int identity_compare(identity_t const *a, identity_t const *b);
+
 /*
  * NAME
  * identity_add_label
