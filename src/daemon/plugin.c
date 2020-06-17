@@ -874,26 +874,35 @@ EXPORT int identity_get_name(identity_t *id, char **name_p) {
   return 0;
 }
 
-EXPORT char *plugin_format_metric(const metric_t *metric_p) {
-  char *buffer_p = NULL;
-  int retval = 0;
+/* TODO(octo): plugin_format_metric only formats the identity, i.e. the name is
+ * confusing. */
+/*
+ * TODO(octo): this format does not comply with the OpenMetrics text
+ * representation
+ * (https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format).
+metric_name [
+  "{" label_name "=" `"` label_value `"` { "," label_name "=" `"` label_value
+`"` } [ "," ] "}" ] value [ timestamp ]
+*/
+EXPORT char *plugin_format_metric(const metric_t *m) {
+  if (m == NULL) {
+    return NULL;
+  }
+
   char *host_p = NULL;
-
-  if (metric_p == NULL || metric_p->identity == NULL ||
-      metric_p->identity->labels == NULL) {
-    return buffer_p;
+  int status = identity_get_label(m->identity, "__host__", &host_p);
+  if (status != 0) {
+    ERROR("plugin_format_metric: identity_get_label(\"__host__\") = %d",
+          status);
+    return NULL;
   }
 
-  if (c_avl_get(metric_p->identity->labels, (void *)"__host__",
-                (void **)&host_p) != 0) {
-    return buffer_p;
-  }
   size_t buffer_length = 3 /* @, \n, and the trailing nul */ +
-                         strlen(metric_p->identity->name) + strlen(host_p);
+                         strlen(m->identity->name) + strlen(host_p);
 
-  c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->labels);
+  c_avl_iterator_t *iter_p = c_avl_get_iterator(m->identity->labels);
   if (iter_p == NULL) {
-    return buffer_p;
+    return NULL;
   }
   char *key_p = NULL;
   char *value_p = NULL;
@@ -904,21 +913,25 @@ EXPORT char *plugin_format_metric(const metric_t *metric_p) {
   }
 
   c_avl_iterator_destroy(iter_p);
-  iter_p = c_avl_get_iterator(metric_p->identity->labels);
+  iter_p = c_avl_get_iterator(m->identity->labels);
   if (iter_p == NULL) {
-    return buffer_p;
+    return NULL;
   }
 
-  buffer_p = malloc(buffer_length);
+  char *buffer_p = malloc(buffer_length);
   if (buffer_p == NULL) {
     return buffer_p;
   }
-  retval = snprintf(buffer_p, buffer_length, "%s@%s\n",
-                    metric_p->identity->name, host_p);
+  int retval =
+      snprintf(buffer_p, buffer_length, "%s@%s\n", m->identity->name, host_p);
   while ((c_avl_iterator_next(iter_p, (void **)&key_p, (void **)&value_p)) ==
          0) {
+    /* TODO(octo): the __host__ label should not be reported twice. */
     buffer_length -= (retval - 1); /* discard trailing nul */
     buffer_p += (retval - 1);
+    /* TODO(octo): this will not work, because buffer_p points at the beginning
+     * of the buffer always, i.e. snprintf will overwrite the previous
+     * content. */
     retval = snprintf(buffer_p, buffer_length, "\t%s = %s\n", key_p, value_p);
   }
   return buffer_p;
