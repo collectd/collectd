@@ -701,6 +701,11 @@ EXPORT identity_t *identity_create(char const *name) {
   return id;
 }
 
+EXPORT identity_t *identity_parse(char const *s) {
+  assert("identity_parse is not yet implemented." == NULL);
+  return NULL;
+}
+
 EXPORT identity_t *identity_create_legacy(const char *plugin, const char *type,
                                           const char *ds_name,
                                           const char *host) {

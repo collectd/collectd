@@ -410,6 +410,11 @@ void destroy_metrics_list(metrics_list_t *metrics_list_p);
  * of an out-of-memory situation or if name is NULL. */
 identity_t *identity_create(char const *name);
 
+/* identity_parse takes a string representation of the identity, as produced by
+ * plugin_format_metric(), and returns the matching identity_t.
+ * On error NULL is returned and errno is set appropriately. */
+identity_t *identity_parse(char const *s);
+
 /*
  * NAME
  * identity_create_legacy

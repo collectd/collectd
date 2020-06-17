@@ -253,9 +253,10 @@ int uc_check_timeout(void) {
         .interval = expired[i].interval,
     };
 
-    if (parse_identifier_vl(expired[i].key, &metric) != 0) {
-      ERROR("uc_check_timeout: parse_identifier_vl (\"%s\") failed.",
-            expired[i].key);
+    metric.identity = identity_parse(expired[i].key);
+    if (metric.identity == NULL) {
+      ERROR("uc_check_timeout: parse_identifier_vl (\"%s\") failed: %s",
+            expired[i].key, STRERRNO);
       continue;
     }
 
