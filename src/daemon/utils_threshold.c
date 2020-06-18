@@ -71,45 +71,22 @@ threshold_t *threshold_get(const char *hostname, const char *plugin,
  * "Host", "Plugin", "Type", "Data Source" values. Returns NULL if no threshold
  * could be found.
  *
- * XXX: This is likely the least efficient function in collectd, and does not
- *      (yet) pay any attention to labels beyond __host__
+ * TODO(octo): threshold_search only searches by host name right now; should
+ * also search by metric name and possibly other labels.
  */
-threshold_t *threshold_search(const metric_t *metric_p) { /* {{{ */
-  threshold_t *th = NULL;
-  if (metric_p == NULL) {
-    return th;
-  }
-  char *host_p = NULL;
-  int retval = c_avl_get(metric_p->identity->root_p, (void *)"__host__",
-                         (void **)&host_p);
-  if (retval != 0) {
-    return th;
+threshold_t *threshold_search(const metric_t *m) { /* {{{ */
+  if (m == NULL) {
+    return NULL;
   }
 
-  if ((th = threshold_get(host_p, metric_p->plugin, metric_p->type,
-                          metric_p->ds->name)) != NULL)
-    ;
-  else if ((th = threshold_get(host_p, metric_p->plugin, metric_p->type,
-                               NULL)) != NULL)
-    ;
-  else if ((th = threshold_get(host_p, "", metric_p->type,
-                               metric_p->ds->name)) != NULL)
-    ;
-  else if ((th = threshold_get(host_p, "", metric_p->type, NULL)) != NULL)
-    ;
-  else if ((th = threshold_get("", metric_p->plugin, metric_p->type,
-                               metric_p->ds->name)) != NULL)
-    ;
-  else if ((th = threshold_get("", metric_p->plugin, metric_p->type, NULL)) !=
-           NULL)
-    ;
-  else if ((th = threshold_get("", "", metric_p->type, metric_p->ds->name)) !=
-           NULL)
-    ;
-  else if ((th = threshold_get("", "", metric_p->type, NULL)) != NULL)
-    ;
+  char *host = NULL;
+  int status = identity_get_label(m->identity, "__host__", &host);
+  if (status != 0) {
+	  return NULL;
+  }
 
-  sfree(host_p);
+  threshold_t *th = threshold_get(host, NULL, NULL, NULL);
+  sfree(host);
   return th;
 } /* }}} threshold_t *threshold_search */
 
