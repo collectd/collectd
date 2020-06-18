@@ -1236,45 +1236,23 @@ int notification_init(notification_t *n, int severity, const char *message,
 } /* int notification_init */
 
 int notification_init_metric(notification_t *n, int severity,
-                             const char *message, const metric_t *metric_p) {
-  int status = -1;
-  if ((metric_p == NULL) || (metric_p->identity == NULL) ||
-      (metric_p->identity->name == NULL) || (metric_p->ds == NULL)) {
-    return status;
-  }
-  char *name_p = strdup(metric_p->identity->name);
-  if (name_p == NULL) {
-    return status;
+                             char const *message, metric_t const *m) {
+  if ((n == NULL) || (message == NULL) || (m == NULL)) {
+    return EINVAL;
   }
 
-  char *save_p = NULL;
-  char *plugin_p = strtok_r(name_p, "/", &save_p);
-  char *host_p = NULL;
-  char *plugin_instance = NULL;
-  char *type_instance = NULL;
-  char *key_p = NULL;
-  status = identity_get_label(metric_p->identity, "_host", &key_p, &host_p);
-  if (status) {
-    sfree(name_p);
-    return status;
-  }
-  status = identity_get_label(metric_p->identity, "plugin_instance", &key_p,
-                              &plugin_instance);
-  if (status) {
-    sfree(name_p);
-    return status;
-  }
-  status = identity_get_label(metric_p->identity, "type_instance", &key_p,
-                              &type_instance);
-  if (status) {
-    sfree(name_p);
-    return status;
-  }
+  (*n) = (notification_t){
+	  /* TODO(octo): add "identity" to the notification_t type. */
+	  /* .identity = identity_clone(m->identity), */
+	  .severity = severity,
+	  .time = m->time,
+	  /* TODO(octo): change the type of the "meta" field to "meta_data_t". */
+	  /* .meta = meta_data_clone(m->meta), */
+  };
 
-  status = notification_init(n, severity, message, host_p, plugin_p,
-                             plugin_instance, metric_p->type, type_instance);
-  sfree(name_p);
-  return status;
+  sstrncpy(n->message, message, sizeof(n->message));
+
+  return 0;
 }
 
 int walk_directory(const char *dir, dirwalk_callback_f callback,
