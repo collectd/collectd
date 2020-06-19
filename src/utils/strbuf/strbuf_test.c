@@ -28,11 +28,11 @@
 #include "utils/strbuf/strbuf.h"
 
 #include <errno.h>
+#include <stdbool.h>
 
-DEF_TEST(dynamic) {
-  strbuf_t *buf;
-  CHECK_NOT_NULL(buf = strbuf_create());
+#define STATIC_BUFFER_SIZE 8
 
+int test_buffer(strbuf_t *buf, bool is_static) {
   CHECK_ZERO(strbuf_print(buf, "foo"));
   EXPECT_EQ_STR("foo", buf->ptr);
 
@@ -40,49 +40,72 @@ DEF_TEST(dynamic) {
   EXPECT_EQ_STR("foobar", buf->ptr);
 
   CHECK_ZERO(strbuf_printf(buf, "%d\n", 9000));
-  EXPECT_EQ_STR("foobar9000\n", buf->ptr);
+  char const *want = is_static ? "foobar9" : "foobar9000\n";
+  EXPECT_EQ_STR(want, buf->ptr);
+
+  if (is_static) {
+    EXPECT_EQ_INT(ENOSPC, strbuf_print(buf, "buffer already filled"));
+    EXPECT_EQ_STR("foobar9", buf->ptr);
+  }
 
   strbuf_reset(buf);
   CHECK_ZERO(strlen(buf->ptr));
 
   CHECK_ZERO(strbuf_print(buf, "new content"));
-  EXPECT_EQ_STR("new content", buf->ptr);
+  want = is_static ? "new con" : "new content";
+  EXPECT_EQ_STR(want, buf->ptr);
 
-  strbuf_destroy(buf);
   return 0;
 }
 
-DEF_TEST(static) {
+DEF_TEST(dynamic_heap) {
+  strbuf_t *buf;
+  CHECK_NOT_NULL(buf = strbuf_create());
+
+  int status = test_buffer(buf, false);
+
+  strbuf_destroy(buf);
+  return status;
+}
+
+DEF_TEST(static_heap) {
   char mem[8];
   strbuf_t *buf;
   CHECK_NOT_NULL(buf = strbuf_create_static(mem, sizeof(mem)));
 
-  CHECK_ZERO(strbuf_print(buf, "foo"));
-  EXPECT_EQ_STR("foo", buf->ptr);
-
-  CHECK_ZERO(strbuf_print(buf, "bar"));
-  EXPECT_EQ_STR("foobar", buf->ptr);
-
-  CHECK_ZERO(strbuf_printf(buf, "%d\n", 9000));
-  EXPECT_EQ_STR("foobar9", buf->ptr);
-
-  EXPECT_EQ_INT(ENOSPC, strbuf_print(buf, "buffer already filled"));
-  EXPECT_EQ_STR("foobar9", buf->ptr);
-
-  strbuf_reset(buf);
-  CHECK_ZERO(strlen(buf->ptr));
-
-  CHECK_ZERO(strbuf_print(buf, "new content"));
-  EXPECT_EQ_STR("new con", buf->ptr);
+  int status = test_buffer(buf, true);
 
   strbuf_destroy(buf);
-  return 0;
+  return status;
+}
+
+DEF_TEST(dynamic_stack) {
+  strbuf_t *buf;
+  CHECK_NOT_NULL(buf = STRBUF_CREATE);
+
+  int status = test_buffer(buf, false);
+
+  STRBUF_DESTROY(buf);
+  return status;
+}
+
+DEF_TEST(static_stack) {
+  char mem[8];
+  strbuf_t *buf;
+  CHECK_NOT_NULL(buf = STRBUF_CREATE_STATIC(mem));
+
+  int status = test_buffer(buf, true);
+
+  STRBUF_DESTROY(buf);
+  return status;
 }
 
 int main(int argc, char **argv) /* {{{ */
 {
-  RUN_TEST(dynamic);
-  RUN_TEST(static);
+  RUN_TEST(dynamic_heap);
+  RUN_TEST(static_heap);
+  RUN_TEST(dynamic_stack);
+  RUN_TEST(static_stack);
 
   END_TEST;
 } /* }}} int main */

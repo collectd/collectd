@@ -34,17 +34,17 @@ typedef struct {
   _Bool fixed;
 } strbuf_t;
 
-#define STRBUF_NEW                                                             \
+#define STRBUF_CREATE                                                          \
   &(strbuf_t) { .ptr = NULL }
-#define STRBUF_NEW_STATIC(b)                                                   \
+#define STRBUF_CREATE_STATIC(b)                                                \
   &(strbuf_t) { .ptr = b, .size = sizeof(b), .fixed = 1 }
-#define STRBUF_DELETE(buf)                                                     \
+#define STRBUF_DESTROY(buf)                                                    \
   do {                                                                         \
     if (!buf->fixed) {                                                         \
       free(buf->ptr);                                                          \
     }                                                                          \
     *buf = (strbuf_t){.ptr = NULL};                                            \
-  }
+  } while (0)
 
 strbuf_t *strbuf_create(void);
 strbuf_t *strbuf_create_static(void *buffer, size_t buffer_size);
