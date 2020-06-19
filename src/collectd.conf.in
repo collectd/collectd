@@ -170,6 +170,7 @@
 #@BUILD_PLUGIN_NETLINK_TRUE@LoadPlugin netlink
 @LOAD_PLUGIN_NETWORK@LoadPlugin network
 #@BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
+#@BUILD_PLUGIN_NFTABLES_TRUE@LoadPlugin nftables
 #@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
@@ -1246,6 +1247,10 @@
 #	ReportV2 false
 #	#ReportV3 false
 #	#ReportV4 false
+#</Plugin>
+
+#<Plugin nftables>
+#	table chain
 #</Plugin>
 
 #<Plugin nginx>
