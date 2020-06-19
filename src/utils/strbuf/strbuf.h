@@ -34,10 +34,20 @@ typedef struct {
   _Bool fixed;
 } strbuf_t;
 
+/* STRBUF_CREATE allocates a new strbuf_t on the stack, which must be freed
+ * using STRBUF_DESTROY before returning from the function. Failure to call
+ * STRBUF_DESTROY will leak the memory allocated to (strbuf_t).ptr. */
 #define STRBUF_CREATE                                                          \
   &(strbuf_t) { .ptr = NULL }
+
+/* STRBUF_CREATE_STATIC allocates a new strbuf_t on the stack, using the fixed
+ * sized buffer "b". You may optionally call STRBUF_DESTROY with a fixed-sized
+ * buffer. */
 #define STRBUF_CREATE_STATIC(b)                                                \
   &(strbuf_t) { .ptr = b, .size = sizeof(b), .fixed = 1 }
+
+/* STRBUF_DESTROY frees the memory allocated inside the buffer. The buffer
+ * itself is assumed to be allocated on the stack and is not freed. */
 #define STRBUF_DESTROY(buf)                                                    \
   do {                                                                         \
     if (!buf->fixed) {                                                         \
@@ -46,8 +56,16 @@ typedef struct {
     *buf = (strbuf_t){.ptr = NULL};                                            \
   } while (0)
 
+/* strbuf_create allocates a new strbuf_t on the heap, which must be freed
+ * using strbuf_destroy. */
 strbuf_t *strbuf_create(void);
+
+/* strbuf_create_static allocates a new strbuf_t on the stack, using the fixed
+ * sized buffer "buffer". The returned strbuf_t* must be freed using
+ * strbuf_destroy. */
 strbuf_t *strbuf_create_static(void *buffer, size_t buffer_size);
+
+/* strbuf_destroy frees a strbuf_t* allocated on the heap. */
 void strbuf_destroy(strbuf_t *buf);
 
 /* strbuf_reset empties the buffer. If the buffer is dynamically allocated, it
