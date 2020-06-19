@@ -95,7 +95,7 @@ static int strbuf_resize(strbuf_t *buf, size_t need) {
 
 strbuf_t *strbuf_create(void) { return calloc(1, sizeof(strbuf_t)); }
 
-strbuf_t *strbuf_create_static(void *buffer, size_t buffer_size) {
+strbuf_t *strbuf_create_fixed(void *buffer, size_t buffer_size) {
   strbuf_t *buf = calloc(1, sizeof(*buf));
   if (buf == NULL)
     return NULL;
