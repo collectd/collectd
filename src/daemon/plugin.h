@@ -31,6 +31,7 @@
 #include "collectd.h"
 
 #include "configfile.h"
+#include "metric.h"
 #include "utils/metadata/meta_data.h"
 #include "utils_time.h"
 
@@ -82,17 +83,6 @@ struct identifier_s {
   char *type_instance;
 };
 typedef struct identifier_s identifier_t;
-
-typedef unsigned long long counter_t;
-typedef double gauge_t;
-typedef int64_t derive_t;
-
-union value_u {
-  counter_t counter;
-  gauge_t gauge;
-  derive_t derive;
-};
-typedef union value_u value_t;
 
 struct value_list_s {
   value_t *values;

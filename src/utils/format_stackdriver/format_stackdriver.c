@@ -150,7 +150,7 @@ static int format_typed_value(yajl_gen gen, int ds_type, value_t v,
   }
   case DS_TYPE_COUNTER: {
     counter_t diff = counter_diff((counter_t)start_value, v.counter);
-    ssnprintf(integer, sizeof(integer), "%llu", diff);
+    ssnprintf(integer, sizeof(integer), "%" PRIu64, diff);
     break;
   }
   default: {

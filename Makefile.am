@@ -139,6 +139,7 @@ noinst_LTLIBRARIES = \
 	libllist.la \
 	liblookup.la \
 	libmetadata.la \
+	libmetric.la \
 	libmount.la \
 	liboconfig.la \
 	libstrbuf.la
@@ -152,6 +153,7 @@ check_PROGRAMS = \
 	test_common \
 	test_format_graphite \
 	test_meta_data \
+	test_metric \
 	test_utils_avltree \
 	test_utils_cmds \
 	test_utils_heap \
@@ -268,6 +270,7 @@ collectd_LDADD = \
 	libcommon.la \
 	libheap.la \
 	libllist.la \
+	libmetric.la \
 	liboconfig.la \
 	-lm \
 	$(COMMON_LIBS) \
@@ -353,6 +356,11 @@ test_meta_data_SOURCES = \
 	src/testing.h
 test_meta_data_LDADD = libmetadata.la libplugin_mock.la
 
+test_metric_SOURCES = \
+	src/daemon/metric_test.c \
+	src/testing.h
+test_metric_LDADD = libmetric.la libplugin_mock.la
+
 test_utils_avltree_SOURCES = \
 	src/utils/avltree/avltree_test.c \
 	src/testing.h
@@ -416,6 +424,11 @@ libllist_la_SOURCES = \
 libmetadata_la_SOURCES = \
 	src/utils/metadata/meta_data.c \
 	src/utils/metadata/meta_data.h
+
+libmetric_la_SOURCES = \
+		       src/daemon/metric.c \
+		       src/daemon/metric.h
+libmetric_la_LIBADD = libmetadata.la $(COMMON_LIBS)
 
 libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
