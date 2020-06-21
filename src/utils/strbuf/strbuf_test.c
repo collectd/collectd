@@ -55,6 +55,12 @@ int test_buffer(strbuf_t *buf, bool is_static) {
   want = is_static ? "new cont" : "new content";
   EXPECT_EQ_STR(want, buf->ptr);
 
+  strbuf_reset(buf);
+  CHECK_ZERO(strlen(buf->ptr));
+
+  CHECK_ZERO(strbuf_printn(buf, "foobar", 3));
+  EXPECT_EQ_STR("foo", buf->ptr);
+
   return 0;
 }
 
@@ -115,6 +121,62 @@ DEF_TEST(static_stack) {
   return status;
 }
 
+DEF_TEST(print_escaped) {
+  struct {
+    char const *s;
+    char const *need_escape;
+    char escape_char;
+    char const *want;
+  } cases[] = {
+      {
+          .s = "normal string",
+          .need_escape = "\\\"\n\r\t",
+          .escape_char = '\\',
+          .want = "normal string",
+      },
+      {
+          .s = "\"special\"\n",
+          .need_escape = "\\\"\n\r\t",
+          .escape_char = '\\',
+          .want = "\\\"special\\\"\\n",
+      },
+      {
+          /* string gets truncated */
+          .s = "0123456789ABCDEF",
+          .need_escape = ">",
+          .escape_char = '<',
+          .want = "0123456789ABCDE",
+      },
+      {
+          /* string gets truncated */
+          .s = "0123456789>BCDEF",
+          .need_escape = ">",
+          .escape_char = '<',
+          .want = "0123456789<>BCD",
+      },
+      {
+          /* truncation between escape_char and to-be-escaped char. */
+          .s = "0123456789ABCD>F",
+          .need_escape = ">",
+          .escape_char = '<',
+          .want = "0123456789ABCD",
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
+    char mem[16] = {0};
+    strbuf_t buf = STRBUF_CREATE_STATIC(mem);
+
+    CHECK_ZERO(strbuf_print_escaped(&buf, cases[i].s, cases[i].need_escape,
+                                    cases[i].escape_char));
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
+
+    STRBUF_DESTROY(buf);
+  }
+
+  return 0;
+}
+
 int main(int argc, char **argv) /* {{{ */
 {
   RUN_TEST(dynamic_heap);
@@ -122,6 +184,7 @@ int main(int argc, char **argv) /* {{{ */
   RUN_TEST(dynamic_stack);
   RUN_TEST(fixed_stack);
   RUN_TEST(static_stack);
+  RUN_TEST(print_escaped);
 
   END_TEST;
 } /* }}} int main */

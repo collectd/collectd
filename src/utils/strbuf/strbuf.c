@@ -196,3 +196,82 @@ int strbuf_printf(strbuf_t *buf, char const *format, ...) {
 
   return 0;
 }
+
+int strbuf_printn(strbuf_t *buf, char const *s, size_t n) {
+  if ((buf == NULL) || (s == NULL))
+    return EINVAL;
+  if (n == 0) {
+    return 0;
+  }
+
+  size_t s_len = strnlen(s, n);
+  int status = strbuf_resize(buf, s_len);
+  if (status != 0)
+    return status;
+
+  size_t bytes = strbuf_avail(buf);
+  if (bytes == 0)
+    return ENOSPC;
+
+  if (bytes > s_len)
+    bytes = s_len;
+
+  memmove(buf->ptr + buf->pos, s, bytes);
+  buf->pos += bytes;
+  buf->ptr[buf->pos] = 0;
+
+  return 0;
+}
+
+int strbuf_print_escaped(strbuf_t *buf, char const *s, char const *need_escape,
+                         char escape_char) {
+  if ((buf == NULL) || (s == NULL) || (need_escape == NULL) ||
+      (escape_char == 0)) {
+    return EINVAL;
+  }
+
+  size_t s_len = strlen(s);
+  while (s_len > 0) {
+    size_t valid_len = strcspn(s, need_escape);
+    if (valid_len == s_len) {
+      return strbuf_print(buf, s);
+    }
+    if (valid_len != 0) {
+      int status = strbuf_printn(buf, s, valid_len);
+      if (status != 0) {
+        return status;
+      }
+
+      s += valid_len;
+      s_len -= valid_len;
+      continue;
+    }
+
+    /* Ensure the escape sequence is not truncated. */
+    if (buf->fixed && (strbuf_avail(buf) < 2)) {
+      return 0;
+    }
+
+    char c = s[0];
+    if (escape_char == '\\') {
+      if (c == '\n') {
+        c = 'n';
+      } else if (c == '\r') {
+        c = 'r';
+      } else if (c == '\t') {
+        c = 't';
+      }
+    }
+
+    char tmp[3] = {escape_char, c, 0};
+    int status = strbuf_print(buf, tmp);
+    if (status != 0) {
+      return status;
+    }
+
+    s++;
+    s_len--;
+  }
+
+  return 0;
+}

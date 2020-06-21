@@ -90,4 +90,16 @@ int strbuf_print(strbuf_t *buf, char const *s);
  * is returned. */
 int strbuf_printf(strbuf_t *buf, char const *format, ...);
 
+/* strbuf_printn adds at most n bytes from "s" to the buffer.  If the size of
+ * the buffer is static and there is no space available in the buffer, ENOSPC
+ * is returned. */
+int strbuf_printn(strbuf_t *buf, char const *s, size_t n);
+
+/* strbuf_print_escaped adds an escaped copy of "s" to the buffer. Each
+ * character in "need_escape" is prefixed by "escape_char". If "escape_char" is
+ * '\' (backslash), newline (\n), cartridge return (\r) and tab (\t) are
+ * handled correctly. */
+int strbuf_print_escaped(strbuf_t *buf, char const *s, char const *need_escape,
+                         char escape_char);
+
 #endif
