@@ -134,6 +134,7 @@ noinst_LTLIBRARIES = \
 	libformat_graphite.la \
 	libformat_json.la \
 	libheap.la \
+	libidentity.la \
 	libignorelist.la \
 	liblatency.la \
 	libllist.la \
@@ -270,6 +271,7 @@ collectd_LDADD = \
 	libavltree.la \
 	libcommon.la \
 	libheap.la \
+	libidentity.la \
 	libllist.la \
 	libmetric.la \
 	liboconfig.la \
@@ -442,6 +444,11 @@ libheap_la_SOURCES = \
 	src/utils/heap/heap.c \
 	src/utils/heap/heap.h
 
+libidentity_la_SOURCES = \
+			 src/daemon/identity.c \
+			 src/daemon/identity.h
+libidentity_la_LIBADD = libavltree.la $(COMMON_LIBS)
+
 libignorelist_la_SOURCES = \
 	src/utils/ignorelist/ignorelist.c \
 	src/utils/ignorelist/ignorelist.h
@@ -473,12 +480,14 @@ libplugin_mock_la_LIBADD = libcommon.la libignorelist.la $(COMMON_LIBS)
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
 	src/utils/format_graphite/format_graphite.h
+libformat_graphite_la_LIBADD = libstrbuf.la $(COMMON_LIBS)
 
 test_format_graphite_SOURCES = \
 	src/utils/format_graphite/format_graphite_test.c \
 	src/testing.h
 test_format_graphite_LDADD = \
 	libformat_graphite.la \
+	libidentity.la \
 	libmetadata.la \
 	libplugin_mock.la \
 	-lm
