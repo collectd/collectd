@@ -114,6 +114,19 @@ http_request_methods    value:DERIVE:0:U
 http_requests           value:DERIVE:0:U
 http_response_codes     value:DERIVE:0:U
 humidity                value:GAUGE:0:100
+ib_cap_mask             value:GAUGE:0:U
+ib_errors               value:DERIVE:0:U
+ib_lid                  value:GAUGE:0:U
+ib_lid_mask_count       value:GAUGE:0:U
+ib_link_error_recovery  value:DERIVE:0:U
+ib_octets               rx:DERIVE:0:U tx:DERIVE:0:U
+ib_packets              rx:DERIVE:0:U tx:DERIVE:0:U
+ib_phys_state           value:GAUGE:0:255
+ib_rate                 value:GAUGE:0:U
+ib_sm_lid               value:GAUGE:0:U
+ib_sm_sl                value:GAUGE:0:U
+ib_state                value:GAUGE:0:255
+ib_xmit_wait            value:DERIVE:0:U
 if_collisions           value:DERIVE:0:U
 if_dropped              rx:DERIVE:0:U, tx:DERIVE:0:U
 if_errors               rx:DERIVE:0:U, tx:DERIVE:0:U

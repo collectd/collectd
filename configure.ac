@@ -6595,6 +6595,7 @@ plugin_gps="no"
 plugin_gpu_nvidia="no"
 plugin_grpc="no"
 plugin_hugepages="no"
+plugin_infiniband="no"
 plugin_intel_pmu="no"
 plugin_intel_rdt="no"
 plugin_interface="no"
@@ -6659,6 +6660,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_fhcount="yes"
   plugin_fscache="yes"
   plugin_hugepages="yes"
+  plugin_infiniband="yes"
   plugin_interface="yes"
   plugin_ipc="yes"
   plugin_irq="yes"
@@ -7057,6 +7059,7 @@ AC_PLUGIN([gpu_nvidia],          [$with_cuda],                [NVIDIA GPU plugin
 AC_PLUGIN([grpc],                [$plugin_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                       [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],         [Hugepages statistics])
+AC_PLUGIN([infiniband],          [$plugin_infiniband],        [Infiniband statistics])
 AC_PLUGIN([intel_pmu],           [$with_libjevents],          [Intel performance monitor plugin])
 AC_PLUGIN([intel_rdt],           [$with_libpqos],             [Intel RDT monitor plugin])
 AC_PLUGIN([interface],           [$plugin_interface],         [Interface traffic statistics])
@@ -7502,6 +7505,7 @@ AC_MSG_RESULT([    gpu_nvidia  . . . . . $enable_gpu_nvidia])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
+AC_MSG_RESULT([    infiniband  . . . . . $enable_infiniband])
 AC_MSG_RESULT([    intel_pmu . . . . . . $enable_intel_pmu])
 AC_MSG_RESULT([    intel_rdt . . . . . . $enable_intel_rdt])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])

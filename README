@@ -172,6 +172,9 @@ Features
       This plugin should be compiled with compiler defenses enabled, for
       example -fstack-protector.
 
+    - infiniband
+      Attributes and counters for each port on each IB device.
+
     - intel_pmu
       The intel_pmu plugin reads performance counters provided by the Linux
       kernel perf interface. The plugin uses jevents library to resolve named
