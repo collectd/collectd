@@ -33,6 +33,7 @@
 #include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 #include "utils/metadata/meta_data.h"
+#include "utils/strbuf/strbuf.h"
 #include "utils_cache.h"
 
 #include <assert.h>
@@ -126,7 +127,7 @@ static void cache_free(cache_entry_t *ce) {
   sfree(ce);
 } /* void cache_free */
 
-static int uc_insert(metric_t const *metric_p, char const *key) {
+static int uc_insert(metric_t const *m, char const *key) {
   /* `cache_lock' has been locked by `uc_update' */
 
   char *key_copy = strdup(key);
@@ -144,36 +145,36 @@ static int uc_insert(metric_t const *metric_p, char const *key) {
 
   sstrncpy(ce->name, key, sizeof(ce->name));
 
-  switch (metric_p->value_type) {
+  switch (m->value_type) {
   case DS_TYPE_COUNTER:
     ce->values_gauge = NAN;
-    ce->values_raw.counter = metric_p->value.counter;
+    ce->values_raw.counter = m->value.counter;
     break;
 
   case DS_TYPE_GAUGE:
-    ce->values_gauge = metric_p->value.gauge;
-    ce->values_raw.gauge = metric_p->value.gauge;
+    ce->values_gauge = m->value.gauge;
+    ce->values_raw.gauge = m->value.gauge;
     break;
 
   case DS_TYPE_DERIVE:
     ce->values_gauge = NAN;
-    ce->values_raw.derive = metric_p->value.derive;
+    ce->values_raw.derive = m->value.derive;
     break;
 
   default:
     /* This shouldn't happen. */
     ERROR("uc_insert: Don't know how to handle data source type %i.",
-          metric_p->value_type);
+          m->value_type);
     sfree(key_copy);
     cache_free(ce);
     return -1;
   } /* switch (ds->ds[i].type) */
 
-  ce->last_time = metric_p->time;
+  ce->last_time = m->time;
   ce->last_update = cdtime();
-  ce->interval = metric_p->interval;
+  ce->interval = m->interval;
   ce->state = STATE_UNKNOWN;
-  ce->meta = meta_data_clone(metric_p->meta);
+  ce->meta = meta_data_clone(m->meta);
 
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
     sfree(key_copy);
@@ -253,9 +254,9 @@ int uc_check_timeout(void) {
         .interval = expired[i].interval,
     };
 
-    metric.identity = identity_parse(expired[i].key);
+    metric.identity = identity_unmarshal_text(expired[i].key);
     if (metric.identity == NULL) {
-      ERROR("uc_check_timeout: parse_identifier_vl (\"%s\") failed: %s",
+      ERROR("uc_check_timeout: identity_unmarshal_text(\"%s\") failed: %s",
             expired[i].key, STRERRNO);
       continue;
     }
@@ -292,73 +293,74 @@ int uc_check_timeout(void) {
   return 0;
 } /* int uc_check_timeout */
 
-int uc_update(const metric_t *metric_p) {
-  char *metric_name = metric_marshal_text(metric_p);
-  if (metric_name == NULL) {
-    ERROR("uc_update: metric_marshal_text failed.");
-    return -1;
+int uc_update(metric_t const *m) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
+  if (status != 0) {
+    ERROR("uc_update: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
   }
 
   pthread_mutex_lock(&cache_lock);
 
   cache_entry_t *ce = NULL;
-  int status = c_avl_get(cache_tree, metric_name, (void *)&ce);
+  status = c_avl_get(cache_tree, buf.ptr, (void *)&ce);
   if (status != 0) /* entry does not yet exist */
   {
-    status = uc_insert(metric_p, metric_name);
+    int status = uc_insert(m, buf.ptr);
     pthread_mutex_unlock(&cache_lock);
 
-    if (status == 0)
-      plugin_dispatch_cache_event(CE_VALUE_NEW, 0 /* mask */, metric_name,
-                                  metric_p);
+    if (status == 0) {
+      plugin_dispatch_cache_event(CE_VALUE_NEW, 0 /* mask */, buf.ptr, m);
+    }
 
-    sfree(metric_name);
+    STRBUF_DESTROY(buf);
     return status;
   }
 
   assert(ce != NULL);
-  ce->identity = identity_clone(metric_p->identity);
-  ce->meta = meta_data_clone(metric_p->meta);
-  if (ce->last_time >= metric_p->time) {
+  ce->identity = identity_clone(m->identity);
+  ce->meta = meta_data_clone(m->meta);
+  if (ce->last_time >= m->time) {
     pthread_mutex_unlock(&cache_lock);
     NOTICE("uc_update: Value too old: name = %s; value time = %.3f; "
            "last cache update = %.3f;",
-           metric_name, CDTIME_T_TO_DOUBLE(metric_p->time),
+           buf.ptr, CDTIME_T_TO_DOUBLE(m->time),
            CDTIME_T_TO_DOUBLE(ce->last_time));
-    sfree(metric_name);
+    STRBUF_DESTROY(buf);
     return -1;
   }
 
-  switch (metric_p->value_type) {
+  switch (m->value_type) {
   case DS_TYPE_COUNTER: {
-    counter_t diff =
-        counter_diff(ce->values_raw.counter, metric_p->value.counter);
+    counter_t diff = counter_diff(ce->values_raw.counter, m->value.counter);
     ce->values_gauge =
-        ((double)diff) / (CDTIME_T_TO_DOUBLE(metric_p->time - ce->last_time));
-    ce->values_raw.counter = metric_p->value.counter;
+        ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
+    ce->values_raw.counter = m->value.counter;
   } break;
 
   case DS_TYPE_GAUGE:
-    ce->values_raw.gauge = metric_p->value.gauge;
-    ce->values_gauge = metric_p->value.gauge;
+    ce->values_raw.gauge = m->value.gauge;
+    ce->values_gauge = m->value.gauge;
     break;
 
   case DS_TYPE_DERIVE: {
-    derive_t diff = metric_p->value.derive - ce->values_raw.derive;
+    derive_t diff = m->value.derive - ce->values_raw.derive;
 
     ce->values_gauge =
-        ((double)diff) / (CDTIME_T_TO_DOUBLE(metric_p->time - ce->last_time));
-    ce->values_raw.derive = metric_p->value.derive;
+        ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
+    ce->values_raw.derive = m->value.derive;
   } break;
 
   default:
     /* This shouldn't happen. */
     pthread_mutex_unlock(&cache_lock);
     ERROR("uc_update: Don't know how to handle data source type %i.",
-          metric_p->value_type);
-    sfree(metric_name);
+          m->value_type);
+    STRBUF_DESTROY(buf);
     return -1;
-  } /* switch (metric_p->ds->type) */
+  } /* switch (m->value_type) */
 
   DEBUG("uc_update: %s: ds[%" PRIsz "] = %lf", name, i, ce->values_gauge);
 
@@ -371,9 +373,9 @@ int uc_update(const metric_t *metric_p) {
     ce->history_index = (ce->history_index + 1) % ce->history_length;
   }
 
-  ce->last_time = metric_p->time;
+  ce->last_time = m->time;
   ce->last_update = cdtime();
-  ce->interval = metric_p->interval;
+  ce->interval = m->interval;
 
   /* Check if cache entry has registered callbacks */
   unsigned long callbacks_mask = ce->callbacks_mask;
@@ -381,11 +383,10 @@ int uc_update(const metric_t *metric_p) {
   pthread_mutex_unlock(&cache_lock);
 
   if (callbacks_mask) {
-    plugin_dispatch_cache_event(CE_VALUE_UPDATE, callbacks_mask, metric_name,
-                                metric_p);
+    plugin_dispatch_cache_event(CE_VALUE_UPDATE, callbacks_mask, buf.ptr, m);
   }
 
-  sfree(metric_name);
+  STRBUF_DESTROY(buf);
   return 0;
 } /* int uc_update */
 
@@ -432,22 +433,17 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
   return status;
 } /* gauge_t *uc_get_rate_by_name */
 
-int uc_get_rate(const metric_t *metric_p, gauge_t *ret) {
-  char *metric_string_p = NULL;
-  int status = 0;
-
-  metric_string_p = metric_marshal_text(metric_p);
-
-  if (metric_string_p == NULL) {
-    ERROR("utils_cache: uc_get_rate: metric_marshal_text failed.");
-    return -1;
-  }
-
-  status = uc_get_rate_by_name(metric_string_p, ret);
+int uc_get_rate(metric_t const *m, gauge_t *ret) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
   if (status != 0) {
+    ERROR("uc_get_rate: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
     return status;
   }
 
+  status = uc_get_rate_by_name(buf.ptr, ret);
+  STRBUF_DESTROY(buf);
   return status;
 } /* gauge_t *uc_get_rate */
 
@@ -482,11 +478,10 @@ gauge_t *uc_get_rate_vl(const data_set_t *ds, const value_list_t *vl) {
 }
 
 int uc_get_value_by_name(const char *name, value_t *ret_values) {
-  cache_entry_t *ce = NULL;
-  int status = 0;
-
   pthread_mutex_lock(&cache_lock);
 
+  cache_entry_t *ce = NULL;
+  int status = 0;
   if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
     assert(ce != NULL);
 
@@ -503,26 +498,20 @@ int uc_get_value_by_name(const char *name, value_t *ret_values) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (status);
+  return status;
 } /* int uc_get_value_by_name */
 
-int uc_get_value(const metric_t *metric_p, value_t *ret) {
-  char *metric_string_p = NULL;
-  int status;
-
-  metric_string_p = metric_marshal_text(metric_p);
-  if (metric_string_p == NULL) {
-    ERROR("utils_cache: uc_get_value: metric_marshal_text failed.");
-    return -1;
-  }
-
-  status = uc_get_value_by_name(metric_string_p, ret);
+int uc_get_value(metric_t const *m, value_t *ret) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
   if (status != 0) {
-    sfree(metric_string_p);
+    ERROR("uc_get_value: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
     return status;
   }
 
-  sfree(metric_string_p);
+  status = uc_get_value_by_name(buf.ptr, ret);
+  STRBUF_DESTROY(buf);
   return status;
 } /* value_t *uc_get_value */
 
@@ -616,51 +605,52 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
   return 0;
 } /* int uc_get_names */
 
-int uc_get_state(const metric_t *metric_p) {
-  char *metric_string_p = NULL;
-  cache_entry_t *ce = NULL;
-  int ret = STATE_ERROR;
-
-  metric_string_p = metric_marshal_text(metric_p);
-  if (metric_string_p == NULL) {
-    ERROR("uc_get_state: metric_marshal_text failed.");
-    return STATE_ERROR;
+int uc_get_state(metric_t const *m) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
+  if (status != 0) {
+    ERROR("uc_get_state: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
+  cache_entry_t *ce = NULL;
+  int ret = STATE_ERROR;
+  if (c_avl_get(cache_tree, buf.ptr, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->state;
   }
 
   pthread_mutex_unlock(&cache_lock);
-  sfree(metric_string_p);
 
+  STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_get_state */
 
-int uc_set_state(const metric_t *metric_p, int state) {
-  char *metric_string_p = NULL;
-  cache_entry_t *ce = NULL;
-  int ret = -1;
-
-  metric_string_p = metric_marshal_text(metric_p);
-  if (metric_string_p == NULL) {
-    ERROR("uc_set_state: metric_marshal_text failed.");
-    return STATE_ERROR;
+int uc_set_state(metric_t const *m, int state) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
+  if (status != 0) {
+    ERROR("uc_set_state: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
+  cache_entry_t *ce = NULL;
+  int ret = -1;
+  if (c_avl_get(cache_tree, buf.ptr, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->state;
     ce->state = state;
   }
 
   pthread_mutex_unlock(&cache_lock);
-  sfree(metric_string_p);
+
+  STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_set_state */
 
@@ -715,39 +705,41 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
   return 0;
 } /* int uc_get_history_by_name */
 
-int uc_get_history(const metric_t *metric_p, gauge_t *ret_history,
-                   size_t num_steps) {
-  char *metric_string_p = NULL;
-
-  metric_string_p = metric_marshal_text(metric_p);
-  if (metric_string_p == NULL) {
-    ERROR("utils_cache: uc_get_history: metric_marshal_text failed.");
-    return -1;
+int uc_get_history(metric_t const *m, gauge_t *ret_history, size_t num_steps) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
+  if (status != 0) {
+    ERROR("uc_update: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
   }
-  sfree(metric_string_p);
-  return uc_get_history_by_name(metric_string_p, ret_history, num_steps);
+
+  int ret = uc_get_history_by_name(buf.ptr, ret_history, num_steps);
+  STRBUF_DESTROY(buf);
+  return ret;
 } /* int uc_get_history */
 
-int uc_get_hits(const metric_t *metric_p) {
-  char *metric_string_p = NULL;
-  cache_entry_t *ce = NULL;
-  int ret = STATE_ERROR;
-
-  metric_string_p = metric_marshal_text(metric_p);
-  if (metric_string_p == NULL) {
-    ERROR("uc_get_hits: metric_marshal_text failed.");
-    return STATE_ERROR;
+int uc_get_hits(metric_t const *m) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
+  if (status != 0) {
+    ERROR("uc_update: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
+  cache_entry_t *ce = NULL;
+  int ret = STATE_ERROR;
+  if (c_avl_get(cache_tree, buf.ptr, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->hits;
   }
 
   pthread_mutex_unlock(&cache_lock);
-  sfree(metric_string_p);
+
+  STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_get_hits */
 
@@ -766,20 +758,20 @@ int uc_get_hits_vl(const data_set_t *ds, const value_list_t *vl) {
   return retval;
 }
 
-int uc_set_hits(const metric_t *metric_p, int hits) {
-  char *metric_string_p = NULL;
-  cache_entry_t *ce = NULL;
-  int ret = -1;
-
-  metric_string_p = metric_marshal_text(metric_p);
-  if (metric_string_p == NULL) {
-    ERROR("uc_set_hits: metric_marshal_text failed.");
-    return STATE_ERROR;
+int uc_set_hits(metric_t const *m, int hits) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
+  if (status != 0) {
+    ERROR("uc_set_hits: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
+  cache_entry_t *ce = NULL;
+  int ret = -1;
+  if (c_avl_get(cache_tree, buf.ptr, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->hits;
     ce->hits = hits;
@@ -787,7 +779,7 @@ int uc_set_hits(const metric_t *metric_p, int hits) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  sfree(metric_string_p);
+  STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_set_hits */
 
@@ -810,28 +802,28 @@ int uc_set_hits_vl(const data_set_t *ds, const value_list_t *vl, int hits) {
   return retval;
 }
 
-int uc_inc_hits(const metric_t *metric_p, int step) {
-  char *metric_string_p = NULL;
-  cache_entry_t *ce = NULL;
-  int ret = -1;
-
-  metric_string_p = metric_marshal_text(metric_p);
-  if (metric_string_p == NULL) {
-    ERROR("uc_inc_hits: metric_marshal_text failed.");
-    return STATE_ERROR;
+int uc_inc_hits(metric_t const *m, int step) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
+  if (status != 0) {
+    ERROR("uc_inc_hits: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
+  cache_entry_t *ce = NULL;
+  int ret = -1;
+  if (c_avl_get(cache_tree, buf.ptr, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->hits;
-    ce->hits = ret + step;
+    ce->hits += step;
   }
 
   pthread_mutex_unlock(&cache_lock);
 
-  sfree(metric_string_p);
+  STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_inc_hits */
 
@@ -944,37 +936,31 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta) {
 /*
  * Meta data interface
  */
-/* XXX: This function will acquire `cache_lock' but will not free it! */
-static meta_data_t *uc_get_meta(const metric_t *metric_p) /* {{{ */
+/* XXX: cache_lock when calling this function! */
+static meta_data_t *uc_get_meta(metric_t const *m) /* {{{ */
 {
-  char *metric_string_p = NULL;
-  cache_entry_t *ce = NULL;
-  int status = 0;
-
-  metric_string_p = metric_marshal_text(metric_p);
-  if (metric_string_p == NULL) {
-    ERROR("utils_cache: uc_get_meta: metric_string_p failed.");
+  strbuf_t buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&buf, m->identity);
+  if (status != 0) {
+    ERROR("uc_update: identity_marshal_text failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    errno = status;
     return NULL;
   }
 
-  pthread_mutex_lock(&cache_lock);
-
-  status = c_avl_get(cache_tree, metric_string_p, (void *)&ce);
+  cache_entry_t *ce = NULL;
+  status = c_avl_get(cache_tree, buf.ptr, (void *)&ce);
+  STRBUF_DESTROY(buf);
   if (status != 0) {
-    pthread_mutex_unlock(&cache_lock);
+    errno = status;
     return NULL;
   }
   assert(ce != NULL);
 
   if (ce->meta == NULL) {
-    pthread_mutex_unlock(&cache_lock);
-    return NULL;
+    ce->meta = meta_data_create();
   }
 
-  if (ce->meta == NULL)
-    ce->meta = meta_data_create();
-
-  sfree(metric_string_p);
   return ce->meta;
 } /* }}} meta_data_t *uc_get_meta */
 
@@ -982,73 +968,76 @@ static meta_data_t *uc_get_meta(const metric_t *metric_p) /* {{{ */
  * shorter.. */
 #define UC_WRAP(wrap_function)                                                 \
   {                                                                            \
-    meta_data_t *meta;                                                         \
-    int status;                                                                \
-    meta = uc_get_meta(metric_p);                                              \
-    if (meta == NULL)                                                          \
-      return -1;                                                               \
-    status = wrap_function(meta, key);                                         \
+    pthread_mutex_lock(&cache_lock);                                           \
+    errno = 0;                                                                 \
+    meta_data_t *meta = uc_get_meta(m);                                        \
+    if ((meta == NULL) && (errno != 0)) {                                      \
+      pthread_mutex_unlock(&cache_lock);                                       \
+      return errno;                                                            \
+    }                                                                          \
+    int ret = wrap_function(meta, key);                                        \
     pthread_mutex_unlock(&cache_lock);                                         \
-    return status;                                                             \
+    return ret;                                                                \
   }
 
-int uc_meta_data_exists(const metric_t *metric_p, const char *key)
+int uc_meta_data_exists(metric_t const *m, const char *key)
     UC_WRAP(meta_data_exists);
 
-int uc_meta_data_delete(const metric_t *metric_p, const char *key)
+int uc_meta_data_delete(metric_t const *m, const char *key)
     UC_WRAP(meta_data_delete);
 
 /* The second argument is called `toc` in the API, but the macro expects
  * `key`. */
-int uc_meta_data_toc(const metric_t *metric_p, char ***key)
-    UC_WRAP(meta_data_toc);
+int uc_meta_data_toc(metric_t const *m, char ***key) UC_WRAP(meta_data_toc);
 #undef UC_WRAP
 
 /* We need a new version of this macro because the following functions take
  * two argumetns. gratituous semicolons added for formatting sanity*/
 #define UC_WRAP(wrap_function)                                                 \
   {                                                                            \
-    meta_data_t *meta;                                                         \
-    int status;                                                                \
-    meta = uc_get_meta(metric_p);                                              \
-    if (meta == NULL)                                                          \
-      return -1;                                                               \
-    status = wrap_function(meta, key, value);                                  \
+    pthread_mutex_lock(&cache_lock);                                           \
+    errno = 0;                                                                 \
+    meta_data_t *meta = uc_get_meta(m);                                        \
+    if ((meta == NULL) && (errno != 0)) {                                      \
+      pthread_mutex_unlock(&cache_lock);                                       \
+      return errno;                                                            \
+    }                                                                          \
+    int ret = wrap_function(meta, key, value);                                 \
     pthread_mutex_unlock(&cache_lock);                                         \
-    return status;                                                             \
+    return ret;                                                                \
   }
-int uc_meta_data_add_string(const metric_t *metric_p, const char *key,
+int uc_meta_data_add_string(metric_t const *m, const char *key,
                             const char *value) UC_WRAP(meta_data_add_string);
 
-int uc_meta_data_add_signed_int(const metric_t *metric_p, const char *key,
+int uc_meta_data_add_signed_int(metric_t const *m, const char *key,
                                 int64_t value)
     UC_WRAP(meta_data_add_signed_int);
 
-int uc_meta_data_add_unsigned_int(const metric_t *metric_p, const char *key,
+int uc_meta_data_add_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t value)
     UC_WRAP(meta_data_add_unsigned_int);
 
-int uc_meta_data_add_double(const metric_t *metric_p, const char *key,
-                            double value) UC_WRAP(meta_data_add_double);
-int uc_meta_data_add_boolean(const metric_t *metric_p, const char *key,
-                             bool value) UC_WRAP(meta_data_add_boolean);
+int uc_meta_data_add_double(metric_t const *m, const char *key, double value)
+    UC_WRAP(meta_data_add_double);
+int uc_meta_data_add_boolean(metric_t const *m, const char *key, bool value)
+    UC_WRAP(meta_data_add_boolean);
 
-int uc_meta_data_get_string(const metric_t *metric_p, const char *key,
-                            char **value) UC_WRAP(meta_data_get_string);
+int uc_meta_data_get_string(metric_t const *m, const char *key, char **value)
+    UC_WRAP(meta_data_get_string);
 
-int uc_meta_data_get_signed_int(const metric_t *metric_p, const char *key,
+int uc_meta_data_get_signed_int(metric_t const *m, const char *key,
                                 int64_t *value)
     UC_WRAP(meta_data_get_signed_int);
 
-int uc_meta_data_get_unsigned_int(const metric_t *metric_p, const char *key,
+int uc_meta_data_get_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t *value)
     UC_WRAP(meta_data_get_unsigned_int);
 
-int uc_meta_data_get_double(const metric_t *metric_p, const char *key,
-                            double *value) UC_WRAP(meta_data_get_double);
+int uc_meta_data_get_double(metric_t const *m, const char *key, double *value)
+    UC_WRAP(meta_data_get_double);
 
-int uc_meta_data_get_boolean(const metric_t *metric_p, const char *key,
-                             bool *value) UC_WRAP(meta_data_get_boolean);
+int uc_meta_data_get_boolean(metric_t const *m, const char *key, bool *value)
+    UC_WRAP(meta_data_get_boolean);
 #undef UC_WRAP
 
 int uc_meta_data_get_signed_int_vl(const value_list_t *vl, const char *key,
