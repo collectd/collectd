@@ -259,10 +259,7 @@ collectd_SOURCES = \
 	src/daemon/utils_threshold.c \
 	src/daemon/utils_threshold.h \
 	src/daemon/utils_time.c \
-	src/daemon/utils_time.h \
-	src/utils/metadata/meta_data.c \
-	src/utils/metadata/meta_data.h
-
+	src/daemon/utils_time.h
 
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_CPPFLAGS = $(AM_CPPFLAGS)
@@ -273,6 +270,7 @@ collectd_LDADD = \
 	libheap.la \
 	libidentity.la \
 	libllist.la \
+	libmetadata.la \
 	libmetric.la \
 	liboconfig.la \
 	-lm \
