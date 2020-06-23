@@ -35,7 +35,7 @@
  * private helper functions
  */
 
-static int is_quoted(const char *str, size_t len) {
+static int is_quoted(char const *str, size_t len) {
   if (len < 2) {
     return 0;
   }
@@ -43,9 +43,9 @@ static int is_quoted(const char *str, size_t len) {
   return (str[0] == '"' && str[len - 1] == '"');
 }
 
-static int set_option(metric_t *metric_p, const char *key, const char *value,
-                      cmd_error_handler_t *err) {
-  if ((metric_p == NULL) || (key == NULL) || (value == NULL))
+/* TODO(octo): add an option to set metric->value_type */
+static int set_option(metric_t *m, char const *key, char const *value, cmd_error_handler_t *err) {
+  if ((m == NULL) || (key == NULL) || (value == NULL))
     return -1;
 
   if (strcasecmp("interval", key) == 0) {
@@ -57,25 +57,26 @@ static int set_option(metric_t *metric_p, const char *key, const char *value,
     tmp = strtod(value, &endptr);
 
     if ((errno == 0) && (endptr != NULL) && (endptr != value) && (tmp > 0.0))
-      metric_p->interval = DOUBLE_TO_CDTIME_T(tmp);
+      m->interval = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strncasecmp("meta:", key, 5) == 0) {
-    const char *meta_key = key + 5;
+    char const *meta_key = key + 5;
     size_t value_len = strlen(value);
 
-    if (metric_p->meta == NULL) {
-      metric_p->meta = meta_data_create();
-      if (metric_p->meta == NULL) {
+    if (m->meta == NULL) {
+      m->meta = meta_data_create();
+      if (m->meta == NULL) {
         return CMD_ERROR;
       }
     }
 
+    /* TODO(octo): this should deal with escaped characters. */
     if (is_quoted(value, value_len)) {
       int metadata_err;
-      const char *value_str = sstrndup(value + 1, value_len - 2);
+      char const *value_str = sstrndup(value + 1, value_len - 2);
       if (value_str == NULL) {
         return CMD_ERROR;
       }
-      metadata_err = meta_data_add_string(metric_p->meta, meta_key, value_str);
+      metadata_err = meta_data_add_string(m->meta, meta_key, value_str);
       free((void *)value_str);
       if (metadata_err != 0) {
         return CMD_ERROR;
@@ -97,102 +98,60 @@ static int set_option(metric_t *metric_p, const char *key, const char *value,
 
 cmd_status_t cmd_parse_putval(size_t argc, char **argv,
                               cmd_putval_t *ret_putval,
-                              const cmd_options_t *opts,
-                              cmd_error_handler_t *err) {
-  cmd_status_t result;
-
-  char *identifier;
-  char *hostname;
-  char *plugin;
-  char *type;
-  char *data_source;
-  int status;
-
-  char *identifier_copy;
-
-  const data_set_t *ds;
-  metric_t metric = METRIC_STRUCT_INIT;
-
+                              cmd_options_t const *opts,
+                              cmd_error_handler_t *errhndl) {
   if ((ret_putval == NULL) || (opts == NULL)) {
     errno = EINVAL;
-    cmd_error(CMD_ERROR, err, "Invalid arguments to cmd_parse_putval.");
+    cmd_error(CMD_ERROR, errhndl, "Invalid arguments to cmd_parse_putval.");
     return CMD_ERROR;
   }
 
   if (argc < 2) {
-    cmd_error(CMD_PARSE_ERROR, err, "Missing identifier and/or value-list.");
+    cmd_error(CMD_PARSE_ERROR, errhndl, "Missing identifier and/or value-list.");
     return CMD_PARSE_ERROR;
   }
 
-  identifier = argv[0];
+  char const *identifier = argv[0];
 
-  /* parse_identifier() modifies its first argument, returning pointers into
-   * it; retain the old value for later. */
-  identifier_copy = sstrdup(identifier);
-
-  status =
-      parse_identifier(identifier, &hostname, &plugin, &type,
-                       &data_source, opts->identifier_default_host);
-  if (status != 0) {
-    DEBUG("cmd_handle_putval: Cannot parse identifier `%s'.", identifier_copy);
-    cmd_error(CMD_PARSE_ERROR, err, "Cannot parse identifier `%s'.",
-              identifier_copy);
-    sfree(identifier_copy);
+  identity_t *id = identity_unmarshal_text(identifier);
+  if (id == NULL) {
+    int err = errno;
+    DEBUG("cmd_handle_putval: Parsing identifier \"%s\" failed: %s.", identifier, STRERROR(err));
+    cmd_error(CMD_PARSE_ERROR, errhndl, "Parsing identifier \"%s\" failed: %s.", identifier, STRERROR(err));
     return CMD_PARSE_ERROR;
   }
 
-  if ((strlen(type) >= sizeof(metric.type)) ||
-      (strlen(plugin) >= sizeof(metric.plugin))
-      ) {
-    cmd_error(CMD_PARSE_ERROR, err, "Identifier too long.");
-    sfree(identifier_copy);
-    return CMD_PARSE_ERROR;
-  }
+  metric_t metric = {
+    .identity = id,
+    .value = (value_t){.gauge = NAN},
+    .value_type = VALUE_TYPE_GAUGE,
+  };
 
-  metric.identity = identity_create_legacy(plugin, type, data_source, hostname);
-  if (metric.identity == NULL) {
-    sfree(identifier_copy);
-    return CMD_PARSE_ERROR;
-  }
-
-  sstrncpy(metric.plugin, plugin, sizeof(metric.plugin));
-  sstrncpy(metric.type, type, sizeof(metric.type));
-
-
-  metric.ds = plugin_get_ds(type);
-  if (metric.ds == NULL) {
-    cmd_error(CMD_PARSE_ERROR, err, "1 Type `%s' isn't defined.", type);
-    destroy_identity(metric.identity);
-    sfree(identifier_copy);
-    return CMD_PARSE_ERROR;
-  }
-
-  hostname = NULL;
-  plugin = NULL;
-  type = NULL;
-  data_source = NULL;
-
-  ret_putval->raw_identifier = identifier_copy;
+  ret_putval->raw_identifier = strdup(identifier);
   if (ret_putval->raw_identifier == NULL) {
-    cmd_error(CMD_ERROR, err, "malloc failed.");
+    cmd_error(CMD_ERROR, errhndl, "malloc failed.");
     cmd_destroy_putval(ret_putval);
-    destroy_identity(metric.identity);
+    identity_destroy(metric.identity);
     return CMD_ERROR;
   }
 
   /* All the remaining fields are part of the option list. */
-  result = CMD_OK;
-  for (size_t i = 1; i < argc; ++i) {
-    value_list_t *tmp;
+  cmd_status_t result = CMD_OK;
 
+  metrics_list_t *tail = ret_putval->ml;
+  while ((tail != NULL) && (tail->next_p != NULL)) {
+    tail = tail->next_p;
+  }
+
+  for (size_t i = 1; i < argc; ++i) {
     char *key = NULL;
     char *value = NULL;
 
-    status = cmd_parse_option(argv[i], &key, &value, err);
+    int status = cmd_parse_option(argv[i], &key, &value, errhndl);
     if (status == CMD_OK) {
       assert(key != NULL);
       assert(value != NULL);
-      int option_err = set_option(&metric, key, value, err);
+      int option_err = set_option(&metric, key, value, errhndl);
       if (option_err != CMD_OK && option_err != CMD_NO_OPTION) {
         result = option_err;
         break;
@@ -207,29 +166,24 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     /* else: cmd_parse_option did not find an option; treat this as a
      * value. */
 
-    status = parse_values(argv[i], &metric);
+    status = parse_value(argv[i], &metric.value, metric.value_type);
     if (status != 0) {
-      cmd_error(CMD_PARSE_ERROR, err, "Parsing the values string failed.");
+      cmd_error(CMD_PARSE_ERROR, errhndl, "Parsing the values string failed.");
       result = CMD_PARSE_ERROR;
       break;
     }
 
-    tmp = realloc(ret_putval->vl,
-                  (ret_putval->vl_num + 1) * sizeof(*ret_putval->vl));
-    if (tmp == NULL) {
-      cmd_error(CMD_ERROR, err, "realloc failed.");
-      cmd_destroy_putval(ret_putval);
-      result = CMD_ERROR;
-      break;
+    metrics_list_t *ml = calloc(1, sizeof(*ml));
+    memcpy(&ml->metric, &metric, sizeof(ml->metric));
+    ml->metric.identity = identity_clone(metric.identity);
+    ml->metric.meta = meta_data_clone(metric.meta);
+
+    if (tail == NULL) {
+      ret_putval->ml = ml;
+    } else {
+      tail->next_p = ml;
     }
-
-    ret_putval->vl = tmp;
-    ret_putval->vl_num++;
-    memcpy(&ret_putval->vl[ret_putval->vl_num - 1], &vl, sizeof(vl));
-
-    /* pointer is now owned by ret_putval->vl[] */
-    vl.values_len = 0;
-    vl.values = NULL;
+    tail = ml;
   } /* while (*buffer != 0) */
   /* Done parsing the options. */
 
@@ -250,13 +204,12 @@ void cmd_destroy_putval(cmd_putval_t *putval) {
 
 cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
   cmd_error_handler_t err = {cmd_error_fh, fh};
-  cmd_t cmd;
-
-  int status;
 
   DEBUG("utils_cmd_putval: cmd_handle_putval (fh = %p, buffer = %s);",
         (void *)fh, buffer);
 
+  cmd_t cmd = {0};
+  int status;
   if ((status = cmd_parse(buffer, &cmd, NULL, &err)) != CMD_OK)
     return status;
   if (cmd.type != CMD_PUTVAL) {
@@ -266,39 +219,50 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
     return CMD_UNKNOWN_COMMAND;
   }
 
-  for (size_t i = 0; i < cmd.cmd.putval.vl_num; ++i)
-    plugin_dispatch_values(&cmd.cmd.putval.vl[i]);
+  status = plugin_dispatch_metric_list(cmd.cmd.putval.ml);
+  if (status != 0) {
+      cmd_error(CMD_ERROR, &err, "plugin_dispatch_metric_list failed with status %d.", status);
+      cmd_destroy(&cmd);
+      return CMD_ERROR;
+  }
 
-  if (fh != stdout)
+  if (fh != stdout) {
+    cmd_putval_t *putval = &cmd.cmd.putval;
+    int n = 0;
+    for (metrics_list_t *ml = putval->ml; ml != NULL; ml = ml->next_p) {
+      n++;
+    }
     cmd_error(CMD_OK, &err, "Success: %i %s been dispatched.",
-              (int)cmd.cmd.putval.vl_num,
-              (cmd.cmd.putval.vl_num == 1) ? "value has" : "values have");
+        n, (n == 1) ? "metric has" : "metrics have");
+  }
 
   cmd_destroy(&cmd);
   return CMD_OK;
 } /* int cmd_handle_putval */
 
+/* TODO(octo): Improve the readability of the command.
+ *
+ * Currently, this assumes lines similar to:
+ *
+ *   PUTVAL "metric_name{key=\"value\"}" interval=10.000 42
+ *
+ * Encoding the labels in this way generates a lot of escaped quotes, which is
+ * not ideal. An alternative representation would be:
+ *
+ *   PUTVAL metric_name label:key="value" interval=10.000 42
+ */
 int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
-                      const metric_t *metric_p) {
-  char buffer_ident[6 * DATA_MAX_NAME_LEN];
-  char buffer_values[1024];
-  int status;
-
-  status = FORMAT_VL(buffer_ident, sizeof(buffer_ident), vl);
-  if (status != 0)
+                      metric_t const *m) {
+  strbuf_t id_buf = STRBUF_CREATE;
+  int status = identity_marshal_text(&id_buf, m->identity);
+  if (status != 0) {
     return status;
-  escape_string(buffer_ident, sizeof(buffer_ident));
+  }
 
-  status = format_values(buffer_values, sizeof(buffer_values), metric_p,
-                         /* store rates = */ false);
-  if (status != 0)
-    return status;
-  escape_string(buffer_values, sizeof(buffer_values));
-
-  snprintf(ret, ret_len, "PUTVAL %s interval=%.3f %s", buffer_ident,
-           (metric_p->interval > 0) ? CDTIME_T_TO_DOUBLE(metric_p->interval)
-                              : CDTIME_T_TO_DOUBLE(plugin_get_interval()),
-           buffer_values);
-
-  return 0;
+  strbuf_t buf = STRBUF_CREATE_FIXED(ret, ret_len);
+  strbuf_print(&buf, "PUTVAL \"");
+  strbuf_print_escaped(&buf, id_buf.ptr, "\\\"\n\r\t", '\\');
+  strbuf_printf(&buf, "\" interval=%.3f", CDTIME_T_TO_DOUBLE(m->interval));
+  /* TODO(octo): print option to set the value type. */
+  return value_marshal_text(&buf, m->value, m->value_type);
 } /* }}} int cmd_create_putval */
