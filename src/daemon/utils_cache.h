@@ -163,4 +163,6 @@ int uc_meta_data_get_unsigned_int_vl(const value_list_t *vl, const char *key,
                                    uint64_t *value);
 int uc_meta_data_add_signed_int_vl(const value_list_t *vl, const char *key,
                                 int64_t value);
+int uc_meta_data_add_unsigned_int_vl(const value_list_t *vl, const char *key,
+                                uint64_t value);
 #endif /* !UTILS_CACHE_H */

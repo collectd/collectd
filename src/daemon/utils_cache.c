@@ -1078,3 +1078,16 @@ int uc_meta_data_add_signed_int_vl(const value_list_t *vl, const char *key,
   destroy_metrics_list(ml);
   return retval;
 }
+int uc_meta_data_add_unsigned_int_vl(const value_list_t *vl, const char *key,
+                                   uint64_t value) {
+  metrics_list_t *ml = NULL;
+  int retval = (plugin_convert_values_to_metrics(vl, &ml));
+  if (retval != 0 || ml == NULL || ml->metric.meta == NULL) {
+    return -1;
+  }
+
+  /* All metric values from the values list share the same metadata */
+  retval = meta_data_add_unsigned_int(ml->metric.meta, key, value);
+  destroy_metrics_list(ml);
+  return retval;
+}
