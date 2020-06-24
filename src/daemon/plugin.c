@@ -1598,6 +1598,75 @@ EXPORT void destroy_metrics_list(metrics_list_t *ml) {
   }
 }
 
+static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
+                              data_source_t const *dsrc) {
+  int status = strbuf_print(buf, "collectd");
+
+  if (strcmp(vl->plugin, vl->type) != 0) {
+    status = status || strbuf_print(buf, "_");
+    status = status || strbuf_print(buf, vl->plugin);
+  }
+
+  status = status || strbuf_print(buf, "_");
+  status = status || strbuf_print(buf, vl->type);
+
+  if (strcmp("value", dsrc->name) != 0) {
+    status = status || strbuf_print(buf, "_");
+    status = status || strbuf_print(buf, dsrc->name);
+  }
+
+  if ((dsrc->type == DS_TYPE_COUNTER) || (dsrc->type == DS_TYPE_DERIVE)) {
+    status = status || strbuf_print(buf, "_total");
+  }
+
+  return status;
+}
+
+identity_t *plugin_valuelist_to_identity(value_list_t const *vl,
+                                         data_source_t const *dsrc) {
+  if ((vl == NULL) || (dsrc == NULL)) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  strbuf_t name = STRBUF_CREATE;
+  int status = metric_family_name(&name, vl, dsrc);
+  if (status != 0) {
+    errno = status;
+    STRBUF_DESTROY(name);
+    return NULL;
+  }
+
+  keyval_t labels[3] = {
+      {"instance", (strlen(vl->host) != 0) ? vl->host: hostname_g},
+  };
+  size_t labels_num = 1;
+
+  if (strlen(vl->plugin_instance) != 0) {
+    labels[labels_num] = (keyval_t){vl->plugin, vl->plugin_instance};
+    labels_num++;
+  }
+  if (strlen(vl->type_instance) != 0) {
+    char const *key = "type";
+    if (strlen(vl->plugin_instance) == 0) {
+      key = vl->plugin;
+    }
+    labels[labels_num] = (keyval_t){key, vl->type_instance};
+    labels_num++;
+  }
+
+  identity_t *id = identity_create_labelled(name.ptr, labels, labels_num);
+  if (id == NULL) {
+    ERROR("plugin_valuelist_to_identity: identity_create(\"%s\") failed: %s",
+          name.ptr, STRERRNO);
+    STRBUF_DESTROY(name);
+    return NULL;
+  }
+
+  STRBUF_DESTROY(name);
+  return id;
+}
+
 /* This does the heavy lifting in coverting the actual metric data */
 static int value_to_metric(value_list_t const *vl, data_set_t const *ds,
                            metrics_list_t **ret_ml) {
@@ -1623,8 +1692,7 @@ static int value_to_metric(value_list_t const *vl, data_set_t const *ds,
     }
 
     ml->metric = (metric_t){
-        .identity = identity_create_legacy(vl->plugin, vl->type, ds->ds[i].name,
-                                           vl->host),
+        .identity = plugin_valuelist_to_identity(vl, ds->ds + i),
         .time = metric_time,
         .interval = metric_interval,
         .value = vl->values[i],
@@ -1633,9 +1701,10 @@ static int value_to_metric(value_list_t const *vl, data_set_t const *ds,
     };
 
     if (ml->metric.identity == NULL) {
+      int status = errno;
       destroy_metrics_list(ml);
       destroy_metrics_list(head);
-      return -1;
+      return status;
     }
 
     if (head == NULL) {
