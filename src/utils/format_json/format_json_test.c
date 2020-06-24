@@ -165,8 +165,98 @@ DEF_TEST(notification) {
   return expect_json_labels(got, labels, STATIC_ARRAY_SIZE(labels));
 }
 
+DEF_TEST(metric) {
+  struct {
+    char const *identity;
+    value_t value;
+    int value_type;
+    cdtime_t time;
+    cdtime_t interval;
+    meta_data_t *meta;
+    char const *want;
+  } cases[] = {
+      {
+          .identity = "metric_name",
+          .value = (value_t){.gauge = 42},
+          .value_type = VALUE_TYPE_GAUGE,
+          .want = "[{\"name\":\"metric_name\",\"type\":\"GAUGE\",\"metrics\":["
+                  "{\"value\":\"42\"}"
+                  "]}]",
+      },
+      {
+          .identity =
+              "metric_with_labels{sorted=\"true\",alphabetically=\"yes\"}",
+          .value = (value_t){.gauge = 42},
+          .value_type = VALUE_TYPE_GAUGE,
+          .want = "[{\"name\":\"metric_with_labels\",\"type\":\"GAUGE\","
+                  "\"metrics\":["
+                  "{\"labels\":{\"alphabetically\":\"yes\",\"sorted\":\"true\"}"
+                  ",\"value\":\"42\"}"
+                  "]}]",
+      },
+      {
+          .identity = "metric_with_time",
+          .value = (value_t){.gauge = 42},
+          .value_type = VALUE_TYPE_GAUGE,
+          .time = MS_TO_CDTIME_T(1592987324125),
+          .want =
+              "[{\"name\":\"metric_with_time\",\"type\":\"GAUGE\",\"metrics\":["
+              "{\"timestamp_ms\":\"1592987324125\",\"value\":\"42\"}"
+              "]}]",
+      },
+      {
+          .identity = "derive_max",
+          .value = (value_t){.derive = INT64_MAX},
+          .value_type = VALUE_TYPE_DERIVE,
+          .want = "[{\"name\":\"derive_max\",\"type\":\"COUNTER\",\"metrics\":["
+                  "{\"value\":\"9223372036854775807\"}"
+                  "]}]",
+      },
+      {
+          .identity = "derive_min",
+          .value = (value_t){.derive = INT64_MIN},
+          .value_type = VALUE_TYPE_DERIVE,
+          .want = "[{\"name\":\"derive_min\",\"type\":\"COUNTER\",\"metrics\":["
+                  "{\"value\":\"-9223372036854775808\"}"
+                  "]}]",
+      },
+      {
+          .identity = "counter_max",
+          .value = (value_t){.counter = UINT64_MAX},
+          .value_type = DS_TYPE_COUNTER,
+          .want =
+              "[{\"name\":\"counter_max\",\"type\":\"COUNTER\",\"metrics\":["
+              "{\"value\":\"18446744073709551615\"}"
+              "]}]",
+      },
+  };
+
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    identity_t *id;
+    CHECK_NOT_NULL(id = identity_unmarshal_text(cases[i].identity));
+
+    metric_t m = {
+        .identity = id,
+        .value = cases[i].value,
+        .value_type = cases[i].value_type,
+        .time = cases[i].time,
+        .interval = cases[i].interval,
+        .meta = cases[i].meta,
+    };
+
+    strbuf_t buf = STRBUF_CREATE;
+    CHECK_ZERO(format_json_metric(&buf, &m, false));
+
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
+    STRBUF_DESTROY(buf);
+  }
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(notification);
+  RUN_TEST(metric);
 
   END_TEST;
 }

@@ -30,6 +30,7 @@
 #include "collectd.h"
 
 #include "plugin.h"
+#include "utils/strbuf/strbuf.h"
 
 #ifndef JSON_GAUGE_FORMAT
 #define JSON_GAUGE_FORMAT GAUGE_FORMAT
@@ -40,11 +41,13 @@ int format_json_initialize(char *buffer, size_t *ret_buffer_fill,
 int format_json_value_list(char *buffer, size_t *ret_buffer_fill,
                            size_t *ret_buffer_free, const data_set_t *ds,
                            const value_list_t *vl, int store_rates);
-int format_json_metric(char *buffer_p, size_t *ret_buffer_fill,
-                       size_t *ret_buffer_free, const metric_t *metric_p,
-                       int store_rates);
 int format_json_finalize(char *buffer, size_t *ret_buffer_fill,
                          size_t *ret_buffer_free);
+
+/* format_json_metric writes m to buf in JSON format. The format produces is
+ * compatible to the "prometheus/prom2json" project. */
+int format_json_metric(strbuf_t *buf, metric_t const *m, bool store_rates);
+
 int format_json_notification(char *buffer, size_t buffer_size,
                              notification_t const *n);
 

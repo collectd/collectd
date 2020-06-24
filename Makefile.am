@@ -495,7 +495,7 @@ libformat_json_la_SOURCES = \
 	src/utils/format_json/format_json.h
 libformat_json_la_CPPFLAGS  = $(AM_CPPFLAGS)
 libformat_json_la_LDFLAGS   = $(AM_LDFLAGS)
-libformat_json_la_LIBADD    =
+libformat_json_la_LIBADD    = libmetric.la
 if BUILD_WITH_LIBYAJL
 libformat_json_la_CPPFLAGS += $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 libformat_json_la_LDFLAGS  += $(BUILD_WITH_LIBYAJL_LDFLAGS)
