@@ -1720,8 +1720,9 @@ static int value_to_metric(value_list_t const *vl, data_set_t const *ds,
 }
 
 EXPORT int plugin_convert_values_to_metrics(value_list_t const *vl,
-                                            metrics_list_t **ml) {
-  if ((vl == NULL) || (vl->values_len == 0) || (ml == NULL) || (*ml != NULL)) {
+                                            metrics_list_t **ret_ml) {
+  if ((vl == NULL) || (vl->values_len == 0) || (ret_ml == NULL) ||
+      (*ret_ml != NULL)) {
     return EINVAL;
   }
 
@@ -1733,10 +1734,10 @@ EXPORT int plugin_convert_values_to_metrics(value_list_t const *vl,
         vl->host, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
 
   data_set_t *ds = NULL;
-  int retval = get_values_data_set(vl, &ds);
-  if (retval != 0) {
+  int status = get_values_data_set(vl, &ds);
+  if (status != 0) {
     ERROR("Could not get data source type from value list");
-    return retval;
+    return status;
   }
   if (ds == NULL) {
     char ident[6 * DATA_MAX_NAME_LEN]; /* host, plugin, plugin_instance, type,
@@ -1749,13 +1750,18 @@ EXPORT int plugin_convert_values_to_metrics(value_list_t const *vl,
     return ENOENT;
   }
 
-  metrics_list_t *new_metrics_list_p = NULL;
+  metrics_list_t *ml = NULL;
 
-  if (value_to_metric(vl, ds, &new_metrics_list_p) != 0) {
-    ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-    return -ENOMEM;
+  status = value_to_metric(vl, ds, &ml);
+  if (status != 0) {
+    char ident[6 * DATA_MAX_NAME_LEN];
+    FORMAT_VL(ident, sizeof(ident), vl);
+    ERROR(
+        "plugin_convert_values_to_metrics: value_to_metric(\"%s\") failed: %s",
+        ident, STRERROR(status));
+    return status;
   }
-  *ml = new_metrics_list_p;
+  *ret_ml = ml;
   return 0;
 }
 
