@@ -362,7 +362,7 @@ int uc_update(metric_t const *m) {
     return -1;
   } /* switch (m->value_type) */
 
-  DEBUG("uc_update: %s: ds[%" PRIsz "] = %lf", name, i, ce->values_gauge);
+  DEBUG("uc_update: %s = %f", buf.ptr, ce->values_gauge);
 
   /* Update the history if it exists. TODO: Does history need to be an array? */
   if (ce->history != NULL) {
