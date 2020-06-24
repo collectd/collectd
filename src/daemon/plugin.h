@@ -185,7 +185,7 @@ typedef struct plugin_ctx_s plugin_ctx_t;
  */
 typedef int (*plugin_init_cb)(void);
 typedef int (*plugin_read_cb)(user_data_t *);
-typedef int (*plugin_write_cb)(const metric_t *, user_data_t *);
+typedef int (*plugin_write_cb)(metric_t const *, user_data_t *);
 typedef int (*plugin_flush_cb)(cdtime_t timeout, const char *identifier,
                                user_data_t *);
 /* "missing" callback. Returns less than zero on failure, zero if other

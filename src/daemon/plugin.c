@@ -766,6 +766,9 @@ static void write_queue_enqueue(write_queue_t *head) {
 
 /* ml_enqueue enqueues the metrics in ml to write_queue. */
 static int ml_enqueue(metrics_list_t const *ml) { /* {{{ */
+  cdtime_t time = cdtime();
+  cdtime_t interval = plugin_get_interval();
+
   for (metrics_list_t const *m = ml; m != NULL; m = m->next_p) {
     write_queue_t *q = calloc(1, sizeof(*q));
     if (q == NULL) {
@@ -779,6 +782,18 @@ static int ml_enqueue(metrics_list_t const *ml) { /* {{{ */
       sfree(q);
       return ENOMEM;
     }
+
+    if (q->metric->time == 0) {
+      q->metric->time = time;
+    }
+    if (q->metric->interval == 0) {
+      q->metric->interval = interval;
+    }
+
+    /* TODO(octo): set target labels here. */
+
+    /* Fails if "instance" is already set, which we can safely ignore. */
+    (void)identity_add_label(q->metric->identity, "instance", hostname_g);
 
     /* This enqueues elements individually because it's less code to write.
      * Should lock contention of write_lock become a problem, we could enqueue
@@ -2228,18 +2243,12 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
   return;
 }
 
-static int plugin_dispatch_metric_internal(metric_t *metric_p) {
-  char *host_p = NULL;
-
+static int plugin_dispatch_metric_internal(metric_t *m) {
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
-  assert(metric_p != NULL);
-  assert(metric_p->time != 0); /* The time is determined at _enqueue_ time. */
-  assert(metric_p->interval != 0);
-  assert(metric_p->identity != NULL);
-
-  int retval = identity_get_label(metric_p->identity, "__host__", &host_p);
-  assert(retval ==
-         0); /* TODO(octo): don't use assert instead of error handling. */
+  assert(m != NULL);
+  assert(m->time != 0); /* The time is determined at _enqueue_ time. */
+  assert(m->interval != 0);
+  assert(m->identity != NULL);
 
   if (list_write == NULL)
     c_complain_once(LOG_WARNING, &no_write_complaint,
@@ -2250,7 +2259,7 @@ static int plugin_dispatch_metric_internal(metric_t *metric_p) {
   /**** Handle caching here !! ****/
   int status = 0;
   if (pre_cache_chain != NULL) {
-    status = fc_process_chain(metric_p, pre_cache_chain);
+    status = fc_process_chain(m, pre_cache_chain);
     if (status < 0) {
       WARNING("plugin_dispatch_values: Running the "
               "pre-cache chain failed with "
@@ -2261,10 +2270,10 @@ static int plugin_dispatch_metric_internal(metric_t *metric_p) {
   }
 
   /* Update the value cache */
-  uc_update(metric_p);
+  uc_update(m);
 
   if (post_cache_chain != NULL) {
-    status = fc_process_chain(metric_p, post_cache_chain);
+    status = fc_process_chain(m, post_cache_chain);
     if (status < 0) {
       WARNING("plugin_dispatch_values: Running the "
               "post-cache chain failed with "
@@ -2272,7 +2281,7 @@ static int plugin_dispatch_metric_internal(metric_t *metric_p) {
               status, status);
     }
   } else
-    fc_default_action(metric_p);
+    fc_default_action(m);
 
   return 0;
 } /* int plugin_dispatch_values_internal */
@@ -2347,6 +2356,7 @@ EXPORT int plugin_dispatch_metric_list(metrics_list_t const *ml) {
     }
     return 0;
   }
+
   int status = ml_enqueue(ml);
   if (status != 0) {
     ERROR("plugin_dispatch_values: plugin_write_enqueue_metric_list failed "
