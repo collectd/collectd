@@ -32,10 +32,9 @@
 
 #include "utils/format_graphite/format_graphite.h"
 #include "utils/format_json/format_json.h"
+#include "utils/strbuf/strbuf.h"
 
 #include <netdb.h>
-
-#define WL_BUF_SIZE 16384
 
 #define WL_FORMAT_GRAPHITE 1
 #define WL_FORMAT_JSON 2
@@ -43,42 +42,46 @@
 /* Plugin:WriteLog has to also operate without a config, so use a global. */
 int wl_format = WL_FORMAT_GRAPHITE;
 
-static int wl_write_graphite(const metric_t *metric_p) {
-  char buffer[WL_BUF_SIZE] = {0};
-  int status;
+static int wl_write_graphite(metric_single_t const *m) {
+  char const *prefix = "";
+  char const *suffix = "";
+  char escape_char = '_';
+  unsigned int flags = 0;
 
-  status = format_graphite(buffer, sizeof(buffer), metric_p, NULL, NULL, '_', 0);
-  if (status != 0) /* error message has been printed already. */
-    return status;
+  strbuf_t buf = STRBUF_CREATE;
+  int status = format_graphite(&buf, m, prefix, suffix, escape_char, flags);
+  if (status != 0) {
+    ERROR("write_log plugin: format_graphite failed: %d", status);
+  } else {
+    INFO("write_log values:\n%s", buf.ptr);
+  }
 
-  INFO("write_log values:\n%s", buffer);
-
+  STRBUF_DESTROY(buf);
   return 0;
 } /* int wl_write_graphite */
 
-static int wl_write_json(const metric_t *metric_p) {
-  char buffer[WL_BUF_SIZE] = {0};
-  size_t bfree = sizeof(buffer);
-  size_t bfill = 0;
+static int wl_write_json(metric_single_t const *m) {
+  strbuf_t buf = STRBUF_CREATE;
 
-  format_json_initialize(buffer, &bfill, &bfree);
-  format_json_metric(buffer, &bfill, &bfree, metric_p,
-                         /* store rates = */ 0);
-  format_json_finalize(buffer, &bfill, &bfree);
+  int status = format_json_metric(&buf, m, /* store rates = */ false);
+  if (status != 0) {
+    ERROR("write_log plugin: format_json_metric failed: %d", status);
+  } else {
+    INFO("write_log values:\n%s", buf.ptr);
+  }
 
-  INFO("write_log values:\n%s", buffer);
-
+  STRBUF_DESTROY(buf);
   return 0;
 } /* int wl_write_json */
 
-static int wl_write(const metric_t *metric_p,
+static int wl_write(metric_single_t const *m,
                     __attribute__((unused)) user_data_t *user_data) {
   int status = 0;
 
   if (wl_format == WL_FORMAT_GRAPHITE) {
-    status = wl_write_graphite(metric_p);
+    status = wl_write_graphite(m);
   } else if (wl_format == WL_FORMAT_JSON) {
-    status = wl_write_json(metric_p);
+    status = wl_write_json(m);
   }
 
   return status;
