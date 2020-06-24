@@ -1617,9 +1617,9 @@ endif
 if BUILD_PLUGIN_NFTABLES
 pkglib_LTLIBRARIES += nftables.la
 nftables_la_SOURCES = src/nftables.c
-nftables_la_CPPFLAGS = $(AM_CPPFLAGS) -I/usr/local/include
+nftables_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNFTNL_CFLAGS)
 nftables_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-nftables_la_LIBADD = -lnftnl
+nftables_la_LIBADD = $(BUILD_WITH_LIBNFTNL_LIBS)
 endif
 
 if BUILD_PLUGIN_NGINX
