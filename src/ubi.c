@@ -69,8 +69,7 @@ static int ubi_config(const char *key, const char *value) {
   return 0;
 } /* int ubi_config */
 
-static void ubi_submit(const char *dev_name, const char *type,
-                       gauge_t value) {
+static void ubi_submit(const char *dev_name, const char *type, gauge_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   if (ignorelist_match(ignorelist, dev_name) != 0)
