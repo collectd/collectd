@@ -139,6 +139,12 @@ defined in this plugin. By default, this is disabled.
 
 Specifies the value of the timeout argument of the flush callback.
 
+=item B<NormalizeInterval> B<false>|B<true>
+
+When set to B<true> will normalize the time in which collect metrics for this
+plugin and the timestamp of resulting metrics as a multiple of the interval.
+The default value is B<false>.
+
 =back
 
 =item B<AutoLoadPlugin> B<false>|B<true>
@@ -264,11 +270,6 @@ to get data.
 
 This options limits the maximum value of the interval. The default value is
 B<86400>.
-
-=item B<NormalizeInterval> B<false>|B<true>
-
-When set to B<true> normalize the time in which query the read plugins
-to be a multiple of the interval. The default value is B<false>.
 
 =item B<Timeout> I<Iterations>
 

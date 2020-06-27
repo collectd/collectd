@@ -406,19 +406,12 @@ static int plugin_unregister(llist_t *list, const char *name) /* {{{ */
   return 0;
 } /* }}} int plugin_unregister */
 
-static cdtime_t plugin_normalize_interval (cdtime_t cdtime, cdtime_t cdinterval)
-{
-  cdtime_t rest;
-
-  if (IS_TRUE (global_option_get ("NormalizeInterval"))) {
-    rest = cdtime % cdinterval;
-    if (rest == 0) {
-      return cdtime;
-    }
-    return (cdtime - rest + cdinterval);
+static cdtime_t plugin_normalize_interval(cdtime_t ctime, cdtime_t interval) {
+  cdtime_t rest = ctime % interval;
+  if (rest == 0) {
+    return ctime;
   }
-
-  return cdtime;
+  return (ctime - rest + interval);
 }
 
 /* plugin_load_file loads the shared object "file" and calls its
@@ -493,7 +486,11 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
       rf->rf_interval = plugin_get_interval();
       rf->rf_effective_interval = rf->rf_interval;
 
-      rf->rf_next_read = plugin_normalize_interval(cdtime (), rf->rf_interval);
+      if (rf->rf_ctx.normalize_interval) {
+        rf->rf_next_read = plugin_normalize_interval(cdtime(), rf->rf_interval);
+      } else {
+        rf->rf_next_read = cdtime();
+      }
     }
 
     /* sleep until this entry is due,
@@ -603,7 +600,12 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
       /* `rf_next_read' is in the past. Insert `now'
        * so this value doesn't trail off into the
        * past too much. */
-      rf->rf_next_read = plugin_normalize_interval(now, rf->rf_effective_interval);
+      if (rf->rf_ctx.normalize_interval) {
+        rf->rf_next_read =
+            plugin_normalize_interval(now, rf->rf_effective_interval);
+      } else {
+        rf->rf_next_read = now;
+      }
     }
 
     DEBUG("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
@@ -768,6 +770,10 @@ static int plugin_write_enqueue(value_list_t const *vl) /* {{{ */
    * available to the write plugins when actually dispatching the
    * value-list later on. */
   q->ctx = plugin_get_ctx();
+
+  if (q->ctx.normalize_interval) {
+    q->vl->time = q->vl->time - q->vl->time % q->vl->interval;
+  }
 
   pthread_mutex_lock(&write_lock);
 
@@ -1107,7 +1113,11 @@ static int plugin_insert_read(read_func_t *rf) {
   int status;
   llentry_t *le;
 
-  rf->rf_next_read = plugin_normalize_interval(cdtime (), rf->rf_interval);
+  if (rf->rf_ctx.normalize_interval) {
+    rf->rf_next_read = plugin_normalize_interval(cdtime(), rf->rf_interval);
+  } else {
+    rf->rf_next_read = cdtime();
+  }
   rf->rf_effective_interval = rf->rf_interval;
 
   pthread_mutex_lock(&read_lock);

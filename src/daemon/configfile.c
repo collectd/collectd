@@ -115,8 +115,7 @@ static cf_global_option_t cf_global_options[] = {
     {"CollectInternalStats", NULL, 0, "false"},
     {"PreCacheChain", NULL, 0, "PreCache"},
     {"PostCacheChain", NULL, 0, "PostCache"},
-    {"MaxReadInterval", NULL, 0, "86400"}
-	{"NormalizeInterval", NULL, "false"}};
+    {"MaxReadInterval", NULL, 0, "86400"}};
 static int cf_global_options_num = STATIC_ARRAY_SIZE(cf_global_options);
 
 static int cf_default_typesdb = 1;
@@ -303,6 +302,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
       cf_util_get_cdtime(child, &ctx.flush_interval);
     else if (strcasecmp("FlushTimeout", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.flush_timeout);
+    else if (strcasecmp("NormalizeInterval", child->key) == 0)
+      cf_util_get_boolean(child, &ctx.normalize_interval);
     else {
       WARNING("Ignoring unknown LoadPlugin option \"%s\" "
               "for plugin \"%s\"",
@@ -814,7 +815,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   return root;
 } /* oconfig_item_t *cf_read_generic */
-  /* #endif HAVE_WORDEXP_H */
+/* #endif HAVE_WORDEXP_H */
 
 #else  /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
