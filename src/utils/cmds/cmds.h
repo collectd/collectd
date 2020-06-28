@@ -65,9 +65,16 @@ typedef struct {
   /* The raw identifier as provided by the user. */
   char *raw_identifier;
 
-  /* An array of the fully parsed identifier and all metrics, and their
-   * options as provided by the user. */
-  metrics_list_t *ml;
+  /* Depending on the function, this is an input or output field:
+   *
+   * cmd_parse_putval:
+   *   OUTPUT  Receives parsed metric information. The metric family will
+   *           contain a single metric.
+   * cmd_create_putval:
+   *   INPUT   Holds the metrics for which to format the PUTVAL command. The
+   *           metric family may contain multiple metrics.
+   */
+  metric_family_t *family;
 } cmd_putval_t;
 
 /*

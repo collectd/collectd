@@ -44,7 +44,7 @@ static int is_quoted(char const *str, size_t len) {
 }
 
 /* TODO(octo): add an option to set metric->value_type */
-static int set_option(metric_single_t *m, char const *key, char const *value,
+static int set_option(metric_t *m, char const *key, char const *value,
                       cmd_error_handler_t *err) {
   if ((m == NULL) || (key == NULL) || (value == NULL))
     return -1;
@@ -113,40 +113,32 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     return CMD_PARSE_ERROR;
   }
 
-  char const *identifier = argv[0];
+  char *identifier = strdup(argv[0]);
+  if (ret_putval->raw_identifier == NULL) {
+    cmd_error(CMD_ERROR, errhndl, "malloc failed.");
+    return CMD_ERROR;
+  }
 
-  identity_t *id = identity_unmarshal_text(identifier);
-  if (id == NULL) {
+  metric_family_t *fam =
+      metric_family_unmarshal_text(identifier, METRIC_TYPE_UNTYPED);
+  if (fam == NULL) {
     int err = errno;
     DEBUG("cmd_handle_putval: Parsing identifier \"%s\" failed: %s.",
           identifier, STRERROR(err));
     cmd_error(CMD_PARSE_ERROR, errhndl, "Parsing identifier \"%s\" failed: %s.",
               identifier, STRERROR(err));
+    free(identifier);
     return CMD_PARSE_ERROR;
   }
 
-  metric_single_t metric = {
-      .identity = id,
-      .value = (value_t){.gauge = NAN},
-      .value_type = VALUE_TYPE_GAUGE,
+  (*ret_putval) = (cmd_putval_t){
+      .raw_identifier = identifier,
+      .family = fam,
   };
-
-  ret_putval->raw_identifier = strdup(identifier);
-  if (ret_putval->raw_identifier == NULL) {
-    cmd_error(CMD_ERROR, errhndl, "malloc failed.");
-    cmd_destroy_putval(ret_putval);
-    identity_destroy(metric.identity);
-    return CMD_ERROR;
-  }
 
   /* All the remaining fields are part of the option list. */
   cmd_status_t result = CMD_OK;
-
-  metrics_list_t *tail = ret_putval->ml;
-  while ((tail != NULL) && (tail->next_p != NULL)) {
-    tail = tail->next_p;
-  }
-
+  metric_t m = {0};
   for (size_t i = 1; i < argc; ++i) {
     char *key = NULL;
     char *value = NULL;
@@ -155,7 +147,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     if (status == CMD_OK) {
       assert(key != NULL);
       assert(value != NULL);
-      int option_err = set_option(&metric, key, value, errhndl);
+      int option_err = set_option(&m, key, value, errhndl);
       if (option_err != CMD_OK && option_err != CMD_NO_OPTION) {
         result = option_err;
         break;
@@ -170,29 +162,25 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     /* else: cmd_parse_option did not find an option; treat this as a
      * value. */
 
-    status = parse_value(argv[i], &metric.value, metric.value_type);
+    status = parse_value(argv[i], &m.value, fam->type);
     if (status != 0) {
       cmd_error(CMD_PARSE_ERROR, errhndl, "Parsing the values string failed.");
       result = CMD_PARSE_ERROR;
       break;
     }
 
-    metrics_list_t *ml = calloc(1, sizeof(*ml));
-    memcpy(&ml->metric, &metric, sizeof(ml->metric));
-    ml->metric.identity = identity_clone(metric.identity);
-    ml->metric.meta = meta_data_clone(metric.meta);
-
-    if (tail == NULL) {
-      ret_putval->ml = ml;
-    } else {
-      tail->next_p = ml;
+    status = metric_family_metric_append(fam, m);
+    if (status != 0) {
+      cmd_error(CMD_ERROR, errhndl, "metric_family_metric_append failed.");
+      result = CMD_ERROR;
+      break;
     }
-    tail = ml;
   } /* while (*buffer != 0) */
   /* Done parsing the options. */
 
-  if (result != CMD_OK)
+  if (result != CMD_OK) {
     cmd_destroy_putval(ret_putval);
+  }
 
   return result;
 } /* cmd_status_t cmd_parse_putval */
@@ -201,9 +189,10 @@ void cmd_destroy_putval(cmd_putval_t *putval) {
   if (putval == NULL)
     return;
 
-  sfree(putval->raw_identifier);
-  destroy_metrics_list(putval->ml);
-  putval->ml = NULL;
+  free(putval->raw_identifier);
+  metric_family_free(putval->family);
+
+  (*putval) = (cmd_putval_t){0};
 } /* void cmd_destroy_putval */
 
 cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
@@ -223,7 +212,7 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
     return CMD_UNKNOWN_COMMAND;
   }
 
-  status = plugin_dispatch_metric_list(cmd.cmd.putval.ml);
+  status = plugin_dispatch_metric_family(cmd.cmd.putval.family);
   if (status != 0) {
     cmd_error(CMD_ERROR, &err,
               "plugin_dispatch_metric_list failed with status %d.", status);
@@ -233,11 +222,8 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
 
   if (fh != stdout) {
     cmd_putval_t *putval = &cmd.cmd.putval;
-    int n = 0;
-    for (metrics_list_t *ml = putval->ml; ml != NULL; ml = ml->next_p) {
-      n++;
-    }
-    cmd_error(CMD_OK, &err, "Success: %i %s been dispatched.", n,
+    size_t n = putval->family->metric.num;
+    cmd_error(CMD_OK, &err, "Success: %zu %s been dispatched.", n,
               (n == 1) ? "metric has" : "metrics have");
   }
 
@@ -257,9 +243,13 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
  *   PUTVAL metric_name label:key="value" interval=10.000 42
  */
 int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
-                      metric_single_t const *m) {
+                      metric_t const *m) {
+  if ((ret == NULL) || (ret_len == 0) || (m == NULL)) {
+    return EINVAL;
+  }
+
   strbuf_t id_buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&id_buf, m->identity);
+  int status = metric_identity(&id_buf, m);
   if (status != 0) {
     return status;
   }
@@ -269,5 +259,5 @@ int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
   strbuf_print_escaped(&buf, id_buf.ptr, "\\\"\n\r\t", '\\');
   strbuf_printf(&buf, "\" interval=%.3f", CDTIME_T_TO_DOUBLE(m->interval));
   /* TODO(octo): print option to set the value type. */
-  return value_marshal_text(&buf, m->value, m->value_type);
+  return value_marshal_text(&buf, m->value, m->family->type);
 } /* }}} int cmd_create_putval */
