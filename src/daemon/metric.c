@@ -80,7 +80,8 @@ static label_pair_t *label_set_read(label_set_t labels, char const *name) {
   return ret;
 }
 
-int label_set_add(label_set_t *labels, char const *name, char const *value) {
+static int label_set_create(label_set_t *labels, char const *name,
+                            char const *value) {
   if ((labels == NULL) || (name == NULL) || (value == NULL)) {
     return EINVAL;
   }
