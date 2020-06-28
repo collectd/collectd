@@ -284,7 +284,7 @@ char const *metric_label_get(metric_t const *m, char const *name) {
   return set->value;
 }
 
-int metric_list_add(metric_list_t *metrics, metric_t m) {
+static int metric_list_add(metric_list_t *metrics, metric_t m) {
   if (metrics == NULL) {
     return EINVAL;
   }
@@ -314,6 +314,20 @@ int metric_list_add(metric_list_t *metrics, metric_t m) {
   metrics->num++;
 
   return 0;
+}
+
+static void metric_list_reset(metric_list_t *metrics) {
+  if (metrics == NULL) {
+    return;
+  }
+
+  for (size_t i = 0; i < metrics->num; i++) {
+    metric_reset(metrics->ptr + i);
+  }
+  free(metrics->ptr);
+
+  metrics->ptr = NULL;
+  metrics->num = 0;
 }
 
 static int metric_list_clone(metric_list_t *dest, metric_list_t src,
@@ -349,46 +363,21 @@ static int metric_list_clone(metric_list_t *dest, metric_list_t src,
   return 0;
 }
 
-void metric_list_reset(metric_list_t *metrics) {
-  if (metrics == NULL) {
-    return;
-  }
-
-  for (size_t i = 0; i < metrics->num; i++) {
-    label_set_reset(&metrics->ptr[i].label);
-    meta_data_destroy(metrics->ptr[i].meta);
-  }
-  free(metrics->ptr);
-
-  metrics->ptr = NULL;
-  metrics->num = 0;
-}
-
-int metric_family_metrics_append(metric_family_t *fam, value_t v,
-                                 label_t const *label, size_t label_num) {
-  if ((fam == NULL) || ((label_num != 0) && (label == NULL))) {
+int metric_family_metric_append(metric_family_t *fam, metric_t m) {
+  if (fam == NULL) {
     return EINVAL;
   }
 
-  metric_t m = {
-      .family = fam,
-      .value = v,
-  };
+  m.family = fam;
+  return metric_list_add(&fam->metric, m);
+}
 
-  for (size_t i = 0; i < label_num; i++) {
-    int status = label_set_create(&m.label, label[i].name, label[i].value);
-    if (status != 0) {
-      label_set_reset(&m.label);
-      return status;
-    }
+int metric_family_metric_reset(metric_family_t *fam) {
+  if (fam == NULL) {
+    return EINVAL;
   }
 
-  int status = metric_list_add(&fam->metric, m);
-  if (status != 0) {
-    label_set_reset(&m.label);
-    return status;
-  }
-
+  metric_list_reset(&fam->metric);
   return 0;
 }
 

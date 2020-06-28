@@ -133,14 +133,6 @@ typedef struct {
   size_t num;
 } metric_list_t;
 
-/* metric_list_add appends a metric to the metric list. The metric's labels and
- * meta data are copied. */
-int metric_list_add(metric_list_t *metrics, metric_t m);
-
-/* metric_list_reset frees all the metrics in the metric list. It does *not*
- * free the passed "metric_list_t*" itself. */
-void metric_list_reset(metric_list_t *metrics);
-
 /*
  * Metric Family
  */
@@ -153,10 +145,13 @@ struct metric_family_s {
   metric_list_t metric;
 };
 
-/* metric_family_metrics_append appends a new metric to the metric family. This
- * allocates memory which must be freed using metric_family_metrics_reset. */
-int metric_family_metrics_append(metric_family_t *fam, value_t v,
-                                 label_t const *label, size_t label_num);
+/* metric_family_metric_append appends a new metric to the metric family. This
+ * allocates memory which must be freed using metric_family_metric_reset. */
+int metric_family_metric_append(metric_family_t *fam, metric_t m);
+
+/* metric_family_metric_reset frees all metrics in the metric family and
+ * resets the count to zero. */
+int metric_family_metric_reset(metric_family_t *fam);
 
 /* metric_family_free frees a "metric_family_t" that was allocated with
  * metric_family_clone(). */
