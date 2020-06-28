@@ -35,7 +35,7 @@
 #define GRAPHITE_USE_TAGS 0x20
 #define GRAPHITE_REVERSE_HOST 0x40
 
-int format_graphite(strbuf_t *buf, metric_single_t const *m, const char *prefix,
+int format_graphite(strbuf_t *buf, metric_t const *m, const char *prefix,
                     const char *suffix, const char escape_char,
                     unsigned int flags);
 

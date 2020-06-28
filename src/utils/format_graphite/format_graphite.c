@@ -35,18 +35,17 @@
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
 
-static int gr_format_values(strbuf_t *buf, metric_single_t const *m,
-                            gauge_t rate) {
-  if (m->value_type == DS_TYPE_GAUGE)
+static int gr_format_values(strbuf_t *buf, metric_t const *m, gauge_t rate) {
+  if (m->family->type == DS_TYPE_GAUGE)
     return strbuf_printf(buf, GAUGE_FORMAT, m->value.gauge);
   else if (rate != -1)
     return strbuf_printf(buf, "%f", rate);
-  else if (m->value_type == DS_TYPE_COUNTER)
+  else if (m->family->type == DS_TYPE_COUNTER)
     return strbuf_printf(buf, "%" PRIu64, (uint64_t)m->value.counter);
-  else if (m->value_type == DS_TYPE_DERIVE)
+  else if (m->family->type == DS_TYPE_DERIVE)
     return strbuf_printf(buf, "%" PRIi64, m->value.derive);
 
-  P_ERROR("gr_format_values: Unknown data source type: %d", m->value_type);
+  P_ERROR("gr_format_values: Unknown data source type: %d", m->family->type);
   return EINVAL;
 }
 
@@ -89,31 +88,29 @@ static int graphite_print_escaped(strbuf_t *buf, char const *s,
   return 0;
 }
 
-static int gr_format_name(strbuf_t *buf, metric_single_t const *m,
-                          char const *prefix, char const *suffix,
-                          char const escape_char, unsigned int flags) {
+static int gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
+                          char const *suffix, char const escape_char,
+                          unsigned int flags) {
   if (prefix != NULL) {
     strbuf_print(buf, prefix);
   }
-  graphite_print_escaped(buf, m->identity->name, escape_char);
+  graphite_print_escaped(buf, m->family->name, escape_char);
   if (suffix != NULL) {
     strbuf_print(buf, suffix);
   }
 
-  c_avl_iterator_t *iter = c_avl_get_iterator(m->identity->labels);
-  char *k = NULL, *v = NULL;
-  while ((c_avl_iterator_next(iter, (void **)&k, (void **)&v)) == 0) {
+  for (size_t i = 0; i < m->label.num; i++) {
+    label_pair_t *l = m->label.ptr + i;
     strbuf_print(buf, ".");
-    graphite_print_escaped(buf, k, escape_char);
+    graphite_print_escaped(buf, l->name, escape_char);
     strbuf_print(buf, (flags & GRAPHITE_SEPARATE_INSTANCES) ? "." : "=");
-    graphite_print_escaped(buf, v, escape_char);
+    graphite_print_escaped(buf, l->value, escape_char);
   }
-  c_avl_iterator_destroy(iter);
 
   return 0;
 }
 
-int format_graphite(strbuf_t *buf, metric_single_t const *m, char const *prefix,
+int format_graphite(strbuf_t *buf, metric_t const *m, char const *prefix,
                     char const *postfix, char const escape_char,
                     unsigned int flags) {
   gauge_t rate = -1;
