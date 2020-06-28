@@ -545,20 +545,18 @@ static int format_time(yajl_gen g, cdtime_t t) /* {{{ */
 
 /* TODO(octo): format_metric should export the interval, too. */
 /* TODO(octo): Decide whether format_metric should export meta data. */
-static int format_metric(yajl_gen g, metric_single_t const *m) {
+static int format_metric(yajl_gen g, metric_t const *m) {
   CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN metric */
 
-  if (c_avl_size(m->identity->labels) != 0) {
+  if (m->label.num != 0) {
     JSON_ADD(g, "labels");
     CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN labels */
 
-    c_avl_iterator_t *iter = c_avl_get_iterator(m->identity->labels);
-    char *k = NULL, *v = NULL;
-    while (c_avl_iterator_next(iter, (void *)&k, (void *)&v) == 0) {
-      JSON_ADD(g, k);
-      JSON_ADD(g, v);
+    for (size_t i = 0; i < m->label.num; i++) {
+      label_pair_t *l = m->label.ptr + i;
+      JSON_ADD(g, l->name);
+      JSON_ADD(g, l->value);
     }
-    c_avl_iterator_destroy(iter);
 
     CHECK_SUCCESS(yajl_gen_map_close(g)); /* END labels */
   }
@@ -569,7 +567,7 @@ static int format_metric(yajl_gen g, metric_single_t const *m) {
   }
 
   strbuf_t buf = STRBUF_CREATE;
-  int status = value_marshal_text(&buf, m->value, m->value_type);
+  int status = value_marshal_text(&buf, m->value, m->family->type);
   if (status != 0) {
     STRBUF_DESTROY(buf);
     return status;
@@ -583,28 +581,28 @@ static int format_metric(yajl_gen g, metric_single_t const *m) {
   return 0;
 }
 
-/* format_metrics_list that all metrics in ml have the same name and value_type.
+/* json_metric_family that all metrics in ml have the same name and value_type.
  */
-static int format_metrics_list(yajl_gen g, metrics_list_t const *ml) {
+static int json_metric_family(yajl_gen g, metric_family_t const *fam) {
   CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN metric family */
 
-  metric_single_t const *m = &ml->metric;
-
   JSON_ADD(g, "name");
-  JSON_ADD(g, m->identity->name);
+  JSON_ADD(g, fam->name);
 
   char const *type = NULL;
-  switch (m->value_type) {
+  switch (fam->type) {
   /* TODO(octo): handle store_rates. */
-  case VALUE_TYPE_GAUGE:
+  case METRIC_TYPE_GAUGE:
     type = "GAUGE";
     break;
-  case VALUE_TYPE_DERIVE:
-  case DS_TYPE_COUNTER:
+  case METRIC_TYPE_COUNTER:
     type = "COUNTER";
     break;
+  case METRIC_TYPE_UNTYPED:
+    type = "UNTYPED";
+    break;
   default:
-    ERROR("format_json_metric: Unknown value type: %d", m->value_type);
+    ERROR("format_json_metric: Unknown value type: %d", fam->type);
     return EINVAL;
   }
   JSON_ADD(g, "type");
@@ -612,8 +610,9 @@ static int format_metrics_list(yajl_gen g, metrics_list_t const *ml) {
 
   JSON_ADD(g, "metrics");
   CHECK_SUCCESS(yajl_gen_array_open(g));
-  for (metrics_list_t const *ptr = ml; ptr != NULL; ptr = ptr->next_p) {
-    int status = format_metric(g, &ptr->metric);
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t *m = fam->metric.ptr + i;
+    int status = format_metric(g, m);
     if (status != 0) {
       return status;
     }
@@ -625,9 +624,9 @@ static int format_metrics_list(yajl_gen g, metrics_list_t const *ml) {
   return 0;
 }
 
-int format_json_metric(strbuf_t *buf, metric_single_t const *m,
-                       bool store_rates) {
-  if ((buf == NULL) || (m == NULL))
+int format_json_metric_family(strbuf_t *buf, metric_family_t const *fam,
+                              bool store_rates) {
+  if ((buf == NULL) || (fam == NULL))
     return EINVAL;
 
 #if HAVE_YAJL_V2
@@ -652,7 +651,7 @@ int format_json_metric(strbuf_t *buf, metric_single_t const *m,
 
   yajl_gen_array_open(g);
 
-  int status = format_metrics_list(g, &(metrics_list_t){.metric = *m});
+  int status = json_metric_family(g, fam);
   if (status != 0) {
     yajl_gen_clear(g);
     yajl_gen_free(g);
