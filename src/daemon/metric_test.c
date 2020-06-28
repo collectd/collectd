@@ -29,6 +29,72 @@
 #include "metric.h"
 #include "testing.h"
 
+DEF_TEST(metric_label_set) {
+  struct {
+    char const *key;
+    char const *value;
+    int want_err;
+    char const *want_get;
+  } cases[] = {
+      {
+          .key = "foo",
+          .value = "bar",
+          .want_get = "bar",
+      },
+      {
+          .key = NULL,
+          .value = "bar",
+          .want_err = EINVAL,
+      },
+      {
+          .key = "foo",
+          .value = NULL,
+      },
+      {
+          .key = "",
+          .value = "bar",
+          .want_err = EINVAL,
+      },
+      {
+          .key = "valid",
+          .value = "",
+      },
+      {
+          .key = "1nvalid",
+          .value = "bar",
+          .want_err = EINVAL,
+      },
+      {
+          .key = "val1d",
+          .value = "bar",
+          .want_get = "bar",
+      },
+      {
+          .key = "inva!id",
+          .value = "bar",
+          .want_err = EINVAL,
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
+    printf("## Case %zu: %s=\"%s\"\n", i,
+           cases[i].key ? cases[i].key : "(null)",
+           cases[i].value ? cases[i].value : "(null)");
+
+    metric_t m = {0};
+
+    EXPECT_EQ_INT(cases[i].want_err,
+                  metric_label_set(&m, cases[i].key, cases[i].value));
+    EXPECT_EQ_STR(cases[i].want_get, metric_label_get(&m, cases[i].key));
+
+    metric_reset(&m);
+    EXPECT_EQ_PTR(NULL, m.label.ptr);
+    EXPECT_EQ_INT(0, m.label.num);
+  }
+
+  return 0;
+}
+
 DEF_TEST(metric_identity) {
   struct {
     char *name;
@@ -94,6 +160,7 @@ DEF_TEST(metric_identity) {
 }
 
 int main(void) {
+  RUN_TEST(metric_label_set);
   RUN_TEST(metric_identity);
 
   END_TEST;

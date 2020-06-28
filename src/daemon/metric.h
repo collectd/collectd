@@ -64,11 +64,11 @@ typedef struct {
   char *value;
 } label_pair_t;
 
-/* label_t represents a constant label, i.e. a key/value pair. It is similar to
- * label_pair_t, except that is has const fields. label_t is used in function
- * arguments to prevent the called function from modifying its argument.
- * Internally labels are stored as label_pair_t to allow modification, e.g. by
- * targets in the "filter chain". */
+/* label_t represents a key/value pair. It is similar to label_pair_t, except
+ * that is has const fields. label_t is used in function arguments to prevent
+ * the called function from modifying its argument. Internally labels are
+ * stored as label_pair_t to allow modification, e.g. by targets in the "filter
+ * chain". */
 typedef struct {
   char const *name;
   char const *value;
@@ -79,19 +79,6 @@ typedef struct {
   label_pair_t *ptr;
   size_t num;
 } label_set_t;
-
-/* label_set_get efficiently looks up and returns the "name" label. If a label
- * does not exist, NULL is returned and errno is set to ENOENT. */
-label_pair_t *label_set_get(label_set_t labels, char const *name);
-
-/* label_set_add adds a new label to the set of labels. If a label with "name"
- * already exists, EEXIST is returned. If "value" is the empty string, no label
- * is added and zero is returned. */
-int label_set_add(label_set_t *labels, char const *name, char const *value);
-
-/* label_set_reset frees all the labels in the label set. It does *not* free
- * the passed "label_set_t*" itself. */
-void label_set_reset(label_set_t *labels);
 
 /*
  * Metric
@@ -110,7 +97,7 @@ typedef struct {
   cdtime_t time; /* TODO(octo): use ms or µs instead? */
   cdtime_t interval;
   /* TODO(octo): target labels */
-  meta_data_t *meta; /* TODO(octo): free in metric_list_reset() */
+  meta_data_t *meta;
 } metric_t;
 
 /* metric_identity writes the identity of the metric "m" to "buf". An example
@@ -125,13 +112,29 @@ int metric_identity(strbuf_t *buf, metric_t const *m);
  * be freed by passing m->family to metric_family_free(). */
 metric_t *metric_parse_identity(char const *s);
 
+/* metric_label_set adds or updates a label to/in the label set.
+ * If "value" is NULL or the empty string, the label is removed. Removing a
+ * label that does not exist is *not* an error. */
+int metric_label_set(metric_t *m, char const *name, char const *value);
+
+/* metric_label_get efficiently looks up and returns the value of the "name"
+ * label. If a label does not exist, NULL is returned and errno is set to
+ * ENOENT. The returned pointer may not be valid after a subsequent call to
+ * "metric_label_set". */
+char const *metric_label_get(metric_t const *m, char const *name);
+
+/* metric_reset frees all labels and meta data stored in the metric and resets
+ * the metric to zero. */
+int metric_reset(metric_t *m);
+
 /* metric_list_t is an unordered list of metrics. */
 typedef struct {
   metric_t *ptr;
   size_t num;
 } metric_list_t;
 
-/* metric_list_add appends a metric to the metric list. */
+/* metric_list_add appends a metric to the metric list. The metric's labels and
+ * meta data are copied. */
 int metric_list_add(metric_list_t *metrics, metric_t m);
 
 /* metric_list_reset frees all the metrics in the metric list. It does *not*

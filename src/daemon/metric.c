@@ -60,7 +60,7 @@ static int label_pair_compare(void const *a, void const *b) {
                 ((label_pair_t const *)b)->name);
 }
 
-label_pair_t *label_set_get(label_set_t labels, char const *name) {
+static label_pair_t *label_set_read(label_set_t labels, char const *name) {
   if (name == NULL) {
     errno = EINVAL;
     return NULL;
@@ -80,7 +80,8 @@ label_pair_t *label_set_get(label_set_t labels, char const *name) {
   return ret;
 }
 
-int label_set_add(label_set_t *labels, char const *name, char const *value) {
+static int label_set_create(label_set_t *labels, char const *name,
+                            char const *value) {
   if ((labels == NULL) || (name == NULL) || (value == NULL)) {
     return EINVAL;
   }
@@ -95,9 +96,10 @@ int label_set_add(label_set_t *labels, char const *name, char const *value) {
     return EINVAL;
   }
 
-  if (label_set_get(*labels, name) != NULL) {
+  if (label_set_read(*labels, name) != NULL) {
     return EEXIST;
   }
+  errno = 0;
 
   if (strlen(value) == 0) {
     return 0;
@@ -127,6 +129,49 @@ int label_set_add(label_set_t *labels, char const *name, char const *value) {
   return 0;
 }
 
+static int label_set_delete(label_set_t *labels, label_pair_t *elem) {
+  if ((labels == NULL) || (elem == NULL)) {
+    return EINVAL;
+  }
+
+  if ((elem < labels->ptr) || (elem > labels->ptr + (labels->num - 1))) {
+    return ERANGE;
+  }
+
+  size_t index = elem - labels->ptr;
+  assert(labels->ptr + index == elem);
+
+  free(elem->name);
+  free(elem->value);
+
+  if (index != (labels->num - 1)) {
+    memmove(labels->ptr + index, labels->ptr + (index + 1),
+            labels->num - (index + 1));
+  }
+  labels->num--;
+
+  if (labels->num == 0) {
+    free(labels->ptr);
+    labels->ptr = NULL;
+  }
+
+  return 0;
+}
+
+static void label_set_reset(label_set_t *labels) {
+  if (labels == NULL) {
+    return;
+  }
+  for (size_t i = 0; i < labels->num; i++) {
+    free(labels->ptr[i].name);
+    free(labels->ptr[i].value);
+  }
+  free(labels->ptr);
+
+  labels->ptr = NULL;
+  labels->num = 0;
+}
+
 static int label_set_clone(label_set_t *dest, label_set_t src) {
   if (src.num == 0) {
     return 0;
@@ -153,18 +198,17 @@ static int label_set_clone(label_set_t *dest, label_set_t src) {
   return 0;
 }
 
-void label_set_reset(label_set_t *labels) {
-  if (labels == NULL) {
-    return;
+int metric_reset(metric_t *m) {
+  if (m == NULL) {
+    return EINVAL;
   }
-  for (size_t i = 0; i < labels->num; i++) {
-    free(labels->ptr[i].name);
-    free(labels->ptr[i].value);
-  }
-  free(labels->ptr);
 
-  labels->ptr = NULL;
-  labels->num = 0;
+  label_set_reset(&m->label);
+  meta_data_destroy(m->meta);
+
+  memset(m, 0, sizeof(*m));
+
+  return 0;
 }
 
 int metric_identity(strbuf_t *buf, metric_t const *m) {
@@ -193,6 +237,53 @@ int metric_identity(strbuf_t *buf, metric_t const *m) {
   return status || strbuf_print(buf, "}");
 }
 
+int metric_label_set(metric_t *m, char const *name, char const *value) {
+  if ((m == NULL) || (name == NULL)) {
+    return EINVAL;
+  }
+
+  label_pair_t *label = label_set_read(m->label, name);
+  if ((label == NULL) && (errno != ENOENT)) {
+    return errno;
+  }
+  errno = 0;
+
+  if (label == NULL) {
+    if ((value == NULL) || strlen(value) == 0) {
+      return 0;
+    }
+    return label_set_create(&m->label, name, value);
+  }
+
+  if ((value == NULL) || strlen(value) == 0) {
+    return label_set_delete(&m->label, label);
+  }
+
+  char *new_value = strdup(value);
+  if (new_value == NULL) {
+    return errno;
+  }
+
+  free(label->value);
+  label->value = new_value;
+
+  return 0;
+}
+
+char const *metric_label_get(metric_t const *m, char const *name) {
+  if ((m == NULL) || (name == NULL)) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  label_pair_t *set = label_set_read(m->label, name);
+  if (set == NULL) {
+    return NULL;
+  }
+
+  return set->value;
+}
+
 int metric_list_add(metric_list_t *metrics, metric_t m) {
   if (metrics == NULL) {
     return EINVAL;
@@ -205,7 +296,21 @@ int metric_list_add(metric_list_t *metrics, metric_t m) {
   }
   metrics->ptr = tmp;
 
-  metrics->ptr[metrics->num] = m;
+  metric_t copy = {
+      .family = m.family,
+      .value = m.value,
+      .time = m.time,
+      .interval = m.interval,
+      .meta = meta_data_clone(m.meta),
+  };
+  int status = label_set_clone(&copy.label, m.label);
+  if (((m.meta != NULL) && (copy.meta == NULL)) || (status != 0)) {
+    label_set_reset(&copy.label);
+    meta_data_destroy(copy.meta);
+    return status;
+  }
+
+  metrics->ptr[metrics->num] = copy;
   metrics->num++;
 
   return 0;
@@ -251,6 +356,7 @@ void metric_list_reset(metric_list_t *metrics) {
 
   for (size_t i = 0; i < metrics->num; i++) {
     label_set_reset(&metrics->ptr[i].label);
+    meta_data_destroy(metrics->ptr[i].meta);
   }
   free(metrics->ptr);
 
@@ -270,7 +376,7 @@ int metric_family_metrics_append(metric_family_t *fam, value_t v,
   };
 
   for (size_t i = 0; i < label_num; i++) {
-    int status = label_set_add(&m.label, label[i].name, label[i].value);
+    int status = label_set_create(&m.label, label[i].name, label[i].value);
     if (status != 0) {
       label_set_reset(&m.label);
       return status;
@@ -441,7 +547,7 @@ static int metric_family_unmarshal_identity(metric_family_t *fam,
     /* one metric is added to the family by metric_family_unmarshal_text. */
     assert(fam->metric.num >= 1);
 
-    status = label_set_add(&fam->metric.ptr[0].label, key, value.ptr);
+    status = metric_label_set(m, key, value.ptr);
     STRBUF_DESTROY(value);
     if (status != 0) {
       ret = status;
