@@ -32,6 +32,7 @@
 #include "utils_cache.h"
 #include "utils_complain.h"
 #include "utils_fbhash.h"
+#include "utils_random.h"
 
 #include "network.h"
 
@@ -277,6 +278,8 @@ static receive_list_entry_t *receive_list_tail;
 static pthread_mutex_t receive_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t receive_list_cond = PTHREAD_COND_INITIALIZER;
 static uint64_t receive_list_length;
+static uint64_t receive_list_limit_high;
+static uint64_t receive_list_limit_low;
 
 static sockent_t *listen_sockets;
 static struct pollfd *listen_sockets_pollfd;
@@ -1133,7 +1136,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_sign_sha256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
@@ -1288,7 +1291,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_encr_aes256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
@@ -1697,7 +1700,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-      /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+    /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "
@@ -2257,6 +2260,66 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
   return NULL;
 } /* }}} void *dispatch_thread */
 
+static double get_drop_probability(void) /* {{ */
+{
+  long pos;
+  long size;
+  long rll;
+
+  rll = receive_list_length;
+
+  if (rll >= receive_list_limit_high)
+    return 1.0;
+  if (rll <= receive_list_limit_low)
+    return 0.0;
+
+  pos = rll - receive_list_limit_low;
+  size = receive_list_limit_high - receive_list_limit_low;
+
+  return (double)pos / (double)size;
+
+} /* }} double get_drop_probability */
+
+static bool check_drop_value(void) /* {{{ */
+{
+  static cdtime_t last_message_time;
+  static pthread_mutex_t last_message_lock = PTHREAD_MUTEX_INITIALIZER;
+
+  double p;
+  double q;
+  int status;
+
+  if (receive_list_limit_high == 0)
+    return false;
+
+  p = get_drop_probability();
+  if (p == 0.0)
+    return false;
+
+  status = pthread_mutex_trylock(&last_message_lock);
+  if (status == 0) {
+    cdtime_t now;
+
+    now = cdtime();
+    if ((now - last_message_time) > TIME_T_TO_CDTIME_T(1)) {
+      last_message_time = now;
+      ERROR("network plugin: Low water mark "
+            "reached. Dropping %.0f%% of packets.",
+            100.0 * p);
+    }
+    pthread_mutex_unlock(&last_message_lock);
+  }
+
+  if (p == 1.0)
+    return true;
+
+  q = cdrand_d();
+  if (q < p)
+    return true;
+  else
+    return false;
+} /* }}} bool check_drop_value */
+
 static int network_receive(void) /* {{{ */
 {
   char buffer[network_config_packet_size];
@@ -2304,6 +2367,9 @@ static int network_receive(void) /* {{{ */
 
       stats_octets_rx += ((uint64_t)buffer_len);
       stats_packets_rx++;
+
+      if (check_drop_value())
+        continue;
 
       /* TODO: Possible performance enhancement: Do not free
        * these entries in the dispatch thread but put them in
@@ -3017,6 +3083,34 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* }}} int network_config_add_server */
 
+static int network_config_set_receive_list_limits(/* {{ */
+                                                  const oconfig_item_t *ci) {
+
+  if (ci == NULL)
+    return EINVAL;
+
+  if ((ci->values_num == 1) && (ci->values[0].type == OCONFIG_TYPE_NUMBER)) {
+    receive_list_limit_high = (uint64_t)ci->values[0].value.number;
+    receive_list_limit_low = receive_list_limit_high / 2;
+  } else if ((ci->values_num == 2) &&
+             (ci->values[0].type == OCONFIG_TYPE_NUMBER) &&
+             (ci->values[1].type == OCONFIG_TYPE_NUMBER)) {
+    receive_list_limit_low = (uint64_t)ci->values[0].value.number;
+    receive_list_limit_high = (uint64_t)ci->values[1].value.number;
+    if (receive_list_limit_low > receive_list_limit_high) {
+      receive_list_limit_low = receive_list_limit_high;
+      WARNING("The `%s' low value should not be greater than the high one, "
+              "setting low value to %" PRIu64,
+              ci->key, receive_list_limit_low);
+    }
+  } else {
+    WARNING("The `%s' option requires one or two numeric arguments.", ci->key);
+    return -1;
+  }
+
+  return 0;
+} /* }} int network_config_set_receive_list_limits */
+
 static int network_config(oconfig_item_t *ci) /* {{{ */
 {
   /* The options need to be applied first */
@@ -3041,6 +3135,8 @@ static int network_config(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &network_config_forward);
     else if (strcasecmp("ReportStats", child->key) == 0)
       cf_util_get_boolean(child, &network_config_stats);
+    else if (strcasecmp("ReceiveQueueLimits", child->key) == 0)
+      network_config_set_receive_list_limits(child);
     else {
       WARNING("network plugin: Option `%s' is not allowed here.", child->key);
     }

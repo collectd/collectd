@@ -1515,6 +1515,7 @@ endif
 test_plugin_network_SOURCES = \
 	src/network_test.c \
 	src/utils_fbhash.c \
+	src/daemon/utils_random.c \
 	src/daemon/configfile.c \
 	src/daemon/types_list.c
 test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CPPFLAGS)
