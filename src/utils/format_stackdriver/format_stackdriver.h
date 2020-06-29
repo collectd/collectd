@@ -41,7 +41,7 @@ sd_output_t *sd_output_create(sd_resource_t *res);
  * sd_resource_t* passed to sd_output_create. */
 void sd_output_destroy(sd_output_t *out);
 
-/* sd_output_add adds a value_list_t* to "out".
+/* sd_output_add adds a metric_family_t* to "out".
  *
  * Return values:
  *   - 0        Success
@@ -52,13 +52,11 @@ void sd_output_destroy(sd_output_t *out);
  *              using the Stackdriver API and then call
  *              sd_output_register_metric.
  */
-int sd_output_add(sd_output_t *out, data_set_t const *ds,
-                  value_list_t const *vl);
+int sd_output_add(sd_output_t *out, metric_t const *m);
 
 /* sd_output_register_metric adds the metric descriptor which vl maps to, to
  * the list of known metric descriptors. */
-int sd_output_register_metric(sd_output_t *out, data_set_t const *ds,
-                              value_list_t const *vl);
+int sd_output_register_metric(sd_output_t *out, metric_t const *m);
 
 /* sd_output_reset resets the output and returns the previous content of the
  * buffer. It is the caller's responsibility to call free() with the returned
@@ -72,8 +70,6 @@ int sd_resource_add_label(sd_resource_t *res, char const *key,
 
 /* sd_format_metric_descriptor creates the payload for a
  * projects.metricDescriptors.create() request. */
-int sd_format_metric_descriptor(char *buffer, size_t buffer_size,
-                                data_set_t const *ds, value_list_t const *vl,
-                                int ds_index);
+int sd_format_metric_descriptor(strbuf_t *buf, metric_t const *m);
 
 #endif /* UTILS_FORMAT_STACKDRIVER_H */

@@ -37,6 +37,10 @@
 #include <yajl/yajl_version.h>
 #endif
 
+#ifndef GCM_PREFIX
+#define GCM_PREFIX "custom.googleapis.com/collectd/"
+#endif
+
 struct sd_output_s {
   sd_resource_t *res;
   yajl_gen gen;
@@ -124,37 +128,34 @@ static int format_gcm_resource(yajl_gen gen, sd_resource_t *res) /* {{{ */
  *   "doubleValue": number,
  * }
  */
-static int format_typed_value(yajl_gen gen, int ds_type, value_t v,
+static int format_typed_value(yajl_gen gen, metric_t const *m,
                               int64_t start_value) {
   char integer[32];
 
   yajl_gen_map_open(gen);
 
-  switch (ds_type) {
-  case DS_TYPE_GAUGE: {
+  switch (m->family->type) {
+  case METRIC_TYPE_GAUGE:
+  case METRIC_TYPE_UNTYPED: {
     int status = json_string(gen, "doubleValue");
     if (status != 0)
       return status;
 
-    status = (int)yajl_gen_double(gen, (double)v.gauge);
+    status = (int)yajl_gen_double(gen, (double)m->value.gauge);
     if (status != yajl_gen_status_ok)
       return status;
 
     yajl_gen_map_close(gen);
     return 0;
   }
-  case DS_TYPE_DERIVE: {
-    derive_t diff = v.derive - (derive_t)start_value;
-    ssnprintf(integer, sizeof(integer), "%" PRIi64, diff);
-    break;
-  }
-  case DS_TYPE_COUNTER: {
-    counter_t diff = counter_diff((counter_t)start_value, v.counter);
+  case METRIC_TYPE_COUNTER: {
+    assert(m->value.counter > (uint64_t)start_value);
+    uint64_t diff = m->value.counter - (uint64_t)start_value;
     ssnprintf(integer, sizeof(integer), "%" PRIu64, diff);
     break;
   }
   default: {
-    ERROR("format_typed_value: unknown value type %d.", ds_type);
+    ERROR("format_typed_value: unknown value type %d.", m->family->type);
     return EINVAL;
   }
   }
@@ -175,15 +176,15 @@ static int format_typed_value(yajl_gen gen, int ds_type, value_t v,
  *   "GAUGE"
  * )
  */
-static int format_metric_kind(yajl_gen gen, int ds_type) {
-  switch (ds_type) {
-  case DS_TYPE_GAUGE:
+static int format_metric_kind(yajl_gen gen, metric_t const *m) {
+  switch (m->family->type) {
+  case METRIC_TYPE_GAUGE:
+  case METRIC_TYPE_UNTYPED:
     return json_string(gen, "GAUGE");
-  case DS_TYPE_COUNTER:
-  case DS_TYPE_DERIVE:
+  case METRIC_TYPE_COUNTER:
     return json_string(gen, "CUMULATIVE");
   default:
-    ERROR("format_metric_kind: unknown value type %d.", ds_type);
+    ERROR("format_metric_kind: unknown value type %d.", m->family->type);
     return EINVAL;
   }
 }
@@ -195,46 +196,48 @@ static int format_metric_kind(yajl_gen gen, int ds_type) {
  *   "INT64"
  * )
  */
-static int format_value_type(yajl_gen gen, int ds_type) {
-  return json_string(gen, (ds_type == DS_TYPE_GAUGE) ? "DOUBLE" : "INT64");
+static int format_value_type(yajl_gen gen, metric_t const *m) {
+  return json_string(gen,
+                     (m->family->type == DS_TYPE_GAUGE) ? "DOUBLE" : "INT64");
 }
 
-static int metric_type(char *buffer, size_t buffer_size, data_set_t const *ds,
-                       value_list_t const *vl, int ds_index) {
-  /* {{{ */
-  char const *ds_name = ds->ds[ds_index].name;
+static int metric_type(strbuf_t *buf, metric_t const *m) {
+  char const *name = m->family->name;
+  size_t name_len = strlen(name);
 
-#define GCM_PREFIX "custom.googleapis.com/collectd/"
-  if ((ds_index != 0) || strcmp("value", ds_name) != 0) {
-    ssnprintf(buffer, buffer_size, GCM_PREFIX "%s/%s_%s", vl->plugin, vl->type,
-              ds_name);
-  } else {
-    ssnprintf(buffer, buffer_size, GCM_PREFIX "%s/%s", vl->plugin, vl->type);
+  int status = strbuf_print(buf, GCM_PREFIX);
+
+  char const *valid_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                            "abcdefghijklmnopqrstuvwxyz"
+                            "0123456789_/";
+  while (name_len != 0) {
+    size_t valid_len = strspn(name, valid_chars);
+    if (valid_len != 0) {
+      status = status || strbuf_printn(buf, name, valid_len);
+      name += valid_len;
+      name_len -= valid_len;
+      continue;
+    }
+
+    status = status || strbuf_print(buf, "_");
+    name++;
+    name_len--;
   }
 
-  char const *whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                          "abcdefghijklmnopqrstuvwxyz"
-                          "0123456789_/";
-  char *ptr = buffer + strlen(GCM_PREFIX);
-  size_t ok_len;
-  while ((ok_len = strspn(ptr, whitelist)) != strlen(ptr)) {
-    ptr[ok_len] = '_';
-    ptr += ok_len;
-  }
-
-  return 0;
+  return status;
 } /* }}} int metric_type */
 
 /* The metric type, including its DNS name prefix. The type is not URL-encoded.
  * All user-defined custom metric types have the DNS name custom.googleapis.com.
  * Metric types should use a natural hierarchical grouping. */
-static int format_metric_type(yajl_gen gen, data_set_t const *ds,
-                              value_list_t const *vl, int ds_index) {
+static int format_metric_type(yajl_gen gen, metric_t const *m) {
   /* {{{ */
-  char buffer[4 * DATA_MAX_NAME_LEN];
-  metric_type(buffer, sizeof(buffer), ds, vl, ds_index);
+  strbuf_t buf = STRBUF_CREATE;
 
-  return json_string(gen, buffer);
+  int status = metric_type(&buf, m) || json_string(gen, buf.ptr);
+
+  STRBUF_DESTROY(buf);
+  return status;
 } /* }}} int format_metric_type */
 
 /* TimeInterval
@@ -244,16 +247,16 @@ static int format_metric_type(yajl_gen gen, data_set_t const *ds,
  *   "startTime": string,
  * }
  */
-static int format_time_interval(yajl_gen gen, int ds_type,
-                                value_list_t const *vl, cdtime_t start_time) {
+static int format_time_interval(yajl_gen gen, metric_t const *m,
+                                cdtime_t start_time) {
   /* {{{ */
   yajl_gen_map_open(gen);
 
-  int status = json_string(gen, "endTime") || json_time(gen, vl->time);
+  int status = json_string(gen, "endTime") || json_time(gen, m->time);
   if (status != 0)
     return status;
 
-  if ((ds_type == DS_TYPE_DERIVE) || (ds_type == DS_TYPE_COUNTER)) {
+  if (m->family->type == METRIC_TYPE_COUNTER) {
     int status = json_string(gen, "startTime") || json_time(gen, start_time);
     if (status != 0)
       return status;
@@ -264,43 +267,32 @@ static int format_time_interval(yajl_gen gen, int ds_type,
 } /* }}} int format_time_interval */
 
 /* read_cumulative_state reads the start time and start value of cumulative
- * (i.e. DERIVE or COUNTER) metrics from the cache. If a metric is seen for the
- * first time, or when a DERIVE metric is reset, the start time is (re)set to
- * vl->time. */
-static int read_cumulative_state(data_set_t const *ds, value_list_t const *vl,
-                                 int ds_index, cdtime_t *ret_start_time,
+ * (i.e. METRIC_TYPE_COUNTER) metrics from the cache. If a metric is seen for
+ * the first time, or reset (the current value is smaller than the cached
+ * value), the start time is (re)set to vl->time. */
+static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
                                  int64_t *ret_start_value) {
-  int ds_type = ds->ds[ds_index].type;
-  if ((ds_type != DS_TYPE_DERIVE) && (ds_type != DS_TYPE_COUNTER)) {
+  /* TODO(octo): Add back DERIVE here. */
+  if (m->family->type != METRIC_TYPE_COUNTER) {
     return 0;
   }
 
-  char start_value_key[DATA_MAX_NAME_LEN];
-  ssnprintf(start_value_key, sizeof(start_value_key),
-            "stackdriver:start_value[%d]", ds_index);
+  char const *start_value_key = "stackdriver:start_value";
+  char const *start_time_key = "stackdriver:start_time";
 
   int status =
-      uc_meta_data_get_signed_int_vl(vl, start_value_key, ret_start_value);
-  if ((status == 0) && ((ds_type != DS_TYPE_DERIVE) ||
-                        (*ret_start_value <= vl->values[ds_index].derive))) {
-    return uc_meta_data_get_unsigned_int_vl(vl, "stackdriver:start_time",
-                                            ret_start_time);
+      uc_meta_data_get_signed_int(m, start_value_key, ret_start_value) ||
+      uc_meta_data_get_unsigned_int(m, start_time_key, ret_start_time);
+  bool is_reset = *ret_start_value > m->value.counter;
+  if ((status == 0) && !is_reset) {
+    return 0;
   }
 
-  if (ds_type == DS_TYPE_DERIVE) {
-    *ret_start_value = vl->values[ds_index].derive;
-  } else {
-    *ret_start_value = (int64_t)vl->values[ds_index].counter;
-  }
-  *ret_start_time = vl->time;
+  *ret_start_value = (int64_t)m->value.counter;
+  *ret_start_time = m->time;
 
-  status =
-      uc_meta_data_add_signed_int_vl(vl, start_value_key, *ret_start_value);
-  if (status != 0) {
-    return status;
-  }
-  return uc_meta_data_add_unsigned_int_vl(vl, "stackdriver:start_time",
-                                          *ret_start_time);
+  return uc_meta_data_add_signed_int(m, start_value_key, *ret_start_value) ||
+         uc_meta_data_add_unsigned_int(m, start_time_key, *ret_start_time);
 } /* int read_cumulative_state */
 
 /* Point
@@ -314,19 +306,15 @@ static int read_cumulative_state(data_set_t const *ds, value_list_t const *vl,
  *   },
  * }
  */
-static int format_point(yajl_gen gen, data_set_t const *ds,
-                        value_list_t const *vl, int ds_index,
-                        cdtime_t start_time, int64_t start_value) {
+static int format_point(yajl_gen gen, metric_t const *m, cdtime_t start_time,
+                        int64_t start_value) {
   /* {{{ */
   yajl_gen_map_open(gen);
 
-  int ds_type = ds->ds[ds_index].type;
-
-  int status =
-      json_string(gen, "interval") ||
-      format_time_interval(gen, ds_type, vl, start_time) ||
-      json_string(gen, "value") ||
-      format_typed_value(gen, ds_type, vl->values[ds_index], start_value);
+  int status = json_string(gen, "interval") ||
+               format_time_interval(gen, m, start_time) ||
+               json_string(gen, "value") ||
+               format_typed_value(gen, m, start_value);
   if (status != 0)
     return status;
 
@@ -344,28 +332,30 @@ static int format_point(yajl_gen gen, data_set_t const *ds,
  *   },
  * }
  */
-static int format_metric(yajl_gen gen, data_set_t const *ds,
-                         value_list_t const *vl, int ds_index) {
+static int format_metric(yajl_gen gen, metric_t const *m) {
   /* {{{ */
   yajl_gen_map_open(gen);
 
-  int status = json_string(gen, "type") ||
-               format_metric_type(gen, ds, vl, ds_index) ||
-               json_string(gen, "labels");
+  int status = json_string(gen, "type") || format_metric_type(gen, m);
   if (status != 0) {
     return status;
   }
 
-  yajl_gen_map_open(gen);
-  status = json_string(gen, "host") || json_string(gen, vl->host) ||
-           json_string(gen, "plugin_instance") ||
-           json_string(gen, vl->plugin_instance) ||
-           json_string(gen, "type_instance") ||
-           json_string(gen, vl->type_instance);
-  if (status != 0) {
-    return status;
+  if (m->label.num != 0) {
+    status = json_string(gen, "labels");
+    yajl_gen_map_open(gen);
+
+    for (size_t i = 0; i < m->label.num; i++) {
+      label_pair_t *l = m->label.ptr + i;
+      status =
+          status || json_string(gen, l->name) || json_string(gen, l->value);
+    }
+
+    yajl_gen_map_close(gen);
+    if (status != 0) {
+      return status;
+    }
   }
-  yajl_gen_map_close(gen);
 
   yajl_gen_map_close(gen);
   return 0;
@@ -392,24 +382,22 @@ static int format_metric(yajl_gen gen, data_set_t const *ds,
 /* format_time_series formats a TimeSeries object. Returns EAGAIN when a
  * cumulative metric is seen for the first time and cannot be sent to
  * Stackdriver due to lack of state. */
-static int format_time_series(yajl_gen gen, data_set_t const *ds,
-                              value_list_t const *vl, int ds_index,
+static int format_time_series(yajl_gen gen, metric_t const *m,
                               sd_resource_t *res) {
-  int ds_type = ds->ds[ds_index].type;
+  metric_type_t type = m->family->type;
 
   cdtime_t start_time = 0;
   int64_t start_value = 0;
-  int status =
-      read_cumulative_state(ds, vl, ds_index, &start_time, &start_value);
+  int status = read_cumulative_state(m, &start_time, &start_value);
   if (status != 0) {
     return status;
   }
-  if (start_time == vl->time) {
+  if (start_time == m->time) {
     /* for cumulative metrics, the interval must not be zero. */
     return EAGAIN;
   }
-  if (ds_type == DS_TYPE_GAUGE) {
-    double d = (double)vl->values[ds_index].gauge;
+  if ((type == METRIC_TYPE_GAUGE) || (type == METRIC_TYPE_UNTYPED)) {
+    double d = (double)m->value.gauge;
     if (isnan(d) || isinf(d)) {
       return EAGAIN;
     }
@@ -417,17 +405,17 @@ static int format_time_series(yajl_gen gen, data_set_t const *ds,
 
   yajl_gen_map_open(gen);
 
-  status = json_string(gen, "metric") || format_metric(gen, ds, vl, ds_index) ||
+  status = json_string(gen, "metric") || format_metric(gen, m) ||
            json_string(gen, "resource") || format_gcm_resource(gen, res) ||
-           json_string(gen, "metricKind") || format_metric_kind(gen, ds_type) ||
-           json_string(gen, "valueType") || format_value_type(gen, ds_type) ||
+           json_string(gen, "metricKind") || format_metric_kind(gen, m) ||
+           json_string(gen, "valueType") || format_value_type(gen, m) ||
            json_string(gen, "points");
   if (status != 0)
     return status;
 
   yajl_gen_array_open(gen);
 
-  status = format_point(gen, ds, vl, ds_index, start_time, start_value);
+  status = format_point(gen, m, start_time, start_value);
   if (status != 0)
     return status;
 
@@ -539,47 +527,40 @@ void sd_output_destroy(sd_output_t *out) /* {{{ */
   sfree(out);
 } /* }}} void sd_output_destroy */
 
-int sd_output_add(sd_output_t *out, data_set_t const *ds,
-                  value_list_t const *vl) /* {{{ */
-{
-  /* first, check that we have all appropriate metric descriptors. */
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    char buffer[4 * DATA_MAX_NAME_LEN];
-    metric_type(buffer, sizeof(buffer), ds, vl, i);
-
-    if (c_avl_get(out->metric_descriptors, buffer, NULL) != 0) {
-      return ENOENT;
-    }
+int sd_output_add(sd_output_t *out, metric_t const *m) {
+  if ((out == NULL) || (m == NULL) || (m->family == NULL)) {
+    return EINVAL;
   }
 
-  char key[6 * DATA_MAX_NAME_LEN];
-  int status = FORMAT_VL(key, sizeof(key), vl);
+  /* first, check that the metric descriptor exists. */
+  if (c_avl_get(out->metric_descriptors, m->family->name, NULL) != 0) {
+    return ENOENT;
+  }
+
+  strbuf_t id = STRBUF_CREATE;
+  int status = metric_identity(&id, m);
   if (status != 0) {
-    ERROR("sd_output_add: FORMAT_VL failed with status %d.", status);
+    ERROR("sd_output_add: metric_identity failed: %s", STRERROR(status));
     return status;
   }
 
-  if (c_avl_get(out->staged, key, NULL) == 0) {
+  if (c_avl_get(out->staged, id.ptr, NULL) == 0) {
+    STRBUF_DESTROY(id);
     return EEXIST;
   }
 
-  _Bool staged = 0;
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    int status = format_time_series(out->gen, ds, vl, i, out->res);
-    if (status == EAGAIN) {
-      /* first instance of a cumulative metric or NaN value */
-      continue;
-    }
-    if (status != 0) {
-      ERROR("sd_output_add: format_time_series failed with status %d.", status);
-      return status;
-    }
-    staged = 1;
+  /* EAGAIN -> first instance of a cumulative metric or NaN value */
+  status = format_time_series(out->gen, m, out->res);
+  if ((status != 0) && (status != EAGAIN)) {
+    ERROR("sd_output_add: format_time_series failed with status %d.", status);
+    STRBUF_DESTROY(id);
+    return status;
   }
 
-  if (staged) {
-    c_avl_insert(out->staged, strdup(key), NULL);
+  if (status == 0) {
+    c_avl_insert(out->staged, strdup(id.ptr), NULL);
   }
+  STRBUF_DESTROY(id);
 
   size_t json_buffer_size = 0;
   yajl_gen_get_buf(out->gen, &(unsigned char const *){NULL}, &json_buffer_size);
@@ -589,19 +570,25 @@ int sd_output_add(sd_output_t *out, data_set_t const *ds,
   return 0;
 } /* }}} int sd_output_add */
 
-int sd_output_register_metric(sd_output_t *out, data_set_t const *ds,
-                              value_list_t const *vl) {
+int sd_output_register_metric(sd_output_t *out, metric_t const *m) {
   /* {{{ */
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    char buffer[4 * DATA_MAX_NAME_LEN];
-    metric_type(buffer, sizeof(buffer), ds, vl, i);
+  strbuf_t buf = STRBUF_CREATE;
+  int status = metric_type(&buf, m);
+  if (status != 0) {
+    STRBUF_DESTROY(buf);
+    return status;
+  }
 
-    char *key = strdup(buffer);
-    int status = c_avl_insert(out->metric_descriptors, key, NULL);
-    if (status != 0) {
-      sfree(key);
-      return status;
-    }
+  char *key = strdup(buf.ptr);
+  if (key == NULL) {
+    STRBUF_DESTROY(buf);
+    return ENOMEM;
+  }
+  STRBUF_DESTROY(buf);
+
+  status = c_avl_insert(out->metric_descriptors, key, NULL);
+  if (status != 0) {
+    sfree(key);
   }
 
   return 0;
@@ -723,34 +710,29 @@ static int format_label_descriptor(yajl_gen gen, char const *key) {
  *   "displayName": string,
  * }
  */
-int sd_format_metric_descriptor(char *buffer, size_t buffer_size,
-                                data_set_t const *ds, value_list_t const *vl,
-                                int ds_index) {
+int sd_format_metric_descriptor(strbuf_t *buf, metric_t const *m) {
   /* {{{ */
   yajl_gen gen = yajl_gen_alloc(/* funcs = */ NULL);
   if (gen == NULL) {
     return ENOMEM;
   }
 
-  int ds_type = ds->ds[ds_index].type;
-
   yajl_gen_map_open(gen);
 
-  int status =
-      json_string(gen, "type") || format_metric_type(gen, ds, vl, ds_index) ||
-      json_string(gen, "metricKind") || format_metric_kind(gen, ds_type) ||
-      json_string(gen, "valueType") || format_value_type(gen, ds_type) ||
-      json_string(gen, "labels");
+  int status = json_string(gen, "type") || format_metric_type(gen, m) ||
+               json_string(gen, "metricKind") || format_metric_kind(gen, m) ||
+               json_string(gen, "valueType") || format_value_type(gen, m) ||
+               json_string(gen, "labels");
   if (status != 0) {
     yajl_gen_free(gen);
     return status;
   }
 
-  char const *labels[] = {"host", "plugin_instance", "type_instance"};
   yajl_gen_array_open(gen);
 
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(labels); i++) {
-    int status = format_label_descriptor(gen, labels[i]);
+  for (size_t i = 0; i < m->label.num; i++) {
+    label_pair_t *l = m->label.ptr + i;
+    int status = format_label_descriptor(gen, l->name);
     if (status != 0) {
       yajl_gen_free(gen);
       return status;
@@ -762,8 +744,9 @@ int sd_format_metric_descriptor(char *buffer, size_t buffer_size,
 
   unsigned char const *tmp = NULL;
   yajl_gen_get_buf(gen, &tmp, &(size_t){0});
-  sstrncpy(buffer, (void const *)tmp, buffer_size);
+
+  status = strbuf_print(buf, (void const *)tmp);
 
   yajl_gen_free(gen);
-  return 0;
+  return status;
 } /* }}} int sd_format_metric_descriptor */
