@@ -1610,51 +1610,6 @@ metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
   return fam;
 }
 
-identity_t *plugin_valuelist_to_identity(value_list_t const *vl,
-                                         data_source_t const *dsrc) {
-  if ((vl == NULL) || (dsrc == NULL)) {
-    errno = EINVAL;
-    return NULL;
-  }
-
-  strbuf_t name = STRBUF_CREATE;
-  int status = metric_family_name(&name, vl, dsrc);
-  if (status != 0) {
-    errno = status;
-    STRBUF_DESTROY(name);
-    return NULL;
-  }
-
-  keyval_t labels[3] = {
-      {"instance", (strlen(vl->host) != 0) ? vl->host : hostname_g},
-  };
-  size_t labels_num = 1;
-
-  if (strlen(vl->plugin_instance) != 0) {
-    labels[labels_num] = (keyval_t){vl->plugin, vl->plugin_instance};
-    labels_num++;
-  }
-  if (strlen(vl->type_instance) != 0) {
-    char const *key = "type";
-    if (strlen(vl->plugin_instance) == 0) {
-      key = vl->plugin;
-    }
-    labels[labels_num] = (keyval_t){key, vl->type_instance};
-    labels_num++;
-  }
-
-  identity_t *id = identity_create_labelled(name.ptr, labels, labels_num);
-  if (id == NULL) {
-    ERROR("plugin_valuelist_to_identity: identity_create(\"%s\") failed: %s",
-          name.ptr, STRERRNO);
-    STRBUF_DESTROY(name);
-    return NULL;
-  }
-
-  STRBUF_DESTROY(name);
-  return id;
-}
-
 EXPORT int plugin_unregister_read_group(const char *group) /* {{{ */
 {
   llentry_t *le;

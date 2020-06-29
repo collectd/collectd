@@ -32,7 +32,6 @@
 #include "collectd.h"
 
 #include "configfile.h"
-#include "identity.h"
 #include "metric.h"
 #include "utils/metadata/meta_data.h"
 #include "utils_time.h"
