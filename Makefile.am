@@ -474,11 +474,12 @@ libplugin_mock_la_SOURCES = \
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libcommon.la libignorelist.la libmetadata.la $(COMMON_LIBS)
+#libplugin_mock_la_LIBADD = libcommon.la libignorelist.la $(COMMON_LIBS)
 
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
 	src/utils/format_graphite/format_graphite.h
-libformat_graphite_la_LIBADD = libstrbuf.la $(COMMON_LIBS)
+libformat_graphite_la_LIBADD = $(COMMON_LIBS)
 
 test_format_graphite_SOURCES = \
 	src/utils/format_graphite/format_graphite_test.c \
@@ -488,6 +489,7 @@ test_format_graphite_LDADD = \
 	libidentity.la \
 	libmetadata.la \
 	libplugin_mock.la \
+	libstrbuf.la \
 	-lm
 
 libformat_json_la_SOURCES = \
@@ -2246,7 +2248,7 @@ if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
 write_graphite_la_SOURCES = src/write_graphite.c
 write_graphite_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_graphite_la_LIBADD = libformat_graphite.la
+write_graphite_la_LIBADD = libformat_graphite.la libstrbuf.la
 endif
 
 if BUILD_PLUGIN_WRITE_HTTP
