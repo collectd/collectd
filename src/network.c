@@ -1133,7 +1133,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_sign_sha256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
@@ -1288,7 +1288,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_encr_aes256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
@@ -1697,7 +1697,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-      /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+    /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "
@@ -2204,55 +2204,54 @@ static int sockent_add(sockent_t *se) /* {{{ */
 static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
 {
   while (42) {
-    receive_list_entry_t *ent;
-    sockent_t *se;
-
     /* Lock and wait for more data to come in */
     pthread_mutex_lock(&receive_list_lock);
     while ((listen_loop == 0) && (receive_list_head == NULL))
       pthread_cond_wait(&receive_list_cond, &receive_list_lock);
 
-    /* Remove the head entry and unlock */
-    ent = receive_list_head;
-    if (ent != NULL)
-      receive_list_head = ent->next;
-    receive_list_length--;
-    pthread_mutex_unlock(&receive_list_lock);
-
     /* Check whether we are supposed to exit. We do NOT check `listen_loop'
      * because we dispatch all missing packets before shutting down. */
-    if (ent == NULL)
+    if (receive_list_head == NULL)
       break;
 
-    /* Look for the correct `sockent_t' */
-    se = listen_sockets;
-    while (se != NULL) {
-      size_t i;
+    /* Remove the list and unlock */
+    receive_list_entry_t *private_list_head = receive_list_head;
+    receive_list_head = NULL;
+    receive_list_tail = NULL;
+    receive_list_length = 0;
+    pthread_mutex_unlock(&receive_list_lock);
 
-      for (i = 0; i < se->data.server.fd_num; i++)
-        if (se->data.server.fd[i] == ent->fd)
+    while (private_list_head != NULL) {
+      receive_list_entry_t *ent = private_list_head;
+
+      /* Look for the correct `sockent_t' */
+      sockent_t *se = listen_sockets;
+      while (se != NULL) {
+        size_t i;
+
+        for (i = 0; i < se->data.server.fd_num; i++)
+          if (se->data.server.fd[i] == ent->fd)
+            break;
+
+        if (i < se->data.server.fd_num)
           break;
 
-      if (i < se->data.server.fd_num)
-        break;
+        se = se->next;
+      }
 
-      se = se->next;
-    }
-
-    if (se == NULL) {
-      ERROR("network plugin: Got packet from FD %i, but can't "
-            "find an appropriate socket entry.",
-            ent->fd);
+      if (se == NULL) {
+        ERROR("network plugin: Got packet from FD %i, but can't "
+              "find an appropriate socket entry.",
+              ent->fd);
+      } else {
+        parse_packet(se, ent->data, ent->data_len, /* flags = */ 0,
+                     /* username = */ NULL, &ent->sender);
+      }
+      private_list_head = ent->next;
       sfree(ent->data);
       sfree(ent);
-      continue;
-    }
-
-    parse_packet(se, ent->data, ent->data_len, /* flags = */ 0,
-                 /* username = */ NULL, &ent->sender);
-    sfree(ent->data);
-    sfree(ent);
-  } /* while (42) */
+    } /* while (private_list_head != NULL) */
+  }   /* while (42) */
 
   return NULL;
 } /* }}} void *dispatch_thread */
