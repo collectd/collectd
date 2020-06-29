@@ -42,30 +42,36 @@
 /* Plugin:WriteLog has to also operate without a config, so use a global. */
 int wl_format = WL_FORMAT_GRAPHITE;
 
-static int wl_write_graphite(metric_single_t const *m) {
+static int wl_write_graphite(metric_family_t const *fam) {
   char const *prefix = "";
   char const *suffix = "";
   char escape_char = '_';
   unsigned int flags = 0;
 
   strbuf_t buf = STRBUF_CREATE;
-  int status = format_graphite(&buf, m, prefix, suffix, escape_char, flags);
-  if (status != 0) {
-    ERROR("write_log plugin: format_graphite failed: %d", status);
-  } else {
-    INFO("write_log values:\n%s", buf.ptr);
+
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t const *m = fam->metric.ptr + i;
+    int status = format_graphite(&buf, m, prefix, suffix, escape_char, flags);
+    if (status != 0) {
+      ERROR("write_log plugin: format_graphite failed: %d", status);
+    } else {
+      INFO("write_log values:\n%s", buf.ptr);
+    }
+
+    strbuf_reset(&buf);
   }
 
   STRBUF_DESTROY(buf);
   return 0;
 } /* int wl_write_graphite */
 
-static int wl_write_json(metric_single_t const *m) {
+static int wl_write_json(metric_family_t const *fam) {
   strbuf_t buf = STRBUF_CREATE;
 
-  int status = format_json_metric(&buf, m, /* store rates = */ false);
+  int status = format_json_metric_family(&buf, fam, /* store rates = */ false);
   if (status != 0) {
-    ERROR("write_log plugin: format_json_metric failed: %d", status);
+    ERROR("write_log plugin: format_json_metric_family failed: %d", status);
   } else {
     INFO("write_log values:\n%s", buf.ptr);
   }
@@ -74,17 +80,15 @@ static int wl_write_json(metric_single_t const *m) {
   return 0;
 } /* int wl_write_json */
 
-static int wl_write(metric_single_t const *m,
+static int wl_write(metric_family_t const *fam,
                     __attribute__((unused)) user_data_t *user_data) {
-  int status = 0;
-
   if (wl_format == WL_FORMAT_GRAPHITE) {
-    status = wl_write_graphite(m);
+    return wl_write_graphite(fam);
   } else if (wl_format == WL_FORMAT_JSON) {
-    status = wl_write_json(m);
+    return wl_write_json(fam);
   }
 
-  return status;
+  return EIO;
 }
 
 static int wl_config(oconfig_item_t *ci) /* {{{ */
