@@ -488,7 +488,7 @@ static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
 {
   metric_family_t fam = {
       .name = "cpu_count",
-      .type = VALUE_TYPE_GAUGE,
+      .type = METRIC_TYPE_GAUGE,
   };
   metric_family_metric_append(&fam, (metric_t){
                                         .value.gauge = value,
@@ -518,7 +518,7 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 {
   metric_family_t fam = {
       .name = "cpu_usage_total",
-      .type = VALUE_TYPE_DERIVE,
+      .type = METRIC_TYPE_COUNTER,
   };
 
   metric_t m = {0};
@@ -535,6 +535,8 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
       char cpu_num_str[16];
       snprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
       metric_label_set(&m, "cpu", cpu_num_str);
+
+      m.value.derive = s->conv.last_value.derive;
 
       metric_family_metric_append(&fam, m);
     }
