@@ -2316,6 +2316,10 @@ static bool check_drop_value(void) /* {{{ */
 } /* }}} bool check_drop_value */
 
 EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
+  if ((fam == NULL) || (fam->metric.num == 0)) {
+    return EINVAL;
+  }
+
   if (check_drop_value()) {
     if (record_statistics) {
       pthread_mutex_lock(&statistics_lock);
