@@ -1139,6 +1139,9 @@
 #
 #	# "garbage collection"
 #	CacheFlush 1800
+#
+#	# Number of dispatch threads
+#	DispatchThreads 1
 @LOAD_PLUGIN_NETWORK@</Plugin>
 
 #<Plugin nfs>

@@ -287,8 +287,9 @@ static size_t listen_sockets_num;
 static int listen_loop;
 static int receive_thread_running;
 static pthread_t receive_thread_id;
-static int dispatch_thread_running;
-static pthread_t dispatch_thread_id;
+static int dispatch_threads_running;
+static int dispatch_threads_size = 1;
+static pthread_t *dispatch_threads_id;
 
 /* Buffer in which to-be-sent network packets are constructed. */
 static char *send_buffer;
@@ -1133,7 +1134,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_sign_sha256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
@@ -1288,7 +1289,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_encr_aes256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
@@ -1697,7 +1698,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-      /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+    /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "
@@ -3017,6 +3018,24 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* }}} int network_config_add_server */
 
+static int
+network_config_set_dispatch_threads(const oconfig_item_t *ci) /* {{{ */
+{
+  double tmp;
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
+    WARNING(
+        "network plugin: The `dispatch_threads' config option needs exactly "
+        "one numeric argument.");
+    return (-1);
+  }
+
+  tmp = (int)ci->values[0].value.number;
+  if (tmp > 0)
+    dispatch_threads_size = tmp;
+
+  return (0);
+} /* }}} int network_config_set_dispatch_threads */
+
 static int network_config(oconfig_item_t *ci) /* {{{ */
 {
   /* The options need to be applied first */
@@ -3041,6 +3060,8 @@ static int network_config(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &network_config_forward);
     else if (strcasecmp("ReportStats", child->key) == 0)
       cf_util_get_boolean(child, &network_config_stats);
+    else if (strcasecmp("DispatchThreads", child->key) == 0)
+      network_config_set_dispatch_threads(child);
     else {
       WARNING("network plugin: Option `%s' is not allowed here.", child->key);
     }
@@ -3130,14 +3151,18 @@ static int network_shutdown(void) {
   }
 
   /* Shutdown the dispatching thread */
-  if (dispatch_thread_running != 0) {
+  if (dispatch_threads_running != 0) {
+    int n;
     INFO("network plugin: Stopping dispatch thread.");
     pthread_mutex_lock(&receive_list_lock);
     pthread_cond_broadcast(&receive_list_cond);
     pthread_mutex_unlock(&receive_list_lock);
-    pthread_join(dispatch_thread_id, /* ret = */ NULL);
-    dispatch_thread_running = 0;
+    for (n = 0; n < dispatch_threads_size; n++)
+      pthread_join(dispatch_threads_id[n], /* ret = */ NULL);
+    dispatch_threads_running = 0;
   }
+
+  sfree(dispatch_threads_id);
 
   sockent_destroy(listen_sockets);
 
@@ -3260,20 +3285,36 @@ static int network_init(void) {
 
   /* If no threads need to be started, return here. */
   if ((listen_sockets_num == 0) ||
-      ((dispatch_thread_running != 0) && (receive_thread_running != 0)))
+      ((dispatch_threads_running != 0) && (receive_thread_running != 0)))
     return 0;
 
-  if (dispatch_thread_running == 0) {
-    int status;
-    status = plugin_thread_create(&dispatch_thread_id, dispatch_thread,
-                                  NULL /* no argument */, "network disp");
-    if (status != 0) {
-      ERROR("network: pthread_create failed: %s", STRERRNO);
-    } else {
-      dispatch_thread_running = 1;
+  if (dispatch_threads_id == NULL) {
+    dispatch_threads_id = calloc(sizeof(pthread_t), dispatch_threads_size);
+    if (dispatch_threads_id == NULL) {
+      ERROR("network plugin: dispatch_threads_id: calloc failed.");
+      return (-1);
     }
   }
 
+  if (dispatch_threads_running == 0) {
+    int status;
+    int n;
+
+    for (n = 0; n < dispatch_threads_size; n++) {
+      char name[16];
+
+      ssnprintf(name, sizeof(name), "network disp#%" PRIu64, (uint64_t)n + 1);
+      status = plugin_thread_create(&dispatch_threads_id[n], dispatch_thread,
+                                    NULL /* no argument */, name);
+      if (status != 0) {
+        char errbuf[1024];
+        ERROR("network: pthread_create failed: %s",
+              sstrerror(errno, errbuf, sizeof(errbuf)));
+      } else {
+        dispatch_threads_running++;
+      }
+    }
+  }
   if (receive_thread_running == 0) {
     int status;
     status = plugin_thread_create(&receive_thread_id, receive_thread,

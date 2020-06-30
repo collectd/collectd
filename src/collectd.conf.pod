@@ -6110,6 +6110,12 @@ signature):
 
 =over 4
 
+=item B<DispatchThreads> I<1->
+
+Number of threads to start for dispatch the incoming packets. The default value
+is B<1>. You may want to increase this if you cannot process all the incoming
+traffic in one thread.
+
 =item B<E<lt>Server> I<Host> [I<Port>]B<E<gt>>
 
 The B<Server> statement/block sets the server to send datagrams to. The
