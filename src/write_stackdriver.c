@@ -395,36 +395,65 @@ static void wg_callback_free(void *data) /* {{{ */
   sfree(cb);
 } /* }}} void wg_callback_free */
 
-static int wg_metric_descriptors_create(wg_callback_t *cb, const data_set_t *ds,
-                                        const value_list_t *vl) {
+static int wg_metric_descriptors_create(wg_callback_t *cb, metric_t const *m) {
   /* {{{ */
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    char buffer[4096];
+  strbuf_t buf = STRBUF_CREATE;
+  int status = sd_format_metric_descriptor(&buf, m);
+  if (status != 0) {
+    ERROR("write_stackdriver plugin: sd_format_metric_descriptor failed with "
+          "status %d",
+          status);
+    STRBUF_DESTROY(buf);
+    return status;
+  }
 
-    int status = sd_format_metric_descriptor(buffer, sizeof(buffer), ds, vl, i);
-    if (status != 0) {
-      ERROR("write_stackdriver plugin: sd_format_metric_descriptor failed "
-            "with status "
-            "%d",
-            status);
-      return status;
+  status = wg_call_metricdescriptor_create(cb, buf.ptr);
+  if (status != 0) {
+    ERROR("write_stackdriver plugin: wg_call_metricdescriptor_create failed "
+          "with status %d",
+          status);
+    STRBUF_DESTROY(buf);
+    return status;
+  }
+
+  STRBUF_DESTROY(buf);
+  return sd_output_register_metric(cb->formatter, m);
+} /* }}} int wg_metric_descriptors_create */
+
+static int wg_output_add(wg_callback_t *cb, metric_t const *m) {
+  while (42) {
+    int status = sd_output_add(cb->formatter, m);
+    switch (status) {
+    case 0: { /* success */
+      cb->timeseries_count++;
+      return 0;
     }
-
-    status = wg_call_metricdescriptor_create(cb, buffer);
-    if (status != 0) {
-      ERROR("write_stackdriver plugin: wg_call_metricdescriptor_create failed "
-            "with "
-            "status %d",
-            status);
+    case ENOBUFS: { /* success, flush */
+      cb->timeseries_count++;
+      wg_flush_nolock(0, cb);
+      return 0;
+    }
+    case EEXIST: {
+      /* metric already in the buffer; flush and retry */
+      wg_flush_nolock(0, cb);
+      break;
+    }
+    case ENOENT: {
+      /* new metric, create metric descriptor first */
+      int status = wg_metric_descriptors_create(cb, m);
+      if (status != 0) {
+        return status;
+      }
+      break;
+    }
+    default:
       return status;
     }
   }
+}
 
-  return sd_output_register_metric(cb->formatter, ds, vl);
-} /* }}} int wg_metric_descriptors_create */
-
-static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
-                    user_data_t *user_data) {
+static int wg_write(metric_family_t const *fam,
+                    user_data_t *user_data) { /* {{{ */
   wg_callback_t *cb = user_data->data;
   if (cb == NULL)
     return EINVAL;
@@ -440,37 +469,18 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     }
   }
 
-  int status;
-  while (42) {
-    status = sd_output_add(cb->formatter, ds, vl);
-    if (status == 0) { /* success */
-      break;
-    } else if (status == ENOBUFS) { /* success, flush */
-      wg_flush_nolock(0, cb);
-      status = 0;
-      break;
-    } else if (status == EEXIST) {
-      /* metric already in the buffer; flush and retry */
-      wg_flush_nolock(0, cb);
-      continue;
-    } else if (status == ENOENT) {
-      /* new metric, create metric descriptor first */
-      status = wg_metric_descriptors_create(cb, ds, vl);
-      if (status != 0) {
-        break;
-      }
-      continue;
-    } else {
-      break;
+  int ret = 0;
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t const *m = fam->metric.ptr + i;
+
+    int status = wg_output_add(cb, m);
+    if (ret == 0) {
+      ret = status;
     }
   }
 
-  if (status == 0) {
-    cb->timeseries_count++;
-  }
-
   pthread_mutex_unlock(&cb->lock);
-  return status;
+  return ret;
 } /* }}} int wg_write */
 
 static void wg_check_scope(char const *email) /* {{{ */
