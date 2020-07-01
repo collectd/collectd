@@ -197,8 +197,16 @@ static int format_metric_kind(yajl_gen gen, metric_t const *m) {
  * )
  */
 static int format_value_type(yajl_gen gen, metric_t const *m) {
-  return json_string(gen,
-                     (m->family->type == DS_TYPE_GAUGE) ? "DOUBLE" : "INT64");
+  switch (m->family->type) {
+  case METRIC_TYPE_GAUGE:
+  case METRIC_TYPE_UNTYPED:
+    return json_string(gen, "DOUBLE");
+  case METRIC_TYPE_COUNTER:
+    return json_string(gen, "INT64");
+  default:
+    ERROR("format_value_type: unknown value type %d.", m->family->type);
+    return EINVAL;
+  }
 }
 
 static int metric_type(strbuf_t *buf, metric_t const *m) {

@@ -712,6 +712,7 @@ test_format_stackdriver_SOURCES = \
 	src/testing.h
 test_format_stackdriver_LDADD = \
 	libformat_stackdriver.la \
+	libmetric.la \
 	libplugin_mock.la \
 	-lm
 endif
