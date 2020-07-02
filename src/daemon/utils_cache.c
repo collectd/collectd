@@ -113,11 +113,9 @@ static void cache_free(cache_entry_t *ce) {
 
   sfree(ce->history);
 
-  /* We have non-exclusive ownership of the metadata */
-  if (ce->meta != NULL) {
-    meta_data_destroy(ce->meta);
-    ce->meta = NULL;
-  }
+  meta_data_destroy(ce->meta);
+  ce->meta = NULL;
+
   sfree(ce);
 } /* void cache_free */
 
@@ -168,7 +166,6 @@ static int uc_insert(metric_t const *m, char const *key) {
   ce->last_update = cdtime();
   ce->interval = m->interval;
   ce->state = STATE_UNKNOWN;
-  ce->meta = meta_data_clone(m->meta);
 
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
     sfree(key_copy);
@@ -316,7 +313,6 @@ static int uc_update_metric(metric_t const *m) {
   }
 
   assert(ce != NULL);
-  ce->meta = meta_data_clone(m->meta);
   if (ce->last_time >= m->time) {
     pthread_mutex_unlock(&cache_lock);
     NOTICE("uc_update: Value too old: name = %s; value time = %.3f; "
@@ -328,7 +324,7 @@ static int uc_update_metric(metric_t const *m) {
   }
 
   switch (m->family->type) {
-  case DS_TYPE_COUNTER: {
+  case METRIC_TYPE_COUNTER: {
     counter_t diff = counter_diff(ce->values_raw.counter, m->value.counter);
     ce->values_gauge =
         ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
@@ -336,19 +332,22 @@ static int uc_update_metric(metric_t const *m) {
     break;
   }
 
-  case DS_TYPE_GAUGE: {
+  case METRIC_TYPE_UNTYPED:
+  case METRIC_TYPE_GAUGE: {
     ce->values_raw.gauge = m->value.gauge;
     ce->values_gauge = m->value.gauge;
     break;
   }
 
-  case DS_TYPE_DERIVE: {
+#if 0
+  case DS_TYPE_DERIVE: { /* TODO(octo): add support for DERIVE */
     derive_t diff = m->value.derive - ce->values_raw.derive;
     ce->values_gauge =
         ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
     ce->values_raw.derive = m->value.derive;
     break;
   }
+#endif
 
   default: {
     /* This shouldn't happen. */
