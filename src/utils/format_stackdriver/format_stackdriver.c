@@ -149,7 +149,8 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
     return 0;
   }
   case METRIC_TYPE_COUNTER: {
-    assert(m->value.counter > (uint64_t)start_value);
+    /* Counter resets are handled in format_time_series(). */
+    assert(m->value.counter >= (uint64_t)start_value);
     uint64_t diff = m->value.counter - (uint64_t)start_value;
     ssnprintf(integer, sizeof(integer), "%" PRIu64, diff);
     break;
@@ -410,6 +411,12 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
       return EAGAIN;
     }
   }
+  if (type == METRIC_TYPE_COUNTER) {
+    uint64_t sv = (uint64_t)start_value;
+    if (m->value.counter < sv) {
+      return EAGAIN;
+    }
+  }
 
   yajl_gen_map_open(gen);
 
@@ -540,13 +547,23 @@ int sd_output_add(sd_output_t *out, metric_t const *m) {
     return EINVAL;
   }
 
-  /* first, check that the metric descriptor exists. */
-  if (c_avl_get(out->metric_descriptors, m->family->name, NULL) != 0) {
-    return ENOENT;
+  strbuf_t mtype = STRBUF_CREATE;
+  int status = metric_type(&mtype, m);
+  if (status != 0) {
+    STRBUF_DESTROY(mtype);
+    return status;
   }
 
+  /* first, check that the metric descriptor exists. */
+  status = c_avl_get(out->metric_descriptors, mtype.ptr, NULL);
+  if (status != 0) {
+    STRBUF_DESTROY(mtype);
+    return ENOENT;
+  }
+  STRBUF_DESTROY(mtype);
+
   strbuf_t id = STRBUF_CREATE;
-  int status = metric_identity(&id, m);
+  status = metric_identity(&id, m);
   if (status != 0) {
     ERROR("sd_output_add: metric_identity failed: %s", STRERROR(status));
     return status;
