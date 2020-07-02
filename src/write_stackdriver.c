@@ -417,7 +417,14 @@ static int wg_metric_descriptors_create(wg_callback_t *cb, metric_t const *m) {
   }
 
   STRBUF_DESTROY(buf);
-  return sd_output_register_metric(cb->formatter, m);
+
+  status = sd_output_register_metric(cb->formatter, m);
+  if (status != 0) {
+    ERROR("write_stackdriver plugin: sd_output_register_metric failed: %s", STRERROR(status));
+    return status;
+  }
+
+  return 0;
 } /* }}} int wg_metric_descriptors_create */
 
 static int wg_output_add(wg_callback_t *cb, metric_t const *m) {
