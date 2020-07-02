@@ -616,7 +616,7 @@ int sd_output_register_metric(sd_output_t *out, metric_t const *m) {
     sfree(key);
   }
 
-  return 0;
+  return status;
 } /* }}} int sd_output_register_metric */
 
 char *sd_output_reset(sd_output_t *out) /* {{{ */
