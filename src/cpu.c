@@ -53,6 +53,9 @@
 #ifdef HAVE_MACH_VM_MAP_H
 #include <mach/vm_map.h>
 #endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
 
 #ifdef HAVE_LIBKSTAT
 #include <sys/sysinfo.h>
@@ -63,9 +66,13 @@
 #include <sys/sysctl.h>
 #endif
 
-#ifdef HAVE_SYS_DKSTAT_H
+/* DragonFly BSD's dkstat.h can't be included from userland */
+#if defined(HAVE_SYS_DKSTAT_H) || defined(__DragonFly__)
 /* implies BSD variant */
+
+#ifndef __DragonFly__
 #include <sys/dkstat.h>
+#endif
 
 #if !defined(CP_USER) || !defined(CP_NICE) || !defined(CP_SYS) ||              \
     !defined(CP_INTR) || !defined(CP_IDLE) || !defined(CPUSTATES)
@@ -296,12 +303,23 @@ static int init(void) {
   }
 
 #ifdef HAVE_SYSCTL_KERN_CP_TIMES
+
   numcpu_size = sizeof(maxcpu);
 
   if (sysctlbyname("kern.smp.maxcpus", &maxcpu, &numcpu_size, NULL, 0) < 0) {
+  /*
+   * DragonFly BSD defines SMP_MAXCPU via sys/param.h (and FreeBSD) doesn't.
+   * This #ifdef will pick up the case until that sysctl is available.
+   */
+#ifdef SMP_MAXCPU
+    if (maxcpu == 0)
+      maxcpu = SMP_MAXCPU;
+#else
     WARNING("cpu plugin: sysctlbyname(kern.smp.maxcpus): %s", STRERRNO);
     return -1;
+#endif /* SMP_MAXCPU */
   }
+
 #else
   if (numcpu != 1)
     NOTICE("cpu: Only one processor supported when using `sysctlbyname' (found "
