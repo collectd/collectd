@@ -321,34 +321,6 @@ static int init(void) {
   return 0;
 } /* int init */
 
-static void submit_value(int cpu_num, int cpu_state, const char *type,
-                         value_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &value;
-  vl.values_len = 1;
-
-  sstrncpy(vl.plugin, "cpu", sizeof(vl.plugin));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  sstrncpy(vl.type_instance, cpu_state_names[cpu_state],
-           sizeof(vl.type_instance));
-
-  if (cpu_num >= 0) {
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", cpu_num);
-  }
-  plugin_dispatch_values(&vl);
-}
-
-static void submit_percent(int cpu_num, int cpu_state, gauge_t value) {
-  /* This function is called for all known CPU states, but each read
-   * method will only report a subset. The remaining states are left as
-   * NAN and we ignore them here. */
-  if (isnan(value))
-    return;
-
-  submit_value(cpu_num, cpu_state, "percent", (value_t){.gauge = value});
-}
-
 /* Takes the zero-index number of a CPU and makes sure that the module-global
  * cpu_states buffer is large enough. Returne ENOMEM on erorr. */
 static int cpu_states_alloc(size_t cpu_num) /* {{{ */
@@ -466,21 +438,44 @@ static void aggregate(gauge_t *sum_by_state) /* {{{ */
  * and dispatches the metric. */
 static void cpu_commit_one(int cpu_num, /* {{{ */
                            gauge_t rates[static COLLECTD_CPU_STATE_MAX]) {
-  gauge_t sum;
+  metric_family_t fam = {
+      .name = "cpu_usage_percent",
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  sum = rates[COLLECTD_CPU_STATE_ACTIVE];
+  metric_t m = {0};
+  if (cpu_num == -1) {
+    metric_label_set(&m, "cpu", "total");
+  } else {
+    char cpu_num_str[16];
+    snprintf(cpu_num_str, sizeof(cpu_num_str), "%d", cpu_num);
+    metric_label_set(&m, "cpu", cpu_num_str);
+  }
+
+  gauge_t sum = rates[COLLECTD_CPU_STATE_ACTIVE];
   RATE_ADD(sum, rates[COLLECTD_CPU_STATE_IDLE]);
 
   if (!report_by_state) {
-    gauge_t percent = 100.0 * rates[COLLECTD_CPU_STATE_ACTIVE] / sum;
-    submit_percent(cpu_num, COLLECTD_CPU_STATE_ACTIVE, percent);
-    return;
+    m.value.gauge = 100.0 * rates[COLLECTD_CPU_STATE_ACTIVE] / sum;
+    metric_label_set(&m, "state", cpu_state_names[COLLECTD_CPU_STATE_ACTIVE]);
+    metric_family_metric_append(&fam, m);
+  } else {
+    for (size_t state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
+      m.value.gauge = 100.0 * rates[state] / sum;
+      metric_label_set(&m, "state", cpu_state_names[state]);
+      metric_family_metric_append(&fam, m);
+    }
   }
 
-  for (size_t state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
-    gauge_t percent = 100.0 * rates[state] / sum;
-    submit_percent(cpu_num, state, percent);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("cpu plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
   }
+
+  metric_reset(&m);
+  metric_family_metric_reset(&fam);
+  return;
 } /* }}} void cpu_commit_one */
 
 /* Commits the number of cores */
