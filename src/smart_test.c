@@ -1,6 +1,8 @@
 /**
  * collectd - src/smart_test.c
- * Copyright (C) 2018  Intel Corporation. All rights reserved.
+ * MIT License
+ *
+ * Copyright (C) 2020  Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,7 +30,7 @@
 #include "testing.h"
 
 int VENDOR_ID = 0x8086;
-char *CORRET_DEV_PATH = "/dev/nvme0n1";
+char *CORRECT_DEV_PATH = "/dev/nvme0n1";
 
 int ioctl(int __fd, unsigned long int __request, ...) {
   va_list valist;
@@ -60,7 +62,7 @@ int ioctl(int __fd, unsigned long int __request, ...) {
 };
 
 int open(const char *__path, int __oflag, ...) {
-  if (__path == CORRET_DEV_PATH) {
+  if (__path == CORRECT_DEV_PATH) {
     return 0;
   }
   return -1;
@@ -69,11 +71,11 @@ int open(const char *__path, int __oflag, ...) {
 DEF_TEST(x) {
   int ret;
 
-  ret = get_vendor_id(CORRET_DEV_PATH, "stub");
+  ret = get_vendor_id(CORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(VENDOR_ID, ret);
 
   VENDOR_ID = 0x144D;
-  ret = get_vendor_id(CORRET_DEV_PATH, "stub");
+  ret = get_vendor_id(CORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(VENDOR_ID, ret);
   VENDOR_ID = 0x8086;
 
@@ -81,16 +83,16 @@ DEF_TEST(x) {
   ret = get_vendor_id("dev/nvme0nXX", "stub");
   EXPECT_EQ_INT(-1, ret);
 
-  ret = smart_read_nvme_intel_disk(CORRET_DEV_PATH, "stub");
+  ret = smart_read_nvme_intel_disk(CORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(0, ret);
 
   // incorrect with DEV_PATH
   ret = smart_read_nvme_intel_disk("dev/nvme0nXX", "stub");
   EXPECT_EQ_INT(-1, ret);
 
-  CORRET_DEV_PATH = "dev/sda0";
+  CORRECT_DEV_PATH = "dev/sda0";
 
-  ret = smart_read_nvme_disk(CORRET_DEV_PATH, "stub");
+  ret = smart_read_nvme_disk(CORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(0, ret);
 
   // incorrect with DEV_PATH

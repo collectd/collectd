@@ -45,7 +45,7 @@
 
 #define O_RDWR 02
 #define NVME_SMART_CDW10 0x00800002
-
+#define SHIFT_BYTE_LEFT 256
 struct nvme_admin_cmd {
   __u8 opcode;
   __u8 rsvd1[3];
@@ -207,17 +207,28 @@ static void handle_attribute(SkDisk *d, const SkSmartAttributeParsedData *a,
 
 static inline double compute_field(__u8 *data) {
   double sum = 0;
+  double add = 0;
 
-  for (int i = 0; i < 16; i++)
-    sum += data[i] << (i * 8);
-
+  for (int i = 0; i < 16; i++) {
+    add = data[15 - i];
+    for (int j = i + 1; j < 16; j++) {
+      add *= SHIFT_BYTE_LEFT;
+    }
+    sum += add;
+  }
   return sum;
 }
+
 static inline double int48_to_double(__u8 *data) {
   double sum = 0;
+  double add = 0;
 
   for (int i = 0; i < 6; i++) {
-    sum += data[i] << (i * 8);
+    add = data[5 - i];
+    for (int j = i + 1; j < 6; j++) {
+      add *= SHIFT_BYTE_LEFT;
+    }
+    sum += add;
   }
   return sum;
 }
