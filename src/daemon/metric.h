@@ -149,6 +149,18 @@ struct metric_family_s {
  * allocates memory which must be freed using metric_family_metric_reset. */
 int metric_family_metric_append(metric_family_t *fam, metric_t m);
 
+/* metric_family_append constructs a new metric_t and appends it to fam. It is
+ * a convenience function that is funcitonally approximately equivalent to the
+ * following code, but without modifying templ:
+ *
+ *   metric_t m = *templ;
+ *   m.value = v;
+ *   metric_label_set(&m, lname, lvalue);
+ *   metric_family_metric_append(fam, m);
+ */
+int metric_family_append(metric_family_t *fam, char const *lname,
+                         char const *lvalue, value_t v, metric_t const *templ);
+
 /* metric_family_metric_reset frees all metrics in the metric family and
  * resets the count to zero. */
 int metric_family_metric_reset(metric_family_t *fam);

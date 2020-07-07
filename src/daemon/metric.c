@@ -372,6 +372,39 @@ int metric_family_metric_append(metric_family_t *fam, metric_t m) {
   return metric_list_add(&fam->metric, m);
 }
 
+int metric_family_append(metric_family_t *fam, char const *lname,
+                         char const *lvalue, value_t v, metric_t const *templ) {
+  if ((fam == NULL) || ((lname == NULL) != (lvalue == NULL))) {
+    return EINVAL;
+  }
+
+  metric_t m = {
+      .family = fam,
+      .value = v,
+  };
+  if (templ != NULL) {
+    int status = label_set_clone(&m.label, templ->label);
+    if (status != 0) {
+      return status;
+    }
+
+    m.time = templ->time;
+    m.interval = templ->interval;
+    m.meta = meta_data_clone(templ->meta);
+  }
+
+  if (lname != NULL) {
+    int status = metric_label_set(&m, lname, lvalue);
+    if (status != 0) {
+      return status;
+    }
+  }
+
+  int status = metric_family_metric_append(fam, m);
+  metric_reset(&m);
+  return status;
+}
+
 int metric_family_metric_reset(metric_family_t *fam) {
   if (fam == NULL) {
     return EINVAL;

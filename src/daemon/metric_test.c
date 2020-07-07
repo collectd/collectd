@@ -159,9 +159,111 @@ DEF_TEST(metric_identity) {
   return 0;
 }
 
+DEF_TEST(metric_family_append) {
+  struct {
+    char const *lname;
+    char const *lvalue;
+    gauge_t v;
+    metric_t *templ;
+    int want_err;
+    label_t *want_labels;
+    size_t want_labels_num;
+    gauge_t want_value;
+    cdtime_t want_time;
+    cdtime_t want_interval;
+  } cases[] = {
+      {
+          .v = 42,
+          .want_value = 42,
+      },
+      {
+          .lname = "type",
+          .lvalue = "test",
+          .v = 42,
+          .want_labels =
+              (label_t[]){
+                  {"type", "test"},
+              },
+          .want_labels_num = 1,
+          .want_value = 42,
+      },
+      {
+          .v = 42,
+          .templ =
+              &(metric_t){
+                  .time = TIME_T_TO_CDTIME_T(1594107920),
+              },
+          .want_value = 42,
+          .want_time = TIME_T_TO_CDTIME_T(1594107920),
+      },
+      {
+          .v = 42,
+          .templ =
+              &(metric_t){
+                  .interval = TIME_T_TO_CDTIME_T(10),
+              },
+          .want_value = 42,
+          .want_interval = TIME_T_TO_CDTIME_T(10),
+      },
+      {
+          .lname = "type",
+          .lvalue = "test",
+          .v = 42,
+          .templ =
+              &(metric_t){
+                  .label =
+                      {
+                          .ptr = &(label_pair_t){"common", "label"},
+                          .num = 1,
+                      },
+              },
+          .want_labels =
+              (label_t[]){
+                  {"common", "label"},
+                  {"type", "test"},
+              },
+          .want_labels_num = 2,
+          .want_value = 42,
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
+    metric_family_t fam = {
+        .name = "test_total",
+        .type = METRIC_TYPE_GAUGE,
+    };
+
+    EXPECT_EQ_INT(cases[i].want_err,
+                  metric_family_append(&fam, cases[i].lname, cases[i].lvalue,
+                                       (value_t){.gauge = cases[i].v},
+                                       cases[i].templ));
+    if (cases[i].want_err != 0) {
+      continue;
+    }
+
+    EXPECT_EQ_INT(1, fam.metric.num);
+    metric_t const *m = fam.metric.ptr;
+
+    EXPECT_EQ_INT(cases[i].want_labels_num, m->label.num);
+    for (size_t j = 0; j < cases[i].want_labels_num; j++) {
+      EXPECT_EQ_STR(cases[i].want_labels[j].value,
+                    metric_label_get(m, cases[i].want_labels[j].name));
+    }
+
+    EXPECT_EQ_DOUBLE(cases[i].want_value, m->value.gauge);
+    EXPECT_EQ_UINT64(cases[i].want_time, m->time);
+    EXPECT_EQ_UINT64(cases[i].want_interval, m->interval);
+
+    metric_family_metric_reset(&fam);
+  }
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(metric_label_set);
   RUN_TEST(metric_identity);
+  RUN_TEST(metric_family_append);
 
   END_TEST;
 }
