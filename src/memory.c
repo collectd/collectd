@@ -124,12 +124,12 @@ static int memory_init(void) {
   /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
-/* no init stuff */
-/* #endif HAVE_SYSCTLBYNAME */
+  /* no init stuff */
+  /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
-/* no init stuff */
-/* #endif KERNEL_LINUX */
+  /* no init stuff */
+  /* #endif KERNEL_LINUX */
 
 #elif defined(HAVE_LIBKSTAT)
   /* getpagesize(3C) tells me this does not fail.. */
@@ -143,7 +143,7 @@ static int memory_init(void) {
     return -1;
   }
 
-    /* #endif HAVE_LIBKSTAT */
+  /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL && __OpenBSD__
   /* OpenBSD variant does not have sysctlbyname */
@@ -152,11 +152,11 @@ static int memory_init(void) {
     ERROR("memory plugin: Invalid pagesize: %i", pagesize);
     return -1;
   }
-    /* #endif HAVE_SYSCTL && __OpenBSD__ */
+  /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
-/* no init stuff */
-/* #endif HAVE_LIBSTATGRAB */
+  /* no init stuff */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
   pagesize = getpagesize();
@@ -174,22 +174,15 @@ static int memory_init(void) {
 
 static int memory_read_internal(value_list_t *vl) {
 #if HAVE_HOST_STATISTICS
-  kern_return_t status;
-  vm_statistics_data_t vm_data;
-  mach_msg_type_number_t vm_data_len;
-
-  gauge_t wired;
-  gauge_t active;
-  gauge_t inactive;
-  gauge_t free;
-
   if (!port_host || !pagesize)
     return -1;
 
-  vm_data_len = sizeof(vm_data) / sizeof(natural_t);
-  if ((status = host_statistics(port_host, HOST_VM_INFO, (host_info_t)&vm_data,
-                                &vm_data_len)) != KERN_SUCCESS) {
-    ERROR("memory-plugin: host_statistics failed and returned the value %i",
+  vm_statistics_data_t vm_data;
+  mach_msg_type_number_t vm_data_len = sizeof(vm_data) / sizeof(natural_t);
+  kern_return_t status = host_statistics(port_host, HOST_VM_INFO,
+                                         (host_info_t)&vm_data, &vm_data_len);
+  if (status != KERN_SUCCESS) {
+    ERROR("memory-plugin: host_statistics failed and returned the value %d",
           (int)status);
     return -1;
   }
@@ -214,14 +207,31 @@ static int memory_read_internal(value_list_t *vl) {
    *   This memory is not being used.
    */
 
-  wired = (gauge_t)(((uint64_t)vm_data.wire_count) * ((uint64_t)pagesize));
-  active = (gauge_t)(((uint64_t)vm_data.active_count) * ((uint64_t)pagesize));
-  inactive =
-      (gauge_t)(((uint64_t)vm_data.inactive_count) * ((uint64_t)pagesize));
-  free = (gauge_t)(((uint64_t)vm_data.free_count) * ((uint64_t)pagesize));
+  struct {
+    char const *label_value;
+    gauge_t v;
+  } metrics[] = {
+      {"wired",
+       (gauge_t)(((uint64_t)vm_data.wire_count) * ((uint64_t)pagesize))},
+      {"active",
+       (gauge_t)(((uint64_t)vm_data.active_count) * ((uint64_t)pagesize))},
+      {"inactive",
+       (gauge_t)(((uint64_t)vm_data.inactive_count) * ((uint64_t)pagesize))},
+      {"free",
+       (gauge_t)(((uint64_t)vm_data.free_count) * ((uint64_t)pagesize))},
+  };
 
-  MEMORY_SUBMIT("wired", wired, "active", active, "inactive", inactive, "free",
-                free);
+  metric_family_t fam = {
+      .name = "memory_usage",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
+    metric_family_append(&fam, "type", metrics[i].label_value,
+                         (value_t){.gauge = metrics[i].v}, NULL);
+  }
+
+  plugin_dispatch_metric_family(&fam);
+  metric_family_metric_reset(&fam);
   /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
@@ -234,111 +244,136 @@ static int memory_read_internal(value_list_t *vl) {
    * vm.stats.vm.v_inactive_count: 113730
    * vm.stats.vm.v_cache_count: 10809
    */
-  const char *sysctl_keys[8] = {
-      "vm.stats.vm.v_page_size",    "vm.stats.vm.v_page_count",
-      "vm.stats.vm.v_free_count",   "vm.stats.vm.v_wire_count",
-      "vm.stats.vm.v_active_count", "vm.stats.vm.v_inactive_count",
-      "vm.stats.vm.v_cache_count",  NULL};
-  double sysctl_vals[8];
+  struct {
+    char const *sysctl_key;
+    char const *label_value;
+  } metrics[] = {
+      {"vm.stats.vm.v_page_size", NULL},
+      {"vm.stats.vm.v_free_count", "free"},
+      {"vm.stats.vm.v_wire_count", "wired"},
+      {"vm.stats.vm.v_active_count", "active"},
+      {"vm.stats.vm.v_inactive_count", "inactive"},
+      {"vm.stats.vm.v_cache_count", "cache"},
+  };
 
-  for (int i = 0; sysctl_keys[i] != NULL; i++) {
-    int value;
+  gauge_t page_size = 0;
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
+    int value = 0;
     size_t value_len = sizeof(value);
 
-    if (sysctlbyname(sysctl_keys[i], (void *)&value, &value_len, NULL, 0) ==
-        0) {
-      sysctl_vals[i] = value;
-      DEBUG("memory plugin: %26s: %g", sysctl_keys[i], sysctl_vals[i]);
-    } else {
-      sysctl_vals[i] = NAN;
+    int status = sysctlbyname(metrics[i].sysctl_key, (void *)&value, &value_len,
+                              NULL, 0);
+    if (status != 0) {
+      WARNING("sysctlbyname(\"%s\") failed: %s", metrics[i].sysctl_key,
+              STRERROR(status));
+      continue;
     }
+
+    if (i == 0) {
+      page_size = (gauge_t)value;
+      continue;
+    }
+
+    value_t v = {.gauge = page_size * (gauge_t)value};
+    metric_family_append(&fam, "type", metrics[i].label_value, v, NULL);
   } /* for (sysctl_keys) */
 
-  /* multiply all all page counts with the pagesize */
-  for (int i = 1; sysctl_keys[i] != NULL; i++)
-    if (!isnan(sysctl_vals[i]))
-      sysctl_vals[i] *= sysctl_vals[0];
-
-  MEMORY_SUBMIT("free", (gauge_t)sysctl_vals[2], "wired",
-                (gauge_t)sysctl_vals[3], "active", (gauge_t)sysctl_vals[4],
-                "inactive", (gauge_t)sysctl_vals[5], "cache",
-                (gauge_t)sysctl_vals[6]);
+  plugin_dispatch_metric_family(&fam);
+  metric_family_metric_reset(&fam);
   /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
-  FILE *fh;
-  char buffer[1024];
-
-  char *fields[8];
-  int numfields;
-
-  bool detailed_slab_info = false;
-
-  gauge_t mem_total = 0;
-  gauge_t mem_used = 0;
-  gauge_t mem_buffered = 0;
-  gauge_t mem_cached = 0;
-  gauge_t mem_free = 0;
-  gauge_t mem_slab_total = 0;
-  gauge_t mem_slab_reclaimable = 0;
-  gauge_t mem_slab_unreclaimable = 0;
-
-  if ((fh = fopen("/proc/meminfo", "r")) == NULL) {
-    WARNING("memory: fopen: %s", STRERRNO);
-    return -1;
+  FILE *fh = fopen("/proc/meminfo", "r");
+  if (fh == NULL) {
+    int status = errno;
+    ERROR("memory plugin: fopen(\"/proc/meminfo\") failed: %s", STRERRNO);
+    return status;
   }
 
+  metric_family_t fam = {
+      .name = "memory_usage",
+      .type = METRIC_TYPE_GAUGE,
+  };
+
+  bool detailed_slab_info = false;
+  gauge_t mem_total = NAN;
+  gauge_t mem_not_used = 0;
+  value_t mem_slab_total = (value_t){.gauge = NAN};
+  value_t mem_slab_reclaimable = (value_t){.gauge = NAN};
+  value_t mem_slab_unreclaimable = (value_t){.gauge = NAN};
+
+  char buffer[256];
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    gauge_t *val = NULL;
-
-    if (strncasecmp(buffer, "MemTotal:", 9) == 0)
-      val = &mem_total;
-    else if (strncasecmp(buffer, "MemFree:", 8) == 0)
-      val = &mem_free;
-    else if (strncasecmp(buffer, "Buffers:", 8) == 0)
-      val = &mem_buffered;
-    else if (strncasecmp(buffer, "Cached:", 7) == 0)
-      val = &mem_cached;
-    else if (strncasecmp(buffer, "Slab:", 5) == 0)
-      val = &mem_slab_total;
-    else if (strncasecmp(buffer, "SReclaimable:", 13) == 0) {
-      val = &mem_slab_reclaimable;
-      detailed_slab_info = true;
-    } else if (strncasecmp(buffer, "SUnreclaim:", 11) == 0) {
-      val = &mem_slab_unreclaimable;
-      detailed_slab_info = true;
-    } else
+    char *fields[4] = {0};
+    int fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+    if ((fields_num != 3) || (strcmp("kB", fields[2]) != 0)) {
       continue;
+    }
 
-    numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
-    if (numfields < 2)
+    value_t v = (value_t){.gauge = 1024.0 * atof(fields[1])};
+
+    if (strcmp(fields[0], "MemTotal:") == 0) {
+      mem_total = v.gauge;
       continue;
-
-    *val = 1024.0 * atof(fields[1]);
+    } else if (strcmp(fields[0], "MemFree:") == 0) {
+      metric_family_append(&fam, "type", "free", v, NULL);
+      mem_not_used += v.gauge;
+    } else if (strcmp(fields[0], "Buffers:") == 0) {
+      metric_family_append(&fam, "type", "buffered", v, NULL);
+      mem_not_used += v.gauge;
+    } else if (strcmp(fields[0], "Cached:") == 0) {
+      metric_family_append(&fam, "type", "cached", v, NULL);
+      mem_not_used += v.gauge;
+    } else if (strcmp(fields[0], "Slab:") == 0) {
+      mem_not_used += v.gauge;
+      mem_slab_total = v;
+      continue;
+    } else if (strcmp(fields[0], "SReclaimable:") == 0) {
+      mem_slab_reclaimable = v;
+      detailed_slab_info = true;
+      continue;
+    } else if (strcmp(fields[0], "SUnreclaim:") == 0) {
+      mem_slab_unreclaimable = v;
+      detailed_slab_info = true;
+      continue;
+    } else {
+      continue;
+    }
   }
 
   if (fclose(fh)) {
-    WARNING("memory: fclose: %s", STRERRNO);
+    WARNING("memory plugin: fclose failed: %s", STRERRNO);
   }
 
-  if (mem_total < (mem_free + mem_buffered + mem_cached + mem_slab_total))
-    return -1;
+  if (mem_total < mem_not_used) {
+    return EINVAL;
+  }
 
-  mem_used =
-      mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_total);
+  metric_family_append(&fam, "type", "used",
+                       (value_t){.gauge = mem_total - mem_not_used}, NULL);
 
   /* SReclaimable and SUnreclaim were introduced in kernel 2.6.19
    * They sum up to the value of Slab, which is available on older & newer
    * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
    * if not. */
-  if (detailed_slab_info)
-    MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
-                  mem_cached, "free", mem_free, "slab_unrecl",
-                  mem_slab_unreclaimable, "slab_recl", mem_slab_reclaimable);
-  else
-    MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
-                  mem_cached, "free", mem_free, "slab", mem_slab_total);
-    /* #endif KERNEL_LINUX */
+  if (detailed_slab_info) {
+    metric_family_append(&fam, "type", "slab_recl", mem_slab_reclaimable, NULL);
+    metric_family_append(&fam, "type", "slab_unrecl", mem_slab_unreclaimable,
+                         NULL);
+  } else {
+    metric_family_append(&fam, "type", "slab", mem_slab_total, NULL);
+  }
+
+  /* TODO(octo): convert to percentage. */
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
   /* Most of the additions here were taken as-is from the k9toolkit from
