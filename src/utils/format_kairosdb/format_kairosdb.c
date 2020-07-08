@@ -1,6 +1,7 @@
 /**
  * collectd - src/utils_format_kairosdb.c
  * Copyright (C) 2016       Aurelien beorn Rougemont
+ * Copyright (C) 2020       Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,272 +24,216 @@
  * Authors:
  *   Aurelien beorn Rougemont <beorn at gandi dot net>
  *   Manoj Srivastava <srivasta at google.com>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
 
-#include "plugin.h"
-#include "utils/avltree/avltree.h"
-#include "utils/common/common.h"
-
 #include "utils/format_kairosdb/format_kairosdb.h"
+
+#include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
+
+#if HAVE_LIBYAJL
+#include <yajl/yajl_common.h>
+#include <yajl/yajl_gen.h>
+#if HAVE_YAJL_YAJL_VERSION_H
+#include <yajl/yajl_version.h>
+#endif
+#if defined(YAJL_MAJOR) && (YAJL_MAJOR > 1)
+#define HAVE_YAJL_V2 1
+#endif
+#endif
 
 /* This is the KAIROSDB format for write_http output
  *
  * Target format
  * [
  *   {
- *     "name":"collectd.vmem"
- *     "datapoints":
- *       [
- *         [1453897164060, 97.000000]
- *       ],
- *      "tags":
- *        {
- *          "host": "fqdn.domain.tld",
- *          "plugin_instance": "vmpage_number",
- *          "type": "kernel_stack",
- *          "ds": "value"
- *          ""
- *        }
+ *     "name":"cpu_usage"
+ *     "timestamp": 1453897164060,
+ *     "value": 97.1,
+ *     "ttl": 300,
+ *     "tags": {
+ *          "instance": "example.com",
+ *          "cpu":      "0",
+ *          "state":    "idle"
+ *     }
  *   }
  * ]
  */
+static int json_add_string(yajl_gen g, char const *str) /* {{{ */
+{
+  if (str == NULL)
+    return (int)yajl_gen_null(g);
 
-static int kairosdb_escape_string(char *buffer, size_t buffer_size, /* {{{ */
-                                  const char *string) {
-  size_t dst_pos;
+  return (int)yajl_gen_string(g, (const unsigned char *)str,
+                              (unsigned int)strlen(str));
+} /* }}} int json_add_string */
 
-  if ((buffer == NULL) || (string == NULL))
-    return -EINVAL;
-
-  if (buffer_size < 3)
-    return -ENOMEM;
-
-  dst_pos = 0;
-
-#define BUFFER_ADD(c)                                                          \
+#define CHECK(f)                                                               \
   do {                                                                         \
-    if (dst_pos >= (buffer_size - 1)) {                                        \
-      buffer[buffer_size - 1] = '\0';                                          \
-      return -ENOMEM;                                                          \
-    }                                                                          \
-    buffer[dst_pos] = (c);                                                     \
-    dst_pos++;                                                                 \
-  } while (0)
-
-  /* Escape special characters */
-  /* authorize -_. and alpha num but also escapes " */
-  BUFFER_ADD('"');
-  for (size_t src_pos = 0; string[src_pos] != 0; src_pos++) {
-    if (isalnum(string[src_pos]) || 0x2d == string[src_pos] ||
-        0x2e == string[src_pos] || 0x5f == string[src_pos])
-      BUFFER_ADD(tolower(string[src_pos]));
-  } /* for */
-  BUFFER_ADD('"');
-  buffer[dst_pos] = 0;
-
-#undef BUFFER_ADD
-
-  return 0;
-} /* }}} int kairosdb_escape_string */
-
-int format_kairosdb_initialize(char *buffer, /* {{{ */
-                               size_t *ret_buffer_fill,
-                               size_t *ret_buffer_free) {
-  size_t buffer_fill;
-  size_t buffer_free;
-
-  if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
-      (ret_buffer_free == NULL))
-    return -EINVAL;
-
-  buffer_fill = *ret_buffer_fill;
-  buffer_free = *ret_buffer_free;
-
-  buffer_free = buffer_fill + buffer_free;
-  buffer_fill = 0;
-
-  if (buffer_free < 3)
-    return -ENOMEM;
-
-  memset(buffer, 0, buffer_free);
-  *ret_buffer_fill = buffer_fill;
-  *ret_buffer_free = buffer_free;
-
-  return 0;
-} /* }}} int format_kairosdb_initialize */
-
-int format_kairosdb_finalize(char *buffer, /* {{{ */
-                             size_t *ret_buffer_fill, size_t *ret_buffer_free) {
-  size_t pos;
-
-  if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
-      (ret_buffer_free == NULL))
-    return -EINVAL;
-
-  if (*ret_buffer_free < 2)
-    return -ENOMEM;
-
-  /* Replace the leading comma added in `value_list_to_kairosdb' with a square
-   * bracket. */
-  if (buffer[0] != ',')
-    return -EINVAL;
-  buffer[0] = '[';
-
-  pos = *ret_buffer_fill;
-  buffer[pos] = ']';
-  buffer[pos + 1] = 0;
-
-  (*ret_buffer_fill)++;
-  (*ret_buffer_free)--;
-
-  return 0;
-} /* }}} int format_kairosdb_finalize */
-
-int format_kairosdb_value_list(char *buffer, /* {{{ */
-                               size_t *ret_buffer_fill, size_t *ret_buffer_free,
-                               const data_set_t *ds, const value_list_t *vl,
-                               int store_rates, char const *const *http_attrs,
-                               size_t http_attrs_num, int data_ttl,
-                               char const *metrics_prefix) {
-  if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
-      (ret_buffer_free == NULL) || (ds == NULL) || (vl == NULL))
-    return -EINVAL;
-
-  if (*ret_buffer_free < 3)
-    return -ENOMEM;
-
-  return format_kairosdb_value_list_nocheck(
-      buffer, ret_buffer_fill, ret_buffer_free, ds, vl, store_rates,
-      (*ret_buffer_free) - 2, http_attrs, http_attrs_num, data_ttl,
-      metrics_prefix);
-} /* }}} int format_kairosdb_value_list */
-
-int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
-                           size_t *ret_buffer_free, metric_single_t const *m,
-                           int store_rates, char const *const *http_attrs,
-                           size_t http_attrs_num, int data_ttl,
-                           char const *metrics_prefix) {
-  char temp[1024];
-  gauge_t rate = -1;
-  int status = 0;
-
-  if ((buffer_p == NULL) || (ret_buffer_fill == NULL) ||
-      (ret_buffer_free == NULL) || (m == NULL) || (m->identity == NULL) ||
-      (metric_p->ds == NULL))
-    return -EINVAL;
-
-  if (*ret_buffer_free < 3)
-    return -ENOMEM;
-
-  /* Respect high water marks and fere size */
-  char *buffer = buffer_p + (*ret_buffer_fill);
-  size_t buffer_size = *ret_buffer_free;
-  size_t offset = 0;
-
-#define BUFFER_ADD(...)                                                        \
-  do {                                                                         \
-    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
-    if (status < 1)                                                            \
-      return -1;                                                               \
-    else if (((size_t)status) >= (buffer_size - offset))                       \
-      return -ENOMEM;                                                          \
-    else                                                                       \
-      offset += ((size_t)status);                                              \
-  } while (0)
-
-#define BUFFER_ADD_KEYVAL(key, value)                                          \
-  do {                                                                         \
-    status = kairosdb_escape_string(temp, sizeof(temp), (value));              \
-    if (status != 0)                                                           \
+    int status = (f);                                                          \
+    if (status != 0) {                                                         \
+      ERROR("format_kairosdb: %s = %d", #f, status);                           \
       return status;                                                           \
-    BUFFER_ADD(",\"%s\":%s", (key), temp);                                     \
+    }                                                                          \
   } while (0)
 
-  /* Designed to be called multiple times, as when adding metrics from a
-     metrics_lisat_t object. When finalizing, the initial leading comma
-     will be replaced by a [ */
-  BUFFER_ADD(",{");
-  BUFFER_ADD("\"name\":\"");
-  if (metrics_prefix != NULL) {
-    BUFFER_ADD("%s.", metrics_prefix);
-  }
-  BUFFER_ADD("%s\",", m->identity->name);
-
-  BUFFER_ADD("\"datapoints\":");
-  if (m->value_type == DS_TYPE_GAUGE) {
-    if (isfinite(m->value.gauge))
-      BUFFER_ADD(JSON_GAUGE_FORMAT, m->value.gauge);
-    else
-      BUFFER_ADD("null");
-  } else if (store_rates) {
-    if (rate == -1)
-      status = uc_get_rate(m, &rate);
-    if (status != 0) {
-      WARNING("utils_format_json: uc_get_rate failed.");
-      buffer_p[*ret_buffer_fill] = '0';
-      return -1;
+static int json_add_value(yajl_gen g, metric_t const *m,
+                          format_kairosdb_opts_t const *opts) {
+  if ((m->family->type == METRIC_TYPE_GAUGE) ||
+      (m->family->type == METRIC_TYPE_UNTYPED)) {
+    double v = m->value.gauge;
+    if (isfinite(v)) {
+      CHECK(yajl_gen_double(g, v));
+    } else {
+      CHECK(yajl_gen_null(g));
     }
+  } else if ((opts != NULL) && opts->store_rates) {
+    gauge_t rate = NAN;
+    uc_get_rate(m, &rate);
 
-    if (isfinite(rate))
-      BUFFER_ADD(JSON_GAUGE_FORMAT, rate);
-    else
-      BUFFER_ADD("null");
-  } else if (m->value_type == DS_TYPE_COUNTER)
-    BUFFER_ADD("%" PRIu64, (uint64_t)m->value.counter);
-  else if (m->value_type == DS_TYPE_DERIVE)
-    BUFFER_ADD("%" PRIi64, m->value.derive);
-  else if (m->value_type == DS_TYPE_ABSOLUTE)
-    BUFFER_ADD("%" PRIu64, m->value.absolute);
-  else {
-    ERROR("format_json: Unknown data source type: %i", m->value_type);
-    buffer_p[*ret_buffer_fill] = '0';
-    return -1;
-  }
-  /*
-   * Now add meta data to metric as tags
-   */
-  if (data_ttl != 0)
-    BUFFER_ADD(", \"ttl\": %i", data_ttl);
-
-  BUFFER_ADD(", \"tags\":{");
-
-  BUFFER_ADD(",\"time\":%.3f", CDTIME_T_TO_DOUBLE(m->time));
-  BUFFER_ADD(",\"interval\":%.3f", CDTIME_T_TO_DOUBLE(m->interval));
-  BUFFER_ADD_KEYVAL("plugin", m->plugin);
-  BUFFER_ADD_KEYVAL("type", m->type);
-  BUFFER_ADD_KEYVAL("dsname", m->ds->name);
-  BUFFER_ADD_KEYVAL("dstype", DS_TYPE_TO_STRING(m->value_type));
-  for (size_t j = 0; j < http_attrs_num; j += 2) {
-    BUFFER_ADD(", \"%s\":", http_attrs[j]);
-    BUFFER_ADD(" \"%s\"", http_attrs[j + 1]);
-  }
-
-  if (m->identity->root_p != NULL) {
-    c_avl_iterator_t *iter_p = c_avl_get_iterator(m->identity->root_p);
-    if (iter_p != NULL) {
-      char *key_p = NULL;
-      char *value_p = NULL;
-      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
-                                  (void **)&value_p)) == 0) {
-        if ((key_p != NULL) && (value_p != NULL)) {
-          BUFFER_ADD_KEYVAL(key_p, value_p);
-        }
-      }
-      c_avl_iterator_destroy(iter_p);
+    if (isfinite(rate)) {
+      CHECK(yajl_gen_double(g, rate));
+    } else {
+      CHECK(yajl_gen_null(g));
     }
+  } else if (m->family->type == METRIC_TYPE_COUNTER) {
+    CHECK(yajl_gen_integer(g, (long long int)m->value.counter));
+  } else {
+    ERROR("format_kairosdb: Unknown data source type: %d", m->family->type);
+    CHECK(yajl_gen_null(g));
   }
-
-  BUFFER_ADD("}}");
-
-#undef BUFFER_ADD_KEYVAL
-#undef BUFFER_ADD
-
-  /* Update hihg water mark and free size */
-  (*ret_buffer_fill) += offset;
-  (*ret_buffer_free) -= offset;
 
   return 0;
-} /* }}} */
+}
+
+static int json_add_metric(yajl_gen g, metric_t const *m,
+                           format_kairosdb_opts_t const *opts) {
+  CHECK(yajl_gen_map_open(g));
+
+  CHECK(json_add_string(g, "name"));
+  if ((opts != NULL) && (opts->metrics_prefix != NULL)) {
+    strbuf_t buf = STRBUF_CREATE;
+    strbuf_print(&buf, opts->metrics_prefix);
+    strbuf_print(&buf, m->family->name);
+    CHECK(json_add_string(g, buf.ptr));
+    STRBUF_DESTROY(buf);
+  } else {
+    CHECK(json_add_string(g, m->family->name));
+  }
+
+  CHECK(json_add_string(g, "timestamp"));
+  CHECK(yajl_gen_integer(g, (long long int)CDTIME_T_TO_MS(m->time)));
+
+  CHECK(json_add_string(g, "value"));
+  CHECK(json_add_value(g, m, opts));
+
+  if ((opts != NULL) && (opts->ttl_secs != 0)) {
+    CHECK(json_add_string(g, "ttl"));
+    CHECK(yajl_gen_integer(g, (long long int)opts->ttl_secs));
+  }
+
+  if (m->label.num != 0) {
+    CHECK(json_add_string(g, "tags"));
+    CHECK(yajl_gen_map_open(g));
+
+    for (size_t i = 0; i < m->label.num; i++) {
+      label_pair_t *l = m->label.ptr + i;
+      CHECK(json_add_string(g, l->name));
+      CHECK(json_add_string(g, l->value));
+    }
+
+    CHECK(yajl_gen_map_close(g));
+  }
+
+  CHECK(yajl_gen_map_close(g));
+  return 0;
+}
+
+static int json_metric_family(yajl_gen g, metric_family_t const *fam,
+                              format_kairosdb_opts_t const *opts) {
+  CHECK(yajl_gen_array_open(g));
+
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t const *m = fam->metric.ptr + i;
+    CHECK(json_add_metric(g, m, opts));
+  }
+
+  CHECK(yajl_gen_array_close(g));
+  return 0;
+}
+
+int format_kairosdb_metric_family(strbuf_t *buf, metric_family_t const *fam,
+                                  format_kairosdb_opts_t const *opts) {
+  if ((buf == NULL) || (fam == NULL))
+    return EINVAL;
+
+#if HAVE_YAJL_V2
+  yajl_gen g = yajl_gen_alloc(NULL);
+  if (g == NULL)
+    return ENOMEM;
+#if COLLECT_DEBUG
+  yajl_gen_config(g, yajl_gen_beautify, 1);
+  yajl_gen_config(g, yajl_gen_validate_utf8, 1);
+#endif
+
+#else /* !HAVE_YAJL_V2 */
+  yajl_gen_config conf = {0};
+#if COLLECT_DEBUG
+  conf.beautify = 1;
+  conf.indentString = "  ";
+#endif
+  yajl_gen g = yajl_gen_alloc(&conf, NULL);
+  if (g == NULL)
+    return ENOMEM;
+#endif
+
+  int status = json_metric_family(g, fam, opts);
+  if (status != 0) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return status;
+  }
+
+  /* copy to output buffer */
+  unsigned char const *out = NULL;
+#if HAVE_YAJL_V2
+  size_t out_len = 0;
+#else
+  unsigned int out_len = 0;
+#endif
+  yajl_gen_status yajl_status = yajl_gen_get_buf(g, &out, &out_len);
+  if (yajl_status != yajl_gen_status_ok) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return (int)yajl_status;
+  }
+
+  if (buf->fixed) {
+    size_t avail = (buf->size == 0) ? 0 : buf->size - (buf->pos + 1);
+    if (avail < out_len) {
+      yajl_gen_clear(g);
+      yajl_gen_free(g);
+      return ENOBUFS;
+    }
+  }
+
+  /* If the buffer is not empty, append by converting the closing ']' of "buf"
+   * to a comma and skip the opening '[' of "out". */
+  if (buf->pos != 0) {
+    assert(buf->ptr[buf->pos - 1] == ']');
+    buf->ptr[buf->pos - 1] = ',';
+
+    assert(out[0] == '[');
+    out++;
+  }
+
+  status = strbuf_print(buf, (void *)out);
+
+  yajl_gen_clear(g);
+  yajl_gen_free(g);
+  return status;
+} /* }}} format_kairosdb_metric_family */
