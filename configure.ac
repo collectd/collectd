@@ -6610,6 +6610,7 @@ plugin_mcelog="no"
 plugin_mdevents="no"
 plugin_memory="no"
 plugin_multimeter="no"
+plugin_netstat_udp="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_ovs_events="no"
@@ -6724,6 +6725,7 @@ if test "x$ac_system" = "xNetBSD"; then
   plugin_irq="yes"
   plugin_nfs="yes"
   plugin_processes="yes"
+  plugin_netstat_udp="yes"
 fi
 
 # Mac OS X devices
@@ -7094,6 +7096,7 @@ AC_PLUGIN([multimeter],          [$plugin_multimeter],        [Read multimeter v
 AC_PLUGIN([mysql],               [$with_libmysql],            [MySQL statistics])
 AC_PLUGIN([netapp],              [$with_libnetapp],           [NetApp plugin])
 AC_PLUGIN([netlink],             [$with_libmnl],              [Enhanced Linux network statistics])
+AC_PLUGIN([netstat_udp],         [$plugin_netstat_udp],       [UDP network statistics])
 AC_PLUGIN([network],             [yes],                       [Network communication plugin])
 AC_PLUGIN([nfs],                 [$plugin_nfs],               [NFS statistics])
 AC_PLUGIN([nginx],               [$with_libcurl],             [nginx statistics])
@@ -7539,6 +7542,7 @@ AC_MSG_RESULT([    multimeter  . . . . . $enable_multimeter])
 AC_MSG_RESULT([    mysql . . . . . . . . $enable_mysql])
 AC_MSG_RESULT([    netapp  . . . . . . . $enable_netapp])
 AC_MSG_RESULT([    netlink . . . . . . . $enable_netlink])
+AC_MSG_RESULT([    netstat_udp . . . . . $enable_netstat_udp])
 AC_MSG_RESULT([    network . . . . . . . $enable_network])
 AC_MSG_RESULT([    nfs . . . . . . . . . $enable_nfs])
 AC_MSG_RESULT([    nginx . . . . . . . . $enable_nginx])
