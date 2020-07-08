@@ -557,10 +557,7 @@ libcmds_la_SOURCES = \
 	src/utils/cmds/putval.h \
 	src/utils/cmds/parse_option.c \
 	src/utils/cmds/parse_option.h
-libcmds_la_LIBADD = \
-	libcommon.la \
-	libmetadata.la \
-	-lm
+libcmds_la_LIBADD = -lm
 
 test_utils_cmds_SOURCES = \
 	src/utils/cmds/cmds_test.c \
@@ -2262,7 +2259,7 @@ write_http_la_SOURCES = \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
+write_http_la_LIBADD = libcmds.la libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_INFLUXDB_UDP
