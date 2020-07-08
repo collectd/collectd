@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_format_json.h
- * Copyright (C) 2009       Florian octo Forster
+ * Copyright (C) 2009-2020  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,16 +36,12 @@
 #define JSON_GAUGE_FORMAT GAUGE_FORMAT
 #endif
 
-int format_json_initialize(char *buffer, size_t *ret_buffer_fill,
-                           size_t *ret_buffer_free);
-int format_json_value_list(char *buffer, size_t *ret_buffer_fill,
-                           size_t *ret_buffer_free, const data_set_t *ds,
-                           const value_list_t *vl, int store_rates);
-int format_json_finalize(char *buffer, size_t *ret_buffer_fill,
-                         size_t *ret_buffer_free);
-
-/* format_json_metric writes m to buf in JSON format. The format produces is
- * compatible to the "prometheus/prom2json" project. */
+/* format_json_metric_family adds the metric family "fam" to the buffer "buf"
+ * in JSON format. The format produced is compatible to the
+ * "prometheus/prom2json" project. Calling this function repeatedly with the
+ * same buffer will append additional metric families to the buffer. If the
+ * buffer has fixed size and the serialized metric family exceeds the buffer
+ * length, the buffer is unmodified and ENOBUFS is returned. */
 int format_json_metric_family(strbuf_t *buf, metric_family_t const *fam,
                               bool store_rates);
 
