@@ -136,6 +136,7 @@ noinst_LTLIBRARIES = \
 	libheap.la \
 	libignorelist.la \
 	liblatency.la \
+	libllist.la \
 	liblookup.la \
 	libmetadata.la \
 	libmount.la \
@@ -154,6 +155,7 @@ check_PROGRAMS = \
 	test_utils_cmds \
 	test_utils_heap \
 	test_utils_latency \
+	test_utils_message_parser \
 	test_utils_mount \
 	test_utils_subst \
 	test_utils_time \
@@ -244,8 +246,6 @@ collectd_SOURCES = \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
-	src/daemon/utils_llist.c \
-	src/daemon/utils_llist.h \
 	src/daemon/utils_random.c \
 	src/daemon/utils_random.h \
 	src/daemon/utils_subst.c \
@@ -265,6 +265,7 @@ collectd_LDADD = \
 	libavltree.la \
 	libcommon.la \
 	libheap.la \
+	libllist.la \
 	liboconfig.la \
 	-lm \
 	$(COMMON_LIBS) \
@@ -360,6 +361,19 @@ test_utils_heap_SOURCES = \
 	src/testing.h
 test_utils_heap_LDADD = libheap.la $(COMMON_LIBS)
 
+test_utils_message_parser_SOURCES = \
+	src/utils/message_parser/message_parser_test.c \
+	src/testing.h \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c \
+	src/utils_tail_match.c src/utils_tail_match.h \
+	src/utils/tail/tail.c src/utils/tail/tail.h \
+	src/utils/match/match.c src/utils/match/match.h \
+	src/utils/latency/latency.c src/utils/latency/latency.h \
+	src/utils/latency/latency_config.c src/utils/latency/latency_config.h
+test_utils_message_parser_CPPFLAGS = $(AM_CPPFLAGS)
+test_utils_message_parser_LDADD = liboconfig.la libplugin_mock.la -lm
+
 test_utils_time_SOURCES = \
 	src/daemon/utils_time_test.c \
 	src/testing.h
@@ -392,6 +406,10 @@ libheap_la_SOURCES = \
 libignorelist_la_SOURCES = \
 	src/utils/ignorelist/ignorelist.c \
 	src/utils/ignorelist/ignorelist.h
+
+libllist_la_SOURCES = \
+	src/daemon/utils_llist.c \
+	src/daemon/utils_llist.h
 
 libmetadata_la_SOURCES = \
 	src/utils/metadata/meta_data.c \
@@ -746,6 +764,39 @@ bind_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 bind_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 endif
 
+if BUILD_PLUGIN_BUDDYINFO
+pkglib_LTLIBRARIES += buddyinfo.la
+buddyinfo_la_SOURCES = src/buddyinfo.c
+buddyinfo_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+buddyinfo_la_LIBADD = libignorelist.la
+endif
+
+if BUILD_PLUGIN_CAPABILITIES
+pkglib_LTLIBRARIES += capabilities.la
+capabilities_la_SOURCES = src/capabilities.c \
+                          src/utils/dmi/dmi.c \
+                          src/utils/dmi/dmi.h
+capabilities_la_CPPFLAGS = $(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS) $(BUILD_WITH_LIBJANSSON_CPPFLAGS)
+capabilities_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBMICROHTTPD_LDFLAGS) $(BUILD_WITH_LIBJANSSON_LDFLAGS)
+capabilities_la_LIBADD = $(BUILD_WITH_LIBMICROHTTPD_LIBS) \
+	$(BUILD_WITH_LIBJANSSON_LIBS)
+
+test_plugin_capabilities_SOURCES = \
+        src/capabilities_test.c \
+        src/daemon/configfile.c \
+        src/daemon/types_list.c
+test_plugin_capabilities_CPPFLAGS = $(AM_CPPFLAGS) \
+        $(BUILD_WITH_LIBJANSSON_CPPFLAGS)
+test_plugin_capabilities_LDFLAGS = $(PLUGIN_LDFLAGS) \
+        $(BUILD_WITH_LIBJANSSON_LDFLAGS)
+test_plugin_capabilities_LDADD = liboconfig.la libplugin_mock.la \
+        $(BUILD_WITH_LIBJANSSON_LIBS)
+check_PROGRAMS += test_plugin_capabilities
+TESTS += test_plugin_capabilities
+endif
+
 if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = src/ceph.c
@@ -895,6 +946,14 @@ dbi_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBDBI_LDFLAGS)
 dbi_la_LIBADD = $(BUILD_WITH_LIBDBI_LIBS)
 endif
 
+if BUILD_PLUGIN_DCPMM
+pkglib_LTLIBRARIES += dcpmm.la
+dcpmm_la_SOURCES = src/dcpmm.c
+dcpmm_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPMWAPI_CPPFLAGS)
+dcpmm_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPMWAPI_LDFLAGS)
+dcpmm_la_LIBADD = -lpmwapi
+endif
+
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = src/df.c
@@ -962,6 +1021,13 @@ dpdkstat_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
 dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
 dpdkstat_la_LIBADD = $(LIBDPDK_LIBS)
+endif
+if BUILD_PLUGIN_DPDK_TELEMETRY
+pkglib_LTLIBRARIES += dpdk_telemetry.la
+dpdk_telemetry_la_SOURCES = src/dpdk_telemetry.c
+dpdk_telemetry_la_CFLAGS = $(AM_CFLAGS)
+dpdk_telemetry_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJANSSON_LDFLAGS)
+dpdk_telemetry_la_LIBADD = $(BUILD_WITH_LIBJANSSON_LIBS)
 endif
 
 if BUILD_PLUGIN_DRBD
@@ -1032,8 +1098,8 @@ endif
 if BUILD_PLUGIN_GPU_NVIDIA
 pkglib_LTLIBRARIES += gpu_nvidia.la
 gpu_nvidia_la_SOURCES = src/gpu_nvidia.c
-gpu_nvidia_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) $(BUILD_WITH_GPU_CUDA_CPPFLAGS)
-gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_GPU_CUDA_LDFLAGS)
+gpu_nvidia_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_CUDA_CPPFLAGS)
+gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_CUDA_LDFLAGS)
 gpu_nvidia_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
 endif
 
@@ -1152,6 +1218,12 @@ ipmi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ipmi_la_LIBADD = libignorelist.la $(BUILD_WITH_OPENIPMI_LIBS)
 endif
 
+if BUILD_PLUGIN_IPSTATS
+pkglib_LTLIBRARIES += ipstats.la
+ipstats_la_SOURCES = src/ipstats.c
+ipstats_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = src/ipvs.c
@@ -1194,6 +1266,32 @@ pkglib_LTLIBRARIES += logfile.la
 logfile_la_SOURCES = src/logfile.c
 logfile_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 logfile_la_DEPENDENCIES = $(COMMON_DEPS)
+endif
+
+if BUILD_PLUGIN_LOGPARSER
+pkglib_LTLIBRARIES += logparser.la
+logparser_la_SOURCES = src/logparser.c \
+	src/utils/message_parser/message_parser.c src/utils/message_parser/message_parser.h \
+	src/utils_tail_match.c src/utils_tail_match.h \
+	src/utils/tail/tail.c src/utils/tail/tail.h \
+	src/utils/match/match.c src/utils/match/match.h \
+	src/utils/latency/latency.c src/utils/latency/latency.h \
+	src/utils/latency/latency_config.c src/utils/latency/latency_config.h
+logparser_la_CPPFLAGS = $(AM_CPPFLAGS)
+logparser_la_LDFLAGS = $(PLUGIN_LDFLAGS) -lm
+
+test_plugin_logparser_SOURCES = src/logparser_test.c \
+       src/utils/message_parser/message_parser.c \
+       src/utils_tail_match.c src/utils_tail_match.h \
+       src/utils/tail/tail.c src/utils/tail/tail.h \
+       src/utils/match/match.c src/utils/match/match.h \
+       src/daemon/configfile.c \
+       src/daemon/types_list.c
+test_plugin_logparser_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_logparser_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_logparser_LDADD = liboconfig.la libplugin_mock.la liblatency.la
+check_PROGRAMS += test_plugin_logparser
+TESTS += test_plugin_logparser
 endif
 
 if BUILD_PLUGIN_LOG_LOGSTASH
@@ -1282,6 +1380,21 @@ pkglib_LTLIBRARIES += md.la
 md_la_SOURCES = src/md.c
 md_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 md_la_LIBADD = libignorelist.la
+endif
+
+if BUILD_PLUGIN_MDEVENTS
+pkglib_LTLIBRARIES += mdevents.la
+mdevents_la_SOURCES = src/mdevents.c
+mdevents_la_CFLAGS = $(AM_FLAGS)
+mdevents_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+mdevents_la_LIBADD = libignorelist.la
+
+test_plugin_mdevents_SOURCES = src/mdevents_test.c
+test_plugin_mdevents_CFLAGS = $(AM_FLAGS)
+test_plugin_mdevents_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_mdevents_LDADD = libplugin_mock.la
+check_PROGRAMS += test_plugin_mdevents
+TESTS += test_plugin_mdevents
 endif
 
 if BUILD_PLUGIN_MEMCACHEC
@@ -1674,6 +1787,26 @@ protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 protocols_la_LIBADD = libignorelist.la
 endif
 
+if BUILD_PLUGIN_REDFISH
+pkglib_LTLIBRARIES += redfish.la
+redfish_la_SOURCES = src/redfish.c
+redfish_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
+redfish_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
+redfish_la_LIBADD = $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish
+
+test_plugin_redfish_SOURCES = src/redfish_test.c \
+                              src/utils/avltree/avltree.c \
+                              src/daemon/utils_llist.c \
+                              src/daemon/configfile.c \
+                              src/daemon/types_list.c
+test_plugin_redfish_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
+test_plugin_redfish_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
+test_plugin_redfish_LDADD = liboconfig.la libplugin_mock.la \
+                            $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish -ljansson
+check_PROGRAMS += test_plugin_redfish
+TESTS += test_plugin_redfish
+endif
+
 if BUILD_PLUGIN_REDIS
 pkglib_LTLIBRARIES += redis.la
 redis_la_SOURCES = src/redis.c
@@ -1732,6 +1865,14 @@ sigrok_la_SOURCES = src/sigrok.c
 sigrok_la_CFLAGS = $(AM_CFLAGS) $(LIBSIGROK_CFLAGS)
 sigrok_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 sigrok_la_LIBADD = $(LIBSIGROK_LIBS)
+endif
+
+if BUILD_PLUGIN_SLURM
+pkglib_LTLIBRARIES += slurm.la
+slurm_la_SOURCES = src/slurm.c
+slurm_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSLURM_CFLAGS)
+slurm_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+slurm_la_LIBADD = $(BUILD_WITH_LIBSLURM_LIBS)
 endif
 
 if BUILD_PLUGIN_SMART
@@ -1949,6 +2090,13 @@ turbostat_la_SOURCES = \
 turbostat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_UBI
+pkglib_LTLIBRARIES += ubi.la
+ubi_la_SOURCES = src/ubi.c
+ubi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+ubi_la_LIBADD = libignorelist.la
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = src/unixsock.c
@@ -2045,11 +2193,23 @@ if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = \
 	src/write_http.c \
+	src/utils/curl_stats/curl_stats.c \
+	src/utils/curl_stats/curl_stats.h \
 	src/utils/format_kairosdb/format_kairosdb.c \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
+endif
+
+if BUILD_PLUGIN_WRITE_INFLUXDB_UDP
+pkglib_LTLIBRARIES += write_influxdb_udp.la
+write_influxdb_udp_la_SOURCES = src/write_influxdb_udp.c
+write_influxdb_udp_la_CPPFLAGS = $(AM_CPPFLAGS)
+write_influxdb_udp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+if BUILD_WITH_LIBSOCKET
+write_influxdb_udp_la_LIBADD = -lsocket
+endif
 endif
 
 if BUILD_PLUGIN_WRITE_KAFKA
@@ -2217,13 +2377,16 @@ BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
 
 collectd.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
-		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $<
+		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) \
+	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 collectd.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 types.pb.cc: $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(srcdir)/proto/types.proto
 endif
 endif
 

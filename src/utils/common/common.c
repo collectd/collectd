@@ -89,8 +89,7 @@ char *sstrncpy(char *dest, const char *src, size_t n) {
   return dest;
 } /* char *sstrncpy */
 
-/* ssnprintf returns zero on success, one if truncation occurred
-   and a negative integer onerror. */
+/* ssnprintf returns result from vsnprintf conistent with snprintf */
 int ssnprintf(char *str, size_t sz, const char *format, ...) {
   va_list ap;
   va_start(ap, format);
@@ -160,6 +159,34 @@ char *sstrdup(const char *s) {
 
   return r;
 } /* char *sstrdup */
+
+size_t sstrnlen(const char *s, size_t n) {
+  const char *p = s;
+
+  while (n-- > 0 && *p)
+    p++;
+
+  return p - s;
+} /* size_t sstrnlen */
+
+char *sstrndup(const char *s, size_t n) {
+  char *r;
+  size_t sz;
+
+  if (s == NULL)
+    return NULL;
+
+  sz = sstrnlen(s, n);
+  r = malloc(sz + 1);
+  if (r == NULL) {
+    ERROR("sstrndup: Out of memory.");
+    exit(3);
+  }
+  memcpy(r, s, sz);
+  r[sz] = '\0';
+
+  return r;
+} /* char *sstrndup */
 
 /* Even though Posix requires "strerror_r" to return an "int",
  * some systems (e.g. the GNU libc) return a "char *" _and_
@@ -1264,7 +1291,7 @@ int walk_directory(const char *dir, dirwalk_callback_f callback,
   return 0;
 }
 
-ssize_t read_file_contents(const char *filename, char *buf, size_t bufsize) {
+ssize_t read_file_contents(const char *filename, void *buf, size_t bufsize) {
   FILE *fh;
   ssize_t ret;
 
@@ -1280,6 +1307,16 @@ ssize_t read_file_contents(const char *filename, char *buf, size_t bufsize) {
 
   fclose(fh);
   return ret;
+}
+
+ssize_t read_text_file_contents(const char *filename, char *buf,
+                                size_t bufsize) {
+  ssize_t ret = read_file_contents(filename, buf, bufsize - 1);
+  if (ret < 0)
+    return ret;
+
+  buf[ret] = '\0';
+  return ret + 1;
 }
 
 counter_t counter_diff(counter_t old_value, counter_t new_value) {

@@ -509,6 +509,12 @@ static int apache_read_host(user_data_t *user_data) /* {{{ */
   char *ptr = st->apache_buffer;
   char *saveptr = NULL;
   char *line;
+  /* Apache http mod_status added a second set of BusyWorkers, IdleWorkers in
+   * https://github.com/apache/httpd/commit/6befc18
+   * For Apache 2.4.35 and up we need to ensure only one key is used.
+   * S.a. https://bz.apache.org/bugzilla/show_bug.cgi?id=63300
+   */
+  int apache_connections_submitted = 0, apache_idle_workers_submitted = 0;
   while ((line = strtok_r(ptr, "\n\r", &saveptr)) != NULL) {
     ptr = NULL;
     char *fields[4];
@@ -525,12 +531,18 @@ static int apache_read_host(user_data_t *user_data) /* {{{ */
     } else if (fields_num == 2) {
       if (strcmp(fields[0], "Scoreboard:") == 0)
         submit_scoreboard(fields[1], st);
-      else if ((strcmp(fields[0], "BusyServers:") == 0) /* Apache 1.* */
-               || (strcmp(fields[0], "BusyWorkers:") == 0) /* Apache 2.* */)
+      else if (!apache_connections_submitted &&
+               ((strcmp(fields[0], "BusyServers:") == 0) /* Apache 1.* */
+                || (strcmp(fields[0], "BusyWorkers:") == 0)) /* Apache 2.* */) {
         submit_gauge("apache_connections", NULL, atol(fields[1]), st);
-      else if ((strcmp(fields[0], "IdleServers:") == 0) /* Apache 1.x */
-               || (strcmp(fields[0], "IdleWorkers:") == 0) /* Apache 2.x */)
+        apache_connections_submitted++;
+      } else if (!apache_idle_workers_submitted &&
+                 ((strcmp(fields[0], "IdleServers:") == 0) /* Apache 1.x */
+                  ||
+                  (strcmp(fields[0], "IdleWorkers:") == 0)) /* Apache 2.x */) {
         submit_gauge("apache_idle_workers", NULL, atol(fields[1]), st);
+        apache_idle_workers_submitted++;
+      }
     }
   }
 

@@ -28,7 +28,6 @@ SOFTWARE.
 #include <stdint.h>
 #include <stdio.h>
 
-#define MAX_DEVNAME_LEN 256
 #define PLUGIN_NAME "gpu_nvidia"
 
 static nvmlReturn_t nv_status = NVML_SUCCESS;
@@ -52,11 +51,12 @@ static char *nv_errline = "";
 
 #define KEY_GPUINDEX "GPUIndex"
 #define KEY_IGNORESELECTED "IgnoreSelected"
+#define KEY_INSTANCE_BY_GPUINDEX "InstanceByGPUIndex"
+#define KEY_INSTANCE_BY_GPUNAME "InstanceByGPUName"
 
-static const char *config_keys[] = {
-    KEY_GPUINDEX,
-    KEY_IGNORESELECTED,
-};
+static const char *config_keys[] = {KEY_GPUINDEX, KEY_IGNORESELECTED,
+                                    KEY_INSTANCE_BY_GPUINDEX,
+                                    KEY_INSTANCE_BY_GPUNAME};
 static const unsigned int n_config_keys = STATIC_ARRAY_SIZE(config_keys);
 
 // This is a bitflag, necessitating the (extremely conservative) assumption
@@ -64,8 +64,12 @@ static const unsigned int n_config_keys = STATIC_ARRAY_SIZE(config_keys);
 static uint64_t conf_match_mask = 0;
 static bool conf_mask_is_exclude = 0;
 
-static int nvml_config(const char *key, const char *value) {
+// use GPU index and device name by default
+#define INSTANCE_BY_GPUINDEX (1 << 0)
+#define INSTANCE_BY_GPUNAME (1 << 1)
+static uint8_t instance_by = INSTANCE_BY_GPUINDEX | INSTANCE_BY_GPUNAME;
 
+static int nvml_config(const char *key, const char *value) {
   if (strcasecmp(key, KEY_GPUINDEX) == 0) {
     char *eptr;
     unsigned long device_ix = strtoul(value, &eptr, 10);
@@ -79,8 +83,18 @@ static int nvml_config(const char *key, const char *value) {
       return -2;
     }
     conf_match_mask |= (1 << device_ix);
-  } else if (strcasecmp(key, KEY_IGNORESELECTED)) {
+  } else if (strcasecmp(key, KEY_IGNORESELECTED) == 0) {
     conf_mask_is_exclude = IS_TRUE(value);
+  } else if (strcasecmp(key, KEY_INSTANCE_BY_GPUINDEX) == 0) {
+    // if KEY_INSTANCE_BY_GPUINDEX is set to false, set bit to 0
+    if (IS_FALSE(value)) {
+      instance_by &= ~INSTANCE_BY_GPUINDEX;
+    }
+  } else if (strcasecmp(key, KEY_INSTANCE_BY_GPUNAME) == 0) {
+    // if KEY_INSTANCE_BY_GPUNAME is set to false, set bit to 0
+    if (IS_FALSE(value)) {
+      instance_by &= ~INSTANCE_BY_GPUNAME;
+    }
   } else {
     ERROR(PLUGIN_NAME ": Unrecognized config option %s", key);
     return -10;
@@ -105,8 +119,9 @@ static int nvml_shutdown(void) {
   return -1;
 }
 
-static void nvml_submit_gauge(const char *plugin_instance, const char *type,
-                              const char *type_instance, gauge_t nvml) {
+static void nvml_submit_gauge(int device_idx, const char *device_name,
+                              const char *type, const char *type_instance,
+                              gauge_t nvml) {
 
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -114,7 +129,16 @@ static void nvml_submit_gauge(const char *plugin_instance, const char *type,
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+
+  // use gpu index and name or either of the two
+  if (instance_by == (INSTANCE_BY_GPUNAME | INSTANCE_BY_GPUINDEX)) {
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-%s",
+             device_idx, device_name);
+  } else if (instance_by & INSTANCE_BY_GPUINDEX) {
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", device_idx);
+  } else if (instance_by & INSTANCE_BY_GPUNAME) {
+    sstrncpy(vl.plugin_instance, device_name, sizeof(vl.plugin_instance));
+  }
 
   sstrncpy(vl.type, type, sizeof(vl.type));
 
@@ -145,48 +169,50 @@ static int nvml_read(void) {
     nvmlDevice_t dev;
     TRY(nvmlDeviceGetHandleByIndex(ix, &dev));
 
-    char dev_name[MAX_DEVNAME_LEN + 1] = {0};
-    TRY(nvmlDeviceGetName(dev, dev_name, sizeof(dev_name) - 1));
+    char dev_name[NVML_DEVICE_NAME_BUFFER_SIZE] = {0};
+    if (instance_by & INSTANCE_BY_GPUNAME) {
+      TRY(nvmlDeviceGetName(dev, dev_name, NVML_DEVICE_NAME_BUFFER_SIZE));
+    }
 
     // Try to be as lenient as possible with the variety of devices that are
     // out there, ignoring any NOT_SUPPORTED errors gently.
     nvmlMemory_t meminfo;
     TRYOPT(nvmlDeviceGetMemoryInfo(dev, &meminfo))
     if (nv_status == NVML_SUCCESS) {
-      nvml_submit_gauge(dev_name, "memory", "used", meminfo.used);
-      nvml_submit_gauge(dev_name, "memory", "free", meminfo.free);
+      nvml_submit_gauge(ix, dev_name, "memory", "used", meminfo.used);
+      nvml_submit_gauge(ix, dev_name, "memory", "free", meminfo.free);
     }
 
     nvmlUtilization_t utilization;
     TRYOPT(nvmlDeviceGetUtilizationRates(dev, &utilization))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit_gauge(dev_name, "percent", "gpu_used", utilization.gpu);
+      nvml_submit_gauge(ix, dev_name, "percent", "gpu_used", utilization.gpu);
 
     unsigned int fan_speed;
     TRYOPT(nvmlDeviceGetFanSpeed(dev, &fan_speed))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit_gauge(dev_name, "fanspeed", NULL, fan_speed);
+      nvml_submit_gauge(ix, dev_name, "fanspeed", NULL, fan_speed);
 
     unsigned int core_temp;
     TRYOPT(nvmlDeviceGetTemperature(dev, NVML_TEMPERATURE_GPU, &core_temp))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit_gauge(dev_name, "temperature", "core", core_temp);
+      nvml_submit_gauge(ix, dev_name, "temperature", "core", core_temp);
 
     unsigned int sm_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_SM, &sm_clk_mhz))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit_gauge(dev_name, "frequency", "multiprocessor",
+      nvml_submit_gauge(ix, dev_name, "frequency", "multiprocessor",
                         1e6 * sm_clk_mhz);
 
     unsigned int mem_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_MEM, &mem_clk_mhz))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit_gauge(dev_name, "frequency", "memory", 1e6 * mem_clk_mhz);
+      nvml_submit_gauge(ix, dev_name, "frequency", "memory", 1e6 * mem_clk_mhz);
 
     unsigned int power_mW;
     TRYOPT(nvmlDeviceGetPowerUsage(dev, &power_mW))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit_gauge(dev_name, "power", NULL, 1e-3 * power_mW);
+      nvml_submit_gauge(ix, dev_name, "power", NULL, 1e-3 * power_mW);
 
     continue;
 

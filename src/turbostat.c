@@ -1103,7 +1103,11 @@ static int __attribute__((format(printf, 1, 2)))
 parse_int_file(const char *fmt, ...) {
   va_list args;
   char path[PATH_MAX];
+  char buf[256];
   int len;
+  value_t v;
+  char *c;
+  FILE *fp;
 
   va_start(args, fmt);
   len = vsnprintf(path, sizeof(path), fmt, args);
@@ -1113,8 +1117,29 @@ parse_int_file(const char *fmt, ...) {
     return -1;
   }
 
-  value_t v;
-  if (parse_value_file(path, &v, DS_TYPE_DERIVE) != 0) {
+  fp = fopen(path, "r");
+  if (fp == NULL) {
+    ERROR("turbostat plugin: unable to open: '%s': %s", path, strerror(errno));
+    return -1;
+  }
+
+  if (fgets(buf, sizeof(buf), fp) == NULL) {
+    ERROR("turbostat plugin: unable to read: '%s': %s", path, strerror(errno));
+    fclose(fp);
+    return -1;
+  }
+  fclose(fp);
+
+  /* We only care about the first integer in the range */
+  c = strchr(buf, '-');
+  if (c != NULL)
+    *c = '\0';
+  c = strchr(buf, ',');
+  if (c != NULL)
+    *c = '\0';
+  strstripnewline(buf);
+
+  if (parse_value(buf, &v, DS_TYPE_DERIVE) != 0) {
     ERROR("turbostat plugin: Parsing \"%s\" failed.", path);
     return -1;
   }

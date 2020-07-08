@@ -404,6 +404,10 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
     }
   }
 
+  /* Try to be backward-compatible with previous versions */
+  if (ci->children_num == 0)
+    return 0;
+
   /* Hm, no complex plugin found. Dispatch the values one by one */
   cf_callback_t *cf_cb = cf_search(plugin_name);
   if (cf_cb == NULL) {

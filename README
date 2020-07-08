@@ -45,6 +45,14 @@ Features
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
 
+    - buddyinfo
+      Statistics from buddyinfo file about memory fragmentation.
+
+    - capabilities
+      Platform capabilities decoded from hardware subsystems, for example from
+      SMBIOS using dmidecode.
+      <https://www.nongnu.org/dmidecode/>
+
     - ceph
       Statistics from the Ceph distributed storage system.
 
@@ -88,6 +96,9 @@ Features
       Executes SQL statements on various databases and interprets the returned
       data.
 
+    - dcpmm
+      Collects Intel Optane DC Presistent Memory (DCPMM) performance and health statistics.
+
     - df
       Mountpoint usage (Basically the values `df(1)' delivers)
 
@@ -105,6 +116,15 @@ Features
 
       This plugin should be compiled with compiler defenses enabled, for
       example -fstack-protector.
+
+    - dpdk_telemetry
+      Collect DPDK interface, application and global statistics.
+      This plugin can be used as substitute to dpdkstat plugin.
+
+      This plugin is dependent on DPDK 19.08 release and must be used
+      along with the DPDK application.
+
+      Also, this plugin has dependency on Jansson library.
 
     - drbd
       Collect individual drbd resource statistics.
@@ -176,6 +196,9 @@ Features
 
     - ipmi
       IPMI (Intelligent Platform Management Interface) sensors information.
+
+    - ipstats
+      IPv4 and IPv6; incoming, outgoing, forwarded counters. FreeBSD only.
 
     - iptables
       Iptables' counters: Number of bytes that were matched by a certain
@@ -380,6 +403,10 @@ Features
       to have its measurements fed to collectd. This includes multimeters,
       sound level meters, thermometers, and much more.
 
+    - slurm
+      Gathers per-partition node and job state information using libslurm,
+      as well as internal health statistics.
+
     - smart
       Collect SMART statistics, notably load cycle count, temperature
       and bad sectors.
@@ -432,6 +459,10 @@ Features
     - turbostat
       Reads CPU frequency and C-state residency on modern Intel
       turbo-capable processors.
+
+    - ubi
+      Reads the count of bad physical eraseblocks and the current
+      maximum erase counter value on UBI volumes.
 
     - uptime
       System uptime statistics.
@@ -820,6 +851,10 @@ Prerequisites
     For querying iptables counters.
     <http://netfilter.org/>
 
+  * libjansson (optional)
+    Parse JSON data. This is used for the `capabilities' and `dpdk_telemetry` plugins.
+    <http://www.digip.org/jansson/>
+
   * libjevents (optional)
     The jevents library is used by the `intel_pmu' plugin to access the Linux
     kernel perf interface.
@@ -904,6 +939,12 @@ Prerequisites
     ithread support (introduced in Perl 5.6.0).
     <http://www.perl.org/>
 
+  * libpmwapi (optional)
+    Used by the `dcpmm` plugin.
+    The library github: https://github.com/intel/intel-pmwatch
+    Follow the pmwatch build instructions mentioned for dcpmm plugin and
+    use the install path to resolve the dependency here.
+
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
@@ -965,6 +1006,10 @@ Prerequisites
     Used by the `sigrok' plugin. In addition, libsigrok depends on glib,
     libzip, and optionally (depending on which drivers are enabled) on
     libusb, libftdi and libudev.
+
+  * libslurm (optional)
+    Used by the `slurm` plugin.
+    <https://slurm.schedmd.com/>
 
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux

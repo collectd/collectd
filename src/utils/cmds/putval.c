@@ -35,7 +35,16 @@
  * private helper functions
  */
 
-static int set_option(value_list_t *vl, const char *key, const char *value) {
+static int is_quoted(const char *str, size_t len) {
+  if (len < 2) {
+    return 0;
+  }
+
+  return (str[0] == '"' && str[len - 1] == '"');
+}
+
+static int set_option(value_list_t *vl, const char *key, const char *value,
+                      cmd_error_handler_t *err) {
   if ((vl == NULL) || (key == NULL) || (value == NULL))
     return -1;
 
@@ -49,10 +58,37 @@ static int set_option(value_list_t *vl, const char *key, const char *value) {
 
     if ((errno == 0) && (endptr != NULL) && (endptr != value) && (tmp > 0.0))
       vl->interval = DOUBLE_TO_CDTIME_T(tmp);
-  } else
-    return 1;
+  } else if (strncasecmp("meta:", key, 5) == 0) {
+    const char *meta_key = key + 5;
+    size_t value_len = strlen(value);
 
-  return 0;
+    if (vl->meta == NULL) {
+      vl->meta = meta_data_create();
+      if (vl->meta == NULL) {
+        return CMD_ERROR;
+      }
+    }
+
+    if (is_quoted(value, value_len)) {
+      int metadata_err;
+      const char *value_str = sstrndup(value + 1, value_len - 2);
+      if (value_str == NULL) {
+        return CMD_ERROR;
+      }
+      metadata_err = meta_data_add_string(vl->meta, meta_key, value_str);
+      free((void *)value_str);
+      if (metadata_err != 0) {
+        return CMD_ERROR;
+      }
+      return CMD_OK;
+    }
+
+    cmd_error(CMD_NO_OPTION, err, "Non-string metadata not supported yet");
+    return CMD_NO_OPTION;
+  } else {
+    return CMD_ERROR;
+  }
+  return CMD_OK;
 } /* int set_option */
 
 /*
@@ -156,9 +192,15 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
 
     status = cmd_parse_option(argv[i], &key, &value, err);
     if (status == CMD_OK) {
+      int option_err;
+
       assert(key != NULL);
       assert(value != NULL);
-      set_option(&vl, key, value);
+      option_err = set_option(&vl, key, value, err);
+      if (option_err != CMD_OK && option_err != CMD_NO_OPTION) {
+        result = option_err;
+        break;
+      }
       continue;
     } else if (status != CMD_NO_OPTION) {
       /* parse_option failed, buffer has been modified.
