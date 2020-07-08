@@ -242,9 +242,8 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
  *
  *   PUTVAL metric_name label:key="value" interval=10.000 42
  */
-int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
-                      metric_t const *m) {
-  if ((ret == NULL) || (ret_len == 0) || (m == NULL)) {
+int cmd_create_putval(strbuf_t *buf, metric_t const *m) { /* {{{ */
+  if ((buf == NULL) || (m == NULL)) {
     return EINVAL;
   }
 
@@ -254,10 +253,9 @@ int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
     return status;
   }
 
-  strbuf_t buf = STRBUF_CREATE_FIXED(ret, ret_len);
-  strbuf_print(&buf, "PUTVAL \"");
-  strbuf_print_escaped(&buf, id_buf.ptr, "\\\"\n\r\t", '\\');
-  strbuf_printf(&buf, "\" interval=%.3f", CDTIME_T_TO_DOUBLE(m->interval));
+  strbuf_print(buf, "PUTVAL \"");
+  strbuf_print_escaped(buf, id_buf.ptr, "\\\"\n\r\t", '\\');
+  strbuf_printf(buf, "\" interval=%.3f", CDTIME_T_TO_DOUBLE(m->interval));
   /* TODO(octo): print option to set the value type. */
-  return value_marshal_text(&buf, m->value, m->family->type);
+  return value_marshal_text(buf, m->value, m->family->type);
 } /* }}} int cmd_create_putval */
