@@ -60,10 +60,10 @@ static int entropy_read(void) {
  * will end up opening /dev/urandom lots of times.
  */
 
-#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/rnd.h>
+#include <sys/types.h>
 #if HAVE_SYS_RNDIO_H
 #include <sys/rndio.h>
 #endif
