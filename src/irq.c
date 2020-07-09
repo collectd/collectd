@@ -32,11 +32,11 @@
 #endif
 
 #if KERNEL_NETBSD
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <sys/evcnt.h>
 #include <malloc.h>
+#include <sys/evcnt.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/types.h>
 #endif /* KERNEL_NETBSD */
 
 /*
