@@ -42,6 +42,7 @@ controller              value:GAUGE:0:18446744073709551615
 cookies                 value:DERIVE:0:U
 count                   value:GAUGE:0:U
 counter                 value:COUNTER:U:U
+#pmu_counter             scaled:COUNTER:U:U, raw:COUNTER:U:U, enabled:COUNTER:U:U ,running:COUNTER:U:U
 cpu                     value:DERIVE:0:U
 cpu_affinity            value:GAUGE:0:1
 cpufreq                 value:GAUGE:0:U

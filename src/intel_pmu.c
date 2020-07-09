@@ -35,151 +35,43 @@
 #include <jsession.h>
 
 #define PMU_PLUGIN "intel_pmu"
+#define CGROUPS_PER_ENT 2
 
-#define HW_CACHE_READ_ACCESS                                                   \
-  (((PERF_COUNT_HW_CACHE_OP_READ) << 8) |                                      \
-   ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
-
-#define HW_CACHE_WRITE_ACCESS                                                  \
-  (((PERF_COUNT_HW_CACHE_OP_WRITE) << 8) |                                     \
-   ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
-
-#define HW_CACHE_PREFETCH_ACCESS                                               \
-  (((PERF_COUNT_HW_CACHE_OP_PREFETCH) << 8) |                                  \
-   ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
-
-#define HW_CACHE_READ_MISS                                                     \
-  (((PERF_COUNT_HW_CACHE_OP_READ) << 8) |                                      \
-   ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
-
-#define HW_CACHE_WRITE_MISS                                                    \
-  (((PERF_COUNT_HW_CACHE_OP_WRITE) << 8) |                                     \
-   ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
-
-#define HW_CACHE_PREFETCH_MISS                                                 \
-  (((PERF_COUNT_HW_CACHE_OP_PREFETCH) << 8) |                                  \
-   ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
-
-struct event_info {
-  char *name;
-  uint64_t config;
-};
-typedef struct event_info event_info_t;
-
-struct intel_pmu_ctx_s {
-  bool hw_cache_events;
-  bool kernel_pmu_events;
-  bool sw_events;
-  char event_list_fn[PATH_MAX];
+struct intel_pmu_entity_s {
   char **hw_events;
   size_t hw_events_count;
   core_groups_list_t cores;
+  size_t first_cgroup;
+  size_t cgroups_count;
+  bool copied;
   struct eventlist *event_list;
+  user_data_t user_data;
+  struct intel_pmu_entity_s *next;
+};
+typedef struct intel_pmu_entity_s intel_pmu_entity_t;
+
+struct intel_pmu_ctx_s {
+  char event_list_fn[PATH_MAX];
+  //  char **hw_events;
+  //  size_t hw_events_count;
+  //  core_groups_list_t cores;
+  //  struct eventlist *event_list;
   bool dispatch_cloned_pmus;
+
+  intel_pmu_entity_t *entl;
 };
 typedef struct intel_pmu_ctx_s intel_pmu_ctx_t;
-
-event_info_t g_kernel_pmu_events[] = {
-    {.name = "cpu-cycles", .config = PERF_COUNT_HW_CPU_CYCLES},
-    {.name = "instructions", .config = PERF_COUNT_HW_INSTRUCTIONS},
-    {.name = "cache-references", .config = PERF_COUNT_HW_CACHE_REFERENCES},
-    {.name = "cache-misses", .config = PERF_COUNT_HW_CACHE_MISSES},
-    {.name = "branches", .config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
-    {.name = "branch-misses", .config = PERF_COUNT_HW_BRANCH_MISSES},
-    {.name = "bus-cycles", .config = PERF_COUNT_HW_BUS_CYCLES},
-};
-
-event_info_t g_hw_cache_events[] = {
-
-    {.name = "L1-dcache-loads",
-     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_READ_ACCESS)},
-    {.name = "L1-dcache-load-misses",
-     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_READ_MISS)},
-    {.name = "L1-dcache-stores",
-     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_WRITE_ACCESS)},
-    {.name = "L1-dcache-store-misses",
-     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_WRITE_MISS)},
-    {.name = "L1-dcache-prefetches",
-     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_PREFETCH_ACCESS)},
-    {.name = "L1-dcache-prefetch-misses",
-     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_PREFETCH_MISS)},
-
-    {.name = "L1-icache-loads",
-     .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_READ_ACCESS)},
-    {.name = "L1-icache-load-misses",
-     .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_READ_MISS)},
-    {.name = "L1-icache-prefetches",
-     .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_PREFETCH_ACCESS)},
-    {.name = "L1-icache-prefetch-misses",
-     .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_PREFETCH_MISS)},
-
-    {.name = "LLC-loads",
-     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_READ_ACCESS)},
-    {.name = "LLC-load-misses",
-     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_READ_MISS)},
-    {.name = "LLC-stores",
-     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_WRITE_ACCESS)},
-    {.name = "LLC-store-misses",
-     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_WRITE_MISS)},
-    {.name = "LLC-prefetches",
-     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_PREFETCH_ACCESS)},
-    {.name = "LLC-prefetch-misses",
-     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_PREFETCH_MISS)},
-
-    {.name = "dTLB-loads",
-     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_READ_ACCESS)},
-    {.name = "dTLB-load-misses",
-     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_READ_MISS)},
-    {.name = "dTLB-stores",
-     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_WRITE_ACCESS)},
-    {.name = "dTLB-store-misses",
-     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_WRITE_MISS)},
-    {.name = "dTLB-prefetches",
-     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_PREFETCH_ACCESS)},
-    {.name = "dTLB-prefetch-misses",
-     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_PREFETCH_MISS)},
-
-    {.name = "iTLB-loads",
-     .config = (PERF_COUNT_HW_CACHE_ITLB | HW_CACHE_READ_ACCESS)},
-    {.name = "iTLB-load-misses",
-     .config = (PERF_COUNT_HW_CACHE_ITLB | HW_CACHE_READ_MISS)},
-
-    {.name = "branch-loads",
-     .config = (PERF_COUNT_HW_CACHE_BPU | HW_CACHE_READ_ACCESS)},
-    {.name = "branch-load-misses",
-     .config = (PERF_COUNT_HW_CACHE_BPU | HW_CACHE_READ_MISS)},
-};
-
-event_info_t g_sw_events[] = {
-    {.name = "cpu-clock", .config = PERF_COUNT_SW_CPU_CLOCK},
-
-    {.name = "task-clock", .config = PERF_COUNT_SW_TASK_CLOCK},
-
-    {.name = "context-switches", .config = PERF_COUNT_SW_CONTEXT_SWITCHES},
-
-    {.name = "cpu-migrations", .config = PERF_COUNT_SW_CPU_MIGRATIONS},
-
-    {.name = "page-faults", .config = PERF_COUNT_SW_PAGE_FAULTS},
-
-    {.name = "minor-faults", .config = PERF_COUNT_SW_PAGE_FAULTS_MIN},
-
-    {.name = "major-faults", .config = PERF_COUNT_SW_PAGE_FAULTS_MAJ},
-
-    {.name = "alignment-faults", .config = PERF_COUNT_SW_ALIGNMENT_FAULTS},
-
-    {.name = "emulation-faults", .config = PERF_COUNT_SW_EMULATION_FAULTS},
-};
 
 static intel_pmu_ctx_t g_ctx;
 
 #if COLLECT_DEBUG
-static void pmu_dump_events() {
+static void pmu_dump_events(intel_pmu_entity_t *ent) {
 
   DEBUG(PMU_PLUGIN ": Events:");
 
   struct event *e;
 
-  for (e = g_ctx.event_list->eventlist; e; e = e->next) {
+  for (e = ent->event_list->eventlist; e; e = e->next) {
     DEBUG(PMU_PLUGIN ":   event       : %s", e->event);
     DEBUG(PMU_PLUGIN ":     group_lead: %d", e->group_leader);
     DEBUG(PMU_PLUGIN ":     in_group  : %d", e->ingroup);
@@ -199,29 +91,31 @@ static void pmu_dump_config(void) {
 
   DEBUG(PMU_PLUGIN ": Config:");
   DEBUG(PMU_PLUGIN ":   dispatch_cloned_pmus: %d", g_ctx.dispatch_cloned_pmus);
-  DEBUG(PMU_PLUGIN ":   hw_cache_events     : %d", g_ctx.hw_cache_events);
-  DEBUG(PMU_PLUGIN ":   kernel_pmu_events   : %d", g_ctx.kernel_pmu_events);
-  DEBUG(PMU_PLUGIN ":   software_events     : %d", g_ctx.sw_events);
+  DEBUG(PMU_PLUGIN ":   event list file     : %s", g_ctx.event_list_fn);
 
-  for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
-    DEBUG(PMU_PLUGIN ":   hardware_events[%" PRIsz "]  : %s", i,
-          g_ctx.hw_events[i]);
+  unsigned int i = 0;
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next)
+    for (size_t j = 0; j < ent->hw_events_count; j++) {
+      DEBUG(PMU_PLUGIN ":   hardware_events[%u]  : %s", i++, ent->hw_events[j]);
+    }
+}
+
+static void pmu_dump_cpu(void) {
+
+  DEBUG(PMU_PLUGIN ": num cpus   : %d", g_ctx.entl->event_list->num_cpus);
+  DEBUG(PMU_PLUGIN ": num sockets: %d", g_ctx.entl->event_list->num_sockets);
+  for (size_t i = 0; i < g_ctx.entl->event_list->num_sockets; i++) {
+    DEBUG(PMU_PLUGIN ":   socket [%" PRIsz "] core: %d", i,
+          g_ctx.entl->event_list->socket_cpus[i]);
   }
 }
 
-static void pmu_dump_cgroups(void) {
+static void pmu_dump_cgroups(intel_pmu_entity_t *ent) {
 
-  DEBUG(PMU_PLUGIN ": num cpus   : %d", g_ctx.event_list->num_cpus);
-  DEBUG(PMU_PLUGIN ": num sockets: %d", g_ctx.event_list->num_sockets);
-  for (size_t i = 0; i < g_ctx.event_list->num_sockets; i++) {
-    DEBUG(PMU_PLUGIN ":   socket [%" PRIsz "] core: %d", i,
-          g_ctx.event_list->socket_cpus[i]);
-  }
+  DEBUG(PMU_PLUGIN ": Cores:");
 
-  DEBUG(PMU_PLUGIN ": Core groups:");
-
-  for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
-    core_group_t *cgroup = g_ctx.cores.cgroups + i;
+  for (size_t i = 0; i < ent->cores.num_cgroups; i++) {
+    core_group_t *cgroup = ent->cores.cgroups + i;
     const size_t cores_size = cgroup->num_cores * 4 + 1;
     char *cores = calloc(cores_size, sizeof(*cores));
     if (cores == NULL) {
@@ -271,19 +165,19 @@ static int pmu_validate_cgroups(core_group_t *cgroups, size_t len,
   return 0;
 }
 
-static int pmu_config_hw_events(oconfig_item_t *ci) {
+static int pmu_config_hw_events(oconfig_item_t *ci, intel_pmu_entity_t *ent) {
 
   if (strcasecmp("HardwareEvents", ci->key) != 0) {
     return -EINVAL;
   }
 
-  if (g_ctx.hw_events) {
+  if (ent->hw_events) {
     ERROR(PMU_PLUGIN ": Duplicate config for HardwareEvents.");
     return -EINVAL;
   }
 
-  g_ctx.hw_events = calloc(ci->values_num, sizeof(*g_ctx.hw_events));
-  if (g_ctx.hw_events == NULL) {
+  ent->hw_events = calloc(ci->values_num, sizeof(*ent->hw_events));
+  if (ent->hw_events == NULL) {
     ERROR(PMU_PLUGIN ": Failed to allocate hw events.");
     return -ENOMEM;
   }
@@ -294,13 +188,13 @@ static int pmu_config_hw_events(oconfig_item_t *ci) {
       continue;
     }
 
-    g_ctx.hw_events[g_ctx.hw_events_count] = strdup(ci->values[i].value.string);
-    if (g_ctx.hw_events[g_ctx.hw_events_count] == NULL) {
+    ent->hw_events[ent->hw_events_count] = strdup(ci->values[i].value.string);
+    if (ent->hw_events[ent->hw_events_count] == NULL) {
       ERROR(PMU_PLUGIN ": Failed to allocate hw events entry.");
       return -ENOMEM;
     }
 
-    g_ctx.hw_events_count++;
+    ent->hw_events_count++;
   }
 
   return 0;
@@ -314,19 +208,31 @@ static int pmu_config(oconfig_item_t *ci) {
     int ret = 0;
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("ReportHardwareCacheEvents", child->key) == 0) {
-      ret = cf_util_get_boolean(child, &g_ctx.hw_cache_events);
-    } else if (strcasecmp("ReportKernelPMUEvents", child->key) == 0) {
-      ret = cf_util_get_boolean(child, &g_ctx.kernel_pmu_events);
-    } else if (strcasecmp("EventList", child->key) == 0) {
+    if (strcasecmp("EventList", child->key) == 0) {
       ret = cf_util_get_string_buffer(child, g_ctx.event_list_fn,
                                       sizeof(g_ctx.event_list_fn));
     } else if (strcasecmp("HardwareEvents", child->key) == 0) {
-      ret = pmu_config_hw_events(child);
-    } else if (strcasecmp("ReportSoftwareEvents", child->key) == 0) {
-      ret = cf_util_get_boolean(child, &g_ctx.sw_events);
+      intel_pmu_entity_t *ent = calloc(1, sizeof(*g_ctx.entl));
+      if (ent == NULL) {
+        ERROR(PMU_PLUGIN ": Failed to allocate pmu ent.");
+        ret = -ENOMEM;
+      } else {
+        ret = pmu_config_hw_events(child, ent);
+        ent->next = g_ctx.entl;
+        g_ctx.entl = ent;
+      }
     } else if (strcasecmp("Cores", child->key) == 0) {
-      ret = config_cores_parse(child, &g_ctx.cores);
+      if (g_ctx.entl == NULL) {
+        ERROR(PMU_PLUGIN
+              ": `Cores` option is found before `HardwareEvents` was set.");
+        ret = -1;
+      } else if (g_ctx.entl->cores.num_cgroups != 0) {
+        ERROR(PMU_PLUGIN
+              ": Duplicated `Cores` option for single `HardwareEvents`.");
+        ret = -1;
+      } else {
+        ret = config_cores_parse(child, &g_ctx.entl->cores);
+      }
     } else if (strcasecmp("DispatchMultiPmu", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.dispatch_cloned_pmus);
     } else {
@@ -346,6 +252,36 @@ static int pmu_config(oconfig_item_t *ci) {
 
   return 0;
 }
+
+#if 0
+static void pmu_submit_multicounter(const char *cgroup, const char *event,
+                               const uint32_t *event_type, counter_t value,
+                               const struct efd *efd) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  //vl.values = &(value_t){.counter = value};
+  //vl.values_len = 1;
+  value_t values[] = {
+      {.counter = value},
+      {.counter = efd->val[0]},
+      {.counter = efd->val[1]},
+      {.counter = efd->val[2]}
+  };
+  vl.values = values;
+  vl.values_len = STATIC_ARRAY_SIZE(values);
+
+  sstrncpy(vl.plugin, PMU_PLUGIN, sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, cgroup, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "pmu_counter", sizeof(vl.type));
+  if (event_type)
+    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s:type=%d", event,
+              *event_type);
+  else
+    sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+}
+#endif
 
 static void pmu_submit_counter(const char *cgroup, const char *event,
                                const uint32_t *event_type, counter_t value,
@@ -383,8 +319,6 @@ meta_data_t *pmu_meta_data_create(const struct efd *efd) {
     return NULL;
   }
 
-  DEBUG(PMU_PLUGIN ": scaled value = [raw]%lu * [enabled]%lu / [running]%lu",
-        efd->val[0], efd->val[1], efd->val[2]);
   meta_data_add_unsigned_int(meta, "intel_pmu:raw_count", efd->val[0]);
   meta_data_add_unsigned_int(meta, "intel_pmu:time_enabled", efd->val[1]);
   meta_data_add_unsigned_int(meta, "intel_pmu:time_running", efd->val[2]);
@@ -392,19 +326,19 @@ meta_data_t *pmu_meta_data_create(const struct efd *efd) {
   return meta;
 }
 
-static void pmu_dispatch_data(void) {
+static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
 
   struct event *e;
 
-  for (e = g_ctx.event_list->eventlist; e; e = e->next) {
+  for (e = ent->event_list->eventlist; e; e = e->next) {
     const uint32_t *event_type = NULL;
     if (e->orig && !g_ctx.dispatch_cloned_pmus)
       continue;
     if ((e->extra.multi_pmu || e->orig) && g_ctx.dispatch_cloned_pmus)
       event_type = &e->attr.type;
 
-    for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
-      core_group_t *cgroup = g_ctx.cores.cgroups + i;
+    for (size_t i = 0; i < ent->cgroups_count; i++) {
+      core_group_t *cgroup = ent->cores.cgroups + i + ent->first_cgroup;
       uint64_t cgroup_value = 0;
       int event_enabled_cgroup = 0;
       meta_data_t *meta = NULL;
@@ -427,9 +361,16 @@ static void pmu_dispatch_data(void) {
           cgroup_value += event_scaled_value(e, core);
 
           /* get meta data with information about scaling */
-          if (cgroup->num_cores == 1)
+          if (cgroup->num_cores == 1) {
+            DEBUG(PMU_PLUGIN
+                  ": %s/%s = %lu = [raw]%lu * [enabled]%lu / [running]%lu",
+                  e->event, cgroup->desc, cgroup_value, e->efd[core].val[0],
+                  e->efd[core].val[1], e->efd[core].val[2]);
             meta = pmu_meta_data_create(&e->efd[core]);
+          }
         }
+        // pmu_submit_multicounter(cgroup->desc, e->event, event_type,
+        // cgroup_value, &e->efd[core]);
       }
 
       if (event_enabled_cgroup > 0) {
@@ -450,20 +391,31 @@ static void pmu_dispatch_data(void) {
   }
 }
 
-static int pmu_read(__attribute__((unused)) user_data_t *ud) {
+static int pmu_read(user_data_t *ud) {
+  if (ud == NULL) {
+    ERROR(PMU_PLUGIN ": ud is NULL! %s:%d", __FUNCTION__, __LINE__);
+    return -1;
+  }
+  if (ud->data == NULL) {
+    ERROR(PMU_PLUGIN ": ud->data is NULL! %s:%d", __FUNCTION__, __LINE__);
+    return -1;
+  }
+  intel_pmu_entity_t *ent = (intel_pmu_entity_t *)ud->data;
   int ret;
   struct event *e;
 
   DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
 
   /* read all events only for configured cores */
-  for (e = g_ctx.event_list->eventlist; e; e = e->next) {
-    for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
-      core_group_t *cgroup = g_ctx.cores.cgroups + i;
+  for (e = ent->event_list->eventlist; e; e = e->next) {
+    for (size_t i = 0; i < ent->cgroups_count; i++) {
+      core_group_t *cgroup = ent->cores.cgroups + i + ent->first_cgroup;
       for (size_t j = 0; j < cgroup->num_cores; j++) {
         int core = (int)cgroup->cores[j];
-        if (e->efd[core].fd < 0)
+        if (e->efd[core].fd < 0) {
+          WARNING(PMU_PLUGIN ": Omitting event %s/%d.", e->event, core);
           continue;
+        }
 
         ret = read_event(e, core);
         if (ret != 0) {
@@ -475,34 +427,7 @@ static int pmu_read(__attribute__((unused)) user_data_t *ud) {
     }
   }
 
-  pmu_dispatch_data();
-
-  return 0;
-}
-
-static int pmu_add_events(struct eventlist *el, uint32_t type,
-                          event_info_t *events, size_t count) {
-
-  for (size_t i = 0; i < count; i++) {
-    /* Allocate memory for event struct that contains array of efd structs
-       for all cores */
-    struct event *e =
-        calloc(1, sizeof(struct event) + sizeof(struct efd) * el->num_cpus);
-    if (e == NULL) {
-      ERROR(PMU_PLUGIN ": Failed to allocate event structure");
-      return -ENOMEM;
-    }
-
-    e->attr.type = type;
-    e->attr.config = events[i].config;
-    e->attr.size = PERF_ATTR_SIZE_VER0;
-    if (!el->eventlist)
-      el->eventlist = e;
-    if (el->eventlist_last)
-      el->eventlist_last->next = e;
-    el->eventlist_last = e;
-    e->event = strdup(events[i].name);
-  }
+  pmu_dispatch_data(ent);
 
   return 0;
 }
@@ -630,15 +555,15 @@ static void pmu_free_events(struct eventlist *el) {
   free_eventlist(el);
 }
 
-static int pmu_setup_events(struct eventlist *el, bool measure_all,
-                            int measure_pid) {
+static int pmu_setup_events(core_groups_list_t *cores, struct eventlist *el,
+                            bool measure_all, int measure_pid) {
   struct event *e, *leader = NULL;
   int ret = -1;
 
   for (e = el->eventlist; e; e = e->next) {
 
-    for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
-      core_group_t *cgroup = g_ctx.cores.cgroups + i;
+    for (size_t i = 0; i < cores->num_cgroups; i++) {
+      core_group_t *cgroup = cores->cgroups + i;
       for (size_t j = 0; j < cgroup->num_cores; j++) {
         int core = (int)cgroup->cores[j];
 
@@ -672,111 +597,164 @@ static int pmu_setup_events(struct eventlist *el, bool measure_all,
   return ret;
 }
 
+static int pmu_split_cores(intel_pmu_entity_t *ent) {
+  if (ent->cores.num_cgroups <= CGROUPS_PER_ENT) {
+    ent->cgroups_count = ent->cores.num_cgroups;
+    return 0;
+  }
+
+  ent->cgroups_count = CGROUPS_PER_ENT;
+  intel_pmu_entity_t *prev = ent;
+  for (size_t i = CGROUPS_PER_ENT; i < ent->cores.num_cgroups;
+       i += CGROUPS_PER_ENT) {
+    intel_pmu_entity_t *entc = calloc(1, sizeof(*g_ctx.entl));
+    if (entc == NULL) {
+      ERROR(PMU_PLUGIN ": pmu_split_cores: Failed to allocate pmu ent.");
+      return -ENOMEM;
+    }
+
+    /* make a shallow copy and mark it as copied to avoid double free */
+    *entc = *prev;
+    entc->copied = true;
+    prev->next = entc;
+    prev = entc;
+
+    entc->first_cgroup = i;
+    if (i + CGROUPS_PER_ENT > ent->cores.num_cgroups)
+      entc->cgroups_count = ent->cores.num_cgroups - i;
+  }
+
+  return 0;
+}
+
 static int pmu_init(void) {
   int ret;
 
   DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
 
-  g_ctx.event_list = alloc_eventlist();
-  if (g_ctx.event_list == NULL) {
-    ERROR(PMU_PLUGIN ": Failed to allocate event list.");
-    return -ENOMEM;
+  if (g_ctx.entl == NULL) {
+    ERROR(PMU_PLUGIN ": No events were setup in configuration.");
+    return -EINVAL;
   }
 
-  if (g_ctx.cores.num_cgroups == 0) {
-    ret = config_cores_default(g_ctx.event_list->num_cpus, &g_ctx.cores);
-    if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Failed to set default core groups.");
-      goto init_error;
-    }
-  } else {
-    ret = pmu_validate_cgroups(g_ctx.cores.cgroups, g_ctx.cores.num_cgroups,
-                               g_ctx.event_list->num_cpus);
-    if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Invalid core groups configuration.");
-      goto init_error;
-    }
-  }
-#if COLLECT_DEBUG
-  pmu_dump_cgroups();
-#endif
-
-  if (g_ctx.hw_cache_events) {
-    ret =
-        pmu_add_events(g_ctx.event_list, PERF_TYPE_HW_CACHE, g_hw_cache_events,
-                       STATIC_ARRAY_SIZE(g_hw_cache_events));
-    if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Failed to add hw cache events.");
-      goto init_error;
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
+    ent->event_list = alloc_eventlist();
+    if (ent->event_list == NULL) {
+      ERROR(PMU_PLUGIN ": Failed to allocate event list.");
+      return -ENOMEM;
     }
   }
 
-  if (g_ctx.kernel_pmu_events) {
-    ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_HARDWARE,
-                         g_kernel_pmu_events,
-                         STATIC_ARRAY_SIZE(g_kernel_pmu_events));
-    if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Failed to add kernel PMU events.");
-      goto init_error;
+  /* parse events names from JSON file */
+  ret = read_events(g_ctx.event_list_fn);
+  if (ret != 0) {
+    ERROR(PMU_PLUGIN ": Failed to read event list file '%s'.",
+          g_ctx.event_list_fn);
+    return ret;
+  }
+
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
+    if (ent->cores.num_cgroups == 0) {
+      ret = config_cores_default(ent->event_list->num_cpus, &ent->cores);
+      if (ret != 0) {
+        ERROR(PMU_PLUGIN ": Failed to set default core groups.");
+        goto init_error;
+      }
+    } else {
+      ret = pmu_validate_cgroups(ent->cores.cgroups, ent->cores.num_cgroups,
+                                 ent->event_list->num_cpus);
+      if (ret != 0) {
+        ERROR(PMU_PLUGIN ": Invalid core groups configuration.");
+        goto init_error;
+      }
     }
   }
 
-  /* parse events names if config option is present and is not empty */
-  if (g_ctx.hw_events_count) {
-
-    ret = read_events(g_ctx.event_list_fn);
-    if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Failed to read event list file '%s'.",
-            g_ctx.event_list_fn);
-      return ret;
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
+    if (ent->hw_events_count == 0) {
+      ERROR(PMU_PLUGIN ": No events were setup in `HardwareEvents` option.");
+      ret = -EINVAL;
+      goto init_error;
     }
 
-    ret = pmu_add_hw_events(g_ctx.event_list, g_ctx.hw_events,
-                            g_ctx.hw_events_count);
+    ret = pmu_add_hw_events(ent->event_list, ent->hw_events,
+                            ent->hw_events_count);
     if (ret != 0) {
       ERROR(PMU_PLUGIN ": Failed to add hardware events.");
       goto init_error;
     }
   }
 
-  if (g_ctx.sw_events) {
-    ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_SOFTWARE, g_sw_events,
-                         STATIC_ARRAY_SIZE(g_sw_events));
-    if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Failed to add software events.");
+#if COLLECT_DEBUG
+  pmu_dump_cpu();
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
+    pmu_dump_cgroups(ent);
+    pmu_dump_events(ent);
+  }
+#endif
+
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
+    if (ent->event_list->eventlist != NULL) {
+      /* measure all processes */
+      ret = pmu_setup_events(&ent->cores, ent->event_list, true, -1);
+      if (ret != 0) {
+        ERROR(PMU_PLUGIN ": Failed to setup perf events for the event list.");
+        goto init_error;
+      }
+    } else {
+      WARNING(PMU_PLUGIN
+              ": Events list is empty. No events were setup for monitoring.");
+      ret = -1;
       goto init_error;
     }
   }
 
-#if COLLECT_DEBUG
-  pmu_dump_events();
-#endif
-
-  if (g_ctx.event_list->eventlist != NULL) {
-    /* measure all processes */
-    ret = pmu_setup_events(g_ctx.event_list, true, -1);
-    if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Failed to setup perf events for the event list.");
+  /* split list of cores for use in separate reading threads */
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL;) {
+    intel_pmu_entity_t *tmp = ent;
+    ent = ent->next;
+    ret = pmu_split_cores(tmp);
+    if (ret != 0)
       goto init_error;
-    }
-  } else {
-    WARNING(PMU_PLUGIN
-            ": Events list is empty. No events were setup for monitoring.");
+  }
+
+  unsigned int i = 0;
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
+    DEBUG(PMU_PLUGIN ": registering read callback [%u], first cgroup: %" PRIsz
+                     ", count: %" PRIsz ".",
+          i, ent->first_cgroup, ent->cgroups_count);
+    char buf[64];
+    ent->user_data.data = ent;
+    ssnprintf(buf, sizeof(buf), PMU_PLUGIN "[%u]", i++);
+    plugin_register_complex_read(NULL, buf, pmu_read, 0, &ent->user_data);
   }
 
   return 0;
 
 init_error:
 
-  pmu_free_events(g_ctx.event_list);
-  g_ctx.event_list = NULL;
-  for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
-    sfree(g_ctx.hw_events[i]);
-  }
-  sfree(g_ctx.hw_events);
-  g_ctx.hw_events_count = 0;
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL;) {
+    intel_pmu_entity_t *tmp = ent;
+    ent = ent->next;
 
-  config_cores_cleanup(&g_ctx.cores);
+    if (tmp->copied) {
+      sfree(tmp);
+      continue;
+    }
+
+    pmu_free_events(tmp->event_list);
+    tmp->event_list = NULL;
+    for (size_t i = 0; i < tmp->hw_events_count; i++) {
+      sfree(tmp->hw_events[i]);
+    }
+    sfree(tmp->hw_events);
+    tmp->hw_events_count = 0;
+
+    config_cores_cleanup(&tmp->cores);
+
+    sfree(tmp);
+  }
+  g_ctx.entl = NULL;
 
   return ret;
 }
@@ -785,7 +763,7 @@ static int pmu_shutdown(void) {
 
   DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
 
-  pmu_free_events(g_ctx.event_list);
+  /*pmu_free_events(g_ctx.event_list);
   g_ctx.event_list = NULL;
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
     sfree(g_ctx.hw_events[i]);
@@ -793,7 +771,30 @@ static int pmu_shutdown(void) {
   sfree(g_ctx.hw_events);
   g_ctx.hw_events_count = 0;
 
-  config_cores_cleanup(&g_ctx.cores);
+  config_cores_cleanup(&g_ctx.cores);*/
+
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL;) {
+    intel_pmu_entity_t *tmp = ent;
+    ent = ent->next;
+
+    if (tmp->copied) {
+      sfree(tmp);
+      continue;
+    }
+
+    pmu_free_events(tmp->event_list);
+    tmp->event_list = NULL;
+    for (size_t i = 0; i < tmp->hw_events_count; i++) {
+      sfree(tmp->hw_events[i]);
+    }
+    sfree(tmp->hw_events);
+    tmp->hw_events_count = 0;
+
+    config_cores_cleanup(&tmp->cores);
+
+    sfree(tmp);
+  }
+  g_ctx.entl = NULL;
 
   return 0;
 }
@@ -801,6 +802,6 @@ static int pmu_shutdown(void) {
 void module_register(void) {
   plugin_register_init(PMU_PLUGIN, pmu_init);
   plugin_register_complex_config(PMU_PLUGIN, pmu_config);
-  plugin_register_complex_read(NULL, PMU_PLUGIN, pmu_read, 0, NULL);
+  // plugin_register_complex_read(NULL, PMU_PLUGIN, pmu_read, 0, NULL);
   plugin_register_shutdown(PMU_PLUGIN, pmu_shutdown);
 }
