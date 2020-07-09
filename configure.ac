@@ -114,6 +114,7 @@ AM_CONDITIONAL([BUILD_DARWIN], [test "x$ac_system" = "xDarwin"])
 AM_CONDITIONAL([BUILD_FREEBSD], [test "x$ac_system" = "xFreeBSD"])
 AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
 AM_CONDITIONAL([BUILD_OPENBSD], [test "x$ac_system" = "xOpenBSD"])
+AM_CONDITIONAL([BUILD_NETBSD], [test "x$ac_system" = "xNetBSD"])
 AM_CONDITIONAL([BUILD_SOLARIS], [test "x$ac_system" = "xSolaris"])
 AM_CONDITIONAL([BUILD_WIN32], [test "x$ac_system" = "xWindows"])
 
