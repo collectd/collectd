@@ -28,8 +28,8 @@
 #endif
 
 #include <sys/cdefs.h>
-#include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/types.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
