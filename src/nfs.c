@@ -338,7 +338,7 @@ static int nfs_config(const char *key, const char *value) {
 
 #if KERNEL_LINUX || KERNEL_NETBSD
 static int nfs_init(void) { return 0; }
-  /* #endif KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
 static int nfs_init(void) {
@@ -610,7 +610,7 @@ static int nfs_read(void) {
 
   return 0;
 }
-  /* #endif KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
 
 #elif KERNEL_NETBSD
 static int nfs_read(void) {
@@ -648,7 +648,7 @@ static int nfs_read(void) {
 
   return 0;
 }
-  /* #endif KERNEL_NETBSD */
+/* #endif KERNEL_NETBSD */
 
 #elif HAVE_LIBKSTAT
 static int nfs_read(void) {
