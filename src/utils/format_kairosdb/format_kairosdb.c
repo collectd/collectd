@@ -76,7 +76,7 @@ static int json_add_string(yajl_gen g, char const *str) /* {{{ */
   do {                                                                         \
     int status = (f);                                                          \
     if (status != 0) {                                                         \
-      ERROR("format_kairosdb: %s = %d", #f, status);                           \
+      ERROR("format_kairosdb: %s failed with status %d", #f, status);                           \
       return status;                                                           \
     }                                                                          \
   } while (0)
@@ -176,16 +176,11 @@ int format_kairosdb_metric_family(strbuf_t *buf, metric_family_t const *fam,
   if (g == NULL)
     return ENOMEM;
 #if COLLECT_DEBUG
-  yajl_gen_config(g, yajl_gen_beautify, 1);
   yajl_gen_config(g, yajl_gen_validate_utf8, 1);
 #endif
 
 #else /* !HAVE_YAJL_V2 */
   yajl_gen_config conf = {0};
-#if COLLECT_DEBUG
-  conf.beautify = 1;
-  conf.indentString = "  ";
-#endif
   yajl_gen g = yajl_gen_alloc(&conf, NULL);
   if (g == NULL)
     return ENOMEM;

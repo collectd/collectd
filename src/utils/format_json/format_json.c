@@ -224,16 +224,11 @@ int format_json_metric_family(strbuf_t *buf, metric_family_t const *fam,
   if (g == NULL)
     return -1;
 #if COLLECT_DEBUG
-  yajl_gen_config(g, yajl_gen_beautify, 1);
   yajl_gen_config(g, yajl_gen_validate_utf8, 1);
 #endif
 
 #else /* !HAVE_YAJL_V2 */
   yajl_gen_config conf = {0};
-#if COLLECT_DEBUG
-  conf.beautify = 1;
-  conf.indentString = "  ";
-#endif
   yajl_gen g = yajl_gen_alloc(&conf, NULL);
   if (g == NULL)
     return -1;
