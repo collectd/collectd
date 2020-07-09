@@ -51,29 +51,12 @@ static int json_add_string(yajl_gen g, char const *str) /* {{{ */
                               (unsigned int)strlen(str));
 } /* }}} int json_add_string */
 
-#define JSON_ADD(g, str)                                                       \
+#define CHECK(f)                                                               \
   do {                                                                         \
-    yajl_gen_status status = json_add_string(g, str);                          \
-    if (status != yajl_gen_status_ok) {                                        \
-      return -1;                                                               \
-    }                                                                          \
-  } while (0)
-
-#define JSON_ADDF(g, format, ...)                                              \
-  do {                                                                         \
-    char *str = ssnprintf_alloc(format, __VA_ARGS__);                          \
-    yajl_gen_status status = json_add_string(g, str);                          \
-    free(str);                                                                 \
-    if (status != yajl_gen_status_ok) {                                        \
-      return -1;                                                               \
-    }                                                                          \
-  } while (0)
-
-#define CHECK_SUCCESS(cmd)                                                     \
-  do {                                                                         \
-    yajl_gen_status s = (cmd);                                                 \
-    if (s != yajl_gen_status_ok) {                                             \
-      return (int)s;                                                           \
+    int status = (f);                                                          \
+    if (status != 0) {                                                         \
+      ERROR("format_json: %s failed with status %d", #f, status);              \
+      return status;                                                           \
     }                                                                          \
   } while (0)
 
@@ -82,27 +65,38 @@ static int format_json_meta(yajl_gen g, notification_meta_t *meta) /* {{{ */
   if (meta == NULL)
     return 0;
 
-  JSON_ADD(g, meta->name);
+  CHECK(json_add_string(g, meta->name));
   switch (meta->type) {
   case NM_TYPE_STRING:
-    JSON_ADD(g, meta->nm_value.nm_string);
+    CHECK(json_add_string(g, meta->nm_value.nm_string));
     break;
-  case NM_TYPE_SIGNED_INT:
-    JSON_ADDF(g, "%" PRIi64, meta->nm_value.nm_signed_int);
+  case NM_TYPE_SIGNED_INT: {
+    char buffer[64] = "";
+    snprintf(buffer, sizeof(buffer), "%" PRIi64, meta->nm_value.nm_signed_int);
+    CHECK(json_add_string(g, buffer));
     break;
-  case NM_TYPE_UNSIGNED_INT:
-    JSON_ADDF(g, "%" PRIu64, meta->nm_value.nm_unsigned_int);
+  }
+  case NM_TYPE_UNSIGNED_INT: {
+    char buffer[64] = "";
+    snprintf(buffer, sizeof(buffer), "%" PRIu64,
+             meta->nm_value.nm_unsigned_int);
+    CHECK(json_add_string(g, buffer));
     break;
-  case NM_TYPE_DOUBLE:
-    JSON_ADDF(g, JSON_GAUGE_FORMAT, meta->nm_value.nm_double);
+  }
+  case NM_TYPE_DOUBLE: {
+    char buffer[64] = "";
+    snprintf(buffer, sizeof(buffer), JSON_GAUGE_FORMAT,
+             meta->nm_value.nm_double);
+    CHECK(json_add_string(g, buffer));
     break;
+  }
   case NM_TYPE_BOOLEAN:
-    JSON_ADD(g, meta->nm_value.nm_boolean ? "true" : "false");
+    CHECK(json_add_string(g, meta->nm_value.nm_boolean ? "true" : "false"));
     break;
   default:
     ERROR("format_json_meta: unknown meta data type %d (name \"%s\")",
           meta->type, meta->name);
-    CHECK_SUCCESS(yajl_gen_null(g));
+    CHECK(yajl_gen_null(g));
   }
 
   return format_json_meta(g, meta->next);
@@ -115,31 +109,34 @@ static int format_time(yajl_gen g, cdtime_t t) /* {{{ */
   if (rfc3339nano(buffer, sizeof(buffer), t) != 0)
     return -1;
 
-  JSON_ADD(g, buffer);
+  CHECK(json_add_string(g, buffer));
   return 0;
 } /* }}} int format_time */
 
 /* TODO(octo): format_metric should export the interval, too. */
 /* TODO(octo): Decide whether format_metric should export meta data. */
 static int format_metric(yajl_gen g, metric_t const *m) {
-  CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN metric */
+  CHECK(yajl_gen_map_open(g)); /* BEGIN metric */
 
   if (m->label.num != 0) {
-    JSON_ADD(g, "labels");
-    CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN labels */
+    CHECK(json_add_string(g, "labels"));
+    CHECK(yajl_gen_map_open(g)); /* BEGIN labels */
 
     for (size_t i = 0; i < m->label.num; i++) {
       label_pair_t *l = m->label.ptr + i;
-      JSON_ADD(g, l->name);
-      JSON_ADD(g, l->value);
+      CHECK(json_add_string(g, l->name));
+      CHECK(json_add_string(g, l->value));
     }
 
-    CHECK_SUCCESS(yajl_gen_map_close(g)); /* END labels */
+    CHECK(yajl_gen_map_close(g)); /* END labels */
   }
 
   if (m->time != 0) {
-    JSON_ADD(g, "timestamp_ms");
-    JSON_ADDF(g, "%" PRIu64, CDTIME_T_TO_MS(m->time));
+    CHECK(json_add_string(g, "timestamp_ms"));
+
+    char buffer[64] = "";
+    snprintf(buffer, sizeof(buffer), "%" PRIu64, CDTIME_T_TO_MS(m->time));
+    CHECK(json_add_string(g, buffer));
   }
 
   strbuf_t buf = STRBUF_CREATE;
@@ -148,11 +145,11 @@ static int format_metric(yajl_gen g, metric_t const *m) {
     STRBUF_DESTROY(buf);
     return status;
   }
-  JSON_ADD(g, "value");
-  JSON_ADD(g, buf.ptr);
+  CHECK(json_add_string(g, "value"));
+  CHECK(json_add_string(g, buf.ptr));
   STRBUF_DESTROY(buf);
 
-  CHECK_SUCCESS(yajl_gen_map_close(g)); /* END metric */
+  CHECK(yajl_gen_map_close(g)); /* END metric */
 
   return 0;
 }
@@ -174,10 +171,10 @@ static int format_metric(yajl_gen g, metric_t const *m) {
      ]
  */
 static int json_metric_family(yajl_gen g, metric_family_t const *fam) {
-  CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN metric family */
+  CHECK(yajl_gen_map_open(g)); /* BEGIN metric family */
 
-  JSON_ADD(g, "name");
-  JSON_ADD(g, fam->name);
+  CHECK(json_add_string(g, "name"));
+  CHECK(json_add_string(g, fam->name));
 
   char const *type = NULL;
   switch (fam->type) {
@@ -195,11 +192,11 @@ static int json_metric_family(yajl_gen g, metric_family_t const *fam) {
     ERROR("format_json_metric: Unknown value type: %d", fam->type);
     return EINVAL;
   }
-  JSON_ADD(g, "type");
-  JSON_ADD(g, type);
+  CHECK(json_add_string(g, "type"));
+  CHECK(json_add_string(g, type));
 
-  JSON_ADD(g, "metrics");
-  CHECK_SUCCESS(yajl_gen_array_open(g));
+  CHECK(json_add_string(g, "metrics"));
+  CHECK(yajl_gen_array_open(g));
   for (size_t i = 0; i < fam->metric.num; i++) {
     metric_t *m = fam->metric.ptr + i;
     int status = format_metric(g, m);
@@ -207,9 +204,9 @@ static int json_metric_family(yajl_gen g, metric_family_t const *fam) {
       return status;
     }
   }
-  CHECK_SUCCESS(yajl_gen_array_close(g));
+  CHECK(yajl_gen_array_close(g));
 
-  CHECK_SUCCESS(yajl_gen_map_close(g)); /* END metric family */
+  CHECK(yajl_gen_map_close(g)); /* END metric family */
 
   return 0;
 }
@@ -286,72 +283,78 @@ int format_json_metric_family(strbuf_t *buf, metric_family_t const *fam,
 
 static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
 {
-  CHECK_SUCCESS(yajl_gen_array_open(g)); /* BEGIN array */
-  CHECK_SUCCESS(yajl_gen_map_open(g));   /* BEGIN alert */
+  CHECK(yajl_gen_array_open(g)); /* BEGIN array */
+  CHECK(yajl_gen_map_open(g));   /* BEGIN alert */
 
   /*
    * labels
    */
-  JSON_ADD(g, "labels");
-  CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN labels */
+  CHECK(json_add_string(g, "labels"));
+  CHECK(yajl_gen_map_open(g)); /* BEGIN labels */
 
-  JSON_ADD(g, "alertname");
-  if (strncmp(n->plugin, n->type, strlen(n->plugin)) == 0)
-    JSON_ADDF(g, "collectd_%s", n->type);
-  else
-    JSON_ADDF(g, "collectd_%s_%s", n->plugin, n->type);
+  CHECK(json_add_string(g, "alertname"));
+  strbuf_t buf = STRBUF_CREATE;
+  strbuf_print(&buf, "collectd_");
+  if (strcmp(n->plugin, n->type) != 0) {
+	  strbuf_print(&buf, n->plugin);
+	  strbuf_print(&buf, "_");
+  }
+  strbuf_print(&buf, n->type);
+  CHECK(json_add_string(g, buf.ptr));
+  STRBUF_DESTROY(buf);
 
-  JSON_ADD(g, "instance");
-  JSON_ADD(g, n->host);
+  CHECK(json_add_string(g, "instance"));
+  CHECK(json_add_string(g, n->host));
 
   /* mangling of plugin instance and type instance into labels is copied from
    * the Prometheus collectd exporter. */
   if (strlen(n->plugin_instance) > 0) {
-    JSON_ADD(g, n->plugin);
-    JSON_ADD(g, n->plugin_instance);
+    CHECK(json_add_string(g, n->plugin));
+    CHECK(json_add_string(g, n->plugin_instance));
   }
   if (strlen(n->type_instance) > 0) {
     if (strlen(n->plugin_instance) > 0)
-      JSON_ADD(g, "type");
+      CHECK(json_add_string(g, "type"));
     else
-      JSON_ADD(g, n->plugin);
-    JSON_ADD(g, n->type_instance);
+      CHECK(json_add_string(g, n->plugin));
+    CHECK(json_add_string(g, n->type_instance));
   }
 
-  JSON_ADD(g, "severity");
-  JSON_ADD(g, (n->severity == NOTIF_FAILURE)
-                  ? "FAILURE"
-                  : (n->severity == NOTIF_WARNING)
-                        ? "WARNING"
-                        : (n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN");
+  CHECK(json_add_string(g, "severity"));
+  CHECK(json_add_string(
+      g, (n->severity == NOTIF_FAILURE)
+             ? "FAILURE"
+             : (n->severity == NOTIF_WARNING)
+                   ? "WARNING"
+                   : (n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN"));
 
-  JSON_ADD(g, "service");
-  JSON_ADD(g, "collectd");
+  CHECK(json_add_string(g, "service"));
+  CHECK(json_add_string(g, "collectd"));
 
-  CHECK_SUCCESS(yajl_gen_map_close(g)); /* END labels */
+  CHECK(yajl_gen_map_close(g)); /* END labels */
 
   /*
    * annotations
    */
-  JSON_ADD(g, "annotations");
-  CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN annotations */
+  CHECK(json_add_string(g, "annotations"));
+  CHECK(yajl_gen_map_open(g)); /* BEGIN annotations */
 
-  JSON_ADD(g, "summary");
-  JSON_ADD(g, n->message);
+  CHECK(json_add_string(g, "summary"));
+  CHECK(json_add_string(g, n->message));
 
   if (format_json_meta(g, n->meta) != 0) {
     return -1;
   }
 
-  CHECK_SUCCESS(yajl_gen_map_close(g)); /* END annotations */
+  CHECK(yajl_gen_map_close(g)); /* END annotations */
 
-  JSON_ADD(g, "startsAt");
+  CHECK(json_add_string(g, "startsAt"));
   if (format_time(g, n->time) != 0) {
     return -1;
   }
 
-  CHECK_SUCCESS(yajl_gen_map_close(g));   /* END alert */
-  CHECK_SUCCESS(yajl_gen_array_close(g)); /* END array */
+  CHECK(yajl_gen_map_close(g));   /* END alert */
+  CHECK(yajl_gen_array_close(g)); /* END array */
 
   return 0;
 } /* }}} format_alert */
