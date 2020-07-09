@@ -69,7 +69,12 @@ static vm_size_t pagesize;
 /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
+#if HAVE_SYSCTL && defined(KERNEL_NETBSD)
+static int pagesize;
+#include <unistd.h> /* getpagesize() */
+#else
 /* no global variables */
+#endif
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
@@ -128,7 +133,11 @@ static int memory_init(void) {
   /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
-  /* no init stuff */
+#if HAVE_SYSCTL && defined(KERNEL_NETBSD)
+  pagesize = getpagesize();
+#else
+/* no init stuff */
+#endif /* HAVE_SYSCTL && defined(KERNEL_NETBSD) */
   /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
