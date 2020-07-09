@@ -285,7 +285,7 @@ static int init(void) {
     WARNING("cpu plugin: sysctl: %s", STRERRNO);
     return -1;
   }
-    /* #endif CAN_USE_SYSCTL */
+  /* #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME)
   /* Only on BSD varient */
@@ -311,11 +311,11 @@ static int init(void) {
            "%i)",
            numcpu);
 #endif
-    /* #endif HAVE_SYSCTLBYNAME */
+  /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
-/* nothing to initialize */
-/* #endif HAVE_LIBSTATGRAB */
+  /* nothing to initialize */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
 /* nothing to initialize */
@@ -634,7 +634,7 @@ static int cpu_read(void) {
     cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE,
               (derive_t)cpu_info.cpu_ticks[CPU_STATE_IDLE], now);
   }
-    /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
+  /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX) /* {{{ */
   int cpu;
@@ -733,7 +733,7 @@ static int cpu_read(void) {
     cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_WAIT,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_WAIT], now);
   }
-    /* }}} #endif defined(HAVE_LIBKSTAT) */
+  /* }}} #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL /* {{{ */
   /* Only on (Open) BSD variant */
@@ -758,8 +758,8 @@ static int cpu_read(void) {
     if (status == -1) {
       char errbuf[1024];
 
-      ERROR ("cpu plugin: sysctl failed: %s.",
-             sstrerror (errno, errbuf, sizeof (errbuf)));
+      ERROR("cpu plugin: sysctl failed: %s.",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
       return -1;
     }
     if (cpuinfo_size == (sizeof(cpuinfo[0]) * CPUSTATES)) {
@@ -810,7 +810,7 @@ static int cpu_read(void) {
     cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
               now);
   }
-    /* }}} #endif CAN_USE_SYSCTL */
+  /* }}} #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES) /* {{{  \
                                                                         */
@@ -834,7 +834,7 @@ static int cpu_read(void) {
     cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
               now);
   }
-    /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
+  /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
 #elif defined(HAVE_SYSCTLBYNAME) /* {{{ */
   /* Only on BSD variant */
