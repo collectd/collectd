@@ -163,8 +163,8 @@ static int swap_init(void) /* {{{ */
   /* #endif HAVE_SWAPCTL */
 
 #elif defined(VM_SWAPUSAGE)
-/* No init stuff */
-/* #endif defined(VM_SWAPUSAGE) */
+  /* No init stuff */
+  /* #endif defined(VM_SWAPUSAGE) */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
   char errbuf[_POSIX2_LINE_MAX];
@@ -182,11 +182,11 @@ static int swap_init(void) /* {{{ */
     ERROR("swap plugin: kvm_openfiles failed, %s", errbuf);
     return -1;
   }
-    /* #endif HAVE_LIBKVM_GETSWAPINFO */
+  /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
 #elif HAVE_LIBSTATGRAB
-/* No init stuff */
-/* #endif HAVE_LIBSTATGRAB */
+  /* No init stuff */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
   pagesize = getpagesize();
@@ -555,35 +555,33 @@ static int swap_read(void) /* {{{ */
 #if KERNEL_NETBSD
 #include <uvm/uvm_extern.h>
 
-static int
-swap_read_io (void) /* {{{ */
+static int swap_read_io(void) /* {{{ */
 {
-  static int uvmexp_mib[] = { CTL_VM, VM_UVMEXP2 };
+  static int uvmexp_mib[] = {CTL_VM, VM_UVMEXP2};
   struct uvmexp_sysctl uvmexp;
   size_t ssize;
   derive_t swap_in, swap_out;
 
   ssize = sizeof(uvmexp);
   memset(&uvmexp, 0, ssize);
-  if (sysctl(uvmexp_mib, __arraycount(uvmexp_mib), &uvmexp,
-    &ssize, NULL, 0) == -1) {
-      char errbuf[1024];
-      WARNING ("swap: sysctl for uvmexp failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
-      return (-1);
+  if (sysctl(uvmexp_mib, __arraycount(uvmexp_mib), &uvmexp, &ssize, NULL, 0) ==
+      -1) {
+    char errbuf[1024];
+    WARNING("swap: sysctl for uvmexp failed: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+    return (-1);
   }
 
-  swap_in  = uvmexp.pgswapin;
+  swap_in = uvmexp.pgswapin;
   swap_out = uvmexp.pgswapout;
 
-  if (report_bytes)
-  {
+  if (report_bytes) {
     swap_in = swap_in * pagesize;
     swap_out = swap_out * pagesize;
   }
 
-  swap_submit_derive ("in",  swap_in);
-  swap_submit_derive ("out", swap_out);
+  swap_submit_derive("in", swap_in);
+  swap_submit_derive("out", swap_out);
 
   return (0);
 } /* }}} */
@@ -634,24 +632,20 @@ static int swap_read(void) /* {{{ */
     if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
       continue;
 
-    this_used = ((gauge_t) swap_entries[i].se_inuse)
-      * C_SWAP_BLOCK_SIZE;
-    this_total = ((gauge_t) swap_entries[i].se_nblks)
-      * C_SWAP_BLOCK_SIZE;
+    this_used = ((gauge_t)swap_entries[i].se_inuse) * C_SWAP_BLOCK_SIZE;
+    this_total = ((gauge_t)swap_entries[i].se_nblks) * C_SWAP_BLOCK_SIZE;
 
     /* Shortcut for the "combined" setting (default) */
-    if (!report_by_device)
-    {
-      used  += this_used;
+    if (!report_by_device) {
+      used += this_used;
       total += this_total;
       continue;
     }
 
-    sstrncpy (path, swap_entries[i].se_path, sizeof (path));
-    escape_slashes (path, sizeof (path));
+    sstrncpy(path, swap_entries[i].se_path, sizeof(path));
+    escape_slashes(path, sizeof(path));
 
-    swap_submit_usage (path, this_used, this_total - this_used,
-                       NULL, NAN);
+    swap_submit_usage(path, this_used, this_total - this_used, NULL, NAN);
   } /* for (swap_num) */
 
   if (total < used) {
@@ -666,11 +660,11 @@ static int swap_read(void) /* {{{ */
   /* If the "separate" option was specified (report_by_device == 1), all
    * values have already been dispatched from within the loop. */
   if (!report_by_device)
-    swap_submit_usage (NULL, used, total - used, NULL, NAN);
+    swap_submit_usage(NULL, used, total - used, NULL, NAN);
 
   sfree(swap_entries);
 #if KERNEL_NETBSD
-  swap_read_io ();
+  swap_read_io();
 #endif
   return 0;
 } /* }}} int swap_read */
