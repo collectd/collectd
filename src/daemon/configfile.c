@@ -350,17 +350,7 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
     return -1;
   }
 
-  const char *plugin_name = ci->values[0].value.string;
-  if (strcmp("libvirt", plugin_name) == 0) {
-    /* TODO(octo): Remove this legacy. */
-    WARNING("The \"libvirt\" plugin has been renamed to \"virt\" to avoid "
-            "problems with the build system. "
-            "Your configuration is still using the old name. "
-            "Please change it to use \"virt\" as soon as possible. "
-            "This compatibility code will go away eventually.");
-    plugin_name = "virt";
-  }
-
+  char const *plugin_name = ci->values[0].value.string;
   bool plugin_loaded = plugin_is_loaded(plugin_name);
 
   if (!plugin_loaded && IS_TRUE(global_option_get("AutoLoadPlugin"))) {
@@ -813,7 +803,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   return root;
 } /* oconfig_item_t *cf_read_generic */
-  /* #endif HAVE_WORDEXP_H */
+/* #endif HAVE_WORDEXP_H */
 
 #else  /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
