@@ -177,15 +177,9 @@ static int irq_read(void) {
 #endif /* KERNEL_LINUX */
 
 #if KERNEL_NETBSD
-static int
-irq_read (void)
-{
-  const int mib[4] = {
-    CTL_KERN,
-    KERN_EVCNT,
-    EVCNT_TYPE_INTR,
-    KERN_EVCNT_COUNT_NONZERO
-  };
+static int irq_read(void) {
+  const int mib[4] = {CTL_KERN, KERN_EVCNT, EVCNT_TYPE_INTR,
+                      KERN_EVCNT_COUNT_NONZERO};
   size_t buflen = 0;
   void *buf = NULL;
   const struct evcnt_sysctl *evs, *last_evs;
@@ -197,8 +191,7 @@ irq_read (void)
     newlen = buflen;
     if (buflen)
       buf = malloc(buflen);
-    error = sysctl(mib, __arraycount(mib),
-                   buf, &newlen, NULL, 0);
+    error = sysctl(mib, __arraycount(mib), buf, &newlen, NULL, 0);
     if (error) {
       ERROR("irq plugin: failed to get event count");
       return -1;
@@ -208,25 +201,23 @@ irq_read (void)
       break;
     }
     if (buf)
-            free(buf);
+      free(buf);
     buflen = newlen;
   }
   evs = buf;
-  last_evs = (void*)((char *)buf + buflen);
+  last_evs = (void *)((char *)buf + buflen);
   buflen /= sizeof(uint64_t);
-  while(evs < last_evs
-    && buflen > sizeof(*evs) / sizeof(uint64_t)
-    && buflen >= evs->ev_len)
-  {
+  while (evs < last_evs && buflen > sizeof(*evs) / sizeof(uint64_t) &&
+         buflen >= evs->ev_len) {
     char irqname[80];
 
     snprintf(irqname, 80, "%s-%s", evs->ev_strings,
-      evs->ev_strings + evs->ev_grouplen + 1);
+             evs->ev_strings + evs->ev_grouplen + 1);
 
     irq_submit(irqname, evs->ev_count);
 
     buflen -= evs->ev_len;
-    evs =(const void*)((const uint64_t *)evs + evs->ev_len);
+    evs = (const void *)((const uint64_t *)evs + evs->ev_len);
   }
   free(buf);
   return 0;
