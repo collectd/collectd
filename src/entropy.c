@@ -29,8 +29,8 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-static void entropy_submit (value_t);
-static int entropy_read (void);
+static void entropy_submit(value_t);
+static int entropy_read(void);
 
 #if !KERNEL_LINUX && !KERNEL_NETBSD
 #error "No applicable input method."
@@ -65,13 +65,11 @@ static int entropy_read(void) {
 #include <sys/param.h>
 #include <sys/rnd.h>
 #if HAVE_SYS_RNDIO_H
-# include <sys/rndio.h>
+#include <sys/rndio.h>
 #endif
 #include <paths.h>
 
-static int
-entropy_read (void)
-{
+static int entropy_read(void) {
   value_t v;
   rndpoolstat_t rs;
   static int fd;
@@ -86,7 +84,7 @@ entropy_read (void)
   }
 
   if (ioctl(fd, RNDGETPOOLSTAT, &rs) < 0) {
-    (void) close(fd);
+    (void)close(fd);
     fd = 0; /* signal a reopening on next attempt */
     return -1;
   }
@@ -96,7 +94,7 @@ entropy_read (void)
     return (-1);
   }
 
-  entropy_submit (v);
+  entropy_submit(v);
 
   return 0;
 }
