@@ -135,10 +135,13 @@ void strbuf_reset(strbuf_t *buf) {
   /* Truncate the buffer to the page size. This is deemed a good compromise
    * between freeing memory (after a large buffer has been constructed) and
    * performance (avoid unnecessary allocations). */
-  if (buf->size > strbuf_pagesize()) {
-    char *new_ptr = realloc(buf->ptr, strbuf_pagesize());
-    if (new_ptr != NULL)
+  size_t new_size = strbuf_pagesize();
+  if (buf->size > new_size) {
+    char *new_ptr = realloc(buf->ptr, new_size);
+    if (new_ptr != NULL) {
       buf->ptr = new_ptr;
+      buf->size = new_size;
+    }
   }
 }
 
