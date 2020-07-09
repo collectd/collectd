@@ -68,10 +68,6 @@ static mach_port_t port_host;
 static vm_size_t pagesize;
 /* #endif HAVE_HOST_STATISTICS */
 
-#elif HAVE_SYSCTL
-static int pagesize;
-/* #endif HAVE_SYSCTL */
-
 #elif HAVE_SYSCTLBYNAME
 /* no global variables */
 /* #endif HAVE_SYSCTLBYNAME */
@@ -85,6 +81,11 @@ static int pagesize;
 static kstat_t *ksp;
 static kstat_t *ksz;
 /* #endif HAVE_LIBKSTAT */
+
+#elif HAVE_SYSCTL && __OpenBSD__
+/* OpenBSD variant does not have sysctlbyname */
+static int pagesize;
+/* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
 /* no global variables */
