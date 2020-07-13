@@ -1543,6 +1543,22 @@
 #       PluginInstanceOID "IF-MIB::ifDescr"
 #       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
 #   </Data>
+#   <Data "lancom_stations_total">
+#       Type "counter"
+#       PluginInstance "stations_total"
+#       Table true
+#       Count true
+#       Values "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10" # SNMPv2-SMI::enterprises.lancom-systems.lcos.lcsStatus.lcsStatusWlan.lcsStatusWlanStationTableTable.lcsStatusWlanStationTableEntry.lcsStatusWlanStationTableEntryState
+#   </Data>
+#   <Data "lancom_stations_connected">
+#       Type "counter"
+#       PluginInstance "stations_connected"
+#       Table true
+#       Count true
+#       Values "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10" # SNMPv2-SMI::enterprises.lancom-systems.lcos.lcsStatus.lcsStatusWlan.lcsStatusWlanStationTableTable.lcsStatusWlanStationTableEntry.lcsStatusWlanStationTableEntryState
+#       FilterOID "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10"
+#       FilterValues "3" # eConnected
+#   </Data>
 #
 #   <Host "some.switch.mydomain.org">
 #       Address "192.168.0.2"
