@@ -32,19 +32,19 @@
 
 DEF_TEST(metric_name) {
   struct {
-    char const *name;
+    char *name;
     size_t labels_num;
     char const **keys;
     char const **values;
     value_t value;
-    int value_type;
+    metric_type_t type;
     unsigned int flags;
     const char *want;
   } cases[] = {
       {
           .name = "unit_test",
           .value = (value_t){.gauge = 42},
-          .value_type = DS_TYPE_GAUGE,
+          .type = METRIC_TYPE_GAUGE,
           .want = "unit_test 42",
       },
       {
@@ -52,26 +52,25 @@ DEF_TEST(metric_name) {
           .labels_num = 2,
           .keys = (char const *[]){"beta", "alpha"},
           .values = (char const *[]){"second", "first"},
-          .value = (value_t){.derive = -9223372036854775807LL},
-          .value_type = DS_TYPE_DERIVE,
+          .value = (value_t){.counter = 0},
+          .type = METRIC_TYPE_COUNTER,
           .want =
-              "test_with_label.alpha=first.beta=second -9223372036854775807",
+              "test_with_label.alpha=first.beta=second 0",
       },
       {
           .name = "separate_instances_test",
           .labels_num = 2,
           .keys = (char const *[]){"beta", "alpha"},
           .values = (char const *[]){"second", "first"},
-          .value = (value_t){.derive = 9223372036854775807LL},
-          .value_type = DS_TYPE_DERIVE,
+          .value = (value_t){.counter = 0},
+          .type = METRIC_TYPE_COUNTER,
           .flags = GRAPHITE_SEPARATE_INSTANCES,
-          .want = "separate_instances_test.alpha.first.beta.second "
-                  "9223372036854775807",
+          .want = "separate_instances_test.alpha.first.beta.second 0",
       },
       {
           .name = "escaped:metric_name",
           .value = (value_t){.gauge = NAN},
-          .value_type = DS_TYPE_GAUGE,
+          .type = METRIC_TYPE_GAUGE,
           .want = "escaped_metric_name nan",
       },
       {
@@ -80,25 +79,26 @@ DEF_TEST(metric_name) {
           .keys = (char const *[]){"beta", "alpha"},
           .values = (char const *[]){"second value", "first/value"},
           .value = (value_t){.counter = 18446744073709551615LLU},
-          .value_type = DS_TYPE_COUNTER,
+          .type = DS_TYPE_COUNTER,
           .want = "escaped_label_value.alpha=first_value.beta=second_value "
                   "18446744073709551615",
       },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
-    identity_t *id;
-    CHECK_NOT_NULL(id = identity_create(cases[i].name));
-    for (size_t j = 0; j < cases[i].labels_num; j++) {
-      CHECK_ZERO(identity_add_label(id, cases[i].keys[j], cases[i].values[j]));
-    }
+    metric_family_t fam = {
+        .name = cases[i].name,
+        .type = cases[i].type,
+    };
 
-    metric_single_t m = {
-        .identity = id,
+    metric_t m = {
+        .family = &fam,
         .value = cases[i].value,
-        .value_type = cases[i].value_type,
         .time = 1710200311404036096, /* 1592748157.125 */
     };
+    for (size_t j = 0; j < cases[i].labels_num; j++) {
+      CHECK_ZERO(metric_label_set(&m, cases[i].keys[j], cases[i].values[j]));
+    }
 
     strbuf_t buf = STRBUF_CREATE;
     EXPECT_EQ_INT(0, format_graphite(&buf, &m, "", "", '_', cases[i].flags));
@@ -106,13 +106,13 @@ DEF_TEST(metric_name) {
     strbuf_t want = STRBUF_CREATE;
     if (cases[i].want != NULL) {
       strbuf_print(&want, cases[i].want);
-      strbuf_print(&want, " 1480063672\r\n");
+      strbuf_print(&want, " 1592748157\r\n");
     }
     EXPECT_EQ_STR(want.ptr, buf.ptr);
 
     STRBUF_DESTROY(want);
     STRBUF_DESTROY(buf);
-    identity_destroy(id);
+    metric_reset(&m);
   }
 
   return 0;

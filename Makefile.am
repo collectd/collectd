@@ -487,6 +487,7 @@ test_format_graphite_LDADD = \
 	libformat_graphite.la \
 	libidentity.la \
 	libmetadata.la \
+	libmetric.la \
 	libplugin_mock.la \
 	libstrbuf.la \
 	-lm
