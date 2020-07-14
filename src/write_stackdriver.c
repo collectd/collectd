@@ -420,7 +420,8 @@ static int wg_metric_descriptors_create(wg_callback_t *cb, metric_t const *m) {
 
   status = sd_output_register_metric(cb->formatter, m);
   if (status != 0) {
-    ERROR("write_stackdriver plugin: sd_output_register_metric failed: %s", STRERROR(status));
+    ERROR("write_stackdriver plugin: sd_output_register_metric failed: %s",
+          STRERROR(status));
     return status;
   }
 

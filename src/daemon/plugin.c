@@ -1293,7 +1293,8 @@ EXPORT int plugin_register_flush(const char *name, plugin_flush_cb callback,
                                  user_data_t const *ud) {
   plugin_ctx_t ctx = plugin_get_ctx();
 
-  int status = create_register_callback(&list_flush, name, (void *)callback, ud);
+  int status =
+      create_register_callback(&list_flush, name, (void *)callback, ud);
   if (status != 0) {
     return status;
   }
@@ -1330,8 +1331,8 @@ EXPORT int plugin_register_flush(const char *name, plugin_flush_cb callback,
       /* interval  = */ ctx.flush_interval,
       /* user data = */
       &(user_data_t){
-      .data = cb,
-      .free_func = plugin_flush_timeout_callback_free,
+          .data = cb,
+          .free_func = plugin_flush_timeout_callback_free,
       });
 
   sfree(flush_name);
