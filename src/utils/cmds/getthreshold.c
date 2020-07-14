@@ -81,7 +81,9 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     return -1;
   }
 
-  threshold_t threshold = {0};
+  threshold_t threshold = {
+      .flags = 0,
+  };
   status = ut_search_threshold(fam->metric.ptr, &threshold);
   if (status == ENOENT) {
     print_to_socket(fh, "-1 No threshold found for identifier %s\n",
