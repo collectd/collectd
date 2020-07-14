@@ -1,7 +1,57 @@
 env:
   LANG: C
   CIRRUS_CLONE_DEPTH: 1
-  DEFAULT_CONFIG_OPTS: --enable-debug --without-libstatgrab --disable-dependency-tracking
+  DEFAULT_CONFIG_OPTS: >-
+          --disable-aggregation
+          --disable-amqp
+          --disable-amqp1
+          --disable-barometer
+          --disable-check_uptime
+          --disable-csv
+          --disable-curl
+          --disable-curl_xml
+          --disable-gmond
+          --disable-java
+          --disable-logparser
+          --disable-lua
+          --disable-match_empty_counter
+          --disable-match_hashed
+          --disable-match_regex
+          --disable-match_timediff
+          --disable-match_value
+          --disable-memcachec
+          --disable-modbus
+          --disable-mqtt
+          --disable-network
+          --disable-openldap
+          --disable-perl
+          --disable-postgresql
+          --disable-python
+          --disable-redis
+          --disable-rrdcached
+          --disable-rrdtool
+          --disable-snmp
+          --disable-snmp_agent
+          --disable-statsd
+          --disable-tail
+          --disable-target_notification
+          --disable-target_replace
+          --disable-target_scale
+          --disable-target_set
+          --disable-target_v5upgrade
+          --disable-threshold
+          --disable-write_graphite
+          --disable-write_influxdb_udp
+          --disable-write_kafka
+          --disable-write_mongodb
+          --disable-write_prometheus
+          --disable-write_redis
+          --disable-write_riemann
+          --disable-write_sensu
+          --disable-write_syslog
+          --disable-write_tsdb
+          --enable-debug
+          --disable-dependency-tracking
 
 
 ###
@@ -15,9 +65,9 @@ release_ready_task:
     - /checks/check-pod.sh
   configure_script:
     - ./build.sh
-    - ./configure $DEFAULT_CONFIG_OPTS
+    - ./configure $DEFAULT_CONFIG_OPTS --without-libstatgrab
   checks_script:
-    - make -j2 -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
+    - make -j2 -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS} --without-libstatgrab"
 
 ###
 # Default toolchain and build flags used in deb packages, on a range of Debian
@@ -51,7 +101,7 @@ debian_default_toolchain_task:
     - ./build.sh
     - gcc --version
     - >
-      ./configure CC=gcc $DEFAULT_CONFIG_OPTS
+      ./configure CC=gcc $DEFAULT_CONFIG_OPTS --without-libstatgrab
       CFLAGS="$(dpkg-buildflags --get CFLAGS)"
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
@@ -89,7 +139,7 @@ redhat_default_toolchain_task:
   configure_script:
     - ./build.sh
     - gcc --version
-    - ./configure CC=gcc $DEFAULT_CONFIG_OPTS CFLAGS="$(rpm --eval '%optflags')"
+    - ./configure CC=gcc $DEFAULT_CONFIG_OPTS --without-libstatgrab CFLAGS="$(rpm --eval '%optflags')"
   build_script:
     - make -j2 -sk
   tests_script:
@@ -118,7 +168,7 @@ non_standard_toolchains_task:
         - clang --version
         - >
           ./configure CC=clang CXX=clang++
-          $DEFAULT_CONFIG_OPTS
+          $DEFAULT_CONFIG_OPTS --without-libstatgrab
           CFLAGS="$(dpkg-buildflags --get CFLAGS)"
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
@@ -136,7 +186,7 @@ non_standard_toolchains_task:
         - ./build.sh
         - gcc --version
         - >
-          ./configure --with-libstatgrab --enable-debug
+          ./configure $DEFAULT_CONFIG_OPTS --with-libstatgrab
           CFLAGS="$(dpkg-buildflags --get CFLAGS)"
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
@@ -162,7 +212,7 @@ non_standard_toolchains_task:
         - clang --version
         - >
           ./configure CC=clang CXX=clang++
-          $DEFAULT_CONFIG_OPTS
+          $DEFAULT_CONFIG_OPTS --without-libstatgrab
           CFLAGS='-Wall
           -Wno-error
           -Wextra
@@ -215,7 +265,7 @@ bleeding_edge_compilers_task:
     - $CC --version
     - >
       ./configure CC=$CC
-      $DEFAULT_CONFIG_OPTS
+      $DEFAULT_CONFIG_OPTS --without-libstatgrab
       CFLAGS="$(dpkg-buildflags --get CFLAGS)"
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
