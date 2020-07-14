@@ -1568,6 +1568,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
   } /* while (have_more) */
 
   if (count_values) {
+    /* the first `ds' means `data set', the second means `data source' */
+    int type = ds->ds[0].type;
     sstrncpy(vl.host, host->name, sizeof(vl.host));
     sstrncpy(vl.plugin, data->plugin_name, sizeof(vl.plugin));
     sstrncpy(vl.type, data->type, sizeof(vl.type));
@@ -1581,7 +1583,24 @@ static int csnmp_dispatch_table(host_definition_t *host,
     vl.values = malloc(sizeof(*vl.values));
     if (vl.values == NULL)
       return -1;
-    vl.values[0].counter = count;
+    switch (type) {
+    case DS_TYPE_COUNTER:
+      vl.values[0].counter = count;
+      break;
+    case DS_TYPE_GAUGE:
+      vl.values[0].gauge = count;
+      break;
+    case DS_TYPE_DERIVE:
+      vl.values[0].derive = count;
+      break;
+    case DS_TYPE_ABSOLUTE:
+      vl.values[0].absolute = count;
+      break;
+    default:
+      ERROR("snmp plugin: csnmp_dispatch_table: Unknown "
+            "data source type: %i.",
+            type);
+    }
     plugin_dispatch_values(&vl);
     sfree(vl.values);
   }
@@ -1653,13 +1672,6 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       ERROR("snmp plugin: DataSet `%s' requires %" PRIsz
             " values, but `Count' option only delivers one",
             data->type, ds->ds_num);
-      return -1;
-    }
-    /* the first `ds' means `data set', the second means `data source' */
-    if (ds->ds->type != DS_TYPE_COUNTER) {
-      ERROR("snmp plugin: DataSet `%s' needs to be of COUNTER"
-            " type for `Count' option",
-            data->type);
       return -1;
     }
   } else {
