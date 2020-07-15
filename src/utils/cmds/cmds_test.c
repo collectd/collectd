@@ -52,7 +52,7 @@ static void error_cb(void *ud, cmd_status_t status, const char *format,
   int size = vsnprintf(NULL, 0, format, ap_copy);
   assert(size > 0);
 
-  char buffer[size];
+  char buffer[size+1];
   vsnprintf(buffer, sizeof(buffer), format, ap);
 
   strbuf_print(buf, buffer);
@@ -181,12 +181,6 @@ static struct {
     },
 
     /* Valid PUTVAL commands. */
-    {
-        "PUTVAL unit_test N:42",
-        &default_host_opts,
-        CMD_OK,
-        CMD_PUTVAL,
-    },
     {
         "PUTVAL magic/MAGIC N:42",
         &default_host_opts,
@@ -386,7 +380,7 @@ DEF_TEST(parse) {
 
     char description[1024];
     ssnprintf(description, sizeof(description),
-              "cmd_parse (\"%s\", opts=%p) = "
+              "cmd_parse(\"%s\", opts=%p) = "
               "%d (type=%d [%s]); want %d "
               "(type=%d [%s])",
               parse_data[i].input, parse_data[i].opts, status, cmd.type,
