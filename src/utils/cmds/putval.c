@@ -114,7 +114,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   }
 
   char *identifier = strdup(argv[0]);
-  if (ret_putval->raw_identifier == NULL) {
+  if (identifier == NULL) {
     cmd_error(CMD_ERROR, errhndl, "malloc failed.");
     return CMD_ERROR;
   }

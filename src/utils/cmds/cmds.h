@@ -37,6 +37,7 @@ typedef enum {
   CMD_GETVAL = 2,
   CMD_LISTVAL = 3,
   CMD_PUTVAL = 4,
+  CMD_PUTMETRIC = 5,
 } cmd_type_t;
 #define CMD_TO_STRING(type)                                                    \
   ((type) == CMD_FLUSH)                                                        \
@@ -45,7 +46,8 @@ typedef enum {
             ? "GETVAL"                                                         \
             : ((type) == CMD_LISTVAL)                                          \
                   ? "LISTVAL"                                                  \
-                  : ((type) == CMD_PUTVAL) ? "PUTVAL" : "UNKNOWN"
+                  : ((type) == CMD_PUTVAL) ? "PUTVAL" \
+		  : ((type) == CMD_PUTMETRIC) ? "PUTMETRIC" : "UNKNOWN"
 
 typedef struct {
   double timeout;
@@ -77,6 +79,19 @@ typedef struct {
   metric_family_t *family;
 } cmd_putval_t;
 
+typedef struct {
+  /* Depending on the function, this is an input or output field:
+   *
+   * cmd_parse_putmetric:
+   *   OUTPUT  Receives parsed metric information. The metric family will
+   *           contain a single metric.
+   * cmd_create_putmetric:
+   *   INPUT   Holds the metrics for which to format the PUTVAL command. The
+   *           metric family may contain multiple metrics.
+   */
+  metric_family_t *family;
+} cmd_putmetric_t;
+
 /*
  * NAME
  *   cmd_t
@@ -90,6 +105,7 @@ typedef struct {
     cmd_flush_t flush;
     cmd_getval_t getval;
     cmd_putval_t putval;
+    cmd_putmetric_t putmetric;
   } cmd;
 } cmd_t;
 

@@ -40,6 +40,10 @@ int uc_get_rate(__attribute__((unused)) metric_t const *m,
   return ENOTSUP;
 }
 
+int uc_get_rate_by_name(const char *name, gauge_t *ret_value) {
+  return ENOTSUP;
+}
+
 int uc_get_rate_by_name_vl(const char *name, gauge_t **ret_values,
                            size_t *ret_values_num) {
   return ENOTSUP;

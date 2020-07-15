@@ -552,6 +552,8 @@ libcmds_la_SOURCES = \
 	src/utils/cmds/getval.h \
 	src/utils/cmds/listval.c \
 	src/utils/cmds/listval.h \
+	src/utils/cmds/putmetric.c \
+	src/utils/cmds/putmetric.h \
 	src/utils/cmds/putnotif.c \
 	src/utils/cmds/putnotif.h \
 	src/utils/cmds/putval.c \
@@ -565,6 +567,7 @@ test_utils_cmds_SOURCES = \
 	src/testing.h
 test_utils_cmds_LDADD = \
 	libcmds.la \
+	libmetric.la \
 	libplugin_mock.la
 
 liblookup_la_SOURCES = \

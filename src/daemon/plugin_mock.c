@@ -121,6 +121,8 @@ DECLARE_UNREGISTER(notification)
 
 int plugin_dispatch_values(value_list_t const *vl) { return ENOTSUP; }
 
+int plugin_dispatch_metric_family(metric_family_t const *fam) { return ENOTSUP; }
+
 int plugin_dispatch_notification(__attribute__((unused))
                                  const notification_t *notif) {
   return ENOTSUP;

@@ -32,6 +32,7 @@
 #include "utils/cmds/listval.h"
 #include "utils/cmds/parse_option.h"
 #include "utils/cmds/putval.h"
+#include "utils/cmds/putmetric.h"
 #include "utils/common/common.h"
 
 #include <stdbool.h>
@@ -211,6 +212,10 @@ cmd_status_t cmd_parsev(size_t argc, char **argv, cmd_t *ret_cmd,
     ret_cmd->type = CMD_PUTVAL;
     status =
         cmd_parse_putval(argc - 1, argv + 1, &ret_cmd->cmd.putval, opts, err);
+  } else if (strcasecmp("PUTMETRIC", command) == 0) {
+    ret_cmd->type = CMD_PUTMETRIC;
+    status =
+        cmd_parse_putmetric(argc - 1, argv + 1, &ret_cmd->cmd.putmetric, opts, err);
   } else {
     ret_cmd->type = CMD_UNKNOWN;
     cmd_error(CMD_UNKNOWN_COMMAND, err, "Unknown command `%s'.", command);
@@ -254,6 +259,9 @@ void cmd_destroy(cmd_t *cmd) {
     break;
   case CMD_PUTVAL:
     cmd_destroy_putval(&cmd->cmd.putval);
+    break;
+  case CMD_PUTMETRIC:
+    cmd_destroy_putmetric(&cmd->cmd.putmetric);
     break;
   }
 } /* void cmd_destroy */
