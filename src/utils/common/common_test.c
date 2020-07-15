@@ -388,23 +388,24 @@ DEF_TEST(format_values) {
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
-    metric_family_t fam =
-        {
-            .name = "testing",
-            .type = cases[i].type,
-        } metric_t m = {
-            .family = &fam,
-            .value = cases[i].value,
-            .time = MS_TO_CDTIME_T(1592558427435),
-        };
-    metric_list_add(&fam.metric, m);
+    metric_family_t fam = {
+        .name = "testing",
+        .type = cases[i].type,
+    };
+    metric_t m = {
+        .family = &fam,
+        .value = cases[i].value,
+        .time = MS_TO_CDTIME_T(1592558427435),
+    };
+    metric_family_metric_append(&fam, m);
 
     strbuf_t buf = STRBUF_CREATE;
 
     EXPECT_EQ_INT(0, format_values(&buf, &m, false));
-    EXPECT_EQ_STR(cases[i].want, buf);
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
 
     STRBUF_DESTROY(buf);
+    metric_family_metric_reset(&fam);
   }
 
   return 0;

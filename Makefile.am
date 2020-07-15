@@ -349,7 +349,7 @@ endif
 test_common_SOURCES = \
 	src/utils/common/common_test.c \
 	src/testing.h
-test_common_LDADD = libplugin_mock.la
+test_common_LDADD = libmetric.la libplugin_mock.la
 
 test_meta_data_SOURCES = \
 	src/utils/metadata/meta_data_test.c \
