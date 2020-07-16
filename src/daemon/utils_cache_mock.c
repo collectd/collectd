@@ -35,7 +35,7 @@ gauge_t *uc_get_rate_vl(__attribute__((unused)) data_set_t const *ds,
   return NULL;
 }
 
-int uc_get_rate(__attribute__((unused)) metric_single_t const *m,
+int uc_get_rate(__attribute__((unused)) metric_t const *m,
                 __attribute__((unused)) gauge_t *ret_value) {
   return ENOTSUP;
 }
@@ -54,22 +54,22 @@ int uc_get_value_by_name_vl(const char *name, value_t **ret_values,
   return ENOTSUP;
 }
 
-int uc_meta_data_get_signed_int(metric_single_t const *m, const char *key,
+int uc_meta_data_get_signed_int(metric_t const *m, const char *key,
                                 int64_t *value) {
   return -ENOENT;
 }
 
-int uc_meta_data_get_unsigned_int(metric_single_t const *m, const char *key,
+int uc_meta_data_get_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t *value) {
   return -ENOENT;
 }
 
-int uc_meta_data_add_signed_int(metric_single_t const *m, const char *key,
+int uc_meta_data_add_signed_int(metric_t const *m, const char *key,
                                 int64_t value) {
   return 0;
 }
 
-int uc_meta_data_add_unsigned_int(metric_single_t const *m, const char *key,
+int uc_meta_data_add_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t value) {
   return 0;
 }
