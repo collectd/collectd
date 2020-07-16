@@ -1599,7 +1599,7 @@ metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
     status = status || metric_label_set(&m, name, vl->type_instance);
   }
 
-  status = status || metric_list_add(&fam->metric, m);
+  status = status || metric_family_metric_append(fam, m);
   if (status != 0) {
     metric_reset(&m);
     metric_family_free(fam);
