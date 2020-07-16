@@ -52,7 +52,7 @@ static void error_cb(void *ud, cmd_status_t status, const char *format,
   int size = vsnprintf(NULL, 0, format, ap_copy);
   assert(size > 0);
 
-  char buffer[size+1];
+  char buffer[size + 1];
   vsnprintf(buffer, sizeof(buffer), format, ap);
 
   strbuf_print(buf, buffer);
@@ -402,6 +402,7 @@ DEF_TEST(parse) {
       test_result = -1;
 
     cmd_destroy(&cmd);
+    STRBUF_DESTROY(errbuf);
     free(input);
   }
 
