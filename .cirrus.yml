@@ -106,6 +106,8 @@ debian_default_toolchain_task:
   tests_script:
     - make -j2 -sk check
     - /checks/check-built-plugins.sh
+  on_failure:
+    debug_script: cat test-suite.log || true
 
 ###
 # Default toolchain and build flags used in RPM packages, on a range of RedHat
@@ -141,6 +143,8 @@ redhat_default_toolchain_task:
   tests_script:
     - make -j2 -sk check
     - /checks/check-built-plugins.sh
+  on_failure:
+    debug_script: cat test-suite.log || true
 
 
 ###
@@ -269,3 +273,5 @@ bleeding_edge_compilers_task:
     - make -j2 -sk
   tests_script:
     - make -j2 -sk check
+  on_failure:
+    debug_script: cat test-suite.log || true
