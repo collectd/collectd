@@ -41,8 +41,8 @@
 #include <pthread.h>
 
 #define DS_TYPE_COUNTER 0
-#define DS_TYPE_GAUGE 1
-#define DS_TYPE_DERIVE 2
+#define DS_TYPE_GAUGE VALUE_TYPE_GAUGE
+#define DS_TYPE_DERIVE VALUE_TYPE_DERIVE
 
 #define DS_TYPE_TO_STRING(t)                                                   \
   (t == DS_TYPE_COUNTER)                                                       \
@@ -117,18 +117,6 @@ struct data_set_s {
 };
 typedef struct data_set_s data_set_t;
 
-struct metric_s {
-  identity_t *identity;
-  value_t value;
-  int value_type;
-  cdtime_t time;
-  cdtime_t interval;
-  meta_data_t *meta;
-};
-typedef struct metric_s metric_t;
-
-#define METRIC_STRUCT_INIT                                                     \
-  { .ds = NULL, .identity = NULL, .meta = NULL }
 
 struct metrics_list_s {
   metric_t metric;
@@ -373,20 +361,6 @@ int plugin_convert_values_to_metrics(value_list_t const *vl,
 
 /*
  * NAME
- * plugin_metric_free
- *
- * DESCRIPTION
- *  This function dewwa up allocated memory from the internal metric
- * representation.
- *
- * ARGUMENTS
- *  `metric_p)’ A pointer to a metrics data object whose memory needs to be
- *              reclaomed.
- */
-void plugin_metric_free(metric_t *metric_p);
-
-/*
- * NAME
  * destroy_metrics_list
  *
  * DESCRIPTION
@@ -476,9 +450,6 @@ int plugin_dispatch_notification(const notification_t *notif);
 void plugin_log(int level, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 
-/* This returns a string that can be used to format the attributes of the
- * metric. Remember to free the returned string. */
-char *plugin_format_metric(const metric_t *metric_p);
 /* These functions return the parsed severity or less than zero on failure. */
 int parse_log_severity(const char *severity);
 int parse_notif_severity(const char *severity);

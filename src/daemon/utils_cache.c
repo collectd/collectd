@@ -293,9 +293,9 @@ int uc_check_timeout(void) {
 } /* int uc_check_timeout */
 
 int uc_update(const metric_t *metric_p) {
-  char *metric_name = plugin_format_metric(metric_p);
+  char *metric_name = metric_marshal_text(metric_p);
   if (metric_name == NULL) {
-    ERROR("uc_update: plugin_format_metric failed.");
+    ERROR("uc_update: metric_marshal_text failed.");
     return -1;
   }
 
@@ -436,10 +436,10 @@ int uc_get_rate(const metric_t *metric_p, gauge_t *ret) {
   char *metric_string_p = NULL;
   int status = 0;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
 
   if (metric_string_p == NULL) {
-    ERROR("utils_cache: uc_get_rate: plugin_format_metric failed.");
+    ERROR("utils_cache: uc_get_rate: metric_marshal_text failed.");
     return -1;
   }
 
@@ -510,9 +510,9 @@ int uc_get_value(const metric_t *metric_p, value_t *ret) {
   char *metric_string_p = NULL;
   int status;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
   if (metric_string_p == NULL) {
-    ERROR("utils_cache: uc_get_value: plugin_format_metric failed.");
+    ERROR("utils_cache: uc_get_value: metric_marshal_text failed.");
     return -1;
   }
 
@@ -621,9 +621,9 @@ int uc_get_state(const metric_t *metric_p) {
   cache_entry_t *ce = NULL;
   int ret = STATE_ERROR;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
   if (metric_string_p == NULL) {
-    ERROR("uc_get_state: plugin_format_metric failed.");
+    ERROR("uc_get_state: metric_marshal_text failed.");
     return STATE_ERROR;
   }
 
@@ -645,9 +645,9 @@ int uc_set_state(const metric_t *metric_p, int state) {
   cache_entry_t *ce = NULL;
   int ret = -1;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
   if (metric_string_p == NULL) {
-    ERROR("uc_set_state: plugin_format_metric failed.");
+    ERROR("uc_set_state: metric_marshal_text failed.");
     return STATE_ERROR;
   }
 
@@ -719,9 +719,9 @@ int uc_get_history(const metric_t *metric_p, gauge_t *ret_history,
                    size_t num_steps) {
   char *metric_string_p = NULL;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
   if (metric_string_p == NULL) {
-    ERROR("utils_cache: uc_get_history: plugin_format_metric failed.");
+    ERROR("utils_cache: uc_get_history: metric_marshal_text failed.");
     return -1;
   }
   sfree(metric_string_p);
@@ -733,9 +733,9 @@ int uc_get_hits(const metric_t *metric_p) {
   cache_entry_t *ce = NULL;
   int ret = STATE_ERROR;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
   if (metric_string_p == NULL) {
-    ERROR("uc_get_hits: plugin_format_metric failed.");
+    ERROR("uc_get_hits: metric_marshal_text failed.");
     return STATE_ERROR;
   }
 
@@ -771,9 +771,9 @@ int uc_set_hits(const metric_t *metric_p, int hits) {
   cache_entry_t *ce = NULL;
   int ret = -1;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
   if (metric_string_p == NULL) {
-    ERROR("uc_set_hits: plugin_format_metric failed.");
+    ERROR("uc_set_hits: metric_marshal_text failed.");
     return STATE_ERROR;
   }
 
@@ -815,9 +815,9 @@ int uc_inc_hits(const metric_t *metric_p, int step) {
   cache_entry_t *ce = NULL;
   int ret = -1;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
   if (metric_string_p == NULL) {
-    ERROR("uc_inc_hits: plugin_format_metric failed.");
+    ERROR("uc_inc_hits: metric_marshal_text failed.");
     return STATE_ERROR;
   }
 
@@ -951,7 +951,7 @@ static meta_data_t *uc_get_meta(const metric_t *metric_p) /* {{{ */
   cache_entry_t *ce = NULL;
   int status = 0;
 
-  metric_string_p = plugin_format_metric(metric_p);
+  metric_string_p = metric_marshal_text(metric_p);
   if (metric_string_p == NULL) {
     ERROR("utils_cache: uc_get_meta: metric_string_p failed.");
     return NULL;

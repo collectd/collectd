@@ -685,96 +685,6 @@ static void stop_read_threads(void) {
   read_threads_num = 0;
 } /* void stop_read_threads */
 
-
-/* TODO(octo): plugin_format_metric only formats the identity, i.e. the name is
- * confusing. */
-/*
- * TODO(octo): this format does not comply with the OpenMetrics text
- * representation
- * (https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format).
-metric_name [
-  "{" label_name "=" `"` label_value `"` { "," label_name "=" `"` label_value
-`"` } [ "," ] "}" ] value [ timestamp ]
-*/
-EXPORT char *plugin_format_metric(const metric_t *m) {
-  if (m == NULL) {
-    return NULL;
-  }
-
-  char *host_p = NULL;
-  int status = identity_get_label(m->identity, "__host__", &host_p);
-  if (status != 0) {
-    ERROR("plugin_format_metric: identity_get_label(\"__host__\") = %d",
-          status);
-    return NULL;
-  }
-
-  size_t buffer_length = 3 /* @, \n, and the trailing nul */ +
-                         strlen(m->identity->name) + strlen(host_p);
-
-  c_avl_iterator_t *iter_p = c_avl_get_iterator(m->identity->labels);
-  if (iter_p == NULL) {
-    return NULL;
-  }
-  char *key_p = NULL;
-  char *value_p = NULL;
-  while ((c_avl_iterator_next(iter_p, (void **)&key_p, (void **)&value_p)) ==
-         0) {
-    buffer_length += 5 /* tab, spaced equals(3), and newline */ +
-                     strlen(key_p) + strlen(value_p);
-  }
-
-  c_avl_iterator_destroy(iter_p);
-  iter_p = c_avl_get_iterator(m->identity->labels);
-  if (iter_p == NULL) {
-    return NULL;
-  }
-
-  char *buffer_p = malloc(buffer_length);
-  if (buffer_p == NULL) {
-    return buffer_p;
-  }
-  int retval =
-      snprintf(buffer_p, buffer_length, "%s@%s\n", m->identity->name, host_p);
-  while ((c_avl_iterator_next(iter_p, (void **)&key_p, (void **)&value_p)) ==
-         0) {
-    /* TODO(octo): the __host__ label should not be reported twice. */
-    buffer_length -= (retval - 1); /* discard trailing nul */
-    buffer_p += (retval - 1);
-    /* TODO(octo): this will not work, because buffer_p points at the beginning
-     * of the buffer always, i.e. snprintf will overwrite the previous
-     * content. */
-    retval = snprintf(buffer_p, buffer_length, "\t%s = %s\n", key_p, value_p);
-  }
-  return buffer_p;
-}
-
-static metric_t *metric_clone(metric_t const *orig) { /* {{{ */
-  if (orig == NULL) {
-    return NULL;
-  }
-  metric_t *m = malloc(sizeof(*m));
-  if (m == NULL) {
-    return NULL;
-  }
-  memcpy(m, orig, sizeof(*m));
-
-  /* Replace pointer fields. */
-  m->identity = identity_clone(orig->identity);
-  m->meta = meta_data_clone(orig->meta);
-
-  return m;
-} /* }}}  metric_t * metric_clone  */
-
-EXPORT void plugin_metric_free(metric_t *m) {
-  if (m == NULL) {
-    return;
-  }
-  meta_data_destroy(m->meta);
-  identity_destroy(m->identity);
-  sfree(m);
-}
-
 static void plugin_value_list_free(value_list_t *vl) /* {{{ */
 {
   if (vl == NULL)
@@ -919,7 +829,7 @@ static void *plugin_write_thread(void __attribute__((unused)) * args) /* {{{ */
       continue;
 
     (void)plugin_dispatch_metric_internal(metric_p);
-    plugin_metric_free(metric_p);
+    metric_destroy(metric_p);
   }
 
   pthread_exit(NULL);
@@ -987,7 +897,7 @@ static void stop_write_threads(void) /* {{{ */
   i = 0;
   for (q = write_queue_head; q != NULL;) {
     write_queue_t *q1 = q;
-    plugin_metric_free(q->metric);
+    metric_destroy(q->metric);
     q = q->next;
     sfree(q1);
     i++;
