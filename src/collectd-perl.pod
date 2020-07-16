@@ -200,7 +200,7 @@ structure. The general layout looks like this:
 
   [{
     name => 'data_source_name',
-    type => DS_TYPE_COUNTER || DS_TYPE_GAUGE || DS_TYPE_DERIVE || DS_TYPE_ABSOLUTE,
+    type => DS_TYPE_COUNTER || DS_TYPE_GAUGE || DS_TYPE_DERIVE,
     min  => value || undef,
     max  => value || undef
   }, ...]
@@ -578,8 +578,6 @@ available (B<:all> will export all of them):
 =item B<DS_TYPE_GAUGE>
 
 =item B<DS_TYPE_DERIVE>
-
-=item B<DS_TYPE_ABSOLUTE>
 
 =back
 

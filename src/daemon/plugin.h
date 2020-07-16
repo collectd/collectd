@@ -40,16 +40,12 @@
 #define DS_TYPE_COUNTER 0
 #define DS_TYPE_GAUGE 1
 #define DS_TYPE_DERIVE 2
-#define DS_TYPE_ABSOLUTE 3
 
 #define DS_TYPE_TO_STRING(t)                                                   \
   (t == DS_TYPE_COUNTER)                                                       \
       ? "counter"                                                              \
-      : (t == DS_TYPE_GAUGE)                                                   \
-            ? "gauge"                                                          \
-            : (t == DS_TYPE_DERIVE)                                            \
-                  ? "derive"                                                   \
-                  : (t == DS_TYPE_ABSOLUTE) ? "absolute" : "unknown"
+      : (t == DS_TYPE_GAUGE) ? "gauge"                                         \
+                             : (t == DS_TYPE_DERIVE) ? "derive" : "unknown"
 
 #ifndef LOG_ERR
 #define LOG_ERR 3
@@ -90,13 +86,11 @@ typedef struct identifier_s identifier_t;
 typedef unsigned long long counter_t;
 typedef double gauge_t;
 typedef int64_t derive_t;
-typedef uint64_t absolute_t;
 
 union value_u {
   counter_t counter;
   gauge_t gauge;
   derive_t derive;
-  absolute_t absolute;
 };
 typedef union value_u value_t;
 
@@ -384,7 +378,6 @@ int plugin_dispatch_values(value_list_t const *vl);
  *  "store_type":
  *
  *     - "gauge_t"    when "DS_TYPE_GAUGE"
- *     - "absolute_t" when "DS_TYPE_ABSOLUTE"
  *     - "derive_t"   when "DS_TYPE_DERIVE"
  *     - "counter_t"  when "DS_TYPE_COUNTER"
  *

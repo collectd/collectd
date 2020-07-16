@@ -313,9 +313,6 @@ static grpc::Status marshal_value_list(const value_list_t *vl,
     case DS_TYPE_DERIVE:
       v->set_derive(vl->values[i].derive);
       break;
-    case DS_TYPE_ABSOLUTE:
-      v->set_absolute(vl->values[i].absolute);
-      break;
     default:
       ERROR("grpc: invalid value type (%d)", value_type);
       return grpc::Status(grpc::StatusCode::INTERNAL,

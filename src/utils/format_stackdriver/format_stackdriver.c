@@ -153,10 +153,6 @@ static int format_typed_value(yajl_gen gen, int ds_type, value_t v,
     ssnprintf(integer, sizeof(integer), "%llu", diff);
     break;
   }
-  case DS_TYPE_ABSOLUTE: {
-    ssnprintf(integer, sizeof(integer), "%" PRIu64, v.absolute);
-    break;
-  }
   default: {
     ERROR("format_typed_value: unknown value type %d.", ds_type);
     return EINVAL;
@@ -182,7 +178,6 @@ static int format_typed_value(yajl_gen gen, int ds_type, value_t v,
 static int format_metric_kind(yajl_gen gen, int ds_type) {
   switch (ds_type) {
   case DS_TYPE_GAUGE:
-  case DS_TYPE_ABSOLUTE:
     return json_string(gen, "GAUGE");
   case DS_TYPE_COUNTER:
   case DS_TYPE_DERIVE:

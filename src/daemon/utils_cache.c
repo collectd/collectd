@@ -175,14 +175,6 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
       ce->values_raw[i].derive = vl->values[i].derive;
       break;
 
-    case DS_TYPE_ABSOLUTE:
-      ce->values_gauge[i] = NAN;
-      if (vl->interval > 0)
-        ce->values_gauge[i] =
-            ((double)vl->values[i].absolute) / CDTIME_T_TO_DOUBLE(vl->interval);
-      ce->values_raw[i].absolute = vl->values[i].absolute;
-      break;
-
     default:
       /* This shouldn't happen. */
       ERROR("uc_insert: Don't know how to handle data source type %i.",
@@ -378,12 +370,6 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
           ((double)diff) / (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
       ce->values_raw[i].derive = vl->values[i].derive;
     } break;
-
-    case DS_TYPE_ABSOLUTE:
-      ce->values_gauge[i] = ((double)vl->values[i].absolute) /
-                            (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
-      ce->values_raw[i].absolute = vl->values[i].absolute;
-      break;
 
     default:
       /* This shouldn't happen. */

@@ -2324,9 +2324,6 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
       if (store_percentage)
         vl->values[0].gauge *= sum ? (100.0 / sum) : NAN;
       break;
-    case DS_TYPE_ABSOLUTE:
-      vl->values[0].absolute = va_arg(ap, absolute_t);
-      break;
     case DS_TYPE_COUNTER:
       vl->values[0].counter = va_arg(ap, counter_t);
       break;

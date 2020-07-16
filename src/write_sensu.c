@@ -521,13 +521,6 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
         ERROR("write_sensu plugin: Unable to alloc memory");
         return NULL;
       }
-    } else if (ds->ds[index].type == DS_TYPE_ABSOLUTE) {
-      res = my_asprintf(&value_str, "%" PRIu64, vl->values[index].absolute);
-      if (res == -1) {
-        free(ret_str);
-        ERROR("write_sensu plugin: Unable to alloc memory");
-        return NULL;
-      }
     } else {
       res = my_asprintf(&value_str, "%" PRIu64,
                         (uint64_t)vl->values[index].counter);

@@ -286,8 +286,6 @@ static jobject ctoj_value_to_number(JNIEnv *jvm_env, /* {{{ */
     return ctoj_jdouble_to_number(jvm_env, (jdouble)value.gauge);
   if (ds_type == DS_TYPE_DERIVE)
     return ctoj_jlong_to_number(jvm_env, (jlong)value.derive);
-  if (ds_type == DS_TYPE_ABSOLUTE)
-    return ctoj_jlong_to_number(jvm_env, (jlong)value.absolute);
   else
     return NULL;
 } /* }}} jobject ctoj_value_to_number */
@@ -989,8 +987,6 @@ static int jtoc_value(JNIEnv *jvm_env, /* {{{ */
 
     if (ds_type == DS_TYPE_DERIVE)
       (*ret_value).derive = (derive_t)tmp_long;
-    else if (ds_type == DS_TYPE_ABSOLUTE)
-      (*ret_value).absolute = (absolute_t)tmp_long;
     else
       (*ret_value).counter = (counter_t)tmp_long;
   }

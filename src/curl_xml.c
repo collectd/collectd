@@ -347,11 +347,6 @@ static int cx_handle_single_value_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
         (derive_t)strtoll(node_value,
                           /* endptr = */ NULL, /* base = */ 0);
     break;
-  case DS_TYPE_ABSOLUTE:
-    vl->values[index].absolute =
-        (absolute_t)strtoull(node_value,
-                             /* endptr = */ NULL, /* base = */ 0);
-    break;
   case DS_TYPE_GAUGE:
     vl->values[index].gauge = (gauge_t)strtod(node_value,
                                               /* endptr = */ NULL);

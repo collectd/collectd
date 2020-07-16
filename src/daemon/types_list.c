@@ -72,11 +72,8 @@ static int parse_ds(data_source_t *dsrc, char *buf, size_t buf_len) {
     dsrc->type = DS_TYPE_COUNTER;
   else if (strcasecmp(fields[1], "DERIVE") == 0)
     dsrc->type = DS_TYPE_DERIVE;
-  else if (strcasecmp(fields[1], "ABSOLUTE") == 0)
-    dsrc->type = DS_TYPE_ABSOLUTE;
   else {
-    ERROR("(fields[1] = %s) != (GAUGE || COUNTER || DERIVE || ABSOLUTE)",
-          fields[1]);
+    ERROR("(fields[1] = %s) != (GAUGE || COUNTER || DERIVE)", fields[1]);
     return -1;
   }
 

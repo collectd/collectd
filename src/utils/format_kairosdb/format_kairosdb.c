@@ -160,11 +160,6 @@ static int values_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
     BUFFER_ADD("%" PRIu64, CDTIME_T_TO_MS(vl->time));
     BUFFER_ADD(",");
     BUFFER_ADD("%" PRIi64, vl->values[ds_idx].derive);
-  } else if (ds->ds[ds_idx].type == DS_TYPE_ABSOLUTE) {
-    BUFFER_ADD("[[");
-    BUFFER_ADD("%" PRIu64, CDTIME_T_TO_MS(vl->time));
-    BUFFER_ADD(",");
-    BUFFER_ADD("%" PRIu64, vl->values[ds_idx].absolute);
   } else {
     ERROR("format_kairosdb: Unknown data source type: %i", ds->ds[ds_idx].type);
     sfree(rates);

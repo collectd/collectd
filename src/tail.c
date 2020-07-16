@@ -118,12 +118,6 @@ static int ctail_config_add_match_dstype(ctail_config_match_t *cm,
       cm->flags |= UTILS_MATCH_CF_DERIVE_INC;
     else
       cm->flags = 0;
-  } else if (strncasecmp("Absolute", ds_type, strlen("Absolute")) == 0) {
-    cm->flags = UTILS_MATCH_DS_TYPE_ABSOLUTE;
-    if (strcasecmp("AbsoluteSet", ds_type) == 0)
-      cm->flags |= UTILS_MATCH_CF_ABSOLUTE_SET;
-    else
-      cm->flags = 0;
   } else {
     cm->flags = 0;
   }

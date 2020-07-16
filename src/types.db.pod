@@ -44,9 +44,7 @@ names must be unique within a data set.
 
 =item
 
-I<ds-type> may be B<DERIVE>, B<GAUGE>, or B<COUNTER>. For historic reasons a
-type called B<ABSOLUTE> is also supported, but its use is strongly discouraged,
-and it should not be used for new metric type definitions.
+I<ds-type> may be B<DERIVE>, B<GAUGE>, or B<COUNTER>.
 
 =item
 

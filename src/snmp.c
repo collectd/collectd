@@ -1090,7 +1090,6 @@ static value_t csnmp_value_list_to_value(const struct variable_list *vl,
       switch (type) {
       case DS_TYPE_COUNTER:
       case DS_TYPE_DERIVE:
-      case DS_TYPE_ABSOLUTE:
         memset(&ret, 0, sizeof(ret));
         break;
 
@@ -1120,8 +1119,6 @@ static value_t csnmp_value_list_to_value(const struct variable_list *vl,
       ret.derive = (derive_t)tmp_signed;
     else
       ret.derive = (derive_t)tmp_unsigned;
-  } else if (type == DS_TYPE_ABSOLUTE) {
-    ret.absolute = (absolute_t)tmp_unsigned;
   } else {
     ERROR("snmp plugin: csnmp_value_list_to_value: Unknown data source "
           "type: %i.",

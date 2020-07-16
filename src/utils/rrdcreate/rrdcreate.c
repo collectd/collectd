@@ -268,8 +268,6 @@ static int ds_get(char ***ret, /* {{{ */
       type = "GAUGE";
     else if (d->type == DS_TYPE_DERIVE)
       type = "DERIVE";
-    else if (d->type == DS_TYPE_ABSOLUTE)
-      type = "ABSOLUTE";
     else {
       P_ERROR("ds_get: Unknown DS type: %i", d->type);
       break;
@@ -343,7 +341,7 @@ static int srrd_create(const char *filename, /* {{{ */
 
   return status;
 } /* }}} int srrd_create */
-  /* #endif HAVE_THREADSAFE_LIBRRD */
+/* #endif HAVE_THREADSAFE_LIBRRD */
 
 #else  /* !HAVE_THREADSAFE_LIBRRD */
 static int srrd_create(const char *filename, /* {{{ */

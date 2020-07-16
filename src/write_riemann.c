@@ -384,8 +384,6 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
 
     if (ds->ds[index].type == DS_TYPE_DERIVE)
       metric = (int64_t)vl->values[index].derive;
-    else if (ds->ds[index].type == DS_TYPE_ABSOLUTE)
-      metric = (int64_t)vl->values[index].absolute;
     else
       metric = (int64_t)vl->values[index].counter;
 
