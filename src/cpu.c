@@ -490,14 +490,16 @@ static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
       .name = "cpu_count",
       .type = VALUE_TYPE_GAUGE,
   };
-  metric_family_metrics_append(&fam, (value_t){.gauge = value}, NULL, 0);
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = value,
+                                    });
 
   int status = plugin_dispatch_metric_family(&fam);
   if (status != 0) {
     ERROR("plugin_dispatch_metric_family failed: %s", STRERROR(status));
   }
 
-  metric_list_reset(&fam.metric);
+  metric_family_metric_reset(&fam);
   return;
 } /* }}} void cpu_commit_num_cpu */
 
@@ -518,7 +520,12 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
       .name = "cpu_usage_total",
       .type = VALUE_TYPE_DERIVE,
   };
+
+  metric_t m = {0};
+
   for (int state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
+    metric_label_set(&m, "state", cpu_state_names[state]);
+
     for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
       cpu_state_t *s = get_cpu_state(cpu_num, state);
 
@@ -527,15 +534,9 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 
       char cpu_num_str[16];
       snprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
+      metric_label_set(&m, "cpu", cpu_num_str);
 
-      label_t labels[] = {
-          {"cpu", cpu_num_str},
-          {"state", cpu_state_names[state]},
-      };
-
-      metric_family_metrics_append(
-          &fam, (value_t){.derive = s->conv.last_value.derive}, labels,
-          STATIC_ARRAY_SIZE(labels));
+      metric_family_metric_append(&fam, m);
     }
   }
 
@@ -544,7 +545,8 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
     ERROR("plugin_dispatch_metric_family failed: %s", STRERROR(status));
   }
 
-  metric_list_reset(&fam.metric);
+  metric_reset(&m);
+  metric_family_metric_reset(&fam);
 } /* }}} void cpu_commit_without_aggregation */
 
 /* Aggregates the internal state and dispatches the metrics. */
