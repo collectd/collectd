@@ -45,7 +45,7 @@ DEF_TEST(metric_name) {
           .name = "unit_test",
           .value = (value_t){.gauge = 42},
           .type = METRIC_TYPE_GAUGE,
-          .want = "unit_test 42",
+          .want = "unit_test 42 1592748157\r\n",
       },
       {
           .name = "test_with_label",
@@ -55,7 +55,7 @@ DEF_TEST(metric_name) {
           .value = (value_t){.counter = 0},
           .type = METRIC_TYPE_COUNTER,
           .want =
-              "test_with_label.alpha=first.beta=second 0",
+              "test_with_label.alpha=first.beta=second 0 1592748157\r\n",
       },
       {
           .name = "separate_instances_test",
@@ -65,13 +65,13 @@ DEF_TEST(metric_name) {
           .value = (value_t){.counter = 0},
           .type = METRIC_TYPE_COUNTER,
           .flags = GRAPHITE_SEPARATE_INSTANCES,
-          .want = "separate_instances_test.alpha.first.beta.second 0",
+          .want = "separate_instances_test.alpha.first.beta.second 0 1592748157\r\n",
       },
       {
           .name = "escaped:metric_name",
           .value = (value_t){.gauge = NAN},
           .type = METRIC_TYPE_GAUGE,
-          .want = "escaped_metric_name nan",
+          .want = "escaped_metric_name nan 1592748157\r\n",
       },
       {
           .name = "escaped_label_value",
@@ -81,7 +81,7 @@ DEF_TEST(metric_name) {
           .value = (value_t){.counter = 18446744073709551615LLU},
           .type = DS_TYPE_COUNTER,
           .want = "escaped_label_value.alpha=first_value.beta=second_value "
-                  "18446744073709551615",
+                  "18446744073709551615 1592748157\r\n",
       },
   };
 
@@ -102,13 +102,7 @@ DEF_TEST(metric_name) {
 
     strbuf_t buf = STRBUF_CREATE;
     EXPECT_EQ_INT(0, format_graphite(&buf, &m, "", "", '_', cases[i].flags));
-
-    strbuf_t want = STRBUF_CREATE;
-    if (cases[i].want != NULL) {
-      strbuf_print(&want, cases[i].want);
-      strbuf_print(&want, " 1592748157\r\n");
-    }
-    EXPECT_EQ_STR(want.ptr, buf.ptr);
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
 
     STRBUF_DESTROY(want);
     STRBUF_DESTROY(buf);
