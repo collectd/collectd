@@ -105,7 +105,7 @@ debian_default_toolchain_task:
     - make -j2 -sk
   tests_script:
     - make -j2 -sk check
-    - /checks/check-built-plugins.sh
+    #- /checks/check-built-plugins.sh
   on_failure:
     debug_script: cat test-suite.log || true
 
@@ -142,7 +142,7 @@ redhat_default_toolchain_task:
     - make -j2 -sk
   tests_script:
     - make -j2 -sk check
-    - /checks/check-built-plugins.sh
+    #- /checks/check-built-plugins.sh
   on_failure:
     debug_script: cat test-suite.log || true
 
