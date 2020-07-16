@@ -31,6 +31,7 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "utils/strbuf/strbuf.h"
 #include "utils_cache.h"
 
 /* for getaddrinfo */
@@ -205,7 +206,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
     pthread_mutex_unlock(&strerror_r_lock);
   }
-    /* #endif !HAVE_STRERROR_R */
+  /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
   {
@@ -221,7 +222,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
                  buflen);
     }
   }
-    /* #endif STRERROR_R_CHAR_P */
+  /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
@@ -793,8 +794,8 @@ unsigned long long htonll(unsigned long long n) {
 #endif /* HAVE_HTONLL */
 
 #if FP_LAYOUT_NEED_NOTHING
-  /* Well, we need nothing.. */
-  /* #endif FP_LAYOUT_NEED_NOTHING */
+/* Well, we need nothing.. */
+/* #endif FP_LAYOUT_NEED_NOTHING */
 
 #elif FP_LAYOUT_NEED_ENDIANFLIP || FP_LAYOUT_NEED_INTSWAP
 #if FP_LAYOUT_NEED_ENDIANFLIP
@@ -905,54 +906,37 @@ int format_name(char *ret, int ret_len, const char *hostname,
 int format_values(char *ret, size_t ret_len, /* {{{ */
                   const data_set_t *ds, const value_list_t *vl,
                   bool store_rates) {
-  size_t offset = 0;
-  int status;
-  gauge_t *rates = NULL;
-
   assert(0 == strcmp(ds->type, vl->type));
 
-  memset(ret, 0, ret_len);
+  ret[0] = 0;
+  strbuf_t buf = STRBUF_CREATE_FIXED(ret, ret_len);
 
-#define BUFFER_ADD(...)                                                        \
-  do {                                                                         \
-    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);            \
-    if (status < 1) {                                                          \
-      sfree(rates);                                                            \
-      return -1;                                                               \
-    } else if (((size_t)status) >= (ret_len - offset)) {                       \
-      sfree(rates);                                                            \
-      return -1;                                                               \
-    } else                                                                     \
-      offset += ((size_t)status);                                              \
-  } while (0)
+  strbuf_printf(&buf, "%.3f", CDTIME_T_TO_DOUBLE(vl->time));
 
-  BUFFER_ADD("%.3f", CDTIME_T_TO_DOUBLE(vl->time));
-
+  gauge_t *rates = NULL;
   for (size_t i = 0; i < ds->ds_num; i++) {
-    if (ds->ds[i].type == DS_TYPE_GAUGE)
-      BUFFER_ADD(":" GAUGE_FORMAT, vl->values[i].gauge);
-    else if (store_rates) {
+    if (ds->ds[i].type == DS_TYPE_GAUGE) {
+      strbuf_printf(&buf, ":" GAUGE_FORMAT, vl->values[i].gauge);
+    } else if (store_rates) {
       if (rates == NULL)
         rates = uc_get_rate(ds, vl);
       if (rates == NULL) {
         WARNING("format_values: uc_get_rate failed.");
         return -1;
       }
-      BUFFER_ADD(":" GAUGE_FORMAT, rates[i]);
+      strbuf_printf(&buf, ":" GAUGE_FORMAT, rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      BUFFER_ADD(":%" PRIu64, (uint64_t)vl->values[i].counter);
+      strbuf_printf(&buf, ":%" PRIu64, (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      BUFFER_ADD(":%" PRIi64, vl->values[i].derive);
+      strbuf_printf(&buf, ":%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      BUFFER_ADD(":%" PRIu64, vl->values[i].absolute);
+      strbuf_printf(&buf, ":%" PRIu64, vl->values[i].absolute);
     else {
       ERROR("format_values: Unknown data source type: %i", ds->ds[i].type);
       sfree(rates);
       return -1;
     }
   } /* for ds->ds_num */
-
-#undef BUFFER_ADD
 
   sfree(rates);
   return 0;

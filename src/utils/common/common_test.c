@@ -375,6 +375,44 @@ DEF_TEST(value_to_rate) {
   return 0;
 }
 
+DEF_TEST(format_values) {
+  struct {
+    int ds_type;
+    value_t value;
+    char const *want;
+  } cases[] = {
+      {DS_TYPE_GAUGE, (value_t){.gauge = 47.11}, "1592558427.435:47.11"},
+      {DS_TYPE_GAUGE, (value_t){.gauge = NAN}, "1592558427.435:nan"},
+      {DS_TYPE_DERIVE, (value_t){.derive = 42}, "1592558427.435:42"},
+      {DS_TYPE_COUNTER, (value_t){.counter = 18446744073709551615LLU},
+       "1592558427.435:18446744073709551615"},
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    char buf[1024];
+
+    data_set_t ds = {
+        .type = "testing",
+        .ds_num = 1,
+        .ds =
+            &(data_source_t){
+                .type = cases[i].ds_type,
+            },
+    };
+    value_list_t vl = {
+        .type = "testing",
+        .values = &cases[i].value,
+        .values_len = 1,
+        .time = 1709996590700628541,
+    };
+
+    EXPECT_EQ_INT(0, format_values(buf, sizeof(buf), &ds, &vl, false));
+    EXPECT_EQ_STR(cases[i].want, buf);
+  }
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(sstrncpy);
   RUN_TEST(sstrdup);
@@ -385,6 +423,7 @@ int main(void) {
   RUN_TEST(strunescape);
   RUN_TEST(parse_values);
   RUN_TEST(value_to_rate);
+  RUN_TEST(format_values);
 
   END_TEST;
 }

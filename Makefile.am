@@ -140,7 +140,8 @@ noinst_LTLIBRARIES = \
 	liblookup.la \
 	libmetadata.la \
 	libmount.la \
-	liboconfig.la
+	liboconfig.la \
+	libstrbuf.la
 
 
 check_LTLIBRARIES = \
@@ -157,6 +158,7 @@ check_PROGRAMS = \
 	test_utils_latency \
 	test_utils_message_parser \
 	test_utils_mount \
+	test_utils_strbuf \
 	test_utils_subst \
 	test_utils_time \
 	test_utils_vl_lookup \
@@ -397,7 +399,7 @@ libavltree_la_SOURCES = \
 libcommon_la_SOURCES = \
 	src/utils/common/common.c \
 	src/utils/common/common.h
-libcommon_la_LIBADD = $(COMMON_LIBS)
+libcommon_la_LIBADD = libstrbuf.la $(COMMON_LIBS)
 
 libheap_la_SOURCES = \
 	src/utils/heap/heap.c \
@@ -545,6 +547,14 @@ if BUILD_WITH_LIBKSTAT
 test_utils_mount_LDADD += -lkstat
 endif
 
+libstrbuf_la_SOURCES = \
+		       src/utils/strbuf/strbuf.c \
+		       src/utils/strbuf/strbuf.h
+
+test_utils_strbuf_SOURCES = \
+			    src/utils/strbuf/strbuf_test.c \
+			    src/testing.h
+test_utils_strbuf_LDADD = libstrbuf.la
 
 libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/client.c \

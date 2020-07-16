@@ -28,6 +28,10 @@
 #define TESTING_H 1
 
 #include <inttypes.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static int fail_count__;
 static int check_count__;
