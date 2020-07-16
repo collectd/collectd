@@ -242,6 +242,8 @@ DEF_TEST(metric_family) {
 
     EXPECT_EQ_STR(cases[i].want, buf.ptr);
     STRBUF_DESTROY(buf);
+
+    metric_family_free(fam);
   }
 
   return 0;
