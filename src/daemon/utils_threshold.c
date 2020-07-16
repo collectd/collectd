@@ -79,12 +79,12 @@ static threshold_t *threshold_search(metric_t const *m) { /* {{{ */
     return NULL;
   }
 
-  label_pair_t *instance = label_set_get(m->label, "instance");
+  char const *instance = metric_label_get(m, "instance");
   if (instance == NULL) {
     return NULL;
   }
 
-  return threshold_get(instance->value, NULL, NULL, NULL);
+  return threshold_get(instance, NULL, NULL, NULL);
 } /* }}} threshold_t *threshold_search */
 
 int ut_search_threshold(metric_t const *m, /* {{{ */

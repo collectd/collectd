@@ -1586,22 +1586,22 @@ metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
       .interval = vl->interval,
   };
 
-  status = label_set_add(&m.label, "instance",
-                         (strlen(vl->host) != 0) ? vl->host : hostname_g);
+  status = metric_label_set(&m, "instance",
+                            (strlen(vl->host) != 0) ? vl->host : hostname_g);
   if (strlen(vl->plugin_instance) != 0) {
-    status = status || label_set_add(&m.label, vl->plugin, vl->plugin_instance);
+    status = status || metric_label_set(&m, vl->plugin, vl->plugin_instance);
   }
   if (strlen(vl->type_instance) != 0) {
     char const *name = "type";
     if (strlen(vl->plugin_instance) == 0) {
       name = vl->plugin;
     }
-    status = status || label_set_add(&m.label, name, vl->type_instance);
+    status = status || metric_label_set(&m, name, vl->type_instance);
   }
 
   status = status || metric_list_add(&fam->metric, m);
   if (status != 0) {
-    label_set_reset(&m.label);
+    metric_reset(&m);
     metric_family_free(fam);
     errno = status;
     return NULL;
