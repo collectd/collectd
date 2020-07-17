@@ -22,11 +22,13 @@
  *
  * Authors:
  *   Aurelien beorn Rougemont <beorn at gandi dot net>
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #include "collectd.h"
 
 #include "plugin.h"
+#include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 
 #include "utils/format_kairosdb/format_kairosdb.h"
@@ -91,194 +93,6 @@ static int kairosdb_escape_string(char *buffer, size_t buffer_size, /* {{{ */
 
   return 0;
 } /* }}} int kairosdb_escape_string */
-
-static int values_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
-                              const data_set_t *ds, const value_list_t *vl,
-                              int store_rates, size_t ds_idx) {
-  size_t offset = 0;
-  gauge_t *rates = NULL;
-
-  memset(buffer, 0, buffer_size);
-
-#define BUFFER_ADD(...)                                                        \
-  do {                                                                         \
-    int status;                                                                \
-    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
-    if (status < 1) {                                                          \
-      sfree(rates);                                                            \
-      return -1;                                                               \
-    } else if (((size_t)status) >= (buffer_size - offset)) {                   \
-      sfree(rates);                                                            \
-      return -ENOMEM;                                                          \
-    } else                                                                     \
-      offset += ((size_t)status);                                              \
-  } while (0)
-
-  if (ds->ds[ds_idx].type == DS_TYPE_GAUGE) {
-    if (isfinite(vl->values[ds_idx].gauge)) {
-      BUFFER_ADD("[[");
-      BUFFER_ADD("%" PRIu64, CDTIME_T_TO_MS(vl->time));
-      BUFFER_ADD(",");
-      BUFFER_ADD(JSON_GAUGE_FORMAT, vl->values[ds_idx].gauge);
-    } else {
-      DEBUG("utils_format_kairosdb: invalid vl->values[ds_idx].gauge for "
-            "%s|%s|%s|%s|%s",
-            vl->plugin, vl->plugin_instance, vl->type, vl->type_instance,
-            ds->ds[ds_idx].name);
-      return -1;
-    }
-  } else if (store_rates) {
-    if (rates == NULL)
-      rates = uc_get_rate_vl(ds, vl);
-    if (rates == NULL) {
-      WARNING("utils_format_kairosdb: uc_get_rate_vl failed for %s|%s|%s|%s|%s",
-              vl->plugin, vl->plugin_instance, vl->type, vl->type_instance,
-              ds->ds[ds_idx].name);
-
-      return -1;
-    }
-
-    if (isfinite(rates[ds_idx])) {
-      BUFFER_ADD("[[");
-      BUFFER_ADD("%" PRIu64, CDTIME_T_TO_MS(vl->time));
-      BUFFER_ADD(",");
-      BUFFER_ADD(JSON_GAUGE_FORMAT, rates[ds_idx]);
-    } else {
-      WARNING("utils_format_kairosdb: invalid rates[ds_idx] for %s|%s|%s|%s|%s",
-              vl->plugin, vl->plugin_instance, vl->type, vl->type_instance,
-              ds->ds[ds_idx].name);
-      sfree(rates);
-      return -1;
-    }
-  } else if (ds->ds[ds_idx].type == DS_TYPE_COUNTER) {
-    BUFFER_ADD("[[");
-    BUFFER_ADD("%" PRIu64, CDTIME_T_TO_MS(vl->time));
-    BUFFER_ADD(",");
-    BUFFER_ADD("%" PRIu64, (uint64_t)vl->values[ds_idx].counter);
-  } else if (ds->ds[ds_idx].type == DS_TYPE_DERIVE) {
-    BUFFER_ADD("[[");
-    BUFFER_ADD("%" PRIu64, CDTIME_T_TO_MS(vl->time));
-    BUFFER_ADD(",");
-    BUFFER_ADD("%" PRIi64, vl->values[ds_idx].derive);
-  } else {
-    ERROR("format_kairosdb: Unknown data source type: %i", ds->ds[ds_idx].type);
-    sfree(rates);
-    return -1;
-  }
-  BUFFER_ADD("]]");
-
-#undef BUFFER_ADD
-
-  DEBUG("format_kairosdb: values_to_kairosdb: buffer = %s;", buffer);
-  sfree(rates);
-  return 0;
-} /* }}} int values_to_kairosdb */
-
-static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
-                                  const data_set_t *ds, const value_list_t *vl,
-                                  int store_rates,
-                                  char const *const *http_attrs,
-                                  size_t http_attrs_num, int data_ttl,
-                                  char const *metrics_prefix) {
-  char temp[512];
-  size_t offset = 0;
-  int status;
-
-  memset(buffer, 0, buffer_size);
-
-#define BUFFER_ADD(...)                                                        \
-  do {                                                                         \
-    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
-    if (status < 1)                                                            \
-      return -1;                                                               \
-    else if (((size_t)status) >= (buffer_size - offset))                       \
-      return -ENOMEM;                                                          \
-    else                                                                       \
-      offset += ((size_t)status);                                              \
-  } while (0)
-
-#define BUFFER_ADD_KEYVAL(key, value)                                          \
-  do {                                                                         \
-    status = kairosdb_escape_string(temp, sizeof(temp), (value));              \
-    if (status != 0)                                                           \
-      return status;                                                           \
-    BUFFER_ADD(",\"%s\": %s", (key), temp);                                    \
-  } while (0)
-
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    /* All value lists have a leading comma. The first one will be replaced with
-     * a square bracket in `format_kairosdb_finalize'. */
-    BUFFER_ADD(",{\"name\":\"");
-
-    if (metrics_prefix != NULL) {
-      BUFFER_ADD("%s.", metrics_prefix);
-    }
-
-    BUFFER_ADD("%s", vl->plugin);
-
-    status = values_to_kairosdb(temp, sizeof(temp), ds, vl, store_rates, i);
-    if (status != 0)
-      return status;
-
-    BUFFER_ADD("\", \"datapoints\": %s", temp);
-
-    /*
-     * Now adds meta data to metric as tags
-     */
-
-    memset(temp, 0, sizeof(temp));
-
-    if (data_ttl != 0)
-      BUFFER_ADD(", \"ttl\": %i", data_ttl);
-
-    BUFFER_ADD(", \"tags\":\{");
-
-    BUFFER_ADD("\"host\": \"%s\"", vl->host);
-    for (size_t j = 0; j < http_attrs_num; j += 2) {
-      BUFFER_ADD(", \"%s\":", http_attrs[j]);
-      BUFFER_ADD(" \"%s\"", http_attrs[j + 1]);
-    }
-
-    if (strlen(vl->plugin_instance))
-      BUFFER_ADD_KEYVAL("plugin_instance", vl->plugin_instance);
-    BUFFER_ADD_KEYVAL("type", vl->type);
-    if (strlen(vl->type_instance))
-      BUFFER_ADD_KEYVAL("type_instance", vl->type_instance);
-    if (ds->ds_num != 1)
-      BUFFER_ADD_KEYVAL("ds", ds->ds[i].name);
-    BUFFER_ADD("}}");
-  } /* for ds->ds_num */
-
-#undef BUFFER_ADD_KEYVAL
-#undef BUFFER_ADD
-
-  DEBUG("format_kairosdb: value_list_to_kairosdb: buffer = %s;", buffer);
-
-  return 0;
-} /* }}} int value_list_to_kairosdb */
-
-static int format_kairosdb_value_list_nocheck(
-    char *buffer, /* {{{ */
-    size_t *ret_buffer_fill, size_t *ret_buffer_free, const data_set_t *ds,
-    const value_list_t *vl, int store_rates, size_t temp_size,
-    char const *const *http_attrs, size_t http_attrs_num, int data_ttl,
-    char const *metrics_prefix) {
-  char temp[temp_size];
-  int status;
-
-  status = value_list_to_kairosdb(temp, sizeof(temp), ds, vl, store_rates,
-                                  http_attrs, http_attrs_num, data_ttl,
-                                  metrics_prefix);
-  if (status != 0)
-    return status;
-  temp_size = strlen(temp);
-
-  memcpy(buffer + (*ret_buffer_fill), temp, temp_size + 1);
-  (*ret_buffer_fill) += temp_size;
-  (*ret_buffer_free) -= temp_size;
-
-  return 0;
-} /* }}} int format_kairosdb_value_list_nocheck */
 
 int format_kairosdb_initialize(char *buffer, /* {{{ */
                                size_t *ret_buffer_fill,
@@ -351,3 +165,130 @@ int format_kairosdb_value_list(char *buffer, /* {{{ */
       (*ret_buffer_free) - 2, http_attrs, http_attrs_num, data_ttl,
       metrics_prefix);
 } /* }}} int format_kairosdb_value_list */
+
+int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
+                           size_t *ret_buffer_free, const metric_t *metric_p,
+                           int store_rates, char const *const *http_attrs,
+                           size_t http_attrs_num, int data_ttl,
+                           char const *metrics_prefix) {
+  char temp[1024];
+  gauge_t rate = -1;
+  int status = 0;
+
+  if ((buffer_p == NULL) || (ret_buffer_fill == NULL) ||
+      (ret_buffer_free == NULL) || (metric_p == NULL) ||
+      (metric_p->identity == NULL) || (metric_p->ds == NULL))
+    return -EINVAL;
+
+  if (*ret_buffer_free < 3)
+    return -ENOMEM;
+
+  /* Respect high water marks and fere size */
+  char *buffer = buffer_p + (*ret_buffer_fill);
+  size_t buffer_size = *ret_buffer_free;
+  size_t offset = 0;
+
+#define BUFFER_ADD(...)                                                        \
+  do {                                                                         \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
+    if (status < 1)                                                            \
+      return -1;                                                               \
+    else if (((size_t)status) >= (buffer_size - offset))                       \
+      return -ENOMEM;                                                          \
+    else                                                                       \
+      offset += ((size_t)status);                                              \
+  } while (0)
+
+#define BUFFER_ADD_KEYVAL(key, value)                                          \
+  do {                                                                         \
+    status = kairosdb_escape_string(temp, sizeof(temp), (value));              \
+    if (status != 0)                                                           \
+      return status;                                                           \
+    BUFFER_ADD(",\"%s\":%s", (key), temp);                                     \
+  } while (0)
+
+  /* Designed to be called multiple times, as when adding metrics from a
+     metrics_lisat_t object. When finalizing, the initial leading comma
+     will be replaced by a [ */
+  BUFFER_ADD(",{");
+  BUFFER_ADD("\"name\":\"");
+  if (metrics_prefix != NULL) {
+    BUFFER_ADD("%s.", metrics_prefix);
+  }
+  BUFFER_ADD("%s\",", metric_p->identity->name);
+
+  BUFFER_ADD("\"datapoints\":");
+  if (metric_p->value_ds_type == DS_TYPE_GAUGE) {
+    if (isfinite(metric_p->value.gauge))
+      BUFFER_ADD(JSON_GAUGE_FORMAT, metric_p->value.gauge);
+    else
+      BUFFER_ADD("null");
+  } else if (store_rates) {
+    if (rate == -1)
+      status = uc_get_rate(metric_p, &rate);
+    if (status != 0) {
+      WARNING("utils_format_json: uc_get_rate failed.");
+      buffer_p[*ret_buffer_fill] = '0';
+      return -1;
+    }
+
+    if (isfinite(rate))
+      BUFFER_ADD(JSON_GAUGE_FORMAT, rate);
+    else
+      BUFFER_ADD("null");
+  } else if (metric_p->value_ds_type == DS_TYPE_COUNTER)
+    BUFFER_ADD("%" PRIu64, (uint64_t)metric_p->value.counter);
+  else if (metric_p->value_ds_type == DS_TYPE_DERIVE)
+    BUFFER_ADD("%" PRIi64, metric_p->value.derive);
+  else if (metric_p->value_ds_type == DS_TYPE_ABSOLUTE)
+    BUFFER_ADD("%" PRIu64, metric_p->value.absolute);
+  else {
+    ERROR("format_json: Unknown data source type: %i", metric_p->value_ds_type);
+    buffer_p[*ret_buffer_fill] = '0';
+    return -1;
+  }
+  /*
+   * Now add meta data to metric as tags
+   */
+  if (data_ttl != 0)
+    BUFFER_ADD(", \"ttl\": %i", data_ttl);
+
+  BUFFER_ADD(", \"tags\":{");
+
+  BUFFER_ADD(",\"time\":%.3f", CDTIME_T_TO_DOUBLE(metric_p->time));
+  BUFFER_ADD(",\"interval\":%.3f", CDTIME_T_TO_DOUBLE(metric_p->interval));
+  BUFFER_ADD_KEYVAL("plugin", metric_p->plugin);
+  BUFFER_ADD_KEYVAL("type", metric_p->type);
+  BUFFER_ADD_KEYVAL("dsname", metric_p->ds->name);
+  BUFFER_ADD_KEYVAL("dstype", DS_TYPE_TO_STRING(metric_p->value_ds_type));
+  for (size_t j = 0; j < http_attrs_num; j += 2) {
+    BUFFER_ADD(", \"%s\":", http_attrs[j]);
+    BUFFER_ADD(" \"%s\"", http_attrs[j + 1]);
+  }
+
+  if (metric_p->identity->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->root_p);
+    if (iter_p != NULL) {
+      char *key_p = NULL;
+      char *value_p = NULL;
+      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
+                                  (void **)&value_p)) == 0) {
+        if ((key_p != NULL) && (value_p != NULL)) {
+          BUFFER_ADD_KEYVAL(key_p, value_p);
+        }
+      }
+      c_avl_iterator_destroy(iter_p);
+    }
+  }
+
+  BUFFER_ADD("}}");
+
+#undef BUFFER_ADD_KEYVAL
+#undef BUFFER_ADD
+
+  /* Update hihg water mark and free size */
+  (*ret_buffer_fill) += offset;
+  (*ret_buffer_free) -= offset;
+
+  return 0;
+} /* }}} */
