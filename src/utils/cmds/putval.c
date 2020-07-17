@@ -149,7 +149,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     return CMD_PARSE_ERROR;
   }
 
-  metric.identity = create_identity(plugin, type, data_source, hostname);
+  metric.identity = identity_create_legacy(plugin, type, data_source, hostname);
   if (metric.identity == NULL) {
     sfree(identifier_copy);
     return CMD_PARSE_ERROR;

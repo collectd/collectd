@@ -101,7 +101,7 @@ int handle_getthreshold(FILE *fh, char *buffer) {
   }
 
   metric_t metric = METRIC_STRUCT_INIT;
-  metric.identity = create_identity(plugin, type, data_source, host);
+  metric.identity = identity_create_legacy(plugin, type, data_source, host);
   sstrncpy(metric.plugin, plugin, sizeof(metric.plugin));
   sstrncpy(metric.type, type, sizeof(metric.type));
   metric.ds = plugin_get_ds(metric.type);
