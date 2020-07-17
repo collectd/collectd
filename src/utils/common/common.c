@@ -989,7 +989,8 @@ int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
   char *plugin = NULL;
   char *type = NULL;
   char *data_source = NULL;
-  int status = parse_identifier(str_copy, &host, &plugin, &type, &data_source, default_host);
+  int status = parse_identifier(str_copy, &host, &plugin, &type, &data_source,
+                                default_host);
   if (status != 0) {
     return status;
   }
