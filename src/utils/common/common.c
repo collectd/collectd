@@ -904,15 +904,11 @@ int format_name(char *ret, int ret_len, const char *hostname,
   return 0;
 } /* int format_name */
 
-int format_values(char *ret, size_t ret_len, /* {{{ */
-                  metric_single_t const *m, bool store_rates) {
-  ret[0] = 0;
-  strbuf_t buf = STRBUF_CREATE_FIXED(ret, ret_len);
+int format_values(strbuf_t *buf, metric_t const *m, bool store_rates) {
+  strbuf_printf(buf, "%.3f", CDTIME_T_TO_DOUBLE(m->time));
 
-  strbuf_printf(&buf, "%.3f", CDTIME_T_TO_DOUBLE(m->time));
-
-  if (m->value_type == DS_TYPE_GAUGE)
-    strbuf_printf(&buf, ":" GAUGE_FORMAT, m->value.gauge);
+  if (m->family->type == METRIC_TYPE_GAUGE)
+    strbuf_printf(buf, ":" GAUGE_FORMAT, m->value.gauge);
   else if (store_rates) {
     gauge_t rates = NAN;
     int status = uc_get_rate(m, &rates);
@@ -920,42 +916,18 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
       WARNING("format_values: uc_get_rate failed.");
       return status;
     }
-    strbuf_printf(&buf, ":" GAUGE_FORMAT, rates);
-  } else if (m->value_type == DS_TYPE_COUNTER)
-    strbuf_printf(&buf, ":%" PRIu64, (uint64_t)m->value.counter);
-  else if (m->value_type == DS_TYPE_DERIVE)
-    strbuf_printf(&buf, ":%" PRIi64, m->value.derive);
-  else {
-    ERROR("format_values: Unknown data source type: %i", m->value_type);
+    strbuf_printf(buf, ":" GAUGE_FORMAT, rates);
+  } else if (m->family->type == METRIC_TYPE_COUNTER) {
+    strbuf_printf(buf, ":%" PRIu64, m->value.counter);
+  } else if (m->family->type == DS_TYPE_DERIVE) {
+    strbuf_printf(buf, ":%" PRIi64, m->value.derive);
+  } else {
+    ERROR("format_values: Unknown metric type: %d", m->family->type);
     return -1;
   }
 
   return 0;
 } /* }}} int format_values */
-
-int format_values_vl(char *ret, size_t ret_len, /* {{{ */
-                     const data_set_t *ds, const value_list_t *vl,
-                     bool store_rates) {
-  metrics_list_t *ml = NULL;
-  assert(0 == strcmp(ds->type, vl->type));
-  int retval = plugin_convert_values_to_metrics(vl, &ml);
-  if (retval != 0) {
-    return retval;
-  }
-  metrics_list_t *index_p = ml;
-  while (index_p != NULL) {
-    retval = format_values(ret, ret_len, &index_p->metric, store_rates);
-    if (retval != 0) {
-      destroy_metrics_list(ml);
-      return retval;
-    }
-    ret[strlen(ret)] = '\n';
-    ret_len -= strlen(ret) + 1;
-    index_p = index_p->next_p;
-  }
-  destroy_metrics_list(ml);
-  return 0;
-}
 
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
                      char **ret_type, char **ret_data_source,
@@ -1233,7 +1205,7 @@ int notification_init(notification_t *n, int severity, const char *message,
 } /* int notification_init */
 
 int notification_init_metric(notification_t *n, int severity,
-                             char const *message, metric_single_t const *m) {
+                             char const *message, metric_t const *m) {
   if ((n == NULL) || (message == NULL) || (m == NULL)) {
     return EINVAL;
   }
@@ -1349,9 +1321,8 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     return 0;
   }
 
-  /* Counter and absolute can't handle negative rates. Reset "last time"
-   * to zero, so that the next valid rate will re-initialize the
-   * structure. */
+  /* Counter can't handle negative rates. Reset "last time" to zero, so that
+   * the next valid rate will re-initialize the structure. */
   if ((rate < 0.0) && (ds_type == DS_TYPE_COUNTER)) {
     memset(state, 0, sizeof(*state));
     return EINVAL;
