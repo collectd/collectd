@@ -473,7 +473,7 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/utils_time.h
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
-libplugin_mock_la_LIBADD = libcommon.la libignorelist.la $(COMMON_LIBS)
+libplugin_mock_la_LIBADD = libcommon.la libignorelist.la libmetadata.la $(COMMON_LIBS)
 
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
