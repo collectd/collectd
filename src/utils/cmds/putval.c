@@ -44,7 +44,8 @@ static int is_quoted(char const *str, size_t len) {
 }
 
 /* TODO(octo): add an option to set metric->value_type */
-static int set_option(metric_t *m, char const *key, char const *value, cmd_error_handler_t *err) {
+static int set_option(metric_single_t *m, char const *key, char const *value,
+                      cmd_error_handler_t *err) {
   if ((m == NULL) || (key == NULL) || (value == NULL))
     return -1;
 
@@ -107,7 +108,8 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   }
 
   if (argc < 2) {
-    cmd_error(CMD_PARSE_ERROR, errhndl, "Missing identifier and/or value-list.");
+    cmd_error(CMD_PARSE_ERROR, errhndl,
+              "Missing identifier and/or value-list.");
     return CMD_PARSE_ERROR;
   }
 
@@ -116,15 +118,17 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   identity_t *id = identity_unmarshal_text(identifier);
   if (id == NULL) {
     int err = errno;
-    DEBUG("cmd_handle_putval: Parsing identifier \"%s\" failed: %s.", identifier, STRERROR(err));
-    cmd_error(CMD_PARSE_ERROR, errhndl, "Parsing identifier \"%s\" failed: %s.", identifier, STRERROR(err));
+    DEBUG("cmd_handle_putval: Parsing identifier \"%s\" failed: %s.",
+          identifier, STRERROR(err));
+    cmd_error(CMD_PARSE_ERROR, errhndl, "Parsing identifier \"%s\" failed: %s.",
+              identifier, STRERROR(err));
     return CMD_PARSE_ERROR;
   }
 
-  metric_t metric = {
-    .identity = id,
-    .value = (value_t){.gauge = NAN},
-    .value_type = VALUE_TYPE_GAUGE,
+  metric_single_t metric = {
+      .identity = id,
+      .value = (value_t){.gauge = NAN},
+      .value_type = VALUE_TYPE_GAUGE,
   };
 
   ret_putval->raw_identifier = strdup(identifier);
@@ -221,9 +225,10 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
 
   status = plugin_dispatch_metric_list(cmd.cmd.putval.ml);
   if (status != 0) {
-      cmd_error(CMD_ERROR, &err, "plugin_dispatch_metric_list failed with status %d.", status);
-      cmd_destroy(&cmd);
-      return CMD_ERROR;
+    cmd_error(CMD_ERROR, &err,
+              "plugin_dispatch_metric_list failed with status %d.", status);
+    cmd_destroy(&cmd);
+    return CMD_ERROR;
   }
 
   if (fh != stdout) {
@@ -232,8 +237,8 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
     for (metrics_list_t *ml = putval->ml; ml != NULL; ml = ml->next_p) {
       n++;
     }
-    cmd_error(CMD_OK, &err, "Success: %i %s been dispatched.",
-        n, (n == 1) ? "metric has" : "metrics have");
+    cmd_error(CMD_OK, &err, "Success: %i %s been dispatched.", n,
+              (n == 1) ? "metric has" : "metrics have");
   }
 
   cmd_destroy(&cmd);
@@ -252,7 +257,7 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
  *   PUTVAL metric_name label:key="value" interval=10.000 42
  */
 int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
-                      metric_t const *m) {
+                      metric_single_t const *m) {
   strbuf_t id_buf = STRBUF_CREATE;
   int status = identity_marshal_text(&id_buf, m->identity);
   if (status != 0) {

@@ -82,9 +82,9 @@ int handle_getthreshold(FILE *fh, char *buffer) {
   char *plugin = NULL;
   char *type = NULL;
   char *data_source = NULL;
-  status = parse_identifier(identifier_copy, &host, &plugin,
-                            &type, &data_source,
-                            /* default_host = */ NULL);
+  status =
+      parse_identifier(identifier_copy, &host, &plugin, &type, &data_source,
+                       /* default_host = */ NULL);
   if (status != 0) {
     DEBUG("handle_getthreshold: Cannot parse identifier `%s'.", identifier);
     print_to_socket(fh, "-1 Cannot parse identifier `%s'.\n", identifier);
@@ -94,23 +94,23 @@ int handle_getthreshold(FILE *fh, char *buffer) {
 
   char *plugin_instance = strchr(plugin, '-');
   if (plugin_instance != NULL) {
-	  *plugin_instance = 0;
-	  plugin_instance++;
+    *plugin_instance = 0;
+    plugin_instance++;
   }
   char *type_instance = strchr(type, '-');
   if (type_instance != NULL) {
-	  *type_instance = 0;
-	  type_instance++;
+    *type_instance = 0;
+    type_instance++;
   }
 
-  metric_t m = {
-	  .identity = identity_create_legacy(plugin, type, data_source, host),
+  metric_single_t m = {
+      .identity = identity_create_legacy(plugin, type, data_source, host),
   };
   if (plugin_instance != NULL) {
-	  identity_add_label(m.identity, "plugin_instance", plugin_instance);
+    identity_add_label(m.identity, "plugin_instance", plugin_instance);
   }
   if (type_instance != NULL) {
-	  identity_add_label(m.identity, "type_instance", type_instance);
+    identity_add_label(m.identity, "type_instance", type_instance);
   }
 
   sfree(identifier_copy);
