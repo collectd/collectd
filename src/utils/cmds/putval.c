@@ -91,14 +91,15 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
 
   value_list_t vl = VALUE_LIST_INIT;
   if ((opts != NULL) && (opts->identifier_default_host != NULL)) {
-	  sstrncpy(vl.host, opts->identifier_default_host, sizeof(vl.host));
+    sstrncpy(vl.host, opts->identifier_default_host, sizeof(vl.host));
   }
 
   char const *identifier = argv[0];
   int status = parse_identifier_vl(identifier, &vl);
   if (status != 0) {
     DEBUG("cmd_handle_putval: Cannot parse identifier `%s'.", identifier);
-    cmd_error(CMD_PARSE_ERROR, errhndl, "parse_identifier_vl(\"%s\"): %s", identifier, STRERROR(status));
+    cmd_error(CMD_PARSE_ERROR, errhndl, "parse_identifier_vl(\"%s\"): %s",
+              identifier, STRERROR(status));
     return CMD_PARSE_ERROR;
   }
 
