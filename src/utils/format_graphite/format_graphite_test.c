@@ -104,7 +104,6 @@ DEF_TEST(metric_name) {
     EXPECT_EQ_INT(0, format_graphite(&buf, &m, "", "", '_', cases[i].flags));
     EXPECT_EQ_STR(cases[i].want, buf.ptr);
 
-    STRBUF_DESTROY(want);
     STRBUF_DESTROY(buf);
     metric_reset(&m);
   }
