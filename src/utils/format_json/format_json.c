@@ -296,8 +296,8 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   strbuf_t buf = STRBUF_CREATE;
   strbuf_print(&buf, "collectd_");
   if (strcmp(n->plugin, n->type) != 0) {
-	  strbuf_print(&buf, n->plugin);
-	  strbuf_print(&buf, "_");
+    strbuf_print(&buf, n->plugin);
+    strbuf_print(&buf, "_");
   }
   strbuf_print(&buf, n->type);
   CHECK(json_add_string(g, buf.ptr));
