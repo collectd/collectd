@@ -568,7 +568,7 @@ static int fc_bit_jump_destroy(void **user_data) /* {{{ */
   return 0;
 } /* }}} int fc_bit_jump_destroy */
 
-static int fc_bit_jump_invoke(metric_single_t *m,
+static int fc_bit_jump_invoke(metric_family_t *fam,
                               notification_meta_t __attribute__((unused)) *
                                   *meta,
                               void **user_data) {
@@ -589,7 +589,7 @@ static int fc_bit_jump_invoke(metric_single_t *m,
     return -1;
   }
 
-  status = fc_process_chain(m, chain);
+  status = fc_process_chain(fam, chain);
   if (status < 0)
     return status;
   else if (status == FC_TARGET_STOP)
@@ -598,17 +598,17 @@ static int fc_bit_jump_invoke(metric_single_t *m,
     return FC_TARGET_CONTINUE;
 } /* }}} int fc_bit_jump_invoke */
 
-static int fc_bit_stop_invoke(metric_single_t __attribute__((unused)) * m,
-                              notification_meta_t __attribute__((unused)) *
-                                  *meta,
-                              void __attribute__((unused)) * *user_data) {
+static int fc_bit_stop_invoke(__attribute__((unused)) metric_family_t *fam,
+                              __attribute__((unused))
+                              notification_meta_t **meta,
+                              __attribute__((unused)) void **user_data) {
   return FC_TARGET_STOP;
 } /* }}} int fc_bit_stop_invoke */
 
-static int fc_bit_return_invoke(metric_single_t __attribute__((unused)) * m,
-                                notification_meta_t __attribute__((unused)) *
-                                    *meta,
-                                void __attribute__((unused)) * *user_data) {
+static int fc_bit_return_invoke(__attribute__((unused)) metric_family_t *fam,
+                                __attribute__((unused))
+                                notification_meta_t **meta,
+                                __attribute__((unused)) void **user_data) {
   return FC_TARGET_RETURN;
 } /* }}} int fc_bit_return_invoke */
 
@@ -678,9 +678,9 @@ static int fc_bit_write_destroy(void **user_data) /* {{{ */
   return 0;
 } /* }}} int fc_bit_write_destroy */
 
-static int fc_bit_write_invoke(metric_single_t *m,
-                               notification_meta_t __attribute__((unused)) *
-                                   *meta,
+static int fc_bit_write_invoke(metric_family_t *fam,
+                               __attribute__((unused))
+                               notification_meta_t **meta,
                                void **user_data) {
   fc_writer_t *plugin_list;
   int status;
@@ -692,7 +692,7 @@ static int fc_bit_write_invoke(metric_single_t *m,
   if ((plugin_list == NULL) || (plugin_list[0].plugin == NULL)) {
     static c_complain_t write_complaint = C_COMPLAIN_INIT_STATIC;
 
-    status = plugin_write(/* plugin = */ NULL, m);
+    status = plugin_write(/* plugin = */ NULL, fam);
     if (status == ENOENT) {
       /* in most cases this is a permanent error, so use the complain
        * mechanism rather than spamming the logs */
@@ -721,7 +721,7 @@ static int fc_bit_write_invoke(metric_single_t *m,
     }
   } else {
     for (size_t i = 0; plugin_list[i].plugin != NULL; i++) {
-      status = plugin_write(plugin_list[i].plugin, m);
+      status = plugin_write(plugin_list[i].plugin, fam);
       if (status != 0) {
         c_complain(
             LOG_INFO, &plugin_list[i].complaint,
@@ -784,11 +784,9 @@ static int fc_init_once(void) /* {{{ */
 /* Add a match to list of available matches. */
 int fc_register_match(const char *name, match_proc_t proc) /* {{{ */
 {
-  fc_match_t *m;
-
   DEBUG("fc_register_match (%s);", name);
 
-  m = calloc(1, sizeof(*m));
+  fc_match_t *m = calloc(1, sizeof(*m));
   if (m == NULL)
     return -ENOMEM;
 
@@ -851,7 +849,7 @@ fc_chain_t *fc_chain_get_by_name(const char *chain_name) /* {{{ */
   return NULL;
 } /* }}} int fc_chain_get_by_name */
 
-int fc_process_chain(metric_single_t *m, /* {{{ */
+int fc_process_chain(metric_family_t *fam, /* {{{ */
                      fc_chain_t *chain) {
   fc_target_t *target;
   int status = FC_TARGET_CONTINUE;
@@ -873,7 +871,7 @@ int fc_process_chain(metric_single_t *m, /* {{{ */
     /* N. B.: rule->matches may be NULL. */
     for (match = rule->matches; match != NULL; match = match->next) {
       /* FIXME: Pass the meta-data to match targets here (when implemented). */
-      status = (*match->proc.match)(m, /* meta = */ NULL, &match->user_data);
+      status = (*match->proc.match)(fam, /* meta = */ NULL, &match->user_data);
       if (status < 0) {
         WARNING("fc_process_chain (%s): A match failed.", chain->name);
         break;
@@ -896,7 +894,8 @@ int fc_process_chain(metric_single_t *m, /* {{{ */
       /* If we get here, all matches have matched the value. Execute the
        * target. */
       /* FIXME: Pass the meta-data to match targets here (when implemented). */
-      status = (*target->proc.invoke)(m, /* meta = */ NULL, &target->user_data);
+      status =
+          (*target->proc.invoke)(fam, /* meta = */ NULL, &target->user_data);
       if (status < 0) {
         WARNING("fc_process_chain (%s): A target failed.", chain->name);
         continue;
@@ -934,7 +933,7 @@ int fc_process_chain(metric_single_t *m, /* {{{ */
     /* If we get here, all matches have matched the value. Execute the
      * target. */
     /* FIXME: Pass the meta-data to match targets here (when implemented). */
-    status = (*target->proc.invoke)(m, /* meta = */ NULL, &target->user_data);
+    status = (*target->proc.invoke)(fam, /* meta = */ NULL, &target->user_data);
     if (status < 0) {
       WARNING("fc_process_chain (%s): The default target failed.", chain->name);
     } else if (status == FC_TARGET_CONTINUE)
@@ -970,10 +969,10 @@ int fc_process_chain(metric_single_t *m, /* {{{ */
 
 /* Iterate over all rules in the chain and execute all targets for which all
  * matches match. */
-int fc_default_action(metric_single_t *m) /* {{{ */
+int fc_default_action(metric_family_t *fam) /* {{{ */
 {
   /* FIXME: Pass the meta-data to match targets here (when implemented). */
-  return fc_bit_write_invoke(m, NULL, NULL);
+  return fc_bit_write_invoke(fam, NULL, NULL);
 } /* }}} int fc_default_action */
 
 int fc_configure(const oconfig_item_t *ci) /* {{{ */

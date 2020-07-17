@@ -44,7 +44,7 @@
 struct match_proc_s {
   int (*create)(const oconfig_item_t *ci, void **user_data);
   int (*destroy)(void **user_data);
-  int (*match)(metric_single_t const *m, notification_meta_t **meta,
+  int (*match)(metric_family_t const *fam, notification_meta_t **meta,
                void **user_data);
 };
 typedef struct match_proc_s match_proc_t;
@@ -57,7 +57,7 @@ int fc_register_match(const char *name, match_proc_t proc);
 struct target_proc_s {
   int (*create)(const oconfig_item_t *ci, void **user_data);
   int (*destroy)(void **user_data);
-  int (*invoke)(metric_single_t *m, notification_meta_t **meta,
+  int (*invoke)(metric_family_t *fam, notification_meta_t **meta,
                 void **user_data);
 };
 typedef struct target_proc_s target_proc_t;
@@ -91,9 +91,9 @@ int fc_rule_delete (const char *chain_name, int position);
  */
 fc_chain_t *fc_chain_get_by_name(const char *chain_name);
 
-int fc_process_chain(metric_single_t *m, fc_chain_t *chain);
+int fc_process_chain(metric_family_t *fam, fc_chain_t *chain);
 
-int fc_default_action(metric_single_t *m);
+int fc_default_action(metric_family_t *fam);
 
 /*
  * Shortcut for global configuration

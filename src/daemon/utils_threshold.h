@@ -53,8 +53,9 @@ extern pthread_mutex_t threshold_lock;
 threshold_t *threshold_get(const char *hostname, const char *plugin,
                            const char *type, const char *data_source);
 
-threshold_t *threshold_search(metric_single_t const *m);
+/* Use ut_search_threshold instead of threshold_search. */
+/* threshold_t *threshold_search(metric_t const *m); */
 
-int ut_search_threshold(metric_single_t const *m, threshold_t *ret_threshold);
+int ut_search_threshold(metric_t const *m, threshold_t *ret_threshold);
 
 #endif /* UTILS_THRESHOLD_H */

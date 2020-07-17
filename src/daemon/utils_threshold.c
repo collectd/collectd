@@ -43,7 +43,7 @@ pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
  * threshold_t *threshold_get
  *
  * Retrieve one specific threshold configuration. For looking up a threshold
- * matching a metric_single_t, see "threshold_search" below. Returns NULL if the
+ * matching a metric_t, see "threshold_search" below. Returns NULL if the
  * specified threshold doesn't exist.
  */
 threshold_t *threshold_get(const char *hostname, const char *plugin,
@@ -74,23 +74,20 @@ threshold_t *threshold_get(const char *hostname, const char *plugin,
  * TODO(octo): threshold_search only searches by host name right now; should
  * also search by metric name and possibly other labels.
  */
-threshold_t *threshold_search(metric_single_t const *m) { /* {{{ */
+static threshold_t *threshold_search(metric_t const *m) { /* {{{ */
   if (m == NULL) {
     return NULL;
   }
 
-  char *host = NULL;
-  int status = identity_get_label(m->identity, "__host__", &host);
-  if (status != 0) {
+  label_pair_t *instance = label_set_get(m->label, "instance");
+  if (instance == NULL) {
     return NULL;
   }
 
-  threshold_t *th = threshold_get(host, NULL, NULL, NULL);
-  sfree(host);
-  return th;
+  return threshold_get(instance->value, NULL, NULL, NULL);
 } /* }}} threshold_t *threshold_search */
 
-int ut_search_threshold(metric_single_t const *m, /* {{{ */
+int ut_search_threshold(metric_t const *m, /* {{{ */
                         threshold_t *ret_threshold) {
   threshold_t *t;
 

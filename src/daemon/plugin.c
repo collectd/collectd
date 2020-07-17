@@ -97,7 +97,7 @@ typedef struct cache_event_func_s cache_event_func_t;
 struct write_queue_s;
 typedef struct write_queue_s write_queue_t;
 struct write_queue_s {
-  metric_single_t *metric;
+  metric_family_t *family;
   plugin_ctx_t ctx;
   write_queue_t *next;
 };
@@ -165,7 +165,7 @@ static bool record_statistics;
 /*
  * Static functions
  */
-static int plugin_dispatch_metric_internal(metric_single_t *m);
+static int plugin_dispatch_metric_internal(metric_family_t *fam);
 
 static const char *plugin_get_dir(void) {
   if (plugindir == NULL)
@@ -764,49 +764,45 @@ static void write_queue_enqueue(write_queue_t *head) {
   pthread_mutex_unlock(&write_lock);
 }
 
-/* ml_enqueue enqueues the metrics in ml to write_queue. */
-static int ml_enqueue(metrics_list_t const *ml) { /* {{{ */
+/* enqueue_metric_family enqueues the metric family to write_queue. */
+static int enqueue_metric_family(metric_family_t const *fam) { /* {{{ */
+  metric_family_t *fam_copy = metric_family_clone(fam);
+  if (fam_copy == NULL) {
+    int status = errno;
+    ERROR("enqueue_metric_family: metric_family_clone failed: %s",
+          STRERROR(status));
+    return status;
+  }
+
   cdtime_t time = cdtime();
   cdtime_t interval = plugin_get_interval();
 
-  for (metrics_list_t const *m = ml; m != NULL; m = m->next_p) {
-    write_queue_t *q = calloc(1, sizeof(*q));
-    if (q == NULL) {
-      return ENOMEM;
+  for (size_t i = 0; i < fam_copy->metric.num; i++) {
+    if (fam_copy->metric.ptr[i].time == 0) {
+      fam_copy->metric.ptr[i].time = time;
     }
-    (*q) = (write_queue_t){
-        .metric = metric_clone(&m->metric),
-        .ctx = plugin_get_ctx(),
-    };
-    if (q->metric == NULL) {
-      sfree(q);
-      return ENOMEM;
-    }
-
-    if (q->metric->time == 0) {
-      q->metric->time = time;
-    }
-    if (q->metric->interval == 0) {
-      q->metric->interval = interval;
+    if (fam_copy->metric.ptr[i].interval == 0) {
+      fam_copy->metric.ptr[i].interval = interval;
     }
 
     /* TODO(octo): set target labels here. */
-
-    /* Fails if "instance" is already set, which we can safely ignore. */
-    (void)identity_add_label(q->metric->identity, "instance", hostname_g);
-
-    /* This enqueues elements individually because it's less code to write.
-     * Should lock contention of write_lock become a problem, we could enqueue
-     * the whole list at once. */
-    write_queue_enqueue(q);
   }
-  return 0;
-} /* }}} int ml_enqueue */
 
-static metric_single_t *plugin_write_dequeue(void) /* {{{ */
+  write_queue_t *q = calloc(1, sizeof(*q));
+  if (q == NULL) {
+    return ENOMEM;
+  }
+  (*q) = (write_queue_t){
+      .family = fam_copy,
+      .ctx = plugin_get_ctx(),
+  };
+  write_queue_enqueue(q);
+  return 0;
+} /* }}} int enqueue_metric_family */
+
+static metric_family_t *plugin_write_dequeue(void) /* {{{ */
 {
   write_queue_t *q;
-  metric_single_t *m;
 
   pthread_mutex_lock(&write_lock);
 
@@ -830,21 +826,20 @@ static metric_single_t *plugin_write_dequeue(void) /* {{{ */
 
   (void)plugin_set_ctx(q->ctx);
 
-  m = q->metric;
+  metric_family_t *fam = q->family;
   sfree(q);
-  return m;
-} /* }}} metric_single_t *plugin_write_dequeue */
+  return fam;
+} /* }}} metric_family_t *plugin_write_dequeue */
 
 static void *plugin_write_thread(void __attribute__((unused)) * args) /* {{{ */
 {
   while (write_loop) {
-    metric_single_t *m = NULL;
-    m = plugin_write_dequeue();
-    if (m == NULL)
+    metric_family_t *fam = plugin_write_dequeue();
+    if (fam == NULL)
       continue;
 
-    (void)plugin_dispatch_metric_internal(m);
-    metric_destroy(m);
+    (void)plugin_dispatch_metric_internal(fam);
+    metric_family_free(fam);
   }
 
   pthread_exit(NULL);
@@ -912,7 +907,7 @@ static void stop_write_threads(void) /* {{{ */
   i = 0;
   for (q = write_queue_head; q != NULL;) {
     write_queue_t *q1 = q;
-    metric_destroy(q->metric);
+    metric_family_free(q->family);
     q = q->next;
     sfree(q1);
     i++;
@@ -1532,72 +1527,6 @@ static int compare_read_func_group(llentry_t *e, void *ud) /* {{{ */
   return strcmp(rf->rf_group, (const char *)group);
 } /* }}} int compare_read_func_group */
 
-static int get_values_data_set(value_list_t const *vl, data_set_t **data_set) {
-  if (vl == NULL) {
-    return -1;
-  }
-
-  if (data_sets == NULL) {
-    ERROR("plugin_dispatch_values: No data sets registered. "
-          "Could the types database be read? Check "
-          "your `TypesDB' setting!");
-    return -1;
-  }
-
-  if (c_avl_get(data_sets, vl->type, (void *)data_set) != 0) {
-    char ident[6 * DATA_MAX_NAME_LEN]; /* host, plugin, plugin_instance, type,
-                                        * type_instance, + delimiters */
-
-    FORMAT_VL(ident, sizeof(ident), vl);
-    INFO("plugin_dispatch_values: Dataset not found: %s "
-         "(from \"%s\"), check your types.db!",
-         vl->type, ident);
-    return -1;
-  }
-
-  DEBUG("plugin_dispatch_values: time = %.3f; interval = %.3f; "
-        "host = %s; "
-        "plugin = %s; plugin_instance = %s; "
-        "type = %s; type_instance = %s;",
-        CDTIME_T_TO_DOUBLE(vl->time), CDTIME_T_TO_DOUBLE(vl->interval),
-        vl->host, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
-
-#if COLLECT_DEBUG && !defined(NDEBUG)
-  assert(0 == strcmp((*data_set)->type, vl->type));
-#else
-  if (0 != strcmp((*data_set)->type, vl->type))
-    WARNING(
-        "plugin_dispatch_values: <%s/%s-%s> (ds->type = %s) != (vl->type = %s)",
-        vl->host, vl->plugin, vl->plugin_instance, (*data_set)->type, vl->type);
-#endif
-
-#if COLLECT_DEBUG && !defined(NDEBUG)
-  assert((*data_set)->ds_num == vl->values_len);
-#else
-  if ((*data_set)->ds_num != vl->values_len) {
-    ERROR("plugin_dispatch_values: <%s/%s-%s/%s-%s> ds->type = %s: "
-          "(ds->ds_num = %" PRIsz ") != "
-          "(vl->values_len = %" PRIsz ")",
-          vl->host, vl->plugin, vl->plugin_instance, vl->type,
-          vl->type_instance, (*data_set)->type, (*data_set)->ds_num,
-          vl->values_len);
-    return -1;
-  }
-#endif
-  return 0;
-}
-
-EXPORT void destroy_metrics_list(metrics_list_t *ml) {
-  while (ml != NULL) {
-    identity_destroy(ml->metric.identity);
-    meta_data_destroy(ml->metric.meta);
-
-    metrics_list_t *next = ml->next_p;
-    sfree(ml);
-    ml = next;
-  }
-}
-
 static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
                               data_source_t const *dsrc) {
   int status = strbuf_print(buf, "collectd");
@@ -1620,6 +1549,65 @@ static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
   }
 
   return status;
+}
+
+metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
+                                                    data_set_t const *ds,
+                                                    size_t index) {
+  if ((vl == NULL) || (ds == NULL)) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  metric_family_t *fam = calloc(1, sizeof(*fam));
+  if (fam == NULL) {
+    return NULL;
+  }
+
+  data_source_t const *dsrc = ds->ds + index;
+  strbuf_t name = STRBUF_CREATE;
+  int status = metric_family_name(&name, vl, dsrc);
+  if (status != 0) {
+    STRBUF_DESTROY(name);
+    metric_family_free(fam);
+    errno = status;
+    return NULL;
+  }
+  fam->name = name.ptr;
+  name = (strbuf_t){0};
+
+  fam->type =
+      (dsrc->type == DS_TYPE_GAUGE) ? METRIC_TYPE_GAUGE : METRIC_TYPE_COUNTER;
+
+  metric_t m = {
+      .family = fam,
+      .value = vl->values[index],
+      .time = vl->time,
+      .interval = vl->interval,
+  };
+
+  status = label_set_add(&m.label, "instance",
+                         (strlen(vl->host) != 0) ? vl->host : hostname_g);
+  if (strlen(vl->plugin_instance) != 0) {
+    status = status || label_set_add(&m.label, vl->plugin, vl->plugin_instance);
+  }
+  if (strlen(vl->type_instance) != 0) {
+    char const *name = "type";
+    if (strlen(vl->plugin_instance) == 0) {
+      name = vl->plugin;
+    }
+    status = status || label_set_add(&m.label, name, vl->type_instance);
+  }
+
+  status = status || metric_list_add(&fam->metric, m);
+  if (status != 0) {
+    label_set_reset(&m.label);
+    metric_family_free(fam);
+    errno = status;
+    return NULL;
+  }
+
+  return fam;
 }
 
 identity_t *plugin_valuelist_to_identity(value_list_t const *vl,
@@ -1665,104 +1653,6 @@ identity_t *plugin_valuelist_to_identity(value_list_t const *vl,
 
   STRBUF_DESTROY(name);
   return id;
-}
-
-/* This does the heavy lifting in coverting the actual metric data */
-static int value_to_metric(value_list_t const *vl, data_set_t const *ds,
-                           metrics_list_t **ret_ml) {
-
-  metrics_list_t *tail = NULL;
-  metrics_list_t *head = NULL;
-
-  cdtime_t metric_time = vl->time;
-  if (metric_time == 0) {
-    metric_time = cdtime();
-  }
-
-  cdtime_t metric_interval = vl->interval;
-  if (metric_interval == 0) {
-    metric_interval = plugin_get_interval();
-  }
-
-  for (size_t i = 0; i < vl->values_len; i++) {
-    metrics_list_t *ml = calloc(1, sizeof(*ml));
-    if (ml == NULL) {
-      destroy_metrics_list(head);
-      return ENOMEM;
-    }
-
-    ml->metric = (metric_single_t){
-        .identity = plugin_valuelist_to_identity(vl, ds->ds + i),
-        .time = metric_time,
-        .interval = metric_interval,
-        .value = vl->values[i],
-        .value_type = ds->ds[i].type,
-        .meta = meta_data_clone(vl->meta),
-    };
-
-    if (ml->metric.identity == NULL) {
-      int status = errno;
-      destroy_metrics_list(ml);
-      destroy_metrics_list(head);
-      return status;
-    }
-
-    if (head == NULL) {
-      head = ml;
-    } else {
-      tail->next_p = ml;
-    }
-    tail = ml;
-  }
-
-  *ret_ml = head;
-  return 0;
-}
-
-EXPORT int plugin_convert_values_to_metrics(value_list_t const *vl,
-                                            metrics_list_t **ret_ml) {
-  if ((vl == NULL) || (vl->values_len == 0) || (ret_ml == NULL) ||
-      (*ret_ml != NULL)) {
-    return EINVAL;
-  }
-
-  DEBUG("time = %.3f; interval = %.3f; "
-        "host = %s; "
-        "plugin = %s; plugin_instance = %s; "
-        "type = %s; type_instance = %s;",
-        CDTIME_T_TO_DOUBLE(vl->time), CDTIME_T_TO_DOUBLE(vl->interval),
-        vl->host, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
-
-  data_set_t *ds = NULL;
-  int status = get_values_data_set(vl, &ds);
-  if (status != 0) {
-    ERROR("Could not get data source type from value list");
-    return status;
-  }
-  if (ds == NULL) {
-    char ident[6 * DATA_MAX_NAME_LEN]; /* host, plugin, plugin_instance, type,
-                                        * type_instance, + delimiters */
-    FORMAT_VL(ident, sizeof(ident), vl);
-    ERROR("Dataset not found: \"%s\" "
-          "(from \"%s\"), at %s, line %d.",
-          vl->type, ident, __FILE__, __LINE__);
-
-    return ENOENT;
-  }
-
-  metrics_list_t *ml = NULL;
-
-  status = value_to_metric(vl, ds, &ml);
-  if (status != 0) {
-    char ident[6 * DATA_MAX_NAME_LEN];
-    FORMAT_VL(ident, sizeof(ident), vl);
-    ERROR(
-        "plugin_convert_values_to_metrics: value_to_metric(\"%s\") failed: %s",
-        ident, STRERROR(status));
-    return status;
-  }
-  *ret_ml = ml;
-  return 0;
 }
 
 EXPORT int plugin_unregister_read_group(const char *group) /* {{{ */
@@ -2044,11 +1934,11 @@ EXPORT int plugin_read_all_once(void) {
 } /* int plugin_read_all_once */
 
 EXPORT int plugin_write(const char *plugin, /* {{{ */
-                        metric_single_t const *m) {
+                        metric_family_t const *fam) {
   llentry_t *le;
   int status;
 
-  if (m == NULL)
+  if (fam == NULL)
     return EINVAL;
 
   if (list_write == NULL)
@@ -2072,7 +1962,7 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
 
       DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
       callback = cf->cf_callback;
-      status = (*callback)(m, &cf->cf_udata);
+      status = (*callback)(fam, &cf->cf_udata);
       if (status != 0)
         failure++;
       else
@@ -2109,7 +1999,7 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
 
     DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
     callback = cf->cf_callback;
-    status = (*callback)(m, &cf->cf_udata);
+    status = (*callback)(fam, &cf->cf_udata);
   }
 
   return status;
@@ -2213,7 +2103,7 @@ EXPORT int plugin_shutdown_all(void) {
   return ret;
 } /* void plugin_shutdown_all */
 
-EXPORT int plugin_dispatch_missing(metric_single_t const *m) /* {{{ */
+EXPORT int plugin_dispatch_missing(metric_family_t const *fam) /* {{{ */
 {
   if (list_missing == NULL)
     return 0;
@@ -2224,7 +2114,7 @@ EXPORT int plugin_dispatch_missing(metric_single_t const *m) /* {{{ */
     plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
     plugin_missing_cb callback = cf->cf_callback;
 
-    int status = (*callback)(m, &cf->cf_udata);
+    int status = (*callback)(fam, &cf->cf_udata);
     plugin_set_ctx(old_ctx);
     if (status != 0) {
       if (status < 0) {
@@ -2244,7 +2134,7 @@ EXPORT int plugin_dispatch_missing(metric_single_t const *m) /* {{{ */
 
 void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
                                  unsigned long callbacks_mask, const char *name,
-                                 metric_single_t const *m) {
+                                 metric_t const *m) {
   switch (event_type) {
   case CE_VALUE_NEW:
     callbacks_mask = 0;
@@ -2256,7 +2146,11 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
         continue;
 
       cache_event_t event = (cache_event_t){
-          .type = event_type, .m = metric_p, .value_list_name = name, .ret = 0};
+          .type = event_type,
+          .metric = m,
+          .value_list_name = name,
+          .ret = 0,
+      };
 
       plugin_ctx_t old_ctx = plugin_set_ctx(cef->plugin_ctx);
       int status = (*callback)(&event, &cef->user_data);
@@ -2296,7 +2190,11 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
         continue;
 
       cache_event_t event = (cache_event_t){
-          .type = event_type, .m = metric_p, .value_list_name = name, .ret = 0};
+          .type = event_type,
+          .metric = m,
+          .value_list_name = name,
+          .ret = 0,
+      };
 
       plugin_ctx_t old_ctx = plugin_set_ctx(cef->plugin_ctx);
       int status = (*callback)(&event, &cef->user_data);
@@ -2314,12 +2212,11 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
   return;
 }
 
-static int plugin_dispatch_metric_internal(metric_single_t *m) {
+static int plugin_dispatch_metric_internal(metric_family_t *fam) {
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
-  assert(m != NULL);
-  assert(m->time != 0); /* The time is determined at _enqueue_ time. */
-  assert(m->interval != 0);
-  assert(m->identity != NULL);
+  if (fam == NULL) {
+    return EINVAL;
+  }
 
   if (list_write == NULL)
     c_complain_once(LOG_WARNING, &no_write_complaint,
@@ -2330,7 +2227,7 @@ static int plugin_dispatch_metric_internal(metric_single_t *m) {
   /**** Handle caching here !! ****/
   int status = 0;
   if (pre_cache_chain != NULL) {
-    status = fc_process_chain(m, pre_cache_chain);
+    status = fc_process_chain(fam, pre_cache_chain);
     if (status < 0) {
       WARNING("plugin_dispatch_values: Running the "
               "pre-cache chain failed with "
@@ -2341,10 +2238,10 @@ static int plugin_dispatch_metric_internal(metric_single_t *m) {
   }
 
   /* Update the value cache */
-  uc_update(m);
+  uc_update(fam);
 
   if (post_cache_chain != NULL) {
-    status = fc_process_chain(m, post_cache_chain);
+    status = fc_process_chain(fam, post_cache_chain);
     if (status < 0) {
       WARNING("plugin_dispatch_values: Running the "
               "post-cache chain failed with "
@@ -2352,7 +2249,7 @@ static int plugin_dispatch_metric_internal(metric_single_t *m) {
               status, status);
     }
   } else
-    fc_default_action(m);
+    fc_default_action(fam);
 
   return 0;
 } /* int plugin_dispatch_values_internal */
@@ -2418,7 +2315,7 @@ static bool check_drop_value(void) /* {{{ */
     return false;
 } /* }}} bool check_drop_value */
 
-EXPORT int plugin_dispatch_metric_list(metrics_list_t const *ml) {
+EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
   if (check_drop_value()) {
     if (record_statistics) {
       pthread_mutex_lock(&statistics_lock);
@@ -2428,7 +2325,7 @@ EXPORT int plugin_dispatch_metric_list(metrics_list_t const *ml) {
     return 0;
   }
 
-  int status = ml_enqueue(ml);
+  int status = enqueue_metric_family(fam);
   if (status != 0) {
     ERROR("plugin_dispatch_values: plugin_write_enqueue_metric_list failed "
           "with status %i (%s).",
@@ -2438,15 +2335,29 @@ EXPORT int plugin_dispatch_metric_list(metrics_list_t const *ml) {
 }
 
 EXPORT int plugin_dispatch_values(value_list_t const *vl) {
-  metrics_list_t *ml = NULL;
-  int status = plugin_convert_values_to_metrics(vl, &ml);
-  if (status != 0) {
-    return status;
+  data_set_t const *ds = plugin_get_ds(vl->type);
+  if (ds == NULL) {
+    return EINVAL;
   }
 
-  status = plugin_dispatch_metric_list(ml);
-  destroy_metrics_list(ml);
-  return status;
+  for (size_t i = 0; i < vl->values_len; i++) {
+    metric_family_t *fam = plugin_value_list_to_metric_family(vl, ds, i);
+    if (fam == NULL) {
+      int status = errno;
+      ERROR("plugin_dispatch_values: plugin_value_list_to_metric_family "
+            "failed: %s",
+            STRERROR(status));
+      return status;
+    }
+
+    int status = plugin_dispatch_metric_family(fam);
+    metric_family_free(fam);
+    if (status != 0) {
+      return status;
+    }
+  }
+
+  return 0;
 }
 
 __attribute__((sentinel)) int

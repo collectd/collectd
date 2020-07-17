@@ -117,13 +117,6 @@ struct data_set_s {
 };
 typedef struct data_set_s data_set_t;
 
-
-struct metrics_list_s {
-  metric_single_t metric;
-  struct metrics_list_s *next_p;
-};
-typedef struct metrics_list_s metrics_list_t;
-
 enum notification_meta_type_e {
   NM_TYPE_STRING,
   NM_TYPE_SIGNED_INT,
@@ -167,7 +160,7 @@ enum cache_event_type_e { CE_VALUE_NEW, CE_VALUE_UPDATE, CE_VALUE_EXPIRED };
 
 typedef struct cache_event_s {
   enum cache_event_type_e type;
-  metric_single_t const *m;
+  metric_t const *metric;
   const char *value_list_name;
   int ret;
 } cache_event_t;
@@ -185,13 +178,13 @@ typedef struct plugin_ctx_s plugin_ctx_t;
  */
 typedef int (*plugin_init_cb)(void);
 typedef int (*plugin_read_cb)(user_data_t *);
-typedef int (*plugin_write_cb)(metric_single_t const *, user_data_t *);
+typedef int (*plugin_write_cb)(metric_family_t const *, user_data_t *);
 typedef int (*plugin_flush_cb)(cdtime_t timeout, const char *identifier,
                                user_data_t *);
 /* "missing" callback. Returns less than zero on failure, zero if other
  * callbacks should be called, greater than zero if no more callbacks should be
  * called. */
-typedef int (*plugin_missing_cb)(metric_single_t const *, user_data_t *);
+typedef int (*plugin_missing_cb)(metric_family_t const *, user_data_t *);
 /* "cache event" callback. CE_VALUE_NEW events are sent to all registered
  * callbacks. Callback should check if it interested in further CE_VALUE_UPDATE
  * and CE_VALUE_EXPIRED events for metric and set event->ret = 1 if so.
@@ -270,7 +263,7 @@ int plugin_shutdown_all(void);
  *  This is the function used by the `write' built-in target. May be used by
  *  other target plugins.
  */
-int plugin_write(const char *plugin, metric_single_t const *m);
+int plugin_write(const char *plugin, metric_family_t const *fam);
 
 int plugin_flush(const char *plugin, cdtime_t timeout, const char *identifier);
 
@@ -334,44 +327,12 @@ int plugin_unregister_notification(const char *name);
  */
 void plugin_log_available_writers(void);
 
-/*
- * NAME
- * plugin_convert_values_to_metrics
- *
- * DESCRIPTION
- *  This function converts a metric value list (in value_list_t format) into a
- *  linked list of single sopurce metrics (in the format of metrics_list_t).
- *  The size of the resulting linked list of metrics depends on the number of
- *  metric values in the value_list_t (and that depends on the type of the
- *  metric value in the types.db). This function flattens out the metric,
- *  ensuring that there is only a single source type per metric value.
- *
- * ARGUMENTS
- *  `vl'        A Pointer to a Value list created by ’read’ plugins.
- *  `ml’        A pointer to a pointer to a metrics list that the values should
- *              be appended to. Can be NULL if a new metrics list needs to be
- *              created.
- *
- * RETURNS
- *  Zero on success, and various negative integers on failure (the integer
- *  values correspond roughly to system call error codes, where applicable )
- */
-int plugin_convert_values_to_metrics(value_list_t const *vl,
-                                     metrics_list_t **ml);
-
-/*
- * NAME
- * destroy_metrics_list
- *
- * DESCRIPTION
- *  This function dewwa up allocated memory from the internal metric
- * list.
- *
- * ARGUMENTS
- *  `metric_list_p)’ A pointer to a metrics list data object whose memory needs
- *                   to be reclaomed.
- */
-void destroy_metrics_list(metrics_list_t *metrics_list_p);
+/* plugin_value_list_to_metric_family converts a value in a value_list_t to a
+ * metric_family_t. In case of error, errno is set and NULL is returned. The
+ * returned pointer must be freed using metric_family_free(). */
+metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
+                                                    data_set_t const *ds,
+                                                    size_t index);
 
 /*
  * NAME
@@ -403,7 +364,7 @@ int plugin_dispatch_values(value_list_t const *vl);
  *  `ml'        Value list of the metrics that have been read by a `read'
  *              function.
  */
-int plugin_dispatch_metric_list(metrics_list_t const *ml);
+int plugin_dispatch_metric_family(metric_family_t const *fam);
 
 /*
  * NAME
@@ -440,10 +401,10 @@ __attribute__((sentinel)) int plugin_dispatch_multivalue(value_list_t const *vl,
                                                          bool store_percentage,
                                                          int store_type, ...);
 
-int plugin_dispatch_missing(metric_single_t const *m);
+int plugin_dispatch_missing(metric_family_t const *fam);
 void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
                                  unsigned long callbacks_mask, const char *name,
-                                 metric_single_t const *m);
+                                 metric_t const *m);
 
 int plugin_dispatch_notification(const notification_t *notif);
 

@@ -68,7 +68,6 @@ typedef struct cache_entry_s {
   size_t history_length;
 
   meta_data_t *meta;
-  identity_t *identity;
 
   unsigned long callbacks_mask;
 } cache_entry_t;
@@ -104,7 +103,6 @@ static cache_entry_t *cache_alloc() {
   ce->history = NULL;
   ce->history_length = 0;
   ce->meta = NULL;
-  ce->identity = NULL;
 
   return ce;
 } /* cache_entry_t *cache_alloc */
@@ -115,10 +113,6 @@ static void cache_free(cache_entry_t *ce) {
 
   sfree(ce->history);
 
-  if (ce->identity != NULL) {
-    identity_destroy(ce->identity);
-  }
-
   /* We have non-exclusive ownership of the metadata */
   if (ce->meta != NULL) {
     meta_data_destroy(ce->meta);
@@ -127,7 +121,7 @@ static void cache_free(cache_entry_t *ce) {
   sfree(ce);
 } /* void cache_free */
 
-static int uc_insert(metric_single_t const *m, char const *key) {
+static int uc_insert(metric_t const *m, char const *key) {
   /* `cache_lock' has been locked by `uc_update' */
 
   char *key_copy = strdup(key);
@@ -145,7 +139,7 @@ static int uc_insert(metric_single_t const *m, char const *key) {
 
   sstrncpy(ce->name, key, sizeof(ce->name));
 
-  switch (m->value_type) {
+  switch (m->family->type) {
   case DS_TYPE_COUNTER:
     ce->values_gauge = NAN;
     ce->values_raw.counter = m->value.counter;
@@ -164,7 +158,7 @@ static int uc_insert(metric_single_t const *m, char const *key) {
   default:
     /* This shouldn't happen. */
     ERROR("uc_insert: Don't know how to handle data source type %i.",
-          m->value_type);
+          m->family->type);
     sfree(key_copy);
     cache_free(ce);
     return -1;
@@ -249,23 +243,26 @@ int uc_check_timeout(void) {
    * without holding the lock, otherwise we will run into a deadlock if a
    * plugin calls the cache interface. */
   for (size_t i = 0; i < expired_num; i++) {
-    metric_single_t metric = {
-        .time = expired[i].time,
-        .interval = expired[i].interval,
-    };
-
-    metric.identity = identity_unmarshal_text(expired[i].key);
-    if (metric.identity == NULL) {
-      ERROR("uc_check_timeout: identity_unmarshal_text(\"%s\") failed: %s",
+    metric_family_t *fam =
+        metric_family_unmarshal_text(expired[i].key, METRIC_TYPE_UNTYPED);
+    if (fam == NULL) {
+      ERROR("uc_check_timeout: metric_family_unmarshal_text(\"%s\") failed: %s",
             expired[i].key, STRERRNO);
       continue;
     }
 
-    plugin_dispatch_missing(&metric);
+    int status = plugin_dispatch_missing(fam);
+    if (status != 0) {
+      ERROR("uc_check_timeout: plugin_dispatch_missing(\"%s\") failed: %s",
+            expired[i].key, STRERROR(status));
+    }
 
-    if (expired[i].callbacks_mask)
+    if (expired[i].callbacks_mask) {
       plugin_dispatch_cache_event(CE_VALUE_EXPIRED, expired[i].callbacks_mask,
-                                  expired[i].key, &metric);
+                                  expired[i].key, fam->metric.ptr);
+    }
+
+    metric_family_free(fam);
   } /* for (i = 0; i < expired_num; i++) */
 
   /* Now actually remove all the values from the cache. We don't re-evaluate
@@ -293,11 +290,11 @@ int uc_check_timeout(void) {
   return 0;
 } /* int uc_check_timeout */
 
-int uc_update(metric_single_t const *m) {
+static int uc_update_metric(metric_t const *m) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_update: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_update: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -320,7 +317,6 @@ int uc_update(metric_single_t const *m) {
   }
 
   assert(ce != NULL);
-  ce->identity = identity_clone(m->identity);
   ce->meta = meta_data_clone(m->meta);
   if (ce->last_time >= m->time) {
     pthread_mutex_unlock(&cache_lock);
@@ -332,35 +328,38 @@ int uc_update(metric_single_t const *m) {
     return -1;
   }
 
-  switch (m->value_type) {
+  switch (m->family->type) {
   case DS_TYPE_COUNTER: {
     counter_t diff = counter_diff(ce->values_raw.counter, m->value.counter);
     ce->values_gauge =
         ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
     ce->values_raw.counter = m->value.counter;
-  } break;
+    break;
+  }
 
-  case DS_TYPE_GAUGE:
+  case DS_TYPE_GAUGE: {
     ce->values_raw.gauge = m->value.gauge;
     ce->values_gauge = m->value.gauge;
     break;
+  }
 
   case DS_TYPE_DERIVE: {
     derive_t diff = m->value.derive - ce->values_raw.derive;
-
     ce->values_gauge =
         ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
     ce->values_raw.derive = m->value.derive;
-  } break;
+    break;
+  }
 
-  default:
+  default: {
     /* This shouldn't happen. */
     pthread_mutex_unlock(&cache_lock);
     ERROR("uc_update: Don't know how to handle data source type %i.",
-          m->value_type);
+          m->family->type);
     STRBUF_DESTROY(buf);
     return -1;
-  } /* switch (m->value_type) */
+  }
+  } /* switch (m->family->type) */
 
   DEBUG("uc_update: %s = %f", buf.ptr, ce->values_gauge);
 
@@ -388,7 +387,20 @@ int uc_update(metric_single_t const *m) {
 
   STRBUF_DESTROY(buf);
   return 0;
-} /* int uc_update */
+} /* int uc_update_metric */
+
+int uc_update(metric_family_t const *fam) {
+  int ret = 0;
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    int status = uc_update_metric(fam->metric.ptr + i);
+    if (status != 0) {
+      ERROR("uc_update: uc_update_metric failed: %s", STRERROR(status));
+      ret = ret || status;
+    }
+  }
+
+  return ret;
+}
 
 int uc_set_callbacks_mask(const char *name, unsigned long mask) {
   pthread_mutex_lock(&cache_lock);
@@ -433,11 +445,11 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
   return status;
 } /* gauge_t *uc_get_rate_by_name */
 
-int uc_get_rate(metric_single_t const *m, gauge_t *ret) {
+int uc_get_rate(metric_t const *m, gauge_t *ret) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_get_rate: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_get_rate: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -448,32 +460,31 @@ int uc_get_rate(metric_single_t const *m, gauge_t *ret) {
 } /* gauge_t *uc_get_rate */
 
 gauge_t *uc_get_rate_vl(const data_set_t *ds, const value_list_t *vl) {
-  char name[6 * DATA_MAX_NAME_LEN];
-  metrics_list_t *ml = NULL;
-  int retval = 0;
-
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("utils_cache: uc_get_rate: FORMAT_VL failed.");
-    return NULL;
-  }
-  gauge_t *ret = (gauge_t *)malloc(ds->ds_num * sizeof(*ret));
+  gauge_t *ret = calloc(ds->ds_num, sizeof(*ret));
   if (ret == NULL) {
-    WARNING("uc_get_rate_vl: failed to allocate memory.");
+    ERROR("uc_get_rate_vl: failed to allocate memory.");
     return NULL;
   }
-  retval = plugin_convert_values_to_metrics(vl, &ml);
-  if (retval != 0) {
-    WARNING("uc_get_rate_vl: Could not parse value list %s.", name);
-    return NULL;
+
+  for (size_t i = 0; i < ds->ds_num; i++) {
+    metric_family_t *fam = plugin_value_list_to_metric_family(vl, ds, i);
+    if (fam == NULL) {
+      int status = errno;
+      free(ret);
+      errno = status;
+      return NULL;
+    }
+
+    int status = uc_get_rate(fam->metric.ptr, ret + i);
+    if (status != 0) {
+      free(ret);
+      errno = status;
+      return NULL;
+    }
+
+    metric_family_free(fam);
   }
-  metrics_list_t *index_p = ml;
-  int i = 0;
-  while (index_p != NULL) {
-    retval = uc_get_rate(&index_p->metric, &ret[i]);
-    index_p = index_p->next_p;
-    ++i;
-  }
-  destroy_metrics_list(ml);
+
   return ret;
 }
 
@@ -501,11 +512,11 @@ int uc_get_value_by_name(const char *name, value_t *ret_values) {
   return status;
 } /* int uc_get_value_by_name */
 
-int uc_get_value(metric_single_t const *m, value_t *ret) {
+int uc_get_value(metric_t const *m, value_t *ret) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_get_value: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_get_value: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -605,11 +616,11 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
   return 0;
 } /* int uc_get_names */
 
-int uc_get_state(metric_single_t const *m) {
+int uc_get_state(metric_t const *m) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_get_state: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_get_state: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -629,11 +640,11 @@ int uc_get_state(metric_single_t const *m) {
   return ret;
 } /* int uc_get_state */
 
-int uc_set_state(metric_single_t const *m, int state) {
+int uc_set_state(metric_t const *m, int state) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_set_state: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_set_state: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -705,12 +716,11 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
   return 0;
 } /* int uc_get_history_by_name */
 
-int uc_get_history(metric_single_t const *m, gauge_t *ret_history,
-                   size_t num_steps) {
+int uc_get_history(metric_t const *m, gauge_t *ret_history, size_t num_steps) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_update: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_update: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -720,11 +730,11 @@ int uc_get_history(metric_single_t const *m, gauge_t *ret_history,
   return ret;
 } /* int uc_get_history */
 
-int uc_get_hits(metric_single_t const *m) {
+int uc_get_hits(metric_t const *m) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_update: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_update: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -744,26 +754,11 @@ int uc_get_hits(metric_single_t const *m) {
   return ret;
 } /* int uc_get_hits */
 
-int uc_get_hits_vl(const data_set_t *ds, const value_list_t *vl) {
-  int retval = 0;
-  metrics_list_t *ml = NULL;
-  retval = plugin_convert_values_to_metrics(vl, &ml);
-  if (retval != 0) {
-    WARNING("uc_get_hits_vl: Could not parse value list.");
-    return -1;
-  }
-  /* The assumption here is that all components of the metrics in a value list
-   * will have the same number of hits in the cache */
-  retval = uc_get_hits(&ml->metric);
-  destroy_metrics_list(ml);
-  return retval;
-}
-
-int uc_set_hits(metric_single_t const *m, int hits) {
+int uc_set_hits(metric_t const *m, int hits) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_set_hits: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_set_hits: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -784,30 +779,11 @@ int uc_set_hits(metric_single_t const *m, int hits) {
   return ret;
 } /* int uc_set_hits */
 
-int uc_set_hits_vl(const data_set_t *ds, const value_list_t *vl, int hits) {
-  int retval = 0;
-  metrics_list_t *ml = NULL;
-  retval = plugin_convert_values_to_metrics(vl, &ml);
-  if (retval != 0) {
-    WARNING("uc_set_hits_vl: Could not parse value list.");
-    return -1;
-  }
-  metrics_list_t *index_p = ml;
-  int i = 0;
-  while (index_p != NULL) {
-    retval = uc_set_hits(&index_p->metric, hits);
-    index_p = index_p->next_p;
-    ++i;
-  }
-  destroy_metrics_list(ml);
-  return retval;
-}
-
-int uc_inc_hits(metric_single_t const *m, int step) {
+int uc_inc_hits(metric_t const *m, int step) {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_inc_hits: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_inc_hits: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     return status;
   }
@@ -827,25 +803,6 @@ int uc_inc_hits(metric_single_t const *m, int step) {
   STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_inc_hits */
-
-int uc_inc_hits_vl(const data_set_t *ds, const value_list_t *vl, int step) {
-  int retval = 0;
-  metrics_list_t *ml = NULL;
-  retval = plugin_convert_values_to_metrics(vl, &ml);
-  if (retval != 0) {
-    WARNING("uc_inc_hits_vl: Could not parse value list.");
-    return -1;
-  }
-  metrics_list_t *index_p = ml;
-  int i = 0;
-  while (index_p != NULL) {
-    retval = uc_inc_hits(&index_p->metric, step);
-    index_p = index_p->next_p;
-    ++i;
-  }
-  destroy_metrics_list(ml);
-  return retval;
-}
 
 /*
  * Iterator interface
@@ -937,13 +894,13 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta) {
 /*
  * Meta data interface
  */
-/* XXX: cache_lock when calling this function! */
-static meta_data_t *uc_get_meta(metric_single_t const *m) /* {{{ */
+/* XXX: Must hold cache_lock when calling this function! */
+static meta_data_t *uc_get_meta(metric_t const *m) /* {{{ */
 {
   strbuf_t buf = STRBUF_CREATE;
-  int status = identity_marshal_text(&buf, m->identity);
+  int status = metric_identity(&buf, m);
   if (status != 0) {
-    ERROR("uc_update: identity_marshal_text failed with status %d.", status);
+    ERROR("uc_update: metric_identity failed with status %d.", status);
     STRBUF_DESTROY(buf);
     errno = status;
     return NULL;
@@ -981,16 +938,15 @@ static meta_data_t *uc_get_meta(metric_single_t const *m) /* {{{ */
     return ret;                                                                \
   }
 
-int uc_meta_data_exists(metric_single_t const *m, const char *key)
+int uc_meta_data_exists(metric_t const *m, const char *key)
     UC_WRAP(meta_data_exists);
 
-int uc_meta_data_delete(metric_single_t const *m, const char *key)
+int uc_meta_data_delete(metric_t const *m, const char *key)
     UC_WRAP(meta_data_delete);
 
 /* The second argument is called `toc` in the API, but the macro expects
  * `key`. */
-int uc_meta_data_toc(metric_single_t const *m, char ***key)
-    UC_WRAP(meta_data_toc);
+int uc_meta_data_toc(metric_t const *m, char ***key) UC_WRAP(meta_data_toc);
 #undef UC_WRAP
 
 /* We need a new version of this macro because the following functions take
@@ -1008,88 +964,36 @@ int uc_meta_data_toc(metric_single_t const *m, char ***key)
     pthread_mutex_unlock(&cache_lock);                                         \
     return ret;                                                                \
   }
-int uc_meta_data_add_string(metric_single_t const *m, const char *key,
+int uc_meta_data_add_string(metric_t const *m, const char *key,
                             const char *value) UC_WRAP(meta_data_add_string);
 
-int uc_meta_data_add_signed_int(metric_single_t const *m, const char *key,
+int uc_meta_data_add_signed_int(metric_t const *m, const char *key,
                                 int64_t value)
     UC_WRAP(meta_data_add_signed_int);
 
-int uc_meta_data_add_unsigned_int(metric_single_t const *m, const char *key,
+int uc_meta_data_add_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t value)
     UC_WRAP(meta_data_add_unsigned_int);
 
-int uc_meta_data_add_double(metric_single_t const *m, const char *key,
-                            double value) UC_WRAP(meta_data_add_double);
-int uc_meta_data_add_boolean(metric_single_t const *m, const char *key,
-                             bool value) UC_WRAP(meta_data_add_boolean);
+int uc_meta_data_add_double(metric_t const *m, const char *key, double value)
+    UC_WRAP(meta_data_add_double);
+int uc_meta_data_add_boolean(metric_t const *m, const char *key, bool value)
+    UC_WRAP(meta_data_add_boolean);
 
-int uc_meta_data_get_string(metric_single_t const *m, const char *key,
-                            char **value) UC_WRAP(meta_data_get_string);
+int uc_meta_data_get_string(metric_t const *m, const char *key, char **value)
+    UC_WRAP(meta_data_get_string);
 
-int uc_meta_data_get_signed_int(metric_single_t const *m, const char *key,
+int uc_meta_data_get_signed_int(metric_t const *m, const char *key,
                                 int64_t *value)
     UC_WRAP(meta_data_get_signed_int);
 
-int uc_meta_data_get_unsigned_int(metric_single_t const *m, const char *key,
+int uc_meta_data_get_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t *value)
     UC_WRAP(meta_data_get_unsigned_int);
 
-int uc_meta_data_get_double(metric_single_t const *m, const char *key,
-                            double *value) UC_WRAP(meta_data_get_double);
+int uc_meta_data_get_double(metric_t const *m, const char *key, double *value)
+    UC_WRAP(meta_data_get_double);
 
-int uc_meta_data_get_boolean(metric_single_t const *m, const char *key,
-                             bool *value) UC_WRAP(meta_data_get_boolean);
+int uc_meta_data_get_boolean(metric_t const *m, const char *key, bool *value)
+    UC_WRAP(meta_data_get_boolean);
 #undef UC_WRAP
-
-int uc_meta_data_get_signed_int_vl(const value_list_t *vl, const char *key,
-                                   int64_t *value) {
-  metrics_list_t *ml = NULL;
-  int retval = (plugin_convert_values_to_metrics(vl, &ml));
-  if (retval != 0) {
-    return -1;
-  }
-  /* All metric values from the values list share the same metadata */
-  retval = uc_meta_data_get_signed_int(&ml->metric, key, value);
-  destroy_metrics_list(ml);
-  return retval;
-}
-
-int uc_meta_data_get_unsigned_int_vl(const value_list_t *vl, const char *key,
-                                     uint64_t *value) {
-  metrics_list_t *ml = NULL;
-  int retval = (plugin_convert_values_to_metrics(vl, &ml));
-  if (retval != 0) {
-    return -1;
-  }
-  /* All metric values from the values list share the same metadata */
-  retval = uc_meta_data_get_unsigned_int(&ml->metric, key, value);
-  destroy_metrics_list(ml);
-  return retval;
-}
-int uc_meta_data_add_signed_int_vl(const value_list_t *vl, const char *key,
-                                   int64_t value) {
-  metrics_list_t *ml = NULL;
-  int retval = (plugin_convert_values_to_metrics(vl, &ml));
-  if (retval != 0 || ml == NULL || ml->metric.meta == NULL) {
-    return -1;
-  }
-
-  /* All metric values from the values list share the same metadata */
-  retval = meta_data_add_signed_int(ml->metric.meta, key, value);
-  destroy_metrics_list(ml);
-  return retval;
-}
-int uc_meta_data_add_unsigned_int_vl(const value_list_t *vl, const char *key,
-                                     uint64_t value) {
-  metrics_list_t *ml = NULL;
-  int retval = (plugin_convert_values_to_metrics(vl, &ml));
-  if (retval != 0 || ml == NULL || ml->metric.meta == NULL) {
-    return -1;
-  }
-
-  /* All metric values from the values list share the same metadata */
-  retval = meta_data_add_unsigned_int(ml->metric.meta, key, value);
-  destroy_metrics_list(ml);
-  return retval;
-}
