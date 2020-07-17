@@ -353,13 +353,13 @@ static int hv2metric_list(pTHX_ HV *hash, metric_t *metric_p) {
   SV **tmp = av_fetch(array, 0, 0);
 
   if (NULL != tmp) {
-    if (DS_TYPE_COUNTER == metric_p->value_ds_type)
+    if (DS_TYPE_COUNTER == metric_p->value_type)
       metric_p->value.counter = SvIV(*tmp);
-    else if (DS_TYPE_GAUGE == metric_p->value_ds_type)
+    else if (DS_TYPE_GAUGE == metric_p->value_type)
       metric_p->value.gauge = SvNV(*tmp);
-    else if (DS_TYPE_DERIVE == metric_p->value_ds_type)
+    else if (DS_TYPE_DERIVE == metric_p->value_type)
       metric_p->value.derive = SvIV(*tmp);
-    else if (DS_TYPE_ABSOLUTE == metric_p->value_ds_type)
+    else if (DS_TYPE_ABSOLUTE == metric_p->value_type)
       metric_p->value.absolute = SvIV(*tmp);
   } else {
     return 0;
