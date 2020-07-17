@@ -911,7 +911,7 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
 
   strbuf_printf(&buf, "%.3f", CDTIME_T_TO_DOUBLE(metric_p->time));
 
-  if (metric_p->value_ds_type == DS_TYPE_GAUGE)
+  if (metric_p->value_type == DS_TYPE_GAUGE)
     strbuf_printf(&buf, ":" GAUGE_FORMAT, metric_p->value.gauge);
   else if (store_rates) {
     gauge_t rates = NAN;
@@ -921,13 +921,13 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
       return status;
     }
     strbuf_printf(&buf, ":" GAUGE_FORMAT, rates);
-  } else if (metric_p->value_ds_type == DS_TYPE_COUNTER)
+  } else if (metric_p->value_type == DS_TYPE_COUNTER)
     strbuf_printf(&buf, ":%" PRIu64, (uint64_t)metric_p->value.counter);
-  else if (metric_p->value_ds_type == DS_TYPE_DERIVE)
+  else if (metric_p->value_type == DS_TYPE_DERIVE)
     strbuf_printf(&buf, ":%" PRIi64, metric_p->value.derive);
   else {
     ERROR("format_values: Unknown data source type: %i",
-          metric_p->value_ds_type);
+          metric_p->value_type);
     return -1;
   }
 
