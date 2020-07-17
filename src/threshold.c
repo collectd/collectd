@@ -640,8 +640,8 @@ static int ut_missing(const metric_t *metric_p,
 
   now = cdtime();
   missing_time = now - metric_p->time;
-  if ((identifier_p = plugin_format_metric(metric_p)) != 0) {
-    ERROR("uc_update: plugin_format_metric failed.");
+  if ((identifier_p = metric_marshal_text(metric_p)) != 0) {
+    ERROR("uc_update: metric_marshal_text failed.");
   }
 
   notification_init_metric(&n, NOTIF_FAILURE, NULL, metric_p);

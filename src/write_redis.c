@@ -68,7 +68,7 @@ static int wr_write(/* {{{ */
   redisReply *rr;
 
   char *metric_string_p = NULL;
-  if ((metric_string_p = plugin_format_metric(metric_p)) != 0) {
+  if ((metric_string_p = metric_marshal_text(metric_p)) != 0) {
     return -1;
   }
 

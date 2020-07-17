@@ -413,7 +413,7 @@ static int wh_write_command(const metric_t *metric_p, /* {{{ */
 
   /* Copy the identifier to `key' and escape it. */
   char *metric_string_p = NULL;
-  if ((metric_string_p = plugin_format_metric(metric_p)) != 0) {
+  if ((metric_string_p = metric_marshal_text(metric_p)) != 0) {
     return -1;
   }
 
