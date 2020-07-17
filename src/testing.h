@@ -136,7 +136,7 @@ static int check_count__;
 
 #define CHECK_NOT_NULL(expr)                                                   \
   do {                                                                         \
-    void *ptr_;                                                                \
+    void const *ptr_;                                                          \
     ptr_ = (expr);                                                             \
     OK1(ptr_ != NULL, #expr);                                                  \
   } while (0)
