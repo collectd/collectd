@@ -43,7 +43,7 @@ typedef struct {
   label_t *expected_labels;
   size_t expected_labels_num;
 
-  keyval_t *current_label;
+  label_t *current_label;
 } test_case_t;
 
 #if HAVE_YAJL_V2
@@ -93,7 +93,7 @@ static int test_string(void *ctx, unsigned char const *value,
   test_case_t *c = ctx;
 
   if (c->current_label != NULL) {
-    keyval_t *l = c->current_label;
+    label_t *l = c->current_label;
     char *got;
     int status;
 
@@ -112,7 +112,7 @@ static int test_string(void *ctx, unsigned char const *value,
   return 1; /* continue */
 }
 
-static int expect_json_labels(char *json, keyval_t *labels, size_t labels_num) {
+static int expect_json_labels(char *json, label_t *labels, size_t labels_num) {
   yajl_callbacks funcs = {
       .yajl_string = test_string,
       .yajl_map_key = test_map_key,
@@ -134,7 +134,7 @@ static int expect_json_labels(char *json, keyval_t *labels, size_t labels_num) {
 }
 
 DEF_TEST(notification) {
-  keyval_t labels[] = {
+  label_t labels[] = {
       {"summary", "this is a message"},
       {"alertname", "collectd_unit_test"},
       {"instance", "example.com"},
