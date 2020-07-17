@@ -43,7 +43,7 @@ pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
  * threshold_t *threshold_get
  *
  * Retrieve one specific threshold configuration. For looking up a threshold
- * matching a metric_t, see "threshold_search" below. Returns NULL if the
+ * matching a metric_single_t, see "threshold_search" below. Returns NULL if the
  * specified threshold doesn't exist.
  */
 threshold_t *threshold_get(const char *hostname, const char *plugin,
@@ -52,10 +52,10 @@ threshold_t *threshold_get(const char *hostname, const char *plugin,
   char name[5 * DATA_MAX_NAME_LEN];
   threshold_t *th = NULL;
 
-  (void) snprintf(
-      name, sizeof(name), "%s/%s/%s/%s", (hostname == NULL) ? "" : hostname,
-      (plugin == NULL) ? "" : plugin, (type == NULL) ? "" : type,
-      (data_source == NULL) ? "" : data_source);
+  (void)snprintf(name, sizeof(name), "%s/%s/%s/%s",
+                 (hostname == NULL) ? "" : hostname,
+                 (plugin == NULL) ? "" : plugin, (type == NULL) ? "" : type,
+                 (data_source == NULL) ? "" : data_source);
   name[sizeof(name) - 1] = '\0';
 
   if (c_avl_get(threshold_tree, name, (void *)&th) == 0)
@@ -74,7 +74,7 @@ threshold_t *threshold_get(const char *hostname, const char *plugin,
  * TODO(octo): threshold_search only searches by host name right now; should
  * also search by metric name and possibly other labels.
  */
-threshold_t *threshold_search(const metric_t *m) { /* {{{ */
+threshold_t *threshold_search(metric_single_t const *m) { /* {{{ */
   if (m == NULL) {
     return NULL;
   }
@@ -82,7 +82,7 @@ threshold_t *threshold_search(const metric_t *m) { /* {{{ */
   char *host = NULL;
   int status = identity_get_label(m->identity, "__host__", &host);
   if (status != 0) {
-	  return NULL;
+    return NULL;
   }
 
   threshold_t *th = threshold_get(host, NULL, NULL, NULL);
@@ -90,16 +90,16 @@ threshold_t *threshold_search(const metric_t *m) { /* {{{ */
   return th;
 } /* }}} threshold_t *threshold_search */
 
-int ut_search_threshold(const metric_t *metric_p, /* {{{ */
+int ut_search_threshold(metric_single_t const *m, /* {{{ */
                         threshold_t *ret_threshold) {
   threshold_t *t;
 
-  if (metric_p == NULL)
+  if (m == NULL)
     return EINVAL;
 
   /* Is this lock really necessary? */
   pthread_mutex_lock(&threshold_lock);
-  t = threshold_search(metric_p);
+  t = threshold_search(m);
   if (t == NULL) {
     pthread_mutex_unlock(&threshold_lock);
     return ENOENT;

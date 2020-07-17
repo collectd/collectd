@@ -119,7 +119,7 @@ typedef struct data_set_s data_set_t;
 
 
 struct metrics_list_s {
-  metric_t metric;
+  metric_single_t metric;
   struct metrics_list_s *next_p;
 };
 typedef struct metrics_list_s metrics_list_t;
@@ -167,7 +167,7 @@ enum cache_event_type_e { CE_VALUE_NEW, CE_VALUE_UPDATE, CE_VALUE_EXPIRED };
 
 typedef struct cache_event_s {
   enum cache_event_type_e type;
-  const metric_t *metric_p;
+  metric_single_t const *m;
   const char *value_list_name;
   int ret;
 } cache_event_t;
@@ -185,13 +185,13 @@ typedef struct plugin_ctx_s plugin_ctx_t;
  */
 typedef int (*plugin_init_cb)(void);
 typedef int (*plugin_read_cb)(user_data_t *);
-typedef int (*plugin_write_cb)(metric_t const *, user_data_t *);
+typedef int (*plugin_write_cb)(metric_single_t const *, user_data_t *);
 typedef int (*plugin_flush_cb)(cdtime_t timeout, const char *identifier,
                                user_data_t *);
 /* "missing" callback. Returns less than zero on failure, zero if other
  * callbacks should be called, greater than zero if no more callbacks should be
  * called. */
-typedef int (*plugin_missing_cb)(const metric_t *, user_data_t *);
+typedef int (*plugin_missing_cb)(metric_single_t const *, user_data_t *);
 /* "cache event" callback. CE_VALUE_NEW events are sent to all registered
  * callbacks. Callback should check if it interested in further CE_VALUE_UPDATE
  * and CE_VALUE_EXPIRED events for metric and set event->ret = 1 if so.
@@ -259,7 +259,7 @@ int plugin_shutdown_all(void);
  * ARGUMENTS
  *  plugin     Name of the plugin. If NULL, the value is sent to all registered
  *             write functions.
- *  metric_p   The actual value to be processed. Must not be NULL.
+ *  m   The actual value to be processed. Must not be NULL.
  *
  * RETURN VALUE
  *  Returns zero upon success or non-zero if an error occurred. If `plugin' is
@@ -270,7 +270,7 @@ int plugin_shutdown_all(void);
  *  This is the function used by the `write' built-in target. May be used by
  *  other target plugins.
  */
-int plugin_write(const char *plugin, const metric_t *metric_p);
+int plugin_write(const char *plugin, metric_single_t const *m);
 
 int plugin_flush(const char *plugin, cdtime_t timeout, const char *identifier);
 
@@ -440,10 +440,10 @@ __attribute__((sentinel)) int plugin_dispatch_multivalue(value_list_t const *vl,
                                                          bool store_percentage,
                                                          int store_type, ...);
 
-int plugin_dispatch_missing(const metric_t *metric_p);
+int plugin_dispatch_missing(metric_single_t const *m);
 void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
                                  unsigned long callbacks_mask, const char *name,
-                                 const metric_t *metric_p);
+                                 metric_single_t const *m);
 
 int plugin_dispatch_notification(const notification_t *notif);
 

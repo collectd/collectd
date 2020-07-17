@@ -97,7 +97,7 @@ typedef struct cache_event_func_s cache_event_func_t;
 struct write_queue_s;
 typedef struct write_queue_s write_queue_t;
 struct write_queue_s {
-  metric_t *metric;
+  metric_single_t *metric;
   plugin_ctx_t ctx;
   write_queue_t *next;
 };
@@ -165,7 +165,7 @@ static bool record_statistics;
 /*
  * Static functions
  */
-static int plugin_dispatch_metric_internal(metric_t *metric_p);
+static int plugin_dispatch_metric_internal(metric_single_t *m);
 
 static const char *plugin_get_dir(void) {
   if (plugindir == NULL)
@@ -803,10 +803,10 @@ static int ml_enqueue(metrics_list_t const *ml) { /* {{{ */
   return 0;
 } /* }}} int ml_enqueue */
 
-static metric_t *plugin_write_dequeue(void) /* {{{ */
+static metric_single_t *plugin_write_dequeue(void) /* {{{ */
 {
   write_queue_t *q;
-  metric_t *metric_p;
+  metric_single_t *m;
 
   pthread_mutex_lock(&write_lock);
 
@@ -830,21 +830,21 @@ static metric_t *plugin_write_dequeue(void) /* {{{ */
 
   (void)plugin_set_ctx(q->ctx);
 
-  metric_p = q->metric;
+  m = q->metric;
   sfree(q);
-  return metric_p;
-} /* }}} metric_t *plugin_write_dequeue */
+  return m;
+} /* }}} metric_single_t *plugin_write_dequeue */
 
 static void *plugin_write_thread(void __attribute__((unused)) * args) /* {{{ */
 {
   while (write_loop) {
-    metric_t *metric_p = NULL;
-    metric_p = plugin_write_dequeue();
-    if (metric_p == NULL)
+    metric_single_t *m = NULL;
+    m = plugin_write_dequeue();
+    if (m == NULL)
       continue;
 
-    (void)plugin_dispatch_metric_internal(metric_p);
-    metric_destroy(metric_p);
+    (void)plugin_dispatch_metric_internal(m);
+    metric_destroy(m);
   }
 
   pthread_exit(NULL);
@@ -1638,7 +1638,7 @@ identity_t *plugin_valuelist_to_identity(value_list_t const *vl,
   }
 
   keyval_t labels[3] = {
-      {"instance", (strlen(vl->host) != 0) ? vl->host: hostname_g},
+      {"instance", (strlen(vl->host) != 0) ? vl->host : hostname_g},
   };
   size_t labels_num = 1;
 
@@ -1691,7 +1691,7 @@ static int value_to_metric(value_list_t const *vl, data_set_t const *ds,
       return ENOMEM;
     }
 
-    ml->metric = (metric_t){
+    ml->metric = (metric_single_t){
         .identity = plugin_valuelist_to_identity(vl, ds->ds + i),
         .time = metric_time,
         .interval = metric_interval,
@@ -2044,11 +2044,11 @@ EXPORT int plugin_read_all_once(void) {
 } /* int plugin_read_all_once */
 
 EXPORT int plugin_write(const char *plugin, /* {{{ */
-                        const metric_t *metric_p) {
+                        metric_single_t const *m) {
   llentry_t *le;
   int status;
 
-  if (metric_p == NULL)
+  if (m == NULL)
     return EINVAL;
 
   if (list_write == NULL)
@@ -2072,7 +2072,7 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
 
       DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
       callback = cf->cf_callback;
-      status = (*callback)(metric_p, &cf->cf_udata);
+      status = (*callback)(m, &cf->cf_udata);
       if (status != 0)
         failure++;
       else
@@ -2109,7 +2109,7 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
 
     DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
     callback = cf->cf_callback;
-    status = (*callback)(metric_p, &cf->cf_udata);
+    status = (*callback)(m, &cf->cf_udata);
   }
 
   return status;
@@ -2213,7 +2213,7 @@ EXPORT int plugin_shutdown_all(void) {
   return ret;
 } /* void plugin_shutdown_all */
 
-EXPORT int plugin_dispatch_missing(const metric_t *metric_p) /* {{{ */
+EXPORT int plugin_dispatch_missing(metric_single_t const *m) /* {{{ */
 {
   if (list_missing == NULL)
     return 0;
@@ -2224,7 +2224,7 @@ EXPORT int plugin_dispatch_missing(const metric_t *metric_p) /* {{{ */
     plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
     plugin_missing_cb callback = cf->cf_callback;
 
-    int status = (*callback)(metric_p, &cf->cf_udata);
+    int status = (*callback)(m, &cf->cf_udata);
     plugin_set_ctx(old_ctx);
     if (status != 0) {
       if (status < 0) {
@@ -2244,7 +2244,7 @@ EXPORT int plugin_dispatch_missing(const metric_t *metric_p) /* {{{ */
 
 void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
                                  unsigned long callbacks_mask, const char *name,
-                                 const metric_t *metric_p) {
+                                 metric_single_t const *m) {
   switch (event_type) {
   case CE_VALUE_NEW:
     callbacks_mask = 0;
@@ -2255,10 +2255,8 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
       if (!callback)
         continue;
 
-      cache_event_t event = (cache_event_t){.type = event_type,
-                                            .metric_p = metric_p,
-                                            .value_list_name = name,
-                                            .ret = 0};
+      cache_event_t event = (cache_event_t){
+          .type = event_type, .m = metric_p, .value_list_name = name, .ret = 0};
 
       plugin_ctx_t old_ctx = plugin_set_ctx(cef->plugin_ctx);
       int status = (*callback)(&event, &cef->user_data);
@@ -2297,10 +2295,8 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
       if (callbacks_mask && (1 << (i)) == 0)
         continue;
 
-      cache_event_t event = (cache_event_t){.type = event_type,
-                                            .metric_p = metric_p,
-                                            .value_list_name = name,
-                                            .ret = 0};
+      cache_event_t event = (cache_event_t){
+          .type = event_type, .m = metric_p, .value_list_name = name, .ret = 0};
 
       plugin_ctx_t old_ctx = plugin_set_ctx(cef->plugin_ctx);
       int status = (*callback)(&event, &cef->user_data);
@@ -2318,7 +2314,7 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
   return;
 }
 
-static int plugin_dispatch_metric_internal(metric_t *m) {
+static int plugin_dispatch_metric_internal(metric_single_t *m) {
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
   assert(m != NULL);
   assert(m->time != 0); /* The time is determined at _enqueue_ time. */

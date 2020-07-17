@@ -51,11 +51,10 @@ extern c_avl_tree_t *threshold_tree;
 extern pthread_mutex_t threshold_lock;
 
 threshold_t *threshold_get(const char *hostname, const char *plugin,
-                           const char *type,
-                           const char *data_source);
+                           const char *type, const char *data_source);
 
-threshold_t *threshold_search(const metric_t *metric_p);
+threshold_t *threshold_search(metric_single_t const *m);
 
-int ut_search_threshold(const metric_t *metric_p, threshold_t *ret_threshold);
+int ut_search_threshold(metric_single_t const *m, threshold_t *ret_threshold);
 
 #endif /* UTILS_THRESHOLD_H */
