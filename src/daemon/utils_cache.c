@@ -66,7 +66,7 @@ typedef struct cache_entry_s {
   size_t history_index; /* points to the next position to write to. */
   size_t history_length;
 
-  meta_data_list_head_t *meta;
+  meta_data_t *meta;
   identity_t *identity;
 
   unsigned long callbacks_mask;
@@ -120,22 +120,13 @@ static void cache_free(cache_entry_t *ce) {
 
   /* We have non-exclusive ownership of the metadata */
   if (ce->meta != NULL) {
-    destroy_metadata_head(ce->meta);
+    meta_data_destroy(ce->meta);
     ce->meta = NULL;
   }
   sfree(ce);
 } /* void cache_free */
 
-static void uc_check_range(const data_source_t *ds, cache_entry_t *ce) {
-  if (!isnan(ce->values_gauge)) {
-    if (ce->values_gauge < ds->min)
-      ce->values_gauge = NAN;
-    else if (ce->values_gauge > ds->max)
-      ce->values_gauge = NAN;
-  }
-} /* void uc_check_range */
-
-static int uc_insert(const metric_t *metric_p, const char *key) {
+static int uc_insert(metric_t const *metric_p, char const *key) {
   /* `cache_lock' has been locked by `uc_update' */
 
   char *key_copy = strdup(key);
@@ -153,7 +144,7 @@ static int uc_insert(const metric_t *metric_p, const char *key) {
 
   sstrncpy(ce->name, key, sizeof(ce->name));
 
-  switch (metric_p->value_ds_type) {
+  switch (metric_p->value_type) {
   case DS_TYPE_COUNTER:
     ce->values_gauge = NAN;
     ce->values_raw.counter = metric_p->value.counter;
@@ -172,26 +163,17 @@ static int uc_insert(const metric_t *metric_p, const char *key) {
   default:
     /* This shouldn't happen. */
     ERROR("uc_insert: Don't know how to handle data source type %i.",
-          metric_p->value_ds_type);
+          metric_p->value_type);
     sfree(key_copy);
     cache_free(ce);
     return -1;
   } /* switch (ds->ds[i].type) */
 
-  /* Prune invalid gauge data */
-  uc_check_range(metric_p->ds, ce);
-
   ce->last_time = metric_p->time;
   ce->last_update = cdtime();
   ce->interval = metric_p->interval;
   ce->state = STATE_UNKNOWN;
-
-  if (metric_p->meta != NULL) {
-    pthread_mutex_lock(&metric_p->meta->lock);
-    ce->meta = metric_p->meta;
-    metric_p->meta->ref_count++;
-    pthread_mutex_unlock(&metric_p->meta->lock);
-  }
+  ce->meta = meta_data_clone(metric_p->meta);
 
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
     sfree(key_copy);
@@ -310,9 +292,8 @@ int uc_check_timeout(void) {
 } /* int uc_check_timeout */
 
 int uc_update(const metric_t *metric_p) {
-  char name[6 * DATA_MAX_NAME_LEN];
-  char *metric_string_p = NULL;
-  if ((metric_string_p = plugin_format_metric(metric_p)) != 0) {
+  char *metric_name = plugin_format_metric(metric_p);
+  if (metric_name == NULL) {
     ERROR("uc_update: plugin_format_metric failed.");
     return -1;
   }
@@ -320,37 +301,34 @@ int uc_update(const metric_t *metric_p) {
   pthread_mutex_lock(&cache_lock);
 
   cache_entry_t *ce = NULL;
-  int status = c_avl_get(cache_tree, metric_string_p, (void *)&ce);
+  int status = c_avl_get(cache_tree, metric_name, (void *)&ce);
   if (status != 0) /* entry does not yet exist */
   {
-    status = uc_insert(metric_p, metric_string_p);
+    status = uc_insert(metric_p, metric_name);
     pthread_mutex_unlock(&cache_lock);
 
     if (status == 0)
-      plugin_dispatch_cache_event(CE_VALUE_NEW, 0 /* mask */, metric_string_p,
+      plugin_dispatch_cache_event(CE_VALUE_NEW, 0 /* mask */, metric_name,
                                   metric_p);
 
+    sfree(metric_name);
     return status;
   }
 
   assert(ce != NULL);
-  if (metric_p->meta != NULL) {
-    pthread_mutex_lock(&metric_p->meta->lock);
-    ce->meta = metric_p->meta;
-    metric_p->meta->ref_count++;
-    pthread_mutex_unlock(&metric_p->meta->lock);
-  }
   ce->identity = identity_clone(metric_p->identity);
+  ce->meta = meta_data_clone(metric_p->meta);
   if (ce->last_time >= metric_p->time) {
     pthread_mutex_unlock(&cache_lock);
     NOTICE("uc_update: Value too old: name = %s; value time = %.3f; "
            "last cache update = %.3f;",
-           name, CDTIME_T_TO_DOUBLE(metric_p->time),
+           metric_name, CDTIME_T_TO_DOUBLE(metric_p->time),
            CDTIME_T_TO_DOUBLE(ce->last_time));
+    sfree(metric_name);
     return -1;
   }
 
-  switch (metric_p->ds->type) {
+  switch (metric_p->value_type) {
   case DS_TYPE_COUNTER: {
     counter_t diff =
         counter_diff(ce->values_raw.counter, metric_p->value.counter);
@@ -376,7 +354,8 @@ int uc_update(const metric_t *metric_p) {
     /* This shouldn't happen. */
     pthread_mutex_unlock(&cache_lock);
     ERROR("uc_update: Don't know how to handle data source type %i.",
-          metric_p->ds->type);
+          metric_p->value_type);
+    sfree(metric_name);
     return -1;
   } /* switch (metric_p->ds->type) */
 
@@ -391,9 +370,6 @@ int uc_update(const metric_t *metric_p) {
     ce->history_index = (ce->history_index + 1) % ce->history_length;
   }
 
-  /* Prune invalid gauge data */
-  uc_check_range(metric_p->ds, ce);
-
   ce->last_time = metric_p->time;
   ce->last_update = cdtime();
   ce->interval = metric_p->interval;
@@ -403,10 +379,12 @@ int uc_update(const metric_t *metric_p) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  if (callbacks_mask)
-    plugin_dispatch_cache_event(CE_VALUE_UPDATE, callbacks_mask, name,
+  if (callbacks_mask) {
+    plugin_dispatch_cache_event(CE_VALUE_UPDATE, callbacks_mask, metric_name,
                                 metric_p);
+  }
 
+  sfree(metric_name);
   return 0;
 } /* int uc_update */
 
@@ -957,7 +935,7 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta) {
   if ((iter == NULL) || (iter->entry == NULL) || (ret_meta == NULL))
     return -1;
 
-  *ret_meta = meta_data_clone(iter->entry->meta->meta);
+  *ret_meta = meta_data_clone(iter->entry->meta);
 
   return 0;
 } /* int uc_iterator_get_meta */
@@ -992,11 +970,11 @@ static meta_data_t *uc_get_meta(const metric_t *metric_p) /* {{{ */
     return NULL;
   }
 
-  if (ce->meta->meta == NULL)
-    ce->meta->meta = meta_data_create();
+  if (ce->meta == NULL)
+    ce->meta = meta_data_create();
 
   sfree(metric_string_p);
-  return ce->meta->meta;
+  return ce->meta;
 } /* }}} meta_data_t *uc_get_meta */
 
 /* Sorry about this preprocessor magic, but it really makes this file much
@@ -1020,7 +998,7 @@ int uc_meta_data_delete(const metric_t *metric_p, const char *key)
     UC_WRAP(meta_data_delete);
 
 /* The second argument is called `toc` in the API, but the macro expects
-* `key`. */
+ * `key`. */
 int uc_meta_data_toc(const metric_t *metric_p, char ***key)
     UC_WRAP(meta_data_toc);
 #undef UC_WRAP
@@ -1101,12 +1079,12 @@ int uc_meta_data_add_signed_int_vl(const value_list_t *vl, const char *key,
                                    int64_t value) {
   metrics_list_t *ml = NULL;
   int retval = (plugin_convert_values_to_metrics(vl, &ml));
-  if (retval != 0 || ml == NULL || ml->metric.meta->meta == NULL) {
+  if (retval != 0 || ml == NULL || ml->metric.meta == NULL) {
     return -1;
   }
 
   /* All metric values from the values list share the same metadata */
-  retval = meta_data_add_signed_int(ml->metric.meta->meta, key, value);
+  retval = meta_data_add_signed_int(ml->metric.meta, key, value);
   destroy_metrics_list(ml);
   return retval;
 }

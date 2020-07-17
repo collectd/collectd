@@ -124,25 +124,13 @@ struct identity_s {
 };
 typedef struct identity_s identity_t;
 
-/* The meta data list may be shared between multiple metrics_t structures, and
- * thus a referenxce count and a mutex are needed for changes/deletions. */
-struct meta_data_list_head_s {
-  int ref_count;
-  pthread_mutex_t lock;
-  meta_data_t *meta;
-};
-typedef struct meta_data_list_head_s meta_data_list_head_t;
-
 struct metric_s {
   identity_t *identity;
   value_t value;
-  int value_ds_type;
-  char type[DATA_MAX_NAME_LEN];
-  char plugin[DATA_MAX_NAME_LEN];
+  int value_type;
   cdtime_t time;
   cdtime_t interval;
-  data_source_t *ds;
-  meta_data_list_head_t *meta;
+  meta_data_t *meta;
 };
 typedef struct metric_s metric_t;
 
@@ -534,21 +522,6 @@ int identity_delete_label(identity_t *identity_p, const char *label_p);
  *
  */
 void identity_destroy(identity_t *identity);
-
-/*
- * NAME
- * destroy_metadata_head
- *
- * DESCRIPTION
- * This function takes a pointer to a meta data list head structure, locks te
- * list, decrementsa the reference count, and reclaims the memory from the
- * metadatra list when the reference count drops to zero.
- *
- * ARGUMENTS
- *  `meta_data_list_head_t '  Pointer to the head of the meta data list.
- *
- */
-void destroy_metadata_head(meta_data_list_head_t *meta_p);
 
 /*
  * NAME

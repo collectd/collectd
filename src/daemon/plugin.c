@@ -879,30 +879,20 @@ static metric_t *metric_clone(metric_t const *orig) { /* {{{ */
   }
   memcpy(m, orig, sizeof(*m));
 
-  /* Do not copy metadata: there can be only one */
-  if (m->meta != NULL) { /* Points to the same metadata list head */
-    pthread_mutex_lock(&m->meta->lock);
-    m->meta->ref_count++;
-    pthread_mutex_unlock(&m->meta->lock);
-  }
-
-  /* Identity pointer is changed to point to a copy */
+  /* Replace pointer fields. */
   m->identity = identity_clone(orig->identity);
+  m->meta = meta_data_clone(orig->meta);
 
   return m;
 } /* }}}  metric_t * metric_clone  */
 
-EXPORT void plugin_metric_free(metric_t *metric_p) {
-  if (metric_p == NULL) {
+EXPORT void plugin_metric_free(metric_t *m) {
+  if (m == NULL) {
     return;
   }
-  if (metric_p->meta != NULL) {
-    destroy_metadata_head(metric_p->meta);
-  }
-  if (metric_p->identity != NULL) {
-    identity_destroy(metric_p->identity);
-  }
-  sfree(metric_p);
+  meta_data_destroy(m->meta);
+  identity_destroy(m->identity);
+  sfree(m);
 }
 
 static void plugin_value_list_free(value_list_t *vl) /* {{{ */
@@ -1792,43 +1782,14 @@ static int get_values_data_set(value_list_t const *vl, data_set_t **data_set) {
   return 0;
 }
 
-EXPORT void destroy_metadata_head(meta_data_list_head_t *meta_p) {
-  if (meta_p != NULL) {
-    pthread_mutex_lock(&meta_p->lock);
-    if (meta_p->meta != NULL) {
+EXPORT void destroy_metrics_list(metrics_list_t *ml) {
+  while (ml != NULL) {
+    identity_destroy(ml->metric.identity);
+    meta_data_destroy(ml->metric.meta);
 
-      if (meta_p->ref_count > 0) {
-        meta_p->ref_count--;
-        if (meta_p->ref_count == 0) {
-          meta_data_destroy(meta_p->meta);
-          meta_p->meta = NULL;
-          pthread_mutex_unlock(&meta_p->lock);
-          sfree(meta_p);
-          return;
-        }
-      }
-    }
-    pthread_mutex_unlock(&meta_p->lock);
-  }
-}
-
-EXPORT void destroy_metrics_list(metrics_list_t *this_list_p) {
-  metrics_list_t *index_p = this_list_p;
-  while (index_p != NULL) {
-    if (index_p->metric.identity != NULL) {
-      identity_destroy(index_p->metric.identity);
-    }
-    if (index_p->metric.meta != NULL) {
-      /* Could the shared meta data have been removed already? */
-      if (index_p->metric.meta->meta != NULL) {
-        destroy_metadata_head(index_p->metric.meta);
-        index_p->metric.meta = NULL;
-      }
-    }
-
-    index_p = index_p->next_p;
-    free(this_list_p);
-    this_list_p = index_p;
+    metrics_list_t *next = ml->next_p;
+    sfree(ml);
+    ml = next;
   }
 }
 
@@ -1862,8 +1823,8 @@ EXPORT void identity_destroy(identity_t *identity) {
 }
 
 /* This does the heavy lifting in coverting the actual metric data */
-static int value_to_metric(value_list_t const *vl, meta_data_list_head_t *meta,
-                           data_set_t const *ds, metrics_list_t **ret_ml) {
+static int value_to_metric(value_list_t const *vl, data_set_t const *ds,
+                           metrics_list_t **ret_ml) {
 
   metrics_list_t *tail = NULL;
   metrics_list_t *head = NULL;
@@ -1885,25 +1846,15 @@ static int value_to_metric(value_list_t const *vl, meta_data_list_head_t *meta,
       return ENOMEM;
     }
 
-    if (meta != NULL) {
-      pthread_mutex_lock(&meta->lock);
-      ml->metric.meta = meta;
-      meta->ref_count++;
-      pthread_mutex_unlock(&meta->lock);
-    }
-
     ml->metric = (metric_t){
         .identity = identity_create_legacy(vl->plugin, vl->type, ds->ds[i].name,
                                            vl->host),
         .time = metric_time,
         .interval = metric_interval,
         .value = vl->values[i],
-        .value_ds_type = ds->ds[i].type,
-        .ds = &ds->ds[i],
-        .meta = meta,
+        .value_type = ds->ds[i].type,
+        .meta = meta_data_clone(vl->meta),
     };
-    sstrncpy(ml->metric.type, vl->type, sizeof(ml->metric.type));
-    sstrncpy(ml->metric.plugin, vl->plugin, sizeof(ml->metric.plugin));
 
     if (ml->metric.identity == NULL) {
       destroy_metrics_list(ml);
@@ -1953,25 +1904,9 @@ EXPORT int plugin_convert_values_to_metrics(value_list_t const *vl,
     return ENOENT;
   }
 
-  meta_data_list_head_t *meta_p = NULL;
-  if (vl->meta != NULL) {
-    meta_p = calloc(1, sizeof(meta_data_list_head_t));
-    if (meta_p == NULL) {
-      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      return ENOMEM;
-    }
-    meta_p->meta = meta_data_clone(vl->meta);
-    if (meta_p->meta == NULL) {
-      sfree(meta_p);
-      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      return ENOMEM;
-    }
-    /* TODO: meta_p->ref_count is zero */
-  }
   metrics_list_t *new_metrics_list_p = NULL;
 
-  if (value_to_metric(vl, meta_p, ds, &new_metrics_list_p) != 0) {
-    destroy_metadata_head(meta_p);
+  if (value_to_metric(vl, ds, &new_metrics_list_p) != 0) {
     ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
     return -ENOMEM;
   }
@@ -2268,11 +2203,6 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
   if (list_write == NULL)
     return ENOENT;
 
-  if (metric_p->ds == NULL) {
-    ERROR("plugin_write: Unable to lookup type `%s'.", metric_p->type);
-    return ENOENT;
-  }
-
   if (plugin == NULL) {
     int success = 0;
     int failure = 0;
@@ -2545,15 +2475,10 @@ static int plugin_dispatch_metric_internal(metric_t *metric_p) {
   assert(metric_p->time != 0); /* The time is determined at _enqueue_ time. */
   assert(metric_p->interval != 0);
   assert(metric_p->identity != NULL);
-  if (metric_p->type[0] == 0 || metric_p->ds == NULL) {
-    ERROR("plugin_dispatch_values: Invalid metric "
-          "from plugin %s.",
-          metric_p->identity->name);
-    return -EINVAL;
-  }
-  int retval = c_avl_get(metric_p->identity->labels, (void *)"__host__",
-                         (void **)&host_p);
-  assert(retval == 0);
+
+  int retval = identity_get_label(metric_p->identity, "__host__", &host_p);
+  assert(retval ==
+         0); /* TODO(octo): don't use assert instead of error handling. */
 
   if (list_write == NULL)
     c_complain_once(LOG_WARNING, &no_write_complaint,
