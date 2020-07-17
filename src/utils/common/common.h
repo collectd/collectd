@@ -323,7 +323,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
 #define FORMAT_VL(ret, ret_len, vl)                                            \
   format_name(ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance,   \
               (vl)->type, (vl)->type_instance)
-int format_values(char *ret, size_t ret_len, const metric_t *metric_p,
+int format_values(char *ret, size_t ret_len, metric_single_t const *m,
                   bool store_rates);
 int format_values_vl(char *ret, size_t ret_len, const data_set_t *ds,
                      const value_list_t *vl, bool store_rates);
@@ -348,7 +348,7 @@ int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
 #endif
 
 int notification_init_metric(notification_t *n, int severity,
-                             const char *message, const metric_t *metric_p);
+                             const char *message, metric_single_t const *m);
 
 int notification_init(notification_t *n, int severity, const char *message,
                       const char *host, const char *plugin,

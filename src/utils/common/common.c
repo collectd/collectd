@@ -905,29 +905,28 @@ int format_name(char *ret, int ret_len, const char *hostname,
 } /* int format_name */
 
 int format_values(char *ret, size_t ret_len, /* {{{ */
-                  const metric_t *metric_p, bool store_rates) {
+                  metric_single_t const *m, bool store_rates) {
   ret[0] = 0;
   strbuf_t buf = STRBUF_CREATE_FIXED(ret, ret_len);
 
-  strbuf_printf(&buf, "%.3f", CDTIME_T_TO_DOUBLE(metric_p->time));
+  strbuf_printf(&buf, "%.3f", CDTIME_T_TO_DOUBLE(m->time));
 
-  if (metric_p->value_type == DS_TYPE_GAUGE)
-    strbuf_printf(&buf, ":" GAUGE_FORMAT, metric_p->value.gauge);
+  if (m->value_type == DS_TYPE_GAUGE)
+    strbuf_printf(&buf, ":" GAUGE_FORMAT, m->value.gauge);
   else if (store_rates) {
     gauge_t rates = NAN;
-    int status = uc_get_rate(metric_p, &rates);
+    int status = uc_get_rate(m, &rates);
     if (status != 0) {
       WARNING("format_values: uc_get_rate failed.");
       return status;
     }
     strbuf_printf(&buf, ":" GAUGE_FORMAT, rates);
-  } else if (metric_p->value_type == DS_TYPE_COUNTER)
-    strbuf_printf(&buf, ":%" PRIu64, (uint64_t)metric_p->value.counter);
-  else if (metric_p->value_type == DS_TYPE_DERIVE)
-    strbuf_printf(&buf, ":%" PRIi64, metric_p->value.derive);
+  } else if (m->value_type == DS_TYPE_COUNTER)
+    strbuf_printf(&buf, ":%" PRIu64, (uint64_t)m->value.counter);
+  else if (m->value_type == DS_TYPE_DERIVE)
+    strbuf_printf(&buf, ":%" PRIi64, m->value.derive);
   else {
-    ERROR("format_values: Unknown data source type: %i",
-          metric_p->value_type);
+    ERROR("format_values: Unknown data source type: %i", m->value_type);
     return -1;
   }
 
@@ -978,7 +977,7 @@ int parse_identifier(char *str, char **ret_host, char **ret_plugin,
 
   type = strchr(plugin, '/');
   if (type == NULL)
-  return -1;
+    return -1;
   *type = '\0';
   type++;
 
@@ -1017,8 +1016,7 @@ int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
 
   sstrncpy(str_copy, str, sizeof(str_copy));
 
-  status = parse_identifier(str_copy, &host, &plugin, &type,
-                            &data_source,
+  status = parse_identifier(str_copy, &host, &plugin, &type, &data_source,
                             /* default_host = */ NULL);
   if (status != 0)
     return status;
@@ -1027,7 +1025,6 @@ int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
   sstrncpy(vl->plugin, plugin, sizeof(vl->plugin));
 
   sstrncpy(vl->type, type, sizeof(vl->type));
-
 
   return 0;
 } /* }}} int parse_identifier_vl */
@@ -1236,18 +1233,18 @@ int notification_init(notification_t *n, int severity, const char *message,
 } /* int notification_init */
 
 int notification_init_metric(notification_t *n, int severity,
-                             char const *message, metric_t const *m) {
+                             char const *message, metric_single_t const *m) {
   if ((n == NULL) || (message == NULL) || (m == NULL)) {
     return EINVAL;
   }
 
   (*n) = (notification_t){
-	  /* TODO(octo): add "identity" to the notification_t type. */
-	  /* .identity = identity_clone(m->identity), */
-	  .severity = severity,
-	  .time = m->time,
-	  /* TODO(octo): change the type of the "meta" field to "meta_data_t". */
-	  /* .meta = meta_data_clone(m->meta), */
+      /* TODO(octo): add "identity" to the notification_t type. */
+      /* .identity = identity_clone(m->identity), */
+      .severity = severity,
+      .time = m->time,
+      /* TODO(octo): change the type of the "meta" field to "meta_data_t". */
+      /* .meta = meta_data_clone(m->meta), */
   };
 
   sstrncpy(n->message, message, sizeof(n->message));
