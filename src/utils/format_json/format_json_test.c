@@ -235,7 +235,7 @@ DEF_TEST(metric) {
     identity_t *id;
     CHECK_NOT_NULL(id = identity_unmarshal_text(cases[i].identity));
 
-    metric_t m = {
+    metric_single_t m = {
         .identity = id,
         .value = cases[i].value,
         .value_type = cases[i].value_type,

@@ -545,7 +545,7 @@ static int format_time(yajl_gen g, cdtime_t t) /* {{{ */
 
 /* TODO(octo): format_metric should export the interval, too. */
 /* TODO(octo): Decide whether format_metric should export meta data. */
-static int format_metric(yajl_gen g, metric_t const *m) {
+static int format_metric(yajl_gen g, metric_single_t const *m) {
   CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN metric */
 
   if (c_avl_size(m->identity->labels) != 0) {
@@ -588,7 +588,7 @@ static int format_metric(yajl_gen g, metric_t const *m) {
 static int format_metrics_list(yajl_gen g, metrics_list_t const *ml) {
   CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN metric family */
 
-  metric_t const *m = &ml->metric;
+  metric_single_t const *m = &ml->metric;
 
   JSON_ADD(g, "name");
   JSON_ADD(g, m->identity->name);
@@ -625,7 +625,8 @@ static int format_metrics_list(yajl_gen g, metrics_list_t const *ml) {
   return 0;
 }
 
-int format_json_metric(strbuf_t *buf, metric_t const *m, bool store_rates) {
+int format_json_metric(strbuf_t *buf, metric_single_t const *m,
+                       bool store_rates) {
   if ((buf == NULL) || (m == NULL))
     return EINVAL;
 

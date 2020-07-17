@@ -46,7 +46,8 @@ int format_json_finalize(char *buffer, size_t *ret_buffer_fill,
 
 /* format_json_metric writes m to buf in JSON format. The format produces is
  * compatible to the "prometheus/prom2json" project. */
-int format_json_metric(strbuf_t *buf, metric_t const *m, bool store_rates);
+int format_json_metric(strbuf_t *buf, metric_single_t const *m,
+                       bool store_rates);
 
 int format_json_notification(char *buffer, size_t buffer_size,
                              notification_t const *n);
