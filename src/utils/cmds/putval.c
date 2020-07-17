@@ -43,9 +43,9 @@ static int is_quoted(const char *str, size_t len) {
   return (str[0] == '"' && str[len - 1] == '"');
 }
 
-static int set_option(value_list_t *vl, const char *key, const char *value,
+static int set_option(metric_t *metric_p, const char *key, const char *value,
                       cmd_error_handler_t *err) {
-  if ((vl == NULL) || (key == NULL) || (value == NULL))
+  if ((metric_p == NULL) || (key == NULL) || (value == NULL))
     return -1;
 
   if (strcasecmp("interval", key) == 0) {
@@ -57,14 +57,14 @@ static int set_option(value_list_t *vl, const char *key, const char *value,
     tmp = strtod(value, &endptr);
 
     if ((errno == 0) && (endptr != NULL) && (endptr != value) && (tmp > 0.0))
-      vl->interval = DOUBLE_TO_CDTIME_T(tmp);
+      metric_p->interval = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strncasecmp("meta:", key, 5) == 0) {
     const char *meta_key = key + 5;
     size_t value_len = strlen(value);
 
-    if (vl->meta == NULL) {
-      vl->meta = meta_data_create();
-      if (vl->meta == NULL) {
+    if (metric_p->meta == NULL) {
+      metric_p->meta = meta_data_create();
+      if (metric_p->meta == NULL) {
         return CMD_ERROR;
       }
     }
@@ -75,7 +75,7 @@ static int set_option(value_list_t *vl, const char *key, const char *value,
       if (value_str == NULL) {
         return CMD_ERROR;
       }
-      metadata_err = meta_data_add_string(vl->meta, meta_key, value_str);
+      metadata_err = meta_data_add_string(metric_p->meta, meta_key, value_str);
       free((void *)value_str);
       if (metadata_err != 0) {
         return CMD_ERROR;
@@ -104,15 +104,14 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   char *identifier;
   char *hostname;
   char *plugin;
-  char *plugin_instance;
   char *type;
-  char *type_instance;
+  char *data_source;
   int status;
 
   char *identifier_copy;
 
   const data_set_t *ds;
-  value_list_t vl = VALUE_LIST_INIT;
+  metric_t metric = METRIC_STRUCT_INIT;
 
   if ((ret_putval == NULL) || (opts == NULL)) {
     errno = EINVAL;
@@ -132,8 +131,8 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   identifier_copy = sstrdup(identifier);
 
   status =
-      parse_identifier(identifier, &hostname, &plugin, &plugin_instance, &type,
-                       &type_instance, opts->identifier_default_host);
+      parse_identifier(identifier, &hostname, &plugin, &type,
+                       &data_source, opts->identifier_default_host);
   if (status != 0) {
     DEBUG("cmd_handle_putval: Cannot parse identifier `%s'.", identifier_copy);
     cmd_error(CMD_PARSE_ERROR, err, "Cannot parse identifier `%s'.",
@@ -142,43 +141,42 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     return CMD_PARSE_ERROR;
   }
 
-  if ((strlen(hostname) >= sizeof(vl.host)) ||
-      (strlen(plugin) >= sizeof(vl.plugin)) ||
-      ((plugin_instance != NULL) &&
-       (strlen(plugin_instance) >= sizeof(vl.plugin_instance))) ||
-      ((type_instance != NULL) &&
-       (strlen(type_instance) >= sizeof(vl.type_instance)))) {
+  if ((strlen(type) >= sizeof(metric.type)) ||
+      (strlen(plugin) >= sizeof(metric.plugin))
+      ) {
     cmd_error(CMD_PARSE_ERROR, err, "Identifier too long.");
     sfree(identifier_copy);
     return CMD_PARSE_ERROR;
   }
 
-  sstrncpy(vl.host, hostname, sizeof(vl.host));
-  sstrncpy(vl.plugin, plugin, sizeof(vl.plugin));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  if (plugin_instance != NULL)
-    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  if (type_instance != NULL)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+  metric.identity = create_identity(plugin, type, data_source, hostname);
+  if (metric.identity == NULL) {
+    sfree(identifier_copy);
+    return CMD_PARSE_ERROR;
+  }
 
-  ds = plugin_get_ds(type);
-  if (ds == NULL) {
+  sstrncpy(metric.plugin, plugin, sizeof(metric.plugin));
+  sstrncpy(metric.type, type, sizeof(metric.type));
+
+
+  metric.ds = plugin_get_ds(type);
+  if (metric.ds == NULL) {
     cmd_error(CMD_PARSE_ERROR, err, "1 Type `%s' isn't defined.", type);
+    destroy_identity(metric.identity);
     sfree(identifier_copy);
     return CMD_PARSE_ERROR;
   }
 
   hostname = NULL;
   plugin = NULL;
-  plugin_instance = NULL;
   type = NULL;
-  type_instance = NULL;
+  data_source = NULL;
 
   ret_putval->raw_identifier = identifier_copy;
   if (ret_putval->raw_identifier == NULL) {
     cmd_error(CMD_ERROR, err, "malloc failed.");
     cmd_destroy_putval(ret_putval);
-    sfree(vl.values);
+    destroy_identity(metric.identity);
     return CMD_ERROR;
   }
 
@@ -192,11 +190,9 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
 
     status = cmd_parse_option(argv[i], &key, &value, err);
     if (status == CMD_OK) {
-      int option_err;
-
       assert(key != NULL);
       assert(value != NULL);
-      option_err = set_option(&vl, key, value, err);
+      int option_err = set_option(&metric, key, value, err);
       if (option_err != CMD_OK && option_err != CMD_NO_OPTION) {
         result = option_err;
         break;
@@ -209,22 +205,12 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
       break;
     }
     /* else: cmd_parse_option did not find an option; treat this as a
-     * value list. */
+     * value. */
 
-    vl.values_len = ds->ds_num;
-    vl.values = calloc(vl.values_len, sizeof(*vl.values));
-    if (vl.values == NULL) {
-      cmd_error(CMD_ERROR, err, "malloc failed.");
-      result = CMD_ERROR;
-      break;
-    }
-
-    status = parse_values(argv[i], &vl, ds);
+    status = parse_values(argv[i], &metric);
     if (status != 0) {
       cmd_error(CMD_PARSE_ERROR, err, "Parsing the values string failed.");
       result = CMD_PARSE_ERROR;
-      vl.values_len = 0;
-      sfree(vl.values);
       break;
     }
 
@@ -234,8 +220,6 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
       cmd_error(CMD_ERROR, err, "realloc failed.");
       cmd_destroy_putval(ret_putval);
       result = CMD_ERROR;
-      vl.values_len = 0;
-      sfree(vl.values);
       break;
     }
 
@@ -260,15 +244,8 @@ void cmd_destroy_putval(cmd_putval_t *putval) {
     return;
 
   sfree(putval->raw_identifier);
-
-  for (size_t i = 0; i < putval->vl_num; ++i) {
-    sfree(putval->vl[i].values);
-    meta_data_destroy(putval->vl[i].meta);
-    putval->vl[i].meta = NULL;
-  }
-  sfree(putval->vl);
-  putval->vl = NULL;
-  putval->vl_num = 0;
+  destroy_metrics_list(putval->ml);
+  putval->ml = NULL;
 } /* void cmd_destroy_putval */
 
 cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
@@ -302,7 +279,7 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
 } /* int cmd_handle_putval */
 
 int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
-                      const data_set_t *ds, const value_list_t *vl) {
+                      const metric_t *metric_p) {
   char buffer_ident[6 * DATA_MAX_NAME_LEN];
   char buffer_values[1024];
   int status;
@@ -312,14 +289,14 @@ int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
     return status;
   escape_string(buffer_ident, sizeof(buffer_ident));
 
-  status = format_values(buffer_values, sizeof(buffer_values), ds, vl,
+  status = format_values(buffer_values, sizeof(buffer_values), metric_p,
                          /* store rates = */ false);
   if (status != 0)
     return status;
   escape_string(buffer_values, sizeof(buffer_values));
 
   snprintf(ret, ret_len, "PUTVAL %s interval=%.3f %s", buffer_ident,
-           (vl->interval > 0) ? CDTIME_T_TO_DOUBLE(vl->interval)
+           (metric_p->interval > 0) ? CDTIME_T_TO_DOUBLE(metric_p->interval)
                               : CDTIME_T_TO_DOUBLE(plugin_get_interval()),
            buffer_values);
 

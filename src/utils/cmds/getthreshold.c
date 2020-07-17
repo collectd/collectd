@@ -42,15 +42,14 @@
   }
 
 int handle_getthreshold(FILE *fh, char *buffer) {
-  char *command;
-  char *identifier;
-  char *identifier_copy;
+  char *command = NULL;
+  char *identifier = NULL;
+  char *identifier_copy = NULL;
 
-  char *host;
-  char *plugin;
-  char *plugin_instance;
-  char *type;
-  char *type_instance;
+  char *host = NULL;
+  char *plugin = NULL;
+  char *type = NULL;
+  char *data_source = NULL;
 
   threshold_t threshold;
 
@@ -63,7 +62,6 @@ int handle_getthreshold(FILE *fh, char *buffer) {
   DEBUG("utils_cmd_getthreshold: handle_getthreshold (fh = %p, buffer = %s);",
         (void *)fh, buffer);
 
-  command = NULL;
   status = parse_string(&buffer, &command);
   if (status != 0) {
     print_to_socket(fh, "-1 Cannot parse command.\n");
@@ -76,7 +74,6 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     return -1;
   }
 
-  identifier = NULL;
   status = parse_string(&buffer, &identifier);
   if (status != 0) {
     print_to_socket(fh, "-1 Cannot parse identifier.\n");
@@ -93,8 +90,8 @@ int handle_getthreshold(FILE *fh, char *buffer) {
    * returning pointers into it */
   identifier_copy = sstrdup(identifier);
 
-  status = parse_identifier(identifier_copy, &host, &plugin, &plugin_instance,
-                            &type, &type_instance,
+  status = parse_identifier(identifier_copy, &host, &plugin,
+                            &type, &data_source,
                             /* default_host = */ NULL);
   if (status != 0) {
     DEBUG("handle_getthreshold: Cannot parse identifier `%s'.", identifier);
@@ -103,18 +100,15 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     return -1;
   }
 
-  value_list_t vl = {.values = NULL};
-  sstrncpy(vl.host, host, sizeof(vl.host));
-  sstrncpy(vl.plugin, plugin, sizeof(vl.plugin));
-  if (plugin_instance != NULL)
-    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  if (type_instance != NULL)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+  metric_t metric = METRIC_STRUCT_INIT;
+  metric.identity = create_identity(plugin, type, data_source, host);
+  sstrncpy(metric.plugin, plugin, sizeof(metric.plugin));
+  sstrncpy(metric.type, type, sizeof(metric.type));
+  metric.ds = plugin_get_ds(metric.type);
+
   sfree(identifier_copy);
 
-  /* TODO(octo): pass a metric_t* to ut_search_threshold(). */
-  status = ut_search_threshold(NULL, &threshold);
+  status = ut_search_threshold(&metric, &threshold);
   if (status == ENOENT) {
     print_to_socket(fh, "-1 No threshold found for identifier %s\n",
                     identifier);
@@ -130,11 +124,7 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     i++;
   if (threshold.plugin[0] != 0)
     i++;
-  if (threshold.plugin_instance[0] != 0)
-    i++;
   if (threshold.type[0] != 0)
-    i++;
-  if (threshold.type_instance[0] != 0)
     i++;
   if (threshold.data_source[0] != 0)
     i++;
@@ -158,12 +148,8 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     print_to_socket(fh, "Host: %s\n", threshold.host);
   if (threshold.plugin[0] != 0)
     print_to_socket(fh, "Plugin: %s\n", threshold.plugin);
-  if (threshold.plugin_instance[0] != 0)
-    print_to_socket(fh, "Plugin Instance: %s\n", threshold.plugin_instance);
   if (threshold.type[0] != 0)
     print_to_socket(fh, "Type: %s\n", threshold.type);
-  if (threshold.type_instance[0] != 0)
-    print_to_socket(fh, "Type Instance: %s\n", threshold.type_instance);
   if (threshold.data_source[0] != 0)
     print_to_socket(fh, "Data Source: %s\n", threshold.data_source);
   if (!isnan(threshold.warning_min))

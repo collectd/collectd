@@ -65,10 +65,9 @@ typedef struct {
   /* The raw identifier as provided by the user. */
   char *raw_identifier;
 
-  /* An array of the fully parsed identifier and all value lists, and their
+  /* An array of the fully parsed identifier and all metrics, and their
    * options as provided by the user. */
-  value_list_t *vl;
-  size_t vl_num;
+  metrics_list_t *ml;
 } cmd_putval_t;
 
 /*
