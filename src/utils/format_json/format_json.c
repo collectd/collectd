@@ -22,6 +22,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #include "collectd.h"
@@ -29,6 +30,7 @@
 #include "utils/format_json/format_json.h"
 
 #include "plugin.h"
+#include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 #include "utils_cache.h"
 
@@ -373,6 +375,131 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
   return 0;
 } /* }}} int value_list_to_json */
+
+
+int format_json_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
+                       size_t *ret_buffer_free, const metric_t *metric_p,
+                       int store_rates) {
+  char temp[1024];
+  gauge_t rate = -1;
+  int status = 0;
+
+  if ((buffer_p == NULL) || (ret_buffer_fill == NULL) ||
+      (ret_buffer_free == NULL) || (metric_p == NULL) ||
+      (metric_p->identity == NULL) || (metric_p->ds == NULL))
+    return -EINVAL;
+
+  if (*ret_buffer_free < 3)
+    return -ENOMEM;
+
+  /* Respect high water marks and fere size */
+  char *buffer = buffer_p + (*ret_buffer_fill);
+  size_t buffer_size = *ret_buffer_free;
+  size_t offset = 0;
+
+#define BUFFER_ADD(...)                                                        \
+  do {                                                                         \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
+    if (status < 1)                                                            \
+      return -1;                                                               \
+    else if (((size_t)status) >= (buffer_size - offset))                       \
+      return -ENOMEM;                                                          \
+    else                                                                       \
+      offset += ((size_t)status);                                              \
+  } while (0)
+
+#define BUFFER_ADD_KEYVAL(key, value)                                          \
+  do {                                                                         \
+    status = json_escape_string(temp, sizeof(temp), (value));                  \
+    if (status != 0)                                                           \
+      return status;                                                           \
+    BUFFER_ADD(",\"%s\":%s", (key), temp);                                     \
+  } while (0)
+
+  /* Designed to be called multiple times, as when adding metrics from a
+     metrics_lisat_t object. When finalizing, the initial leading comma
+     will be replaced by a [ */
+  BUFFER_ADD(",{");
+  BUFFER_ADD_KEYVAL("name", metric_p->identity->name);
+  if (metric_p->value_ds_type == DS_TYPE_GAUGE) {
+    if (isfinite(metric_p->value.gauge))
+      BUFFER_ADD(JSON_GAUGE_FORMAT, metric_p->value.gauge);
+    else
+      BUFFER_ADD("null");
+  } else if (store_rates) {
+    if (rate == -1)
+      status = uc_get_rate(metric_p, &rate);
+    if (status != 0) {
+      WARNING("utils_format_json: uc_get_rate failed.");
+      buffer_p[*ret_buffer_fill] = '0';
+      return -1;
+    }
+
+    if (isfinite(rate))
+      BUFFER_ADD(JSON_GAUGE_FORMAT, rate);
+    else
+      BUFFER_ADD("null");
+  } else if (metric_p->value_ds_type == DS_TYPE_COUNTER)
+    BUFFER_ADD("%" PRIu64, (uint64_t)metric_p->value.counter);
+  else if (metric_p->value_ds_type == DS_TYPE_DERIVE)
+    BUFFER_ADD("%" PRIi64, metric_p->value.derive);
+  else if (metric_p->value_ds_type == DS_TYPE_ABSOLUTE)
+    BUFFER_ADD("%" PRIu64, metric_p->value.absolute);
+  else {
+    ERROR("format_json: Unknown data source type: %i", metric_p->value_ds_type);
+    buffer_p[*ret_buffer_fill] = '0';
+    return -1;
+  }
+
+  BUFFER_ADD(",\"time\":%.3f", CDTIME_T_TO_DOUBLE(metric_p->time));
+  BUFFER_ADD(",\"interval\":%.3f", CDTIME_T_TO_DOUBLE(metric_p->interval));
+  BUFFER_ADD_KEYVAL("plugin", metric_p->plugin);
+  BUFFER_ADD_KEYVAL("type", metric_p->type);
+  BUFFER_ADD_KEYVAL("dsname", metric_p->ds->name);
+  BUFFER_ADD_KEYVAL("dstype", DS_TYPE_TO_STRING(metric_p->value_ds_type));
+
+  if (metric_p->identity->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->root_p);
+    if (iter_p != NULL) {
+      char *key_p = NULL;
+      char *value_p = NULL;
+      BUFFER_ADD("\"labels\":{");
+      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
+                                  (void **)&value_p)) == 0) {
+        if ((key_p != NULL) && (value_p != NULL)) {
+          BUFFER_ADD_KEYVAL(key_p, value_p);
+        }
+      }
+      BUFFER_ADD("},");
+      c_avl_iterator_destroy(iter_p);
+    }
+  }
+
+  if (metric_p->meta != NULL) {
+    char meta_buffer[buffer_size];
+    memset(meta_buffer, 0, sizeof(meta_buffer));
+    status = meta_data_to_json(meta_buffer, sizeof(meta_buffer),
+                               metric_p->meta->meta);
+    if (status != 0) {
+      buffer_p[*ret_buffer_fill] = '0';
+      return status;
+    }
+
+    BUFFER_ADD(",\"meta\":%s", meta_buffer);
+  } /* if (vl->meta != NULL) */
+
+  BUFFER_ADD("}");
+
+#undef BUFFER_ADD_KEYVAL
+#undef BUFFER_ADD
+
+  /* Update hihg water mark and free size */
+  (*ret_buffer_fill) += offset;
+  (*ret_buffer_free) -= offset;
+
+  return 0;
+} /* }}} */
+
 
 static int format_json_value_list_nocheck(char *buffer, /* {{{ */
                                           size_t *ret_buffer_fill,
