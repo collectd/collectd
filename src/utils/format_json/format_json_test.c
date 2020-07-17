@@ -24,18 +24,6 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-/* Workaround for Solaris 10 defining label_t
- * Issue #1301
- */
-
-#include "config.h"
-#if KERNEL_SOLARIS
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 200112L
-#endif
-#undef __EXTENSIONS__
-#endif
-
 #include "collectd.h"
 
 #include "testing.h"
@@ -54,13 +42,13 @@
 typedef struct {
   char const *key;
   char const *value;
-} label_t;
+} keyval_t;
 
 typedef struct {
-  label_t *expected_labels;
+  keyval_t *expected_labels;
   size_t expected_labels_num;
 
-  label_t *current_label;
+  keyval_t *current_label;
 } test_case_t;
 
 #if HAVE_YAJL_V2
@@ -75,7 +63,7 @@ static int test_map_key(void *ctx, unsigned char const *key,
 
   c->current_label = NULL;
   for (i = 0; i < c->expected_labels_num; i++) {
-    label_t *l = c->expected_labels + i;
+    keyval_t *l = c->expected_labels + i;
     if ((strlen(l->key) == key_len) &&
         (strncmp(l->key, (char const *)key, key_len) == 0)) {
       c->current_label = l;
@@ -110,7 +98,7 @@ static int test_string(void *ctx, unsigned char const *value,
   test_case_t *c = ctx;
 
   if (c->current_label != NULL) {
-    label_t *l = c->current_label;
+    keyval_t *l = c->current_label;
     char *got;
     int status;
 
@@ -129,7 +117,7 @@ static int test_string(void *ctx, unsigned char const *value,
   return 1; /* continue */
 }
 
-static int expect_json_labels(char *json, label_t *labels, size_t labels_num) {
+static int expect_json_labels(char *json, keyval_t *labels, size_t labels_num) {
   yajl_callbacks funcs = {
       .yajl_string = test_string,
       .yajl_map_key = test_map_key,
@@ -151,7 +139,7 @@ static int expect_json_labels(char *json, label_t *labels, size_t labels_num) {
 }
 
 DEF_TEST(notification) {
-  label_t labels[] = {
+  keyval_t labels[] = {
       {"summary", "this is a message"},
       {"alertname", "collectd_unit_test"},
       {"instance", "example.com"},
