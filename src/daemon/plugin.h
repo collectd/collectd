@@ -32,6 +32,7 @@
 #include "collectd.h"
 
 #include "configfile.h"
+#include "identity.h"
 #include "metric.h"
 #include "utils/metadata/meta_data.h"
 #include "utils_time.h"
@@ -115,14 +116,6 @@ struct data_set_s {
   data_source_t *ds;
 };
 typedef struct data_set_s data_set_t;
-
-struct identity_s {
-  char *name;
-  struct c_avl_tree_s *labels;
-
-  pthread_mutex_t lock;
-};
-typedef struct identity_s identity_t;
 
 struct metric_s {
   identity_t *identity;
@@ -405,134 +398,6 @@ void plugin_metric_free(metric_t *metric_p);
  *                   to be reclaomed.
  */
 void destroy_metrics_list(metrics_list_t *metrics_list_p);
-
-/* identity_create allocates and returns a new identity. Returns NULL in case
- * of an out-of-memory situation or if name is NULL. */
-identity_t *identity_create(char const *name);
-
-/* identity_parse takes a string representation of the identity, as produced by
- * plugin_format_metric(), and returns the matching identity_t.
- * On error NULL is returned and errno is set appropriately. */
-identity_t *identity_parse(char const *s);
-
-/*
- * NAME
- * identity_create_legacy
- *
- * DESCRIPTION
-
- * This function creates a new identity data structure given the plugin name,
- * the type, and the data source name, and optionally, the host name.
- *
- * ARGUMENTS
- *  `plugin_p'  The name of the plugin creatng the metric.
- *  ’type_p’    The metric type being created.
- *  ’ds_name_p’ The name of the data source for the typr of metric.
- *  ’host_p’    The host name. Optional.
- * RETURNS
- * An identity_t object created with the provided data.
- *
- */
-identity_t *identity_create_legacy(const char *plugin_p, const char *type_p,
-                                   const char *ds_name_p, const char *host_p);
-
-/*
- * NAME
- * identity_clone
- *
- * DESCRIPTION
- * This function takes a pointer to a identity object, and clones it. The caller
- * has the ownership of the allocated memory, and should call identity_destroy
- * when done with the object.
- *
- * ARGUMENTS
- *  `identity'  Pointer to a list of identity defining key-value pairs to
- *             clone.
- * RETURNS
- * An identity_t object which is cloned from the argument.
- */
-identity_t *identity_clone(identity_t const *identity_orig);
-
-/* identity_compare compares two identities. It returns zero if a and
- * b are equal, and -1 or 1 otherwise. The comparison is stable, i.e.
- * identity_compare can be used for sorting. NULL pointers are
- * handled gracefully. */
-int identity_compare(identity_t const *a, identity_t const *b);
-
-/*
- * NAME
- * identity_add_label
- *
- * DESCRIPTION
-
- * This function takes a pointer to a identity object, and a key value pair, and
- * adds thelabel and value to the identity object. The label and values are
- * copied.
- *
- * ARGUMENTS
- *  `identity_p'  Pointer to an identity object
- *   ’label_p’    Pointer to a label string
- *   ’value_p’    Pointer to a value string
- *
- * RETURNS
- * Zero on success
- */
-int identity_add_label(identity_t *identity_p, const char *label_p,
-                       const char *value_p);
-
-/*
- * NAME
- * identity_get_label
- *
- * DESCRIPTION
-
- * This function takes a pointer to a identity object, and a label to search
- * for, and pointers to the key and value.
- *
- * ARGUMENTS
- *  `id'          Pointer to an identity object
- *  `key’         Pointer to a label to look up
- *  `ret_value’   Pointer to Pointer to a string which will contain the label
- *                value.
- *
- * RETURNS
- * Zero on success
- */
-int identity_get_label(identity_t *id, char const *key, char **ret_value);
-
-/*
- * NAME
- * identity_delete_label
- *
- * DESCRIPTION
-
- * This function takes a pointer to a identity object, and a label, and
- * removes thelabelfrom the identity object. The memory for the label and value
- * is reclaimed.
- *
- * ARGUMENTS
- *  `identity_p'  Pointer to an identity object
- *   ’label_p’    Pointer to a label string
- *
- * RETURNS
- * Zero on success
- */
-int identity_delete_label(identity_t *identity_p, const char *label_p);
-
-/*
- * NAME
- * identity_destroy
- *
- * DESCRIPTION
- * This function takes a pointer to a identity key-value label sore,
- * and reclaims the memory.
- *
- * ARGUMENTS
- *  `identity'  Pointer to a list of identity defining key-value pairs to
- *             reclaim memory from.
- *
- */
-void identity_destroy(identity_t *identity);
 
 /*
  * NAME

@@ -243,10 +243,10 @@ collectd_SOURCES = \
 	src/daemon/filter_chain.h \
 	src/daemon/globals.c \
 	src/daemon/globals.h \
-	src/utils/metadata/meta_data.c \
-	src/utils/metadata/meta_data.h \
 	src/daemon/plugin.c \
 	src/daemon/plugin.h \
+	src/daemon/types_list.c \
+	src/daemon/types_list.h \
 	src/daemon/utils_cache.c \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
@@ -255,12 +255,12 @@ collectd_SOURCES = \
 	src/daemon/utils_random.h \
 	src/daemon/utils_subst.c \
 	src/daemon/utils_subst.h \
+	src/daemon/utils_threshold.c \
+	src/daemon/utils_threshold.h \
 	src/daemon/utils_time.c \
 	src/daemon/utils_time.h \
-	src/daemon/types_list.c \
-	src/daemon/types_list.h \
-	src/daemon/utils_threshold.c \
-	src/daemon/utils_threshold.h
+	src/utils/metadata/meta_data.c \
+	src/utils/metadata/meta_data.h
 
 
 collectd_CFLAGS = $(AM_CFLAGS)
