@@ -1405,7 +1405,7 @@ static int MPL115_collectd_barometer_read(void) {
   norm_pressure = abs_to_mean_sea_level_pressure(pressure);
 
   index_p->metric.identity =
-      create_identity("barometer", "pressure", "value", NULL);
+      identity_create_legacy("barometer", "pressure", "value", NULL);
   if (index_p->metric.identity == NULL) {
     destroy_metrics_list(ml);
     return -1;
@@ -1434,7 +1434,7 @@ static int MPL115_collectd_barometer_read(void) {
   index_p->next_p = NULL;
 
   index_p->metric.identity =
-      create_identity("barometer", "pressure", "value", NULL);
+      identity_create_legacy("barometer", "pressure", "value", NULL);
   if (index_p->metric.identity == NULL) {
     destroy_metrics_list(ml);
     return -1;
@@ -1465,7 +1465,7 @@ static int MPL115_collectd_barometer_read(void) {
 
   /* dispatch sensor temperature */
   index_p->metric.identity =
-      create_identity("barometer", "temperature", "value", NULL);
+      identity_create_legacy("barometer", "temperature", "value", NULL);
 
   index_p->metric.value.gauge = temperature;
 

@@ -726,7 +726,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
           NULL, &host, &time, &interval, &meta))
     return NULL;
 
-  metric.identity = create_identity((plugin ? plugin : self->data.plugin),
+  metric.identity = identity_create_legacy((plugin ? plugin : self->data.plugin),
                                     (type ? type : self->data.type),
                                     (host ? host : self->data.host));
 
