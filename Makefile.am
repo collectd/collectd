@@ -400,8 +400,6 @@ test_utils_metrics_list_SOURCES = \
 	src/daemon/metrics_list_test.c \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_cache.c \
-	src/daemon/utils_llist.h \
-	src/daemon/utils_llist.c \
 	src/daemon/configfile.h \
 	src/daemon/configfile.c \
 	src/daemon/utils_time.c \
@@ -419,8 +417,9 @@ test_utils_metrics_list_SOURCES = \
 	src/testing.h
 test_utils_metrics_list_LDADD = libavltree.la \
 	libcommon.la \
-	libmetadata.la \
 	libheap.la \
+	libllist.la \
+	libmetadata.la \
 	liboconfig.la \
 	$(COMMON_LIBS)
 test_utils_metrics_list_LDFLAGS = -ldl  -pthread
@@ -1725,7 +1724,10 @@ test_plugin_pcie_errors_SOURCES = \
 	src/daemon/types_list.c
 test_plugin_pcie_errors_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_pcie_errors_LDFLAGS = $(PLUGIN_LDFLAGS)
-test_plugin_pcie_errors_LDADD = liboconfig.la libplugin_mock.la
+test_plugin_pcie_errors_LDADD = \
+	libllist.la \
+	liboconfig.la \
+	libplugin_mock.la
 check_PROGRAMS += test_plugin_pcie_errors
 TESTS += test_plugin_pcie_errors
 endif
@@ -1849,12 +1851,11 @@ redfish_la_LIBADD = $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish
 
 test_plugin_redfish_SOURCES = src/redfish_test.c \
                               src/utils/avltree/avltree.c \
-                              src/daemon/utils_llist.c \
                               src/daemon/configfile.c \
                               src/daemon/types_list.c
 test_plugin_redfish_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
 test_plugin_redfish_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
-test_plugin_redfish_LDADD = liboconfig.la libplugin_mock.la \
+test_plugin_redfish_LDADD = liboconfig.la libplugin_mock.la libllist.la \
                             $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish -ljansson
 check_PROGRAMS += test_plugin_redfish
 TESTS += test_plugin_redfish
@@ -1955,14 +1956,13 @@ snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
 
 test_plugin_snmp_agent_SOURCES = src/snmp_agent_test.c \
                                  src/utils/avltree/avltree.c \
-                                 src/daemon/utils_llist.c \
                                  src/daemon/configfile.c \
                                  src/daemon/types_list.c
 test_plugin_snmp_agent_CPPFLAGS = $(AM_CPPFLAGS) \
 	$(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
 test_plugin_snmp_agent_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
-test_plugin_snmp_agent_LDADD = liboconfig.la libplugin_mock.la \
+test_plugin_snmp_agent_LDADD = liboconfig.la libplugin_mock.la libllist.la \
 	$(BUILD_WITH_LIBNETSNMPAGENT_LIBS) $(BUILD_WITH_LIBNETSNMP_LIBS)
 
 check_PROGRAMS += test_plugin_snmp_agent
