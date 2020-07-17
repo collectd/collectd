@@ -167,7 +167,7 @@ int format_kairosdb_value_list(char *buffer, /* {{{ */
 } /* }}} int format_kairosdb_value_list */
 
 int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
-                           size_t *ret_buffer_free, const metric_t *metric_p,
+                           size_t *ret_buffer_free, metric_single_t const *m,
                            int store_rates, char const *const *http_attrs,
                            size_t http_attrs_num, int data_ttl,
                            char const *metrics_prefix) {
@@ -176,8 +176,8 @@ int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
   int status = 0;
 
   if ((buffer_p == NULL) || (ret_buffer_fill == NULL) ||
-      (ret_buffer_free == NULL) || (metric_p == NULL) ||
-      (metric_p->identity == NULL) || (metric_p->ds == NULL))
+      (ret_buffer_free == NULL) || (m == NULL) || (m->identity == NULL) ||
+      (metric_p->ds == NULL))
     return -EINVAL;
 
   if (*ret_buffer_free < 3)
@@ -215,17 +215,17 @@ int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
   if (metrics_prefix != NULL) {
     BUFFER_ADD("%s.", metrics_prefix);
   }
-  BUFFER_ADD("%s\",", metric_p->identity->name);
+  BUFFER_ADD("%s\",", m->identity->name);
 
   BUFFER_ADD("\"datapoints\":");
-  if (metric_p->value_type == DS_TYPE_GAUGE) {
-    if (isfinite(metric_p->value.gauge))
-      BUFFER_ADD(JSON_GAUGE_FORMAT, metric_p->value.gauge);
+  if (m->value_type == DS_TYPE_GAUGE) {
+    if (isfinite(m->value.gauge))
+      BUFFER_ADD(JSON_GAUGE_FORMAT, m->value.gauge);
     else
       BUFFER_ADD("null");
   } else if (store_rates) {
     if (rate == -1)
-      status = uc_get_rate(metric_p, &rate);
+      status = uc_get_rate(m, &rate);
     if (status != 0) {
       WARNING("utils_format_json: uc_get_rate failed.");
       buffer_p[*ret_buffer_fill] = '0';
@@ -236,14 +236,14 @@ int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
       BUFFER_ADD(JSON_GAUGE_FORMAT, rate);
     else
       BUFFER_ADD("null");
-  } else if (metric_p->value_type == DS_TYPE_COUNTER)
-    BUFFER_ADD("%" PRIu64, (uint64_t)metric_p->value.counter);
-  else if (metric_p->value_type == DS_TYPE_DERIVE)
-    BUFFER_ADD("%" PRIi64, metric_p->value.derive);
-  else if (metric_p->value_type == DS_TYPE_ABSOLUTE)
-    BUFFER_ADD("%" PRIu64, metric_p->value.absolute);
+  } else if (m->value_type == DS_TYPE_COUNTER)
+    BUFFER_ADD("%" PRIu64, (uint64_t)m->value.counter);
+  else if (m->value_type == DS_TYPE_DERIVE)
+    BUFFER_ADD("%" PRIi64, m->value.derive);
+  else if (m->value_type == DS_TYPE_ABSOLUTE)
+    BUFFER_ADD("%" PRIu64, m->value.absolute);
   else {
-    ERROR("format_json: Unknown data source type: %i", metric_p->value_type);
+    ERROR("format_json: Unknown data source type: %i", m->value_type);
     buffer_p[*ret_buffer_fill] = '0';
     return -1;
   }
@@ -255,19 +255,19 @@ int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
 
   BUFFER_ADD(", \"tags\":{");
 
-  BUFFER_ADD(",\"time\":%.3f", CDTIME_T_TO_DOUBLE(metric_p->time));
-  BUFFER_ADD(",\"interval\":%.3f", CDTIME_T_TO_DOUBLE(metric_p->interval));
-  BUFFER_ADD_KEYVAL("plugin", metric_p->plugin);
-  BUFFER_ADD_KEYVAL("type", metric_p->type);
-  BUFFER_ADD_KEYVAL("dsname", metric_p->ds->name);
-  BUFFER_ADD_KEYVAL("dstype", DS_TYPE_TO_STRING(metric_p->value_type));
+  BUFFER_ADD(",\"time\":%.3f", CDTIME_T_TO_DOUBLE(m->time));
+  BUFFER_ADD(",\"interval\":%.3f", CDTIME_T_TO_DOUBLE(m->interval));
+  BUFFER_ADD_KEYVAL("plugin", m->plugin);
+  BUFFER_ADD_KEYVAL("type", m->type);
+  BUFFER_ADD_KEYVAL("dsname", m->ds->name);
+  BUFFER_ADD_KEYVAL("dstype", DS_TYPE_TO_STRING(m->value_type));
   for (size_t j = 0; j < http_attrs_num; j += 2) {
     BUFFER_ADD(", \"%s\":", http_attrs[j]);
     BUFFER_ADD(" \"%s\"", http_attrs[j + 1]);
   }
 
-  if (metric_p->identity->root_p != NULL) {
-    c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->root_p);
+  if (m->identity->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(m->identity->root_p);
     if (iter_p != NULL) {
       char *key_p = NULL;
       char *value_p = NULL;
