@@ -477,8 +477,6 @@ static int staging_entry_update(const char *host, const char *name, /* {{{ */
     se->vl.values[ds_index].gauge = value.gauge;
   else if (ds_type == DS_TYPE_DERIVE)
     se->vl.values[ds_index].derive += value.derive;
-  else if (ds_type == DS_TYPE_ABSOLUTE)
-    se->vl.values[ds_index].absolute = value.absolute;
   else
     assert(23 == 42);
 
@@ -597,7 +595,7 @@ static int mc_handle_value_msg(Ganglia_value_msg *msg) /* {{{ */
   if (map != NULL) {
     value_t val_copy;
 
-    if ((map->ds_type == DS_TYPE_COUNTER) || (map->ds_type == DS_TYPE_ABSOLUTE))
+    if (map->ds_type == DS_TYPE_COUNTER)
       val_copy = value_counter;
     else if (map->ds_type == DS_TYPE_GAUGE)
       val_copy = value_gauge;
@@ -659,7 +657,9 @@ static int mc_handle_metadata_msg(Ganglia_metadata_msg *msg) /* {{{ */
     break;
   }
 
-  default: { return -1; }
+  default: {
+    return -1;
+  }
   }
 
   return 0;

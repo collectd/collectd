@@ -414,8 +414,7 @@ static int write_influxdb_point(char *buffer, int buffer_len,
   for (size_t i = 0; i < ds->ds_num; i++) {
     if ((ds->ds[i].type != DS_TYPE_COUNTER) &&
         (ds->ds[i].type != DS_TYPE_GAUGE) &&
-        (ds->ds[i].type != DS_TYPE_DERIVE) &&
-        (ds->ds[i].type != DS_TYPE_ABSOLUTE)) {
+        (ds->ds[i].type != DS_TYPE_DERIVE)) {
       sfree(rates);
       return -1;
     }
@@ -451,11 +450,6 @@ static int write_influxdb_point(char *buffer, int buffer_len,
       if (have_values)
         BUFFER_ADD(",");
       BUFFER_ADD("%s=%" PRIi64 "i", ds->ds[i].name, vl->values[i].derive);
-      have_values = true;
-    } else if (ds->ds[i].type == DS_TYPE_ABSOLUTE) {
-      if (have_values)
-        BUFFER_ADD(",");
-      BUFFER_ADD("%s=%" PRIu64 "i", ds->ds[i].name, vl->values[i].absolute);
       have_values = true;
     }
 

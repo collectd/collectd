@@ -341,7 +341,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
   host->is_connected = true;
   return 0;
 } /* }}} int mb_init_connection */
-  /* #endif LEGACY_LIBMODBUS */
+/* #endif LEGACY_LIBMODBUS */
 
 #else /* if !LEGACY_LIBMODBUS */
 /* Version 2.9.2 */
@@ -422,8 +422,6 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
       (vt).gauge = (((gauge_t)(raw)*scale) + shift);                           \
     else if ((ds)->ds[0].type == DS_TYPE_DERIVE)                               \
       (vt).derive = (((derive_t)(raw)*scale) + shift);                         \
-    else /* if (ds->ds[0].type == DS_TYPE_ABSOLUTE) */                         \
-      (vt).absolute = (((absolute_t)(raw)*scale) + shift);                     \
   } while (0)
 
 static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
@@ -550,7 +548,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
   if (data->register_type == REG_TYPE_FLOAT) {
     float float_value;
-    value_t vt;
+    value_t vt = {0};
 
     float_value = mb_register_to_float(values[0], values[1]);
     DEBUG("Modbus plugin: mb_read_data: "
@@ -561,7 +559,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_FLOAT_CDAB) {
     float float_value;
-    value_t vt;
+    value_t vt = {0};
 
     float_value = mb_register_to_float(values[1], values[0]);
     DEBUG("Modbus plugin: mb_read_data: "
@@ -575,7 +573,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       uint32_t u32;
       int32_t i32;
     } v;
-    value_t vt;
+    value_t vt = {0};
 
     v.u32 = (((uint32_t)values[0]) << 16) | ((uint32_t)values[1]);
     DEBUG("Modbus plugin: mb_read_data: "
@@ -589,7 +587,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       uint32_t u32;
       int32_t i32;
     } v;
-    value_t vt;
+    value_t vt = {0};
 
     v.u32 = (((uint32_t)values[1]) << 16) | ((uint32_t)values[0]);
     DEBUG("Modbus plugin: mb_read_data: "
@@ -603,7 +601,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       uint16_t u16;
       int16_t i16;
     } v;
-    value_t vt;
+    value_t vt = {0};
 
     v.u16 = values[0];
 
@@ -615,7 +613,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_UINT32) {
     uint32_t v32;
-    value_t vt;
+    value_t vt = {0};
 
     v32 = (((uint32_t)values[0]) << 16) | ((uint32_t)values[1]);
     DEBUG("Modbus plugin: mb_read_data: "
@@ -626,7 +624,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_UINT32_CDAB) {
     uint32_t v32;
-    value_t vt;
+    value_t vt = {0};
 
     v32 = (((uint32_t)values[1]) << 16) | ((uint32_t)values[0]);
     DEBUG("Modbus plugin: mb_read_data: "
@@ -637,7 +635,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_UINT64) {
     uint64_t v64;
-    value_t vt;
+    value_t vt = {0};
 
     v64 = (((uint64_t)values[0]) << 48) | (((uint64_t)values[1]) << 32) |
           (((uint64_t)values[2]) << 16) | (((uint64_t)values[3]));
@@ -652,7 +650,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       uint64_t u64;
       int64_t i64;
     } v;
-    value_t vt;
+    value_t vt = {0};
 
     v.u64 = (((uint64_t)values[0]) << 48) | (((uint64_t)values[1]) << 32) |
             (((uint64_t)values[2]) << 16) | ((uint64_t)values[3]);
@@ -664,7 +662,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_submit(host, slave, data, vt);
   } else /* if (data->register_type == REG_TYPE_UINT16) */
   {
-    value_t vt;
+    value_t vt = {0};
 
     DEBUG("Modbus plugin: mb_read_data: "
           "Returned uint16 value is %" PRIu16,

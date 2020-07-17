@@ -657,7 +657,7 @@ A string, the name of the data source.
 =item type
 
 A string that is equal to either of the variables B<DS_TYPE_COUNTER>,
-B<DS_TYPE_GAUGE>, B<DS_TYPE_DERIVE> or B<DS_TYPE_ABSOLUTE>.
+B<DS_TYPE_GAUGE>, or B<DS_TYPE_DERIVE>.
 
 =item min
 

@@ -716,8 +716,7 @@ static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
 
     if ((ds->ds[i].type != DS_TYPE_GAUGE) &&
         (ds->ds[i].type != DS_TYPE_COUNTER) &&
-        (ds->ds[i].type != DS_TYPE_DERIVE) &&
-        (ds->ds[i].type != DS_TYPE_ABSOLUTE)) {
+        (ds->ds[i].type != DS_TYPE_DERIVE)) {
       log_err("c_psql_write: Unknown data source type: %i", ds->ds[i].type);
       sfree(rates);
       return NULL;
@@ -741,8 +740,6 @@ static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
                          (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       status = ssnprintf(str_ptr, str_len, ",%" PRIi64, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      status = ssnprintf(str_ptr, str_len, ",%" PRIu64, vl->values[i].absolute);
 
     if (status < 1) {
       str_len = 0;

@@ -706,10 +706,10 @@ only decode the B<Command> format.
 
 =item B<StoreRates> B<true>|B<false> (Publish only)
 
-Determines whether or not C<COUNTER>, C<DERIVE> and C<ABSOLUTE> data sources
-are converted to a I<rate> (i.e. a C<GAUGE> value). If set to B<false> (the
-default), no conversion is performed. Otherwise the conversion is performed
-using the internal value cache.
+Determines whether or not C<COUNTER> and C<DERIVE> data sources are converted
+to a I<rate> (i.e. a C<GAUGE> value). If set to B<false> (the default), no
+conversion is performed. Otherwise the conversion is performed using the
+internal value cache.
 
 Please note that currently this option is only used if the B<Format> option has
 been set to B<JSON>.
@@ -912,10 +912,10 @@ for alert formatting.
 
 =item B<StoreRates> B<true>|B<false>
 
-Determines whether or not C<COUNTER>, C<DERIVE> and C<ABSOLUTE> data sources
-are converted to a I<rate> (i.e. a C<GAUGE> value). If set to B<false> (the
-default), no conversion is performed. Otherwise the conversion is performed
-using the internal value cache.
+Determines whether or not C<COUNTER> and C<DERIVE> data sources are converted
+to a I<rate> (i.e. a C<GAUGE> value). If set to B<false> (the default), no
+conversion is performed. Otherwise the conversion is performed using the
+internal value cache.
 
 Please note that currently this option is only used if the B<Format> option has
 been set to B<JSON>.
@@ -9311,7 +9311,7 @@ example a thermometer that only reports the temperature when it changes.
 =item B<AbsoluteSet>
 
 The matched number is a counter. Simply I<sets> the internal counter to this
-value. Variants exist for C<COUNTER>, C<DERIVE>, and C<ABSOLUTE> data sources.
+value. Variants exist for C<COUNTER> and C<DERIVE> data sources.
 
 =item B<GaugeAdd>
 
@@ -11108,10 +11108,10 @@ C<E<lt>metricE<gt> E<lt>valueE<gt> E<lt>timestampE<gt>\n>.
 
 =item B<StoreRates> B<true>|B<false>
 
-Determines whether or not C<COUNTER>, C<DERIVE> and C<ABSOLUTE> data sources
-are converted to a I<rate> (i.e. a C<GAUGE> value). If set to B<false> (the
-default), no conversion is performed. Otherwise the conversion is performed
-using the internal value cache.
+Determines whether or not C<COUNTER> and C<DERIVE> data sources are converted
+to a I<rate> (i.e. a C<GAUGE> value). If set to B<false> (the default), no
+conversion is performed. Otherwise the conversion is performed using the
+internal value cache.
 
 Please note that currently this option is only used if the B<Format> option has
 been set to B<JSON>.

@@ -1781,9 +1781,6 @@ static int snmp_agent_get_value_from_ds_type(const value_t *val, int type,
   case DS_TYPE_COUNTER:
     *value = (long)((val->counter * scale) + shift);
     break;
-  case DS_TYPE_ABSOLUTE:
-    *value = (long)((val->absolute * scale) + shift);
-    break;
   case DS_TYPE_DERIVE:
     *value = (long)((val->derive * scale) + shift);
     break;

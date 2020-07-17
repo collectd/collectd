@@ -106,8 +106,6 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
       BSON_APPEND_INT64(&subarray, key, vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       BSON_APPEND_INT64(&subarray, key, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      BSON_APPEND_INT64(&subarray, key, vl->values[i].absolute);
     else {
       ERROR("write_mongodb plugin: Unknown ds_type %d for index %" PRIsz,
             ds->ds[i].type, i);

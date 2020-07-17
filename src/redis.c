@@ -436,9 +436,6 @@ static int redis_handle_query(redis_node_t *rn, redis_query_t *rq) /* {{{ */
     case DS_TYPE_DERIVE:
       val.gauge = (derive_t)rr->integer;
       break;
-    case DS_TYPE_ABSOLUTE:
-      val.gauge = (absolute_t)rr->integer;
-      break;
     }
     break;
   case REDIS_REPLY_STRING:

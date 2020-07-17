@@ -929,8 +929,6 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
       strbuf_printf(&buf, ":%" PRIu64, (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       strbuf_printf(&buf, ":%" PRIi64, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      strbuf_printf(&buf, ":%" PRIu64, vl->values[i].absolute);
     else {
       ERROR("format_values: Unknown data source type: %i", ds->ds[i].type);
       sfree(rates);
@@ -1056,10 +1054,6 @@ int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
 
   case DS_TYPE_DERIVE:
     ret_value->derive = (derive_t)strtoll(value, &endptr, 0);
-    break;
-
-  case DS_TYPE_ABSOLUTE:
-    ret_value->absolute = (absolute_t)strtoull(value, &endptr, 0);
     break;
 
   default:
@@ -1334,8 +1328,7 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
   /* Counter and absolute can't handle negative rates. Reset "last time"
    * to zero, so that the next valid rate will re-initialize the
    * structure. */
-  if ((rate < 0.0) &&
-      ((ds_type == DS_TYPE_COUNTER) || (ds_type == DS_TYPE_ABSOLUTE))) {
+  if ((rate < 0.0) && (ds_type == DS_TYPE_COUNTER)) {
     memset(state, 0, sizeof(*state));
     return EINVAL;
   }
@@ -1358,9 +1351,6 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     } else if (ds_type == DS_TYPE_COUNTER) {
       state->last_value.counter = (counter_t)rate;
       state->residual = rate - ((gauge_t)state->last_value.counter);
-    } else if (ds_type == DS_TYPE_ABSOLUTE) {
-      state->last_value.absolute = (absolute_t)rate;
-      state->residual = rate - ((gauge_t)state->last_value.absolute);
     } else {
       assert(23 == 42);
     }
@@ -1379,11 +1369,6 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
 
     state->last_value.counter += delta_counter;
     state->residual = delta_gauge - ((gauge_t)delta_counter);
-  } else if (ds_type == DS_TYPE_ABSOLUTE) {
-    absolute_t delta_absolute = (absolute_t)delta_gauge;
-
-    state->last_value.absolute = delta_absolute;
-    state->residual = delta_gauge - ((gauge_t)delta_absolute);
   } else {
     assert(23 == 42);
   }
@@ -1425,11 +1410,6 @@ int value_to_rate(gauge_t *ret_rate, /* {{{ */
   }
   case DS_TYPE_COUNTER: {
     counter_t diff = counter_diff(state->last_value.counter, value.counter);
-    *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
-    break;
-  }
-  case DS_TYPE_ABSOLUTE: {
-    absolute_t diff = value.absolute;
     *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
     break;
   }

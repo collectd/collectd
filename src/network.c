@@ -650,10 +650,6 @@ static int write_part_values(char **ret_buffer, size_t *ret_buffer_len,
       pkg_values[i].derive = htonll(vl->values[i].derive);
       break;
 
-    case DS_TYPE_ABSOLUTE:
-      pkg_values[i].absolute = htonll(vl->values[i].absolute);
-      break;
-
     default:
       free(pkg_values_types);
       free(pkg_values);
@@ -842,10 +838,6 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
 
     case DS_TYPE_DERIVE:
       pkg_values[i].derive = (derive_t)ntohll(pkg_values[i].derive);
-      break;
-
-    case DS_TYPE_ABSOLUTE:
-      pkg_values[i].absolute = (absolute_t)ntohll(pkg_values[i].absolute);
       break;
 
     default:
@@ -1133,7 +1125,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_sign_sha256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
@@ -1288,7 +1280,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_encr_aes256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
@@ -1697,7 +1689,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-      /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+    /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "

@@ -706,14 +706,6 @@ static int redfish_convert_val(redfish_value_t *value,
     else if (src_type == VAL_TYPE_REAL)
       vl->derive = (derive_t)value->real;
     break;
-  case DS_TYPE_ABSOLUTE:
-    if (src_type == VAL_TYPE_STR)
-      vl->absolute = strtoull(value->string, NULL, 0);
-    else if (src_type == VAL_TYPE_INT)
-      vl->absolute = (absolute_t)value->integer;
-    else if (src_type == VAL_TYPE_REAL)
-      vl->absolute = (absolute_t)value->real;
-    break;
   default:
     ERROR(PLUGIN_NAME ": Invalid data set type. Cannot convert value");
     return -EINVAL;

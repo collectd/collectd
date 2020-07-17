@@ -474,9 +474,6 @@ static int metric_update(Io__Prometheus__Client__Metric *m, value_t value,
     }
 
     switch (ds_type) {
-    case DS_TYPE_ABSOLUTE:
-      m->counter->value = (double)value.absolute;
-      break;
     case DS_TYPE_COUNTER:
       m->counter->value = (double)value.counter;
       break;

@@ -145,27 +145,6 @@ DEF_TEST(convert_val) {
   EXPECT_EQ_INT(0, ret);
   OK(vl.counter == 1);
 
-  val.string = "1";
-  src_type = VAL_TYPE_STR;
-  dst_type = DS_TYPE_ABSOLUTE;
-  ret = redfish_convert_val(&val, src_type, &vl, dst_type);
-  EXPECT_EQ_INT(0, ret);
-  OK(vl.absolute == 1);
-
-  val.integer = 1;
-  src_type = VAL_TYPE_INT;
-  dst_type = DS_TYPE_ABSOLUTE;
-  ret = redfish_convert_val(&val, src_type, &vl, dst_type);
-  EXPECT_EQ_INT(0, ret);
-  OK(vl.absolute == 1);
-
-  val.real = 1.0;
-  src_type = VAL_TYPE_REAL;
-  dst_type = DS_TYPE_ABSOLUTE;
-  ret = redfish_convert_val(&val, src_type, &vl, dst_type);
-  EXPECT_EQ_INT(0, ret);
-  OK(vl.absolute == 1);
-
   return 0;
 }
 

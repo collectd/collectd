@@ -350,8 +350,6 @@ static int wt_format_values(char *ret, size_t ret_len, int ds_num,
     BUFFER_ADD("%" PRIu64, (uint64_t)vl->values[ds_num].counter);
   else if (ds->ds[ds_num].type == DS_TYPE_DERIVE)
     BUFFER_ADD("%" PRIi64, vl->values[ds_num].derive);
-  else if (ds->ds[ds_num].type == DS_TYPE_ABSOLUTE)
-    BUFFER_ADD("%" PRIu64, vl->values[ds_num].absolute);
   else {
     ERROR("format_values plugin: Unknown data source type: %i",
           ds->ds[ds_num].type);

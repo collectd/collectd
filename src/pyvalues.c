@@ -673,15 +673,6 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
         Py_XDECREF(num);
       }
       break;
-    case DS_TYPE_ABSOLUTE:
-      /* This might overflow without raising an exception.
-       * Not much we can do about it */
-      num = PyNumber_Long(item); /* New reference. */
-      if (num != NULL) {
-        value[i].absolute = PyLong_AsUnsignedLongLong(num);
-        Py_XDECREF(num);
-      }
-      break;
     default:
       free(value);
       PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s",
@@ -795,15 +786,6 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
       num = PyNumber_Long(item); /* New reference. */
       if (num != NULL) {
         value[i].derive = PyLong_AsLongLong(num);
-        Py_XDECREF(num);
-      }
-      break;
-    case DS_TYPE_ABSOLUTE:
-      /* This might overflow without raising an exception.
-       * Not much we can do about it */
-      num = PyNumber_Long(item); /* New reference. */
-      if (num != NULL) {
-        value[i].absolute = PyLong_AsUnsignedLongLong(num);
         Py_XDECREF(num);
       }
       break;

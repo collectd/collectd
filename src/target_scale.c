@@ -220,49 +220,6 @@ static int ts_invoke_derive(const data_set_t *ds, value_list_t *vl, /* {{{ */
   return 0;
 } /* }}} int ts_invoke_derive */
 
-static int ts_invoke_absolute(const data_set_t *ds, value_list_t *vl, /* {{{ */
-                              ts_data_t *data, int dsrc_index) {
-  uint64_t curr_absolute;
-  double rate;
-  int status;
-
-  /* Required meta data */
-  double int_fraction;
-  char key_int_fraction[128];
-
-  curr_absolute = (uint64_t)vl->values[dsrc_index].absolute;
-
-  snprintf(key_int_fraction, sizeof(key_int_fraction),
-           "target_scale[%p,%i]:int_fraction", (void *)data, dsrc_index);
-
-  int_fraction = 0.0;
-
-  /* Query the meta data */
-  status = uc_meta_data_get_double(vl, key_int_fraction, &int_fraction);
-  if (status != 0)
-    int_fraction = 0.0;
-
-  rate = ((double)curr_absolute) / CDTIME_T_TO_DOUBLE(vl->interval);
-
-  /* Modify the rate. */
-  if (!isnan(data->factor))
-    rate *= data->factor;
-  if (!isnan(data->offset))
-    rate += data->offset;
-
-  /* Calculate the new absolute. */
-  int_fraction += (rate * CDTIME_T_TO_DOUBLE(vl->interval));
-  curr_absolute = (uint64_t)int_fraction;
-  int_fraction -= ((double)curr_absolute);
-
-  vl->values[dsrc_index].absolute = (absolute_t)curr_absolute;
-
-  /* Update to the new absolute value */
-  uc_meta_data_add_double(vl, key_int_fraction, int_fraction);
-
-  return 0;
-} /* }}} int ts_invoke_absolute */
-
 static int ts_config_set_double(double *ret, oconfig_item_t *ci) /* {{{ */
 {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
@@ -439,8 +396,6 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
       ts_invoke_gauge(ds, vl, data, i);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       ts_invoke_derive(ds, vl, data, i);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      ts_invoke_absolute(ds, vl, data, i);
     else
       ERROR("Target `scale': Ignoring unknown data source type %i",
             ds->ds[i].type);

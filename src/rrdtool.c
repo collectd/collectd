@@ -120,7 +120,7 @@ static int srrd_update(char *filename, char *template, int argc,
 
   return status;
 } /* int srrd_update */
-  /* #endif HAVE_THREADSAFE_LIBRRD */
+/* #endif HAVE_THREADSAFE_LIBRRD */
 
 #else  /* !HAVE_THREADSAFE_LIBRRD */
 static int srrd_update(char *filename, char *template, int argc,
@@ -179,12 +179,6 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
   offset = status;
 
   for (size_t i = 0; i < ds->ds_num; i++) {
-    if ((ds->ds[i].type != DS_TYPE_COUNTER) &&
-        (ds->ds[i].type != DS_TYPE_GAUGE) &&
-        (ds->ds[i].type != DS_TYPE_DERIVE) &&
-        (ds->ds[i].type != DS_TYPE_ABSOLUTE))
-      return -1;
-
     if (ds->ds[i].type == DS_TYPE_COUNTER)
       status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
                          (uint64_t)vl->values[i].counter);
@@ -194,9 +188,8 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
                          vl->values[i].derive);
-    else /*if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                         vl->values[i].absolute);
+    else
+      return -1;
 
     if ((status < 1) || (status >= (buffer_len - offset)))
       return -1;
@@ -228,10 +221,6 @@ static int value_list_to_string(char *buffer, int buffer_len,
   case DS_TYPE_COUNTER:
     status = ssnprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
                        (uint64_t)vl->values[0].counter);
-    break;
-  case DS_TYPE_ABSOLUTE:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
-                       vl->values[0].absolute);
     break;
   default:
     return EINVAL;
