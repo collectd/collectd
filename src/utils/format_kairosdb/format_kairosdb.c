@@ -76,7 +76,7 @@ static int json_add_string(yajl_gen g, char const *str) /* {{{ */
   do {                                                                         \
     int status = (f);                                                          \
     if (status != 0) {                                                         \
-      ERROR("format_kairosdb: %s failed with status %d", #f, status);                           \
+      ERROR("format_kairosdb: %s failed with status %d", #f, status);          \
       return status;                                                           \
     }                                                                          \
   } while (0)
