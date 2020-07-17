@@ -275,7 +275,7 @@ static int ut_config_host(const threshold_t *th_orig, oconfig_item_t *ci) {
  * if appropriate.
  * Does not fail.
  */
-static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
+static int ut_report_state(metric_single_t const *m, const threshold_t *th,
                            const gauge_t value, int state) { /* {{{ */
   int state_old;
   notification_t n;
@@ -287,22 +287,22 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
 
   /* Check if hits matched */
   if ((th->hits != 0)) {
-    int hits = uc_get_hits(metric_p);
+    int hits = uc_get_hits(m);
     /* STATE_OKAY resets hits unless PERSIST_OK flag is set. Hits resets if
      * threshold is hit. */
     if (((state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0)) ||
         (hits > th->hits)) {
       DEBUG("ut_report_state: reset uc_get_hits_vl = 0");
-      uc_set_hits(metric_p, 0); /* reset hit counter and notify */
+      uc_set_hits(m, 0); /* reset hit counter and notify */
     } else {
       DEBUG("ut_report_state: th->hits = %d, uc_get_hits = %d", th->hits,
             uc_get_hits(mstric_p));
-      (void)uc_inc_hits(metric_p, 1); /* increase hit counter */
+      (void)uc_inc_hits(m, 1); /* increase hit counter */
       return 0;
     }
   } /* end check hits */
 
-  state_old = uc_get_state(metric_p);
+  state_old = uc_get_state(m);
 
   /* If the state didn't change, report if `persistent' is specified. If the
    * state is `okay', then only report if `persist_ok` flag is set. */
@@ -317,9 +317,9 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
   }
 
   if (state != state_old)
-    uc_set_state(metric_p, state);
+    uc_set_state(m, state);
 
-  notification_init_metric(&n, NOTIF_FAILURE, NULL, metric_p);
+  notification_init_metric(&n, NOTIF_FAILURE, NULL, m);
 
   buf = n.message;
   bufsize = sizeof(n.message);
@@ -331,14 +331,14 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
   else
     n.severity = NOTIF_FAILURE;
 
-  n.time = metric_p->time;
+  n.time = m->time;
 
-  status = ssnprintf(buf, bufsize, "Name %s", metric_p->identity->name);
+  status = ssnprintf(buf, bufsize, "Name %s", m->identity->name);
   buf += status;
   bufsize -= status;
 
-  if (metric_p->identity->root_p != NULL) {
-    c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->root_p);
+  if (m->identity->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(m->identity->root_p);
     if (iter_p != NULL) {
       char *key_p = NULL;
       char *value_p = NULL;
@@ -357,7 +357,7 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
     c_avl_iterator_destroy(iter_p);
   }
 
-  plugin_notification_meta_add_string(&n, "DataSource", metric_p->ds->name);
+  plugin_notification_meta_add_string(&n, "DataSource", m->ds->name);
   plugin_notification_meta_add_double(&n, "CurrentValue", value);
   plugin_notification_meta_add_double(&n, "WarningMin", th->warning_min);
   plugin_notification_meta_add_double(&n, "WarningMax", th->warning_max);
@@ -372,7 +372,7 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
       ssnprintf(buf, bufsize,
                 ": All data sources are within range again. "
                 "Current value of \"%s\" is %f.",
-                metric_p->ds->name, value);
+                m->ds->name, value);
   } else if (state == STATE_UNKNOWN) {
     ERROR("ut_report_state: metric transition to UNKNOWN from a different "
           "state. This shouldn't happen.");
@@ -389,7 +389,7 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
         ssnprintf(buf, bufsize,
                   ": Data source \"%s\" is currently "
                   "%f. That is within the %s region of %f%s and %f%s.",
-                  metric_p->ds->name, value,
+                  m->ds->name, value,
                   (state == STATE_ERROR) ? "failure" : "warning", min,
                   ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "", max,
                   ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
@@ -397,7 +397,7 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
         ssnprintf(buf, bufsize,
                   ": Data source \"%s\" is currently "
                   "%f. That is %s the %s threshold of %f%s.",
-                  metric_p->ds->name, value, isnan(min) ? "below" : "above",
+                  m->ds->name, value, isnan(min) ? "below" : "above",
                   (state == STATE_ERROR) ? "failure" : "warning",
                   isnan(min) ? max : min,
                   ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
@@ -406,8 +406,7 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
       ssnprintf(buf, bufsize,
                 ": Data source \"%s\" is currently "
                 "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
-                metric_p->ds->name, value, value,
-                (value < min) ? "below" : "above",
+                m->ds->name, value, value, (value < min) ? "below" : "above",
                 (state == STATE_ERROR) ? "failure" : "warning",
                 (value < min) ? min : max);
     } else /* is not inverted */
@@ -415,7 +414,7 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
       ssnprintf(buf, bufsize,
                 ": Data source \"%s\" is currently "
                 "%f. That is %s the %s threshold of %f.",
-                metric_p->ds->name, value, (value < min) ? "below" : "above",
+                m->ds->name, value, (value < min) ? "below" : "above",
                 (state == STATE_ERROR) ? "failure" : "warning",
                 (value < min) ? min : max);
     }
@@ -437,7 +436,7 @@ static int ut_report_state(const metric_t *metric_p, const threshold_t *th,
  * appropriate.
  * Does not fail.
  */
-static int ut_check_one_data_source(const metric_t *metric_p,
+static int ut_check_one_data_source(metric_single_t const *m,
                                     const threshold_t *th,
                                     const gauge_t value) { /* {{{ */
   int is_warning = 0;
@@ -445,8 +444,7 @@ static int ut_check_one_data_source(const metric_t *metric_p,
   int prev_state = STATE_OKAY;
 
   /* check if this threshold applies to this data source */
-  if ((th->data_source[0] != 0) &&
-      (strcmp(metric_p->ds->name, th->data_source) != 0))
+  if ((th->data_source[0] != 0) && (strcmp(m->ds->name, th->data_source) != 0))
     return STATE_UNKNOWN;
 
   if ((th->flags & UT_FLAG_INVERT) != 0) {
@@ -457,7 +455,7 @@ static int ut_check_one_data_source(const metric_t *metric_p,
   /* XXX: This is an experimental code, not optimized, not fast, not reliable,
    * and probably, do not work as you expect. Enjoy! :D */
   if (th->hysteresis > 0) {
-    prev_state = uc_get_state(metric_p);
+    prev_state = uc_get_state(m);
     /* The purpose of hysteresis is elliminating flapping state when the value
      * oscilates around the thresholds. In other words, what is important is
      * the previous state; if the new value would trigger a transition, make
@@ -521,7 +519,7 @@ static int ut_check_one_data_source(const metric_t *metric_p,
  * defined.
  * Returns less than zero if the data set doesn't have any data sources.
  */
-static int ut_check_one_threshold(const metric_t *metric_p,
+static int ut_check_one_threshold(metric_single_t const *m,
                                   const threshold_t *th,
                                   const gauge_t value) { /* {{{ */
   int ret = -1;
@@ -549,7 +547,7 @@ static int ut_check_one_threshold(const metric_t *metric_p,
 
   int status;
 
-  status = ut_check_one_data_source(metric_p, th, values_copy);
+  status = ut_check_one_data_source(m, th, values_copy);
   if (ret < status) {
     ret = status;
   }
@@ -565,7 +563,7 @@ static int ut_check_one_threshold(const metric_t *metric_p,
  * Returns zero on success and if no threshold has been configured. Returns
  * less than zero on failure.
  */
-static int ut_check_threshold(const metric_t *metric_p,
+static int ut_check_threshold(metric_single_t const *m,
                               __attribute__((unused))
                               user_data_t *ud) { /* {{{ */
   threshold_t *th;
@@ -581,20 +579,20 @@ static int ut_check_threshold(const metric_t *metric_p,
   /* Is this lock really necessary? So far, thresholds are only inserted at
    * startup. -octo */
   pthread_mutex_lock(&threshold_lock);
-  th = threshold_search(metric_p);
+  th = threshold_search(m);
   pthread_mutex_unlock(&threshold_lock);
   if (th == NULL)
     return 0;
 
   DEBUG("ut_check_threshold: Found matching threshold(s)");
 
-  status = uc_get_rate(metric_p, &value);
+  status = uc_get_rate(m, &value);
   if (status != 0)
     return 0;
 
   while (th != NULL) {
 
-    status = ut_check_one_threshold(metric_p, th, value);
+    status = ut_check_one_threshold(m, th, value);
     if (status < 0) {
       ERROR("ut_check_threshold: ut_check_one_threshold failed.");
       return -1;
@@ -608,7 +606,7 @@ static int ut_check_threshold(const metric_t *metric_p,
     th = th->next;
   } /* while (th) */
 
-  status = ut_report_state(metric_p, worst_th, value, worst_state);
+  status = ut_report_state(m, worst_th, value, worst_state);
   if (status != 0) {
     ERROR("ut_check_threshold: ut_report_state failed.");
     return -1;
@@ -622,7 +620,7 @@ static int ut_check_threshold(const metric_t *metric_p,
  *
  * This function is called whenever a value goes "missing".
  */
-static int ut_missing(const metric_t *metric_p,
+static int ut_missing(metric_single_t const *m,
                       __attribute__((unused)) user_data_t *ud) { /* {{{ */
   threshold_t *th;
   cdtime_t missing_time;
@@ -633,18 +631,18 @@ static int ut_missing(const metric_t *metric_p,
   if (threshold_tree == NULL)
     return 0;
 
-  th = threshold_search(metric_p);
+  th = threshold_search(m);
   /* dispatch notifications for "interesting" values only */
   if ((th == NULL) || ((th->flags & UT_FLAG_INTERESTING) == 0))
     return 0;
 
   now = cdtime();
-  missing_time = now - metric_p->time;
-  if ((identifier_p = metric_marshal_text(metric_p)) != 0) {
+  missing_time = now - m->time;
+  if ((identifier_p = metric_marshal_text(m)) != 0) {
     ERROR("uc_update: metric_marshal_text failed.");
   }
 
-  notification_init_metric(&n, NOTIF_FAILURE, NULL, metric_p);
+  notification_init_metric(&n, NOTIF_FAILURE, NULL, m);
   ssnprintf(n.message, sizeof(n.message),
             "%s has not been updated for %.3f seconds.", identifier_p,
             CDTIME_T_TO_DOUBLE(missing_time));

@@ -399,7 +399,7 @@ static void wh_callback_free(void *data) /* {{{ */
   sfree(cb);
 } /* }}} void wh_callback_free */
 
-static int wh_write_command(const metric_t *metric_p, /* {{{ */
+static int wh_write_command(metric_single_t const *m, /* {{{ */
                             wh_callback_t *cb) {
   char values[512];
   char command[1024];
@@ -413,7 +413,7 @@ static int wh_write_command(const metric_t *metric_p, /* {{{ */
 
   /* Copy the identifier to `key' and escape it. */
   char *metric_string_p = NULL;
-  if ((metric_string_p = metric_marshal_text(metric_p)) != 0) {
+  if ((metric_string_p = metric_marshal_text(m)) != 0) {
     return -1;
   }
 
@@ -421,7 +421,7 @@ static int wh_write_command(const metric_t *metric_p, /* {{{ */
 
   /* Convert the values to an ASCII representation and put that into
    * `values'. */
-  status = format_values(values, sizeof(values), metric_p, cb->store_rates);
+  status = format_values(values, sizeof(values), m, cb->store_rates);
   if (status != 0) {
     ERROR("write_http plugin: error with "
           "wh_value_list_to_string");
@@ -431,7 +431,7 @@ static int wh_write_command(const metric_t *metric_p, /* {{{ */
 
   command_len = (size_t)snprintf(
       command, sizeof(command), "PUTVAL %s interval=%.3f %s\r\n",
-      metric_string_p, CDTIME_T_TO_DOUBLE(metric_p->interval), values);
+      metric_string_p, CDTIME_T_TO_DOUBLE(m->interval), values);
   if (command_len >= sizeof(command)) {
     ERROR("write_http plugin: Command buffer too small: "
           "Need %" PRIsz " bytes.",
@@ -477,7 +477,7 @@ static int wh_write_command(const metric_t *metric_p, /* {{{ */
   return 0;
 } /* }}} int wh_write_command */
 
-static int wh_write_json(const metric_t *metric_p, /* {{{ */
+static int wh_write_json(metric_single_t const *m, /* {{{ */
                          wh_callback_t *cb) {
   int status;
 
@@ -488,9 +488,8 @@ static int wh_write_json(const metric_t *metric_p, /* {{{ */
     return -1;
   }
 
-  status =
-      format_json_metric(cb->send_buffer, &cb->send_buffer_fill,
-			 &cb->send_buffer_free, metric_p, cb->store_rates);
+  status = format_json_metric(cb->send_buffer, &cb->send_buffer_fill,
+                              &cb->send_buffer_free, m, cb->store_rates);
   if (status == -ENOMEM) {
     status = wh_flush_nolock(/* timeout = */ 0, cb);
     if (status != 0) {
@@ -499,9 +498,8 @@ static int wh_write_json(const metric_t *metric_p, /* {{{ */
       return status;
     }
 
-    status =
-        format_json_metric(cb->send_buffer, &cb->send_buffer_fill,
-			   &cb->send_buffer_free, metric_p, cb->store_rates);
+    status = format_json_metric(cb->send_buffer, &cb->send_buffer_fill,
+                                &cb->send_buffer_free, m, cb->store_rates);
   }
   if (status != 0) {
     pthread_mutex_unlock(&cb->send_lock);
@@ -519,7 +517,7 @@ static int wh_write_json(const metric_t *metric_p, /* {{{ */
   return 0;
 } /* }}} int wh_write_json */
 
-static int wh_write_kairosdb(const metric_t *metric_p, /* {{{ */
+static int wh_write_kairosdb(metric_single_t const *m, /* {{{ */
                              wh_callback_t *cb) {
   int status;
 
@@ -535,7 +533,7 @@ static int wh_write_kairosdb(const metric_t *metric_p, /* {{{ */
   }
 
   status = format_kairosdb_metric(
-      cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, metric_p,
+      cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, m,
       cb->store_rates, (char const *const *)http_attrs, http_attrs_num,
       cb->data_ttl, cb->metrics_prefix);
   if (status == -ENOMEM) {
@@ -547,7 +545,7 @@ static int wh_write_kairosdb(const metric_t *metric_p, /* {{{ */
     }
 
     status = format_kairosdb_metric(
-        cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, metric_p,
+        cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, m,
         cb->store_rates, (char const *const *)http_attrs, http_attrs_num,
         cb->data_ttl, cb->metrics_prefix);
   }
@@ -567,7 +565,7 @@ static int wh_write_kairosdb(const metric_t *metric_p, /* {{{ */
   return 0;
 } /* }}} int wh_write_kairosdb */
 
-static int wh_write(const metric_t *metric_p, /* {{{ */
+static int wh_write(metric_single_t const *m, /* {{{ */
                     user_data_t *user_data) {
   wh_callback_t *cb;
   int status;
@@ -580,13 +578,13 @@ static int wh_write(const metric_t *metric_p, /* {{{ */
 
   switch (cb->format) {
   case WH_FORMAT_JSON:
-    status = wh_write_json(metric_p, cb);
+    status = wh_write_json(m, cb);
     break;
   case WH_FORMAT_KAIROSDB:
-    status = wh_write_kairosdb(metric_p, cb);
+    status = wh_write_kairosdb(m, cb);
     break;
   default:
-    status = wh_write_command(metric_p, cb);
+    status = wh_write_command(m, cb);
     break;
   }
   return status;

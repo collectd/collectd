@@ -715,12 +715,12 @@ static int agg_read(void) /* {{{ */
   return (success > 0) ? 0 : -1;
 } /* }}} int agg_read */
 
-static int agg_write(metric_t const *metric_p, /* {{{ */
+static int agg_write(metric_single_t const *m, /* {{{ */
                      __attribute__((unused)) user_data_t *user_data) {
   bool created_by_aggregation = false;
   /* Ignore values that were created by the aggregation plugin to avoid weird
    * effects. */
-  (void)meta_data_get_boolean(metric_p->meta->meta, "aggregation:created",
+  (void)meta_data_get_boolean(m->meta->meta, "aggregation:created",
                               &created_by_aggregation);
   if (created_by_aggregation)
     return 0;
@@ -730,7 +730,7 @@ static int agg_write(metric_t const *metric_p, /* {{{ */
   if (lookup == NULL)
     status = ENOENT;
   else {
-    status = lookup_search(lookup, metric_p);
+    status = lookup_search(lookup, m);
     if (status > 0)
       status = 0;
   }

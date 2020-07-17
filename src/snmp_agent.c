@@ -29,11 +29,11 @@
 
 #include "collectd.h"
 
-#include <regex.h>
 #include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_llist.h"
+#include <regex.h>
 
 #include <net-snmp/net-snmp-config.h>
 
@@ -481,7 +481,7 @@ static int snmp_agent_tokenize(const char *input, c_avl_tree_t *tokens,
 }
 
 static int snmp_agent_fill_index_list(table_definition_t *td,
-                                      metric_t const *metric_p) {
+                                      metric_single_t const *m) {
   int ret;
   int i;
   netsnmp_variable_list *key = td->index_list_cont;
@@ -497,8 +497,8 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
     /* Generating list filled with all data necessary to generate an OID */
     switch (source) {
     case INDEX_HOST:
-      ret = c_avl_get(metric_p->identity->root_p, (void *)"__host__",
-                      (void **)&host_p);
+      ret =
+          c_avl_get(m->identity->root_p, (void *)"__host__", (void **)&host_p);
       if (ret != 0) {
         ERROR(PLUGIN_NAME ": Unknown index key resource host");
         return -EINVAL;
@@ -506,13 +506,13 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
       ptr = host_p;
       break;
     case INDEX_PLUGIN:
-      ptr = metric_p->plugin;
+      ptr = m->plugin;
       break;
     case INDEX_TYPE:
-      ptr = metric_p->type;
+      ptr = m->type;
       break;
     case INDEX_DATA_SOURCE:
-      ptr = metric_p->ds->name;
+      ptr = m->ds->name;
       break;
     default:
       ERROR(PLUGIN_NAME ": Unknown index key source provided");
@@ -595,13 +595,13 @@ static int snmp_agent_prep_index_list(table_definition_t const *td,
 }
 
 static int snmp_agent_generate_index(table_definition_t *td,
-                                     metric_t const *metric_p,
+                                     metric_single_t const *m,
                                      oid_t *index_oid) {
 
   /* According to given information by index_keys list
    * index OID is going to be built
    */
-  int ret = snmp_agent_fill_index_list(td, metric_p);
+  int ret = snmp_agent_fill_index_list(td, m);
   if (ret != 0)
     return -EINVAL;
 
@@ -760,9 +760,9 @@ static void snmp_agent_table_data_remove(data_definition_t *dd,
   }
 }
 
-static int snmp_agent_clear_missing(const metric_t *metric_p,
+static int snmp_agent_clear_missing(metric_single_t const *m,
                                     __attribute__((unused)) user_data_t *ud) {
-  if (metric_p == NULL)
+  if (m == NULL)
     return -EINVAL;
 
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
@@ -772,8 +772,7 @@ static int snmp_agent_clear_missing(const metric_t *metric_p,
       data_definition_t *dd = de->value;
 
       if (!dd->is_index_key) {
-        if (CHECK_DD_TYPE(dd, metric_p->plugin, metric_p->type,
-                          metric_p->ds->name)) {
+        if (CHECK_DD_TYPE(dd, m->plugin, metric_p->type, m->ds->name)) {
           oid_t *index_oid = calloc(1, sizeof(*index_oid));
 
           if (index_oid == NULL) {
@@ -781,7 +780,7 @@ static int snmp_agent_clear_missing(const metric_t *metric_p,
             return -ENOMEM;
           }
 
-          int ret = snmp_agent_generate_index(td, metric_p, index_oid);
+          int ret = snmp_agent_generate_index(td, m, index_oid);
 
           if (ret == 0)
             snmp_agent_table_data_remove(dd, td, index_oid);
@@ -995,8 +994,7 @@ static int snmp_agent_format_name(char *name, int name_len,
     int i = 0;
     netsnmp_variable_list *key = td->index_list_cont;
     char str[DATA_MAX_NAME_LEN];
-    char *fields[MAX_KEY_SOURCES] = {hostname_g, dd->plugin,
-                                     dd->type,
+    char *fields[MAX_KEY_SOURCES] = {hostname_g, dd->plugin, dd->type,
                                      dd->data_source};
 
     /* Looking for simple keys only */
@@ -1028,7 +1026,7 @@ static int snmp_agent_format_name(char *name, int name_len,
         return ret;
     }
     snprintf(name, name_len, fields[INDEX_HOST], fields[INDEX_PLUGIN],
-	     fields[INDEX_TYPE],fields[INDEX_DATA_SOURCE]);
+             fields[INDEX_TYPE], fields[INDEX_DATA_SOURCE]);
     for (i = 0; i < MAX_KEY_SOURCES; i++) {
       if (td->tokens[i])
         sfree(fields[i]);
@@ -2011,8 +2009,8 @@ error:
   return ret;
 }
 
-static int snmp_agent_write(metric_t const *metric_p) {
-  if (metric_p == NULL)
+static int snmp_agent_write(metric_single_t const *m) {
+  if (m == NULL)
     return -EINVAL;
 
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
@@ -2022,8 +2020,7 @@ static int snmp_agent_write(metric_t const *metric_p) {
       data_definition_t *dd = de->value;
 
       if (!dd->is_index_key) {
-        if (CHECK_DD_TYPE(dd, metric_p->plugin, metric_p->type,
-                          metric_p->ds->name)) {
+        if (CHECK_DD_TYPE(dd, m->plugin, metric_p->type, m->ds->name)) {
           oid_t *index_oid = calloc(1, sizeof(*index_oid));
           bool free_index_oid = true;
 
@@ -2032,7 +2029,7 @@ static int snmp_agent_write(metric_t const *metric_p) {
             return -ENOMEM;
           }
 
-          int ret = snmp_agent_generate_index(td, metric_p, index_oid);
+          int ret = snmp_agent_generate_index(td, m, index_oid);
 
           if (ret == 0)
             ret = snmp_agent_update_index(dd, td, index_oid, &free_index_oid);
@@ -2050,12 +2047,12 @@ static int snmp_agent_write(metric_t const *metric_p) {
   return 0;
 }
 
-static int snmp_agent_collect(const metric_t *metric_p,
+static int snmp_agent_collect(metric_single_t const *m,
                               user_data_t __attribute__((unused)) * user_data) {
 
   pthread_mutex_lock(&g_agent->lock);
 
-  snmp_agent_write(metric_p);
+  snmp_agent_write(m);
 
   pthread_mutex_unlock(&g_agent->lock);
 

@@ -54,19 +54,20 @@ static int format_uptime(unsigned long uptime_sec, char *buf, size_t bufsize) {
   return ret;
 }
 
-static int cu_notify(enum cache_event_type_e event_type, const metric_t *metric_p,
-                     gauge_t old_uptime, gauge_t new_uptime) {
+static int cu_notify(enum cache_event_type_e event_type,
+                     metric_single_t const *m, gauge_t old_uptime,
+                     gauge_t new_uptime) {
   notification_t n;
-  notification_init_metric(&n, NOTIF_FAILURE, NULL, metric_p);
+  notification_init_metric(&n, NOTIF_FAILURE, NULL, m);
 
   int status;
   char *buf = n.message;
   size_t bufsize = sizeof(n.message);
 
-  n.time = metric_p->time;
+  n.time = m->time;
 
   const char *service = "Service";
-  if (strcmp(metric_p->plugin, "uptime") == 0)
+  if (strcmp(m->plugin, "uptime") == 0)
     service = "Host";
 
   switch (event_type) {
@@ -132,10 +133,10 @@ static int cu_cache_event(cache_event_t *event,
   switch (event->type) {
   case CE_VALUE_NEW:
     DEBUG("check_uptime: CE_VALUE_NEW, %s", event->value_list_name);
-    if (c_avl_get(types_tree, event->metric_p->type, NULL) == 0) {
+    if (c_avl_get(types_tree, event->m->type, NULL) == 0) {
       event->ret = 1;
-      cu_notify(CE_VALUE_NEW, event->metric_p, NAN /* old */,
-                event->metric_p->value.gauge /* new */);
+      cu_notify(CE_VALUE_NEW, event->m, NAN /* old */,
+                event->m->value.gauge /* new */);
     }
     break;
   case CE_VALUE_UPDATE:
@@ -146,8 +147,8 @@ static int cu_cache_event(cache_event_t *event,
     } else {
       if (!isnan(values_history[0]) && !isnan(values_history[1]) &&
           values_history[0] < values_history[1]) {
-        cu_notify(CE_VALUE_UPDATE, event->metric_p,
-                  values_history[1] /* old */, values_history[0] /* new */);
+        cu_notify(CE_VALUE_UPDATE, event->m, values_history[1] /* old */,
+                  values_history[0] /* new */);
       }
     }
     break;
@@ -158,7 +159,7 @@ static int cu_cache_event(cache_event_t *event,
       old_uptime = value.gauge;
     }
 
-    cu_notify(CE_VALUE_EXPIRED, event->metric_p, old_uptime, NAN /* new */);
+    cu_notify(CE_VALUE_EXPIRED, event->m, old_uptime, NAN /* new */);
     break;
   }
   return 0;

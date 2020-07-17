@@ -57,7 +57,7 @@ typedef struct wr_node_s wr_node_t;
  * Functions
  */
 static int wr_write(/* {{{ */
-                    const metric_t *metric_p, user_data_t *ud) {
+                    metric_single_t const *m, user_data_t *ud) {
   wr_node_t *node = ud->data;
   char key[512];
   char value[512] = {0};
@@ -68,18 +68,18 @@ static int wr_write(/* {{{ */
   redisReply *rr;
 
   char *metric_string_p = NULL;
-  if ((metric_string_p = metric_marshal_text(metric_p)) != 0) {
+  if ((metric_string_p = metric_marshal_text(m)) != 0) {
     return -1;
   }
 
   ssnprintf(key, sizeof(key), "%s%s",
             (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX,
             metric_string_p);
-  ssnprintf(time, sizeof(time), "%.9f", CDTIME_T_TO_DOUBLE(metric_p->time));
+  ssnprintf(time, sizeof(time), "%.9f", CDTIME_T_TO_DOUBLE(m->time));
 
   value_size = sizeof(value);
   value_ptr = &value[0];
-  status = format_values(value_ptr, value_size, metric_p, node->store_rates);
+  status = format_values(value_ptr, value_size, m, node->store_rates);
   if (status != 0) {
     sfree(metric_string_p);
     return status;
@@ -137,9 +137,8 @@ static int wr_write(/* {{{ */
      * remove element, scored less than 'current-max_set_duration'
      * '(...' indicates 'less than' in redis CLI.
      */
-    rr = redisCommand(
-        node->conn, "ZREMRANGEBYSCORE %s -1 (%.9f", key,
-        (CDTIME_T_TO_DOUBLE(metric_p->time) - node->max_set_duration));
+    rr = redisCommand(node->conn, "ZREMRANGEBYSCORE %s -1 (%.9f", key,
+                      (CDTIME_T_TO_DOUBLE(m->time) - node->max_set_duration));
     if (rr == NULL)
       WARNING("ZREMRANGEBYSCORE command error. key:%s message:%s", key,
               node->conn->errstr);

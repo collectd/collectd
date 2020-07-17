@@ -40,9 +40,9 @@ extern "C" {
 #include <fnmatch.h>
 #include <stdbool.h>
 
+#include "collectd.h"
 #include "plugin.h"
 #include "utils/common/common.h"
-#include "collectd.h"
 
 #include "daemon/utils_cache.h"
 }
@@ -76,7 +76,8 @@ static grpc::string default_addr("0.0.0.0:50051");
  * helper functions
  */
 
-static bool ident_matches(const metric_t *vl, const metric_t *matcher) {
+static bool ident_matches(metric_single_t const *vl,
+                          const metric_single_t *matcher) {
   if (fnmatch(matcher->host, vl->host, 0))
     return false;
 

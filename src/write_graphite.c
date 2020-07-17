@@ -388,10 +388,11 @@ static int wg_send_message(char const *message, struct wg_callback *cb) {
   return 0;
 }
 
-static int wg_write_messages(metric_t const *m, struct wg_callback *cb) {
+static int wg_write_messages(metric_single_t const *m, struct wg_callback *cb) {
   strbuf_t buf = STRBUF_CREATE;
 
-  int status = format_graphite(&buf, m, cb->prefix, cb->postfix, cb->escape_char, cb->format_flags);
+  int status = format_graphite(&buf, m, cb->prefix, cb->postfix,
+                               cb->escape_char, cb->format_flags);
   if (status != 0) {
     STRBUF_DESTROY(buf);
     return status;
@@ -403,7 +404,7 @@ static int wg_write_messages(metric_t const *m, struct wg_callback *cb) {
   return status;
 } /* int wg_write_messages */
 
-static int wg_write(metric_t const *m, user_data_t *user_data) {
+static int wg_write(metric_single_t const *m, user_data_t *user_data) {
   if ((m == NULL) || (user_data == NULL)) {
     return EINVAL;
   }

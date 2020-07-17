@@ -710,25 +710,24 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
   int ret;
   const data_set_t *ds;
   size_t size;
-  metric_t metric = STRUCT_METRIC_INIT;
+  metric_single_t metric = STRUCT_METRIC_INIT;
   PyObject *values = self->values, *meta = self->meta;
   double time = self->data.time, interval = self->interval;
-  char *host = NULL, *plugin = NULL, *type = NULL,
-       *data_source = NULL, *dest = NULL;
+  char *host = NULL, *plugin = NULL, *type = NULL, *data_source = NULL,
+       *dest = NULL;
 
-  static char *kwlist[] = {
-    "destination",   "type",   "values",
-      "dat_source", "plugin", "host",   "time",
-      "interval",      "meta",   NULL};
+  static char *kwlist[] = {"destination", "type", "values", "dat_source",
+                           "plugin",      "host", "time",   "interval",
+                           "meta",        NULL};
   if (!PyArg_ParseTupleAndKeywords(
           args, kwds, "et|etOetetetetdiO", kwlist, NULL, &dest, NULL, &type,
           &values, NULL, &plugin_instance, NULL, &type_instance, NULL, &plugin,
           NULL, &host, &time, &interval, &meta))
     return NULL;
 
-  metric.identity = identity_create_legacy((plugin ? plugin : self->data.plugin),
-                                    (type ? type : self->data.type),
-                                    (host ? host : self->data.host));
+  metric.identity = identity_create_legacy(
+      (plugin ? plugin : self->data.plugin), (type ? type : self->data.type),
+      (host ? host : self->data.host));
 
   sstrncpy(value_list.host, host ? host : self->data.host,
            sizeof(value_list.host));

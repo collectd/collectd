@@ -33,8 +33,8 @@
 /* do not automatically get the thread specific Perl interpreter */
 #define PERL_NO_GET_CONTEXT
 
-#include <stdbool.h>
 #include "collectd.h"
+#include <stdbool.h>
 
 #include <EXTERN.h>
 #include <perl.h>
@@ -115,7 +115,7 @@ static XS(Collectd__fc_register);
 static XS(Collectd_call_by_name);
 
 static int perl_read(user_data_t *ud);
-static int perl_write(const metric_t *metric_p, user_data_t *user_data);
+static int perl_write(metric_single_t const *m, user_data_t *user_data);
 static void perl_log(int level, const char *msg, user_data_t *user_data);
 static int perl_notify(const notification_t *notif, user_data_t *user_data);
 static int perl_flush(cdtime_t timeout, const char *identifier,
@@ -347,26 +347,25 @@ static size_t av2value(pTHX_ char *name, AV *array, value_t *value,
   return ds->ds_num;
 } /* static size_t av2value (char *, AV *, value_t *, size_t) */
 
-static int hv2metric_list(pTHX_ HV *hash, metric_t *metric_p) {
-  if ((NULL == hash) || (NULL == metric_p))
+static int hv2metric_list(pTHX_ HV *hash, metric_single_t *m) {
+  if ((NULL == hash) || (NULL == m))
     return -1;
   SV **tmp = av_fetch(array, 0, 0);
 
   if (NULL != tmp) {
-    if (DS_TYPE_COUNTER == metric_p->value_type)
-      metric_p->value.counter = SvIV(*tmp);
-    else if (DS_TYPE_GAUGE == metric_p->value_type)
-      metric_p->value.gauge = SvNV(*tmp);
-    else if (DS_TYPE_DERIVE == metric_p->value_type)
-      metric_p->value.derive = SvIV(*tmp);
-    else if (DS_TYPE_ABSOLUTE == metric_p->value_type)
-      metric_p->value.absolute = SvIV(*tmp);
+    if (DS_TYPE_COUNTER == m->value_type)
+      m->value.counter = SvIV(*tmp);
+    else if (DS_TYPE_GAUGE == m->value_type)
+      m->value.gauge = SvNV(*tmp);
+    else if (DS_TYPE_DERIVE == m->value_type)
+      m->value.derive = SvIV(*tmp);
+    else if (DS_TYPE_ABSOLUTE == m->value_type)
+      m->value.absolute = SvIV(*tmp);
   } else {
     return 0;
   }
   return 1;
 }
-
 
 /*
  * value list:
@@ -2133,8 +2132,7 @@ static int perl_read(user_data_t *user_data) {
   return pplugin_call(aTHX_ PLUGIN_READ, user_data->data);
 } /* static int perl_read (user_data_t *user_data) */
 
-static int perl_write(const metric_t *metric_p,
-                      user_data_t *user_data) {
+static int perl_write(metric_single_t const *m, user_data_t *user_data) {
   int status;
   dTHX;
 
@@ -2159,7 +2157,7 @@ static int perl_write(const metric_t *metric_p,
 
   log_debug("perl_write: c_ithread: interp = %p (active threads: %i)", aTHX,
             perl_threads->number_of_threads);
-  status = pplugin_call(aTHX_ PLUGIN_WRITE, user_data->data, metric_p);
+  status = pplugin_call(aTHX_ PLUGIN_WRITE, user_data->data, m);
 
   if (aTHX == perl_threads->head->interp)
     pthread_mutex_unlock(&perl_threads->mutex);
