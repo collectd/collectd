@@ -93,7 +93,7 @@ DEF_TEST(metric_name) {
       CHECK_ZERO(identity_add_label(id, cases[i].keys[j], cases[i].values[j]));
     }
 
-    metric_t m = {
+    metric_single_t m = {
         .identity = id,
         .value = cases[i].value,
         .value_type = cases[i].value_type,

@@ -35,7 +35,8 @@
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
 
-static int gr_format_values(strbuf_t *buf, const metric_t *m, gauge_t rate) {
+static int gr_format_values(strbuf_t *buf, metric_single_t const *m,
+                            gauge_t rate) {
   if (m->value_type == DS_TYPE_GAUGE)
     return strbuf_printf(buf, GAUGE_FORMAT, m->value.gauge);
   else if (rate != -1)
@@ -88,9 +89,9 @@ static int graphite_print_escaped(strbuf_t *buf, char const *s,
   return 0;
 }
 
-static int gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
-                          char const *suffix, char const escape_char,
-                          unsigned int flags) {
+static int gr_format_name(strbuf_t *buf, metric_single_t const *m,
+                          char const *prefix, char const *suffix,
+                          char const escape_char, unsigned int flags) {
   if (prefix != NULL) {
     strbuf_print(buf, prefix);
   }
@@ -112,7 +113,7 @@ static int gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
   return 0;
 }
 
-int format_graphite(strbuf_t *buf, metric_t const *m, char const *prefix,
+int format_graphite(strbuf_t *buf, metric_single_t const *m, char const *prefix,
                     char const *postfix, char const escape_char,
                     unsigned int flags) {
   gauge_t rate = -1;
