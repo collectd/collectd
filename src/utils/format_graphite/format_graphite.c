@@ -54,17 +54,17 @@ static int gr_format_values(char *ret, size_t ret_len, const metric_t *metric_p,
       offset += ((size_t)status);                                              \
   } while (0)
 
-  if (metric_p->value_ds_type == DS_TYPE_GAUGE)
+  if (metric_p->value_type == DS_TYPE_GAUGE)
     BUFFER_ADD(GAUGE_FORMAT, metric_p->value.gauge);
   else if (rate != -1)
     BUFFER_ADD("%f", rate);
-  else if (metric_p->value_ds_type == DS_TYPE_COUNTER)
+  else if (metric_p->value_type == DS_TYPE_COUNTER)
     BUFFER_ADD("%" PRIu64, (uint64_t)metric_p->value.counter);
-  else if (metric_p->value_ds_type == DS_TYPE_DERIVE)
+  else if (metric_p->value_type == DS_TYPE_DERIVE)
     BUFFER_ADD("%" PRIi64, metric_p->value.derive);
   else {
     P_ERROR("gr_format_values: Unknown data source type: %i",
-            metric_p->value_ds_type);
+            metric_p->value_type);
     return -1;
   }
 
