@@ -282,7 +282,7 @@ static int init(void) {
     WARNING("cpu plugin: sysctl: %s", STRERRNO);
     return -1;
   }
-    /* #endif CAN_USE_SYSCTL */
+  /* #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME)
   /* Only on BSD varient */
@@ -308,11 +308,11 @@ static int init(void) {
            "%i)",
            numcpu);
 #endif
-    /* #endif HAVE_SYSCTLBYNAME */
+  /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
-/* nothing to initialize */
-/* #endif HAVE_LIBSTATGRAB */
+  /* nothing to initialize */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
 /* nothing to initialize */
@@ -347,10 +347,6 @@ static void submit_percent(int cpu_num, int cpu_state, gauge_t value) {
     return;
 
   submit_value(cpu_num, cpu_state, "percent", (value_t){.gauge = value});
-}
-
-static void submit_derive(int cpu_num, int cpu_state, derive_t value) {
-  submit_value(cpu_num, cpu_state, "cpu", (value_t){.derive = value});
 }
 
 /* Takes the zero-index number of a CPU and makes sure that the module-global
@@ -490,15 +486,19 @@ static void cpu_commit_one(int cpu_num, /* {{{ */
 /* Commits the number of cores */
 static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
 {
-  value_list_t vl = VALUE_LIST_INIT;
+  metric_family_t fam = {
+      .name = "cpu_count",
+      .type = VALUE_TYPE_GAUGE,
+  };
+  metric_family_metrics_append(&fam, (value_t){.gauge = value}, NULL, 0);
 
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("plugin_dispatch_metric_family failed: %s", STRERROR(status));
+  }
 
-  sstrncpy(vl.plugin, "cpu", sizeof(vl.plugin));
-  sstrncpy(vl.type, "count", sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
+  metric_list_reset(&fam.metric);
+  return;
 } /* }}} void cpu_commit_num_cpu */
 
 /* Resets the internal aggregation. This is called by the read callback after
@@ -514,6 +514,10 @@ static void cpu_reset(void) /* {{{ */
 /* Legacy behavior: Dispatches the raw derive values without any aggregation. */
 static void cpu_commit_without_aggregation(void) /* {{{ */
 {
+  metric_family_t fam = {
+      .name = "cpu_usage_total",
+      .type = VALUE_TYPE_DERIVE,
+  };
   for (int state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
     for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
       cpu_state_t *s = get_cpu_state(cpu_num, state);
@@ -521,9 +525,26 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
       if (!s->has_value)
         continue;
 
-      submit_derive((int)cpu_num, (int)state, s->conv.last_value.derive);
+      char cpu_num_str[16];
+      snprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
+
+      label_t labels[] = {
+          {"cpu", cpu_num_str},
+          {"state", cpu_state_names[state]},
+      };
+
+      metric_family_metrics_append(
+          &fam, (value_t){.derive = s->conv.last_value.derive}, labels,
+          STATIC_ARRAY_SIZE(labels));
     }
   }
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("plugin_dispatch_metric_family failed: %s", STRERROR(status));
+  }
+
+  metric_list_reset(&fam.metric);
 } /* }}} void cpu_commit_without_aggregation */
 
 /* Aggregates the internal state and dispatches the metrics. */
@@ -631,7 +652,7 @@ static int cpu_read(void) {
     cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE,
               (derive_t)cpu_info.cpu_ticks[CPU_STATE_IDLE], now);
   }
-    /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
+  /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX) /* {{{ */
   int cpu;
@@ -730,7 +751,7 @@ static int cpu_read(void) {
     cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_WAIT,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_WAIT], now);
   }
-    /* }}} #endif defined(HAVE_LIBKSTAT) */
+  /* }}} #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL /* {{{ */
   /* Only on (Open) BSD variant */
@@ -788,7 +809,7 @@ static int cpu_read(void) {
     cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
               now);
   }
-    /* }}} #endif CAN_USE_SYSCTL */
+  /* }}} #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES) /* {{{  \
                                                                         */
@@ -812,7 +833,7 @@ static int cpu_read(void) {
     cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
               now);
   }
-    /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
+  /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
 #elif defined(HAVE_SYSCTLBYNAME) /* {{{ */
   /* Only on BSD variant */
