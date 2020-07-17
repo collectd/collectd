@@ -710,22 +710,25 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
   int ret;
   const data_set_t *ds;
   size_t size;
-  value_t *value;
-  value_list_t value_list = VALUE_LIST_INIT;
+  metric_t metric = STRUCT_METRIC_INIT;
   PyObject *values = self->values, *meta = self->meta;
   double time = self->data.time, interval = self->interval;
-  char *host = NULL, *plugin = NULL, *plugin_instance = NULL, *type = NULL,
-       *type_instance = NULL, *dest = NULL;
+  char *host = NULL, *plugin = NULL, *type = NULL,
+       *data_source = NULL, *dest = NULL;
 
   static char *kwlist[] = {
-      "destination",   "type",   "values", "plugin_instance",
-      "type_instance", "plugin", "host",   "time",
+    "destination",   "type",   "values",
+      "dat_source", "plugin", "host",   "time",
       "interval",      "meta",   NULL};
   if (!PyArg_ParseTupleAndKeywords(
           args, kwds, "et|etOetetetetdiO", kwlist, NULL, &dest, NULL, &type,
           &values, NULL, &plugin_instance, NULL, &type_instance, NULL, &plugin,
           NULL, &host, &time, &interval, &meta))
     return NULL;
+
+  metric.identity = create_identity((plugin ? plugin : self->data.plugin),
+                                    (type ? type : self->data.type),
+                                    (host ? host : self->data.host));
 
   sstrncpy(value_list.host, host ? host : self->data.host,
            sizeof(value_list.host));
@@ -744,7 +747,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
     PyErr_SetString(PyExc_RuntimeError, "type not set");
     return NULL;
   }
-  ds = plugin_get_ds(value_list.type);
+  ds = plugin_get_ds((type ? type : self->data.type));
   if (ds == NULL) {
     PyErr_Format(PyExc_TypeError, "Dataset %s not found", value_list.type);
     return NULL;

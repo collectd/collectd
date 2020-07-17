@@ -73,7 +73,7 @@ static int ut_check_one_data_source(
 
   /* XXX: This is an experimental code, not optimized, not fast, not reliable,
    * and probably, do not work as you expect. Enjoy! :D */
-  prev_state = uc_get_state(ds, vl);
+  prev_state = uc_get_state_vl(ds, vl);
   if ((th->hysteresis > 0) && (prev_state != STATE_OKAY) &&
       (prev_state != STATE_UNKNOWN)) {
     switch (prev_state) {

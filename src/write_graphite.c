@@ -387,18 +387,12 @@ static int wg_send_message(char const *message, struct wg_callback *cb) {
   return 0;
 }
 
-static int wg_write_messages(const data_set_t *ds, const value_list_t *vl,
+static int wg_write_messages(const metric_t *metric_p,
                              struct wg_callback *cb) {
   char buffer[WG_SEND_BUF_SIZE] = {0};
   int status;
 
-  if (0 != strcmp(ds->type, vl->type)) {
-    ERROR("write_graphite plugin: DS type does not match "
-          "value list type");
-    return -1;
-  }
-
-  status = format_graphite(buffer, sizeof(buffer), ds, vl, cb->prefix,
+  status = format_graphite(buffer, sizeof(buffer), metric_p, cb->prefix,
                            cb->postfix, cb->escape_char, cb->format_flags);
   if (status != 0) /* error message has been printed already. */
     return status;
@@ -411,7 +405,7 @@ static int wg_write_messages(const data_set_t *ds, const value_list_t *vl,
   return 0;
 } /* int wg_write_messages */
 
-static int wg_write(const data_set_t *ds, const value_list_t *vl,
+static int wg_write(const metric_t *metric_p,
                     user_data_t *user_data) {
   struct wg_callback *cb;
   int status;
@@ -421,7 +415,7 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl,
 
   cb = user_data->data;
 
-  status = wg_write_messages(ds, vl, cb);
+  status = wg_write_messages(metric_p, cb);
 
   return status;
 }

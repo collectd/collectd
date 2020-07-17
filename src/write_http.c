@@ -399,10 +399,8 @@ static void wh_callback_free(void *data) /* {{{ */
   sfree(cb);
 } /* }}} void wh_callback_free */
 
-static int wh_write_command(const data_set_t *ds,
-                            const value_list_t *vl, /* {{{ */
+static int wh_write_command(const metric_t *metric_p, /* {{{ */
                             wh_callback_t *cb) {
-  char key[10 * DATA_MAX_NAME_LEN];
   char values[512];
   char command[1024];
   size_t command_len;
@@ -413,38 +411,35 @@ static int wh_write_command(const data_set_t *ds,
   if ((cb == NULL) || (cb->send_buffer == NULL))
     return -1;
 
-  if (strcmp(ds->type, vl->type) != 0) {
-    ERROR("write_http plugin: DS type does not match "
-          "value list type");
+  /* Copy the identifier to `key' and escape it. */
+  char *metric_string_p = NULL;
+  if ((metric_string_p = plugin_format_metric(metric_p)) != 0) {
     return -1;
   }
 
-  /* Copy the identifier to `key' and escape it. */
-  status = FORMAT_VL(key, sizeof(key), vl);
-  if (status != 0) {
-    ERROR("write_http plugin: error with format_name");
-    return status;
-  }
-  escape_string(key, sizeof(key));
+  escape_string(metric_string_p, sizeof(metric_string_p));
 
   /* Convert the values to an ASCII representation and put that into
    * `values'. */
-  status = format_values(values, sizeof(values), ds, vl, cb->store_rates);
+  status = format_values(values, sizeof(values), metric_p, cb->store_rates);
   if (status != 0) {
     ERROR("write_http plugin: error with "
           "wh_value_list_to_string");
+    sfree(metric_string_p);
     return status;
   }
 
-  command_len = (size_t)snprintf(command, sizeof(command),
-                                 "PUTVAL %s interval=%.3f %s\r\n", key,
-                                 CDTIME_T_TO_DOUBLE(vl->interval), values);
+  command_len = (size_t)snprintf(
+      command, sizeof(command), "PUTVAL %s interval=%.3f %s\r\n",
+      metric_string_p, CDTIME_T_TO_DOUBLE(metric_p->interval), values);
   if (command_len >= sizeof(command)) {
     ERROR("write_http plugin: Command buffer too small: "
           "Need %" PRIsz " bytes.",
           command_len + 1);
+    sfree(metric_string_p);
     return -1;
   }
+  sfree(metric_string_p);
 
   pthread_mutex_lock(&cb->send_lock);
   if (wh_callback_init(cb) != 0) {
@@ -482,7 +477,7 @@ static int wh_write_command(const data_set_t *ds,
   return 0;
 } /* }}} int wh_write_command */
 
-static int wh_write_json(const data_set_t *ds, const value_list_t *vl, /* {{{ */
+static int wh_write_json(const metric_t *metric_p, /* {{{ */
                          wh_callback_t *cb) {
   int status;
 
@@ -494,8 +489,8 @@ static int wh_write_json(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   }
 
   status =
-      format_json_value_list(cb->send_buffer, &cb->send_buffer_fill,
-                             &cb->send_buffer_free, ds, vl, cb->store_rates);
+      format_json_metric(cb->send_buffer, &cb->send_buffer_fill,
+			 &cb->send_buffer_free, metric_p, cb->store_rates);
   if (status == -ENOMEM) {
     status = wh_flush_nolock(/* timeout = */ 0, cb);
     if (status != 0) {
@@ -505,8 +500,8 @@ static int wh_write_json(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     }
 
     status =
-        format_json_value_list(cb->send_buffer, &cb->send_buffer_fill,
-                               &cb->send_buffer_free, ds, vl, cb->store_rates);
+        format_json_metric(cb->send_buffer, &cb->send_buffer_fill,
+			   &cb->send_buffer_free, metric_p, cb->store_rates);
   }
   if (status != 0) {
     pthread_mutex_unlock(&cb->send_lock);
@@ -524,8 +519,7 @@ static int wh_write_json(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   return 0;
 } /* }}} int wh_write_json */
 
-static int wh_write_kairosdb(const data_set_t *ds,
-                             const value_list_t *vl, /* {{{ */
+static int wh_write_kairosdb(const metric_t *metric_p, /* {{{ */
                              wh_callback_t *cb) {
   int status;
 
@@ -540,8 +534,8 @@ static int wh_write_kairosdb(const data_set_t *ds,
     }
   }
 
-  status = format_kairosdb_value_list(
-      cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
+  status = format_kairosdb_metric(
+      cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, metric_p,
       cb->store_rates, (char const *const *)http_attrs, http_attrs_num,
       cb->data_ttl, cb->metrics_prefix);
   if (status == -ENOMEM) {
@@ -552,8 +546,8 @@ static int wh_write_kairosdb(const data_set_t *ds,
       return status;
     }
 
-    status = format_kairosdb_value_list(
-        cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
+    status = format_kairosdb_metric(
+        cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, metric_p,
         cb->store_rates, (char const *const *)http_attrs, http_attrs_num,
         cb->data_ttl, cb->metrics_prefix);
   }
@@ -573,7 +567,7 @@ static int wh_write_kairosdb(const data_set_t *ds,
   return 0;
 } /* }}} int wh_write_kairosdb */
 
-static int wh_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
+static int wh_write(const metric_t *metric_p, /* {{{ */
                     user_data_t *user_data) {
   wh_callback_t *cb;
   int status;
@@ -586,13 +580,13 @@ static int wh_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   switch (cb->format) {
   case WH_FORMAT_JSON:
-    status = wh_write_json(ds, vl, cb);
+    status = wh_write_json(metric_p, cb);
     break;
   case WH_FORMAT_KAIROSDB:
-    status = wh_write_kairosdb(ds, vl, cb);
+    status = wh_write_kairosdb(metric_p, cb);
     break;
   default:
-    status = wh_write_command(ds, vl, cb);
+    status = wh_write_command(metric_p, cb);
     break;
   }
   return status;

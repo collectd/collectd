@@ -57,7 +57,7 @@ struct kafka_topic_context {
 };
 
 static int kafka_handle(struct kafka_topic_context *);
-static int kafka_write(const data_set_t *, const value_list_t *, user_data_t *);
+static int kafka_write(const metric_t *, user_data_t *);
 static int32_t kafka_partition(const rd_kafka_topic_t *, const void *, size_t,
                                int32_t, void *, void *);
 
@@ -170,8 +170,8 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
 
 } /* }}} int kafka_handle */
 
-static int kafka_write(const data_set_t *ds, /* {{{ */
-                       const value_list_t *vl, user_data_t *ud) {
+static int kafka_write(/* {{{ */
+                       const metric_t *metric_p, user_data_t *ud) {
   int status = 0;
   void *key;
   size_t keylen = 0;
@@ -181,7 +181,8 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
   size_t blen = 0;
   struct kafka_topic_context *ctx = ud->data;
 
-  if ((ds == NULL) || (vl == NULL) || (ctx == NULL))
+  if ((metric_p == NULL) || (metric_p->ds == NULL) ||
+      (metric_p->identity == NULL) || (ctx == NULL))
     return EINVAL;
 
   pthread_mutex_lock(&ctx->lock);
@@ -194,7 +195,7 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
 
   switch (ctx->format) {
   case KAFKA_FORMAT_COMMAND:
-    status = cmd_create_putval(buffer, sizeof(buffer), ds, vl);
+    status = cmd_create_putval(buffer, sizeof(buffer), metric_p);
     if (status != 0) {
       ERROR("write_kafka plugin: cmd_create_putval failed with status %i.",
             status);
@@ -204,13 +205,13 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
     break;
   case KAFKA_FORMAT_JSON:
     format_json_initialize(buffer, &bfill, &bfree);
-    format_json_value_list(buffer, &bfill, &bfree, ds, vl, ctx->store_rates);
+    format_json_metric(buffer, &bfill, &bfree, metric_p, ctx->store_rates);
     format_json_finalize(buffer, &bfill, &bfree);
     blen = strlen(buffer);
     break;
   case KAFKA_FORMAT_GRAPHITE:
     status =
-        format_graphite(buffer, sizeof(buffer), ds, vl, ctx->prefix,
+        format_graphite(buffer, sizeof(buffer), metric_p, ctx->prefix,
                         ctx->postfix, ctx->escape_char, ctx->graphite_flags);
     if (status != 0) {
       ERROR("write_kafka plugin: format_graphite failed with status %i.",

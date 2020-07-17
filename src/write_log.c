@@ -43,16 +43,11 @@
 /* Plugin:WriteLog has to also operate without a config, so use a global. */
 int wl_format = WL_FORMAT_GRAPHITE;
 
-static int wl_write_graphite(const data_set_t *ds, const value_list_t *vl) {
+static int wl_write_graphite(const metric_t *metric_p) {
   char buffer[WL_BUF_SIZE] = {0};
   int status;
 
-  if (0 != strcmp(ds->type, vl->type)) {
-    ERROR("write_log plugin: DS type does not match value list type");
-    return -1;
-  }
-
-  status = format_graphite(buffer, sizeof(buffer), ds, vl, NULL, NULL, '_', 0);
+  status = format_graphite(buffer, sizeof(buffer), metric_p, NULL, NULL, '_', 0);
   if (status != 0) /* error message has been printed already. */
     return status;
 
@@ -61,18 +56,13 @@ static int wl_write_graphite(const data_set_t *ds, const value_list_t *vl) {
   return 0;
 } /* int wl_write_graphite */
 
-static int wl_write_json(const data_set_t *ds, const value_list_t *vl) {
+static int wl_write_json(const metric_t *metric_p) {
   char buffer[WL_BUF_SIZE] = {0};
   size_t bfree = sizeof(buffer);
   size_t bfill = 0;
 
-  if (0 != strcmp(ds->type, vl->type)) {
-    ERROR("write_log plugin: DS type does not match value list type");
-    return -1;
-  }
-
   format_json_initialize(buffer, &bfill, &bfree);
-  format_json_value_list(buffer, &bfill, &bfree, ds, vl,
+  format_json_metric(buffer, &bfill, &bfree, metric_p,
                          /* store rates = */ 0);
   format_json_finalize(buffer, &bfill, &bfree);
 
@@ -81,14 +71,14 @@ static int wl_write_json(const data_set_t *ds, const value_list_t *vl) {
   return 0;
 } /* int wl_write_json */
 
-static int wl_write(const data_set_t *ds, const value_list_t *vl,
+static int wl_write(const metric_t *metric_p,
                     __attribute__((unused)) user_data_t *user_data) {
   int status = 0;
 
   if (wl_format == WL_FORMAT_GRAPHITE) {
-    status = wl_write_graphite(ds, vl);
+    status = wl_write_graphite(metric_p);
   } else if (wl_format == WL_FORMAT_JSON) {
-    status = wl_write_json(ds, vl);
+    status = wl_write_json(metric_p);
   }
 
   return status;

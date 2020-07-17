@@ -728,7 +728,6 @@ static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
     else if (store_rates) {
       if (rates == NULL)
         rates = uc_get_rate_vl(ds, vl);
-
       if (rates == NULL) {
         log_err("c_psql_write: Failed to determine rate");
         return NULL;
