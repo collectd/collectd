@@ -323,12 +323,14 @@ int format_name(char *ret, int ret_len, const char *hostname,
 #define FORMAT_VL(ret, ret_len, vl)                                            \
   format_name(ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance,   \
               (vl)->type, (vl)->type_instance)
-int format_values(char *ret, size_t ret_len, const data_set_t *ds,
-                  const value_list_t *vl, bool store_rates);
+int format_values(char *ret, size_t ret_len, const metric_t *metric_p,
+                  bool store_rates);
+int format_values_vl(char *ret, size_t ret_len, const data_set_t *ds,
+                     const value_list_t *vl, bool store_rates);
 
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
-                     char **ret_plugin_instance, char **ret_type,
-                     char **ret_type_instance, char *default_host);
+                     char **ret_type, char **ret_data_source,
+                     char *default_host);
 int parse_identifier_vl(const char *str, value_list_t *vl);
 int parse_value(const char *value, value_t *ret_value, int ds_type);
 int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
@@ -344,6 +346,9 @@ struct passwd;
 int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
                struct passwd **pwbufp);
 #endif
+
+int notification_init_metric(notification_t *n, int severity,
+                             const char *message, const metric_t *metric_p);
 
 int notification_init(notification_t *n, int severity, const char *message,
                       const char *host, const char *plugin,
