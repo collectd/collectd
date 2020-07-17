@@ -34,9 +34,8 @@
 #define GRAPHITE_USE_TAGS 0x20
 #define GRAPHITE_REVERSE_HOST 0x40
 
-int format_graphite(char *buffer, size_t buffer_size, const data_set_t *ds,
-                    const value_list_t *vl, const char *prefix,
-                    const char *postfix, const char escape_char,
-                    unsigned int flags);
+int format_graphite(char *buffer, size_t buffer_size, const metric_t *metric_p,
+                    const char *prefix, const char *postfix,
+                    const char escape_char, unsigned int flags);
 
 #endif /* UTILS_FORMAT_GRAPHITE_H */

@@ -19,12 +19,14 @@
  * Authors:
  *   Thomas Meson <zllak at hycik.org>
  *   Florian octo Forster <octo at collectd.org>
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #include "collectd.h"
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "utils/avltree/avltree.h"
 
 #include "utils/format_graphite/format_graphite.h"
 #include "utils_cache.h"
@@ -34,42 +36,10 @@
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
 
-/* helper function for reverse_hostname */
-void reverse_string(char *r_host, int len) {
-  for (int i = 0, j = len - 1; i < j; i++, j--) {
-    char t = r_host[i];
-    r_host[i] = r_host[j];
-    r_host[j] = t;
-  }
-}
-
-void reverse_hostname(char *r_host, char const *orig_host) {
-  int len_host = strlen(orig_host);
-
-  /* put reversed hostname into working copy */
-  for (int i = 0; i < len_host; i++)
-    r_host[i] = orig_host[len_host - 1 - i];
-  r_host[len_host] = '\0';
-
-  /* reverse labels (except last) */
-  int p = 0;
-  for (int i = 0; i < len_host; i++)
-    if (r_host[i] == '.') {
-      reverse_string(&r_host[p], i - p);
-      p = i + 1;
-    }
-
-  /* reverse last label */
-  reverse_string(&r_host[p], len_host - p);
-}
-
-static int gr_format_values(char *ret, size_t ret_len, int ds_num,
-                            const data_set_t *ds, const value_list_t *vl,
-                            gauge_t const *rates) {
+static int gr_format_values(char *ret, size_t ret_len, const metric_t *metric_p,
+                            gauge_t rate) {
   size_t offset = 0;
   int status;
-
-  assert(0 == strcmp(ds->type, vl->type));
 
   memset(ret, 0, ret_len);
 
@@ -84,17 +54,17 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
       offset += ((size_t)status);                                              \
   } while (0)
 
-  if (ds->ds[ds_num].type == DS_TYPE_GAUGE)
-    BUFFER_ADD(GAUGE_FORMAT, vl->values[ds_num].gauge);
-  else if (rates != NULL)
-    BUFFER_ADD("%f", rates[ds_num]);
-  else if (ds->ds[ds_num].type == DS_TYPE_COUNTER)
-    BUFFER_ADD("%" PRIu64, (uint64_t)vl->values[ds_num].counter);
-  else if (ds->ds[ds_num].type == DS_TYPE_DERIVE)
-    BUFFER_ADD("%" PRIi64, vl->values[ds_num].derive);
+  if (metric_p->value_ds_type == DS_TYPE_GAUGE)
+    BUFFER_ADD(GAUGE_FORMAT, metric_p->value.gauge);
+  else if (rate != -1)
+    BUFFER_ADD("%f", rate);
+  else if (metric_p->value_ds_type == DS_TYPE_COUNTER)
+    BUFFER_ADD("%" PRIu64, (uint64_t)metric_p->value.counter);
+  else if (metric_p->value_ds_type == DS_TYPE_DERIVE)
+    BUFFER_ADD("%" PRIi64, metric_p->value.derive);
   else {
     P_ERROR("gr_format_values: Unknown data source type: %i",
-            ds->ds[ds_num].type);
+            metric_p->value_ds_type);
     return -1;
   }
 
@@ -105,8 +75,6 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
 
 static void gr_copy_escape_part(char *dst, const char *src, size_t dst_len,
                                 char escape_char, bool preserve_separator) {
-  memset(dst, 0, dst_len);
-
   if (src == NULL)
     return;
 
@@ -116,172 +84,153 @@ static void gr_copy_escape_part(char *dst, const char *src, size_t dst_len,
       break;
     }
 
-    if ((!preserve_separator && (src[i] == '.')) || isspace((int)src[i]) ||
-        iscntrl((int)src[i]))
+    if ((!preserve_separator && (src[i] == '.')) || ((src[i] == '/')) ||
+        isspace((int)src[i]) || iscntrl((int)src[i]))
       dst[i] = escape_char;
     else
       dst[i] = src[i];
   }
 }
 
-static int gr_format_name_tagged(char *ret, int ret_len, value_list_t const *vl,
-                                 char const *ds_name, char const *prefix,
+static int gr_format_name_tagged(char *ret, int ret_len,
+                                 metric_t const *metric_p, char const *prefix,
                                  char const *postfix, char const escape_char,
                                  unsigned int flags) {
-  char n_host[DATA_MAX_NAME_LEN];
-  char n_plugin[DATA_MAX_NAME_LEN];
-  char n_plugin_instance[DATA_MAX_NAME_LEN];
-  char n_type[DATA_MAX_NAME_LEN];
-  char n_type_instance[DATA_MAX_NAME_LEN];
-
-  char tmp_plugin[DATA_MAX_NAME_LEN + 8];
-  char tmp_plugin_instance[DATA_MAX_NAME_LEN + 17];
-  char tmp_type[DATA_MAX_NAME_LEN + 6];
-  char tmp_type_instance[DATA_MAX_NAME_LEN + 15];
-  char tmp_metric[3 * DATA_MAX_NAME_LEN + 2];
-  char tmp_ds_name[DATA_MAX_NAME_LEN + 9];
-
+  int starting_len = ret_len;
   if (prefix == NULL)
     prefix = "";
 
   if (postfix == NULL)
     postfix = "";
 
-  if (flags & GRAPHITE_REVERSE_HOST) {
-    char r_host[DATA_MAX_NAME_LEN];
-    reverse_hostname(r_host, vl->host);
-    gr_copy_escape_part(n_host, r_host, sizeof(n_host), escape_char, 1);
+  memset(ret, 0, ret_len);
+
+  int tmp_str_len = 0;
+  tmp_str_len = strlen(prefix);
+  if (tmp_str_len < ret_len) {
+    snprintf(ret, tmp_str_len + 1, "%s", prefix);
+    ret += tmp_str_len; /* This is the location of the trailing nul */
+    ret_len -= tmp_str_len;
   } else {
-    gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char, 1);
-  }
-  gr_copy_escape_part(n_plugin, vl->plugin, sizeof(n_plugin), escape_char, 1);
-  gr_copy_escape_part(n_plugin_instance, vl->plugin_instance,
-                      sizeof(n_plugin_instance), escape_char, 1);
-  gr_copy_escape_part(n_type, vl->type, sizeof(n_type), escape_char, 1);
-  gr_copy_escape_part(n_type_instance, vl->type_instance,
-                      sizeof(n_type_instance), escape_char, 1);
-
-  snprintf(tmp_plugin, sizeof(tmp_plugin), ";plugin=%s", n_plugin);
-
-  if (n_plugin_instance[0] != '\0')
-    snprintf(tmp_plugin_instance, sizeof(tmp_plugin_instance),
-             ";plugin_instance=%s", n_plugin_instance);
-  else
-    tmp_plugin_instance[0] = '\0';
-
-  if (!(flags & GRAPHITE_DROP_DUPE_FIELDS) || strcmp(n_plugin, n_type) != 0)
-    snprintf(tmp_type, sizeof(tmp_type), ";type=%s", n_type);
-  else
-    tmp_type[0] = '\0';
-
-  if (n_type_instance[0] != '\0') {
-    if (!(flags & GRAPHITE_DROP_DUPE_FIELDS) ||
-        strcmp(n_plugin_instance, n_type_instance) != 0)
-      snprintf(tmp_type_instance, sizeof(tmp_type_instance),
-               ";type_instance=%s", n_type_instance);
-    else
-      tmp_type_instance[0] = '\0';
-  } else
-    tmp_type_instance[0] = '\0';
-
-  /* Assert always_append_ds -> ds_name */
-  assert(!(flags & GRAPHITE_ALWAYS_APPEND_DS) || (ds_name != NULL));
-  if (ds_name != NULL) {
-    snprintf(tmp_ds_name, sizeof(tmp_ds_name), ";ds_name=%s", ds_name);
-
-    if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
-      snprintf(tmp_metric, sizeof(tmp_metric), "%s.%s", n_plugin, ds_name);
-    else
-      snprintf(tmp_metric, sizeof(tmp_metric), "%s.%s.%s", n_plugin, n_type,
-               ds_name);
-  } else {
-    tmp_ds_name[0] = '\0';
-
-    if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
-      snprintf(tmp_metric, sizeof(tmp_metric), "%s", n_plugin);
-    else
-      snprintf(tmp_metric, sizeof(tmp_metric), "%s.%s", n_plugin, n_type);
+    snprintf(ret, ret_len, "%s", prefix);
+    return starting_len;
   }
 
-  snprintf(ret, ret_len, "%s%s%s;host=%s%s%s%s%s%s", prefix, tmp_metric,
-           postfix, n_host, tmp_plugin, tmp_plugin_instance, tmp_type,
-           tmp_type_instance, tmp_ds_name);
+  tmp_str_len = strlen(metric_p->identity->name);
+  if (tmp_str_len < ret_len) {
+    gr_copy_escape_part(ret, metric_p->identity->name, tmp_str_len + 1,
+                        escape_char, 1);
+    ret += tmp_str_len;
+    ret_len -= tmp_str_len;
+  } else {
+    gr_copy_escape_part(ret, metric_p->identity->name, ret_len, escape_char, 1);
+    return starting_len;
+  }
 
-  return 0;
+  tmp_str_len = strlen(postfix);
+  if (tmp_str_len < ret_len) {
+    snprintf(ret, tmp_str_len + 1, "%s", postfix);
+    ret += tmp_str_len; /* This is the location of the trailing nul */
+    ret_len -= tmp_str_len;
+  } else {
+    snprintf(ret, ret_len, "%s", postfix);
+    return starting_len;
+  }
+
+  if (metric_p->identity->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->root_p);
+    if (iter_p != NULL) {
+      char *key_p = NULL;
+      char *value_p = NULL;
+      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
+                                  (void **)&value_p)) == 0) {
+        if ((key_p != NULL) && (value_p != NULL)) {
+          tmp_str_len = strlen(key_p) + strlen(value_p) + 2;
+          if (tmp_str_len < ret_len) {
+            snprintf(ret, tmp_str_len + 1, ";%s=%s", key_p, value_p);
+            ret += tmp_str_len;
+            ret_len -= tmp_str_len;
+          } else {
+            snprintf(ret, ret_len, ";%s=%s", key_p, value_p);
+            return starting_len;
+          }
+        }
+      }
+      c_avl_iterator_destroy(iter_p);
+    }
+  }
+
+  return starting_len - ret_len; /* Characters appended */
 }
 
-static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
-                          char const *ds_name, char const *prefix,
-                          char const *postfix, char const escape_char,
-                          unsigned int flags) {
-  char n_host[DATA_MAX_NAME_LEN];
-  char n_plugin[DATA_MAX_NAME_LEN];
-  char n_plugin_instance[DATA_MAX_NAME_LEN];
-  char n_type[DATA_MAX_NAME_LEN];
-  char n_type_instance[DATA_MAX_NAME_LEN];
-
-  char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
-  char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
-
+static int gr_format_name(char *ret, int ret_len, metric_t const *metric_p,
+                          char const *prefix, char const *postfix,
+                          char const escape_char, unsigned int flags) {
+  int starting_len = ret_len;
   if (prefix == NULL)
     prefix = "";
 
   if (postfix == NULL)
     postfix = "";
 
-  bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR);
+  memset(ret, 0, ret_len);
 
-  if (flags & GRAPHITE_REVERSE_HOST) {
-    char r_host[DATA_MAX_NAME_LEN];
-    reverse_hostname(r_host, vl->host);
-    gr_copy_escape_part(n_host, r_host, sizeof(n_host), escape_char,
-                        preserve_separator);
+  int tmp_str_len = 0;
+  tmp_str_len = strlen(prefix);
+  if (tmp_str_len < ret_len) {
+    snprintf(ret, tmp_str_len + 1, "%s", prefix);
+    ret += tmp_str_len; /* This is the location of the trailing nul */
+    ret_len -= tmp_str_len;
   } else {
-    gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char,
-                        preserve_separator);
+    snprintf(ret, ret_len, "%s", prefix);
+    return starting_len;
   }
-  gr_copy_escape_part(n_plugin, vl->plugin, sizeof(n_plugin), escape_char,
-                      preserve_separator);
-  gr_copy_escape_part(n_plugin_instance, vl->plugin_instance,
-                      sizeof(n_plugin_instance), escape_char,
-                      preserve_separator);
-  gr_copy_escape_part(n_type, vl->type, sizeof(n_type), escape_char,
-                      preserve_separator);
-  gr_copy_escape_part(n_type_instance, vl->type_instance,
-                      sizeof(n_type_instance), escape_char, preserve_separator);
 
-  if (n_plugin_instance[0] != '\0')
-    snprintf(tmp_plugin, sizeof(tmp_plugin), "%s%c%s", n_plugin,
-             (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-             n_plugin_instance);
-  else
-    sstrncpy(tmp_plugin, n_plugin, sizeof(tmp_plugin));
+  tmp_str_len = strlen(metric_p->identity->name);
+  if (tmp_str_len < ret_len) {
+    gr_copy_escape_part(ret, metric_p->identity->name, tmp_str_len + 1,
+                        escape_char, 1);
+    ret += tmp_str_len;
+    ret_len -= tmp_str_len;
+  } else {
+    gr_copy_escape_part(ret, metric_p->identity->name, ret_len, escape_char, 1);
+    return starting_len;
+  }
 
-  if (n_type_instance[0] != '\0') {
-    if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
-      sstrncpy(tmp_type, n_type_instance, sizeof(tmp_type));
-    else
-      snprintf(tmp_type, sizeof(tmp_type), "%s%c%s", n_type,
-               (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-               n_type_instance);
-  } else
-    sstrncpy(tmp_type, n_type, sizeof(tmp_type));
+  tmp_str_len = strlen(postfix);
+  if (tmp_str_len < ret_len) {
+    snprintf(ret, tmp_str_len + 1, "%s", postfix);
+    ret += tmp_str_len; /* This is the location of the trailing nul */
+    ret_len -= tmp_str_len;
+  } else {
+    snprintf(ret, ret_len, "%s", postfix);
+    return starting_len;
+  }
 
-  /* Assert always_append_ds -> ds_name */
-  assert(!(flags & GRAPHITE_ALWAYS_APPEND_DS) || (ds_name != NULL));
-  if (ds_name != NULL) {
-    if ((flags & GRAPHITE_DROP_DUPE_FIELDS) &&
-        strcmp(tmp_plugin, tmp_type) == 0)
-      snprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix,
-               tmp_plugin, ds_name);
-    else
-      snprintf(ret, ret_len, "%s%s%s.%s.%s.%s", prefix, n_host, postfix,
-               tmp_plugin, tmp_type, ds_name);
-  } else
-    snprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix, tmp_plugin,
-             tmp_type);
+  if (metric_p->identity->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->root_p);
+    if (iter_p != NULL) {
+      char *key_p = NULL;
+      char *value_p = NULL;
+      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
+                                  (void **)&value_p)) == 0) {
+        if ((key_p != NULL) && (value_p != NULL)) {
+          tmp_str_len = strlen(value_p) + 1;
+          if (tmp_str_len < ret_len) {
+            snprintf(ret, tmp_str_len + 1, ";%s", value_p);
+            ret += tmp_str_len;
+            ret_len -= tmp_str_len;
+          } else {
+            snprintf(ret, ret_len, ";%s", value_p);
+            return starting_len;
+          }
+        }
+      }
+      c_avl_iterator_destroy(iter_p);
+    }
+  }
 
-  return 0;
+  return starting_len - ret_len; /* Characters appended */
 }
 
 static void escape_graphite_string(char *buffer, char escape_char) {
@@ -292,84 +241,72 @@ static void escape_graphite_string(char *buffer, char escape_char) {
     *head = escape_char;
 }
 
-int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
-                    value_list_t const *vl, char const *prefix,
-                    char const *postfix, char const escape_char,
-                    unsigned int flags) {
+int format_graphite(char *buffer, size_t buffer_size, metric_t const *metric_p,
+                    char const *prefix, char const *postfix,
+                    char const escape_char, unsigned int flags) {
   int status = 0;
   int buffer_pos = 0;
 
-  gauge_t *rates = NULL;
+  gauge_t rate = -1;
   if (flags & GRAPHITE_STORE_RATES) {
-    rates = uc_get_rate_vl(ds, vl);
-    if (rates == NULL) {
-      P_ERROR("format_graphite: error with uc_get_rate_vl");
+    status = uc_get_rate(metric_p, &rate);
+    if (status != 0) {
+      P_ERROR("format_graphite: error with uc_get_rate");
       return -1;
     }
   }
 
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    char const *ds_name = NULL;
-    char key[10 * DATA_MAX_NAME_LEN];
-    char values[512];
-    size_t message_len;
-    char message[1024];
+  char key[10 * DATA_MAX_NAME_LEN];
+  char values[512];
+  size_t message_len;
+  char message[1024];
 
-    if ((flags & GRAPHITE_ALWAYS_APPEND_DS) || (ds->ds_num > 1))
-      ds_name = ds->ds[i].name;
-
-    /* Copy the identifier to `key' and escape it. */
-    if (flags & GRAPHITE_USE_TAGS) {
-      status = gr_format_name_tagged(key, sizeof(key), vl, ds_name, prefix,
-                                     postfix, escape_char, flags);
-      if (status != 0) {
-        P_ERROR("format_graphite: error with gr_format_name_tagged");
-        sfree(rates);
-        return status;
-      }
-    } else {
-      status = gr_format_name(key, sizeof(key), vl, ds_name, prefix, postfix,
-                              escape_char, flags);
-      if (status != 0) {
-        P_ERROR("format_graphite: error with gr_format_name");
-        sfree(rates);
-        return status;
-      }
-    }
-
-    escape_graphite_string(key, escape_char);
-
-    /* Convert the values to an ASCII representation and put that into
-     * `values'. */
-    status = gr_format_values(values, sizeof(values), i, ds, vl, rates);
+  /* Copy the identifier to `key' and escape it. */
+  if (flags & GRAPHITE_USE_TAGS) {
+    status = gr_format_name_tagged(key, sizeof(key), metric_p, prefix, postfix,
+                                   escape_char, flags);
     if (status != 0) {
-      P_ERROR("format_graphite: error with gr_format_values");
-      sfree(rates);
+      P_ERROR("format_graphite: error with gr_format_name_tagged");
       return status;
     }
-
-    /* Compute the graphite command */
-    message_len =
-        (size_t)snprintf(message, sizeof(message), "%s %s %u\r\n", key, values,
-                         (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
-    if (message_len >= sizeof(message)) {
-      P_ERROR("format_graphite: message buffer too small: "
-              "Need %" PRIsz " bytes.",
-              message_len + 1);
-      sfree(rates);
-      return -ENOMEM;
+  } else {
+    status = gr_format_name(key, sizeof(key), metric_p, prefix, postfix,
+                            escape_char, flags);
+    if (status != 0) {
+      P_ERROR("format_graphite: error with gr_format_name");
+      return status;
     }
-
-    /* Append it in case we got multiple data set */
-    if ((buffer_pos + message_len) >= buffer_size) {
-      P_ERROR("format_graphite: target buffer too small");
-      sfree(rates);
-      return -ENOMEM;
-    }
-    memcpy((void *)(buffer + buffer_pos), message, message_len);
-    buffer_pos += message_len;
-    buffer[buffer_pos] = '\0';
   }
-  sfree(rates);
+
+  escape_graphite_string(key, escape_char);
+
+  /* Convert the values to an ASCII representation and put that into
+   * `values'. */
+  status = gr_format_values(values, sizeof(values), metric_p, rate);
+  if (status != 0) {
+    P_ERROR("format_graphite: error with gr_format_values");
+    return status;
+  }
+
+  /* Compute the graphite command */
+  message_len =
+      (size_t)snprintf(message, sizeof(message), "%s %s %u\r\n", key, values,
+                       (unsigned int)CDTIME_T_TO_TIME_T(metric_p->time));
+  if (message_len >= sizeof(message)) {
+    P_ERROR("format_graphite: message buffer too small: "
+            "Need %" PRIsz " bytes.",
+            message_len + 1);
+    return -ENOMEM;
+  }
+
+  /* Append it in case we got multiple data set */
+  if ((buffer_pos + message_len) >= buffer_size) {
+    P_ERROR("format_graphite: target buffer too small");
+    return -ENOMEM;
+  }
+  memcpy((void *)(buffer + buffer_pos), message, message_len);
+  buffer_pos += message_len;
+  buffer[buffer_pos] = '\0';
+
   return status;
 } /* int format_graphite */
