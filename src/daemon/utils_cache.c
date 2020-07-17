@@ -24,6 +24,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian tokkee Harl <sh at tokkee.org>
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #include "collectd.h"
@@ -38,9 +39,8 @@
 
 typedef struct cache_entry_s {
   char name[6 * DATA_MAX_NAME_LEN];
-  size_t values_num;
-  gauge_t *values_gauge;
-  value_t *values_raw;
+  gauge_t values_gauge;
+  value_t values_raw;
   /* Time contained in the package
    * (for calculating rates) */
   cdtime_t last_time;
@@ -66,7 +66,9 @@ typedef struct cache_entry_s {
   size_t history_index; /* points to the next position to write to. */
   size_t history_length;
 
-  meta_data_t *meta;
+  meta_data_list_head_t *meta;
+  identity_t *identity;
+
   unsigned long callbacks_mask;
 } cache_entry_t;
 
@@ -87,7 +89,7 @@ static int cache_compare(const cache_entry_t *a, const cache_entry_t *b) {
   return strcmp(a->name, b->name);
 } /* int cache_compare */
 
-static cache_entry_t *cache_alloc(size_t values_num) {
+static cache_entry_t *cache_alloc() {
   cache_entry_t *ce;
 
   ce = calloc(1, sizeof(*ce));
@@ -95,21 +97,13 @@ static cache_entry_t *cache_alloc(size_t values_num) {
     ERROR("utils_cache: cache_alloc: calloc failed.");
     return NULL;
   }
-  ce->values_num = values_num;
 
-  ce->values_gauge = calloc(values_num, sizeof(*ce->values_gauge));
-  ce->values_raw = calloc(values_num, sizeof(*ce->values_raw));
-  if ((ce->values_gauge == NULL) || (ce->values_raw == NULL)) {
-    sfree(ce->values_gauge);
-    sfree(ce->values_raw);
-    sfree(ce);
-    ERROR("utils_cache: cache_alloc: calloc failed.");
-    return NULL;
-  }
-
+  ce->values_gauge = 0;
+  ce->values_raw = (value_t){.gauge = 0};
   ce->history = NULL;
   ce->history_length = 0;
   ce->meta = NULL;
+  ce->identity = NULL;
 
   return ce;
 } /* cache_entry_t *cache_alloc */
@@ -118,29 +112,30 @@ static void cache_free(cache_entry_t *ce) {
   if (ce == NULL)
     return;
 
-  sfree(ce->values_gauge);
-  sfree(ce->values_raw);
   sfree(ce->history);
+
+  if (ce->identity != NULL) {
+    destroy_identity(ce->identity);
+  }
+
+  /* We have non-exclusive ownership of the metadata */
   if (ce->meta != NULL) {
-    meta_data_destroy(ce->meta);
+    destroy_metadata_head(ce->meta);
     ce->meta = NULL;
   }
   sfree(ce);
 } /* void cache_free */
 
-static void uc_check_range(const data_set_t *ds, cache_entry_t *ce) {
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    if (isnan(ce->values_gauge[i]))
-      continue;
-    else if (ce->values_gauge[i] < ds->ds[i].min)
-      ce->values_gauge[i] = NAN;
-    else if (ce->values_gauge[i] > ds->ds[i].max)
-      ce->values_gauge[i] = NAN;
+static void uc_check_range(const data_source_t *ds, cache_entry_t *ce) {
+  if (!isnan(ce->values_gauge)) {
+    if (ce->values_gauge < ds->min)
+      ce->values_gauge = NAN;
+    else if (ce->values_gauge > ds->max)
+      ce->values_gauge = NAN;
   }
 } /* void uc_check_range */
 
-static int uc_insert(const data_set_t *ds, const value_list_t *vl,
-                     const char *key) {
+static int uc_insert(const metric_t *metric_p, const char *key) {
   /* `cache_lock' has been locked by `uc_update' */
 
   char *key_copy = strdup(key);
@@ -149,52 +144,53 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
     return -1;
   }
 
-  cache_entry_t *ce = cache_alloc(ds->ds_num);
+  cache_entry_t *ce = cache_alloc();
   if (ce == NULL) {
     sfree(key_copy);
-    ERROR("uc_insert: cache_alloc (%" PRIsz ") failed.", ds->ds_num);
+    ERROR("uc_insert: cache_alloc failed.");
     return -1;
   }
 
   sstrncpy(ce->name, key, sizeof(ce->name));
 
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    switch (ds->ds[i].type) {
-    case DS_TYPE_COUNTER:
-      ce->values_gauge[i] = NAN;
-      ce->values_raw[i].counter = vl->values[i].counter;
-      break;
+  switch (metric_p->value_ds_type) {
+  case DS_TYPE_COUNTER:
+    ce->values_gauge = NAN;
+    ce->values_raw.counter = metric_p->value.counter;
+    break;
 
-    case DS_TYPE_GAUGE:
-      ce->values_gauge[i] = vl->values[i].gauge;
-      ce->values_raw[i].gauge = vl->values[i].gauge;
-      break;
+  case DS_TYPE_GAUGE:
+    ce->values_gauge = metric_p->value.gauge;
+    ce->values_raw.gauge = metric_p->value.gauge;
+    break;
 
-    case DS_TYPE_DERIVE:
-      ce->values_gauge[i] = NAN;
-      ce->values_raw[i].derive = vl->values[i].derive;
-      break;
+  case DS_TYPE_DERIVE:
+    ce->values_gauge = NAN;
+    ce->values_raw.derive = metric_p->value.derive;
+    break;
 
-    default:
-      /* This shouldn't happen. */
-      ERROR("uc_insert: Don't know how to handle data source type %i.",
-            ds->ds[i].type);
-      sfree(key_copy);
-      cache_free(ce);
-      return -1;
-    } /* switch (ds->ds[i].type) */
-  }   /* for (i) */
+  default:
+    /* This shouldn't happen. */
+    ERROR("uc_insert: Don't know how to handle data source type %i.",
+          metric_p->value_ds_type);
+    sfree(key_copy);
+    cache_free(ce);
+    return -1;
+  } /* switch (ds->ds[i].type) */
 
   /* Prune invalid gauge data */
-  uc_check_range(ds, ce);
+  uc_check_range(metric_p->ds, ce);
 
-  ce->last_time = vl->time;
+  ce->last_time = metric_p->time;
   ce->last_update = cdtime();
-  ce->interval = vl->interval;
+  ce->interval = metric_p->interval;
   ce->state = STATE_UNKNOWN;
 
-  if (vl->meta != NULL) {
-    ce->meta = meta_data_clone(vl->meta);
+  if (metric_p->meta != NULL) {
+    pthread_mutex_lock(&metric_p->meta->lock);
+    ce->meta = metric_p->meta;
+    metric_p->meta->ref_count++;
+    pthread_mutex_unlock(&metric_p->meta->lock);
   }
 
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
@@ -270,22 +266,22 @@ int uc_check_timeout(void) {
    * without holding the lock, otherwise we will run into a deadlock if a
    * plugin calls the cache interface. */
   for (size_t i = 0; i < expired_num; i++) {
-    value_list_t vl = {
+    metric_t metric = {
         .time = expired[i].time,
         .interval = expired[i].interval,
     };
 
-    if (parse_identifier_vl(expired[i].key, &vl) != 0) {
+    if (parse_identifier_vl(expired[i].key, &metric) != 0) {
       ERROR("uc_check_timeout: parse_identifier_vl (\"%s\") failed.",
             expired[i].key);
       continue;
     }
 
-    plugin_dispatch_missing(&vl);
+    plugin_dispatch_missing(&metric);
 
     if (expired[i].callbacks_mask)
       plugin_dispatch_cache_event(CE_VALUE_EXPIRED, expired[i].callbacks_mask,
-                                  expired[i].key, &vl);
+                                  expired[i].key, &metric);
   } /* for (i = 0; i < expired_num; i++) */
 
   /* Now actually remove all the values from the cache. We don't re-evaluate
@@ -313,93 +309,94 @@ int uc_check_timeout(void) {
   return 0;
 } /* int uc_check_timeout */
 
-int uc_update(const data_set_t *ds, const value_list_t *vl) {
+int uc_update(const metric_t *metric_p) {
   char name[6 * DATA_MAX_NAME_LEN];
-
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("uc_update: FORMAT_VL failed.");
+  char *metric_string_p = NULL;
+  if ((metric_string_p = plugin_format_metric(metric_p)) != 0) {
+    ERROR("uc_update: plugin_format_metric failed.");
     return -1;
   }
 
   pthread_mutex_lock(&cache_lock);
 
   cache_entry_t *ce = NULL;
-  int status = c_avl_get(cache_tree, name, (void *)&ce);
+  int status = c_avl_get(cache_tree, metric_string_p, (void *)&ce);
   if (status != 0) /* entry does not yet exist */
   {
-    status = uc_insert(ds, vl, name);
+    status = uc_insert(metric_p, metric_string_p);
     pthread_mutex_unlock(&cache_lock);
 
     if (status == 0)
-      plugin_dispatch_cache_event(CE_VALUE_NEW, 0 /* mask */, name, vl);
+      plugin_dispatch_cache_event(CE_VALUE_NEW, 0 /* mask */, metric_string_p,
+                                  metric_p);
 
     return status;
   }
 
   assert(ce != NULL);
-  assert(ce->values_num == ds->ds_num);
-
-  if (ce->last_time >= vl->time) {
+  if (metric_p->meta != NULL) {
+    pthread_mutex_lock(&metric_p->meta->lock);
+    ce->meta = metric_p->meta;
+    metric_p->meta->ref_count++;
+    pthread_mutex_unlock(&metric_p->meta->lock);
+  }
+  ce->identity = clone_identity(metric_p->identity);
+  if (ce->last_time >= metric_p->time) {
     pthread_mutex_unlock(&cache_lock);
     NOTICE("uc_update: Value too old: name = %s; value time = %.3f; "
            "last cache update = %.3f;",
-           name, CDTIME_T_TO_DOUBLE(vl->time),
+           name, CDTIME_T_TO_DOUBLE(metric_p->time),
            CDTIME_T_TO_DOUBLE(ce->last_time));
     return -1;
   }
 
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    switch (ds->ds[i].type) {
-    case DS_TYPE_COUNTER: {
-      counter_t diff =
-          counter_diff(ce->values_raw[i].counter, vl->values[i].counter);
-      ce->values_gauge[i] =
-          ((double)diff) / (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
-      ce->values_raw[i].counter = vl->values[i].counter;
-    } break;
+  switch (metric_p->ds->type) {
+  case DS_TYPE_COUNTER: {
+    counter_t diff =
+        counter_diff(ce->values_raw.counter, metric_p->value.counter);
+    ce->values_gauge =
+        ((double)diff) / (CDTIME_T_TO_DOUBLE(metric_p->time - ce->last_time));
+    ce->values_raw.counter = metric_p->value.counter;
+  } break;
 
-    case DS_TYPE_GAUGE:
-      ce->values_raw[i].gauge = vl->values[i].gauge;
-      ce->values_gauge[i] = vl->values[i].gauge;
-      break;
+  case DS_TYPE_GAUGE:
+    ce->values_raw.gauge = metric_p->value.gauge;
+    ce->values_gauge = metric_p->value.gauge;
+    break;
 
-    case DS_TYPE_DERIVE: {
-      derive_t diff = vl->values[i].derive - ce->values_raw[i].derive;
+  case DS_TYPE_DERIVE: {
+    derive_t diff = metric_p->value.derive - ce->values_raw.derive;
 
-      ce->values_gauge[i] =
-          ((double)diff) / (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
-      ce->values_raw[i].derive = vl->values[i].derive;
-    } break;
+    ce->values_gauge =
+        ((double)diff) / (CDTIME_T_TO_DOUBLE(metric_p->time - ce->last_time));
+    ce->values_raw.derive = metric_p->value.derive;
+  } break;
 
-    default:
-      /* This shouldn't happen. */
-      pthread_mutex_unlock(&cache_lock);
-      ERROR("uc_update: Don't know how to handle data source type %i.",
-            ds->ds[i].type);
-      return -1;
-    } /* switch (ds->ds[i].type) */
+  default:
+    /* This shouldn't happen. */
+    pthread_mutex_unlock(&cache_lock);
+    ERROR("uc_update: Don't know how to handle data source type %i.",
+          metric_p->ds->type);
+    return -1;
+  } /* switch (metric_p->ds->type) */
 
-    DEBUG("uc_update: %s: ds[%" PRIsz "] = %lf", name, i, ce->values_gauge[i]);
-  } /* for (i) */
+  DEBUG("uc_update: %s: ds[%" PRIsz "] = %lf", name, i, ce->values_gauge);
 
-  /* Update the history if it exists. */
+  /* Update the history if it exists. TODO: Does history need to be an array? */
   if (ce->history != NULL) {
     assert(ce->history_index < ce->history_length);
-    for (size_t i = 0; i < ce->values_num; i++) {
-      size_t hist_idx = (ce->values_num * ce->history_index) + i;
-      ce->history[hist_idx] = ce->values_gauge[i];
-    }
+    ce->history[0] = ce->values_gauge;
 
     assert(ce->history_length > 0);
     ce->history_index = (ce->history_index + 1) % ce->history_length;
   }
 
   /* Prune invalid gauge data */
-  uc_check_range(ds, ce);
+  uc_check_range(metric_p->ds, ce);
 
-  ce->last_time = vl->time;
+  ce->last_time = metric_p->time;
   ce->last_update = cdtime();
-  ce->interval = vl->interval;
+  ce->interval = metric_p->interval;
 
   /* Check if cache entry has registered callbacks */
   unsigned long callbacks_mask = ce->callbacks_mask;
@@ -407,7 +404,8 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
   pthread_mutex_unlock(&cache_lock);
 
   if (callbacks_mask)
-    plugin_dispatch_cache_event(CE_VALUE_UPDATE, callbacks_mask, name, vl);
+    plugin_dispatch_cache_event(CE_VALUE_UPDATE, callbacks_mask, name,
+                                metric_p);
 
   return 0;
 } /* int uc_update */
@@ -427,10 +425,7 @@ int uc_set_callbacks_mask(const char *name, unsigned long mask) {
   return 0;
 }
 
-int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
-                        size_t *ret_values_num) {
-  gauge_t *ret = NULL;
-  size_t ret_num = 0;
+int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
   cache_entry_t *ce = NULL;
   int status = 0;
 
@@ -446,14 +441,7 @@ int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
             name);
       status = -1;
     } else {
-      ret_num = ce->values_num;
-      ret = malloc(ret_num * sizeof(*ret));
-      if (ret == NULL) {
-        ERROR("utils_cache: uc_get_rate_by_name: malloc failed.");
-        status = -1;
-      } else {
-        memcpy(ret, ce->values_gauge, ret_num * sizeof(gauge_t));
-      }
+      *ret_values = ce->values_gauge;
     }
   } else {
     DEBUG("utils_cache: uc_get_rate_by_name: No such value: %s", name);
@@ -462,46 +450,59 @@ int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
 
   pthread_mutex_unlock(&cache_lock);
 
-  if (status == 0) {
-    *ret_values = ret;
-    *ret_values_num = ret_num;
-  }
-
   return status;
 } /* gauge_t *uc_get_rate_by_name */
 
-gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl) {
+int uc_get_rate(const metric_t *metric_p, gauge_t *ret) {
+  char *metric_string_p = NULL;
+  int status = 0;
+
+  metric_string_p = plugin_format_metric(metric_p);
+
+  if (metric_string_p == NULL) {
+    ERROR("utils_cache: uc_get_rate: plugin_format_metric failed.");
+    return -1;
+  }
+
+  status = uc_get_rate_by_name(metric_string_p, ret);
+  if (status != 0) {
+    return status;
+  }
+
+  return status;
+} /* gauge_t *uc_get_rate */
+
+gauge_t *uc_get_rate_vl(const data_set_t *ds, const value_list_t *vl) {
   char name[6 * DATA_MAX_NAME_LEN];
-  gauge_t *ret = NULL;
-  size_t ret_num = 0;
-  int status;
+  metrics_list_t *ml = NULL;
+  int retval = 0;
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("utils_cache: uc_get_rate: FORMAT_VL failed.");
     return NULL;
   }
-
-  status = uc_get_rate_by_name(name, &ret, &ret_num);
-  if (status != 0)
-    return NULL;
-
-  /* This is important - the caller has no other way of knowing how many
-   * values are returned. */
-  if (ret_num != ds->ds_num) {
-    ERROR("utils_cache: uc_get_rate: ds[%s] has %" PRIsz " values, "
-          "but uc_get_rate_by_name returned %" PRIsz ".",
-          ds->type, ds->ds_num, ret_num);
-    sfree(ret);
+  gauge_t *ret = (gauge_t *)malloc(ds->ds_num * sizeof(*ret));
+  if (ret == NULL) {
+    WARNING("uc_get_rate_vl: failed to allocate memory.");
     return NULL;
   }
-
+  retval = plugin_convert_values_to_metrics(vl, &ml);
+  if (retval != 0) {
+    WARNING("uc_get_rate_vl: Could not parse value list %s.", name);
+    return NULL;
+  }
+  metrics_list_t *index_p = ml;
+  int i = 0;
+  while (index_p != NULL) {
+    retval = uc_get_rate(&index_p->metric, &ret[i]);
+    index_p = index_p->next_p;
+    ++i;
+  }
+  destroy_metrics_list(ml);
   return ret;
-} /* gauge_t *uc_get_rate */
+}
 
-int uc_get_value_by_name(const char *name, value_t **ret_values,
-                         size_t *ret_values_num) {
-  value_t *ret = NULL;
-  size_t ret_num = 0;
+int uc_get_value_by_name(const char *name, value_t *ret_values) {
   cache_entry_t *ce = NULL;
   int status = 0;
 
@@ -514,14 +515,7 @@ int uc_get_value_by_name(const char *name, value_t **ret_values,
     if (ce->state == STATE_MISSING) {
       status = -1;
     } else {
-      ret_num = ce->values_num;
-      ret = malloc(ret_num * sizeof(*ret));
-      if (ret == NULL) {
-        ERROR("utils_cache: uc_get_value_by_name: malloc failed.");
-        status = -1;
-      } else {
-        memcpy(ret, ce->values_raw, ret_num * sizeof(value_t));
-      }
+      *ret_values = ce->values_raw;
     }
   } else {
     DEBUG("utils_cache: uc_get_value_by_name: No such value: %s", name);
@@ -530,40 +524,27 @@ int uc_get_value_by_name(const char *name, value_t **ret_values,
 
   pthread_mutex_unlock(&cache_lock);
 
-  if (status == 0) {
-    *ret_values = ret;
-    *ret_values_num = ret_num;
-  }
-
   return (status);
 } /* int uc_get_value_by_name */
 
-value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl) {
-  char name[6 * DATA_MAX_NAME_LEN];
-  value_t *ret = NULL;
-  size_t ret_num = 0;
+int uc_get_value(const metric_t *metric_p, value_t *ret) {
+  char *metric_string_p = NULL;
   int status;
 
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("utils_cache: uc_get_value: FORMAT_VL failed.");
-    return (NULL);
+  metric_string_p = plugin_format_metric(metric_p);
+  if (metric_string_p == NULL) {
+    ERROR("utils_cache: uc_get_value: plugin_format_metric failed.");
+    return -1;
   }
 
-  status = uc_get_value_by_name(name, &ret, &ret_num);
-  if (status != 0)
-    return (NULL);
-
-  /* This is important - the caller has no other way of knowing how many
-   * values are returned. */
-  if (ret_num != (size_t)ds->ds_num) {
-    ERROR("utils_cache: uc_get_value: ds[%s] has %" PRIsz " values, "
-          "but uc_get_value_by_name returned %" PRIsz ".",
-          ds->type, ds->ds_num, ret_num);
-    sfree(ret);
-    return (NULL);
+  status = uc_get_value_by_name(metric_string_p, ret);
+  if (status != 0) {
+    sfree(metric_string_p);
+    return status;
   }
 
-  return (ret);
+  sfree(metric_string_p);
+  return status;
 } /* value_t *uc_get_value */
 
 size_t uc_get_size(void) {
@@ -656,53 +637,56 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
   return 0;
 } /* int uc_get_names */
 
-int uc_get_state(const data_set_t *ds, const value_list_t *vl) {
-  char name[6 * DATA_MAX_NAME_LEN];
+int uc_get_state(const metric_t *metric_p) {
+  char *metric_string_p = NULL;
   cache_entry_t *ce = NULL;
   int ret = STATE_ERROR;
 
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("uc_get_state: FORMAT_VL failed.");
+  metric_string_p = plugin_format_metric(metric_p);
+  if (metric_string_p == NULL) {
+    ERROR("uc_get_state: plugin_format_metric failed.");
     return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->state;
   }
 
   pthread_mutex_unlock(&cache_lock);
+  sfree(metric_string_p);
 
   return ret;
 } /* int uc_get_state */
 
-int uc_set_state(const data_set_t *ds, const value_list_t *vl, int state) {
-  char name[6 * DATA_MAX_NAME_LEN];
+int uc_set_state(const metric_t *metric_p, int state) {
+  char *metric_string_p = NULL;
   cache_entry_t *ce = NULL;
   int ret = -1;
 
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("uc_set_state: FORMAT_VL failed.");
+  metric_string_p = plugin_format_metric(metric_p);
+  if (metric_string_p == NULL) {
+    ERROR("uc_set_state: plugin_format_metric failed.");
     return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->state;
     ce->state = state;
   }
 
   pthread_mutex_unlock(&cache_lock);
-
+  sfree(metric_string_p);
   return ret;
 } /* int uc_set_state */
 
 int uc_get_history_by_name(const char *name, gauge_t *ret_history,
-                           size_t num_steps, size_t num_ds) {
+                           size_t num_steps) {
   cache_entry_t *ce = NULL;
   int status = 0;
 
@@ -713,26 +697,18 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
     pthread_mutex_unlock(&cache_lock);
     return -ENOENT;
   }
-
-  if (((size_t)ce->values_num) != num_ds) {
-    pthread_mutex_unlock(&cache_lock);
-    return -EINVAL;
-  }
-
   /* Check if there are enough values available. If not, increase the buffer
    * size. */
   if (ce->history_length < num_steps) {
     gauge_t *tmp;
 
-    tmp =
-        realloc(ce->history, sizeof(*ce->history) * num_steps * ce->values_num);
+    tmp = realloc(ce->history, sizeof(*ce->history) * num_steps);
     if (tmp == NULL) {
       pthread_mutex_unlock(&cache_lock);
       return -ENOMEM;
     }
 
-    for (size_t i = ce->history_length * ce->values_num;
-         i < (num_steps * ce->values_num); i++)
+    for (size_t i = ce->history_length; i < num_steps; i++)
       tmp[i] = NAN;
 
     ce->history = tmp;
@@ -748,12 +724,11 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
       src_index = ce->history_index - (i + 1);
     else
       src_index = ce->history_length + ce->history_index - (i + 1);
-    src_index = src_index * num_ds;
 
-    dst_index = i * num_ds;
+    dst_index = i;
 
     memcpy(ret_history + dst_index, ce->history + src_index,
-           sizeof(*ret_history) * num_ds);
+           sizeof(*ret_history));
   }
 
   pthread_mutex_unlock(&cache_lock);
@@ -761,53 +736,71 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
   return 0;
 } /* int uc_get_history_by_name */
 
-int uc_get_history(const data_set_t *ds, const value_list_t *vl,
-                   gauge_t *ret_history, size_t num_steps, size_t num_ds) {
-  char name[6 * DATA_MAX_NAME_LEN];
+int uc_get_history(const metric_t *metric_p, gauge_t *ret_history,
+                   size_t num_steps) {
+  char *metric_string_p = NULL;
 
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("utils_cache: uc_get_history: FORMAT_VL failed.");
+  metric_string_p = plugin_format_metric(metric_p);
+  if (metric_string_p == NULL) {
+    ERROR("utils_cache: uc_get_history: plugin_format_metric failed.");
     return -1;
   }
-
-  return uc_get_history_by_name(name, ret_history, num_steps, num_ds);
+  sfree(metric_string_p);
+  return uc_get_history_by_name(metric_string_p, ret_history, num_steps);
 } /* int uc_get_history */
 
-int uc_get_hits(const data_set_t *ds, const value_list_t *vl) {
-  char name[6 * DATA_MAX_NAME_LEN];
+int uc_get_hits(const metric_t *metric_p) {
+  char *metric_string_p = NULL;
   cache_entry_t *ce = NULL;
   int ret = STATE_ERROR;
 
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("uc_get_hits: FORMAT_VL failed.");
+  metric_string_p = plugin_format_metric(metric_p);
+  if (metric_string_p == NULL) {
+    ERROR("uc_get_hits: plugin_format_metric failed.");
     return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->hits;
   }
 
   pthread_mutex_unlock(&cache_lock);
-
+  sfree(metric_string_p);
   return ret;
 } /* int uc_get_hits */
 
-int uc_set_hits(const data_set_t *ds, const value_list_t *vl, int hits) {
-  char name[6 * DATA_MAX_NAME_LEN];
+int uc_get_hits_vl(const data_set_t *ds, const value_list_t *vl) {
+  int retval = 0;
+  metrics_list_t *ml = NULL;
+  retval = plugin_convert_values_to_metrics(vl, &ml);
+  if (retval != 0) {
+    WARNING("uc_get_hits_vl: Could not parse value list.");
+    return -1;
+  }
+  /* The assumption here is that all components of the metrics in a value list
+   * will have the same number of hits in the cache */
+  retval = uc_get_hits(&ml->metric);
+  destroy_metrics_list(ml);
+  return retval;
+}
+
+int uc_set_hits(const metric_t *metric_p, int hits) {
+  char *metric_string_p = NULL;
   cache_entry_t *ce = NULL;
   int ret = -1;
 
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("uc_set_hits: FORMAT_VL failed.");
+  metric_string_p = plugin_format_metric(metric_p);
+  if (metric_string_p == NULL) {
+    ERROR("uc_set_hits: plugin_format_metric failed.");
     return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->hits;
     ce->hits = hits;
@@ -815,22 +808,43 @@ int uc_set_hits(const data_set_t *ds, const value_list_t *vl, int hits) {
 
   pthread_mutex_unlock(&cache_lock);
 
+  sfree(metric_string_p);
   return ret;
 } /* int uc_set_hits */
 
-int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step) {
-  char name[6 * DATA_MAX_NAME_LEN];
+int uc_set_hits_vl(const data_set_t *ds, const value_list_t *vl, int hits) {
+  int retval = 0;
+  metrics_list_t *ml = NULL;
+  retval = plugin_convert_values_to_metrics(vl, &ml);
+  if (retval != 0) {
+    WARNING("uc_set_hits_vl: Could not parse value list.");
+    return -1;
+  }
+  metrics_list_t *index_p = ml;
+  int i = 0;
+  while (index_p != NULL) {
+    retval = uc_set_hits(&index_p->metric, hits);
+    index_p = index_p->next_p;
+    ++i;
+  }
+  destroy_metrics_list(ml);
+  return retval;
+}
+
+int uc_inc_hits(const metric_t *metric_p, int step) {
+  char *metric_string_p = NULL;
   cache_entry_t *ce = NULL;
   int ret = -1;
 
-  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
-    ERROR("uc_inc_hits: FORMAT_VL failed.");
+  metric_string_p = plugin_format_metric(metric_p);
+  if (metric_string_p == NULL) {
+    ERROR("uc_inc_hits: plugin_format_metric failed.");
     return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+  if (c_avl_get(cache_tree, metric_string_p, (void *)&ce) == 0) {
     assert(ce != NULL);
     ret = ce->hits;
     ce->hits = ret + step;
@@ -838,8 +852,28 @@ int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step) {
 
   pthread_mutex_unlock(&cache_lock);
 
+  sfree(metric_string_p);
   return ret;
 } /* int uc_inc_hits */
+
+int uc_inc_hits_vl(const data_set_t *ds, const value_list_t *vl, int step) {
+  int retval = 0;
+  metrics_list_t *ml = NULL;
+  retval = plugin_convert_values_to_metrics(vl, &ml);
+  if (retval != 0) {
+    WARNING("uc_inc_hits_vl: Could not parse value list.");
+    return -1;
+  }
+  metrics_list_t *index_p = ml;
+  int i = 0;
+  while (index_p != NULL) {
+    retval = uc_inc_hits(&index_p->metric, step);
+    index_p = index_p->next_p;
+    ++i;
+  }
+  destroy_metrics_list(ml);
+  return retval;
+}
 
 /*
  * Iterator interface
@@ -903,20 +937,11 @@ int uc_iterator_get_time(uc_iter_t *iter, cdtime_t *ret_time) {
   return 0;
 } /* int uc_iterator_get_name */
 
-int uc_iterator_get_values(uc_iter_t *iter, value_t **ret_values,
-                           size_t *ret_num) {
-  if ((iter == NULL) || (iter->entry == NULL) || (ret_values == NULL) ||
-      (ret_num == NULL))
+int uc_iterator_get_values(uc_iter_t *iter, value_t *ret_values) {
+  if ((iter == NULL) || (iter->entry == NULL) || (ret_values == NULL))
     return -1;
-  *ret_values =
-      calloc(iter->entry->values_num, sizeof(*iter->entry->values_raw));
-  if (*ret_values == NULL)
-    return -1;
-  for (size_t i = 0; i < iter->entry->values_num; ++i)
-    (*ret_values)[i] = iter->entry->values_raw[i];
 
-  *ret_num = iter->entry->values_num;
-
+  *ret_values = iter->entry->values_raw;
   return 0;
 } /* int uc_iterator_get_values */
 
@@ -932,7 +957,7 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta) {
   if ((iter == NULL) || (iter->entry == NULL) || (ret_meta == NULL))
     return -1;
 
-  *ret_meta = meta_data_clone(iter->entry->meta);
+  *ret_meta = meta_data_clone(iter->entry->meta->meta);
 
   return 0;
 } /* int uc_iterator_get_meta */
@@ -941,34 +966,37 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta) {
  * Meta data interface
  */
 /* XXX: This function will acquire `cache_lock' but will not free it! */
-static meta_data_t *uc_get_meta(const value_list_t *vl) /* {{{ */
+static meta_data_t *uc_get_meta(const metric_t *metric_p) /* {{{ */
 {
-  char name[6 * DATA_MAX_NAME_LEN];
+  char *metric_string_p = NULL;
   cache_entry_t *ce = NULL;
-  int status;
+  int status = 0;
 
-  status = FORMAT_VL(name, sizeof(name), vl);
-  if (status != 0) {
-    ERROR("utils_cache: uc_get_meta: FORMAT_VL failed.");
+  metric_string_p = plugin_format_metric(metric_p);
+  if (metric_string_p == NULL) {
+    ERROR("utils_cache: uc_get_meta: metric_string_p failed.");
     return NULL;
   }
 
   pthread_mutex_lock(&cache_lock);
 
-  status = c_avl_get(cache_tree, name, (void *)&ce);
+  status = c_avl_get(cache_tree, metric_string_p, (void *)&ce);
   if (status != 0) {
     pthread_mutex_unlock(&cache_lock);
     return NULL;
   }
   assert(ce != NULL);
 
-  if (ce->meta == NULL)
-    ce->meta = meta_data_create();
-
-  if (ce->meta == NULL)
+  if (ce->meta == NULL) {
     pthread_mutex_unlock(&cache_lock);
+    return NULL;
+  }
 
-  return ce->meta;
+  if (ce->meta->meta == NULL)
+    ce->meta->meta = meta_data_create();
+
+  sfree(metric_string_p);
+  return ce->meta->meta;
 } /* }}} meta_data_t *uc_get_meta */
 
 /* Sorry about this preprocessor magic, but it really makes this file much
@@ -977,65 +1005,108 @@ static meta_data_t *uc_get_meta(const value_list_t *vl) /* {{{ */
   {                                                                            \
     meta_data_t *meta;                                                         \
     int status;                                                                \
-    meta = uc_get_meta(vl);                                                    \
+    meta = uc_get_meta(metric_p);                                              \
     if (meta == NULL)                                                          \
       return -1;                                                               \
     status = wrap_function(meta, key);                                         \
     pthread_mutex_unlock(&cache_lock);                                         \
     return status;                                                             \
   }
-int uc_meta_data_exists(const value_list_t *vl, const char *key)
-    UC_WRAP(meta_data_exists)
 
-        int uc_meta_data_delete(const value_list_t *vl, const char *key)
-            UC_WRAP(meta_data_delete)
+int uc_meta_data_exists(const metric_t *metric_p, const char *key)
+    UC_WRAP(meta_data_exists);
 
-    /* The second argument is called `toc` in the API, but the macro expects
-     * `key`. */
-    int uc_meta_data_toc(const value_list_t *vl,
-                         char ***key) UC_WRAP(meta_data_toc)
+int uc_meta_data_delete(const metric_t *metric_p, const char *key)
+    UC_WRAP(meta_data_delete);
 
+/* The second argument is called `toc` in the API, but the macro expects
+* `key`. */
+int uc_meta_data_toc(const metric_t *metric_p, char ***key)
+    UC_WRAP(meta_data_toc);
 #undef UC_WRAP
 
 /* We need a new version of this macro because the following functions take
- * two argumetns. */
+ * two argumetns. gratituous semicolons added for formatting sanity*/
 #define UC_WRAP(wrap_function)                                                 \
   {                                                                            \
     meta_data_t *meta;                                                         \
     int status;                                                                \
-    meta = uc_get_meta(vl);                                                    \
+    meta = uc_get_meta(metric_p);                                              \
     if (meta == NULL)                                                          \
       return -1;                                                               \
     status = wrap_function(meta, key, value);                                  \
     pthread_mutex_unlock(&cache_lock);                                         \
     return status;                                                             \
   }
-        int uc_meta_data_add_string(const value_list_t *vl, const char *key,
-                                    const char *value)
-            UC_WRAP(meta_data_add_string) int uc_meta_data_add_signed_int(
-                const value_list_t *vl, const char *key, int64_t value)
-                UC_WRAP(meta_data_add_signed_int) int uc_meta_data_add_unsigned_int(
-                    const value_list_t *vl, const char *key, uint64_t value)
-                    UC_WRAP(meta_data_add_unsigned_int) int uc_meta_data_add_double(
-                        const value_list_t *vl, const char *key, double value)
-                        UC_WRAP(meta_data_add_double) int uc_meta_data_add_boolean(
-                            const value_list_t *vl, const char *key,
-                            bool value) UC_WRAP(meta_data_add_boolean)
+int uc_meta_data_add_string(const metric_t *metric_p, const char *key,
+                            const char *value) UC_WRAP(meta_data_add_string);
 
-                            int uc_meta_data_get_string(const value_list_t *vl,
-                                                        const char *key,
-                                                        char **value)
-                                UC_WRAP(meta_data_get_string) int uc_meta_data_get_signed_int(
-                                    const value_list_t *vl, const char *key,
-                                    int64_t *value)
-                                    UC_WRAP(meta_data_get_signed_int) int uc_meta_data_get_unsigned_int(
-                                        const value_list_t *vl, const char *key,
-                                        uint64_t *value)
-                                        UC_WRAP(meta_data_get_unsigned_int) int uc_meta_data_get_double(
-                                            const value_list_t *vl,
-                                            const char *key, double *value)
-                                            UC_WRAP(meta_data_get_double) int uc_meta_data_get_boolean(
-                                                const value_list_t *vl,
-                                                const char *key, bool *value)
-                                                UC_WRAP(meta_data_get_boolean)
+int uc_meta_data_add_signed_int(const metric_t *metric_p, const char *key,
+                                int64_t value)
+    UC_WRAP(meta_data_add_signed_int);
+
+int uc_meta_data_add_unsigned_int(const metric_t *metric_p, const char *key,
+                                  uint64_t value)
+    UC_WRAP(meta_data_add_unsigned_int);
+
+int uc_meta_data_add_double(const metric_t *metric_p, const char *key,
+                            double value) UC_WRAP(meta_data_add_double);
+int uc_meta_data_add_boolean(const metric_t *metric_p, const char *key,
+                             bool value) UC_WRAP(meta_data_add_boolean);
+
+int uc_meta_data_get_string(const metric_t *metric_p, const char *key,
+                            char **value) UC_WRAP(meta_data_get_string);
+
+int uc_meta_data_get_signed_int(const metric_t *metric_p, const char *key,
+                                int64_t *value)
+    UC_WRAP(meta_data_get_signed_int);
+
+int uc_meta_data_get_unsigned_int(const metric_t *metric_p, const char *key,
+                                  uint64_t *value)
+    UC_WRAP(meta_data_get_unsigned_int);
+
+int uc_meta_data_get_double(const metric_t *metric_p, const char *key,
+                            double *value) UC_WRAP(meta_data_get_double);
+
+int uc_meta_data_get_boolean(const metric_t *metric_p, const char *key,
+                             bool *value) UC_WRAP(meta_data_get_boolean);
 #undef UC_WRAP
+
+int uc_meta_data_get_signed_int_vl(const value_list_t *vl, const char *key,
+                                   int64_t *value) {
+  metrics_list_t *ml = NULL;
+  int retval = (plugin_convert_values_to_metrics(vl, &ml));
+  if (retval != 0) {
+    return -1;
+  }
+  /* All metric values from the values list share the same metadata */
+  retval = uc_meta_data_get_signed_int(&ml->metric, key, value);
+  destroy_metrics_list(ml);
+  return retval;
+}
+
+int uc_meta_data_get_unsigned_int_vl(const value_list_t *vl, const char *key,
+                                     uint64_t *value) {
+  metrics_list_t *ml = NULL;
+  int retval = (plugin_convert_values_to_metrics(vl, &ml));
+  if (retval != 0) {
+    return -1;
+  }
+  /* All metric values from the values list share the same metadata */
+  retval = uc_meta_data_get_unsigned_int(&ml->metric, key, value);
+  destroy_metrics_list(ml);
+  return retval;
+}
+int uc_meta_data_add_signed_int_vl(const value_list_t *vl, const char *key,
+                                   int64_t value) {
+  metrics_list_t *ml = NULL;
+  int retval = (plugin_convert_values_to_metrics(vl, &ml));
+  if (retval != 0 || ml == NULL || ml->metric.meta->meta == NULL) {
+    return -1;
+  }
+
+  /* All metric values from the values list share the same metadata */
+  retval = meta_data_add_signed_int(ml->metric.meta->meta, key, value);
+  destroy_metrics_list(ml);
+  return retval;
+}

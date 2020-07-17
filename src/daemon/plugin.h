@@ -23,6 +23,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #ifndef PLUGIN_H
@@ -78,9 +79,8 @@
 struct identifier_s {
   char *host;
   char *plugin;
-  char *plugin_instance;
   char *type;
-  char *type_instance;
+  char *data_source;
 };
 typedef struct identifier_s identifier_t;
 
@@ -100,6 +100,21 @@ typedef struct value_list_s value_list_t;
 
 #define VALUE_LIST_INIT                                                        \
   { .values = NULL, .meta = NULL }
+
+struct data_source_s {
+  char name[DATA_MAX_NAME_LEN];
+  int type;
+  double min;
+  double max;
+};
+typedef struct data_source_s data_source_t;
+
+struct data_set_s {
+  char type[DATA_MAX_NAME_LEN];
+  size_t ds_num;
+  data_source_t *ds;
+};
+typedef struct data_set_s data_set_t;
 
 struct identity_s {
   char *name;
@@ -122,37 +137,23 @@ struct metric_s {
   value_t value;
   int value_ds_type;
   char type[DATA_MAX_NAME_LEN];
-  char ds_name[DATA_MAX_NAME_LEN];
+  char plugin[DATA_MAX_NAME_LEN];
   cdtime_t time;
   cdtime_t interval;
+  data_source_t *ds;
   meta_data_list_head_t *meta;
   identity_t *identity;
 };
 typedef struct metric_s metric_t;
 
 #define METRIC_STRUCT_INIT                                                     \
-  { .identity = NULL, .meta = NULL }
+  { .ds = NULL, .identity = NULL, .meta = NULL }
 
 struct metrics_list_s {
   metric_t metric;
   struct metrics_list_s *next_p;
 };
 typedef struct metrics_list_s metrics_list_t;
-
-struct data_source_s {
-  char name[DATA_MAX_NAME_LEN];
-  int type;
-  double min;
-  double max;
-};
-typedef struct data_source_s data_source_t;
-
-struct data_set_s {
-  char type[DATA_MAX_NAME_LEN];
-  size_t ds_num;
-  data_source_t *ds;
-};
-typedef struct data_set_s data_set_t;
 
 enum notification_meta_type_e {
   NM_TYPE_STRING,
@@ -197,7 +198,7 @@ enum cache_event_type_e { CE_VALUE_NEW, CE_VALUE_UPDATE, CE_VALUE_EXPIRED };
 
 typedef struct cache_event_s {
   enum cache_event_type_e type;
-  const value_list_t *value_list;
+  const metric_t *metric_p;
   const char *value_list_name;
   int ret;
 } cache_event_t;
@@ -215,14 +216,13 @@ typedef struct plugin_ctx_s plugin_ctx_t;
  */
 typedef int (*plugin_init_cb)(void);
 typedef int (*plugin_read_cb)(user_data_t *);
-typedef int (*plugin_write_cb)(const data_set_t *, const value_list_t *,
-                               user_data_t *);
+typedef int (*plugin_write_cb)(const metric_t *, user_data_t *);
 typedef int (*plugin_flush_cb)(cdtime_t timeout, const char *identifier,
                                user_data_t *);
 /* "missing" callback. Returns less than zero on failure, zero if other
  * callbacks should be called, greater than zero if no more callbacks should be
  * called. */
-typedef int (*plugin_missing_cb)(const value_list_t *, user_data_t *);
+typedef int (*plugin_missing_cb)(const metric_t *, user_data_t *);
 /* "cache event" callback. CE_VALUE_NEW events are sent to all registered
  * callbacks. Callback should check if it interested in further CE_VALUE_UPDATE
  * and CE_VALUE_EXPIRED events for metric and set event->ret = 1 if so.
@@ -290,9 +290,7 @@ int plugin_shutdown_all(void);
  * ARGUMENTS
  *  plugin     Name of the plugin. If NULL, the value is sent to all registered
  *             write functions.
- *  ds         Pointer to the data_set_t structure. If NULL, the data set is
- *             looked up according to the `type' member in the `vl' argument.
- *  vl         The actual value to be processed. Must not be NULL.
+ *  metric_p   The actual value to be processed. Must not be NULL.
  *
  * RETURN VALUE
  *  Returns zero upon success or non-zero if an error occurred. If `plugin' is
@@ -303,8 +301,7 @@ int plugin_shutdown_all(void);
  *  This is the function used by the `write' built-in target. May be used by
  *  other target plugins.
  */
-int plugin_write(const char *plugin, const data_set_t *ds,
-                 const value_list_t *vl);
+int plugin_write(const char *plugin, const metric_t *metric_p);
 
 int plugin_flush(const char *plugin, cdtime_t timeout, const char *identifier);
 
@@ -395,6 +392,135 @@ int plugin_convert_values_to_metrics(value_list_t const *vl,
 
 /*
  * NAME
+ * plugin_metric_free
+ *
+ * DESCRIPTION
+ *  This function dewwa up allocated memory from the internal metric
+ * representation.
+ *
+ * ARGUMENTS
+ *  `metric_p)’ A pointer to a metrics data object whose memory needs to be
+ *              reclaomed.
+ */
+void plugin_metric_free(metric_t *metric_p);
+
+/*
+ * NAME
+ * destroy_metrics_list
+ *
+ * DESCRIPTION
+ *  This function dewwa up allocated memory from the internal metric
+ * list.
+ *
+ * ARGUMENTS
+ *  `metric_list_p)’ A pointer to a metrics list data object whose memory needs
+ *                   to be reclaomed.
+ */
+void destroy_metrics_list(metrics_list_t *metrics_list_p);
+
+/*
+ * NAME
+ * create_identity
+ *
+ * DESCRIPTION
+
+ * This function creates a new identity data structure given the plugin name,
+ * the type, and the data source name, and optionally, the host name.
+ *
+ * ARGUMENTS
+ *  `plugin_p'  The name of the plugin creatng the metric.
+ *  ’type_p’    The metric type being created.
+ *  ’ds_name_p’ The name of the data source for the typr of metric.
+ *  ’host_p’    The host name. Optional.
+ * RETURNS
+ * An identity_t object created with the provided data.
+ *
+ */
+identity_t *create_identity(const char *plugin_p, const char *type_p,
+                            const char *ds_name_p, const char *host_p);
+
+/*
+ * NAME
+ * clone_identity
+ *
+ * DESCRIPTION
+ * This function takes a pointer to a identity object, and clones it. The caller
+ * has the ownership of the allocated memory, and should call destroy_identity
+ * when done with the object.
+ *
+ * ARGUMENTS
+ *  `identity'  Pointer to a list of identity defining key-value pairs to
+ *             clone.
+ * RETURNS
+ * An identity_t object which is cloned from the argument.
+ */
+identity_t *clone_identity(identity_t const *identity_orig);
+
+/*
+ * NAME
+ * identity_add_label
+ *
+ * DESCRIPTION
+
+ * This function takes a pointer to a identity object, and a key value pair, and
+ * adds thelabel and value to the identity object. The label and values are
+ * copied.
+ *
+ * ARGUMENTS
+ *  `identity_p'  Pointer to an identity object
+ *   ’label_p’    Pointer to a label string
+ *   ’value_p’    Pointer to a value string
+ *
+ * RETURNS
+ * Zero on success
+ */
+int identity_add_label(identity_t *identity_p, const char *label_p,
+                       const char *value_p);
+
+/*
+ * NAME
+ * identity_get_label
+ *
+ * DESCRIPTION
+
+ * This function takes a pointer to a identity object, and a label to search
+ * for, and pointers to the key and value.
+ *
+ * ARGUMENTS
+ *  `identity_p'  Pointer to an identity object
+ *   ’label_p’    Pointer to a label to look up
+ *   ’key_p’      Pointer to Pointer to a string which will contain the label
+ *                key.
+ *   ’val_p’      Pointer to Pointer to a string which will contain the label
+ *                value.
+ *
+ * RETURNS
+ * Zero on success
+ */
+int identity_get_label(identity_t *identity_p, const char *label_p,
+                       char **key_p, char **val_p);
+
+/*
+ * NAME
+ * identity_delete_label
+ *
+ * DESCRIPTION
+
+ * This function takes a pointer to a identity object, and a label, and
+ * removes thelabelfrom the identity object. The memory for the label and value
+ * is reclaimed.
+ *
+ * ARGUMENTS
+ *  `identity_p'  Pointer to an identity object
+ *   ’label_p’    Pointer to a label string
+ *
+ * RETURNS
+ * Zero on success
+ */
+int identity_delete_label(identity_t *identity_p, const char *label_p);
+
+/*
+ * NAME
  * destroy_identity
  *
  * DESCRIPTION
@@ -407,6 +533,22 @@ int plugin_convert_values_to_metrics(value_list_t const *vl,
  *
  */
 void destroy_identity(identity_t *identity);
+
+/*
+ * NAME
+ * destroy_metadata_head
+ *
+ * DESCRIPTION
+ * This function takes a pointer to a meta data list head structure, locks te
+ * list, decrementsa the reference count, and reclaims the memory from the
+ * metadatra list when the reference count drops to zero.
+ *
+ * ARGUMENTS
+ *  `meta_data_list_head_t '  Pointer to the head of the meta data list.
+ *
+ */
+void destroy_metadata_head(meta_data_list_head_t *meta_p);
+
 /*
  * NAME
  *  plugin_dispatch_values
@@ -422,6 +564,22 @@ void destroy_identity(identity_t *identity);
  *              function.
  */
 int plugin_dispatch_values(value_list_t const *vl);
+/*
+ * NAME
+ *  plugin_dispatch_metric_list
+ *
+ * DESCRIPTION
+
+ *  This function is called by reading processes with the list of metrics
+ *  they've aquired. The function fetches the data-set definition (that has been
+ *  registered using `plugin_register_data_set') and calls _all_ registered
+ *  write-functions.
+ *
+ * ARGUMENTS
+ *  `ml'        Value list of the metrics that have been read by a `read'
+ *              function.
+ */
+int plugin_dispatch_metric_list(metrics_list_t const *ml);
 
 /*
  * NAME
@@ -458,16 +616,19 @@ __attribute__((sentinel)) int plugin_dispatch_multivalue(value_list_t const *vl,
                                                          bool store_percentage,
                                                          int store_type, ...);
 
-int plugin_dispatch_missing(const value_list_t *vl);
+int plugin_dispatch_missing(const metric_t *metric_p);
 void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
                                  unsigned long callbacks_mask, const char *name,
-                                 const value_list_t *vl);
+                                 const metric_t *metric_p);
 
 int plugin_dispatch_notification(const notification_t *notif);
 
 void plugin_log(int level, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 
+/* This returns a string that can be used to format the attributes of the
+ * metric. Remember to free the returned string. */
+char *plugin_format_metric(const metric_t *metric_p);
 /* These functions return the parsed severity or less than zero on failure. */
 int parse_log_severity(const char *severity);
 int parse_notif_severity(const char *severity);

@@ -49,22 +49,22 @@ int uc_get_value_by_name(const char *name, value_t **ret_values,
   return ENOTSUP;
 }
 
-int uc_meta_data_get_signed_int(const value_list_t *vl, const char *key,
+int uc_meta_data_get_signed_int(const metric_t *metric_p, const char *key,
                                 int64_t *value) {
   return -ENOENT;
 }
 
-int uc_meta_data_get_unsigned_int(const value_list_t *vl, const char *key,
+int uc_meta_data_get_unsigned_int(const metric_t *metric_p, const char *key,
                                   uint64_t *value) {
   return -ENOENT;
 }
 
-int uc_meta_data_add_signed_int(const value_list_t *vl, const char *key,
+int uc_meta_data_add_signed_int(const metric_t *metric_p, const char *key,
                                 int64_t value) {
   return 0;
 }
 
-int uc_meta_data_add_unsigned_int(const value_list_t *vl, const char *key,
+int uc_meta_data_add_unsigned_int(const metric_t *metric_p, const char *key,
                                   uint64_t value) {
   return 0;
 }

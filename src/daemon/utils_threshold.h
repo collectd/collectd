@@ -35,9 +35,7 @@
 typedef struct threshold_s {
   char host[DATA_MAX_NAME_LEN];
   char plugin[DATA_MAX_NAME_LEN];
-  char plugin_instance[DATA_MAX_NAME_LEN];
   char type[DATA_MAX_NAME_LEN];
-  char type_instance[DATA_MAX_NAME_LEN];
   char data_source[DATA_MAX_NAME_LEN];
   gauge_t warning_min;
   gauge_t warning_max;
@@ -53,11 +51,11 @@ extern c_avl_tree_t *threshold_tree;
 extern pthread_mutex_t threshold_lock;
 
 threshold_t *threshold_get(const char *hostname, const char *plugin,
-                           const char *plugin_instance, const char *type,
-                           const char *type_instance);
+                           const char *type,
+                           const char *data_source);
 
-threshold_t *threshold_search(const value_list_t *vl);
+threshold_t *threshold_search(const metric_t *metric_p);
 
-int ut_search_threshold(const value_list_t *vl, threshold_t *ret_threshold);
+int ut_search_threshold(const metric_t *metric_p, threshold_t *ret_threshold);
 
 #endif /* UTILS_THRESHOLD_H */
