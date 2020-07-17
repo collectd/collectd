@@ -115,7 +115,7 @@ static void cache_free(cache_entry_t *ce) {
   sfree(ce->history);
 
   if (ce->identity != NULL) {
-    destroy_identity(ce->identity);
+    identity_destroy(ce->identity);
   }
 
   /* We have non-exclusive ownership of the metadata */
@@ -340,7 +340,7 @@ int uc_update(const metric_t *metric_p) {
     metric_p->meta->ref_count++;
     pthread_mutex_unlock(&metric_p->meta->lock);
   }
-  ce->identity = clone_identity(metric_p->identity);
+  ce->identity = identity_clone(metric_p->identity);
   if (ce->last_time >= metric_p->time) {
     pthread_mutex_unlock(&cache_lock);
     NOTICE("uc_update: Value too old: name = %s; value time = %.3f; "

@@ -685,149 +685,111 @@ static void stop_read_threads(void) {
   read_threads_num = 0;
 } /* void stop_read_threads */
 
-EXPORT identity_t *create_identity(const char *plugin_p, const char *type_p,
-                                   const char *ds_name_p, const char *host_p) {
-  identity_t *identity_p = NULL;
-  char *label_p = strdup("__host__");
-  char *value_p = NULL;
-  if (host_p == NULL) {
-    value_p = strdup(hostname_g);
-  } else {
-    value_p = strdup(host_p);
-  }
-  if ((value_p == NULL) || (label_p == NULL)) {
-    ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-    if (value_p != NULL)
-      sfree(value_p);
-    if (label_p != NULL)
-      sfree(label_p);
-    return identity_p;
-  }
-  identity_p = (identity_t *)malloc(sizeof(*identity_p));
-  if (identity_p == NULL) {
-    sfree(value_p);
-    sfree(label_p);
-    return identity_p;
-  }
-  identity_p->root_p =
-      c_avl_create((int (*)(const void *, const void *))strcmp);
-  if (identity_p->root_p == NULL) {
-    sfree(value_p);
-    sfree(label_p);
-    sfree(identity_p);
-    return identity_p;
-  }
-  int insert =
-      c_avl_insert(identity_p->root_p, (void *)label_p, (void *)value_p);
-  sfree(value_p);
-  sfree(label_p);
-  if (insert != 0) {
-    ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-    destroy_identity(identity_p);
-    return identity_p;
+EXPORT identity_t *identity_create_legacy(const char *plugin, const char *type,
+                                          const char *ds_name,
+                                          const char *host) {
+  size_t name_len = 3 + strlen(plugin) + strlen(type) + strlen(ds_name);
+  char name[name_len];
+
+  snprintf(name, sizeof(name), "%s/%s/%s", plugin, type, ds_name);
+
+  identity_t *id = identity_create(name);
+  if (id == NULL) {
+    return NULL;
   }
 
-  size_t name_length =
-      3 + strlen(plugin_p) + strlen(type_p) + strlen(ds_name_p);
-  identity_p->name = (char *)malloc(name_length);
-  if (identity_p->name == NULL) {
-    destroy_identity(identity_p);
-    return identity_p;
+  int status =
+      identity_add_label(id, "__host__", (host != NULL) ? host : hostname_g);
+  if (status != 0) {
+    identity_destroy(id);
+    return NULL;
   }
-  if (((size_t)snprintf(identity_p->name, name_length, "%s/%s/%s", plugin_p,
-                        type_p, ds_name_p)) >= name_length) {
-    ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-    destroy_identity(identity_p);
-    return identity_p;
-  }
-  return identity_p;
+
+  return id;
 }
 
-EXPORT identity_t *clone_identity(identity_t const *identity_orig) {
-  identity_t *identity_p = NULL;
-  if (identity_orig == NULL) {
-    return identity_p;
+EXPORT identity_t *identity_clone(identity_t const *id_orig) {
+  if (id_orig == NULL) {
+    return NULL;
   }
-  identity_p = (identity_t *)malloc(sizeof(*identity_p));
-  if (identity_p == NULL) {
-    return identity_p;
+
+  identity_t *id = identity_create(id_orig->name);
+  if (id == NULL) {
+    return NULL;
   }
-  identity_p->root_p =
-      c_avl_create((int (*)(const void *, const void *))strcmp);
-  if (identity_p->root_p == NULL) {
-    sfree(identity_p);
-    return identity_p;
+
+  c_avl_iterator_t *iter = c_avl_get_iterator(id_orig->labels);
+  if (iter == NULL) {
+    identity_destroy(id);
+    return NULL;
   }
-  if (identity_orig->root_p != NULL) {
-    c_avl_iterator_t *iter_p = c_avl_get_iterator(identity_orig->root_p);
-    if (iter_p != NULL) {
-      char *key_p = NULL;
-      char *value_p = NULL;
-      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
-                                  (void **)&value_p)) == 0) {
-        if (key_p == NULL) {
-          WARNING("clone_identity: NULL key found in labels: %s",
-                  identity_orig->name != NULL ? identity_orig->name : "");
-          continue;
-        }
-        char *new_key_p = strdup(key_p);
-        char *new_value_p = NULL;
-        if (value_p != NULL) {
-          new_value_p = strdup(value_p);
-        }
-        if ((new_key_p == NULL) || (value_p != NULL && new_value_p == NULL)) {
-          destroy_identity(identity_p);
-          c_avl_iterator_destroy(iter_p);
-          if (new_key_p != NULL) {
-            sfree(new_key_p);
-          }
-          if (new_value_p != NULL) {
-            sfree(new_value_p);
-          }
-          return identity_p;
-        }
-        if (c_avl_insert(identity_p->root_p, new_key_p, new_value_p)) {
-          destroy_identity(identity_p);
-          c_avl_iterator_destroy(iter_p);
-          if (new_key_p != NULL) {
-            sfree(new_key_p);
-          }
-          if (new_value_p != NULL) {
-            sfree(new_value_p);
-          }
-          return identity_p;
-        }
-      }
-      c_avl_iterator_destroy(iter_p);
+
+  char *key = NULL;
+  char *value = NULL;
+  while ((c_avl_iterator_next(iter, (void *)&key, (void *)&value)) == 0) {
+    if ((key == NULL) || (value == NULL)) {
+      WARNING("identity_clone: NULL key found in labels: %s",
+              id_orig->name != NULL ? id_orig->name : "");
+      continue;
     }
-  }
-  if (identity_orig->name != NULL) {
-    identity_p->name = strdup(identity_orig->name);
-    if (identity_p->name == NULL) {
-      destroy_identity(identity_p);
+
+    int status = identity_add_label(id, key, value);
+    if (status != 0) {
+      c_avl_iterator_destroy(iter);
+      identity_destroy(id);
       return NULL;
     }
   }
-  return identity_p;
+  c_avl_iterator_destroy(iter);
+
+  return id;
 }
 
-EXPORT int identity_add_label(identity_t *identity_p, const char *label_p,
-                              const char *value_p) {
-  if ((identity_p == NULL) || (label_p == NULL) || (value_p == NULL)) {
-    return -1;
+EXPORT identity_t *identity_create(char const *name) {
+  identity_t *id = calloc(1, sizeof(*id));
+  if (id == NULL) {
+    return NULL;
   }
-  return c_avl_insert(identity_p->root_p, (void *)strdup(label_p),
-                      (void *)strdup(value_p));
+
+  id->name = strdup(name);
+  id->labels = c_avl_create((void *)strcmp);
+  if ((id->name == NULL) || (id->labels == NULL)) {
+    sfree(id);
+    return NULL;
+  }
+
+  return id;
 }
 
-EXPORT int identity_delete_label(identity_t *identity_p, const char *label_p) {
+EXPORT int identity_add_label(identity_t *id, char const *key,
+                              char const *value) {
+  if ((id == NULL) || (key == NULL) || (value == NULL)) {
+    return EINVAL;
+  }
+
+  char *k = strdup(key);
+  char *v = strdup(value);
+  if ((k == NULL) || (v == NULL)) {
+    sfree(k);
+    sfree(v);
+    return ENOMEM;
+  }
+
+  int ret = c_avl_insert(id->labels, k, v);
+  if (ret != 0) {
+    sfree(k);
+    sfree(v);
+  }
+  return ret;
+}
+
+EXPORT int identity_delete_label(identity_t *id, const char *label_p) {
   char *key_p = NULL;
   char *val_p = NULL;
-  if ((identity_p == NULL) || (identity_p->root_p == NULL) ||
-      (label_p == NULL)) {
+  if ((id == NULL) || (id->labels == NULL) || (label_p == NULL)) {
     return -1;
   }
-  int result = c_avl_remove(identity_p->root_p, (void *)"type_instance",
+  int result = c_avl_remove(id->labels, (void *)"type_instance",
                             (void **)&key_p, (void **)&val_p);
   if (result) {
     return result;
@@ -837,45 +799,44 @@ EXPORT int identity_delete_label(identity_t *identity_p, const char *label_p) {
   return 0;
 }
 
-EXPORT int identity_get_label(identity_t *identity_p, const char *label_p,
-                              char **key_p, char **val_p) {
-  if ((identity_p == NULL) || (identity_p->root_p == NULL) ||
-      (label_p == NULL)) {
-    return -1;
+EXPORT int identity_get_label(identity_t *id, char const *key,
+                              char **ret_value) {
+  if ((id == NULL) || (key == NULL) || (ret_value == NULL)) {
+    return EINVAL;
   }
-  return c_avl_get(identity_p->root_p, (void **)key_p, (void **)val_p);
+  return c_avl_get(id->labels, (void *)key, (void *)ret_value);
 }
 
-EXPORT int identity_get_name(identity_t *identity_p, char **name_p) {
-  if ((identity_p == NULL) || (identity_p->root_p == NULL)) {
+EXPORT int identity_get_name(identity_t *id, char **name_p) {
+  if ((id == NULL) || (id->labels == NULL)) {
     return -1;
   }
-  *name_p = strdup(identity_p->name);
-  if (name_p == NULL) {return -1; }
+  *name_p = strdup(id->name);
+  if (name_p == NULL) {
+    return -1;
+  }
 
   return 0;
 }
 
-
-
-char *plugin_format_metric(const metric_t *metric_p) {
+EXPORT char *plugin_format_metric(const metric_t *metric_p) {
   char *buffer_p = NULL;
   int retval = 0;
   char *host_p = NULL;
 
   if (metric_p == NULL || metric_p->identity == NULL ||
-      metric_p->identity->root_p == NULL) {
+      metric_p->identity->labels == NULL) {
     return buffer_p;
   }
 
-  if (c_avl_get(metric_p->identity->root_p, (void *)"__host__",
+  if (c_avl_get(metric_p->identity->labels, (void *)"__host__",
                 (void **)&host_p) != 0) {
     return buffer_p;
   }
-  size_t buffer_length = 3 /* @, \n, and the trainin nul */ +
+  size_t buffer_length = 3 /* @, \n, and the trailing nul */ +
                          strlen(metric_p->identity->name) + strlen(host_p);
 
-  c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->root_p);
+  c_avl_iterator_t *iter_p = c_avl_get_iterator(metric_p->identity->labels);
   if (iter_p == NULL) {
     return buffer_p;
   }
@@ -888,7 +849,7 @@ char *plugin_format_metric(const metric_t *metric_p) {
   }
 
   c_avl_iterator_destroy(iter_p);
-  iter_p = c_avl_get_iterator(metric_p->identity->root_p);
+  iter_p = c_avl_get_iterator(metric_p->identity->labels);
   if (iter_p == NULL) {
     return buffer_p;
   }
@@ -908,33 +869,28 @@ char *plugin_format_metric(const metric_t *metric_p) {
   return buffer_p;
 }
 
-static metric_t *plugin_metric_clone(metric_t const *metric_orig) { /* {{{ */
-  metric_t *metric_p = NULL;
-  if (metric_orig == NULL) {
-    return metric_p;
+static metric_t *metric_clone(metric_t const *orig) { /* {{{ */
+  if (orig == NULL) {
+    return NULL;
   }
-  metric_p = (metric_t *)malloc(sizeof(*metric_p));
-  if (metric_p == NULL) {
-    return metric_p;
+  metric_t *m = malloc(sizeof(*m));
+  if (m == NULL) {
+    return NULL;
   }
-  memcpy(metric_p, metric_orig, sizeof(*metric_p));
+  memcpy(m, orig, sizeof(*m));
 
   /* Do not copy metadata: there can be only one */
-  if (metric_p->meta != NULL) { /* Points to the same metadata list head */
-    pthread_mutex_lock(&metric_p->meta->lock);
-    metric_p->meta->ref_count++;
-    pthread_mutex_unlock(&metric_p->meta->lock);
+  if (m->meta != NULL) { /* Points to the same metadata list head */
+    pthread_mutex_lock(&m->meta->lock);
+    m->meta->ref_count++;
+    pthread_mutex_unlock(&m->meta->lock);
   }
 
   /* Identity pointer is changed to point to a copy */
-  if (metric_orig->identity != NULL) {
-    metric_p->identity = clone_identity(metric_orig->identity);
-  } else {
-    metric_p->identity = NULL;
-  }
+  m->identity = identity_clone(orig->identity);
 
-  return metric_p;
-} /* }}}  metric_t * plugin_metric_clone  */
+  return m;
+} /* }}}  metric_t * metric_clone  */
 
 EXPORT void plugin_metric_free(metric_t *metric_p) {
   if (metric_p == NULL) {
@@ -944,7 +900,7 @@ EXPORT void plugin_metric_free(metric_t *metric_p) {
     destroy_metadata_head(metric_p->meta);
   }
   if (metric_p->identity != NULL) {
-    destroy_identity(metric_p->identity);
+    identity_destroy(metric_p->identity);
   }
   sfree(metric_p);
 }
@@ -999,57 +955,58 @@ plugin_value_list_clone(value_list_t const *vl_orig) /* {{{ */
   return vl;
 } /* }}} value_list_t *plugin_value_list_clone */
 
-static int plugin_write_enqueue_metric(metrics_list_t const *ml) { /* {{{ */
-  metrics_list_t *index_p = ml;
-  while (index_p != NULL) {
-    write_queue_t *q;
+static void write_queue_enqueue(write_queue_t *head) {
+  write_queue_t *tail = NULL;
+  long num = 0;
 
-    q = malloc(sizeof(*q));
+  for (write_queue_t *elem = head; elem != NULL; elem = elem->next) {
+    tail = elem;
+    num++;
+  }
+
+  if (num == 0) {
+    return;
+  }
+
+  pthread_mutex_lock(&write_lock);
+
+  if (write_queue_tail == NULL) {
+    write_queue_head = head;
+    write_queue_tail = tail;
+    write_queue_length = num;
+  } else {
+    write_queue_tail->next = head;
+    write_queue_tail = tail;
+    write_queue_length += num;
+  }
+
+  pthread_cond_signal(&write_cond);
+  pthread_mutex_unlock(&write_lock);
+}
+
+/* ml_enqueue enqueues the metrics in ml to write_queue. */
+static int ml_enqueue(metrics_list_t const *ml) { /* {{{ */
+  for (metrics_list_t const *m = ml; m != NULL; m = m->next_p) {
+    write_queue_t *q = calloc(1, sizeof(*q));
     if (q == NULL) {
       return ENOMEM;
     }
-    q->metric = plugin_metric_clone(&index_p->metric);
+    (*q) = (write_queue_t){
+        .metric = metric_clone(&m->metric),
+        .ctx = plugin_get_ctx(),
+    };
     if (q->metric == NULL) {
       sfree(q);
       return ENOMEM;
     }
-    q->next = NULL;
-    /* Store context of caller (read plugin); otherwise, it would not be
-     * available to the write plugins when actually dispatching the
-     * value-list later on. */
-    q->ctx = plugin_get_ctx();
 
-    pthread_mutex_lock(&write_lock);
-
-    if (write_queue_tail == NULL) {
-      write_queue_head = q;
-      write_queue_tail = q;
-      write_queue_length = 1;
-    } else {
-      write_queue_tail->next = q;
-      write_queue_tail = q;
-      write_queue_length += 1;
-    }
-
-    pthread_cond_signal(&write_cond);
-    pthread_mutex_unlock(&write_lock);
-    index_p = index_p->next_p;
+    /* This enqueues elements individually because it's less code to write.
+     * Should lock contention of write_lock become a problem, we could enqueue
+     * the whole list at once. */
+    write_queue_enqueue(q);
   }
   return 0;
-} /* }}} int plugin_write_enqueue_metric */
-
-static int plugin_write_enqueue(value_list_t const *vl) /* {{{ */
-{
-  metrics_list_t *ml = NULL;
-  int retval = (plugin_convert_values_to_metrics(vl, &ml));
-  if (retval != 0) {
-    return retval;
-  }
-  retval = plugin_write_enqueue_metric(ml);
-  destroy_metrics_list(ml);
-
-  return retval;
-} /* }}} int plugin_write_enqueue */
+} /* }}} int ml_enqueue */
 
 static metric_t *plugin_write_dequeue(void) /* {{{ */
 {
@@ -1827,7 +1784,8 @@ static int get_values_data_set(value_list_t const *vl, data_set_t **data_set) {
           "(ds->ds_num = %" PRIsz ") != "
           "(vl->values_len = %" PRIsz ")",
           vl->host, vl->plugin, vl->plugin_instance, vl->type,
-          vl->type_instance, (*data_set)->type, (*data_set)->ds_num, vl->values_len);
+          vl->type_instance, (*data_set)->type, (*data_set)->ds_num,
+          vl->values_len);
     return -1;
   }
 #endif
@@ -1858,7 +1816,7 @@ EXPORT void destroy_metrics_list(metrics_list_t *this_list_p) {
   metrics_list_t *index_p = this_list_p;
   while (index_p != NULL) {
     if (index_p->metric.identity != NULL) {
-      destroy_identity(index_p->metric.identity);
+      identity_destroy(index_p->metric.identity);
     }
     if (index_p->metric.meta != NULL) {
       /* Could the shared meta data have been removed already? */
@@ -1874,12 +1832,12 @@ EXPORT void destroy_metrics_list(metrics_list_t *this_list_p) {
   }
 }
 
-EXPORT void destroy_identity(identity_t *identity) {
+EXPORT void identity_destroy(identity_t *identity) {
   if (identity == NULL) {
     return;
   }
-  if (identity->root_p != NULL) {
-    c_avl_iterator_t *iter_p = c_avl_get_iterator(identity->root_p);
+  if (identity->labels != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(identity->labels);
     if (iter_p != NULL) {
       char *key_p = NULL;
       char *value_p = NULL;
@@ -1894,8 +1852,8 @@ EXPORT void destroy_identity(identity_t *identity) {
       }
     }
     c_avl_iterator_destroy(iter_p);
-    c_avl_destroy(identity->root_p);
-    identity->root_p = NULL;
+    c_avl_destroy(identity->labels);
+    identity->labels = NULL;
   }
   if (identity->name != NULL) {
     sfree(identity->name);
@@ -1904,116 +1862,73 @@ EXPORT void destroy_identity(identity_t *identity) {
 }
 
 /* This does the heavy lifting in coverting the actual metric data */
-static int value_to_metric(value_list_t const *vl,
-                           meta_data_list_head_t *meta_p, data_set_t const *ds,
-                           metrics_list_t **new_metric_list_p,
-                           metrics_list_t **new_tail_p) {
+static int value_to_metric(value_list_t const *vl, meta_data_list_head_t *meta,
+                           data_set_t const *ds, metrics_list_t **ret_ml) {
 
-  metrics_list_t *tail_p = NULL;
-  metrics_list_t *head_p = NULL;
-  int out_of_memory = 0;
-  cdtime_t metric_time = 0;
-  cdtime_t metric_interval = 0;
+  metrics_list_t *tail = NULL;
+  metrics_list_t *head = NULL;
 
-  if (vl->time == 0)
+  cdtime_t metric_time = vl->time;
+  if (metric_time == 0) {
     metric_time = cdtime();
-  else
-    metric_time = vl->time;
-  if (vl->interval == 0)
+  }
+
+  cdtime_t metric_interval = vl->interval;
+  if (metric_interval == 0) {
     metric_interval = plugin_get_interval();
-  else
-    metric_interval = vl->interval;
+  }
 
-  for (size_t i = 0; i < vl->values_len; ++i) {
-    metrics_list_t *list_p = (metrics_list_t *)malloc(sizeof(metrics_list_t));
-    if (list_p == NULL) {
-      out_of_memory = 1;
-      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      break;
-    }
-    if (meta_p != NULL) {
-      pthread_mutex_lock(&meta_p->lock);
-      list_p->metric.meta = meta_p;
-      list_p->metric.meta->ref_count++;
-      pthread_mutex_unlock(&meta_p->lock);
+  for (size_t i = 0; i < vl->values_len; i++) {
+    metrics_list_t *ml = calloc(1, sizeof(*ml));
+    if (ml == NULL) {
+      destroy_metrics_list(head);
+      return ENOMEM;
     }
 
-    list_p->metric.time = metric_time;
-    list_p->metric.interval = metric_interval;
-    list_p->metric.value = vl->values[i];
-    sstrncpy(list_p->metric.type, vl->type, sizeof(list_p->metric.type));
-    sstrncpy(list_p->metric.plugin, vl->plugin, sizeof(list_p->metric.plugin));
-    list_p->metric.value_ds_type = ds->ds[i].type;
-    list_p->metric.ds = &ds->ds[i];
-
-    list_p->metric.identity = (identity_t *)malloc(sizeof(identity_t));
-    if (list_p->metric.identity == NULL) {
-      out_of_memory = 1;
-      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      break;
-    }
-    list_p->metric.identity->root_p =
-        c_avl_create((int (*)(const void *, const void *))strcmp);
-
-    char *value_p = strdup(vl->host);
-    char *label_p = strdup("__host__");
-    if ((value_p == NULL) || (label_p == NULL)) {
-      out_of_memory = 1;
-      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      break;
-    }
-    int insert = c_avl_insert(list_p->metric.identity->root_p, (void *)label_p,
-                              (void *)value_p);
-    if (insert != 0) {
-      out_of_memory = 1;
-      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      break;
-    }
-    size_t name_length = 3 + strlen(vl->plugin) + strlen(vl->type) +
-                         strlen(list_p->metric.ds->name);
-    list_p->metric.identity->name = (char *)malloc(name_length);
-    if (list_p->metric.identity->name == NULL) {
-      out_of_memory = 1;
-      break;
-    }
-    if (((size_t)snprintf(list_p->metric.identity->name, name_length,
-                          "%s/%s/%s", vl->plugin, vl->type,
-                          list_p->metric.ds->name)) >= name_length) {
-      out_of_memory = 1;
-      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      break;
+    if (meta != NULL) {
+      pthread_mutex_lock(&meta->lock);
+      ml->metric.meta = meta;
+      meta->ref_count++;
+      pthread_mutex_unlock(&meta->lock);
     }
 
-    if (head_p == NULL) {
-      head_p = list_p;
+    ml->metric = (metric_t){
+        .identity = identity_create_legacy(vl->plugin, vl->type, ds->ds[i].name,
+                                           vl->host),
+        .time = metric_time,
+        .interval = metric_interval,
+        .value = vl->values[i],
+        .value_ds_type = ds->ds[i].type,
+        .ds = &ds->ds[i],
+        .meta = meta,
+    };
+    sstrncpy(ml->metric.type, vl->type, sizeof(ml->metric.type));
+    sstrncpy(ml->metric.plugin, vl->plugin, sizeof(ml->metric.plugin));
+
+    if (ml->metric.identity == NULL) {
+      destroy_metrics_list(ml);
+      destroy_metrics_list(head);
+      return -1;
+    }
+
+    if (head == NULL) {
+      head = ml;
     } else {
-      tail_p->next_p = list_p;
+      tail->next_p = ml;
     }
-    tail_p = list_p;
+    tail = ml;
   }
-  if (out_of_memory != 0) {
-    destroy_metrics_list(head_p);
-    head_p = NULL;
-    tail_p = NULL;
-    *new_metric_list_p = NULL;
-    *new_tail_p = NULL;
-    return -ENOMEM;
-  }
-  *new_metric_list_p = head_p;
-  *new_tail_p = tail_p;
+
+  *ret_ml = head;
   return 0;
 }
 
 EXPORT int plugin_convert_values_to_metrics(value_list_t const *vl,
                                             metrics_list_t **ml) {
-  if ((vl == NULL) || (vl->values_len == 0)) {
-    NOTICE("No value list to convert");
-    return -ENOENT;
+  if ((vl == NULL) || (vl->values_len == 0) || (ml == NULL) || (*ml != NULL)) {
+    return EINVAL;
   }
-  if (ml == NULL) {
-    NOTICE("No destination provided");
-    return -EINVAL;
-  }
+
   DEBUG("time = %.3f; interval = %.3f; "
         "host = %s; "
         "plugin = %s; plugin_instance = %s; "
@@ -2035,32 +1950,31 @@ EXPORT int plugin_convert_values_to_metrics(value_list_t const *vl,
           "(from \"%s\"), at %s, line %d.",
           vl->type, ident, __FILE__, __LINE__);
 
-    return -ENOMEM;
+    return ENOENT;
   }
-  meta_data_list_head_t *meta_p = NULL;
 
+  meta_data_list_head_t *meta_p = NULL;
   if (vl->meta != NULL) {
-    meta_p = (meta_data_list_head_t *)calloc(1, sizeof(meta_data_list_head_t));
+    meta_p = calloc(1, sizeof(meta_data_list_head_t));
     if (meta_p == NULL) {
       ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      return -ENOMEM;
+      return ENOMEM;
     }
     meta_p->meta = meta_data_clone(vl->meta);
     if (meta_p->meta == NULL) {
       sfree(meta_p);
       ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
-      return -ENOMEM;
+      return ENOMEM;
     }
+    /* TODO: meta_p->ref_count is zero */
   }
   metrics_list_t *new_metrics_list_p = NULL;
-  metrics_list_t *new_tail_p = NULL;
 
-  if (value_to_metric(vl, meta_p, ds, &new_metrics_list_p, &new_tail_p) != 0) {
+  if (value_to_metric(vl, meta_p, ds, &new_metrics_list_p) != 0) {
     destroy_metadata_head(meta_p);
     ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
     return -ENOMEM;
   }
-  new_tail_p->next_p = *ml;
   *ml = new_metrics_list_p;
   return 0;
 }
@@ -2624,7 +2538,6 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
 }
 
 static int plugin_dispatch_metric_internal(metric_t *metric_p) {
-  int retval = 0;
   char *host_p = NULL;
 
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
@@ -2638,8 +2551,8 @@ static int plugin_dispatch_metric_internal(metric_t *metric_p) {
           metric_p->identity->name);
     return -EINVAL;
   }
-  retval =
-      c_avl_get(metric_p->identity->root_p, (void *)"__host__", (void **)&host_p);
+  int retval = c_avl_get(metric_p->identity->labels, (void *)"__host__",
+                         (void **)&host_p);
   assert(retval == 0);
 
   if (list_write == NULL)
@@ -2740,16 +2653,15 @@ static bool check_drop_value(void) /* {{{ */
 } /* }}} bool check_drop_value */
 
 EXPORT int plugin_dispatch_metric_list(metrics_list_t const *ml) {
-  int status = 0;
   if (check_drop_value()) {
     if (record_statistics) {
       pthread_mutex_lock(&statistics_lock);
       stats_values_dropped++;
       pthread_mutex_unlock(&statistics_lock);
     }
-    return status;
+    return 0;
   }
-  status = plugin_write_enqueue_metric(ml);
+  int status = ml_enqueue(ml);
   if (status != 0) {
     ERROR("plugin_dispatch_values: plugin_write_enqueue_metric_list failed "
           "with status %i (%s).",
@@ -2759,26 +2671,15 @@ EXPORT int plugin_dispatch_metric_list(metrics_list_t const *ml) {
 }
 
 EXPORT int plugin_dispatch_values(value_list_t const *vl) {
-  int status;
-
-  if (check_drop_value()) {
-    if (record_statistics) {
-      pthread_mutex_lock(&statistics_lock);
-      stats_values_dropped++;
-      pthread_mutex_unlock(&statistics_lock);
-    }
-    return 0;
-  }
-
-  status = plugin_write_enqueue(vl);
+  metrics_list_t *ml = NULL;
+  int status = plugin_convert_values_to_metrics(vl, &ml);
   if (status != 0) {
-    ERROR("plugin_dispatch_values: plugin_write_enqueue failed with status %i "
-          "(%s).",
-          status, STRERROR(status));
     return status;
   }
 
-  return 0;
+  status = plugin_dispatch_metric_list(ml);
+  destroy_metrics_list(ml);
+  return status;
 }
 
 __attribute__((sentinel)) int
@@ -2852,7 +2753,7 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
       failed++;
     }
 
-    status = plugin_write_enqueue(vl);
+    status = plugin_dispatch_values(vl);
     if (status != 0)
       failed++;
   }

@@ -118,7 +118,7 @@ typedef struct data_set_s data_set_t;
 
 struct identity_s {
   char *name;
-  struct c_avl_tree_s *root_p;
+  struct c_avl_tree_s *labels;
 
   pthread_mutex_t lock;
 };
@@ -134,6 +134,7 @@ struct meta_data_list_head_s {
 typedef struct meta_data_list_head_s meta_data_list_head_t;
 
 struct metric_s {
+  identity_t *identity;
   value_t value;
   int value_ds_type;
   char type[DATA_MAX_NAME_LEN];
@@ -142,7 +143,6 @@ struct metric_s {
   cdtime_t interval;
   data_source_t *ds;
   meta_data_list_head_t *meta;
-  identity_t *identity;
 };
 typedef struct metric_s metric_t;
 
@@ -418,9 +418,13 @@ void plugin_metric_free(metric_t *metric_p);
  */
 void destroy_metrics_list(metrics_list_t *metrics_list_p);
 
+/* identity_create allocates and returns a new identity. Returns NULL in case
+ * of an out-of-memory situation or if name is NULL. */
+identity_t *identity_create(char const *name);
+
 /*
  * NAME
- * create_identity
+ * identity_create_legacy
  *
  * DESCRIPTION
 
@@ -436,16 +440,16 @@ void destroy_metrics_list(metrics_list_t *metrics_list_p);
  * An identity_t object created with the provided data.
  *
  */
-identity_t *create_identity(const char *plugin_p, const char *type_p,
-                            const char *ds_name_p, const char *host_p);
+identity_t *identity_create_legacy(const char *plugin_p, const char *type_p,
+                                   const char *ds_name_p, const char *host_p);
 
 /*
  * NAME
- * clone_identity
+ * identity_clone
  *
  * DESCRIPTION
  * This function takes a pointer to a identity object, and clones it. The caller
- * has the ownership of the allocated memory, and should call destroy_identity
+ * has the ownership of the allocated memory, and should call identity_destroy
  * when done with the object.
  *
  * ARGUMENTS
@@ -454,7 +458,7 @@ identity_t *create_identity(const char *plugin_p, const char *type_p,
  * RETURNS
  * An identity_t object which is cloned from the argument.
  */
-identity_t *clone_identity(identity_t const *identity_orig);
+identity_t *identity_clone(identity_t const *identity_orig);
 
 /*
  * NAME
@@ -487,18 +491,15 @@ int identity_add_label(identity_t *identity_p, const char *label_p,
  * for, and pointers to the key and value.
  *
  * ARGUMENTS
- *  `identity_p'  Pointer to an identity object
- *   ’label_p’    Pointer to a label to look up
- *   ’key_p’      Pointer to Pointer to a string which will contain the label
- *                key.
- *   ’val_p’      Pointer to Pointer to a string which will contain the label
+ *  `id'          Pointer to an identity object
+ *  `key’         Pointer to a label to look up
+ *  `ret_value’   Pointer to Pointer to a string which will contain the label
  *                value.
  *
  * RETURNS
  * Zero on success
  */
-int identity_get_label(identity_t *identity_p, const char *label_p,
-                       char **key_p, char **val_p);
+int identity_get_label(identity_t *id, char const *key, char **ret_value);
 
 /*
  * NAME
@@ -521,7 +522,7 @@ int identity_delete_label(identity_t *identity_p, const char *label_p);
 
 /*
  * NAME
- * destroy_identity
+ * identity_destroy
  *
  * DESCRIPTION
  * This function takes a pointer to a identity key-value label sore,
@@ -532,7 +533,7 @@ int identity_delete_label(identity_t *identity_p, const char *label_p);
  *             reclaim memory from.
  *
  */
-void destroy_identity(identity_t *identity);
+void identity_destroy(identity_t *identity);
 
 /*
  * NAME
