@@ -248,21 +248,3 @@ int plugin_thread_create(__attribute__((unused)) pthread_t *thread,
  * would be to hard-code the top-level config keys in daemon/collectd.c to avoid
  * having these references in daemon/configfile.c. */
 int fc_configure(const oconfig_item_t *ci) { return ENOTSUP; }
-
-int plugin_convert_values_to_metrics(__attribute__((unused))
-                                     value_list_t const *vl,
-                                     __attribute__((unused))
-                                     metrics_list_t **ml) {
-  return ENOTSUP;
-}
-
-void destroy_metrics_list(metrics_list_t *ml) {
-  while (ml != NULL) {
-    identity_destroy(ml->metric.identity);
-    meta_data_destroy(ml->metric.meta);
-
-    metrics_list_t *next = ml->next_p;
-    free(ml);
-    ml = next;
-  }
-}
