@@ -292,7 +292,7 @@ static int ut_report_state(metric_single_t const *m, const threshold_t *th,
      * threshold is hit. */
     if (((state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0)) ||
         (hits > th->hits)) {
-      DEBUG("ut_report_state: reset uc_get_hits_vl = 0");
+      DEBUG("ut_report_state: reset uc_get_hits = 0");
       uc_set_hits(m, 0); /* reset hit counter and notify */
     } else {
       DEBUG("ut_report_state: th->hits = %d, uc_get_hits = %d", th->hits,
