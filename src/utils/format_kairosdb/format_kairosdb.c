@@ -218,7 +218,7 @@ int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
   BUFFER_ADD("%s\",", metric_p->identity->name);
 
   BUFFER_ADD("\"datapoints\":");
-  if (metric_p->value_ds_type == DS_TYPE_GAUGE) {
+  if (metric_p->value_type == DS_TYPE_GAUGE) {
     if (isfinite(metric_p->value.gauge))
       BUFFER_ADD(JSON_GAUGE_FORMAT, metric_p->value.gauge);
     else
@@ -236,14 +236,14 @@ int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
       BUFFER_ADD(JSON_GAUGE_FORMAT, rate);
     else
       BUFFER_ADD("null");
-  } else if (metric_p->value_ds_type == DS_TYPE_COUNTER)
+  } else if (metric_p->value_type == DS_TYPE_COUNTER)
     BUFFER_ADD("%" PRIu64, (uint64_t)metric_p->value.counter);
-  else if (metric_p->value_ds_type == DS_TYPE_DERIVE)
+  else if (metric_p->value_type == DS_TYPE_DERIVE)
     BUFFER_ADD("%" PRIi64, metric_p->value.derive);
-  else if (metric_p->value_ds_type == DS_TYPE_ABSOLUTE)
+  else if (metric_p->value_type == DS_TYPE_ABSOLUTE)
     BUFFER_ADD("%" PRIu64, metric_p->value.absolute);
   else {
-    ERROR("format_json: Unknown data source type: %i", metric_p->value_ds_type);
+    ERROR("format_json: Unknown data source type: %i", metric_p->value_type);
     buffer_p[*ret_buffer_fill] = '0';
     return -1;
   }
@@ -260,7 +260,7 @@ int format_kairosdb_metric(char *buffer_p, size_t *ret_buffer_fill, /* {{{ */
   BUFFER_ADD_KEYVAL("plugin", metric_p->plugin);
   BUFFER_ADD_KEYVAL("type", metric_p->type);
   BUFFER_ADD_KEYVAL("dsname", metric_p->ds->name);
-  BUFFER_ADD_KEYVAL("dstype", DS_TYPE_TO_STRING(metric_p->value_ds_type));
+  BUFFER_ADD_KEYVAL("dstype", DS_TYPE_TO_STRING(metric_p->value_type));
   for (size_t j = 0; j < http_attrs_num; j += 2) {
     BUFFER_ADD(", \"%s\":", http_attrs[j]);
     BUFFER_ADD(" \"%s\"", http_attrs[j + 1]);
