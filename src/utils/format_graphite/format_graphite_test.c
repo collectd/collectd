@@ -54,8 +54,7 @@ DEF_TEST(metric_name) {
           .values = (char const *[]){"second", "first"},
           .value = (value_t){.counter = 0},
           .type = METRIC_TYPE_COUNTER,
-          .want =
-              "test_with_label.alpha=first.beta=second 0 1592748157\r\n",
+          .want = "test_with_label.alpha=first.beta=second 0 1592748157\r\n",
       },
       {
           .name = "separate_instances_test",
@@ -65,7 +64,8 @@ DEF_TEST(metric_name) {
           .value = (value_t){.counter = 0},
           .type = METRIC_TYPE_COUNTER,
           .flags = GRAPHITE_SEPARATE_INSTANCES,
-          .want = "separate_instances_test.alpha.first.beta.second 0 1592748157\r\n",
+          .want = "separate_instances_test.alpha.first.beta.second 0 "
+                  "1592748157\r\n",
       },
       {
           .name = "escaped:metric_name",
