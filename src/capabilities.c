@@ -33,6 +33,11 @@
 #include "utils/dmi/dmi.h"
 
 #include <microhttpd.h>
+#if MHD_VERSION >= 0x00097002
+#define MHD_RESULT enum MHD_Result
+#else
+#define MHD_RESULT int
+#endif
 
 #include <jansson.h>
 #include <netdb.h>
@@ -187,7 +192,7 @@ static int cap_get_dmi_variables(json_t *parent, const dmi_type type,
 
 /* http_handler is the callback called by the microhttpd library. It essentially
  * handles all HTTP request aspects and creates an HTTP response. */
-static int cap_http_handler(void *cls, struct MHD_Connection *connection,
+static MHD_RESULT cap_http_handler(void *cls, struct MHD_Connection *connection,
                             const char *url, const char *method,
                             const char *version, const char *upload_data,
                             size_t *upload_data_size, void **connection_state) {
