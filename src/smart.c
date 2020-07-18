@@ -24,6 +24,7 @@
  *   Vincent Bernat <vbe at exoscale.ch>
  *   Maciej Fijalkowski <maciej.fijalkowski@intel.com>
  *   Bartlomiej Kotlowski <bartlomiej.kotlowski@intel.com>
+ *   Slawomir Strehlau <slawomir.strehlau@intel.com>
  **/
 
 #include "collectd.h"
@@ -234,8 +235,8 @@ static inline double int48_to_double(__u8 *data) {
 }
 
 /**
- * There is a bunch of metrics that are 16 bytes long and the need to be
- * converted onto the single double value, so they can be dispatched
+ * There is a bunch of metrics that are 16 bytes long and need to be
+ * converted into single double value, so they can be dispatched
  */
 #define NVME_METRIC_16B(metric)                                                \
   { "nvme_" #metric, offsetof(union nvme_smart_log, data.metric), "" }
