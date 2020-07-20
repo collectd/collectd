@@ -92,7 +92,7 @@ DEF_TEST(success) {
 
   /* Key already exists. */
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++)
-    EXPECT_EQ_INT(1, c_avl_insert(t, cases[i].key, cases[i].value));
+    EXPECT_EQ_INT(EEXIST, c_avl_insert(t, cases[i].key, cases[i].value));
 
   /* get */
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {

@@ -137,17 +137,26 @@ int c_avl_get(c_avl_tree_t *t, const void *key, void **value);
  *
  * PARAMETERS
  *   `t'	AVL-tree to get the value from.
- *   `key'      Pointer to a pointer in which to store the key.
- *   `value'    Pointer to a pointer in which to store the value.
+ *   `key'      Pointer to a pointer in which to store the key. Either key or
+ *              value, but not both, may be NULL.
+ *   `value'    Pointer to a pointer in which to store the value. Either key or
+ *              value, but not both, may be NULL.
  *
  * RETURN VALUE
- *   Zero upon success or non-zero if the tree is empty or key or value is
- *   NULL.
+ *   Zero upon success. EOF if the tree is empty. EINVAL if t or key are NULL.
  */
 int c_avl_pick(c_avl_tree_t *t, void **key, void **value);
 
 c_avl_iterator_t *c_avl_get_iterator(c_avl_tree_t *t);
+
+/* c_avl_iterator_next returns the next key/value in the tree. Either key or
+ * value, but not both, may be NULL. Returns zero on success or EOF if there are
+ * no more nodes in the tree. */
 int c_avl_iterator_next(c_avl_iterator_t *iter, void **key, void **value);
+
+/* c_avl_iterator_prev returns the previous key/value in the tree. Either key or
+ * value, but not both, may be NULL. Returns zero on success or EOF if there are
+ * no more nodes in the tree. */
 int c_avl_iterator_prev(c_avl_iterator_t *iter, void **key, void **value);
 void c_avl_iterator_destroy(c_avl_iterator_t *iter);
 

@@ -25,6 +25,8 @@
  **/
 
 #include <assert.h>
+#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "utils/avltree/avltree.h"
@@ -324,7 +326,7 @@ static c_avl_node_t *c_avl_node_prev(c_avl_node_t *n) {
   return r;
 } /* c_avl_node_t *c_avl_node_prev */
 
-static int _remove(c_avl_tree_t *t, c_avl_node_t *n) {
+static void _remove(c_avl_tree_t *t, c_avl_node_t *n) {
   assert((t != NULL) && (n != NULL));
 
   if ((n->left != NULL) && (n->right != NULL)) {
@@ -408,8 +410,6 @@ static int _remove(c_avl_tree_t *t, c_avl_node_t *n) {
   } else {
     assert(0);
   }
-
-  return 0;
 } /* void *_remove */
 
 /*
@@ -444,7 +444,7 @@ int c_avl_insert(c_avl_tree_t *t, void *key, void *value) {
   int cmp;
 
   if ((new = malloc(sizeof(*new))) == NULL)
-    return -1;
+    return ENOMEM;
 
   new->key = key;
   new->value = value;
@@ -464,7 +464,7 @@ int c_avl_insert(c_avl_tree_t *t, void *key, void *value) {
     cmp = t->compare(nptr->key, new->key);
     if (cmp == 0) {
       free_node(new);
-      return 1;
+      return EEXIST;
     } else if (cmp < 0) {
       /* nptr < new */
       if (nptr->right == NULL) {
@@ -495,24 +495,23 @@ int c_avl_insert(c_avl_tree_t *t, void *key, void *value) {
 } /* int c_avl_insert */
 
 int c_avl_remove(c_avl_tree_t *t, const void *key, void **rkey, void **rvalue) {
-  c_avl_node_t *n;
-  int status;
+  if ((t == NULL) || (key == NULL)) {
+    return EINVAL;
+  }
 
-  assert(t != NULL);
-
-  n = search(t, key);
+  c_avl_node_t *n = search(t, key);
   if (n == NULL)
-    return -1;
+    return ENOENT;
 
   if (rkey != NULL)
     *rkey = n->key;
   if (rvalue != NULL)
     *rvalue = n->value;
 
-  status = _remove(t, n);
+  _remove(t, n);
   verify_tree(t->root);
   --t->size;
-  return status;
+  return 0;
 } /* void *c_avl_remove */
 
 int c_avl_get(c_avl_tree_t *t, const void *key, void **value) {
@@ -522,7 +521,7 @@ int c_avl_get(c_avl_tree_t *t, const void *key, void **value) {
 
   n = search(t, key);
   if (n == NULL)
-    return -1;
+    return ENOENT;
 
   if (value != NULL)
     *value = n->value;
@@ -531,17 +530,15 @@ int c_avl_get(c_avl_tree_t *t, const void *key, void **value) {
 }
 
 int c_avl_pick(c_avl_tree_t *t, void **key, void **value) {
-  c_avl_node_t *n;
-  c_avl_node_t *p;
+  if ((t == NULL) || ((key == NULL) && (value == NULL))) {
+    return EINVAL;
+  }
 
-  assert(t != NULL);
+  if (t->root == NULL) {
+    return EOF;
+  }
 
-  if ((key == NULL) || (value == NULL))
-    return -1;
-  if (t->root == NULL)
-    return -1;
-
-  n = t->root;
+  c_avl_node_t *n = t->root;
   while ((n->left != NULL) || (n->right != NULL)) {
     if (n->left == NULL) {
       n = n->right;
@@ -557,7 +554,7 @@ int c_avl_pick(c_avl_tree_t *t, void **key, void **value) {
       n = n->right;
   }
 
-  p = n->parent;
+  c_avl_node_t *p = n->parent;
   if (p == NULL)
     t->root = NULL;
   else if (p->left == n)
@@ -565,8 +562,12 @@ int c_avl_pick(c_avl_tree_t *t, void **key, void **value) {
   else
     p->right = NULL;
 
-  *key = n->key;
-  *value = n->value;
+  if (key != NULL) {
+    *key = n->key;
+  }
+  if (value != NULL) {
+    *value = n->value;
+  }
 
   free_node(n);
   --t->size;
@@ -578,8 +579,10 @@ int c_avl_pick(c_avl_tree_t *t, void **key, void **value) {
 c_avl_iterator_t *c_avl_get_iterator(c_avl_tree_t *t) {
   c_avl_iterator_t *iter;
 
-  if (t == NULL)
+  if (t == NULL) {
+    errno = EINVAL;
     return NULL;
+  }
 
   iter = calloc(1, sizeof(*iter));
   if (iter == NULL)
@@ -590,11 +593,11 @@ c_avl_iterator_t *c_avl_get_iterator(c_avl_tree_t *t) {
 } /* c_avl_iterator_t *c_avl_get_iterator */
 
 int c_avl_iterator_next(c_avl_iterator_t *iter, void **key, void **value) {
-  c_avl_node_t *n;
+  if ((iter == NULL) || ((key == NULL) && (value == NULL))) {
+    return EINVAL;
+  }
 
-  if ((iter == NULL) || (key == NULL) || (value == NULL))
-    return -1;
-
+  c_avl_node_t *n = NULL;
   if (iter->node == NULL) {
     for (n = iter->tree->root; n != NULL; n = n->left)
       if (n->left == NULL)
@@ -604,22 +607,27 @@ int c_avl_iterator_next(c_avl_iterator_t *iter, void **key, void **value) {
     n = c_avl_node_next(iter->node);
   }
 
-  if (n == NULL)
-    return -1;
+  if (n == NULL) {
+    return EOF;
+  }
 
   iter->node = n;
-  *key = n->key;
-  *value = n->value;
+  if (key != NULL) {
+    *key = n->key;
+  }
+  if (value != NULL) {
+    *value = n->value;
+  }
 
   return 0;
 } /* int c_avl_iterator_next */
 
 int c_avl_iterator_prev(c_avl_iterator_t *iter, void **key, void **value) {
-  c_avl_node_t *n;
+  if ((iter == NULL) || ((key == NULL) && (value == NULL))) {
+    return EINVAL;
+  }
 
-  if ((iter == NULL) || (key == NULL) || (value == NULL))
-    return -1;
-
+  c_avl_node_t *n = NULL;
   if (iter->node == NULL) {
     for (n = iter->tree->root; n != NULL; n = n->right)
       if (n->right == NULL)
@@ -629,12 +637,17 @@ int c_avl_iterator_prev(c_avl_iterator_t *iter, void **key, void **value) {
     n = c_avl_node_prev(iter->node);
   }
 
-  if (n == NULL)
-    return -1;
+  if (n == NULL) {
+    return EOF;
+  }
 
   iter->node = n;
-  *key = n->key;
-  *value = n->value;
+  if (key != NULL) {
+    *key = n->key;
+  }
+  if (value != NULL) {
+    *value = n->value;
+  }
 
   return 0;
 } /* int c_avl_iterator_prev */
