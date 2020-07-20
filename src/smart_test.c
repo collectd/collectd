@@ -41,7 +41,7 @@ int ioctl(int __fd, unsigned long int __request, ...) {
   va_start(valist, __request);
   struct nvme_admin_cmd *admin_cmd = va_arg(valist, struct nvme_admin_cmd *);
   va_end(valist);
-  void *addr = (void *)admin_cmd->addr;
+  void *addr = (void *)(unsigned long)admin_cmd->addr;
 
   if (admin_cmd->opcode == NVME_ADMIN_IDENTIFY) {
     // ioctl asked about vid
