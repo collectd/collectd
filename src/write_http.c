@@ -26,7 +26,7 @@
 #include "collectd.h"
 
 #include "plugin.h"
-#include "utils/cmds/putval.h"
+#include "utils/cmds/putmetric.h"
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
 #include "utils/format_json/format_json.h"
@@ -336,9 +336,9 @@ static int wh_write_command(metric_family_t const *fam, wh_callback_t *cb) {
   for (size_t i = 0; i < fam->metric.num; i++) {
     metric_t const *m = fam->metric.ptr;
 
-    int status = cmd_create_putval(&cb->send_buffer, m);
+    int status = cmd_format_putmetric(&cb->send_buffer, m);
     if (status != 0) {
-      ERROR("write_http plugin: cmd_create_putval failed: %s",
+      ERROR("write_http plugin: cmd_format_putmetric failed: %s",
             STRERROR(status));
       ret = ret ? ret : status;
       continue;
