@@ -932,71 +932,90 @@ int format_values(strbuf_t *buf, metric_t const *m, bool store_rates) {
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
                      char **ret_type, char **ret_data_source,
                      char *default_host) {
-  char *hostname = NULL;
-  char *plugin = NULL;
-  char *type = NULL;
-  char *data_source = NULL;
+  char *fields[5];
+  size_t fields_num = 0;
 
-  hostname = str;
-  if (hostname == NULL)
-    return -1;
+  do {
+    fields[fields_num] = str;
+    fields_num++;
 
-  plugin = strchr(hostname, '/');
-  if (plugin == NULL)
-    return -1;
-  *plugin = '\0';
-  plugin++;
+    char *ptr = strchr(str, '/');
+    if (ptr == NULL) {
+      break;
+    }
 
-  type = strchr(plugin, '/');
-  if (type == NULL)
-    return -1;
-  *type = '\0';
-  type++;
+    *ptr = 0;
+    str = ptr + 1;
+  } while (fields_num < STATIC_ARRAY_SIZE(fields));
 
-  data_source = strchr(type, '/');
-  if (data_source == NULL) {
-    if (default_host == NULL)
-      return -1;
-    /* else: no host specified; use default */
-    data_source = type;
-    type = plugin;
-    plugin = hostname;
-    hostname = default_host;
-  } else {
-    *data_source = '\0';
-    data_source++;
+  switch (fields_num) {
+  case 4:
+    *ret_data_source = fields[3];
+    /* fall-through */
+  case 3:
+    *ret_type = fields[2];
+    *ret_plugin = fields[1];
+    *ret_host = fields[0];
+    break;
+  case 2:
+    if ((default_host == NULL) || (strlen(default_host) == 0)) {
+      return EINVAL;
+    }
+    *ret_type = fields[1];
+    *ret_plugin = fields[0];
+    *ret_host = default_host;
+    break;
+  default:
+    return EINVAL;
   }
 
-  *ret_host = hostname;
-  *ret_plugin = plugin;
-  *ret_type = type;
-  *ret_data_source = data_source;
   return 0;
 } /* int parse_identifier */
 
 int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
 {
+  if ((str == NULL) || (vl == NULL))
+    return EINVAL;
+
   char str_copy[6 * DATA_MAX_NAME_LEN];
+  sstrncpy(str_copy, str, sizeof(str_copy));
+
+  char *default_host = NULL;
+  if (strlen(vl->host) != 0) {
+    default_host = vl->host;
+  }
+
   char *host = NULL;
   char *plugin = NULL;
   char *type = NULL;
   char *data_source = NULL;
-  int status;
-
-  if ((str == NULL) || (vl == NULL))
-    return EINVAL;
-
-  sstrncpy(str_copy, str, sizeof(str_copy));
-
-  status = parse_identifier(str_copy, &host, &plugin, &type, &data_source,
-                            /* default_host = */ NULL);
-  if (status != 0)
+  int status = parse_identifier(str_copy, &host, &plugin, &type, &data_source, default_host);
+  if (status != 0) {
     return status;
+  }
 
-  sstrncpy(vl->host, host, sizeof(vl->host));
+  char *plugin_instance = strchr(plugin, '-');
+  if (plugin_instance != NULL) {
+    *plugin_instance = 0;
+    plugin_instance++;
+  }
+  char *type_instance = strchr(type, '-');
+  if (type_instance != NULL) {
+    *type_instance = 0;
+    type_instance++;
+  }
+
+  if (host != vl->host) {
+    sstrncpy(vl->host, host, sizeof(vl->host));
+  }
   sstrncpy(vl->plugin, plugin, sizeof(vl->plugin));
-
+  if (plugin_instance != NULL) {
+    sstrncpy(vl->plugin_instance, plugin_instance, sizeof(vl->plugin_instance));
+  }
   sstrncpy(vl->type, type, sizeof(vl->type));
+  if (type_instance != NULL) {
+    sstrncpy(vl->type_instance, type_instance, sizeof(vl->type_instance));
+  }
 
   return 0;
 } /* }}} int parse_identifier_vl */
