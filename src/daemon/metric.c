@@ -50,7 +50,7 @@ int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   case METRIC_TYPE_COUNTER:
     return strbuf_printf(buf, "%" PRIu64, v.counter);
   default:
-    ERROR("Unknown metric value type: %d", type);
+    ERROR("Unknown metric value type: %d", (int)type);
     return EINVAL;
   }
 }

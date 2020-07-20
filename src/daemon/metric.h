@@ -90,7 +90,7 @@ typedef struct metric_family_s metric_family_t;
 
 /* metric_t is a metric inside a metric family. */
 typedef struct {
-  metric_family_t *family; /* for family->name and family->type */
+  metric_family_t *family; /* backreference for family->name and family->type */
 
   label_set_t label;
   value_t value;
@@ -100,9 +100,10 @@ typedef struct {
   meta_data_t *meta;
 } metric_t;
 
-/* metric_identity writes the identity of the metric "m" to "buf". An example
- * string is:
+/* metric_identity writes the identity of the metric "m" to "buf", using the
+ * OpenMetrics / Prometheus plain text exposition format.
  *
+ * Example:
  *   "http_requests_total{method=\"post\",code=\"200\"}"
  */
 int metric_identity(strbuf_t *buf, metric_t const *m);
