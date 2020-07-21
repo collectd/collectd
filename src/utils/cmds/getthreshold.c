@@ -74,9 +74,8 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     return -1;
   }
 
-  metric_family_t *fam =
-      metric_family_unmarshal_text(identifier, METRIC_TYPE_UNTYPED);
-  if (fam == NULL) {
+  metric_t *m = metric_parse_identity(identifier);
+  if (m == NULL) {
     print_to_socket(fh, "-1 Parsing metric identity failed: %s.\n", STRERRNO);
     return -1;
   }
@@ -84,7 +83,8 @@ int handle_getthreshold(FILE *fh, char *buffer) {
   threshold_t threshold = {
       .flags = 0,
   };
-  status = ut_search_threshold(fam->metric.ptr, &threshold);
+  status = ut_search_threshold(m, &threshold);
+  metric_family_free(m->family);
   if (status == ENOENT) {
     print_to_socket(fh, "-1 No threshold found for identifier %s\n",
                     identifier);
