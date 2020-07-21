@@ -120,6 +120,11 @@ typedef struct {
  */
 int metric_identity(strbuf_t *buf, metric_t const *m);
 
+/* metric_parse_identity parses "s" and returns a metric with only its identity
+ * set. On error, errno is set and NULL is returned. The returned memory must
+ * be freed by passing m->family to metric_family_free(). */
+metric_t *metric_parse_identity(char const *s);
+
 /* metric_list_t is an unordered list of metrics. */
 typedef struct {
   metric_t *ptr;
