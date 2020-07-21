@@ -243,15 +243,14 @@ int uc_check_timeout(void) {
    * without holding the lock, otherwise we will run into a deadlock if a
    * plugin calls the cache interface. */
   for (size_t i = 0; i < expired_num; i++) {
-    metric_family_t *fam =
-        metric_family_unmarshal_text(expired[i].key, METRIC_TYPE_UNTYPED);
-    if (fam == NULL) {
-      ERROR("uc_check_timeout: metric_family_unmarshal_text(\"%s\") failed: %s",
+    metric_t *m = metric_parse_identity(expired[i].key);
+    if (m == NULL) {
+      ERROR("uc_check_timeout: metric_parse_identity(\"%s\") failed: %s",
             expired[i].key, STRERRNO);
       continue;
     }
 
-    int status = plugin_dispatch_missing(fam);
+    int status = plugin_dispatch_missing(m->family);
     if (status != 0) {
       ERROR("uc_check_timeout: plugin_dispatch_missing(\"%s\") failed: %s",
             expired[i].key, STRERROR(status));
@@ -259,10 +258,10 @@ int uc_check_timeout(void) {
 
     if (expired[i].callbacks_mask) {
       plugin_dispatch_cache_event(CE_VALUE_EXPIRED, expired[i].callbacks_mask,
-                                  expired[i].key, fam->metric.ptr);
+                                  expired[i].key, m);
     }
 
-    metric_family_free(fam);
+    metric_family_free(m->family);
   } /* for (i = 0; i < expired_num; i++) */
 
   /* Now actually remove all the values from the cache. We don't re-evaluate
