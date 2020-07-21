@@ -78,17 +78,17 @@ static int smart_config(const char *key, const char *value) {
   if (ignorelist == NULL)
     return 1;
 
-  if (strncasecmp("Disk", key, 5) == 0) {
+  if (strcasecmp("Disk", key) == 0) {
     ignorelist_add(ignorelist, value);
-  } else if (strncasecmp("IgnoreSelected", key, 15) == 0) {
+  } else if (strcasecmp("IgnoreSelected", key) == 0) {
     invert_ignorelist = 1;
     if (IS_TRUE(value))
       invert_ignorelist = 0;
     ignorelist_set_invert(ignorelist, invert_ignorelist);
-  } else if (strncasecmp("IgnoreSleepMode", key, 16) == 0) {
+  } else if (strcasecmp("IgnoreSleepMode", key) == 0) {
     if (IS_TRUE(value))
       ignore_sleep_mode = 1;
-  } else if (strncasecmp("UseSerial", key, 10) == 0) {
+  } else if (strcasecmp("UseSerial", key) == 0) {
     if (IS_TRUE(value))
       use_serial = 1;
   } else {

@@ -8669,7 +8669,7 @@ time and bad sectors. Also, all SMART attributes are collected along
 with the normalized current value, the worst value, the threshold and
 a human readable value. The plugin can also collect SMART attributes 
 for NVMe disks (present in accordance with NVMe 1.4 spec) and Additional 
-SMART Attributes form Intel® NVMe disks.
+SMART Attributes from Intel® NVMe disks.
 
 Using the following two options you can ignore some disks or configure the
 collection only of specific disks.
