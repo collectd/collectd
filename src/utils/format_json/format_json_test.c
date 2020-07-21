@@ -227,23 +227,21 @@ DEF_TEST(metric_family) {
   };
 
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
-    metric_family_t *fam;
-    CHECK_NOT_NULL(
-        fam = metric_family_unmarshal_text(cases[i].identity, cases[i].type));
+    metric_t *m = NULL;
+    CHECK_NOT_NULL(m = metric_parse_identity(cases[i].identity));
 
-    metric_t *m = fam->metric.ptr;
-
+    m->family->type = cases[i].type;
     m->value = cases[i].value;
     m->time = cases[i].time;
     m->interval = cases[i].interval;
 
     strbuf_t buf = STRBUF_CREATE;
-    CHECK_ZERO(format_json_metric_family(&buf, fam, false));
+    CHECK_ZERO(format_json_metric_family(&buf, m->family, false));
 
     EXPECT_EQ_STR(cases[i].want, buf.ptr);
     STRBUF_DESTROY(buf);
 
-    metric_family_free(fam);
+    metric_family_free(m->family);
   }
 
   return 0;
