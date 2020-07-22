@@ -159,8 +159,11 @@ DEF_TEST(metric_name) {
         .type = "single",
     };
 
-    char want[1024];
-    ssnprintf(want, sizeof(want), "%s 42 1480063672\r\n", cases[i].want_name);
+    strbuf_t want = STRBUF_CREATE;
+    if (cases[i].want_name != NULL) {
+      strbuf_print(&want, cases[i].want_name);
+      strbuf_print(&want, " 42 1480063672\r\n");
+    }
 
     if (cases[i].plugin_instance != NULL)
       sstrncpy(vl.plugin_instance, cases[i].plugin_instance,
@@ -173,7 +176,8 @@ DEF_TEST(metric_name) {
     EXPECT_EQ_INT(0, format_graphite(got, sizeof(got), &ds_single, &vl,
                                      cases[i].prefix, cases[i].suffix, '@',
                                      cases[i].flags));
-    EXPECT_EQ_STR(want, got);
+    EXPECT_EQ_STR(want.ptr, got);
+    STRBUF_DESTROY(want);
   }
 
   return 0;

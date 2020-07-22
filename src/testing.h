@@ -72,12 +72,18 @@ static int check_count__;
   do {                                                                         \
     /* Evaluate 'actual' only once. */                                         \
     const char *got__ = actual;                                                \
-    if (strcmp(expect, got__) != 0) {                                          \
+    if ((expect == NULL) != (got__ == NULL)) {                                 \
+      printf("not ok %i - %s = \"%s\", want \"%s\"\n", ++check_count__,        \
+             #actual, got__ ? got__ : "(null)", expect ? expect : "(null)");   \
+      return -1;                                                               \
+    }                                                                          \
+    if ((expect != NULL) && (strcmp(expect, got__) != 0)) {                    \
       printf("not ok %i - %s = \"%s\", want \"%s\"\n", ++check_count__,        \
              #actual, got__, expect);                                          \
       return -1;                                                               \
     }                                                                          \
-    printf("ok %i - %s = \"%s\"\n", ++check_count__, #actual, got__);          \
+    printf("ok %i - %s = \"%s\"\n", ++check_count__, #actual,                  \
+           got__ ? got__ : "(null)");                                          \
   } while (0)
 
 #define EXPECT_EQ_INT(expect, actual)                                          \
@@ -136,7 +142,7 @@ static int check_count__;
 
 #define CHECK_NOT_NULL(expr)                                                   \
   do {                                                                         \
-    void *ptr_;                                                                \
+    void const *ptr_;                                                          \
     ptr_ = (expr);                                                             \
     OK1(ptr_ != NULL, #expr);                                                  \
   } while (0)

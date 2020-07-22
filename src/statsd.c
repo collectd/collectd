@@ -48,11 +48,15 @@
 #define STATSD_DEFAULT_SERVICE "8125"
 #endif
 
-enum metric_type_e { STATSD_COUNTER, STATSD_TIMER, STATSD_GAUGE, STATSD_SET };
-typedef enum metric_type_e metric_type_t;
+typedef enum statsd_metric_type_e {
+  STATSD_COUNTER,
+  STATSD_TIMER,
+  STATSD_GAUGE,
+  STATSD_SET,
+} statsd_metric_type_t;
 
 struct statsd_metric_s {
-  metric_type_t type;
+  statsd_metric_type_t type;
   double value;
   derive_t counter;
   latency_counter_t *latency;
@@ -87,7 +91,7 @@ static bool conf_timer_count;
 
 /* Must hold metrics_lock when calling this function. */
 static statsd_metric_t *statsd_metric_lookup_unsafe(char const *name, /* {{{ */
-                                                    metric_type_t type) {
+                                                    statsd_metric_type_t type) {
   char key[DATA_MAX_NAME_LEN + 2];
   char *key_copy;
   statsd_metric_t *metric;
@@ -146,7 +150,7 @@ static statsd_metric_t *statsd_metric_lookup_unsafe(char const *name, /* {{{ */
 } /* }}} statsd_metric_lookup_unsafe */
 
 static int statsd_metric_set(char const *name, double value, /* {{{ */
-                             metric_type_t type) {
+                             statsd_metric_type_t type) {
   statsd_metric_t *metric;
 
   pthread_mutex_lock(&metrics_lock);
@@ -166,7 +170,7 @@ static int statsd_metric_set(char const *name, double value, /* {{{ */
 } /* }}} int statsd_metric_set */
 
 static int statsd_metric_add(char const *name, double delta, /* {{{ */
-                             metric_type_t type) {
+                             statsd_metric_type_t type) {
   statsd_metric_t *metric;
 
   pthread_mutex_lock(&metrics_lock);
