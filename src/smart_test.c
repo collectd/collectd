@@ -24,41 +24,46 @@
  *
  * Authors:
  *   Bartlomiej Kotlowski <bartlomiej.kotlowski@intel.com>
+ *   Slawomir Strehlau <slawomir.strehlau@intel.com>
  **/
 
 #include "smart.c"
 #include "testing.h"
 
-int VENDOR_ID = 0x8086;
-char *CORRECT_DEV_PATH = "/dev/nvme0n1";
+#define INTEL_VID 0x8086
+
+int VENDOR_ID = INTEL_VID;
+const char *CORRECT_DEV_PATH = "/dev/nvme0n1";
+const char *INCORRECT_DEV_PATH = "dev/nvme0nXX";
 
 int ioctl(int __fd, unsigned long int __request, ...) {
   va_list valist;
   va_start(valist, __request);
   struct nvme_admin_cmd *admin_cmd = va_arg(valist, struct nvme_admin_cmd *);
+  va_end(valist);
+  void *addr = (void *)(unsigned long)admin_cmd->addr;
 
   if (admin_cmd->opcode == NVME_ADMIN_IDENTIFY) {
-    // icotl ask about vid
-    __le16 *vid = (__le16 *)admin_cmd->addr;
+    // ioctl asked about vid
+    __le16 *vid = (__le16 *)addr;
     *vid = VENDOR_ID;
     return 0;
   } else if (admin_cmd->opcode == NVME_ADMIN_GET_LOG_PAGE) {
-    // icotl ask about smart attributies
+    // ioctl asked about smart attributes
     if (admin_cmd->cdw10 == NVME_SMART_INTEL_CDW10) {
-      // set intel specyfic attrubiuties
+      // set intel specific attributes
       struct nvme_additional_smart_log *intel_smart_log =
-          (struct nvme_additional_smart_log *)admin_cmd->addr;
+          (struct nvme_additional_smart_log *)addr;
       intel_smart_log->program_fail_cnt.norm = 100;
       return 0;
     } else if (admin_cmd->cdw10 == NVME_SMART_CDW10) {
-      // set global smart attrubiuties
-      union nvme_smart_log *smart_log = (union nvme_smart_log *)admin_cmd->addr;
+      // set generic smart attributes
+      union nvme_smart_log *smart_log = (union nvme_smart_log *)addr;
       smart_log->data.critical_warning = 0;
       return 0;
     }
-    return -1; // no mock func
   }
-  return -1; // no mock func
+  return -1; // functionality not mocked
 };
 
 int open(const char *__path, int __oflag, ...) {
@@ -74,29 +79,24 @@ DEF_TEST(x) {
   ret = get_vendor_id(CORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(VENDOR_ID, ret);
 
-  VENDOR_ID = 0x144D;
+  VENDOR_ID = 0x0;
   ret = get_vendor_id(CORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(VENDOR_ID, ret);
-  VENDOR_ID = 0x8086;
+  VENDOR_ID = INTEL_VID;
 
-  // incorrect with DEV_PATH
-  ret = get_vendor_id("dev/nvme0nXX", "stub");
+  ret = get_vendor_id(INCORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(-1, ret);
 
   ret = smart_read_nvme_intel_disk(CORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(0, ret);
 
-  // incorrect with DEV_PATH
-  ret = smart_read_nvme_intel_disk("dev/nvme0nXX", "stub");
+  ret = smart_read_nvme_intel_disk(INCORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(-1, ret);
-
-  CORRECT_DEV_PATH = "dev/sda0";
 
   ret = smart_read_nvme_disk(CORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(0, ret);
 
-  // incorrect with DEV_PATH
-  ret = smart_read_nvme_disk("/dev/sdaXX", "stub");
+  ret = smart_read_nvme_disk(INCORRECT_DEV_PATH, "stub");
   EXPECT_EQ_INT(-1, ret);
 
   return 0;
