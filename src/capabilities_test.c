@@ -93,14 +93,14 @@ struct MHD_Response *MHD_create_response_from_data(size_t size, void *data,
   return mhd_res;
 }
 
-int MHD_add_response_header(struct MHD_Response *response, const char *header,
-                            const char *content) {
+MHD_RESULT MHD_add_response_header(struct MHD_Response *response,
+                                   const char *header, const char *content) {
   return 0;
 }
 
-int MHD_queue_response(struct MHD_Connection *connection,
-                       unsigned int status_code,
-                       struct MHD_Response *response) {
+MHD_RESULT MHD_queue_response(struct MHD_Connection *connection,
+                              unsigned int status_code,
+                              struct MHD_Response *response) {
   return MHD_HTTP_OK;
 }
 
