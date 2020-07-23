@@ -168,7 +168,7 @@ static int ib_read_port(const char *device, const char *port) {
                          &value) == 0)
     ib_submit(device, port, &value, 1, "ib_lid_mask_count", "");
   if (ib_read_value_file(device, port, "sm_lid", DS_TYPE_GAUGE, &value) == 0)
-    ib_submit(device, port, &value, 1, "ib_sm_lid", "");
+    ib_submit(device, port, &value, 1, "ib_lid", "sm");
   if (ib_read_value_file(device, port, "sm_sl", DS_TYPE_GAUGE, &value) == 0)
     ib_submit(device, port, &value, 1, "ib_sm_sl", "");
 
