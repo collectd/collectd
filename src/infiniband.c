@@ -151,24 +151,32 @@ static int ib_read_port(const char *device, const char *port) {
 
   /* PortInfo attributes */
 
+  // Port state (4 is "Active")
   if (ib_read_value_file_num_only(device, port, "state", DS_TYPE_GAUGE,
                                   &value) == 0)
     ib_submit(device, port, &value, 1, "ib_state", "");
+  // Port physical state (5 is "LinkUp")
   if (ib_read_value_file_num_only(device, port, "phys_state", DS_TYPE_GAUGE,
                                   &value) == 0)
     ib_submit(device, port, &value, 1, "ib_phys_state", "");
+  // Currently active extended link speed, in Gb/s
   if (ib_read_value_file_num_only(device, port, "rate", DS_TYPE_GAUGE,
                                   &value) == 0)
-    ib_submit(device, port, &value, 1, "ib_rate", ""); // units are Gb/s
+    ib_submit(device, port, &value, 1, "ib_rate", "");
+  // Supported capabilities of this port
   if (ib_read_value_file(device, port, "cap_mask", DS_TYPE_GAUGE, &value) == 0)
     ib_submit(device, port, &value, 1, "ib_cap_mask", "");
+  // The base LID (local identifier) of this port
   if (ib_read_value_file(device, port, "lid", DS_TYPE_GAUGE, &value) == 0)
     ib_submit(device, port, &value, 1, "ib_lid", "");
+  // The number of low order bits of the LID to mask (for multipath)
   if (ib_read_value_file(device, port, "lid_mask_count", DS_TYPE_GAUGE,
                          &value) == 0)
     ib_submit(device, port, &value, 1, "ib_lid_mask_count", "");
+  // The LID of the master SM (subnet manager) that is managing this port
   if (ib_read_value_file(device, port, "sm_lid", DS_TYPE_GAUGE, &value) == 0)
     ib_submit(device, port, &value, 1, "ib_lid", "sm");
+  // The administrative SL (service level) of the master SM that is managing this port
   if (ib_read_value_file(device, port, "sm_sl", DS_TYPE_GAUGE, &value) == 0)
     ib_submit(device, port, &value, 1, "ib_sm_sl", "");
 
