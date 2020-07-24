@@ -71,7 +71,7 @@ static struct nftnl_rule *setup_rule(uint8_t family, const char *table,
   nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
   return r;
-} /* setup_rule */
+} /* nftnl_rule setup_rule */
 
 static int parse_rule_udata_cb(const struct nftnl_udata *attr, void *data) {
   unsigned char *value = nftnl_udata_get(attr);
@@ -89,7 +89,7 @@ static int parse_rule_udata_cb(const struct nftnl_udata *attr, void *data) {
   }
   tb[type] = attr;
   return 0;
-} /* parse_rule_udata_cb */
+} /* int parse_rule_udata_cb */
 
 static char *nftnl_rule_get_comment(const struct nftnl_rule *nlr) {
   const struct nftnl_udata *tb[NFTNL_UDATA_RULE_MAX + 1] = {};
@@ -108,7 +108,7 @@ static char *nftnl_rule_get_comment(const struct nftnl_rule *nlr) {
     return NULL;
 
   return strdup(nftnl_udata_get(tb[NFTNL_UDATA_RULE_COMMENT]));
-} /* nftnl_rule_get_comment */
+} /* char *nftnl_rule_get_comment */
 
 static void submit(const char *table, const char *chain, char *comment,
                    uint64_t bts, uint64_t cnt) {
@@ -235,7 +235,7 @@ int nl_match_rules() {
   } /* for (i = 0 .. rule_count) */
 
   return num_failures;
-} /* int */
+} /* int nl_match_rules */
 
 static int nftables_config(const char *key, const char *value) {
 
@@ -352,7 +352,7 @@ static int nftables_shutdown(void) {
   free(rule_list);
 
   return 0;
-} /* nftables_shutdown */
+} /* int nftables_shutdown */
 
 void module_register(void) {
   plugin_register_config("nftables", nftables_config, config_keys,
