@@ -175,7 +175,7 @@ static int ib_read_port(const char *device, const char *port) {
     ib_submit(device, port, &value, 1, "ib_lid_mask_count", "");
   // The LID of the master SM (subnet manager) that is managing this port
   if (ib_read_value_file(device, port, "sm_lid", DS_TYPE_GAUGE, &value) == 0)
-    ib_submit(device, port, &value, 1, "ib_lid", "sm");
+    ib_submit(device, port, &value, 1, "ib_sm_lid", "");
   // The administrative SL (service level) of the master SM that is managing
   //    this port
   if (ib_read_value_file(device, port, "sm_sl", DS_TYPE_GAUGE, &value) == 0)

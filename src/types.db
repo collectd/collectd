@@ -123,6 +123,7 @@ ib_octets               rx:DERIVE:0:U tx:DERIVE:0:U
 ib_packets              rx:DERIVE:0:U tx:DERIVE:0:U
 ib_phys_state           value:GAUGE:0:15
 ib_rate                 value:GAUGE:0:U
+ib_sm_lid               value:GAUGE:0:32767
 ib_sm_sl                value:GAUGE:0:15
 ib_state                value:GAUGE:0:15
 ib_xmit_wait            value:DERIVE:0:U
