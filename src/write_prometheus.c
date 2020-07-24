@@ -57,7 +57,6 @@
 #define MHD_RESULT int
 #endif
 
-
 static c_avl_tree_t *metrics;
 static pthread_mutex_t metrics_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -235,9 +234,10 @@ static void format_text(ProtobufCBuffer *buffer) {
 /* http_handler is the callback called by the microhttpd library. It essentially
  * handles all HTTP request aspects and creates an HTTP response. */
 static MHD_RESULT http_handler(void *cls, struct MHD_Connection *connection,
-                        const char *url, const char *method,
-                        const char *version, const char *upload_data,
-                        size_t *upload_data_size, void **connection_state) {
+                               const char *url, const char *method,
+                               const char *version, const char *upload_data,
+                               size_t *upload_data_size,
+                               void **connection_state) {
   if (strcmp(method, MHD_HTTP_METHOD_GET) != 0) {
     return MHD_NO;
   }
