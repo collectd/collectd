@@ -168,7 +168,7 @@ static int table_cb(const struct nlmsghdr *nlh, void *data) {
   }
 
   if (nftnl_rule_nlmsg_parse(nlh, t) < 0) {
-    perror("nftnl_rule_nlmsg_parse");
+    ERROR("nftables plugin: Error parsing nlmsghdr");
     goto err_free;
   }
 
