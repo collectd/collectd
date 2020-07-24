@@ -54,9 +54,8 @@ static struct mnl_socket *nl;
 static uint32_t portid;
 
 static struct nftnl_rule *setup_rule(uint8_t family, const char *table,
-                                     const char *chain, const char *handle) {
+                                     const char *chain) {
   struct nftnl_rule *r;
-  uint64_t handle_num;
 
   r = nftnl_rule_alloc();
   if (r == NULL) {
@@ -70,12 +69,6 @@ static struct nftnl_rule *setup_rule(uint8_t family, const char *table,
     nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
 
   nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
-
-  /* TODO: handle is not supported in plugin yet */
-  if (handle != NULL) {
-    handle_num = atoll(handle);
-    nftnl_rule_set_u64(r, NFTNL_RULE_POSITION, handle_num);
-  }
 
   return r;
 } /* setup_rule */
@@ -149,7 +142,6 @@ static int submit_cb(struct nftnl_expr *e, void *data) {
   const char *table = nftnl_rule_get_str(r, NFTNL_RULE_TABLE);
   const char *chain = nftnl_rule_get_str(r, NFTNL_RULE_CHAIN);
   char *comment = nftnl_rule_get_comment(r);
-  /* const uint64_t handle = nftnl_rule_get_u64(r, NFTNL_RULE_HANDLE); */
 
   if (strcmp(name, "counter") == 0) {
     count = nftnl_expr_get_u64(e, NFTNL_EXPR_CTR_PACKETS);
