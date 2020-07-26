@@ -158,8 +158,8 @@ static int submit_cb(struct nftnl_expr *e, void *data) {
 
 static int table_cb(const struct nlmsghdr *nlh, void *data) {
   struct nftnl_rule *t;
-  char *comment = (char *)data;
-  char *t_comment = NULL;
+  char *filter_comment = (char *)data; /* config filter comment */
+  char *udata_comment = NULL;   /* rule userdata comment */
 
   t = nftnl_rule_alloc();
   if (t == NULL) {
@@ -172,20 +172,19 @@ static int table_cb(const struct nlmsghdr *nlh, void *data) {
     goto err_free;
   }
 
-  t_comment = nftnl_rule_get_comment(t);
+  udata_comment = nftnl_rule_get_comment(t);
   plugin_log(LOG_NOTICE, "table_cb | filter_comment: %s rule_comment: %s",
-             comment, t_comment);
-  if (strlen(comment) > 0) {
-    if (t_comment && strcmp(t_comment, comment) == 0) {
+             filter_comment, udata_comment);
+  if (strlen(filter_comment) > 0) {
+    if (udata_comment && strcmp(udata_comment, filter_comment) == 0) {
       nftnl_expr_foreach(t, submit_cb, t);
     }
-  } else if (t_comment) {
+  } else if (udata_comment) {
     nftnl_expr_foreach(t, submit_cb, t);
   }
 
 err_free:
-  if (t_comment)
-    free(t_comment);
+  free(udata_comment);
   nftnl_rule_free(t);
 err:
   return MNL_CB_OK;
