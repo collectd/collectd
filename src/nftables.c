@@ -209,7 +209,7 @@ int nl_match_rules() {
     nlh = nftnl_rule_nlmsg_build_hdr(buf, NFT_MSG_GETRULE, family, NLM_F_DUMP,
                                      seq);
 
-    r = setup_rule(family, table, chain, NULL);
+    r = setup_rule(family, table, chain);
 
     if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
       ERROR("nftables plugin: Error sending to mnl socket");
