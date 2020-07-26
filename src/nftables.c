@@ -159,7 +159,7 @@ static int submit_cb(struct nftnl_expr *e, void *data) {
 static int table_cb(const struct nlmsghdr *nlh, void *data) {
   struct nftnl_rule *t;
   char *filter_comment = (char *)data; /* config filter comment */
-  char *udata_comment = NULL;   /* rule userdata comment */
+  char *udata_comment = NULL;          /* rule userdata comment */
 
   t = nftnl_rule_alloc();
   if (t == NULL) {
