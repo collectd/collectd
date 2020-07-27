@@ -49,6 +49,22 @@ void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, size_t 
   d->tree[node_index] = merge_buckets(d->tree[left_child], d->tree[right_child]);
 }
 
+distribution_t* build_distribution_from_bucket_array(size_t num_buckets, bucket_t *bucket_array) {
+  distribution_t *new_distribution = calloc(1, sizeof(distribution_t));
+  if (new_distribution == NULL)
+    return NULL;
+  new_distribution->tree = calloc(2 * num_buckets - 1, sizeof(bucket_t));
+  if (new_distribution->tree == NULL) {
+    free (new_distribution);
+    return NULL;
+  }
+
+  new_distribution->num_buckets = num_buckets;
+  build_tree(new_distribution, bucket_array, 0, 0, num_buckets - 1);
+  free(bucket_array);
+  return new_distribution;
+}
+
 distribution_t* distribution_new_linear(size_t num_buckets, double size) {
   if (num_buckets == 0 || size <= 0) {
     errno = EINVAL;
@@ -66,20 +82,7 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
     else
       bucket_array[i].maximum = (i + 1) * size;
   }
-
-  distribution_t *new_distribution = calloc(1, sizeof(distribution_t));
-  if (new_distribution == NULL)
-    return NULL;
-  new_distribution->tree = calloc(2 * num_buckets - 1, sizeof(bucket_t));
-  if (new_distribution->tree == NULL) {
-    free (new_distribution);
-    return NULL;
-  }
-
-  new_distribution->num_buckets = num_buckets;
-  build_tree(new_distribution, bucket_array, 0, 0, num_buckets - 1);
-  free(bucket_array);
-  return new_distribution;
+  return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
 void distribution_destroy(distribution_t *d) {
