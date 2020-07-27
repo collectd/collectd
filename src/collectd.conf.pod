@@ -3710,6 +3710,39 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<infiniband>
+
+The C<infiniband> plugin collects information about IB ports. Metrics are
+gathered from C</sys/class/infiniband/DEVICE/port/PORTNUM/*>, and I<Port> names
+are formatted like C<DEVICE:PORTNUM> (see examples below).
+
+B<Options:>
+
+=over 4
+
+=item B<Port> I<Port>
+
+Select the port I<Port>. Whether it is collected or ignored depends on the
+B<IgnoreSelected> setting, see below. As with other plugins that use the
+daemon's ignorelist functionality, a string that starts and ends with a slash
+is interpreted as a regular expression. Examples:
+
+  Port "mlx5_0:1"
+  Port "/mthca0:[0-9]/"
+
+See F</"IGNORELISTS"> for details.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+Sets whether selected ports are ignored or if all other ports are ignored. The
+behavior (hopefully) is intuitive: If no B<Port> option is configured, all
+ports are collected. If at least one B<Port> option is given and
+B<IgnoreSelected> is not given or set to I<false>, B<only> matching ports will
+be collected. If B<IgnoreSelected> is set to B<true>, all ports are collected
+B<except> the ones matched.
+
+=back
+
 =head2 Plugin C<intel_pmu>
 
 The I<intel_pmu> plugin collects performance counters data on Intel CPUs using

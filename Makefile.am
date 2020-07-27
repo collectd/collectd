@@ -1131,6 +1131,12 @@ hugepages_la_SOURCES = src/hugepages.c
 hugepages_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_INFINIBAND
+pkglib_LTLIBRARIES += infiniband.la
+infiniband_la_SOURCES = src/infiniband.c
+infiniband_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_INTEL_PMU
 pkglib_LTLIBRARIES += intel_pmu.la
 intel_pmu_la_SOURCES = \
