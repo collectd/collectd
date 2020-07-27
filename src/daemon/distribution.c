@@ -3,9 +3,10 @@
 //
 
 #include "distribution.h"
-#include <stdio.h>
+
 #include <errno.h>
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 typedef struct bucket_s {
@@ -160,11 +161,38 @@ distribution_t* distribution_clone(distribution_t *dist) {
   return new_distribution;
 }
 
+void update_tree(distribution_t *dist, size_t node_index, size_t left, size_t right, double gauge) {
+  if (left > right)
+    return;
+  if (left == right) {
+    dist->tree[node_index].bucket_counter++;
+    return;
+  }
+  size_t mid = (left + right) / 2;
+  size_t left_child = left_child_index(node_index, left, right);
+  size_t right_child = right_child_index(node_index, left, right);
+  if (dist->tree[left_child].maximum > gauge)
+    update_tree(dist, left_child, left, mid, gauge);
+  else
+    update_tree(dist, right_child, mid + 1, right, gauge);
+  dist->tree[node_index] = merge_buckets(dist->tree[left_child], dist->tree[right_child]);
+}
+
+void distribution_update(distribution_t *dist, double gauge) {
+  if (dist == NULL)
+    return;
+  update_tree(dist, 0, 0, dist->num_buckets - 1, gauge);
+}
+
 int main() {
   double a[] = {3.0, 2.7, 1.0};
   distribution_t *p = distribution_new_custom(3, a);
+  distribution_update(p, 2);
+  distribution_update(p, 5);
+  distribution_update(p, 7.5);
+  distribution_update(p, 3.1);
   for (size_t i = 0; i < 7; i++) {
-    printf("%f %f\n", p->tree[i].minimum, p->tree[i].maximum);
+    printf("%f %f %llu\n", p->tree[i].minimum, p->tree[i].maximum, p->tree[i].bucket_counter);
   }
   distribution_destroy(p);
 }
