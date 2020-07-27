@@ -51,17 +51,17 @@ void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, size_t 
 
 distribution_t* build_distribution_from_bucket_array(size_t num_buckets, bucket_t *bucket_array) {
   distribution_t *new_distribution = calloc(1, sizeof(distribution_t));
-  if (new_distribution == NULL)
+  if (new_distribution == NULL) {
     return NULL;
+  }
   new_distribution->tree = calloc(2 * num_buckets - 1, sizeof(bucket_t));
   if (new_distribution->tree == NULL) {
-    free (new_distribution);
+    free(new_distribution);
     return NULL;
   }
 
   new_distribution->num_buckets = num_buckets;
   build_tree(new_distribution, bucket_array, 0, 0, num_buckets - 1);
-  free(bucket_array);
   return new_distribution;
 }
 
@@ -82,7 +82,10 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
     else
       bucket_array[i].maximum = (i + 1) * size;
   }
-  return build_distribution_from_bucket_array(num_buckets, bucket_array);
+
+  distribution_t *new_distribution = build_distribution_from_bucket_array(num_buckets, bucket_array);
+  free(bucket_array);
+  return new_distribution;
 }
 
 distribution_t* distribution_new_exponential(size_t num_buckets, double initial_size, double factor) {
@@ -105,8 +108,20 @@ distribution_t* distribution_new_exponential(size_t num_buckets, double initial_
     else
       bucket_array[i].maximum = bucket_array[i].minimum * factor;
   }
-  return build_distribution_from_bucket_array(num_buckets, bucket_array);
+
+  distribution_t *new_distribution = build_distribution_from_bucket_array(num_buckets, bucket_array);
+  free(bucket_array);
+  return new_distribution;
 }
+
+/*distribution_t* distribution_new_custom(size_t num_buckets, double *custom_buckets_sizes) {
+  if (num_buckets == 0) {
+    errno = EINVAL;
+    return NULL;
+  }
+  for (size_t i = 0; i < num_buckets; i++)
+    if (custom_buckets)
+}*/
 
 void distribution_destroy(distribution_t *d) {
   if (d == NULL)

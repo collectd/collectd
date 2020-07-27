@@ -13,7 +13,7 @@ typedef struct distribution_s distribution_t;
 //constructor functions:
 distribution_t* distribution_new_linear(size_t num_buckets, double size);
 distribution_t* distribution_new_exponential(size_t num_buckets, double initial_size, double factor);
-distribution_t* distribution_new_custom(size_t num_buckets, double  *custom_buckets_sizes);
+distribution_t* distribution_new_custom(size_t num_buckets, double *custom_buckets_sizes);
 
 void distribution_update(distribution_t *dist, double gauge);
 double distribution_percentile(distribution_t *dist, double percent);
