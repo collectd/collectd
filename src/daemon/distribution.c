@@ -114,14 +114,34 @@ distribution_t* distribution_new_exponential(size_t num_buckets, double initial_
   return new_distribution;
 }
 
-/*distribution_t* distribution_new_custom(size_t num_buckets, double *custom_buckets_sizes) {
+distribution_t* distribution_new_custom(size_t num_buckets, double *custom_buckets_sizes) {
   if (num_buckets == 0) {
     errno = EINVAL;
     return NULL;
   }
   for (size_t i = 0; i < num_buckets; i++)
-    if (custom_buckets)
-}*/
+    if (custom_buckets_sizes[i] <= 0) {
+      errno = EINVAL;
+      return NULL;
+    }
+
+  bucket_t *bucket_array = calloc(num_buckets + 1, sizeof(bucket_t));
+  if (bucket_array == NULL)
+    return NULL;
+
+  for (size_t i = 0; i < num_buckets + 1; i++) {
+    if (i != 0)
+      bucket_array[i].minimum = bucket_array[i - 1].maximum;
+    if (i == num_buckets)
+      bucket_array[i].maximum = INFINITY;
+    else
+      bucket_array[i].maximum = bucket_array[i].minimum + custom_buckets_sizes[i];
+  }
+
+  distribution_t *new_distribution = build_distribution_from_bucket_array(num_buckets + 1, bucket_array);
+  free(bucket_array);
+  return new_distribution;
+}
 
 void distribution_destroy(distribution_t *d) {
   if (d == NULL)
@@ -131,8 +151,9 @@ void distribution_destroy(distribution_t *d) {
 }
 
 int main() {
-  distribution_t *p = distribution_new_exponential(5, 0.5, 2);
-  for (size_t i = 0; i < 9; i++) {
+  double a[] = {3.0, 2.7, 1.0};
+  distribution_t *p = distribution_new_custom(3, a);
+  for (size_t i = 0; i < 7; i++) {
     printf("%f %f\n", p->tree[i].minimum, p->tree[i].maximum);
   }
   distribution_destroy(p);
