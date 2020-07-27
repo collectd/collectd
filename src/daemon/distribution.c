@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <math.h>
+#include <string.h>
 
 typedef struct bucket_s {
   uint64_t bucket_counter;
@@ -148,6 +149,15 @@ void distribution_destroy(distribution_t *d) {
     return;
   free(d->tree);
   free(d);
+}
+
+distribution_t* distribution_clone(distribution_t *dist) {
+  if (dist == NULL)
+    return NULL;
+  distribution_t *new_distribution = calloc(1, sizeof(distribution_t));
+  new_distribution->num_buckets = dist->num_buckets;
+  memcpy(new_distribution->tree, dist->tree, sizeof(bucket_t) * (2 * dist->num_buckets - 1));
+  return new_distribution;
 }
 
 int main() {
