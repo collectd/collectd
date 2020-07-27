@@ -17,6 +17,7 @@ typedef struct bucket_s {
 struct distribution_s {
   bucket_t *tree;
   size_t num_buckets;
+  double total_sum;
 };
 
 size_t left_child_index(size_t node_index, size_t left, size_t right) {
@@ -175,13 +176,18 @@ void update_tree(distribution_t *dist, size_t node_index, size_t left, size_t ri
     update_tree(dist, left_child, left, mid, gauge);
   else
     update_tree(dist, right_child, mid + 1, right, gauge);
-  dist->tree[node_index] = merge_buckets(dist->tree[left_child], dist->tree[right_child]);
+  dist->tree[node_index].bucket_counter++;
 }
 
 void distribution_update(distribution_t *dist, double gauge) {
   if (dist == NULL)
     return;
   update_tree(dist, 0, 0, dist->num_buckets - 1, gauge);
+  dist->total_sum += gauge;
+}
+
+double distribution_average(distribution_t *dist) {
+  return dist->total_sum / dist->tree[0].bucket_counter;
 }
 
 int main() {
@@ -194,5 +200,6 @@ int main() {
   for (size_t i = 0; i < 7; i++) {
     printf("%f %f %llu\n", p->tree[i].minimum, p->tree[i].maximum, p->tree[i].bucket_counter);
   }
+  printf("%f\n", distribution_average(p));
   distribution_destroy(p);
 }
