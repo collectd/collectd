@@ -55,6 +55,8 @@ static int ib_glob_ports(glob_t *g) {
   return glob("/sys/class/infiniband/*/ports/*/state", GLOB_NOSORT, NULL, g);
 }
 
+static const int device_tok_idx = 3, port_tok_idx = 5;
+
 static int ib_parse_glob_port(char *path, char **device, char **port) {
   char *tok, *saveptr = NULL;
   int j = 0;
@@ -62,9 +64,9 @@ static int ib_parse_glob_port(char *path, char **device, char **port) {
   *port = NULL;
   tok = strtok_r(path, "/", &saveptr);
   while (tok != NULL) {
-    if (j == 3)
+    if (j == device_tok_idx)
       *device = tok;
-    else if (j == 5) {
+    else if (j == port_tok_idx) {
       *port = tok;
       break;
     }
