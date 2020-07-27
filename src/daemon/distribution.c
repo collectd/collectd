@@ -85,6 +85,29 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
+distribution_t* distribution_new_exponential(size_t num_buckets, double initial_size, double factor) {
+  if (num_buckets == 0 || initial_size <= 0 || factor <= 0) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  bucket_t *bucket_array = calloc(num_buckets, sizeof(bucket_t));
+  if (bucket_array == NULL)
+    return NULL;
+
+  bucket_array[0] = (bucket_t) {
+    .maximum = initial_size,
+  };
+  for (size_t i = 1; i < num_buckets; i++) {
+    bucket_array[i].minimum = bucket_array[i - 1].maximum;
+    if (i == num_buckets - 1)
+      bucket_array[i].maximum = INFINITY;
+    else
+      bucket_array[i].maximum = bucket_array[i].minimum * factor;
+  }
+  return build_distribution_from_bucket_array(num_buckets, bucket_array);
+}
+
 void distribution_destroy(distribution_t *d) {
   if (d == NULL)
     return;
@@ -93,8 +116,8 @@ void distribution_destroy(distribution_t *d) {
 }
 
 int main() {
-  distribution_t *p = distribution_new_linear(3, 2);
-  for (size_t i = 0; i < 5; i++) {
+  distribution_t *p = distribution_new_exponential(5, 0.5, 2);
+  for (size_t i = 0; i < 9; i++) {
     printf("%f %f\n", p->tree[i].minimum, p->tree[i].maximum);
   }
   distribution_destroy(p);
