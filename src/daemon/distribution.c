@@ -24,7 +24,9 @@ static size_t left_child_index(size_t node_index, size_t left, size_t right) {
   return node_index + 1;
 }
 
-static size_t right_child_index(size_t node_index, size_t left, size_t right) {
+static size_t right_child_index(size_t node_index,
+                                __attribute__((unused)) size_t left,
+                                __attribute__((unused)) size_t right) {
   size_t mid = (left + right) / 2;
   return node_index + 2 * (mid - left + 1);
 }
