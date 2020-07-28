@@ -41,6 +41,14 @@ struct distribution_s {
   double total_sum;
 };
 
+/**
+ * This code uses an Euler path to avoid gaps in the tree-to-array mapping.
+ * This way the tree contained N buckets contains 2 * N - 1 nodes
+ * Thus, left subtree has 2 * (mid - left + 1) - 1 nodes,
+ * therefore the right subtree starts at node_index + 2 * (mid - left + 1).
+ * For a detailed explanation, see https://docs.google.com/document/d/1ccsg5ffUfqt9-mBDGTymRn8X-9Wk1CuGYeMlRxmxiok/edit?usp=sharing".
+ */
+
 static size_t left_child_index(size_t node_index,
                                __attribute__((unused)) size_t left,
                                __attribute__((unused)) size_t right) {
@@ -50,6 +58,10 @@ static size_t left_child_index(size_t node_index,
 static size_t right_child_index(size_t node_index, size_t left, size_t right) {
   size_t mid = (left + right) / 2;
   return node_index + 2 * (mid - left + 1);
+}
+
+static size_t tree_size(size_t num_buckets) {
+  return 2 * num_buckets - 1;
 }
 
 static bucket_t merge_buckets(bucket_t left_child, bucket_t right_child) {
@@ -80,7 +92,7 @@ static distribution_t* build_distribution_from_bucket_array(size_t num_buckets, 
   if (new_distribution == NULL) {
     return NULL;
   }
-  new_distribution->tree = calloc(2 * num_buckets - 1, sizeof(bucket_t));
+  new_distribution->tree = calloc(tree_size(num_buckets), sizeof(bucket_t));
   if (new_distribution->tree == NULL) {
     free(new_distribution);
     return NULL;
