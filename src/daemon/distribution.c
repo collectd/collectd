@@ -94,7 +94,7 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
 }
 
 distribution_t* distribution_new_exponential(size_t num_buckets, double initial_size, double factor) {
-  if (num_buckets == 0 || initial_size <= 0 || factor <= 0) {
+  if (num_buckets == 0 || initial_size <= 0 || factor <= 1) {
     errno = EINVAL;
     return NULL;
   }
