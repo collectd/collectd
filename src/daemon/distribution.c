@@ -111,30 +111,31 @@ distribution_t* distribution_new_exponential(size_t num_buckets, double initial_
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
-distribution_t* distribution_new_custom(size_t num_buckets, double *custom_buckets_sizes) {
-  if (num_buckets == 0) {
-    errno = EINVAL;
-    return NULL;
-  }
-  for (size_t i = 0; i < num_buckets; i++)
-    if (custom_buckets_sizes[i] <= 0) {
+distribution_t* distribution_new_custom(size_t array_size, double *custom_buckets_boundaries) {
+  for (size_t i = 0; i < array_size; i++) {
+    double previous_boundary = 0;
+    if (i > 0)
+      previous_boundary = custom_buckets_boundaries[i - 1];
+    if (custom_buckets_boundaries[i] <= previous_boundary) {
       errno = EINVAL;
       return NULL;
     }
+  }
 
-  bucket_t bucket_array[num_buckets + 1];
-  for (size_t i = 0; i < num_buckets + 1; i++) {
+  size_t num_buckets = array_size + 1;
+  bucket_t bucket_array[num_buckets];
+  for (size_t i = 0; i < num_buckets; i++) {
     bucket_array[i].bucket_counter = 0;
     if (i != 0)
       bucket_array[i].minimum = bucket_array[i - 1].maximum;
     else
       bucket_array[i].minimum = 0;
-    if (i == num_buckets)
+    if (i == num_buckets - 1)
       bucket_array[i].maximum = INFINITY;
     else
-      bucket_array[i].maximum = bucket_array[i].minimum + custom_buckets_sizes[i];
+      bucket_array[i].maximum = custom_buckets_boundaries[i];
   }
-  return build_distribution_from_bucket_array(num_buckets + 1, bucket_array);
+  return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
 void distribution_destroy(distribution_t *d) {
@@ -181,7 +182,7 @@ double distribution_average(distribution_t *dist) {
 }
 
 int main() {
-  double a[] = {3.0, 2.7, 1.0};
+  double a[] = {3.0, 5.7, 6.7};
   distribution_t *p = distribution_new_custom(3, a);
   distribution_update(p, 2);
   distribution_update(p, 5);
