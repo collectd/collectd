@@ -30,6 +30,7 @@
 #include "netlink.c" /* sic */
 #include "testing.h"
 
+#ifdef HAVE_IFLA_VF_STATS
 static vf_stats_t g_test_res;
 static char g_instance[512];
 static int g_type_valid;
@@ -93,8 +94,15 @@ int mnl_attr_validate2(const struct nlattr *attr, enum mnl_attr_data_type type,
 void *mnl_attr_get_payload(__attribute__((unused)) const struct nlattr *attr) {
   return g_test_payload;
 }
+#else /* HAVE_IFLA_VF_STATS */
+int plugin_dispatch_values_nl_test(__attribute__((unused))
+                                   value_list_t const *vl) {
+  return 0;
+}
+#endif
 /* end mock functions */
 
+#ifdef HAVE_IFLA_VF_STATS
 DEF_TEST(plugin_nl_config) {
   EXPECT_EQ_INT(0, collect_vf_stats);
   int ret = ir_config("CollectVFStats", "true");
@@ -115,6 +123,7 @@ DEF_TEST(plugin_nl_config) {
 
   return 0;
 }
+#endif
 
 DEF_TEST(ignorelist_test) {
   ir_ignorelist_invert = 1;
@@ -201,6 +210,7 @@ DEF_TEST(ignorelist_test) {
   return 0;
 }
 
+#ifdef HAVE_IFLA_VF_STATS
 DEF_TEST(vf_submit_test) {
   const char *test_dev = "eth0";
   vf_stats_t test_stats;
@@ -353,12 +363,17 @@ DEF_TEST(vf_info_attr_cb_test) {
 
   return 0;
 }
+#endif /* HAVE_IFLA_VF_STATS */
 
 int main(void) {
+#ifdef HAVE_IFLA_VF_STATS
   RUN_TEST(plugin_nl_config);
+#endif
   RUN_TEST(ignorelist_test);
 
+#ifdef HAVE_IFLA_VF_STATS
   RUN_TEST(vf_submit_test);
   RUN_TEST(vf_info_attr_cb_test);
+#endif
   END_TEST;
 }

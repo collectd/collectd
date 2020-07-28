@@ -88,6 +88,7 @@ union ir_link_stats_u {
 #endif
 };
 
+#ifdef HAVE_IFLA_VF_STATS
 typedef struct vf_stats_s {
   struct ifla_vf_mac *vf_mac;
   uint32_t vlan;
@@ -113,6 +114,7 @@ typedef struct vf_stats_s {
   uint64_t tx_dropped;
 #endif
 } vf_stats_t;
+#endif
 
 typedef struct ir_ignorelist_s {
   char *device;
@@ -274,6 +276,7 @@ static int check_ignorelist(const char *dev, const char *type,
   return ir_ignorelist_invert;
 } /* int check_ignorelist */
 
+#ifdef HAVE_IFLA_VF_STATS
 static void submit_one_gauge(const char *dev, const char *type,
                              const char *type_instance, gauge_t value) {
   value_list_t vl = VALUE_LIST_INIT;
@@ -289,6 +292,7 @@ static void submit_one_gauge(const char *dev, const char *type,
 
   plugin_dispatch_values(&vl);
 } /* void submit_one_gauge */
+#endif
 
 static void submit_one(const char *dev, const char *type,
                        const char *type_instance, derive_t value) {
@@ -442,6 +446,7 @@ static void check_ignorelist_and_submit32(const char *dev,
   check_ignorelist_and_submit(dev, &s);
 }
 
+#ifdef HAVE_IFLA_VF_STATS
 static void vf_info_submit(const char *dev, vf_stats_t *vf_stats) {
   if (vf_stats->vf_mac == NULL) {
     ERROR("netlink plugin: vf_info_submit: failed to get VF macaddress, "
@@ -647,6 +652,7 @@ static int vf_info_attr_cb(const struct nlattr *attr, void *args) {
 
   return MNL_CB_OK;
 } /* int vf_info_attr_cb */
+#endif /* HAVE_IFLA_VF_STATS */
 
 static int link_filter_cb(const struct nlmsghdr *nlh,
                           void *args __attribute__((unused))) {
@@ -654,7 +660,9 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
   struct nlattr *attr;
   const char *dev = NULL;
   union ir_link_stats_u stats;
+#ifdef HAVE_IFLA_VF_STATS
   uint32_t num_vfs = 0;
+#endif
   bool stats_done = false;
 
   if (nlh->nlmsg_type != RTM_NEWLINK) {
@@ -692,6 +700,7 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     return MNL_CB_OK;
   }
 
+#ifdef HAVE_IFLA_VF_STATS
   if (collect_vf_stats) {
     mnl_attr_for_each(attr, nlh, sizeof(*ifm)) {
       if (mnl_attr_get_type(attr) != IFLA_NUM_VF)
@@ -707,6 +716,8 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
       break;
     }
   }
+#endif
+
 #ifdef HAVE_RTNL_LINK_STATS64
   mnl_attr_for_each(attr, nlh, sizeof(*ifm)) {
     if (mnl_attr_get_type(attr) != IFLA_STATS64)
@@ -750,6 +761,8 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
   if (stats_done == false)
     DEBUG("netlink plugin: link_filter: No statistics for interface %s.", dev);
 #endif
+
+#ifdef HAVE_IFLA_VF_STATS
   if (num_vfs == 0)
     return MNL_CB_OK;
 
@@ -785,6 +798,7 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     }
     break;
   }
+#endif
 
   return MNL_CB_OK;
 } /* int link_filter_cb */
@@ -1107,10 +1121,14 @@ static int ir_config(const char *key, const char *value) {
             key, fields_num);
       status = -1;
     } else {
+#ifdef HAVE_IFLA_VF_STATS
       if (IS_TRUE(fields[0]))
         collect_vf_stats = true;
       else
         collect_vf_stats = false;
+#else
+      WARNING("netlink plugin: VF statistics not supported on this system.");
+#endif
       status = 0;
     }
   }
@@ -1157,12 +1175,14 @@ static int ir_read(void) {
   rt = mnl_nlmsg_put_extra_header(nlh, sizeof(*rt));
   rt->rtgen_family = AF_PACKET;
 
+#ifdef HAVE_IFLA_VF_STATS
   if (collect_vf_stats &&
       mnl_attr_put_u32_check(nlh, sizeof(buf), IFLA_EXT_MASK,
                              RTEXT_FILTER_VF) == 0) {
     ERROR("netlink plugin: FAILED to set RTEXT_FILTER_VF");
     return -1;
   }
+#endif
 
   if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
     ERROR("netlink plugin: ir_read: rtnl_wilddump_request failed.");
