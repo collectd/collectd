@@ -76,21 +76,16 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
     return NULL;
   }
 
-  bucket_t *bucket_array = calloc(num_buckets, sizeof(bucket_t));
-  if (bucket_array == NULL)
-    return NULL;
-
+  bucket_t bucket_array[num_buckets];
   for (size_t i = 0; i < num_buckets; i++) {
+    bucket_array[i].bucket_counter = 0;
     bucket_array[i].minimum = i * size;
     if (i == num_buckets - 1)
       bucket_array[i].maximum = INFINITY;
     else
       bucket_array[i].maximum = (i + 1) * size;
   }
-
-  distribution_t *new_distribution = build_distribution_from_bucket_array(num_buckets, bucket_array);
-  free(bucket_array);
-  return new_distribution;
+  return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
 distribution_t* distribution_new_exponential(size_t num_buckets, double initial_size, double factor) {
@@ -99,24 +94,21 @@ distribution_t* distribution_new_exponential(size_t num_buckets, double initial_
     return NULL;
   }
 
-  bucket_t *bucket_array = calloc(num_buckets, sizeof(bucket_t));
-  if (bucket_array == NULL)
-    return NULL;
-
+  bucket_t bucket_array[num_buckets];
   bucket_array[0] = (bucket_t) {
+    .bucket_counter = 0,
+    .minimum = 0,
     .maximum = initial_size,
   };
   for (size_t i = 1; i < num_buckets; i++) {
+    bucket_array[i].bucket_counter = 0;
     bucket_array[i].minimum = bucket_array[i - 1].maximum;
     if (i == num_buckets - 1)
       bucket_array[i].maximum = INFINITY;
     else
       bucket_array[i].maximum = bucket_array[i].minimum * factor;
   }
-
-  distribution_t *new_distribution = build_distribution_from_bucket_array(num_buckets, bucket_array);
-  free(bucket_array);
-  return new_distribution;
+  return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
 distribution_t* distribution_new_custom(size_t num_buckets, double *custom_buckets_sizes) {
@@ -130,22 +122,19 @@ distribution_t* distribution_new_custom(size_t num_buckets, double *custom_bucke
       return NULL;
     }
 
-  bucket_t *bucket_array = calloc(num_buckets + 1, sizeof(bucket_t));
-  if (bucket_array == NULL)
-    return NULL;
-
+  bucket_t bucket_array[num_buckets + 1];
   for (size_t i = 0; i < num_buckets + 1; i++) {
+    bucket_array[i].bucket_counter = 0;
     if (i != 0)
       bucket_array[i].minimum = bucket_array[i - 1].maximum;
+    else
+      bucket_array[i].minimum = 0;
     if (i == num_buckets)
       bucket_array[i].maximum = INFINITY;
     else
       bucket_array[i].maximum = bucket_array[i].minimum + custom_buckets_sizes[i];
   }
-
-  distribution_t *new_distribution = build_distribution_from_bucket_array(num_buckets + 1, bucket_array);
-  free(bucket_array);
-  return new_distribution;
+  return build_distribution_from_bucket_array(num_buckets + 1, bucket_array);
 }
 
 void distribution_destroy(distribution_t *d) {
