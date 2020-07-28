@@ -919,9 +919,9 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
       strbuf_printf(&buf, ":" GAUGE_FORMAT, vl->values[i].gauge);
     } else if (store_rates) {
       if (rates == NULL)
-        rates = uc_get_rate(ds, vl);
+        rates = uc_get_rate_vl(ds, vl);
       if (rates == NULL) {
-        WARNING("format_values: uc_get_rate failed.");
+        WARNING("format_values: uc_get_rate_vl failed.");
         return -1;
       }
       strbuf_printf(&buf, ":" GAUGE_FORMAT, rates[i]);

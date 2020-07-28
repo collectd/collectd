@@ -428,10 +428,10 @@ static int write_influxdb_point(char *buffer, int buffer_len,
       have_values = true;
     } else if (wifxudp_config_store_rates) {
       if (rates == NULL)
-        rates = uc_get_rate(ds, vl);
+        rates = uc_get_rate_vl(ds, vl);
       if (rates == NULL) {
         WARNING("write_influxdb_udp plugin: "
-                "uc_get_rate failed.");
+                "uc_get_rate_vl failed.");
         return -1;
       }
       if (isnan(rates[i]))

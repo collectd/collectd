@@ -129,9 +129,9 @@ static int values_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
     }
   } else if (store_rates) {
     if (rates == NULL)
-      rates = uc_get_rate(ds, vl);
+      rates = uc_get_rate_vl(ds, vl);
     if (rates == NULL) {
-      WARNING("utils_format_kairosdb: uc_get_rate failed for %s|%s|%s|%s|%s",
+      WARNING("utils_format_kairosdb: uc_get_rate_vl failed for %s|%s|%s|%s|%s",
               vl->plugin, vl->plugin_instance, vl->type, vl->type_instance,
               ds->ds[ds_idx].name);
 

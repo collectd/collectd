@@ -301,9 +301,9 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
 
   gauge_t *rates = NULL;
   if (flags & GRAPHITE_STORE_RATES) {
-    rates = uc_get_rate(ds, vl);
+    rates = uc_get_rate_vl(ds, vl);
     if (rates == NULL) {
-      P_ERROR("format_graphite: error with uc_get_rate");
+      P_ERROR("format_graphite: error with uc_get_rate_vl");
       return -1;
     }
   }

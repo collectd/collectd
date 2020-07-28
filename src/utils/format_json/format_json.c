@@ -118,9 +118,9 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
         BUFFER_ADD("null");
     } else if (store_rates) {
       if (rates == NULL)
-        rates = uc_get_rate(ds, vl);
+        rates = uc_get_rate_vl(ds, vl);
       if (rates == NULL) {
-        WARNING("utils_format_json: uc_get_rate failed.");
+        WARNING("utils_format_json: uc_get_rate_vl failed.");
         sfree(rates);
         return -1;
       }

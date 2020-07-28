@@ -30,7 +30,7 @@
 #include "utils/common/common.h"
 #include "utils/lookup/vl_lookup.h"
 #include "utils/metadata/meta_data.h"
-#include "utils_cache.h" /* for uc_get_rate() */
+#include "utils_cache.h" /* for uc_get_rate_vl() */
 #include "utils_subst.h"
 
 #define AGG_MATCHES_ALL(str) (strcmp("/.*/", str) == 0)
@@ -292,7 +292,7 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
     return EINVAL;
   }
 
-  gauge_t *rate = uc_get_rate(ds, vl);
+  gauge_t *rate = uc_get_rate_vl(ds, vl);
   if (rate == NULL) {
     char ident[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL(ident, sizeof(ident), vl);

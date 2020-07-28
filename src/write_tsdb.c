@@ -339,10 +339,10 @@ static int wt_format_values(char *ret, size_t ret_len, int ds_num,
     BUFFER_ADD(GAUGE_FORMAT, vl->values[ds_num].gauge);
   else if (store_rates) {
     if (rates == NULL)
-      rates = uc_get_rate(ds, vl);
+      rates = uc_get_rate_vl(ds, vl);
     if (rates == NULL) {
       WARNING("format_values: "
-              "uc_get_rate failed.");
+              "uc_get_rate_vl failed.");
       return -1;
     }
     BUFFER_ADD(GAUGE_FORMAT, rates[ds_num]);
