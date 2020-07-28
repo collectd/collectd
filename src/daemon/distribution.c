@@ -177,7 +177,35 @@ void distribution_update(distribution_t *dist, double gauge) {
   dist->total_sum += gauge;
 }
 
+static double tree_get_counter(distribution_t *d, size_t node_index, size_t left,
+                             size_t right, size_t counter) {
+  if (left > right)
+    return NAN;
+  if (left == right) {
+    return d->tree[node_index].maximum;
+  }
+  size_t mid = (left + right) / 2;
+  size_t left_child = left_child_index(node_index, left, right);
+  size_t right_child = right_child_index(node_index, left, right);
+  if (d->tree[left_child].bucket_counter >= counter)
+    return tree_get_counter(d, left_child, left, mid, counter);
+  else
+    return tree_get_counter(d, right_child, mid + 1, right, counter - d->tree[left_child].bucket_counter);
+}
+
+double distribution_percentile(distribution_t *dist, double percent) {
+  if (percent <= 0 || percent > 100) {
+    errno = EINVAL;
+    return NAN;
+  }
+  if (dist->tree[0].bucket_counter == 0)
+    return NAN;
+  size_t counter = ceil(dist->tree[0].bucket_counter * percent / 100.0);
+  return tree_get_counter(dist, 0, 0, dist->num_buckets - 1, counter);
+}
+
 double distribution_average(distribution_t *dist) {
+  //TODO: checker
   return dist->total_sum / dist->tree[0].bucket_counter;
 }
 
@@ -192,5 +220,6 @@ int main() {
     printf("%f %f %llu\n", p->tree[i].minimum, p->tree[i].maximum, p->tree[i].bucket_counter);
   }
   printf("%f\n", distribution_average(p));
+  printf("%f\n", distribution_percentile(p, 90));
   distribution_destroy(p);
 }
