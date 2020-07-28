@@ -33,8 +33,33 @@ struct distribution_s;
 typedef struct distribution_s distribution_t;
 
 //constructor functions:
+/**
+ * function creates new distribution with the linear buckets:
+ * [0; size) [size; 2 * size) ... [(num_buckets - 1) * size; infinity)
+ * @param num_buckets - number of buckets. Should be greater than 0
+ * @param size - size of each bucket. Should be greater than 0
+ * @return pointer to a new distribution or null pointer if parameters are wrong or memory allocation fails
+ */
 distribution_t* distribution_new_linear(size_t num_buckets, double size);
+
+/**
+ * function creates new distribution with the exponential buckets:
+ * [0; initial_size) [initial_size; initial_size * factor) ... [initial_size * factor^{num_buckets - 2}; infinity)
+ * @param num_buckets - number of buckets. Should be greater than 0
+ * @param initial_size - size of the first bucket. Should be greater than 0
+ * @param factor - factor for buckets' upper bound. Should be greater than 1
+ * @return pointer to a new distribution or null pointer if parameters are wrong or memory allocation fails
+ */
 distribution_t* distribution_new_exponential(size_t num_buckets, double initial_size, double factor);
+
+/**
+ * function creates new distribution with the custom buckets:
+ * [0; custom_bucket_boundaries[0]) [custom_bucket_boundaries[0]; custom_bucket_boundaries[1]) ...
+ * ... [custom_bucket_boundaries[array_size - 1], infinity)
+ * @param array_size - size of array of bucket boundaries. Number of buckets is array_size + 1
+ * @param custom_buckets_boundaries - array with bucket boundaries. Should be increasing and positive
+ * @return pointer to a new distribution or null pointer if parameters are wrong or memory allocation fails
+ */
 distribution_t* distribution_new_custom(size_t array_size, double *custom_buckets_boundaries);
 
 void distribution_update(distribution_t *dist, double gauge);
