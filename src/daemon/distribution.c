@@ -20,16 +20,16 @@ struct distribution_s {
   double total_sum;
 };
 
-size_t left_child_index(size_t node_index, size_t left, size_t right) {
+static size_t left_child_index(size_t node_index, size_t left, size_t right) {
   return node_index + 1;
 }
 
-size_t right_child_index(size_t node_index, size_t left, size_t right) {
+static size_t right_child_index(size_t node_index, size_t left, size_t right) {
   size_t mid = (left + right) / 2;
   return node_index + 2 * (mid - left + 1);
 }
 
-bucket_t merge_buckets(bucket_t left_child, bucket_t right_child) {
+static bucket_t merge_buckets(bucket_t left_child, bucket_t right_child) {
   return (bucket_t) {
       .bucket_counter = left_child.bucket_counter + right_child.bucket_counter,
       .minimum = left_child.minimum,
@@ -37,7 +37,7 @@ bucket_t merge_buckets(bucket_t left_child, bucket_t right_child) {
   };
 }
 
-void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, size_t left, size_t right) {
+static void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, size_t left, size_t right) {
   if (left > right)
     return;
   if (left == right) {
@@ -52,7 +52,7 @@ void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, size_t 
   d->tree[node_index] = merge_buckets(d->tree[left_child], d->tree[right_child]);
 }
 
-distribution_t* build_distribution_from_bucket_array(size_t num_buckets, bucket_t *bucket_array) {
+static distribution_t* build_distribution_from_bucket_array(size_t num_buckets, bucket_t *bucket_array) {
   distribution_t *new_distribution = calloc(1, sizeof(distribution_t));
   if (new_distribution == NULL) {
     return NULL;
@@ -162,7 +162,7 @@ distribution_t* distribution_clone(distribution_t *dist) {
   return new_distribution;
 }
 
-void update_tree(distribution_t *dist, size_t node_index, size_t left, size_t right, double gauge) {
+static void update_tree(distribution_t *dist, size_t node_index, size_t left, size_t right, double gauge) {
   if (left > right)
     return;
   if (left == right) {

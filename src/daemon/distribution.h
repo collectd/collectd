@@ -18,7 +18,7 @@ distribution_t* distribution_new_custom(size_t num_buckets, double *custom_bucke
 void distribution_update(distribution_t *dist, double gauge);
 double distribution_percentile(distribution_t *dist, double percent);
 double distribution_average(distribution_t *dist);
-distribution_t distribution_clone(distribution_t *dist);
+distribution_t* distribution_clone(distribution_t *dist);
 void distribution_destroy(distribution_t *d);
 
 #endif // COLLECTD_DISTRIBUTION_H
