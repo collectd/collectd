@@ -167,8 +167,8 @@ distribution_t* distribution_clone(distribution_t *dist) {
 static void update_tree(distribution_t *dist, size_t node_index, size_t left, size_t right, double gauge) {
   if (left > right)
     return;
+  dist->tree[node_index].bucket_counter++;
   if (left == right) {
-    dist->tree[node_index].bucket_counter++;
     return;
   }
   size_t mid = (left + right) / 2;
@@ -178,7 +178,6 @@ static void update_tree(distribution_t *dist, size_t node_index, size_t left, si
     update_tree(dist, left_child, left, mid, gauge);
   else
     update_tree(dist, right_child, mid + 1, right, gauge);
-  dist->tree[node_index].bucket_counter++;
 }
 
 void distribution_update(distribution_t *dist, double gauge) {
