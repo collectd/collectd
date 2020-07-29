@@ -44,13 +44,13 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size);
 
 /**
  * function creates new distribution with the exponential buckets:
- * [0; initial_size) [initial_size; initial_size * factor) ... [initial_size * factor^{num_buckets - 2}; infinity)
+ * [0; factor) [factor; factor * base) ... [factor * base^{num_buckets - 2}; infinity)
  * @param num_buckets - number of buckets. Should be greater than 0
- * @param initial_size - size of the first bucket. Should be greater than 0
- * @param factor - factor for buckets' upper bound. Should be greater than 1
+ * @param base - base of geometric progression. Should be greater than 1
+ * @param factor - size of the first bucket. Should be greater than 0
  * @return - pointer to a new distribution or null pointer if parameters are wrong or memory allocation fails
  */
-distribution_t* distribution_new_exponential(size_t num_buckets, double initial_size, double factor);
+distribution_t* distribution_new_exponential(size_t num_buckets, double base, double factor);
 
 /**
  * function creates new distribution with the custom buckets:

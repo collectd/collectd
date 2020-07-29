@@ -121,25 +121,19 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
-distribution_t* distribution_new_exponential(size_t num_buckets, double initial_size, double factor) {
-  if (num_buckets == 0 || initial_size <= 0 || factor <= 1) {
+distribution_t* distribution_new_exponential(size_t num_buckets, double base, double factor) {
+  if (num_buckets == 0 || base <= 1 || factor <= 0) {
     errno = EINVAL;
     return NULL;
   }
 
   bucket_t bucket_array[num_buckets];
-  bucket_array[0] = (bucket_t) {
-    .bucket_counter = 0,
-    .minimum = 0,
-    .maximum = initial_size,
-  };
-  for (size_t i = 1; i < num_buckets; i++) {
-    bucket_array[i].bucket_counter = 0;
-    bucket_array[i].minimum = bucket_array[i - 1].maximum;
-    if (i == num_buckets - 1)
-      bucket_array[i].maximum = INFINITY;
-    else
-      bucket_array[i].maximum = bucket_array[i].minimum * factor;
+  for (size_t i = 0; i < num_buckets; i++) {
+    bucket_array[i] = (bucket_t) {
+        .bucket_counter = 0,
+        .minimum = (i == 0) ? 0 : bucket_array[i - 1].maximum,
+        .maximum = (i == num_buckets - 1) ? INFINITY : factor * pow(base, i), //check if it's slow
+    };
   }
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
@@ -244,7 +238,7 @@ double distribution_average(distribution_t *dist) {
 
 int main() {
   double a[] = {3.0, 5.7, 6.7};
-  distribution_t *p = distribution_new_custom(3, a);
+  distribution_t *p = distribution_new_exponential(4, 2, 3);
   distribution_update(p, 2);
   distribution_update(p, 5);
   distribution_update(p, 7.5);
@@ -253,6 +247,6 @@ int main() {
     printf("%f %f %llu\n", p->tree[i].minimum, p->tree[i].maximum, p->tree[i].bucket_counter);
   }
   printf("%f\n", distribution_average(p));
-  printf("%f\n", distribution_percentile(p, 90));
+  printf("%f\n", distribution_percentile(p, 70));
   distribution_destroy(p);
 }
