@@ -280,11 +280,11 @@ static int read_cumulative_state(data_set_t const *ds, value_list_t const *vl,
             "stackdriver:start_value[%d]", ds_index);
 
   int status =
-      uc_meta_data_get_signed_int(vl, start_value_key, ret_start_value);
+      uc_meta_data_get_signed_int_vl(vl, start_value_key, ret_start_value);
   if ((status == 0) && ((ds_type != DS_TYPE_DERIVE) ||
                         (*ret_start_value <= vl->values[ds_index].derive))) {
-    return uc_meta_data_get_unsigned_int(vl, "stackdriver:start_time",
-                                         ret_start_time);
+    return uc_meta_data_get_unsigned_int_vl(vl, "stackdriver:start_time",
+                                            ret_start_time);
   }
 
   if (ds_type == DS_TYPE_DERIVE) {
@@ -294,12 +294,13 @@ static int read_cumulative_state(data_set_t const *ds, value_list_t const *vl,
   }
   *ret_start_time = vl->time;
 
-  status = uc_meta_data_add_signed_int(vl, start_value_key, *ret_start_value);
+  status =
+      uc_meta_data_add_signed_int_vl(vl, start_value_key, *ret_start_value);
   if (status != 0) {
     return status;
   }
-  return uc_meta_data_add_unsigned_int(vl, "stackdriver:start_time",
-                                       *ret_start_time);
+  return uc_meta_data_add_unsigned_int_vl(vl, "stackdriver:start_time",
+                                          *ret_start_time);
 } /* int read_cumulative_state */
 
 /* Point
