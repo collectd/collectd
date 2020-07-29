@@ -210,7 +210,7 @@ void distribution_update(distribution_t *dist, double gauge) {
 }
 
 static double tree_get_counter(distribution_t *d, size_t node_index, size_t left,
-                             size_t right, size_t counter) {
+                             size_t right, uint64_t counter) {
   if (left > right)
     return NAN;
   if (left == right) {
@@ -232,7 +232,7 @@ double distribution_percentile(distribution_t *dist, double percent) {
   }
   if (dist->tree[0].bucket_counter == 0)
     return NAN;
-  size_t counter = ceil(dist->tree[0].bucket_counter * percent / 100.0);
+  uint64_t counter = ceil(dist->tree[0].bucket_counter * percent / 100.0);
   return tree_get_counter(dist, 0, 0, dist->num_buckets - 1, counter);
 }
 
