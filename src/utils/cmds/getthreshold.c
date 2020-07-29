@@ -113,7 +113,8 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
   sfree(identifier_copy);
 
-  status = ut_search_threshold(&vl, &threshold);
+  /* TODO(octo): pass a metric_t* to ut_search_threshold(). */
+  status = ut_search_threshold(NULL, &threshold);
   if (status == ENOENT) {
     print_to_socket(fh, "-1 No threshold found for identifier %s\n",
                     identifier);
