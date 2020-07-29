@@ -227,7 +227,9 @@ double distribution_percentile(distribution_t *dist, double percent) {
 }
 
 double distribution_average(distribution_t *dist) {
-  //TODO: checker
+  if (dist->tree[0].bucket_counter == 0) {
+    return NAN;
+  }
   return dist->total_sum / dist->tree[0].bucket_counter;
 }
 
