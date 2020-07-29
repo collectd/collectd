@@ -79,8 +79,9 @@
 struct identifier_s {
   char *host;
   char *plugin;
+  char *plugin_instance;
   char *type;
-  char *data_source;
+  char *type_instance;
 };
 typedef struct identifier_s identifier_t;
 
