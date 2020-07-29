@@ -72,8 +72,9 @@ cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
       ret_flush->identifiers = id;
       id = ret_flush->identifiers + ret_flush->identifiers_num;
       ret_flush->identifiers_num++;
+      char *unused_data_source = NULL;
       if (parse_identifier(opt_value, &id->host, &id->plugin, &id->type,
-                           &id->data_source,
+                           &unused_data_source,
                            opts->identifier_default_host) != 0) {
         cmd_error(CMD_PARSE_ERROR, err, "Invalid identifier `%s'.", opt_value);
         cmd_destroy_flush(ret_flush);
@@ -140,12 +141,10 @@ cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
 
       if (cmd.cmd.flush.identifiers_num != 0) {
         identifier_t *id = cmd.cmd.flush.identifiers + j;
-        if (snprintf(buf, sizeof(buf), "%s/%s/%s/%s",
+        if (snprintf(buf, sizeof(buf), "%s/%s/%s",
                      (id->host == NULL) ? "" : id->host,
                      (id->plugin == NULL) ? "" : id->plugin,
-                     (id->type == NULL) ? "" : id->type,
-                     (id->data_source == NULL) ? "" : id->data_source) >
-            sizeof(buf)) {
+                     (id->type == NULL) ? "" : id->type) > sizeof(buf)) {
           error++;
           continue;
         }
