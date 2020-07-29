@@ -88,15 +88,16 @@ static void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, 
 }
 
 static distribution_t* build_distribution_from_bucket_array(size_t num_buckets, bucket_t *bucket_array) {
-  distribution_t *new_distribution = calloc(1, sizeof(distribution_t));
-  if (new_distribution == NULL) {
-    return NULL;
-  }
-  new_distribution->tree = calloc(tree_size(num_buckets), sizeof(bucket_t));
-  if (new_distribution->tree == NULL) {
+  distribution_t *new_distribution = calloc(1, sizeof(*new_distribution));
+  if (num_buckets == 0)
+    return new_distribution;
+  bucket_t *nodes = calloc(tree_size(num_buckets), sizeof(*nodes));
+  if (new_distribution == NULL || nodes == NULL) {
     free(new_distribution);
+    free(nodes);
     return NULL;
   }
+  new_distribution->tree = nodes;
 
   new_distribution->num_buckets = num_buckets;
   build_tree(new_distribution, bucket_array, 0, 0, num_buckets - 1);
@@ -170,9 +171,18 @@ void distribution_destroy(distribution_t *d) {
 distribution_t* distribution_clone(distribution_t *dist) {
   if (dist == NULL)
     return NULL;
-  distribution_t *new_distribution = calloc(1, sizeof(distribution_t));
+  distribution_t *new_distribution = calloc(1, sizeof(*new_distribution));
+  if (dist->num_buckets == 0)
+    return new_distribution;
+
+  bucket_t *nodes = calloc(tree_size(dist->num_buckets), sizeof(*nodes));
+  if (new_distribution == NULL || nodes == NULL) {
+    free(new_distribution);
+    free(nodes);
+    return NULL;
+  }
   new_distribution->num_buckets = dist->num_buckets;
-  memcpy(new_distribution->tree, dist->tree, sizeof(bucket_t) * (2 * dist->num_buckets - 1));
+  new_distribution->tree = nodes;
   return new_distribution;
 }
 
