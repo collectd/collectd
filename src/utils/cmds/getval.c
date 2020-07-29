@@ -90,9 +90,6 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
   cmd_status_t status;
   cmd_t cmd;
 
-  gauge_t *values;
-  size_t values_num;
-
   const data_set_t *ds;
 
   if ((fh == NULL) || (buffer == NULL))
@@ -120,10 +117,10 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
     return -1;
   }
 
-  values = NULL;
-  values_num = 0;
+  gauge_t value;
+  size_t values_num = 1;
   status =
-      uc_get_rate_by_name(cmd.cmd.getval.raw_identifier, &values, &values_num);
+      uc_get_rate_by_name(cmd.cmd.getval.raw_identifier, &value);
   if (status != 0) {
     cmd_error(CMD_ERROR, &err, "No such value.");
     cmd_destroy(&cmd);
@@ -135,7 +132,6 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
           "but uc_get_rate_by_name returned %" PRIsz " values.",
           ds->type, ds->ds_num, values_num);
     cmd_error(CMD_ERROR, &err, "Error reading value from cache.");
-    sfree(values);
     cmd_destroy(&cmd);
     return CMD_ERROR;
   }
@@ -144,14 +140,13 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
                   (values_num == 1) ? "" : "s");
   for (size_t i = 0; i < values_num; i++) {
     print_to_socket(fh, "%s=", ds->ds[i].name);
-    if (isnan(values[i])) {
+    if (isnan(value)) {
       print_to_socket(fh, "NaN\n");
     } else {
-      print_to_socket(fh, "%12e\n", values[i]);
+      print_to_socket(fh, "%12e\n", value);
     }
   }
 
-  sfree(values);
   cmd_destroy(&cmd);
 
   return CMD_OK;
