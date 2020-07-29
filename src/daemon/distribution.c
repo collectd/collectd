@@ -111,12 +111,11 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
 
   bucket_t bucket_array[num_buckets];
   for (size_t i = 0; i < num_buckets; i++) {
-    bucket_array[i].bucket_counter = 0;
-    bucket_array[i].minimum = i * size;
-    if (i == num_buckets - 1)
-      bucket_array[i].maximum = INFINITY;
-    else
-      bucket_array[i].maximum = (i + 1) * size;
+    bucket_array[i] = (bucket_t) {
+        .bucket_counter = 0,
+        .minimum = i * size,
+        .maximum = (i == num_buckets - 1) ? INFINITY : (i + 1) * size,
+    };
   }
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
@@ -238,7 +237,7 @@ double distribution_average(distribution_t *dist) {
 
 int main() {
   double a[] = {3.0, 5.7, 6.7};
-  distribution_t *p = distribution_new_exponential(4, 2, 3);
+  distribution_t *p = distribution_new_linear(4, 3);
   distribution_update(p, 2);
   distribution_update(p, 5);
   distribution_update(p, 7.5);
