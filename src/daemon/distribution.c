@@ -151,15 +151,11 @@ distribution_t* distribution_new_custom(size_t array_size, double *custom_bucket
   size_t num_buckets = array_size + 1;
   bucket_t bucket_array[num_buckets];
   for (size_t i = 0; i < num_buckets; i++) {
-    bucket_array[i].bucket_counter = 0;
-    if (i != 0)
-      bucket_array[i].minimum = bucket_array[i - 1].maximum;
-    else
-      bucket_array[i].minimum = 0;
-    if (i == num_buckets - 1)
-      bucket_array[i].maximum = INFINITY;
-    else
-      bucket_array[i].maximum = custom_buckets_boundaries[i];
+    bucket_array[i] = (bucket_t) {
+        .bucket_counter = 0,
+        .minimum = (i == 0) ? 0 : bucket_array[i - 1].maximum,
+        .maximum = (i == num_buckets - 1) ? INFINITY : custom_buckets_boundaries[i],
+    };
   }
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
@@ -237,7 +233,7 @@ double distribution_average(distribution_t *dist) {
 
 int main() {
   double a[] = {3.0, 5.7, 6.7};
-  distribution_t *p = distribution_new_linear(4, 3);
+  distribution_t *p = distribution_new_custom(3, a);
   distribution_update(p, 2);
   distribution_update(p, 5);
   distribution_update(p, 7.5);
