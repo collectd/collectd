@@ -27,6 +27,7 @@
 
 #include <errno.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -251,7 +252,7 @@ int main() {
   distribution_update(p, 7.5);
   distribution_update(p, 3.1);
   for (size_t i = 0; i < 7; i++) {
-    printf("%f %f %llu\n", p->tree[i].minimum, p->tree[i].maximum, p->tree[i].bucket_counter);
+    printf("%f %f %lu\n", p->tree[i].minimum, p->tree[i].maximum, p->tree[i].bucket_counter);
   }
   printf("%f\n", distribution_average(p));
   printf("%f\n", distribution_percentile(p, 70));
