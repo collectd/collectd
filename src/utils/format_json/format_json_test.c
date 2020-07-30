@@ -162,6 +162,7 @@ DEF_TEST(notification) {
   /* 1448284606.125 ^= 1555083754651779072 */
   notification_t n = {NOTIF_WARNING,
                       1555083754651779072ULL,
+                      "",
                       "this is a message",
                       "example.com",
                       "unit",
@@ -177,8 +178,36 @@ DEF_TEST(notification) {
   return expect_json_labels(got, labels, STATIC_ARRAY_SIZE(labels));
 }
 
+DEF_TEST(notification_with_alertname) {
+  label_t labels[] = {
+      {"summary", "this is a message"},
+      {"alertname", "Custom Alert Name"},
+      {"instance", "example.com"},
+      {"service", "collectd"},
+      {"unit", "case"},
+  };
+
+  /* 1448284606.125 ^= 1555083754651779072 */
+  notification_t n = {NOTIF_WARNING,
+                      1555083754651779072ULL,
+                      "Custom Alert Name",
+                      "this is a message",
+                      "example.com",
+                      "unit",
+                      "",
+                      "test",
+                      "case",
+                      NULL};
+
+  char got[1024];
+  CHECK_ZERO(format_json_notification(got, sizeof(got), &n));
+
+  return expect_json_labels(got, labels, STATIC_ARRAY_SIZE(labels));
+}
+
 int main(void) {
   RUN_TEST(notification);
+  RUN_TEST(notification_with_alertname);
 
   END_TEST;
 }

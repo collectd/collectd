@@ -298,8 +298,8 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
 static void
 ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
   const char *msg_link_status = NULL;
-  notification_t n = {
-      NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN, "", "", "", NULL};
+  notification_t n = {NOTIF_FAILURE,     cdtime(), "", "", "",
+                      OVS_EVENTS_PLUGIN, "",       "", "", NULL};
 
   /* convert link status to message string */
   switch (ifinfo->link_status) {
@@ -384,8 +384,8 @@ ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
 
 /* Dispatch OVS DB terminate connection event to collectd */
 static void ovs_events_dispatch_terminate_notification(const char *msg) {
-  notification_t n = {
-      NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN, "", "", "", NULL};
+  notification_t n = {NOTIF_FAILURE,     cdtime(), "", "", "",
+                      OVS_EVENTS_PLUGIN, "",       "", "", NULL};
   sstrncpy(n.message, msg, sizeof(n.message));
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   plugin_dispatch_notification(&n);

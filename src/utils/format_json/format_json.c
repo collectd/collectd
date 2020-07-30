@@ -555,7 +555,9 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN labels */
 
   JSON_ADD(g, "alertname");
-  if (strncmp(n->plugin, n->type, strlen(n->plugin)) == 0)
+  if (strlen(n->alert_name) > 0)
+    JSON_ADDF(g, "%s", n->alert_name);
+  else if (strncmp(n->plugin, n->type, strlen(n->plugin)) == 0)
     JSON_ADDF(g, "collectd_%s", n->type);
   else
     JSON_ADDF(g, "collectd_%s_%s", n->plugin, n->type);

@@ -754,6 +754,8 @@ static void *exec_notification_one(void *arg) /* {{{ */
           severity, CDTIME_T_TO_DOUBLE(n->time));
 
   /* Print the optional fields */
+  if (strlen(n->alert_name) > 0)
+    fprintf(fh, "AlertName: %s\n", n->alert_name);
   if (strlen(n->host) > 0)
     fprintf(fh, "Host: %s\n", n->host);
   if (strlen(n->plugin) > 0)

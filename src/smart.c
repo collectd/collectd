@@ -194,8 +194,9 @@ static void handle_attribute(SkDisk *d, const SkSmartAttributeParsedData *a,
   plugin_dispatch_values(&vl);
 
   if (a->threshold_valid && a->current_value <= a->threshold) {
-    notification_t notif = {NOTIF_WARNING,     cdtime(), "",  "", "smart", "",
-                            "smart_attribute", "",       NULL};
+    notification_t notif = {
+        NOTIF_WARNING,     cdtime(), "",  "", "", "smart", "",
+        "smart_attribute", "",       NULL};
     sstrncpy(notif.host, hostname_g, sizeof(notif.host));
     sstrncpy(notif.plugin_instance, name, sizeof(notif.plugin_instance));
     sstrncpy(notif.type_instance, a->name, sizeof(notif.type_instance));

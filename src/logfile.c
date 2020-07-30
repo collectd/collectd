@@ -188,6 +188,7 @@ static int logfile_notification(const notification_t *n,
   APPEND(buf_ptr, buf_len, "type", n->type);
   APPEND(buf_ptr, buf_len, "type_instance", n->type_instance);
   APPEND(buf_ptr, buf_len, "message", n->message);
+  APPEND(buf_ptr, buf_len, "alert_name", n->alert_name);
 
   buf[sizeof(buf) - 1] = '\0';
 

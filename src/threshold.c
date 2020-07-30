@@ -144,6 +144,9 @@ static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
     else if (strcasecmp("DataSource", option->key) == 0)
       status = cf_util_get_string_buffer(option, th.data_source,
                                          sizeof(th.data_source));
+    else if (strcasecmp("AlertName", option->key) == 0)
+      status = cf_util_get_string_buffer(option, th.alert_name,
+                                         sizeof(th.alert_name));
     else if (strcasecmp("WarningMax", option->key) == 0)
       status = cf_util_get_double(option, &th.warning_max);
     else if (strcasecmp("FailureMax", option->key) == 0)
@@ -322,6 +325,8 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
     uc_set_state(ds, vl, state);
 
   NOTIFICATION_INIT_VL(&n, vl);
+
+  sstrncpy((&n)->alert_name, th->alert_name, sizeof((&n)->alert_name));
 
   buf = n.message;
   bufsize = sizeof(n.message);

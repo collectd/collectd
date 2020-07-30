@@ -163,6 +163,11 @@ Sets the severity of the notification. This option is mandatory.
 Sets the time of the notification. The time is given as "epoch", i.E<nbsp>e. as
 seconds since January 1st, 1970, 00:00:00. This option is mandatory.
 
+=item B<alert_name=>I<Alert-Name>
+
+The alert name is an optional value that can be defined in the notification to
+provide a meaningful name to the event being raised.
+
 =item B<host=>I<Hostname>
 
 =item B<plugin=>I<Plugin>
