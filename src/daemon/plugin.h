@@ -327,13 +327,6 @@ int plugin_unregister_notification(const char *name);
  */
 void plugin_log_available_writers(void);
 
-/* plugin_value_list_to_metric_family converts a value in a value_list_t to a
- * metric_family_t. In case of error, errno is set and NULL is returned. The
- * returned pointer must be freed using metric_family_free(). */
-metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
-                                                    data_set_t const *ds,
-                                                    size_t index);
-
 /*
  * NAME
  *  plugin_dispatch_values

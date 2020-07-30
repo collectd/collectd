@@ -346,6 +346,13 @@ int parse_identifier_vl(const char *str, value_list_t *vl,
  * "host/plugin/type" and converts it to a metric_t. */
 metric_t *parse_legacy_identifier(char const *s);
 
+/* plugin_value_list_to_metric_family converts a value in a value_list_t to a
+ * metric_family_t. In case of error, errno is set and NULL is returned. The
+ * returned pointer must be freed using metric_family_free(). */
+metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
+                                                    data_set_t const *ds,
+                                                    size_t index);
+
 int parse_value(const char *value, value_t *ret_value, int ds_type);
 int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
 
