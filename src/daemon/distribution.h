@@ -27,7 +27,13 @@
 #ifndef COLLECTD_DISTRIBUTION_H
 #define COLLECTD_DISTRIBUTION_H
 
+#include <stdint.h>
 #include <stdlib.h>
+
+typedef struct bucket_s {
+  uint64_t bucket_counter;
+  double minimum, maximum;
+} bucket_t;
 
 struct distribution_s;
 typedef struct distribution_s distribution_t;

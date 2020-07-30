@@ -28,14 +28,8 @@
 
 #include <errno.h>
 #include <math.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-typedef struct bucket_s {
-  uint64_t bucket_counter;
-  double minimum, maximum;
-} bucket_t;
 
 struct distribution_s {
   bucket_t *tree;
