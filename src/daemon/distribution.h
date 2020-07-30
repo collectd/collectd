@@ -88,4 +88,7 @@ distribution_t* distribution_clone(distribution_t *dist);
 /** destroy the distribution and free memory **/
 void distribution_destroy(distribution_t *d);
 
+/** @return - number of buckets stored in the distribution **/
+size_t distribution_num_buckets(distribution_t *dist);
+
 #endif // COLLECTD_DISTRIBUTION_H

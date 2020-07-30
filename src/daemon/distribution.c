@@ -239,3 +239,6 @@ double distribution_average(distribution_t *dist) {
   return dist->total_sum / dist->tree[0].bucket_counter;
 }
 
+size_t distribution_num_buckets(distribution_t *dist) {
+  return dist->num_buckets;
+}  
