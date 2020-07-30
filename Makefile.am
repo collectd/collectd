@@ -208,6 +208,7 @@ endif
 
 # Link to these libraries..
 COMMON_LIBS = $(PTHREAD_LIBS)
+COMMON_LIBS += -lm
 if BUILD_WIN32
 COMMON_LIBS += -lws2_32
 endif

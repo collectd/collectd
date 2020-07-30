@@ -26,9 +26,16 @@
 
 #include "collectd.h"
 
-#include "metric.h"
+#include "distribution.h"
 #include "testing.h"
 
-int main(void) {
-	printf("Hello World!");
+DEF_TEST(distribution_new_linear) {
+	distribution_t *d = distribution_new_linear(3, -1);
+	EXPECT_EQ_PTR(NULL, d);
+	return 0;
+}
+
+int main() {
+	RUN_TEST(distribution_new_linear);
+	END_TEST;
 }

@@ -23,6 +23,7 @@
  * Authors:
  *   Svetlana Shmidt <sshmidt at google.com>
  **/
+
 #include "distribution.h"
 
 #include <errno.h>
@@ -244,17 +245,3 @@ double distribution_average(distribution_t *dist) {
   return dist->total_sum / dist->tree[0].bucket_counter;
 }
 
-int main() {
-  double a[] = {3.0, 5.7, 6.7};
-  distribution_t *p = distribution_new_custom(3, a);
-  distribution_update(p, 2);
-  distribution_update(p, 5);
-  distribution_update(p, 7.5);
-  distribution_update(p, 3.1);
-  for (size_t i = 0; i < 7; i++) {
-    printf("%f %f %lu\n", p->tree[i].minimum, p->tree[i].maximum, p->tree[i].bucket_counter);
-  }
-  printf("%f\n", distribution_average(p));
-  printf("%f\n", distribution_percentile(p, 70));
-  distribution_destroy(p);
-}
