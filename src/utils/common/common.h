@@ -328,7 +328,20 @@ int format_values(strbuf_t *buf, metric_t const *m, bool store_rates);
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
                      char **ret_type, char **ret_data_source,
                      char *default_host);
-int parse_identifier_vl(const char *str, value_list_t *vl);
+
+/* parse_identifier_vl parses an identifier in the form
+ * "host/plugin[-inst]/type[-inst]/data_source" and stores the fields in a
+ * value_list_t. If vl->host is not empty, then it is used as the default value
+ * if a host name is omitted, i.e. the "plugin/type" format is accepted. If
+ * ret_data_source is not NULL, a four-part identifier is accepted and a
+ * pointer to the data source name is (optionally) stored and needs to be freed
+ * by the caller. If the provided format does not fit the provided arguments,
+ * e.g. a two-part format but no default host provided, or a four-part format
+ * but no ret_data_source pointer, then EINVAL is returned.
+ */
+int parse_identifier_vl(const char *str, value_list_t *vl,
+                        char **ret_data_source);
+
 int parse_value(const char *value, value_t *ret_value, int ds_type);
 int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
 

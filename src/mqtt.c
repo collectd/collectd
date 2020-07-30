@@ -194,7 +194,7 @@ static void on_message(
   topic = strdup(msg->topic);
   name = strip_prefix(topic);
 
-  status = parse_identifier_vl(name, &vl);
+  status = parse_identifier_vl(name, &vl, NULL);
   if (status != 0) {
     ERROR("mqtt plugin: Unable to parse topic \"%s\".", topic);
     sfree(topic);

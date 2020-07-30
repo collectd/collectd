@@ -456,7 +456,7 @@ private:
     char *name = NULL;
     while (uc_iterator_next(iter, &name) == 0) {
       value_list_t vl;
-      if (parse_identifier_vl(name, &vl) != 0) {
+      if (parse_identifier_vl(name, &vl, NULL) != 0) {
         status = grpc::Status(grpc::StatusCode::INTERNAL,
                               grpc::string("failed to parse identifier"));
         break;

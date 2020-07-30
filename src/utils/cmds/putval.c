@@ -95,7 +95,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   }
 
   char const *identifier = argv[0];
-  int status = parse_identifier_vl(identifier, &vl);
+  int status = parse_identifier_vl(identifier, &vl, NULL);
   if (status != 0) {
     DEBUG("cmd_handle_putval: Cannot parse identifier `%s'.", identifier);
     cmd_error(CMD_PARSE_ERROR, errhndl, "parse_identifier_vl(\"%s\"): %s",

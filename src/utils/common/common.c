@@ -972,8 +972,8 @@ int parse_identifier(char *str, char **ret_host, char **ret_plugin,
   return 0;
 } /* int parse_identifier */
 
-int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
-{
+int parse_identifier_vl(const char *str, value_list_t *vl,
+                        char **ret_data_source) {
   if ((str == NULL) || (vl == NULL))
     return EINVAL;
 
@@ -993,6 +993,13 @@ int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
                                 default_host);
   if (status != 0) {
     return status;
+  }
+
+  if (data_source != NULL) {
+    if (ret_data_source == NULL) {
+      return EINVAL;
+    }
+    *ret_data_source = strdup(data_source);
   }
 
   char *plugin_instance = strchr(plugin, '-');
