@@ -1028,6 +1028,65 @@ int parse_identifier_vl(const char *str, value_list_t *vl,
   return 0;
 } /* }}} int parse_identifier_vl */
 
+metric_t *parse_legacy_identifier(char const *s) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  char *data_source = NULL;
+  int status = parse_identifier_vl(s, &vl, &data_source);
+  if (status != 0) {
+    errno = status;
+    return NULL;
+  }
+
+  data_set_t const *ds = plugin_get_ds(vl.type);
+  if (ds == NULL) {
+    errno = ENOENT;
+    return NULL;
+  }
+
+  if ((ds->ds_num != 1) && (data_source == NULL)) {
+    DEBUG("parse_legacy_identifier: data set \"%s\" has multiple data sources, "
+          "but \"%s\" does not specify a data source",
+          ds->type, s);
+    errno = EINVAL;
+    return NULL;
+  }
+
+  value_t values[ds->ds_num];
+  memset(values, 0, sizeof(values));
+  vl.values = values;
+  vl.values_len = ds->ds_num;
+
+  size_t ds_index = 0;
+  if (data_source != NULL) {
+    bool found = 0;
+    for (size_t i = 0; i < ds->ds_num; i++) {
+      if (strcasecmp(data_source, ds->ds[i].name) == 0) {
+        ds_index = i;
+        found = true;
+      }
+    }
+
+    if (!found) {
+      DEBUG("parse_legacy_identifier: data set \"%s\" does not have a \"%s\" "
+            "data source",
+            ds->type, data_source);
+      free(data_source);
+      errno = EINVAL;
+      return NULL;
+    }
+  }
+  free(data_source);
+  data_source = NULL;
+
+  metric_family_t *fam = plugin_value_list_to_metric_family(&vl, ds, ds_index);
+  if (fam == NULL) {
+    return NULL;
+  }
+
+  return fam->metric.ptr;
+}
+
 int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
   char *value;
   char *endptr = NULL;

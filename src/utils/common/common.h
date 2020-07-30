@@ -342,6 +342,10 @@ int parse_identifier(char *str, char **ret_host, char **ret_plugin,
 int parse_identifier_vl(const char *str, value_list_t *vl,
                         char **ret_data_source);
 
+/* parse_legacy_identifier parses a legacy identifier in the form
+ * "host/plugin/type" and converts it to a metric_t. */
+metric_t *parse_legacy_identifier(char const *s);
+
 int parse_value(const char *value, value_t *ret_value, int ds_type);
 int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
 
