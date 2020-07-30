@@ -71,6 +71,7 @@ struct data_definition_s {
   char **ignores;
   size_t ignores_len;
   bool invert_match;
+  bool count;
 };
 typedef struct data_definition_s data_definition_t;
 
@@ -473,7 +474,9 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
       status = cf_util_get_boolean(option, &t);
       if (status == 0)
         ignorelist_set_invert(dd->ignorelist, /* invert = */ !t);
-    } else {
+    } else if (strcasecmp("Count", option->key) == 0)
+      status = cf_util_get_boolean(option, &dd->count);
+    else {
       WARNING("snmp plugin: data %s: Option `%s' not allowed here.", dd->name,
               option->key);
       status = -1;
@@ -513,6 +516,13 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
                 dd->name);
       }
     } else {
+      if (dd->count) {
+        WARNING("snmp plugin: data %s: Option `Count' is ignored when `Table' "
+                "set to `false'.",
+                dd->name);
+      }
+    }
+    if (!dd->is_table || dd->count) {
       if (dd->plugin_instance.oid.oid_len > 0) {
         WARNING("snmp plugin: data %s: Option `PluginInstanceOID' will be "
                 "ignored.",
@@ -525,20 +535,18 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
       }
       if (dd->type_instance.prefix) {
         WARNING("snmp plugin: data %s: Option `TypeInstancePrefix' is ignored "
-                "when `Table' "
-                "set to `false'.",
+                "when `Table' set to `false' or `Count' set to `true'.",
                 dd->name);
       }
       if (dd->plugin_instance.prefix) {
         WARNING("snmp plugin: data %s: Option `PluginInstancePrefix' is "
-                "ignored when "
-                "`Table' set to `false'.",
+                "ignored when `Table' set to `false' or `Count' set to `true'.",
                 dd->name);
       }
       if (dd->host.prefix) {
         WARNING(
             "snmp plugin: data %s: Option `HostPrefix' is ignored when `Table' "
-            "set to `false'.",
+            "set to `false' or `Count' set to `true'.",
             dd->name);
       }
     }
@@ -1295,7 +1303,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
                                 csnmp_cell_char_t *plugin_instance_cells,
                                 csnmp_cell_char_t *hostname_cells,
                                 csnmp_cell_char_t *filter_cells,
-                                csnmp_cell_value_t **value_cells) {
+                                csnmp_cell_value_t **value_cells,
+                                bool count_values) {
   const data_set_t *ds;
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -1308,13 +1317,18 @@ static int csnmp_dispatch_table(host_definition_t *host,
   size_t i;
   bool have_more;
   oid_t current_suffix;
+  size_t count;
 
   ds = plugin_get_ds(data->type);
   if (!ds) {
     ERROR("snmp plugin: DataSet `%s' not defined.", data->type);
     return -1;
   }
-  assert(ds->ds_num == data->values_len);
+  if (count_values) {
+    assert(ds->ds_num == 1);
+    count = 0;
+  } else
+    assert(ds->ds_num == data->values_len);
   assert(data->values_len > 0);
 
   for (i = 0; i < data->values_len; i++)
@@ -1478,76 +1492,118 @@ static int csnmp_dispatch_table(host_definition_t *host,
       continue;
     }
 
-    /* set vl.host */
-    if (data->host.configured) {
-      char temp[DATA_MAX_NAME_LEN];
-      if (hostname_cell_ptr == NULL)
-        csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
-      else
-        sstrncpy(temp, hostname_cell_ptr->value, sizeof(temp));
-
-      if (data->host.prefix == NULL)
-        sstrncpy(vl.host, temp, sizeof(vl.host));
-      else
-        ssnprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
+    if (count_values) {
+      count++;
     } else {
-      sstrncpy(vl.host, host->name, sizeof(vl.host));
+      /* set vl.host */
+      if (data->host.configured) {
+        char temp[DATA_MAX_NAME_LEN];
+        if (hostname_cell_ptr == NULL)
+          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
+        else
+          sstrncpy(temp, hostname_cell_ptr->value, sizeof(temp));
+
+        if (data->host.prefix == NULL)
+          sstrncpy(vl.host, temp, sizeof(vl.host));
+        else
+          ssnprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
+      } else {
+        sstrncpy(vl.host, host->name, sizeof(vl.host));
+      }
+
+      /* set vl.type_instance */
+      if (data->type_instance.configured) {
+        char temp[DATA_MAX_NAME_LEN];
+        if (type_instance_cell_ptr == NULL)
+          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
+        else
+          sstrncpy(temp, type_instance_cell_ptr->value, sizeof(temp));
+
+        if (data->type_instance.prefix == NULL)
+          sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
+        else
+          ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
+                    data->type_instance.prefix, temp);
+      } else if (data->type_instance.value) {
+        sstrncpy(vl.type_instance, data->type_instance.value,
+                 sizeof(vl.type_instance));
+      }
+
+      /* set vl.plugin_instance */
+      if (data->plugin_instance.configured) {
+        char temp[DATA_MAX_NAME_LEN];
+        if (plugin_instance_cell_ptr == NULL)
+          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
+        else
+          sstrncpy(temp, plugin_instance_cell_ptr->value, sizeof(temp));
+
+        if (data->plugin_instance.prefix == NULL)
+          sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
+        else
+          ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
+                    data->plugin_instance.prefix, temp);
+      } else if (data->plugin_instance.value) {
+        sstrncpy(vl.plugin_instance, data->plugin_instance.value,
+                 sizeof(vl.plugin_instance));
+      }
+
+      vl.values_len = data->values_len;
+      value_t values[vl.values_len];
+      vl.values = values;
+
+      for (i = 0; i < data->values_len; i++)
+        vl.values[i] = value_cell_ptr[i]->value;
+
+      plugin_dispatch_values(&vl);
+
+      /* prevent leakage of pointer to local variable. */
+      vl.values_len = 0;
+      vl.values = NULL;
     }
-
-    /* set vl.type_instance */
-    if (data->type_instance.configured) {
-      char temp[DATA_MAX_NAME_LEN];
-      if (type_instance_cell_ptr == NULL)
-        csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
-      else
-        sstrncpy(temp, type_instance_cell_ptr->value, sizeof(temp));
-
-      if (data->type_instance.prefix == NULL)
-        sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
-      else
-        ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                  data->type_instance.prefix, temp);
-    } else if (data->type_instance.value) {
-      sstrncpy(vl.type_instance, data->type_instance.value,
-               sizeof(vl.type_instance));
-    }
-
-    /* set vl.plugin_instance */
-    if (data->plugin_instance.configured) {
-      char temp[DATA_MAX_NAME_LEN];
-      if (plugin_instance_cell_ptr == NULL)
-        csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
-      else
-        sstrncpy(temp, plugin_instance_cell_ptr->value, sizeof(temp));
-
-      if (data->plugin_instance.prefix == NULL)
-        sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
-      else
-        ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
-                  data->plugin_instance.prefix, temp);
-    } else if (data->plugin_instance.value) {
-      sstrncpy(vl.plugin_instance, data->plugin_instance.value,
-               sizeof(vl.plugin_instance));
-    }
-
-    vl.values_len = data->values_len;
-    value_t values[vl.values_len];
-    vl.values = values;
-
-    for (i = 0; i < data->values_len; i++)
-      vl.values[i] = value_cell_ptr[i]->value;
-
-    plugin_dispatch_values(&vl);
-
-    /* prevent leakage of pointer to local variable. */
-    vl.values_len = 0;
-    vl.values = NULL;
 
     if (type_instance_cells != NULL)
       type_instance_cell_ptr = type_instance_cell_ptr->next;
     else
       value_cell_ptr[0] = value_cell_ptr[0]->next;
   } /* while (have_more) */
+
+  if (count_values) {
+    /* the first `ds' means `data set', the second means `data source' */
+    int type = ds->ds[0].type;
+    sstrncpy(vl.host, host->name, sizeof(vl.host));
+    sstrncpy(vl.plugin, data->plugin_name, sizeof(vl.plugin));
+    sstrncpy(vl.type, data->type, sizeof(vl.type));
+    if (data->type_instance.value)
+      sstrncpy(vl.type_instance, data->type_instance.value,
+               sizeof(vl.type_instance));
+    if (data->plugin_instance.value)
+      sstrncpy(vl.plugin_instance, data->plugin_instance.value,
+               sizeof(vl.plugin_instance));
+    vl.values_len = 1;
+    vl.values = malloc(sizeof(*vl.values));
+    if (vl.values == NULL)
+      return -1;
+    switch (type) {
+    case DS_TYPE_COUNTER:
+      vl.values[0].counter = count;
+      break;
+    case DS_TYPE_GAUGE:
+      vl.values[0].gauge = count;
+      break;
+    case DS_TYPE_DERIVE:
+      vl.values[0].derive = count;
+      break;
+    case DS_TYPE_ABSOLUTE:
+      vl.values[0].absolute = count;
+      break;
+    default:
+      ERROR("snmp plugin: csnmp_dispatch_table: Unknown "
+            "data source type: %i.",
+            type);
+    }
+    plugin_dispatch_values(&vl);
+    sfree(vl.values);
+  }
 
   return 0;
 } /* int csnmp_dispatch_table */
@@ -1611,12 +1667,21 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     return -1;
   }
 
-  if (ds->ds_num != data->values_len) {
-    ERROR("snmp plugin: DataSet `%s' requires %" PRIsz
-          " values, but config talks "
-          "about %" PRIsz,
-          data->type, ds->ds_num, data->values_len);
-    return -1;
+  if (data->count) {
+    if (ds->ds_num != 1) {
+      ERROR("snmp plugin: DataSet `%s' requires %" PRIsz
+            " values, but `Count' option only delivers one",
+            data->type, ds->ds_num);
+      return -1;
+    }
+  } else {
+    if (ds->ds_num != data->values_len) {
+      ERROR("snmp plugin: DataSet `%s' requires %" PRIsz
+            " values, but config talks "
+            "about %" PRIsz,
+            data->type, ds->ds_num, data->values_len);
+      return -1;
+    }
   }
   assert(data->values_len > 0);
 
@@ -1981,7 +2046,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   if (status == 0)
     csnmp_dispatch_table(host, data, type_instance_cells_head,
                          plugin_instance_cells_head, hostname_cells_head,
-                         filter_cells_head, value_cells_head);
+                         filter_cells_head, value_cells_head, data->count);
 
   /* Free all allocated variables here */
   while (type_instance_cells_head != NULL) {
