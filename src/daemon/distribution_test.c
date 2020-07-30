@@ -30,12 +30,46 @@
 #include "testing.h"
 
 DEF_TEST(distribution_new_linear) {
-	distribution_t *d = distribution_new_linear(3, -1);
-	EXPECT_EQ_PTR(NULL, d);
-	return 0;
+  struct {
+    size_t num_buckets;
+    double size;
+    double *want_get;
+  } cases[] = {
+    {
+      .num_buckets = 0,
+      .size = 5,
+      .want_get = NULL,
+    },
+    {
+      .num_buckets = 3,
+      .size = -5,
+      .want_get = NULL,
+    },
+    {
+      .num_buckets = 5,
+      .size = 0,
+      .want_get = NULL,
+    },
+    {
+      .num_buckets = 3,
+      .size = 2.5,
+      .want_get = (double[]){2.5, 5.0, INFINITY},
+    },  
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) { 
+    printf("## Case %zu:\n", i);
+    distribution_t *d;
+    if (cases[i].want_get == NULL) {
+      EXPECT_EQ_PTR(NULL, d = distribution_new_linear(cases[i].num_buckets, cases[i].size));
+      continue;
+    }
+    CHECK_NOT_NULL(d = distribution_new_linear(cases[i].num_buckets, cases[i].size));
+    distribution_destroy(d);
+  }  
+  return 0;
 }
 
 int main() {
-	RUN_TEST(distribution_new_linear);
-	END_TEST;
+  RUN_TEST(distribution_new_linear);
+  END_TEST;
 }
