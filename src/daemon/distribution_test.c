@@ -34,21 +34,25 @@ DEF_TEST(distribution_new_linear) {
     size_t num_buckets;
     double size;
     double *want_get;
+    int want_err;
   } cases[] = {
     {
       .num_buckets = 0,
       .size = 5,
       .want_get = NULL,
+      .want_err = EINVAL,
     },
     {
       .num_buckets = 3,
       .size = -5,
       .want_get = NULL,
+      .want_err = EINVAL,
     },
     {
       .num_buckets = 5,
       .size = 0,
       .want_get = NULL,
+      .want_err = EINVAL,
     },
     {
       .num_buckets = 3,
@@ -58,12 +62,17 @@ DEF_TEST(distribution_new_linear) {
   };
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) { 
     printf("## Case %zu:\n", i);
-    distribution_t *d;
-    if (cases[i].want_get == NULL) {
-      EXPECT_EQ_PTR(NULL, d = distribution_new_linear(cases[i].num_buckets, cases[i].size));
+    if (cases[i].want_err != 0) {
+      EXPECT_EQ_PTR(cases[i].want_get, distribution_new_linear(cases[i].num_buckets, cases[i].size));
+      EXPECT_EQ_INT(cases[i].want_err, errno);
       continue;
     }
+    distribution_t *d;
     CHECK_NOT_NULL(d = distribution_new_linear(cases[i].num_buckets, cases[i].size));
+    buckets_array_t buckets_array = get_buckets(d);
+    for (size_t j = 0; j < cases[i].num_buckets; j++) {
+      EXPECT_EQ_DOUBLE(cases[i].want_get[j], buckets_array.buckets[j].maximum);
+    }  
     distribution_destroy(d);
   }  
   return 0;
