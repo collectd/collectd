@@ -259,9 +259,11 @@ static bucket_t *tree_write_leave_buckets(distribution_t *dist, bucket_t *write_
 
 buckets_array_t get_buckets(distribution_t *dist) {
   buckets_array_t bucket_array = {
-    .num_buckets = dist->num_buckets,
-    .buckets = calloc(dist->num_buckets, sizeof(*bucket_array.buckets)),
+    .num_buckets = dist == NULL ? 0 : dist->num_buckets,
+    .buckets = dist == NULL ? NULL : calloc(dist->num_buckets, sizeof(*bucket_array.buckets)),
   };
+  if (dist == NULL)
+    return bucket_array;
   bucket_t *write_ptr = bucket_array.buckets;
   tree_write_leave_buckets(dist, write_ptr, 0, 0, dist->num_buckets - 1);
   return bucket_array;
