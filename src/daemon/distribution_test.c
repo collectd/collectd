@@ -81,6 +81,11 @@ DEF_TEST(distribution_new_linear) {
       .num_buckets = 111,
       .size = 1074,
       .want_get = linear_upper_bounds(111, 1074),
+    },
+    {
+      .num_buckets = 77,
+      .size = 1.0 / 3.0,
+      .want_get = linear_upper_bounds(77, 1.0 / 3.0),
     }    
   };
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) { 
