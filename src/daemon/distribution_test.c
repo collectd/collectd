@@ -29,6 +29,14 @@
 #include "distribution.h"
 #include "testing.h"
 
+static double *linear_upper_bounds(size_t num, double size) {
+  double *linear_upper_bounds = calloc(num, sizeof(*linear_upper_bounds));
+  for (size_t i = 0; i + 1 < num; i++)
+    linear_upper_bounds[i] = (i + 1) * size;
+  linear_upper_bounds[num - 1] = INFINITY;
+  return linear_upper_bounds;
+}
+
 DEF_TEST(distribution_new_linear) {
   struct {
     size_t num_buckets;
@@ -57,8 +65,23 @@ DEF_TEST(distribution_new_linear) {
     {
       .num_buckets = 3,
       .size = 2.5,
-      .want_get = (double[]){2.5, 5.0, INFINITY},
-    },  
+      .want_get = linear_upper_bounds(3, 2.5),
+    },
+    {
+      .num_buckets = 5,
+      .size = 5.75,
+      .want_get = linear_upper_bounds(5, 5.75),
+    },
+    {
+      .num_buckets = 151,
+      .size = 0.7,
+      .want_get = linear_upper_bounds(151, 0.7),
+    },
+    {
+      .num_buckets = 111,
+      .size = 1074,
+      .want_get = linear_upper_bounds(111, 1074),
+    }    
   };
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) { 
     printf("## Case %zu:\n", i);
@@ -75,6 +98,9 @@ DEF_TEST(distribution_new_linear) {
     }  
     distribution_destroy(d);
   }  
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    free(cases[i].want_get);
+  }
   return 0;
 }
 
