@@ -109,7 +109,80 @@ DEF_TEST(distribution_new_linear) {
   return 0;
 }
 
+DEF_TEST(distribution_new_exponential) {
+  struct {
+    size_t num_buckets;
+    double factor;
+    double base;
+    double *want_get;
+    int want_err;
+  } cases[] = {
+    {
+      .num_buckets = 0,
+      .factor = 5,
+      .base = 8,
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .num_buckets = 5,
+      .factor = 0.2,
+      .base = -1,
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .num_buckets = 8,
+      .factor = 100,
+      .base = 0.5,
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .num_buckets = 100,
+      .factor = 5.87,
+      .base = 1,
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .num_buckets = 6,
+      .factor = 0,
+      .base = 9.005,
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .num_buckets = 16,
+      .factor = -153,
+      .base = 1.41,
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) { 
+    printf("## Case %zu:\n", i);
+    if (cases[i].want_err != 0) {
+      EXPECT_EQ_PTR(cases[i].want_get, distribution_new_exponential(cases[i].num_buckets, cases[i].base, cases[i].factor));
+      EXPECT_EQ_INT(cases[i].want_err, errno);
+      continue;
+    }
+    /*distribution_t *d;
+    CHECK_NOT_NULL(d = distribution_new_linear(cases[i].num_buckets, cases[i].size));
+    buckets_array_t buckets_array = get_buckets(d);
+    for (size_t j = 0; j < cases[i].num_buckets; j++) {
+      EXPECT_EQ_DOUBLE(cases[i].want_get[j], buckets_array.buckets[j].maximum);
+    }  
+    distribution_destroy(d);*/
+  }  
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    free(cases[i].want_get);
+  }
+  return 0;
+}
+
 int main() {
   RUN_TEST(distribution_new_linear);
+  RUN_TEST(distribution_new_exponential); 
   END_TEST;
 }
