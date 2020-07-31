@@ -37,6 +37,15 @@ static double *linear_upper_bounds(size_t num, double size) {
   return linear_upper_bounds;
 }
 
+static double *exponential_upper_bounds(size_t num, double base, double factor) {
+  double *exponential_upper_bounds = calloc(num, sizeof(*exponential_upper_bounds));
+  exponential_upper_bounds[0] = factor;
+  for (size_t i = 1; i + 1 < num; i++)
+    exponential_upper_bounds[i] = exponential_upper_bounds[i - 1] * base;
+  exponential_upper_bounds[num - 1] = INFINITY;
+ return exponential_upper_bounds; 
+}
+
 DEF_TEST(distribution_new_linear) {
   struct {
     size_t num_buckets;
@@ -86,7 +95,12 @@ DEF_TEST(distribution_new_linear) {
       .num_buckets = 77,
       .size = 1.0 / 3.0,
       .want_get = linear_upper_bounds(77, 1.0 / 3.0),
-    }    
+    },
+    {
+      .num_buckets = 1,
+      .size = 100,
+      .want_get = linear_upper_bounds(1, 100),    
+    },
   };
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) { 
     printf("## Case %zu:\n", i);
@@ -100,7 +114,8 @@ DEF_TEST(distribution_new_linear) {
     buckets_array_t buckets_array = get_buckets(d);
     for (size_t j = 0; j < cases[i].num_buckets; j++) {
       EXPECT_EQ_DOUBLE(cases[i].want_get[j], buckets_array.buckets[j].maximum);
-    }  
+    } 
+    destroy_buckets_array(buckets_array); 
     distribution_destroy(d);
   }  
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
@@ -159,6 +174,24 @@ DEF_TEST(distribution_new_exponential) {
       .want_get = NULL,
       .want_err = EINVAL,
     },
+    {
+      .num_buckets = 1,
+      .factor = 10,
+      .base = 1.05,
+      .want_get = exponential_upper_bounds(1, 10, 1.05),
+    },
+    {
+      .num_buckets = 63,
+      .factor = 1,
+      .base = 2,
+      .want_get = exponential_upper_bounds(63, 2, 1),
+    },    
+    {
+      .num_buckets = 600,
+      .factor = 0.55,
+      .base = 1.055,
+      .want_get = exponential_upper_bounds(600, 1.055, 0.55),
+    },
   };
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) { 
     printf("## Case %zu:\n", i);
@@ -167,13 +200,14 @@ DEF_TEST(distribution_new_exponential) {
       EXPECT_EQ_INT(cases[i].want_err, errno);
       continue;
     }
-    /*distribution_t *d;
-    CHECK_NOT_NULL(d = distribution_new_linear(cases[i].num_buckets, cases[i].size));
+    distribution_t *d;
+    CHECK_NOT_NULL(d = distribution_new_exponential(cases[i].num_buckets, cases[i].base, cases[i].factor));
     buckets_array_t buckets_array = get_buckets(d);
     for (size_t j = 0; j < cases[i].num_buckets; j++) {
       EXPECT_EQ_DOUBLE(cases[i].want_get[j], buckets_array.buckets[j].maximum);
-    }  
-    distribution_destroy(d);*/
+    }
+    destroy_buckets_array(buckets_array);  
+    distribution_destroy(d);
   }  
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
     free(cases[i].want_get);
