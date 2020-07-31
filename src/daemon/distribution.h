@@ -32,11 +32,16 @@
 
 typedef struct bucket_s {
   uint64_t bucket_counter;
-  double minimum, maximum;
+  double maximum;
 } bucket_t;
 
 struct distribution_s;
 typedef struct distribution_s distribution_t;
+
+typedef struct buckets_array_s {
+  size_t num_buckets;
+  bucket_t *buckets;
+} buckets_array_t;
 
 //constructor functions:
 /**
@@ -91,4 +96,6 @@ void distribution_destroy(distribution_t *d);
 /** @return - number of buckets stored in the distribution **/
 size_t distribution_num_buckets(distribution_t *dist);
 
+/** @return - array of buckets in the distribution **/
+buckets_array_t get_buckets(distribution_t *dist);
 #endif // COLLECTD_DISTRIBUTION_H

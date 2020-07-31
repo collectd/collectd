@@ -63,7 +63,6 @@ static size_t tree_size(size_t num_buckets) {
 static bucket_t merge_buckets(bucket_t left_child, bucket_t right_child) {
   return (bucket_t) {
       .bucket_counter = left_child.bucket_counter + right_child.bucket_counter,
-      .minimum = left_child.minimum,
       .maximum = right_child.maximum,
   };
 }
@@ -110,7 +109,6 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
   for (size_t i = 0; i < num_buckets; i++) {
     bucket_array[i] = (bucket_t) {
         .bucket_counter = 0,
-        .minimum = i * size,
         .maximum = (i == num_buckets - 1) ? INFINITY : (i + 1) * size,
     };
   }
@@ -127,7 +125,6 @@ distribution_t* distribution_new_exponential(size_t num_buckets, double base, do
   for (size_t i = 0; i < num_buckets; i++) {
     bucket_array[i] = (bucket_t) {
         .bucket_counter = 0,
-        .minimum = (i == 0) ? 0 : bucket_array[i - 1].maximum,
         .maximum = (i == num_buckets - 1) ? INFINITY : factor * pow(base, i), //check if it's slow
     };
   }
@@ -150,7 +147,6 @@ distribution_t* distribution_new_custom(size_t array_size, double *custom_bucket
   for (size_t i = 0; i < num_buckets; i++) {
     bucket_array[i] = (bucket_t) {
         .bucket_counter = 0,
-        .minimum = (i == 0) ? 0 : bucket_array[i - 1].maximum,
         .maximum = (i == num_buckets - 1) ? INFINITY : custom_buckets_boundaries[i],
     };
   }
@@ -240,5 +236,34 @@ double distribution_average(distribution_t *dist) {
 }
 
 size_t distribution_num_buckets(distribution_t *dist) {
+  if (dist == NULL)
+    return 0;
   return dist->num_buckets;
+}
+
+/* @return - pointer to the first byte after last written bucket **/
+static bucket_t *tree_write_leave_buckets(distribution_t *dist, bucket_t *write_ptr, size_t node_index, size_t left, size_t right) {
+  if (left > right)
+    return NULL;
+  if (left == right) {
+    *write_ptr = dist->tree[node_index];
+    write_ptr++;
+    return write_ptr;
+  }
+  size_t mid = (left + right) / 2;
+  size_t left_child = left_child_index(node_index, left, right);
+  size_t right_child = right_child_index(node_index, left, right);
+  bucket_t *new_write_ptr = tree_write_leave_buckets(dist, write_ptr, left_child, left, mid);
+  return tree_write_leave_buckets(dist, new_write_ptr, right_child, mid + 1, right); 
 }  
+
+buckets_array_t get_buckets(distribution_t *dist) {
+  buckets_array_t bucket_array = {
+    .num_buckets = dist->num_buckets,
+    .buckets = calloc(dist->num_buckets, sizeof(*bucket_array.buckets)),
+  };
+  bucket_t *write_ptr = bucket_array.buckets;
+  tree_write_leave_buckets(dist, write_ptr, 0, 0, dist->num_buckets - 1);
+  return bucket_array;
+}
+
