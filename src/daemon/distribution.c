@@ -269,3 +269,6 @@ buckets_array_t get_buckets(distribution_t *dist) {
   return bucket_array;
 }
 
+void destroy_buckets_array(buckets_array_t buckets_array) {
+  free(buckets_array.buckets);
+}
