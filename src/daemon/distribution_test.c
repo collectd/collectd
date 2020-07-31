@@ -41,7 +41,7 @@ static double *exponential_upper_bounds(size_t num, double base, double factor) 
   double *exponential_upper_bounds = calloc(num, sizeof(*exponential_upper_bounds));
   exponential_upper_bounds[0] = factor;
   for (size_t i = 1; i + 1 < num; i++)
-    exponential_upper_bounds[i] = exponential_upper_bounds[i - 1] * base;
+    exponential_upper_bounds[i] = factor * pow(base, i); //exponential_upper_bounds[i - 1] * base;
   exponential_upper_bounds[num - 1] = INFINITY;
  return exponential_upper_bounds; 
 }
