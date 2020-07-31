@@ -1167,6 +1167,7 @@ metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
     return NULL;
   }
 
+  metric_reset(&m);
   return fam;
 }
 
