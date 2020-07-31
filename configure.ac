@@ -3719,6 +3719,24 @@ if test "x$with_libmnl" = "xyes"; then
     [[#include <linux/if_link.h>]]
   )
 
+  AC_CHECK_DECLS([IFLA_VF_STATS_RX_DROPPED],
+    [AC_DEFINE(HAVE_IFLA_VF_STATS_RX_DROPPED, 1, [Define if IFLA_VF_STATS_RX_DROPPED exists.])],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
+  AC_CHECK_DECLS([IFLA_VF_STATS_TX_DROPPED],
+    [AC_DEFINE(HAVE_IFLA_VF_STATS_TX_DROPPED, 1, [Define if IFLA_VF_STATS_TX_DROPPED exists.])],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
+  AC_CHECK_DECLS([IFLA_VF_STATS],
+    [AC_DEFINE(HAVE_IFLA_VF_STATS, 1, [Define if IFLA_VF_STATS exists.])],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
   AC_CHECK_LIB([mnl], [mnl_nlmsg_get_payload],
     [with_libmnl="yes"],
     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
