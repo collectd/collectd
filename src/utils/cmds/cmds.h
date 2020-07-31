@@ -60,8 +60,10 @@ typedef struct {
 } cmd_flush_t;
 
 typedef struct {
+  /* The raw string provided by the user. */
   char *raw_identifier;
-  identifier_t identifier;
+
+  metric_t *metric;
 } cmd_getval_t;
 
 typedef struct {

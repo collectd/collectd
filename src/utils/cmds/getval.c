@@ -37,9 +37,6 @@ cmd_status_t cmd_parse_getval(size_t argc, char **argv,
                               cmd_getval_t *ret_getval,
                               const cmd_options_t *opts,
                               cmd_error_handler_t *err) {
-  char *identifier_copy;
-  int status;
-
   if ((ret_getval == NULL) || (opts == NULL)) {
     errno = EINVAL;
     cmd_error(CMD_ERROR, err, "Invalid arguments to cmd_parse_getval.");
@@ -55,23 +52,17 @@ cmd_status_t cmd_parse_getval(size_t argc, char **argv,
     return CMD_PARSE_ERROR;
   }
 
-  /* parse_identifier() modifies its first argument,
-   * returning pointers into it */
-  identifier_copy = sstrdup(argv[0]);
-
-  status = parse_identifier(
-      argv[0], &ret_getval->identifier.host, &ret_getval->identifier.plugin,
-      &ret_getval->identifier.type, &ret_getval->identifier.data_source,
-      opts->identifier_default_host);
-  if (status != 0) {
-    DEBUG("cmd_parse_getval: Cannot parse identifier `%s'.", identifier_copy);
-    cmd_error(CMD_PARSE_ERROR, err, "Cannot parse identifier `%s'.",
-              identifier_copy);
-    sfree(identifier_copy);
+  metric_t *m = parse_legacy_identifier(argv[0]);
+  if (m == NULL) {
+    DEBUG("cmd_parse_getval: Cannot parse identifier \"%s\": %s", argv[0],
+          STRERRNO);
     return CMD_PARSE_ERROR;
   }
 
-  ret_getval->raw_identifier = identifier_copy;
+  *ret_getval = (cmd_getval_t){
+      .raw_identifier = strdup(argv[0]),
+      .metric = m,
+  };
   return CMD_OK;
 } /* cmd_status_t cmd_parse_getval */
 
@@ -90,8 +81,6 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
   cmd_status_t status;
   cmd_t cmd;
 
-  const data_set_t *ds;
-
   if ((fh == NULL) || (buffer == NULL))
     return -1;
 
@@ -107,18 +96,10 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
     return CMD_UNKNOWN_COMMAND;
   }
 
-  ds = plugin_get_ds(cmd.cmd.getval.identifier.type);
-  if (ds == NULL) {
-    DEBUG("cmd_handle_getval: plugin_get_ds (%s) == NULL;",
-          cmd.cmd.getval.identifier.type);
-    cmd_error(CMD_ERROR, &err, "Type `%s' is unknown.\n",
-              cmd.cmd.getval.identifier.type);
-    cmd_destroy(&cmd);
-    return -1;
-  }
-
   gauge_t value;
-  status = uc_get_rate_by_name(cmd.cmd.getval.raw_identifier, &value);
+  /* TODO(octo): raw_identifier may need to be upgraded to a metric_t style
+   * identifier. */
+  status = uc_get_rate(cmd.cmd.getval.metric, &value);
   if (status != 0) {
     cmd_error(CMD_ERROR, &err, "No such value.");
     cmd_destroy(&cmd);
@@ -126,12 +107,7 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
   }
 
   print_to_socket(fh, "Value found\n");
-  print_to_socket(fh, "%s=", cmd.cmd.getval.identifier.data_source);
-  if (isnan(value)) {
-    print_to_socket(fh, "NaN\n");
-  } else {
-    print_to_socket(fh, "%12e\n", value);
-  }
+  print_to_socket(fh, GAUGE_FORMAT "\n", value);
 
   cmd_destroy(&cmd);
 
@@ -143,4 +119,5 @@ void cmd_destroy_getval(cmd_getval_t *getval) {
     return;
 
   sfree(getval->raw_identifier);
+  metric_family_free(getval->metric->family);
 } /* void cmd_destroy_getval */
