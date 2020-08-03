@@ -286,9 +286,67 @@ DEF_TEST(distribution_new_custom) {
   return 0;
 }
 
+DEF_TEST(update) {
+  struct {
+    distribution_t *dist;
+    size_t num_gauges;
+    double *gauges;
+    uint64_t *want_counters;
+    int want_err;
+  } cases[] = {
+    {
+      .dist = distribution_new_linear(6, 5),
+      .num_gauges = 10,
+      .gauges = (double[]){25, 30, 5, 7, 11, 10.5, 8.03, 1112.4, 35, 12.7},
+      .want_counters = (uint64_t[]){0, 3, 3, 0, 0, 4},
+    },
+    {
+      .dist = distribution_new_exponential(4, 1.41, 1),
+      .num_gauges = 0,
+      .gauges = NULL,
+      .want_counters = (uint64_t[]){0, 0, 0, 0},
+    },
+    {
+      .dist = distribution_new_exponential(5, 2, 3),
+      .num_gauges = 5,
+      .gauges = (double[]){1, 7, 3, 10, 77},
+      .want_counters = (uint64_t[]){1, 1, 2, 0, 1},
+    },
+    {
+      .dist = distribution_new_linear(100, 22),
+      .num_gauges = 3,
+      .gauges = (double[]){1000, 2, -8},
+      .want_err = EINVAL,
+    },
+    {
+      .dist = distribution_new_custom(3, (double[]) {5, 20, 35}),
+      .num_gauges = 7,
+      .gauges = (double[]){7.05, 22.37, 40.83, 90.55, 12.34, 14.2, 6.0},
+      .want_counters = (uint64_t[]){0, 4, 1, 2},
+    },
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    for (size_t j = 0; j < cases[i].num_gauges; j++) {
+      distribution_update(cases[i].dist, cases[i].gauges[j]);
+    }
+    if (cases[i].want_err != 0) {
+      EXPECT_EQ_INT(cases[i].want_err, errno);
+      continue;
+    }
+    buckets_array_t buckets_array = get_buckets(cases[i].dist);
+    for (size_t j = 0; j < buckets_array.num_buckets; j++) {
+      EXPECT_EQ_INT(cases[i].want_counters[j], buckets_array.buckets[j].bucket_counter);
+    }
+    destroy_buckets_array(buckets_array);
+    distribution_destroy(cases[i].dist);
+  }
+  return 0;
+}
+
 int main() {
   RUN_TEST(distribution_new_linear);
   RUN_TEST(distribution_new_exponential);
   RUN_TEST(distribution_new_custom); 
+  RUN_TEST(update);
   END_TEST;
 }
