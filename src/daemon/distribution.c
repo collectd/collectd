@@ -201,6 +201,10 @@ static void update_tree(distribution_t *dist, size_t node_index, size_t left, si
 void distribution_update(distribution_t *dist, double gauge) {
   if (dist == NULL)
     return;
+  if (gauge < 0) {
+    errno = EINVAL;
+    return;
+  }
   update_tree(dist, 0, 0, dist->num_buckets - 1, gauge);
   dist->total_sum += gauge;
 }

@@ -379,11 +379,70 @@ DEF_TEST(average) {
   return 0;
 }
 
+DEF_TEST(percentile) {
+  struct {
+    distribution_t *dist;
+    size_t num_gauges;
+    double *update_gauges;
+    double percent;
+    double want_percentile;
+    int want_err;
+  } cases[] = {
+    {
+      .dist  = distribution_new_linear(5, 7),
+      .num_gauges = 1,
+      .update_gauges = (double[]){4},
+      .percent = 105,
+      .want_percentile = NAN,
+      .want_err = EINVAL,
+    },
+    {
+      .dist = distribution_new_linear(8, 10),
+      .num_gauges = 0,
+      .percent = 20,
+      .want_percentile = NAN,
+    },
+    {
+      .dist = distribution_new_exponential(5, 2, 0.2),
+      .num_gauges = 2,
+      .update_gauges = (double[]){4, 30.08},
+      .percent = -5,
+      .want_percentile = NAN,
+      .want_err = EINVAL,
+    },
+    {
+      .dist = distribution_new_exponential(10, 2, 0.75),
+      .num_gauges = 8,
+      .update_gauges = (double[]){2, 4, 6, 8, 22, 11, 77, 1005},
+      .percent = 50,
+      .want_percentile = 12,
+    },
+    {
+      .dist = distribution_new_custom(3, (double[]){5, 20, 35}),
+      .num_gauges = 7,
+      .update_gauges = (double[]){5.5, 10.5, 11.3, 6.7, 24.7, 40.05, 35},
+      .percent = 4.0 / 7.0 * 100,
+      .want_percentile = 20,
+    },
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    for (size_t j = 0; j < cases[i].num_gauges; j++) {
+      distribution_update(cases[i].dist, cases[i].update_gauges[j]);
+    }
+    EXPECT_EQ_DOUBLE(cases[i].want_percentile, distribution_percentile(cases[i].dist, cases[i].percent));
+    if (cases[i].want_err != 0)
+      EXPECT_EQ_INT(cases[i].want_err, errno);
+    distribution_destroy(cases[i].dist);
+  }
+  return 0;
+}
+
 int main() {
   RUN_TEST(distribution_new_linear);
   RUN_TEST(distribution_new_exponential);
   RUN_TEST(distribution_new_custom); 
   RUN_TEST(update);
   RUN_TEST(average);
+  RUN_TEST(percentile);
   END_TEST;
 }
