@@ -331,6 +331,7 @@ DEF_TEST(update) {
     }
     if (cases[i].want_err != 0) {
       EXPECT_EQ_INT(cases[i].want_err, errno);
+      distribution_destroy(cases[i].dist);
       continue;
     }
     buckets_array_t buckets_array = get_buckets(cases[i].dist);
@@ -343,10 +344,46 @@ DEF_TEST(update) {
   return 0;
 }
 
+DEF_TEST(average) {
+  struct {
+    distribution_t *dist;
+    size_t num_gauges;
+    double *update_gauges;
+    double want_average;
+  } cases[] = {
+    {
+      .dist = distribution_new_linear(6, 2),
+      .num_gauges = 0,
+      .want_average = NAN,
+    },
+    {
+      .dist = distribution_new_linear(7, 10),
+      .num_gauges = 5,
+      .update_gauges = (double[]){3, 2, 5.7, 22.3, 7.5},
+      .want_average = 40.5 / 5.0,
+    },
+    {
+      .dist = distribution_new_exponential(10, 2, 0.75),
+      .num_gauges = 8,
+      .update_gauges = (double[]){2, 4, 6, 8, 22, 11, 77, 1005},
+      .want_average = 1135.0 / 8.0,
+    },
+  };  
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    for (size_t j = 0; j < cases[i].num_gauges; j++) {
+      distribution_update(cases[i].dist, cases[i].update_gauges[j]);
+    }
+    EXPECT_EQ_DOUBLE(cases[i].want_average, distribution_average(cases[i].dist));
+    distribution_destroy(cases[i].dist);
+  }
+  return 0;
+}
+
 int main() {
   RUN_TEST(distribution_new_linear);
   RUN_TEST(distribution_new_exponential);
   RUN_TEST(distribution_new_custom); 
   RUN_TEST(update);
+  RUN_TEST(average);
   END_TEST;
 }
