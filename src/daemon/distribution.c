@@ -141,6 +141,10 @@ distribution_t* distribution_new_custom(size_t array_size, double *custom_bucket
       return NULL;
     }
   }
+  if (array_size > 0 && custom_buckets_boundaries[array_size - 1] == INFINITY) {
+    errno = EINVAL;
+    return NULL;
+  }
 
   size_t num_buckets = array_size + 1;
   bucket_t bucket_array[num_buckets];

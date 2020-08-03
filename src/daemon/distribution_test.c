@@ -215,8 +215,80 @@ DEF_TEST(distribution_new_exponential) {
   return 0;
 }
 
+DEF_TEST(distribution_new_custom) {
+  struct {
+    size_t array_size;
+    double *custom_boundaries;
+    double *want_get;
+    int want_err;
+  } cases[] = {
+    {
+      .array_size = 0,
+      .want_get = (double[]){INFINITY},
+    },
+    {
+      .array_size = 5,
+      .custom_boundaries = (double[]){0, 1, 2, 3, 4},
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .array_size = 3,
+      .custom_boundaries = (double[]){-5, 7, 3},
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .array_size = 4,
+      .custom_boundaries = (double[]){5.7, 6.0, 6.0, 7.0},
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .array_size = 1,
+      .custom_boundaries = (double[]){105.055},
+      .want_get = (double[]){105.055, INFINITY},
+    },
+    {
+      .array_size = 5,
+      .custom_boundaries = (double[]){8, 100, 1000, 1008, INFINITY},
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .array_size = 7,
+      .custom_boundaries = (double[]){2, 4, 8, 6, 2, 16, 77.5},
+      .want_get = NULL,
+      .want_err = EINVAL,
+    },
+    {
+      .array_size = 10,
+      .custom_boundaries = (double[]){77.5, 100.203, 122.01, 137.23, 200, 205, 210, 220, 230, 256},
+      .want_get = (double[]){77.5, 100.203, 122.01, 137.23, 200, 205, 210, 220, 230, 256, INFINITY},
+    },
+  };
+
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    if (cases[i].want_err != 0) {
+      EXPECT_EQ_PTR(cases[i].want_get, distribution_new_custom(cases[i].array_size, cases[i].custom_boundaries));
+      EXPECT_EQ_INT(cases[i].want_err, errno);
+      continue;
+    }
+    distribution_t *d;
+    CHECK_NOT_NULL(d = distribution_new_custom(cases[i].array_size, cases[i].custom_boundaries));
+    buckets_array_t buckets_array = get_buckets(d);
+    for (size_t j = 0; j < cases[i].array_size + 1; j++) {
+      EXPECT_EQ_DOUBLE(cases[i].want_get[j], buckets_array.buckets[j].maximum);
+    }
+    destroy_buckets_array(buckets_array);
+    distribution_destroy(d);
+  }
+  return 0;
+}
+
 int main() {
   RUN_TEST(distribution_new_linear);
-  RUN_TEST(distribution_new_exponential); 
+  RUN_TEST(distribution_new_exponential);
+  RUN_TEST(distribution_new_custom); 
   END_TEST;
 }
