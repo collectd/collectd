@@ -241,20 +241,18 @@ size_t distribution_num_buckets(distribution_t *dist) {
   return dist->num_buckets;
 }
 
-/* @return - pointer to the first byte after last written bucket **/
-static bucket_t *tree_write_leave_buckets(distribution_t *dist, bucket_t *write_ptr, size_t node_index, size_t left, size_t right) {
+static void tree_write_leave_buckets(distribution_t *dist, bucket_t *write_ptr, size_t node_index, size_t left, size_t right) {
   if (left > right)
-    return NULL;
+    return;
   if (left == right) {
-    *write_ptr = dist->tree[node_index];
-    write_ptr++;
-    return write_ptr;
+    write_ptr[left] = dist->tree[node_index];
+    return;
   }
   size_t mid = (left + right) / 2;
   size_t left_child = left_child_index(node_index, left, right);
   size_t right_child = right_child_index(node_index, left, right);
-  bucket_t *new_write_ptr = tree_write_leave_buckets(dist, write_ptr, left_child, left, mid);
-  return tree_write_leave_buckets(dist, new_write_ptr, right_child, mid + 1, right); 
+  tree_write_leave_buckets(dist, write_ptr, left_child, left, mid);
+  tree_write_leave_buckets(dist, write_ptr, right_child, mid + 1, right); 
 }  
 
 buckets_array_t get_buckets(distribution_t *dist) {
