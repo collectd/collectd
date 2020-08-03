@@ -131,7 +131,6 @@ noinst_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
-	libdistribution.la \
 	libformat_graphite.la \
 	libformat_json.la \
 	libheap.la \
@@ -208,7 +207,6 @@ endif
 
 # Link to these libraries..
 COMMON_LIBS = $(PTHREAD_LIBS)
-COMMON_LIBS += -lm
 if BUILD_WIN32
 COMMON_LIBS += -lws2_32
 endif
@@ -271,7 +269,6 @@ collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = \
 	libavltree.la \
 	libcommon.la \
-	libdistribution.la \
 	libheap.la \
 	libllist.la \
 	libmetric.la \
@@ -363,7 +360,7 @@ test_meta_data_LDADD = libmetadata.la libplugin_mock.la
 test_distribution_SOURCES = \
 	src/daemon/distribution_test.c \
 	src/testing.h
-test_distribution_LDADD = libdistribution.la libplugin_mock.la
+test_distribution_LDADD = libmetric.la libplugin_mock.la
 
 test_metric_SOURCES = \
 	src/daemon/metric_test.c \
@@ -434,17 +431,12 @@ libmetadata_la_SOURCES = \
 	src/utils/metadata/meta_data.c \
 	src/utils/metadata/meta_data.h
 
-libdistribution_la_SOURCES = \
-		       src/daemon/distribution.c \
-		       src/daemon/distribution.h
-libdistribution_la_LIBADD = libmetadata.la $(COMMON_LIBS)
-
 libmetric_la_SOURCES = \
 		       src/daemon/distribution.c \
 		       src/daemon/distribution.h \
 		       src/daemon/metric.c \
 		       src/daemon/metric.h
-libmetric_la_LIBADD = libmetadata.la $(COMMON_LIBS)
+libmetric_la_LIBADD = libmetadata.la $(COMMON_LIBS) -lm
 
 libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
