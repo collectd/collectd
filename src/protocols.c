@@ -187,6 +187,7 @@ static int read_file(const char *path) {
   return status;
 } /* int read_file */
 #endif
+
 #if KERNEL_SOLARIS && HAVE_KSTAT_H
 /*
  * Retrieves all available key/value pairs for IP, ICMP, UDP and TCP from kstat
@@ -197,10 +198,10 @@ static int read_kstat(const char *mod_name) {
   kstat_t *ksp_chain = NULL;
 
   if (mod_name == NULL)
-    return (-1);
+    return -1;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
   for (ksp_chain = kc->kc_chain; ksp_chain != NULL;
        ksp_chain = ksp_chain->ks_next) {
     if (strncmp(ksp_chain->ks_module, mod_name, sizeof(ksp_chain->ks_module)) ==
@@ -225,7 +226,7 @@ static int read_kstat(const char *mod_name) {
       } /* end for */
     }   /* end if mod_name && KSTAT_TYPE_NAMED */
   }     /* end main for loop */
-  return (0);
+  return 0;
 }
 #endif
 
