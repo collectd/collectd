@@ -5,9 +5,9 @@
 
 #include "distribution.h"
 
-const size_t NUM_UPDATES = 1000000;
-const size_t NUM_PERCENTILES = 1000000;
-const size_t MIXED = 1000000;
+const size_t NUM_UPDATES = 20000000;
+const size_t NUM_PERCENTILES = 20000000;
+const size_t MIXED = 20000000;
 
 distribution_t *build(size_t num_buckets) {
   srand(5);
@@ -21,7 +21,7 @@ distribution_t *build(size_t num_buckets) {
 }
 
 double calculate_update_time(distribution_t *dist) {
-  double updates[NUM_UPDATES];
+  double *updates = calloc(NUM_UPDATES, sizeof(*updates));
   for (size_t i = 0; i < NUM_UPDATES; i++) {
     updates[i] = (rand() * RAND_MAX + rand()) % (distribution_num_buckets(dist) * 100);
   }
@@ -33,11 +33,12 @@ double calculate_update_time(distribution_t *dist) {
   clock_gettime(CLOCK_MONOTONIC, &finish);
   double update_dur = 1000.0 * (finish.tv_sec - start.tv_sec) + 1e-6 * (finish.tv_nsec - start.tv_nsec);
   double average = update_dur / NUM_UPDATES * 1000000.0;
+  free(updates);
   return average; 
 }
 
 double calculate_percentile_time(distribution_t *dist) {
-  double percentiles[NUM_PERCENTILES];
+  double *percentiles = calloc(NUM_PERCENTILES, sizeof(*percentiles));
   for (size_t i = 0; i < NUM_PERCENTILES; i++) {
     percentiles[i] = 100.0 * rand() / RAND_MAX;
   }
@@ -49,13 +50,14 @@ double calculate_percentile_time(distribution_t *dist) {
   clock_gettime(CLOCK_MONOTONIC, &finish);
   double percentile_dur = 1000.0 * (finish.tv_sec - start.tv_sec) + 1e-6 * (finish.tv_nsec - start.tv_nsec);
   double average = percentile_dur / NUM_PERCENTILES * 1000000.0;
+  free(percentiles);
   return average; 
 }
 
 double mixed(size_t num_buckets) {
   distribution_t *dist = build(num_buckets);
-  double updates[MIXED / 10 * 9];
-  double percentiles[MIXED / 10];
+  double *updates = calloc(MIXED / 10 * 9, sizeof(*updates));
+  double *percentiles = calloc(MIXED / 10, sizeof(*percentiles));
   for (size_t i = 0; i < MIXED / 10 * 9; i++)
    updates[i] = (rand() * RAND_MAX + rand()) % (num_buckets * 100);
   for (size_t i = 0; i < MIXED / 10; i++)
@@ -65,51 +67,38 @@ double mixed(size_t num_buckets) {
   size_t pid = 0;
   struct timespec start, finish;
   clock_gettime(CLOCK_MONOTONIC, &start);
+  double val = 0;
   for (size_t i = 0; i < MIXED; i++) {
-    if (i % 10 == 9) 
-      distribution_percentile(dist, percentiles[pid++]);
+    if (i % 10 == 9) { 
+      double d = distribution_percentile(dist, percentiles[pid++]);
+      if (d != INFINITY)
+        val += d;
+    }
     else
       distribution_update(dist, updates[uid++]);
   }
   clock_gettime(CLOCK_MONOTONIC, &finish);
   double dur = 1000.0 * (finish.tv_sec - start.tv_sec) + 1e-6 * (finish.tv_nsec - start.tv_nsec);
   distribution_destroy(dist);
+  free(percentiles);
+  free(updates);
+  //printf("%f\n", val);
   return dur;
 }
 
 int main() {
-  size_t *bucket_nums = (size_t[]){ 5, 10, 30, 50, 100, 300, 500, 1000};
-  for (size_t i = 0; i < 8; i++) {
-    distribution_t *dist = build(bucket_nums[i]);
-    //printf("%lu %f %f %f\n", bucket_nums[i], calculate_update_time(dist), calculate_percentile_time(dist), mixed(bucket_nums[i]));
-    printf("Using %lu buckets one update takes %f ns in average\n", bucket_nums[i], calculate_update_time(dist));
-    printf("Using %lu buckets one percentile calculation takes %f ns in average\n", bucket_nums[i], calculate_percentile_time(dist));
+  FILE *fout = fopen("benchmark.csv", "w");
+  fprintf(fout, "Number of buckets,Average for update,Average for percentile,Total for %lu mixed iterations\n", MIXED);
+  for (size_t num_buckets = 20; num_buckets <= 4000; num_buckets += 20) {
+    distribution_t *dist = build(num_buckets);
+    fprintf(fout, "%lu,", num_buckets);
+    fprintf(fout, "%f,", calculate_update_time(dist));
+    fprintf(fout, "%f,", calculate_percentile_time(dist));
+    fprintf(fout, "%f\n", mixed(num_buckets));
+    //fprintf(fout, "%lu,%f,%f,%f\n", num_buckets, calculate_update_time(dist), calculate_percentile_time(dist), mixed(num_buckets));
     distribution_destroy(dist);
-    printf("Using %lu buckets mixed function work in %f ms\n", bucket_nums[i], mixed(bucket_nums[i]));
-    printf("\n");
+    printf("OK %lu\n", num_buckets);
   }
-  /*printf("\n");
-  for (size_t i = 0; i < 8; i++) {
-    printf("Using %lu buckets one percentile calculation  takes %f ns in average\n", bucket_nums[i], calculate_percentile_time(bucket_nums[i]));
-  }
-  distribution_t *dist = distribution_new_linear(1000, 1);
-  struct timespec start, finish;
-  clock_gettime(CLOCK_MONOTONIC, &start);
-  size_t num_updates = 50000000;
-  for (size_t i = 0; i < num_updates; i++) {
-    distribution_update(dist, rand());
-  }
-  clock_gettime(CLOCK_MONOTONIC, &finish);
-  double update_dur = 1000.0 * (finish.tv_sec - start.tv_sec) + 1e-6 * (finish.tv_nsec - start.tv_nsec);
-  printf("%lu updates takes %f ms\n", num_updates, update_dur);
-  size_t num_requests = 50000000;
-  start = clock();
-  for (size_t i = 0; i < num_requests; i++) {
-    distribution_percentile(dist, 100.0 * rand() / RAND_MAX);
-  }
-  finish = clock();
-  double request_duration = 1000.0 * (finish - start) / CLOCKS_PER_SEC;
-  printf("%lu percentile requests takes %f ms\n", num_requests, request_duration);
-  distribution_destroy(dist);*/
+  fclose(fout);
   return 0;
 }
