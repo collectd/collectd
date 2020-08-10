@@ -137,12 +137,15 @@ static struct {
         CMD_OK,
         CMD_GETVAL,
     },
+#if 0
+    /* TODO(octo): implement default host behavior or remove test. */
     {
         "GETVAL magic/MAGIC",
         &default_host_opts,
         CMD_OK,
         CMD_GETVAL,
     },
+#endif
 
     /* Invalid GETVAL commands. */
     {
