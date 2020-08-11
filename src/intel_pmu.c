@@ -253,20 +253,16 @@ static int pmu_config(oconfig_item_t *ci) {
   return 0;
 }
 
-#if 0
-static void pmu_submit_multicounter(const char *cgroup, const char *event,
-                               const uint32_t *event_type, counter_t value,
-                               const struct efd *efd) {
+static void pmu_submit_counters(const char *cgroup, const char *event,
+                                const uint32_t *event_type, counter_t scaled,
+                                counter_t raw, counter_t enabled,
+                                counter_t running) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  //vl.values = &(value_t){.counter = value};
-  //vl.values_len = 1;
-  value_t values[] = {
-      {.counter = value},
-      {.counter = efd->val[0]},
-      {.counter = efd->val[1]},
-      {.counter = efd->val[2]}
-  };
+  value_t values[] = {{.counter = scaled},
+                      {.counter = raw},
+                      {.counter = enabled},
+                      {.counter = running}};
   vl.values = values;
   vl.values_len = STATIC_ARRAY_SIZE(values);
 
@@ -281,8 +277,8 @@ static void pmu_submit_multicounter(const char *cgroup, const char *event,
 
   plugin_dispatch_values(&vl);
 }
-#endif
 
+#if 0
 static void pmu_submit_counter(const char *cgroup, const char *event,
                                const uint32_t *event_type, counter_t value,
                                meta_data_t *meta) {
@@ -325,6 +321,7 @@ meta_data_t *pmu_meta_data_create(const struct efd *efd) {
 
   return meta;
 }
+#endif
 
 static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
 
@@ -340,8 +337,10 @@ static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
     for (size_t i = 0; i < ent->cgroups_count; i++) {
       core_group_t *cgroup = ent->cores.cgroups + i + ent->first_cgroup;
       uint64_t cgroup_value = 0;
+      uint64_t cgroup_value_raw = 0;
+      uint64_t cgroup_time_enabled = 0;
+      uint64_t cgroup_time_running = 0;
       int event_enabled_cgroup = 0;
-      meta_data_t *meta = NULL;
 
       for (size_t j = 0; j < cgroup->num_cores; j++) {
         int core = (int)cgroup->cores[j];
@@ -350,42 +349,47 @@ static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
 
         event_enabled_cgroup++;
 
+        cgroup_value_raw += e->efd[core].val[0];
+        cgroup_time_enabled += e->efd[core].val[1];
+        cgroup_time_running += e->efd[core].val[2];
+
         /* If there are more events than counters, the kernel uses time
          * multiplexing. With multiplexing, at the end of the run,
          * the counter is scaled basing on total time enabled vs time running.
          * final_count = raw_count * time_enabled/time_running
          */
-        if (e->extra.multi_pmu && !g_ctx.dispatch_cloned_pmus)
+        if (e->extra.multi_pmu && !g_ctx.dispatch_cloned_pmus) {
           cgroup_value += event_scaled_value_sum(e, core);
-        else {
-          cgroup_value += event_scaled_value(e, core);
 
-          /* get meta data with information about scaling */
-          if (cgroup->num_cores == 1) {
-            DEBUG(PMU_PLUGIN
-                  ": %s/%s = %lu = [raw]%lu * [enabled]%lu / [running]%lu",
-                  e->event, cgroup->desc, cgroup_value, e->efd[core].val[0],
-                  e->efd[core].val[1], e->efd[core].val[2]);
-            meta = pmu_meta_data_create(&e->efd[core]);
+          int num_clones = e->num_clones;
+          for (struct event *ce = e->next; ce && num_clones > 0;
+               ce = ce->next) {
+            if (ce->orig == e) {
+              cgroup_value_raw += ce->efd[core].val[0];
+              cgroup_time_enabled += ce->efd[core].val[1];
+              cgroup_time_running += ce->efd[core].val[2];
+            }
           }
+        } else {
+          cgroup_value += event_scaled_value(e, core);
         }
-        // pmu_submit_multicounter(cgroup->desc, e->event, event_type,
-        // cgroup_value, &e->efd[core]);
       }
 
       if (event_enabled_cgroup > 0) {
 #if COLLECT_DEBUG
         if (event_type)
-          DEBUG(PMU_PLUGIN ": %s:type=%d/%s = %lu", e->event, *event_type,
-                cgroup->desc, cgroup_value);
+          DEBUG(PMU_PLUGIN ": %s:type=%d/%s = %lu (%lu * %lu / %lu)", e->event,
+                *event_type, cgroup->desc, cgroup_value, cgroup_value_raw,
+                cgroup_time_enabled, cgroup_time_running);
         else
-          DEBUG(PMU_PLUGIN ": %s/%s = %lu", e->event, cgroup->desc,
-                cgroup_value);
+          DEBUG(PMU_PLUGIN ": %s/%s = %lu (%lu * %lu / %lu)", e->event,
+                cgroup->desc, cgroup_value, cgroup_value_raw,
+                cgroup_time_enabled, cgroup_time_running);
 #endif
-        /* dispatch per core group value */
-        pmu_submit_counter(cgroup->desc, e->event, event_type, cgroup_value,
-                           meta);
-        meta_data_destroy(meta);
+        /* dispatch per core group values */
+        pmu_submit_counters(cgroup->desc, e->event, event_type, cgroup_value,
+                            cgroup_value_raw, cgroup_time_enabled,
+                            cgroup_time_running);
       }
     }
   }
@@ -762,16 +766,6 @@ init_error:
 static int pmu_shutdown(void) {
 
   DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
-
-  /*pmu_free_events(g_ctx.event_list);
-  g_ctx.event_list = NULL;
-  for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
-    sfree(g_ctx.hw_events[i]);
-  }
-  sfree(g_ctx.hw_events);
-  g_ctx.hw_events_count = 0;
-
-  config_cores_cleanup(&g_ctx.cores);*/
 
   for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL;) {
     intel_pmu_entity_t *tmp = ent;
