@@ -84,8 +84,6 @@ static void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, 
 
 static distribution_t* build_distribution_from_bucket_array(size_t num_buckets, bucket_t *bucket_array) {
   distribution_t *new_distribution = calloc(1, sizeof(*new_distribution));
-  if (num_buckets == 0)
-    return new_distribution;
   bucket_t *nodes = calloc(tree_size(num_buckets), sizeof(*nodes));
   if (new_distribution == NULL || nodes == NULL) {
     free(new_distribution);
