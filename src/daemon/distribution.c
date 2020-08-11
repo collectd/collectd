@@ -132,8 +132,9 @@ distribution_t* distribution_new_exponential(size_t num_buckets, double base, do
 distribution_t* distribution_new_custom(size_t array_size, double *custom_buckets_boundaries) {
   for (size_t i = 0; i < array_size; i++) {
     double previous_boundary = 0;
-    if (i > 0)
+    if (i > 0) {
       previous_boundary = custom_buckets_boundaries[i - 1];
+    }
     if (custom_buckets_boundaries[i] <= previous_boundary) {
       errno = EINVAL;
       return NULL;
