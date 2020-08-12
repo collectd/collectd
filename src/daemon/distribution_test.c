@@ -437,6 +437,21 @@ DEF_TEST(percentile) {
   return 0;
 }
 
+DEF_TEST(clone) {
+  distribution_t *dist = distribution_new_linear(5, 7);
+  distribution_update(dist, 5);
+  distribution_update(dist, 7);
+  distribution_t *clone = distribution_clone(dist);
+  EXPECT_EQ_INT(distribution_num_buckets(clone), 5);
+  EXPECT_EQ_DOUBLE(distribution_percentile(clone, 50), 7);
+  distribution_update(dist, 10);
+  EXPECT_EQ_DOUBLE(distribution_percentile(clone, 50), 7);
+  EXPECT_EQ_DOUBLE(distribution_percentile(dist, 50), 14);
+  distribution_update(clone, 2);
+  EXPECT_EQ_DOUBLE(distribution_percentile(dist, 50), 14);
+  return 0;
+}
+
 int main() {
   RUN_TEST(distribution_new_linear);
   RUN_TEST(distribution_new_exponential);
@@ -444,5 +459,6 @@ int main() {
   RUN_TEST(update);
   RUN_TEST(average);
   RUN_TEST(percentile);
+  RUN_TEST(clone);
   END_TEST;
 }
