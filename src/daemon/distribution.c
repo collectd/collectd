@@ -27,10 +27,13 @@
 #include "collectd.h"
 #include "distribution.h"
 
+#include <pthread.h>
+
 struct distribution_s {
   bucket_t *tree;
   size_t num_buckets;
   double total_sum;
+  pthread_mutex_t mutex;
 };
 
 /**
@@ -90,6 +93,7 @@ static distribution_t* build_distribution_from_bucket_array(size_t num_buckets, 
 
   new_distribution->num_buckets = num_buckets;
   build_tree(new_distribution, bucket_array, 0, 0, num_buckets - 1);
+  pthread_mutex_init(&new_distribution->mutex, NULL);
   return new_distribution;
 }
 
@@ -155,6 +159,7 @@ distribution_t* distribution_new_custom(size_t array_size, double *custom_bucket
 void distribution_destroy(distribution_t *d) {
   if (d == NULL)
     return;
+  pthread_mutex_destroy(&d->mutex);
   free(d->tree);
   free(d);
 }
@@ -169,10 +174,13 @@ distribution_t* distribution_clone(distribution_t *dist) {
     free(nodes);
     return NULL;
   }
+  pthread_mutex_lock(&dist->mutex);
   memcpy(nodes, dist->tree, tree_size(dist->num_buckets) * sizeof(bucket_t));
   new_distribution->num_buckets = dist->num_buckets;
   new_distribution->total_sum = dist->total_sum;
+  pthread_mutex_unlock(&dist->mutex);
   new_distribution->tree = nodes;
+  pthread_mutex_init(&new_distribution->mutex, NULL);
   return new_distribution;
 }
 
@@ -199,8 +207,10 @@ void distribution_update(distribution_t *dist, double gauge) {
     errno = EINVAL;
     return;
   }
+  pthread_mutex_lock(&dist->mutex);
   update_tree(dist, 0, 0, dist->num_buckets - 1, gauge);
   dist->total_sum += gauge;
+  pthread_mutex_unlock(&dist->mutex);
 }
 
 static double tree_get_counter(distribution_t *d, size_t node_index, size_t left,
@@ -224,17 +234,23 @@ double distribution_percentile(distribution_t *dist, double percent) {
     errno = EINVAL;
     return NAN;
   }
+  pthread_mutex_lock(&dist->mutex);
   if (dist->tree[0].bucket_counter == 0)
     return NAN;
   uint64_t counter = ceil(dist->tree[0].bucket_counter * percent / 100.0);
-  return tree_get_counter(dist, 0, 0, dist->num_buckets - 1, counter);
+  double percentile = tree_get_counter(dist, 0, 0, dist->num_buckets - 1, counter);
+  pthread_mutex_unlock(&dist->mutex);
+  return percentile;
 }
 
 double distribution_average(distribution_t *dist) {
-  if (dist->tree[0].bucket_counter == 0) {
+  pthread_mutex_lock(&dist->mutex);
+  if (dist == NULL || dist->tree[0].bucket_counter == 0) {
     return NAN;
   }
-  return dist->total_sum / dist->tree[0].bucket_counter;
+  double average = dist->total_sum / dist->tree[0].bucket_counter;
+  pthread_mutex_unlock(&dist->mutex);
+  return average;
 }
 
 size_t distribution_num_buckets(distribution_t *dist) {
@@ -265,7 +281,9 @@ buckets_array_t get_buckets(distribution_t *dist) {
   if (dist == NULL)
     return bucket_array;
   bucket_t *write_ptr = bucket_array.buckets;
+  pthread_mutex_lock(&dist->mutex);
   tree_write_leave_buckets(dist, write_ptr, 0, 0, dist->num_buckets - 1);
+  pthread_mutex_unlock(&dist->mutex);
   return bucket_array;
 }
 
