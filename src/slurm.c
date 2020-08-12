@@ -474,9 +474,17 @@ static void slurm_submit_stats(stats_info_response_msg_t *stats_resp) {
   // slurm backfill stats
   slurm_submit_derive("slurm_backfill_stats", "slurm_backfilled_jobs",
                       "backfilled_jobs", stats_resp->bf_backfilled_jobs);
+  // The field bf_backfilled_pack_jobs was renamed in v20.02 to
+  // bf_backfilled_het_jobs (commit #7ff37bfa)
+#if SLURM_VERSION_NUMBER >= SLURM_VERSION_NUM(20, 2, 0)
+  slurm_submit_derive("slurm_backfill_stats", "slurm_backfilled_jobs",
+                      "backfilled_het_jobs",
+                      stats_resp->bf_backfilled_het_jobs);
+#else
   slurm_submit_derive("slurm_backfill_stats", "slurm_backfilled_jobs",
                       "backfilled_pack_jobs",
                       stats_resp->bf_backfilled_pack_jobs);
+#endif
   slurm_submit_derive("slurm_backfill_stats", "slurm_cycles", "backfill_cycles",
                       stats_resp->bf_cycle_counter);
   slurm_submit_gauge("slurm_backfill_stats", "slurm_cycle_last",
