@@ -24,12 +24,8 @@
  *   Svetlana Shmidt <sshmidt at google.com>
  **/
 
+#include "collectd.h"
 #include "distribution.h"
-
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
 
 struct distribution_s {
   bucket_t *tree;
@@ -167,16 +163,15 @@ distribution_t* distribution_clone(distribution_t *dist) {
   if (dist == NULL)
     return NULL;
   distribution_t *new_distribution = calloc(1, sizeof(*new_distribution));
-  if (dist->num_buckets == 0)
-    return new_distribution;
-
   bucket_t *nodes = calloc(tree_size(dist->num_buckets), sizeof(*nodes));
   if (new_distribution == NULL || nodes == NULL) {
     free(new_distribution);
     free(nodes);
     return NULL;
   }
+  memcpy(nodes, dist->tree, tree_size(dist->num_buckets) * sizeof(bucket_t));
   new_distribution->num_buckets = dist->num_buckets;
+  new_distribution->total_sum = dist->total_sum;
   new_distribution->tree = nodes;
   return new_distribution;
 }
