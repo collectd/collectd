@@ -3,7 +3,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#if HAVE_CLOCK_GETTIME
 #include <time.h>
+#else
+#include <sys/time.h>
+#endif
 #include <unistd.h>
 
 /* Local headers */
@@ -19,17 +23,29 @@
 /* How many nanoseconds there are in a second. */
 #define NANOS_PER_SECOND 10000000
 
+/* How many microseconds there are in a nanosecond. */
+#define MICROS_PER_NANO 1000
+
 /* How many iterations to run. */
 #define ITERATIONS 10000000
 
-/* Returns the monotonic clock in nanoseconds. */
+/* Returns the clock in nanoseconds. */
 static uint64_t get_clock() {
+#if HAVE_CLOCK_GETTIME
   struct timespec ts;
 
   if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
     error("Unable to retrieve monotonic clock: %s", strerror(errno));
 
   return (ts.tv_sec * NANOS_PER_SECOND) + ts.tv_nsec;
+#else
+  struct timeval tv;
+
+  if (gettimeofday(&tv, NULL) == -1)
+    error("Unable to retrieve current time: %s", strerror(errno));
+
+  return (tv.tv_sec * NANOS_PER_SECOND) + (tv.tv_usec * MICROS_PER_NANO);
+#endif
 }
 
 int main(int argc, char **argv) {
