@@ -57,6 +57,7 @@ struct intel_pmu_ctx_s {
   //  core_groups_list_t cores;
   //  struct eventlist *event_list;
   bool dispatch_cloned_pmus;
+  bool all_events;
 
   intel_pmu_entity_t *entl;
 };
@@ -174,6 +175,20 @@ static int pmu_config_hw_events(oconfig_item_t *ci, intel_pmu_entity_t *ent) {
   if (ent->hw_events) {
     ERROR(PMU_PLUGIN ": Duplicate config for HardwareEvents.");
     return -EINVAL;
+  }
+
+  // check if all events has been requested
+  for (int i = 0; i < ci->values_num; i++) {
+    if (ci->values[i].type != OCONFIG_TYPE_STRING) {
+      WARNING(PMU_PLUGIN ": The %s option requires string arguments.", ci->key);
+      continue;
+    }
+
+    if(strcasecmp(ci->values[i].value.string, "All") == 0) {
+      INFO(PMU_PLUGIN ": Requested all events.");
+      g_ctx.all_events = true;
+      return 0;
+    }
   }
 
   ent->hw_events = calloc(ci->values_num, sizeof(*ent->hw_events));
@@ -631,6 +646,27 @@ static int pmu_split_cores(intel_pmu_entity_t *ent) {
   return 0;
 }
 
+static int pmu_count_all_events(void *data, char *name, char *event, char *desc) {
+  intel_pmu_entity_t *ent = data;
+  ent->hw_events_count++;
+  return 0;
+}
+
+static int pmu_read_all_events(void *data, char *name, char *event, char *desc) {
+  static int event_counter = 0;
+  intel_pmu_entity_t *ent = data;
+
+  ent->hw_events[event_counter] = strdup(name);
+  if (ent->hw_events[event_counter] == NULL) {
+    ERROR(PMU_PLUGIN ": Failed to allocate hw events entry.");
+    return -ENOMEM;
+  }
+
+  event_counter++;
+  
+  return 0;
+}
+
 static int pmu_init(void) {
   int ret;
 
@@ -671,6 +707,21 @@ static int pmu_init(void) {
         ERROR(PMU_PLUGIN ": Invalid core groups configuration.");
         goto init_error;
       }
+    }
+  }
+
+  /* write all events from provided EventList into hw_events */
+  if(g_ctx.all_events) {
+    for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
+      walk_events(pmu_count_all_events, ent);
+      // allocating memory for all events
+      ent->hw_events = calloc(ent->hw_events_count, sizeof(*ent->hw_events));
+      if (ent->hw_events == NULL) {
+        ERROR(PMU_PLUGIN ": Failed to allocate hw events.");
+        return -ENOMEM;
+      }
+
+      walk_events(pmu_read_all_events, ent);
     }
   }
 
