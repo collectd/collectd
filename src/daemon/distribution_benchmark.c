@@ -5,9 +5,9 @@
 
 #include "distribution.h"
 
-const size_t NUM_UPDATES = 20000000;
-const size_t NUM_PERCENTILES = 20000000;
-const size_t MIXED = 20000000;
+const size_t NUM_UPDATES = 1e6;
+const size_t NUM_PERCENTILES = 1e6;
+const size_t MIXED = 1e6;
 
 distribution_t *build(size_t num_buckets) {
   srand(5);
@@ -87,9 +87,9 @@ double mixed(size_t num_buckets) {
 }
 
 int main() {
-  FILE *fout = fopen("benchmark.csv", "w");
+  FILE *fout = fopen("benchmark_small.csv", "w");
   fprintf(fout, "Number of buckets,Average for update,Average for percentile,Total for %lu mixed iterations\n", MIXED);
-  for (size_t num_buckets = 20; num_buckets <= 4000; num_buckets += 20) {
+  for (size_t num_buckets = 50; num_buckets <= 5000; num_buckets += 50) {
     distribution_t *dist = build(num_buckets);
     fprintf(fout, "%lu,", num_buckets);
     fprintf(fout, "%f,", calculate_update_time(dist));
