@@ -24,7 +24,6 @@
  *   Svetlana Shmidt <sshmidt at google.com>
  **/
 
-#include "collectd.h"
 #include "distribution.h"
 
 #include <pthread.h>

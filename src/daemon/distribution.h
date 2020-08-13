@@ -27,8 +27,7 @@
 #ifndef COLLECTD_DISTRIBUTION_H
 #define COLLECTD_DISTRIBUTION_H
 
-#include <stdint.h>
-#include <stdlib.h>
+#include"collectd.h"
 
 typedef struct bucket_s {
   uint64_t bucket_counter;
