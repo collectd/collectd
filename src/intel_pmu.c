@@ -52,10 +52,6 @@ typedef struct intel_pmu_entity_s intel_pmu_entity_t;
 
 struct intel_pmu_ctx_s {
   char event_list_fn[PATH_MAX];
-  //  char **hw_events;
-  //  size_t hw_events_count;
-  //  core_groups_list_t cores;
-  //  struct eventlist *event_list;
   bool dispatch_cloned_pmus;
   bool all_events;
 
@@ -77,13 +73,15 @@ static void pmu_dump_events(intel_pmu_entity_t *ent) {
     DEBUG(PMU_PLUGIN ":     group_lead: %d", e->group_leader);
     DEBUG(PMU_PLUGIN ":     in_group  : %d", e->ingroup);
     DEBUG(PMU_PLUGIN ":     end_group : %d", e->end_group);
-    DEBUG(PMU_PLUGIN ":     type      : %#x", e->attr.type);
+    DEBUG(PMU_PLUGIN ":     type      : %d", e->attr.type);
     DEBUG(PMU_PLUGIN ":     config    : %#x", (unsigned)e->attr.config);
     DEBUG(PMU_PLUGIN ":     size      : %d", e->attr.size);
     if (e->attr.sample_period > 0)
       DEBUG(PMU_PLUGIN ":     period    : %lld", e->attr.sample_period);
     if (e->extra.decoded)
       DEBUG(PMU_PLUGIN ":     perf      : %s", e->extra.decoded);
+    if (e->extra.name)
+      DEBUG(PMU_PLUGIN ":     name      : %s", e->extra.name);
     DEBUG(PMU_PLUGIN ":     uncore    : %d", e->uncore);
   }
 }
@@ -184,7 +182,7 @@ static int pmu_config_hw_events(oconfig_item_t *ci, intel_pmu_entity_t *ent) {
       continue;
     }
 
-    if(strcasecmp(ci->values[i].value.string, "All") == 0) {
+    if (strcasecmp(ci->values[i].value.string, "All") == 0) {
       INFO(PMU_PLUGIN ": Requested all events.");
       g_ctx.all_events = true;
       return 0;
@@ -269,9 +267,10 @@ static int pmu_config(oconfig_item_t *ci) {
 }
 
 static void pmu_submit_counters(const char *cgroup, const char *event,
-                                const uint32_t *event_type, counter_t scaled,
-                                counter_t raw, counter_t enabled,
-                                counter_t running) {
+                                const char *pmu_name,
+                                const uint32_t *event_type, bool multi_pmu,
+                                counter_t scaled, counter_t raw,
+                                counter_t enabled, counter_t running) {
   value_list_t vl = VALUE_LIST_INIT;
 
   value_t values[] = {{.counter = scaled},
@@ -282,61 +281,85 @@ static void pmu_submit_counters(const char *cgroup, const char *event,
   vl.values_len = STATIC_ARRAY_SIZE(values);
 
   sstrncpy(vl.plugin, PMU_PLUGIN, sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, cgroup, sizeof(vl.plugin_instance));
+  if (pmu_name)
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s:%s", cgroup,
+              pmu_name);
+  else
+    sstrncpy(vl.plugin_instance, cgroup, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "pmu_counter", sizeof(vl.type));
   if (event_type)
     ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s:type=%d", event,
               *event_type);
+  else if (multi_pmu)
+    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s:total", event);
   else
     sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
+
+  DEBUG(PMU_PLUGIN ": %s/%s = %llu (%llu * %llu / %llu)", vl.type_instance,
+        vl.plugin_instance, scaled, raw, enabled, running);
 
   plugin_dispatch_values(&vl);
 }
 
-#if 0
-static void pmu_submit_counter(const char *cgroup, const char *event,
-                               const uint32_t *event_type, counter_t value,
-                               meta_data_t *meta) {
-  value_list_t vl = VALUE_LIST_INIT;
+static char *pmu_get_name(const struct event *e, const uint32_t *type) {
 
-  vl.values = &(value_t){.counter = value};
-  vl.values_len = 1;
+  if (type != NULL && (e->extra.pmus.gl_pathc > 0 || e->orig)) {
+    const struct event *ce =
+        e->extra.pmus.gl_pathc == 0 && e->orig ? e->orig : e;
 
-  sstrncpy(vl.plugin, PMU_PLUGIN, sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, cgroup, sizeof(vl.plugin_instance));
-  if (meta)
-    vl.meta = meta;
-  sstrncpy(vl.type, "counter", sizeof(vl.type));
-  if (event_type)
-    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s:type=%d", event,
-              *event_type);
-  else
-    sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
+    for (size_t i = 0; i < ce->extra.pmus.gl_pathc; i++) {
+      char type_path[PATH_MAX];
+      char buf[16];
+      ssize_t len;
+      uint32_t val = 0;
+      ssnprintf(type_path, sizeof(type_path), "%s/type",
+                ce->extra.pmus.gl_pathv[i]);
+      int fd = open(type_path, O_RDONLY);
+      if (fd < 0) {
+        WARNING(PMU_PLUGIN ": failed to open `%s`.", type_path);
+        continue;
+      }
 
-  plugin_dispatch_values(&vl);
-}
+      if ((len = read(fd, buf, sizeof(buf) - 1)) <= 0) {
+        WARNING(PMU_PLUGIN ": failed to read type for `%s`.",
+                ce->extra.pmus.gl_pathv[i]);
+        close(fd);
+        continue;
+      }
+      buf[len] = '\0';
 
-meta_data_t *pmu_meta_data_create(const struct efd *efd) {
-  meta_data_t *meta = NULL;
+      if (sscanf(buf, "%d", &val) != 1) {
+        WARNING(PMU_PLUGIN ": failed to read number from `%s`.", buf);
+        close(fd);
+        continue;
+      }
+      close(fd);
 
-  /* create meta data only if value was scaled */
-  if (efd->val[1] == efd->val[2] || !efd->val[2]) {
-    return NULL;
+      if (*type == val) {
+        char *name = NULL;
+        char *pos = strrchr(ce->extra.pmus.gl_pathv[i], '/');
+        if (pos)
+          name = strdup(pos + 1);
+        if (name == NULL)
+          WARNING(PMU_PLUGIN ": Failed to get pmu name from path.");
+        return name;
+      }
+    }
+  } else if (e->extra.decoded) {
+    char *name = NULL;
+    char *pos = strchr(e->extra.decoded, '/');
+
+    if (pos)
+      name = strndup(e->extra.decoded, pos - e->extra.decoded);
+    if (name == NULL)
+      WARNING(PMU_PLUGIN ": Failed to get pmu name.");
+
+    return name;
   }
 
-  meta = meta_data_create();
-  if (meta == NULL) {
-    ERROR(PMU_PLUGIN ": meta_data_create failed.");
-    return NULL;
-  }
-
-  meta_data_add_unsigned_int(meta, "intel_pmu:raw_count", efd->val[0]);
-  meta_data_add_unsigned_int(meta, "intel_pmu:time_enabled", efd->val[1]);
-  meta_data_add_unsigned_int(meta, "intel_pmu:time_running", efd->val[2]);
-
-  return meta;
+  WARNING(PMU_PLUGIN ": No data for pmu name found.");
+  return NULL;
 }
-#endif
 
 static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
 
@@ -348,6 +371,8 @@ static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
       continue;
     if ((e->extra.multi_pmu || e->orig) && g_ctx.dispatch_cloned_pmus)
       event_type = &e->attr.type;
+
+    char *pmu_name = pmu_get_name(e, event_type);
 
     for (size_t i = 0; i < ent->cgroups_count; i++) {
       core_group_t *cgroup = ent->cores.cgroups + i + ent->first_cgroup;
@@ -390,23 +415,15 @@ static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
         }
       }
 
-      if (event_enabled_cgroup > 0) {
-#if COLLECT_DEBUG
-        if (event_type)
-          DEBUG(PMU_PLUGIN ": %s:type=%d/%s = %lu (%lu * %lu / %lu)", e->event,
-                *event_type, cgroup->desc, cgroup_value, cgroup_value_raw,
-                cgroup_time_enabled, cgroup_time_running);
-        else
-          DEBUG(PMU_PLUGIN ": %s/%s = %lu (%lu * %lu / %lu)", e->event,
-                cgroup->desc, cgroup_value, cgroup_value_raw,
-                cgroup_time_enabled, cgroup_time_running);
-#endif
+      if (event_enabled_cgroup > 0)
         /* dispatch per core group values */
-        pmu_submit_counters(cgroup->desc, e->event, event_type, cgroup_value,
-                            cgroup_value_raw, cgroup_time_enabled,
-                            cgroup_time_running);
-      }
+        pmu_submit_counters(cgroup->desc, e->event, pmu_name, event_type,
+                            e->extra.multi_pmu, cgroup_value, cgroup_value_raw,
+                            cgroup_time_enabled, cgroup_time_running);
     }
+
+    if (pmu_name)
+      sfree(pmu_name);
   }
 }
 
@@ -646,13 +663,15 @@ static int pmu_split_cores(intel_pmu_entity_t *ent) {
   return 0;
 }
 
-static int pmu_count_all_events(void *data, char *name, char *event, char *desc) {
+static int pmu_count_all_events(void *data, char *name, char *event,
+                                char *desc) {
   intel_pmu_entity_t *ent = data;
   ent->hw_events_count++;
   return 0;
 }
 
-static int pmu_read_all_events(void *data, char *name, char *event, char *desc) {
+static int pmu_read_all_events(void *data, char *name, char *event,
+                               char *desc) {
   static int event_counter = 0;
   intel_pmu_entity_t *ent = data;
 
@@ -663,7 +682,7 @@ static int pmu_read_all_events(void *data, char *name, char *event, char *desc) 
   }
 
   event_counter++;
-  
+
   return 0;
 }
 
@@ -711,7 +730,7 @@ static int pmu_init(void) {
   }
 
   /* write all events from provided EventList into hw_events */
-  if(g_ctx.all_events) {
+  if (g_ctx.all_events) {
     for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
       walk_events(pmu_count_all_events, ent);
       // allocating memory for all events
@@ -847,6 +866,5 @@ static int pmu_shutdown(void) {
 void module_register(void) {
   plugin_register_init(PMU_PLUGIN, pmu_init);
   plugin_register_complex_config(PMU_PLUGIN, pmu_config);
-  // plugin_register_complex_read(NULL, PMU_PLUGIN, pmu_read, 0, NULL);
   plugin_register_shutdown(PMU_PLUGIN, pmu_shutdown);
 }
