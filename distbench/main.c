@@ -233,5 +233,6 @@ int main(int argc, char **argv) {
     free(indexes);
     for (size_t i = 0; i < dist_number; i++)
        distribution_destroy(dists[i]);
+    printf("\n");
     return 0;
 }
