@@ -23,13 +23,10 @@
   } while (0)
 
 /* How many nanoseconds there are in a second. */
-#define NANOS_PER_SEC 10000000
+#define NANOS_PER_SEC 1000000000
 
 /* How many microseconds there are in a nanosecond. */
 #define MICROS_PER_NANO 1000
-
-/* How many iterations to run. */
-#define ITERATIONS 10000000
 
 /* Returns the clock in nanoseconds. */
 static uint64_t get_clock() {
