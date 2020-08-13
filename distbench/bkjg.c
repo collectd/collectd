@@ -28,10 +28,10 @@
 #include <math.h>
 #include <pthread.h>
 
-typedef struct {
+struct bucket_s {
   double max_boundary;
   uint64_t counter;
-} bucket_t;
+};
 
 struct distribution_s {
   bucket_t *buckets;
@@ -97,41 +97,6 @@ double distribution_get_sum_gauges(distribution_t *d) {
   }
 
   return d->sum_gauges;
-}
-
-bool distribution_check_equal(distribution_t *d1, distribution_t *d2) {
-  if ((d1 == NULL && d2 != NULL) || (d1 != NULL && d2 == NULL)) {
-    return false;
-  }
-
-  /* thanks to previous condition we know that if d1 is NULL then d2 is NULL too
-   */
-  if (d1 == NULL) {
-    return true;
-  }
-
-  pthread_mutex_lock(&d1->mutex);
-  pthread_mutex_lock(&d2->mutex);
-
-  if (d1->sum_gauges != d2->sum_gauges) {
-    return false;
-  }
-
-  if (d1->num_buckets != d2->num_buckets) {
-    return false;
-  }
-
-  for (size_t i = 0; i < d1->num_buckets; ++i) {
-    if (d1->buckets[i].max_boundary != d2->buckets[i].max_boundary ||
-        d1->buckets[i].counter != d2->buckets[i].counter) {
-      return false;
-    }
-  }
-
-  pthread_mutex_unlock(&d2->mutex);
-  pthread_mutex_unlock(&d1->mutex);
-
-  return true;
 }
 
 static bucket_t *bucket_new_linear(size_t num_buckets, double size) {
@@ -290,10 +255,10 @@ static void bucket_update(bucket_t *buckets, size_t num_buckets, double gauge) {
   }
 }
 
-int distribution_update(distribution_t *d, double gauge) {
+void distribution_update(distribution_t *d, double gauge) {
   if (d == NULL || gauge < 0) {
     errno = EINVAL;
-    return EXIT_FAILURE;
+    return;
   }
 
   pthread_mutex_lock(&d->mutex);
@@ -303,7 +268,7 @@ int distribution_update(distribution_t *d, double gauge) {
   d->sum_gauges += gauge;
   pthread_mutex_unlock(&d->mutex);
 
-  return EXIT_SUCCESS;
+  return;
 }
 
 static double find_percentile(bucket_t *buckets, size_t num_buckets,

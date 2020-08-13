@@ -24,16 +24,15 @@
  *   Elene Margalitadze <elene.margalit at gmail.com>
  **/
 
-#include "collectd.h"
 #include "distribution.h"
 #include <math.h>
 #include <pthread.h>
 
-typedef struct {
+struct bucket_s {
   uint64_t bucket_counter;
   double min_boundary;
   double max_boundary;
-} bucket_t;
+};
 
 struct distribution_s {
   bucket_t *buckets;
@@ -42,6 +41,24 @@ struct distribution_s {
   double raw_data_sum;         // sum of all registered raw scalar metrics
   pthread_mutex_t mutex;
 };
+
+bucket_t *distribution_get_buckets(distribution_t *dist) {
+  if (dist == NULL) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  bucket_t *buckets = calloc(dist->num_buckets, sizeof(bucket_t));
+
+  if (buckets == NULL) {
+    free(buckets);
+    return NULL;
+  }
+  pthread_mutex_lock(&dist->mutex);
+  memcpy(buckets, dist->buckets, sizeof(bucket_t) * dist->num_buckets);
+  pthread_mutex_unlock(&dist->mutex);
+  return buckets;
+}
 
 /*Private bucket constructor, min_boundary is inclusive, max_boundary is
 exclusive because the max_boundary Infinity is exclusive and we want the other
@@ -180,9 +197,10 @@ static int find_bucket(distribution_t *dist, size_t left, size_t right,
   return find_bucket(dist, mid + 1, right, gauge);
 }
 
-int distribution_update(distribution_t *dist, double gauge) {
+void distribution_update(distribution_t *dist, double gauge) {
   if ((dist == NULL) || (gauge <= 0)) {
-    return EINVAL;
+    errno = EINVAL;
+    return;
   }
   /*
   for(size_t i = 0; i < dist->num_buckets; i++) {
@@ -200,7 +218,7 @@ int distribution_update(distribution_t *dist, double gauge) {
   dist->total_scalar_count++;
   dist->raw_data_sum += gauge;
   //pthread_mutex_lock(&dist->mutex);
-  return 0;
+  return;
 }
 
 double distribution_average(distribution_t *dist) {
@@ -268,24 +286,6 @@ void distribution_destroy(distribution_t *dist) {
   }
   free(dist->buckets);
   free(dist);
-}
-
-bucket_t *distribution_get_buckets(distribution_t *dist) {
-  if (dist == NULL) {
-    errno = EINVAL;
-    return NULL;
-  }
-
-  bucket_t *buckets = calloc(dist->num_buckets, sizeof(bucket_t));
-
-  if (buckets == NULL) {
-    free(buckets);
-    return NULL;
-  }
-  pthread_mutex_lock(&dist->mutex);
-  memcpy(buckets, dist->buckets, sizeof(bucket_t) * dist->num_buckets);
-  pthread_mutex_unlock(&dist->mutex);
-  return buckets;
 }
 
 int distribution_get_num_buckets(distribution_t *dist) {
