@@ -7,11 +7,11 @@ cd "$(dirname "$(readlink -f "$0")")"
 make
 
 # Run all three benchmarks.
-for program in bkjg margalit sshmidt; 
+for program in sshmidt margalit bkjg; 
 do
     rm "$program".csv	
     echo "Number of buckets, Update linear, Percentile linear, Mixed linear, Update exponential, Percentile exponential, Mixed exponential, Update custom, Percentile custom, Mixed custom, Update all, Percentile all, Mixed all\n"          >> "$program".csv	  
-    for i in {50..500..50}
+    for i in {50..5000..50}
     do
         echo "Running $program for $i"
         ./"$program" $i >> "$program".csv
