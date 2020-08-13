@@ -27,7 +27,13 @@
 #ifndef COLLECTD_DISTRIBUTION_H
 #define COLLECTD_DISTRIBUTION_H
 
-#include"collectd.h"
+#include <stdlib.h>
+#include <stdint.h>
+#include <math.h>
+#include <string.h>
+#include <errno.h>
+
+//#include "collectd.h"
 
 struct bucket_s;
 typedef struct bucket_s bucket_t;
@@ -89,3 +95,5 @@ distribution_t* distribution_clone(distribution_t *dist);
 
 /** destroy the distribution and free memory **/
 void distribution_destroy(distribution_t *d);
+
+#endif
