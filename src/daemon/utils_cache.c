@@ -29,6 +29,7 @@
 
 #include "collectd.h"
 
+#include "distribution.h"
 #include "plugin.h"
 #include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
@@ -38,8 +39,12 @@
 
 #include <assert.h>
 
+/* TODO(bkjg): move it to the proper place */
+#define DS_TYPE_DISTRIBUTION 3
+
 typedef struct cache_entry_s {
   char name[6 * DATA_MAX_NAME_LEN];
+  distribution_t *values_distribution;
   gauge_t values_gauge;
   value_t values_raw;
   /* Time contained in the package
@@ -141,16 +146,25 @@ static int uc_insert(metric_t const *m, char const *key) {
   case DS_TYPE_COUNTER:
     ce->values_gauge = NAN;
     ce->values_raw.counter = m->value.counter;
+    ce->values_distribution = NULL;
     break;
 
   case DS_TYPE_GAUGE:
     ce->values_gauge = m->value.gauge;
     ce->values_raw.gauge = m->value.gauge;
+    ce->values_distribution = NULL;
     break;
 
   case DS_TYPE_DERIVE:
     ce->values_gauge = NAN;
     ce->values_raw.derive = m->value.derive;
+    ce->values_distribution = NULL;
+    break;
+
+    case DS_TYPE_DISTRIBUTION:
+      ce->values_gauge = NAN;
+    ce->values_raw.distribution = distribution_clone(m->value.distribution);
+    ce->values_distribution = distribution_clone(m->value.distribution);
     break;
 
   default:
@@ -339,6 +353,14 @@ static int uc_update_metric(metric_t const *m) {
     break;
   }
 
+  case METRIC_TYPE_DISTRIBUTION: {
+    distribution_t *diff = distribution_diff(ce->values_raw.distribution, m->value.distribution);
+    distribution_destroy(ce->values_distribution);
+    distribution_destroy(ce->values_raw.distribution);
+    ce->values_distribution = diff;
+    ce->values_raw.distribution = m->value.distribution;
+    break;
+  }
 #if 0
   case DS_TYPE_DERIVE: { /* TODO(octo): add support for DERIVE */
     derive_t diff = m->value.derive - ce->values_raw.derive;
