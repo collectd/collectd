@@ -354,7 +354,7 @@ static int uc_update_metric(metric_t const *m) {
   }
 
   case METRIC_TYPE_DISTRIBUTION: {
-    distribution_t *diff = distribution_diff(ce->values_raw.distribution, m->value.distribution);
+    distribution_t *diff = distribution_sub(ce->values_raw.distribution, m->value.distribution);
     distribution_destroy(ce->values_distribution);
     distribution_destroy(ce->values_raw.distribution);
     ce->values_distribution = diff;
@@ -435,6 +435,54 @@ int uc_set_callbacks_mask(const char *name, unsigned long mask) {
   ce->callbacks_mask = mask;
   pthread_mutex_unlock(&cache_lock);
   return 0;
+}
+
+int uc_get_percentile_by_name(const char *name, gauge_t *ret_values, double percent) {
+  cache_entry_t *ce = NULL;
+  int status = 0;
+
+  pthread_mutex_lock(&cache_lock);
+
+  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+    assert(ce != NULL);
+
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING) {
+      DEBUG("utils_cache: uc_get_percentile_by_name: requested metric \"%s\" is in "
+            "state \"missing\".",
+            name);
+      status = -1;
+    } else {
+      *ret_values = distribution_percentile(ce->values_distribution, percent);
+    }
+  } else {
+    DEBUG("utils_cache: uc_get_percentile_by_name: No such value: %s", name);
+    status = -1;
+  }
+
+  pthread_mutex_unlock(&cache_lock);
+
+  return status;
+} /* gauge_t *uc_get_percentile_by_name */
+
+int uc_get_percentile(metric_t const *m, gauge_t *ret, double percent) {
+  if (m->family->type != METRIC_TYPE_DISTRIBUTION) {
+    ERROR("uc_get_percentile: Don't know how to handle data source type %i.",
+        m->family->type);
+    return -1;
+  }
+
+  strbuf_t buf = STRBUF_CREATE;
+  int status = metric_identity(&buf, m);
+  if (status != 0) {
+    ERROR("uc_get_percentile: metric_identity failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
+  }
+
+  status = uc_get_percentile_by_name(buf.ptr, ret, percent);
+  STRBUF_DESTROY(buf);
+  return status;
 }
 
 int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
