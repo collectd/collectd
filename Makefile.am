@@ -151,6 +151,7 @@ check_LTLIBRARIES = \
 
 
 check_PROGRAMS = \
+    test_utils_cache \
 	test_common \
 	test_distribution \
 	test_format_graphite \
@@ -345,6 +346,10 @@ if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
 
+test_utils_cache_SOURCES = \
+    src/daemon/utils_cache_test.c \
+    src/testing.h
+test_utils_cache_LDADD = libmetric.la libplugin_mock.la
 
 test_common_SOURCES = \
 	src/utils/common/common_test.c \
