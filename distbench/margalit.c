@@ -97,7 +97,8 @@ distribution_t *distribution_new_linear(size_t num_buckets, double size) {
     }
     double min_boundary = i * size;
     double max_boundary = (i == num_buckets - 1) ? INFINITY : i * size + size;
-    new_distribution->buckets[i] = initialize_bucket(min_boundary, max_boundary);
+    new_distribution->buckets[i] =
+        initialize_bucket(min_boundary, max_boundary);
   }
 
   new_distribution->num_buckets = num_buckets;
@@ -125,9 +126,12 @@ distribution_t *distribution_new_exponential(size_t num_buckets, double factor,
   new_distribution->buckets = buckets;
 
   for (size_t i = 0; i < num_buckets; i++) {
-    double min_boundary = (i == 0) ? 0 : new_distribution->buckets[i - 1].max_boundary;
-    double max_boundary = (i == num_buckets - 1) ? INFINITY : factor * pow(base, i);
-    new_distribution->buckets[i] = initialize_bucket(min_boundary, max_boundary);
+    double min_boundary =
+        (i == 0) ? 0 : new_distribution->buckets[i - 1].max_boundary;
+    double max_boundary =
+        (i == num_buckets - 1) ? INFINITY : factor * pow(base, i);
+    new_distribution->buckets[i] =
+        initialize_bucket(min_boundary, max_boundary);
   }
 
   new_distribution->num_buckets = num_buckets;
@@ -165,9 +169,12 @@ distribution_t *distribution_new_custom(size_t num_bounds,
   new_distribution->buckets = buckets;
 
   for (size_t i = 0; i < num_bounds + 1; i++) {
-    double min_boundary = (i == 0) ? 0 : new_distribution->buckets[i - 1].max_boundary;
-    double max_boundary = (i == num_bounds) ? INFINITY : custom_max_boundaries[i];
-    new_distribution->buckets[i] = initialize_bucket(min_boundary, max_boundary);
+    double min_boundary =
+        (i == 0) ? 0 : new_distribution->buckets[i - 1].max_boundary;
+    double max_boundary =
+        (i == num_bounds) ? INFINITY : custom_max_boundaries[i];
+    new_distribution->buckets[i] =
+        initialize_bucket(min_boundary, max_boundary);
   }
 
   new_distribution->num_buckets =
@@ -179,7 +186,7 @@ distribution_t *distribution_new_custom(size_t num_bounds,
 }
 
 static int find_bucket(distribution_t *dist, size_t left, size_t right,
-                            double gauge) {
+                       double gauge) {
   if (left > right) {
     return -1;
   }
@@ -210,14 +217,14 @@ void distribution_update(distribution_t *dist, double gauge) {
   }
   */
   size_t left = 0;
-  //pthread_mutex_lock(&dist->mutex);
+  // pthread_mutex_lock(&dist->mutex);
   size_t right = dist->num_buckets - 1;
   int index = find_bucket(dist, left, right, gauge);
 
   dist->buckets[index].bucket_counter++;
   dist->total_scalar_count++;
   dist->raw_data_sum += gauge;
-  //pthread_mutex_lock(&dist->mutex);
+  // pthread_mutex_lock(&dist->mutex);
   return;
 }
 
@@ -232,7 +239,7 @@ double distribution_average(distribution_t *dist) {
   if (dist->total_scalar_count == 0) {
     return NAN;
   }
-  double average = dist->raw_data_sum / (double) dist->total_scalar_count;
+  double average = dist->raw_data_sum / (double)dist->total_scalar_count;
   pthread_mutex_unlock(&dist->mutex);
   return average;
 }
@@ -245,7 +252,7 @@ double distribution_percentile(distribution_t *dist, double percent) {
   int sum = 0;
   double bound = 0;
   pthread_mutex_lock(&dist->mutex);
-  double target_amount = (percent / 100) * (double) dist->total_scalar_count;
+  double target_amount = (percent / 100) * (double)dist->total_scalar_count;
   for (size_t i = 0; i < dist->num_buckets; i++) {
     sum += dist->buckets[i].bucket_counter;
     if ((double)sum >= target_amount) {

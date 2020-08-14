@@ -45,7 +45,8 @@ struct distribution_s {
  * This way the tree contained N buckets contains 2 * N - 1 nodes
  * Thus, left subtree has 2 * (mid - left + 1) - 1 nodes,
  * therefore the right subtree starts at node_index + 2 * (mid - left + 1).
- * For a detailed explanation, see https://docs.google.com/document/d/1ccsg5ffUfqt9-mBDGTymRn8X-9Wk1CuGYeMlRxmxiok/edit?usp=sharing".
+ * For a detailed explanation, see
+ * https://docs.google.com/document/d/1ccsg5ffUfqt9-mBDGTymRn8X-9Wk1CuGYeMlRxmxiok/edit?usp=sharing".
  */
 
 static size_t left_child_index(size_t node_index,
@@ -59,18 +60,17 @@ static size_t right_child_index(size_t node_index, size_t left, size_t right) {
   return node_index + 2 * (mid - left + 1);
 }
 
-static size_t tree_size(size_t num_buckets) {
-  return 2 * num_buckets - 1;
-}
+static size_t tree_size(size_t num_buckets) { return 2 * num_buckets - 1; }
 
 static bucket_t merge_buckets(bucket_t left_child, bucket_t right_child) {
-  return (bucket_t) {
+  return (bucket_t){
       .bucket_counter = left_child.bucket_counter + right_child.bucket_counter,
       .maximum = right_child.maximum,
   };
 }
 
-static void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, size_t left, size_t right) {
+static void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index,
+                       size_t left, size_t right) {
   if (left > right)
     return;
   if (left == right) {
@@ -82,10 +82,13 @@ static void build_tree(distribution_t *d, bucket_t *buckets, size_t node_index, 
   size_t right_child = right_child_index(node_index, left, right);
   build_tree(d, buckets, left_child, left, mid);
   build_tree(d, buckets, right_child, mid + 1, right);
-  d->tree[node_index] = merge_buckets(d->tree[left_child], d->tree[right_child]);
+  d->tree[node_index] =
+      merge_buckets(d->tree[left_child], d->tree[right_child]);
 }
 
-static distribution_t* build_distribution_from_bucket_array(size_t num_buckets, bucket_t *bucket_array) {
+static distribution_t *
+build_distribution_from_bucket_array(size_t num_buckets,
+                                     bucket_t *bucket_array) {
   distribution_t *new_distribution = calloc(1, sizeof(*new_distribution));
   bucket_t *nodes = calloc(tree_size(num_buckets), sizeof(*nodes));
   if (new_distribution == NULL || nodes == NULL) {
@@ -101,7 +104,7 @@ static distribution_t* build_distribution_from_bucket_array(size_t num_buckets, 
   return new_distribution;
 }
 
-distribution_t* distribution_new_linear(size_t num_buckets, double size) {
+distribution_t *distribution_new_linear(size_t num_buckets, double size) {
   if (num_buckets == 0 || size <= 0) {
     errno = EINVAL;
     return NULL;
@@ -109,7 +112,7 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
 
   bucket_t bucket_array[num_buckets];
   for (size_t i = 0; i < num_buckets; i++) {
-    bucket_array[i] = (bucket_t) {
+    bucket_array[i] = (bucket_t){
         .bucket_counter = 0,
         .maximum = (i == num_buckets - 1) ? INFINITY : (i + 1) * size,
     };
@@ -117,7 +120,8 @@ distribution_t* distribution_new_linear(size_t num_buckets, double size) {
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
-distribution_t* distribution_new_exponential(size_t num_buckets, double base, double factor) {
+distribution_t *distribution_new_exponential(size_t num_buckets, double base,
+                                             double factor) {
   if (num_buckets == 0 || base <= 1 || factor <= 0) {
     errno = EINVAL;
     return NULL;
@@ -125,15 +129,18 @@ distribution_t* distribution_new_exponential(size_t num_buckets, double base, do
 
   bucket_t bucket_array[num_buckets];
   for (size_t i = 0; i < num_buckets; i++) {
-    bucket_array[i] = (bucket_t) {
+    bucket_array[i] = (bucket_t){
         .bucket_counter = 0,
-        .maximum = (i == num_buckets - 1) ? INFINITY : factor * pow(base, i), //check if it's slow
+        .maximum = (i == num_buckets - 1)
+                       ? INFINITY
+                       : factor * pow(base, i), // check if it's slow
     };
   }
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
 }
 
-distribution_t* distribution_new_custom(size_t array_size, double *custom_buckets_boundaries) {
+distribution_t *distribution_new_custom(size_t array_size,
+                                        double *custom_buckets_boundaries) {
   for (size_t i = 0; i < array_size; i++) {
     double previous_boundary = 0;
     if (i > 0) {
@@ -152,9 +159,10 @@ distribution_t* distribution_new_custom(size_t array_size, double *custom_bucket
   size_t num_buckets = array_size + 1;
   bucket_t bucket_array[num_buckets];
   for (size_t i = 0; i < num_buckets; i++) {
-    bucket_array[i] = (bucket_t) {
+    bucket_array[i] = (bucket_t){
         .bucket_counter = 0,
-        .maximum = (i == num_buckets - 1) ? INFINITY : custom_buckets_boundaries[i],
+        .maximum =
+            (i == num_buckets - 1) ? INFINITY : custom_buckets_boundaries[i],
     };
   }
   return build_distribution_from_bucket_array(num_buckets, bucket_array);
@@ -168,7 +176,7 @@ void distribution_destroy(distribution_t *d) {
   free(d);
 }
 
-distribution_t* distribution_clone(distribution_t *dist) {
+distribution_t *distribution_clone(distribution_t *dist) {
   if (dist == NULL)
     return NULL;
   distribution_t *new_distribution = calloc(1, sizeof(*new_distribution));
@@ -188,7 +196,8 @@ distribution_t* distribution_clone(distribution_t *dist) {
   return new_distribution;
 }
 
-static void update_tree(distribution_t *dist, size_t node_index, size_t left, size_t right, double gauge) {
+static void update_tree(distribution_t *dist, size_t node_index, size_t left,
+                        size_t right, double gauge) {
   if (left > right)
     return;
   dist->tree[node_index].bucket_counter++;
@@ -217,8 +226,8 @@ void distribution_update(distribution_t *dist, double gauge) {
   pthread_mutex_unlock(&dist->mutex);
 }
 
-static double tree_get_counter(distribution_t *d, size_t node_index, size_t left,
-                             size_t right, uint64_t counter) {
+static double tree_get_counter(distribution_t *d, size_t node_index,
+                               size_t left, size_t right, uint64_t counter) {
   if (left > right)
     return NAN;
   if (left == right) {
@@ -230,7 +239,8 @@ static double tree_get_counter(distribution_t *d, size_t node_index, size_t left
   if (d->tree[left_child].bucket_counter >= counter)
     return tree_get_counter(d, left_child, left, mid, counter);
   else
-    return tree_get_counter(d, right_child, mid + 1, right, counter - d->tree[left_child].bucket_counter);
+    return tree_get_counter(d, right_child, mid + 1, right,
+                            counter - d->tree[left_child].bucket_counter);
 }
 
 double distribution_percentile(distribution_t *dist, double percent) {
@@ -242,7 +252,8 @@ double distribution_percentile(distribution_t *dist, double percent) {
   if (dist->tree[0].bucket_counter == 0)
     return NAN;
   uint64_t counter = ceil(dist->tree[0].bucket_counter * percent / 100.0);
-  double percentile = tree_get_counter(dist, 0, 0, dist->num_buckets - 1, counter);
+  double percentile =
+      tree_get_counter(dist, 0, 0, dist->num_buckets - 1, counter);
   pthread_mutex_unlock(&dist->mutex);
   return percentile;
 }
@@ -263,7 +274,9 @@ size_t distribution_num_buckets(distribution_t *dist) {
   return dist->num_buckets;
 }
 
-static void tree_write_leave_buckets(distribution_t *dist, bucket_t *write_ptr, size_t node_index, size_t left, size_t right) {
+static void tree_write_leave_buckets(distribution_t *dist, bucket_t *write_ptr,
+                                     size_t node_index, size_t left,
+                                     size_t right) {
   if (left > right)
     return;
   if (left == right) {
@@ -274,13 +287,15 @@ static void tree_write_leave_buckets(distribution_t *dist, bucket_t *write_ptr, 
   size_t left_child = left_child_index(node_index, left, right);
   size_t right_child = right_child_index(node_index, left, right);
   tree_write_leave_buckets(dist, write_ptr, left_child, left, mid);
-  tree_write_leave_buckets(dist, write_ptr, right_child, mid + 1, right); 
-}  
+  tree_write_leave_buckets(dist, write_ptr, right_child, mid + 1, right);
+}
 
 buckets_array_t get_buckets(distribution_t *dist) {
   buckets_array_t bucket_array = {
-    .num_buckets = dist == NULL ? 0 : dist->num_buckets,
-    .buckets = dist == NULL ? NULL : calloc(dist->num_buckets, sizeof(*bucket_array.buckets)),
+      .num_buckets = dist == NULL ? 0 : dist->num_buckets,
+      .buckets = dist == NULL
+                     ? NULL
+                     : calloc(dist->num_buckets, sizeof(*bucket_array.buckets)),
   };
   if (dist == NULL)
     return bucket_array;
