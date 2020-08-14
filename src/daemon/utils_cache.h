@@ -47,6 +47,7 @@ int uc_get_value_by_name_vl(const char *name, value_t **ret_values,
                             size_t *ret_values_num);
 value_t *uc_get_value_vl(const data_set_t *ds, const value_list_t *vl);
 
+int uc_get_percentile(metric_t const *m, gauge_t *ret_value);
 int uc_get_rate_by_name(const char *name, gauge_t *ret_value);
 int uc_get_rate(metric_t const *m, gauge_t *ret_value);
 int uc_get_value_by_name(const char *name, value_t *ret_value);
