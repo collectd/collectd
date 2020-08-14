@@ -28,10 +28,10 @@
 
 #include <pthread.h>
 
-typedef struct bucket_s {
+struct bucket_s {
   uint64_t bucket_counter;
   double maximum;
-} bucket_t;
+};
 
 struct distribution_s {
   bucket_t *tree;
