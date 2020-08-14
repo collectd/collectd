@@ -27,11 +27,11 @@
 #ifndef COLLECTD_DISTRIBUTION_H
 #define COLLECTD_DISTRIBUTION_H
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <math.h>
-#include <string.h>
 #include <errno.h>
+#include <math.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 //#include "collectd.h"
 
@@ -46,35 +46,44 @@ typedef struct buckets_array_s {
   bucket_t *buckets;
 } buckets_array_t;
 
-//constructor functions:
+// constructor functions:
 /**
  * function creates new distribution with the linear buckets:
  * [0; size) [size; 2 * size) ... [(num_buckets - 1) * size; infinity)
  * @param num_buckets - number of buckets. Should be greater than 0
  * @param size - size of each bucket. Should be greater than 0
- * @return - pointer to a new distribution or null pointer if parameters are wrong or memory allocation fails
+ * @return - pointer to a new distribution or null pointer if parameters are
+ * wrong or memory allocation fails
  */
-distribution_t* distribution_new_linear(size_t num_buckets, double size);
+distribution_t *distribution_new_linear(size_t num_buckets, double size);
 
 /**
  * function creates new distribution with the exponential buckets:
- * [0; factor) [factor; factor * base) ... [factor * base^{num_buckets - 2}; infinity)
+ * [0; factor) [factor; factor * base) ... [factor * base^{num_buckets - 2};
+ * infinity)
  * @param num_buckets - number of buckets. Should be greater than 0
  * @param base - base of geometric progression. Should be greater than 1
  * @param factor - size of the first bucket. Should be greater than 0
- * @return - pointer to a new distribution or null pointer if parameters are wrong or memory allocation fails
+ * @return - pointer to a new distribution or null pointer if parameters are
+ * wrong or memory allocation fails
  */
-distribution_t* distribution_new_exponential(size_t num_buckets, double base, double factor);
+distribution_t *distribution_new_exponential(size_t num_buckets, double base,
+                                             double factor);
 
 /**
  * function creates new distribution with the custom buckets:
- * [0; custom_bucket_boundaries[0]) [custom_bucket_boundaries[0]; custom_bucket_boundaries[1]) ...
+ * [0; custom_bucket_boundaries[0]) [custom_bucket_boundaries[0];
+ * custom_bucket_boundaries[1]) ...
  * ... [custom_bucket_boundaries[array_size - 1], infinity)
- * @param array_size - size of array of bucket boundaries. Number of buckets is array_size + 1
- * @param custom_buckets_boundaries - array with bucket boundaries. Should be increasing and positive
- * @return - pointer to a new distribution or null pointer if parameters are wrong or memory allocation fails
+ * @param array_size - size of array of bucket boundaries. Number of buckets is
+ * array_size + 1
+ * @param custom_buckets_boundaries - array with bucket boundaries. Should be
+ * increasing and positive
+ * @return - pointer to a new distribution or null pointer if parameters are
+ * wrong or memory allocation fails
  */
-distribution_t* distribution_new_custom(size_t array_size, double *custom_buckets_boundaries);
+distribution_t *distribution_new_custom(size_t array_size,
+                                        double *custom_buckets_boundaries);
 
 /** add new value to a distribution **/
 void distribution_update(distribution_t *dist, double gauge);
@@ -82,16 +91,19 @@ void distribution_update(distribution_t *dist, double gauge);
 /**
  * @param percent - should be in (0; 100] range
  * @return - an approximation of percent percentile
- * (upper bound of such bucket that all less or equal buckets contain more than percent percents of values)
- * or NAN if parameters are wrong or distribution is empty
+ * (upper bound of such bucket that all less or equal buckets contain more than
+ * percent percents of values) or NAN if parameters are wrong or distribution is
+ * empty
  */
 double distribution_percentile(distribution_t *dist, double percent);
 
-/** @return - average of all values in distribution or NAN if distribution is empty */
+/** @return - average of all values in distribution or NAN if distribution is
+ * empty */
 double distribution_average(distribution_t *dist);
 
-/** @return - pointer to the copy of distribution or null if memory allocation fails */
-distribution_t* distribution_clone(distribution_t *dist);
+/** @return - pointer to the copy of distribution or null if memory allocation
+ * fails */
+distribution_t *distribution_clone(distribution_t *dist);
 
 /** destroy the distribution and free memory **/
 void distribution_destroy(distribution_t *d);
