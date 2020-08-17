@@ -97,19 +97,21 @@ static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Functions
  */
-static void sigchld_handler(int __attribute__((unused)) signal) /* {{{ */
+static void sigchld_sigaction(int __attribute__((unused)) sig, siginfo_t *info, void __attribute__((unused)) *ctx)
 {
-  pid_t pid;
-  int status;
-  while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-    program_list_t *pl;
-    for (pl = pl_head; pl != NULL; pl = pl->next)
-      if (pl->pid == pid)
-        break;
-    if (pl != NULL)
-      pl->status = status;
-  } /* while (waitpid) */
-} /* void sigchld_handler }}} */
+  program_list_t *pl;
+
+  if (info->si_signo != SIGCHLD || info->si_code != CLD_EXITED)
+    return;
+
+  for (pl = pl_head; pl != NULL; pl = pl->next)
+    if (pl->pid == info->si_pid)
+      break;
+  if (pl != NULL) {
+    pl->status = info->si_status;
+    (void)waitpid(info->si_pid, NULL, WNOHANG);
+  }
+} /* void sigchld_sigaction }}} */
 
 static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
 {
@@ -800,7 +802,7 @@ static void *exec_notification_one(void *arg) /* {{{ */
 
 static int exec_init(void) /* {{{ */
 {
-  struct sigaction sa = {.sa_handler = sigchld_handler};
+  struct sigaction sa = {.sa_sigaction = sigchld_sigaction, .sa_flags = SA_SIGINFO | SA_NOCLDSTOP};
 
   sigaction(SIGCHLD, &sa, NULL);
 

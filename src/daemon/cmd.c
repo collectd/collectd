@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
   /*
    * fork off child
    */
-  struct sigaction sig_chld_action = {.sa_handler = SIG_IGN};
+  struct sigaction sig_chld_action = {.sa_handler = SIG_DFL};
 
   sigaction(SIGCHLD, &sig_chld_action, NULL);
 
