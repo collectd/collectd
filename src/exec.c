@@ -97,8 +97,8 @@ static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Functions
  */
-static void sigchld_sigaction(int __attribute__((unused)) sig, siginfo_t *info, void __attribute__((unused)) *ctx)
-{
+static void sigchld_sigaction(int __attribute__((unused)) sig, siginfo_t *info,
+                              void __attribute__((unused)) * ctx) {
   program_list_t *pl;
 
   if (info->si_signo != SIGCHLD || info->si_code != CLD_EXITED)
@@ -802,7 +802,8 @@ static void *exec_notification_one(void *arg) /* {{{ */
 
 static int exec_init(void) /* {{{ */
 {
-  struct sigaction sa = {.sa_sigaction = sigchld_sigaction, .sa_flags = SA_SIGINFO | SA_NOCLDSTOP};
+  struct sigaction sa = {.sa_sigaction = sigchld_sigaction,
+                         .sa_flags = SA_SIGINFO | SA_NOCLDSTOP};
 
   sigaction(SIGCHLD, &sa, NULL);
 
