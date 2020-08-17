@@ -2260,6 +2260,136 @@ Type-instance to use. Defaults to the current map key or current string array el
 
 =back
 
+=head2 Plugin C<curl_jolokia>
+
+The B<curl_jolokia plugin> collects values from MBeanServevr - servlet engines equipped 
+with the jolokia (L<https://jolokia.org>) MBean. It sends a pre-configured
+JSON-Postbody to the servlet via HTTP commanding the jolokia Bean to reply with
+a singe JSON equipped with all JMX counters requested.
+By reducing TCP roundtrips in comparison to conventional JMX clients that
+query one value via tcp at a time, it can return hundrets of values in one roundtrip.
+Moreof - no java binding is required in collectd to do so.
+
+It uses B<libyajl> (L<https://lloyd.github.io/yajl/>) to parse the 
+Jolokia JSON reply retrieved via B<libcurl> (L<http://curl.haxx.se/>)
+
+ <Plugin curl_jolokia>
+   <URL "http://10.10.10.10:7101/jolokia-war-1.2.0/?ignoreErrors=true&canonicalNaming=false";>
+     Host "_APPPERF_JMX"
+     User "webloginname"
+     Password "passvoid"
+     Post <JOLOKIA json post data>
+
+   <BeanName "PS_Scavenge">
+        MBean "java.lang:name=PS Scavenge,type=GarbageCollector"
+        BeanNameSpace "java_lang"
+        <AttributeName "collectiontime" >
+               Attribute "CollectionTime"
+               type "gauge"
+        </AttributeName>
+        <AttributeName "collectioncount" >
+               Attribute "CollectionCount"
+               type "gauge"
+        </AttributeName>
+   </BeanName>
+  </Plugin>
+
+The plugin is intended to be written in a simple manner. Thus it doesn't 
+try to solve the task of generating the jolokia post data, or automatically 
+map the values, but rather leans on a verbose config containing the prepared
+flat JSON post data and a config section per gauge transformed (as one sample shown
+above). However, Jolokia can output all available gauges, and we have a python 
+script to filter them, and generate a configuration for you: 
+
+  jolokia_2_collectcfg.py
+
+it can gather all interesting gauges, write a simple one value per line config 
+for itself and subsequent calls.
+You can remove lines from this file manually, or create filter lists. 
+You then use the script to generate a collectd config. 
+The script can then inspect data files from some testruns, and remove 
+all gauges, that don't contain any movement. 
+
+The base config looks like this:
+
+The following options are valid within B<URL> blocks:
+
+=over 4
+
+=item B<Host> I<Name>
+
+Use I<Name> as the host name when submitting values. Defaults to the global
+host name setting.
+
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to C<curl_jolokia>.
+
+=item B<Instance> I<Instance>
+
+Sets the plugin instance to I<Instance>.
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+URL. By default the global B<Interval> setting will be used.
+
+=item B<User> I<Name>
+
+=item B<Password> I<Password>
+
+=item B<Digest> B<true>|B<false>
+
+=item B<VerifyPeer> B<true>|B<false>
+
+=item B<VerifyHost> B<true>|B<false>
+
+=item B<CACert> I<file>
+
+=item B<Header> I<Header>
+
+=item B<Post> I<Body>
+
+=item B<Timeout> I<Milliseconds>
+
+These options behave exactly equivalent to the appropriate options of the
+I<cURL> plugin. Please see there for a detailed description.
+
+=item B<E<lt>BeanNameE<gt>>
+
+One B<BeanName> block configures the translation of the gauges of one bean
+to their respective collectd names, where BeanName sets the main name.
+
+=item B<MBean> I<MBean>
+
+The name of the Bean on the server
+
+=item B<BeanNameSpace> I<BeanNameSpace>
+
+The name space the Bean resides under
+
+=over 4
+
+=item B<AttributeName> I<AttributeName>
+
+A bean can contain several Attributes with gauges. Each one can be matched by a 
+AttributeName section or be ignored. 
+
+=item B<Attribute> I<Attribute>
+
+How should this attribute be called under the BeanName in the collectd hierarchy?
+
+=item B<Type> I<Type>
+
+Sets the type used to dispatch the values to the daemon. Detailed information
+about types and their configuration can be found in L<types.db(5)>. This
+option is mandatory.
+
+=back
+
+=back
+
 =head2 Plugin C<curl_xml>
 
 The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
