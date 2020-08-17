@@ -354,11 +354,16 @@ static int uc_update_metric(metric_t const *m) {
   }
 
   case METRIC_TYPE_DISTRIBUTION: {
-    distribution_t *diff =
+    int status =
         distribution_sub(ce->values_raw.distribution, m->value.distribution);
+
+    if (status != 0) {
+      ERROR("uc_update: distribution_sub failed with status %d.", status);
+      return status;
+    }
+
     distribution_destroy(ce->values_distribution);
-    distribution_destroy(ce->values_raw.distribution);
-    ce->values_distribution = diff;
+    ce->values_distribution = ce->values_raw.distribution;
     ce->values_raw.distribution = m->value.distribution;
     break;
   }
