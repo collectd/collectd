@@ -125,7 +125,7 @@ sbin_PROGRAMS = \
 bin_PROGRAMS = \
 	collectd-nagios \
 	collectd-tg \
-	collectdctl
+	collectdctl 
 endif # BUILD_WIN32
 
 
@@ -152,6 +152,7 @@ check_LTLIBRARIES = \
 
 check_PROGRAMS = \
 	test_common \
+	test_distribution \
 	test_format_graphite \
 	test_meta_data \
 	test_metric \
@@ -355,6 +356,11 @@ test_meta_data_SOURCES = \
 	src/testing.h
 test_meta_data_LDADD = libmetadata.la libplugin_mock.la
 
+test_distribution_SOURCES = \
+	src/daemon/distribution_test.c \
+	src/testing.h
+test_distribution_LDADD = libmetric.la libplugin_mock.la
+
 test_metric_SOURCES = \
 	src/daemon/metric_test.c \
 	src/testing.h
@@ -425,9 +431,11 @@ libmetadata_la_SOURCES = \
 	src/utils/metadata/meta_data.h
 
 libmetric_la_SOURCES = \
+		       src/daemon/distribution.c \
+		       src/daemon/distribution.h \
 		       src/daemon/metric.c \
 		       src/daemon/metric.h
-libmetric_la_LIBADD = libmetadata.la $(COMMON_LIBS)
+libmetric_la_LIBADD = libmetadata.la $(COMMON_LIBS) -lm
 
 libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \

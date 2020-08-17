@@ -28,11 +28,6 @@
 
 #include <pthread.h>
 
-struct bucket_s {
-  uint64_t bucket_counter;
-  double maximum;
-};
-
 struct distribution_s {
   bucket_t *tree;
   size_t num_buckets;
