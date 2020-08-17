@@ -307,13 +307,7 @@ static int do_shutdown(void) {
 static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
-    int c = getopt(argc, argv,
-                   "BhtTfC:"
-#if COLLECT_DAEMON
-                   "P:"
-#endif
-    );
-
+    int c = getopt(argc, argv, "BhtTfC:P:");
     if (c == -1)
       break;
 
@@ -334,17 +328,16 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
       config->daemonize = false;
 #endif /* COLLECT_DAEMON */
       break;
-#if COLLECT_DAEMON
     case 'P':
+#if COLLECT_DAEMON
       global_option_set("PIDFile", optarg, 1);
+#endif /* COLLECT_DAEMON */
       break;
     case 'f':
       config->daemonize = false;
       break;
-#else
     case 'f':
       break;
-#endif /* COLLECT_DAEMON */
     case 'h':
       exit_usage(0);
     default:
