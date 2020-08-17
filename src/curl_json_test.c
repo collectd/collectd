@@ -98,7 +98,13 @@ DEF_TEST(parse) {
       {"{\"foo\":42,\"bar\":23}", "bar", 23},
       /* nested map */
       {"{\"a\":{\"b\":{\"c\":123}}", "a/b/c", 123},
+      {"{\"a\":{\"\": {\"c\":123}}", "a//c",  123},
       {"{\"x\":{\"y\":{\"z\":789}}", "x/*/z", 789},
+      /* escaped keys */
+      {"{\"foo/bar\":42}", "foo\\/bar", 42},
+      {"{\"foo\":42,\"bar\\\\\":23}", "bar\\\\", 23},
+      /* nested escaped map */
+      {"{\"a\":{\"b/c\":{\"d\":123}}", "a/b\\/c/d", 123},
       /* simple array */
       {"[10,11,12,13]", "0", 10},
       {"[10,11,12,13]", "1", 11},
@@ -139,9 +145,36 @@ DEF_TEST(parse) {
   return 0;
 }
 
+DEF_TEST(escape) {
+  struct {
+    const char *path, *name, *rest, *desc;
+  } cases[] = {
+      {"this/that/here", "this", "that/here", "basic"},
+      {"this\\/that/here", "this/that", "here", "escaped slash"},
+      {"t\\his\\/that/here", NULL, NULL, "escaped normal"},
+      {"this\\/\\that/here", NULL, NULL, "escape after slash"},
+      {"this\\", NULL, NULL, "escape at the end"},
+      {"this\\/\\//here", "this//", "here", "escape after slash"},
+      {"this\\\\\\/\\\\/here", "this\\/\\", "here",
+       "avoid using escaped char as escape"},
+      {"reallylongname/morehere", "reallylon", "morehere", "truncation"},
+  };
+  for (int i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    char b[10];
+    const char *r = cj_extract_escaped_key(cases[i].path, b, sizeof(b));
+    if (cases[i].name) {
+      EXPECT_EQ_STR(b, cases[i].name);
+      EXPECT_EQ_STR(r, cases[i].rest);
+    } else
+      EXPECT_EQ_PTR((void *)r, NULL);
+  }
+  return 0;
+}
+
 int main(void) {
   cj_submit = test_submit;
 
+  RUN_TEST(escape);
   RUN_TEST(parse);
 
   END_TEST;

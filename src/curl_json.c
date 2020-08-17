@@ -439,6 +439,29 @@ static int cj_config_append_string(const char *name,
   return 0;
 } /* }}} int cj_config_append_string */
 
+static const char *cj_extract_escaped_key(const char *from, char *into,
+                                          size_t into_size) {
+  bool escaped = false;
+  int len = 0;
+  const char *cur = from;
+  for (; *cur; cur++) {
+    bool escape = *cur == '\\', sep = *cur == '/';
+    if (!escaped && sep) { // non-escaped forward slash means we are done
+      cur++;
+      break;
+    } else if (!escaped && escape) {
+      escaped = true;
+    } else if (!escaped || sep || escape) {
+      escaped = false;
+      if (len < into_size - 1)
+        into[len++] = *cur;
+    } else
+      return NULL; // invalid escape
+  }
+  into[len] = '\0';
+  return escaped ? NULL : cur;
+}
+
 /* cj_append_key adds key to the configuration stored in db.
  *
  * For example:
@@ -456,16 +479,24 @@ static int cj_append_key(cj_t *db, cj_key_t *key) { /* {{{ */
   if (*start == '/')
     ++start;
 
-  char const *end;
-  while ((end = strchr(start, '/')) != NULL) {
+  while (*start) {
     char name[PATH_MAX];
+    const char *next = cj_extract_escaped_key(start, name, sizeof(name));
+    if (!next) {
+      ERROR("curl_json invalid escape sequence: \"%s\"", key->path);
+      return -1;
+    }
 
-    size_t len = end - start;
-    if (len == 0)
-      break;
+    if (*next == '\0') {
+      cj_tree_entry_t *e = calloc(1, sizeof(*e));
+      if (e == NULL)
+        return ENOMEM;
+      e->type = KEY;
+      e->key = key;
 
-    len = COUCH_MIN(len, sizeof(name) - 1);
-    sstrncpy(name, start, len + 1);
+      c_avl_insert(tree, strdup(name), e);
+      return 0;
+    }
 
     cj_tree_entry_t *e;
     if (c_avl_get(tree, name, (void *)&e) != 0) {
@@ -482,22 +513,11 @@ static int cj_append_key(cj_t *db, cj_key_t *key) { /* {{{ */
       return EINVAL;
 
     tree = e->tree;
-    start = end + 1;
+    start = next;
   }
 
-  if (strlen(start) == 0) {
-    ERROR("curl_json plugin: invalid key: %s", key->path);
-    return -1;
-  }
-
-  cj_tree_entry_t *e = calloc(1, sizeof(*e));
-  if (e == NULL)
-    return ENOMEM;
-  e->type = KEY;
-  e->key = key;
-
-  c_avl_insert(tree, strdup(start), e);
-  return 0;
+  ERROR("curl_json plugin: invalid key: %s", key->path);
+  return -1;
 } /* }}} int cj_append_key */
 
 static int cj_config_add_key(cj_t *db, /* {{{ */
