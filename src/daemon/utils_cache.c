@@ -161,8 +161,8 @@ static int uc_insert(metric_t const *m, char const *key) {
     ce->values_distribution = NULL;
     break;
 
-    case DS_TYPE_DISTRIBUTION:
-      ce->values_gauge = NAN;
+  case DS_TYPE_DISTRIBUTION:
+    ce->values_gauge = NAN;
     ce->values_raw.distribution = distribution_clone(m->value.distribution);
     ce->values_distribution = distribution_clone(m->value.distribution);
     break;
@@ -354,7 +354,8 @@ static int uc_update_metric(metric_t const *m) {
   }
 
   case METRIC_TYPE_DISTRIBUTION: {
-    distribution_t *diff = distribution_sub(ce->values_raw.distribution, m->value.distribution);
+    distribution_t *diff =
+        distribution_sub(ce->values_raw.distribution, m->value.distribution);
     distribution_destroy(ce->values_distribution);
     distribution_destroy(ce->values_raw.distribution);
     ce->values_distribution = diff;
@@ -437,7 +438,8 @@ int uc_set_callbacks_mask(const char *name, unsigned long mask) {
   return 0;
 }
 
-int uc_get_percentile_by_name(const char *name, gauge_t *ret_values, double percent) {
+int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
+                              double percent) {
   cache_entry_t *ce = NULL;
   int status = 0;
 
@@ -448,7 +450,8 @@ int uc_get_percentile_by_name(const char *name, gauge_t *ret_values, double perc
 
     /* remove missing values from getval */
     if (ce->state == STATE_MISSING) {
-      DEBUG("utils_cache: uc_get_percentile_by_name: requested metric \"%s\" is in "
+      DEBUG("utils_cache: uc_get_percentile_by_name: requested metric \"%s\" "
+            "is in "
             "state \"missing\".",
             name);
       status = -1;
@@ -468,7 +471,7 @@ int uc_get_percentile_by_name(const char *name, gauge_t *ret_values, double perc
 int uc_get_percentile(metric_t const *m, gauge_t *ret, double percent) {
   if (m->family->type != METRIC_TYPE_DISTRIBUTION) {
     ERROR("uc_get_percentile: Don't know how to handle data source type %i.",
-        m->family->type);
+          m->family->type);
     return -1;
   }
 
