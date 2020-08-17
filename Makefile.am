@@ -123,7 +123,7 @@ sbin_PROGRAMS = \
 bin_PROGRAMS = \
 	collectd-nagios \
 	collectd-tg \
-	collectdctl \
+	collectdctl 
 endif # BUILD_WIN32
 
 
