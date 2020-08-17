@@ -466,6 +466,11 @@ DEF_TEST(clone) {
   EXPECT_EQ_DOUBLE(distribution_percentile(dist, 50), 14);
   distribution_update(clone, 2);
   EXPECT_EQ_DOUBLE(distribution_percentile(dist, 50), 14);
+  distribution_destroy(dist);
+  distribution_update(clone, 25);
+  distribution_update(clone, 200);
+  EXPECT_EQ_DOUBLE(distribution_percentile(clone, 80), 28);
+  distribution_destroy(clone);
   return 0;
 }
 
