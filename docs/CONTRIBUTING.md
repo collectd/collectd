@@ -43,8 +43,8 @@ the mailing list have a tendency to fall through the cracks.
     this reports a failure, please investigate and fix the problem. We will at
     best do a very casual review for failing PRs.
 *   *Don't rebase:* Rebasing your branch destroys the review history. If a
-    review takes a long time, we may ask you to rebase on a more recent
-    *master*, but please don't do that without being asked.
+    review takes a long time, we may ask you to rebase on a more recent commit
+    on the *main* branch, but please don't do that without being asked.
 *   *types.db:* One of the most common mistakes made by new contributors is the
     addition of (many) new *types* in the file `src/types.db`. The majority of
     usecases can be met with one of the existing entries. If you plan to add new
