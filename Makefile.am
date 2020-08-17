@@ -124,7 +124,6 @@ bin_PROGRAMS = \
 	collectd-nagios \
 	collectd-tg \
 	collectdctl \
-	distribution_benchmark
 endif # BUILD_WIN32
 
 
@@ -362,13 +361,6 @@ test_distribution_SOURCES = \
 	src/daemon/distribution_test.c \
 	src/testing.h
 test_distribution_LDADD = libmetric.la libplugin_mock.la
-
-distribution_benchmark_SOURCES = src/daemon/distribution_benchmark.c
-#distribution_benchmark_CPPFLAGS = $(AM_CPPFLAGS) \
-#	-I$(srcdir)/src/libcollectdclient \
-#	-I$(top_builddir)/src/libcollectdclient
-distribution_benchmark_LDADD = \
-	libmetric.la
 
 test_metric_SOURCES = \
 	src/daemon/metric_test.c \
