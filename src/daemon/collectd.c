@@ -339,9 +339,9 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
     case 'f':
       break;
     case 'h':
-      exit_usage(0);
+      exit_usage(EXIT_SUCCESS);
     default:
-      exit_usage(1);
+      exit_usage(EXIT_FAILURE);
     } /* switch (c) */
   }   /* while (1) */
 }
@@ -399,7 +399,7 @@ struct cmdline_config init_config(int argc, char **argv) {
     exit(EXIT_SUCCESS);
 
   if (optind < argc)
-    exit_usage(1);
+    exit_usage(EXIT_FAILURE);
 
   plugin_init_ctx();
 
