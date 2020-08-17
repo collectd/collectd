@@ -7,8 +7,8 @@ margalit_LDFLAGS = -lm
 
 sshmidt_LDFLAGS = -lm
 
-bkjg_SOURCES = main.c function.h bkjg.c
+bkjg_SOURCES = main.c distribution.h bkjg.c
 
-margalit_SOURCES = main.c function.h margalit.c
+margalit_SOURCES = main.c distribution.h margalit.c
 
-sshmidt_SOURCES = main.c function.h sshmidt.c
+sshmidt_SOURCES = main.c distribution.h sshmidt.c
