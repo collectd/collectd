@@ -205,7 +205,7 @@ int metric_reset(metric_t *m) {
   label_set_reset(&m->label);
   meta_data_destroy(m->meta);
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+  if(m->family->type == METRIC_TYPE_DISTRIBUTION) {
     distribution_destroy(m->value.distribution);
   }
 
@@ -349,18 +349,18 @@ static int metric_list_clone(metric_list_t *dest, metric_list_t src,
 
   for (size_t i = 0; i < src.num; i++) {
 
-    ret.ptr[i] = (metric_t){
+      ret.ptr[i] = (metric_t){
         .family = fam,
         .time = src.ptr[i].time,
         .interval = src.ptr[i].interval,
-    };
+      };
 
-    if (src.ptr[i].family->type == METRIC_TYPE_DISTRIBUTION) {
-      ret.ptr[i].value.distribution =
-          distribution_clone(src.ptr[i].value.distribution);
-    } else {
-      ret.ptr[i].value = src.ptr[i].value;
-    }
+      if(src.ptr[i].family->type == METRIC_TYPE_DISTRIBUTION) {
+          ret.ptr[i].value.distribution = distribution_clone(src.ptr[i].value.distribution);    
+      }
+      else {
+          ret.ptr[i].value = src.ptr[i].value;
+      }
 
     int status = label_set_clone(&ret.ptr[i].label, src.ptr[i].label);
     if (status != 0) {
@@ -633,3 +633,4 @@ metric_t *metric_parse_identity(char const *buf) {
 
   return fam->metric.ptr;
 }
+
