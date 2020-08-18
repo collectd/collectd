@@ -493,8 +493,6 @@ int uc_set_callbacks_mask(const char *name, unsigned long mask) {
   return 0;
 }
 
-/* TODO(bkjg): check if this name corresponds to the metric with type
- * METRIC_TYPE_DISTRIBUTION */
 int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
                               double percent) {
   if (percent < 0 || percent > 100) {

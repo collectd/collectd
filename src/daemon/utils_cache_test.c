@@ -200,7 +200,6 @@ static metric_family_t *create_metric_family_for_test7(char *name,
   return fam;
 }
 
-/* TODO(bkjg): write more test cases */
 DEF_TEST(uc_update) {
   struct {
     int want_get;
@@ -306,8 +305,6 @@ DEF_TEST(uc_update) {
   return 0;
 }
 
-/* TODO(bkjg): add more metrics to the metric family, to check if it works for
- * sure */
 DEF_TEST(uc_get_percentile_by_name) {
   double tmp;
   struct {
@@ -1167,8 +1164,6 @@ DEF_TEST(uc_get_rate) {
                              5842.238, 72.20576, 9772067, 6875.29363}},
           .want_ret_value = 453.56405,
       },
-      /* TODO(bkjg): maybe convert all these initialization functions into one
-       */
       {
           .fam = create_metric_family_for_test7("test7-rate", 7, 35, 743.2),
           .metric_idx = 5,
@@ -1231,7 +1226,6 @@ DEF_TEST(uc_get_rate) {
   uc_init();
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
     printf("## Case %zu:\n", i);
-    /* TODO(bkjg): change in all loops int to size_t */
     for (size_t k = 0; k < cases[i].num_metrics; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
