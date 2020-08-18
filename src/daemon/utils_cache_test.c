@@ -285,9 +285,9 @@ DEF_TEST(uc_update) {
     for (size_t l = 0; l < cases[i].fam->metric.num; ++l) {
       for (size_t k = 0; k <= l; ++k) {
         for (size_t j = 0; j < cases[i].num_updates[k]; ++j) {
-          CHECK_ZERO(distribution_update(
+          distribution_update(
               cases[i].fam->metric.ptr[l].value.distribution,
-              cases[i].updates[k][j]));
+              cases[i].updates[k][j]);
         }
       }
     }
@@ -533,9 +533,9 @@ DEF_TEST(uc_get_percentile_by_name) {
     for (size_t k = 0; k < cases[i].fam->metric.num; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
-          CHECK_ZERO(distribution_update(
+          distribution_update(
               cases[i].fam->metric.ptr[k].value.distribution,
-              cases[i].updates[l][j]));
+              cases[i].updates[l][j]);
         }
       }
     }
@@ -751,7 +751,7 @@ DEF_TEST(uc_get_percentile) {
                              9242.79285, 9702.15248, 82.44731, 1854.97795,
                              5236.74648},
               },
-          .want_ret_value = 2011.40738,
+          .want_ret_value = 5579.60919,
           .metric_idx = 48,
       },
   };
@@ -765,9 +765,9 @@ DEF_TEST(uc_get_percentile) {
     for (size_t k = 0; k < cases[i].fam->metric.num; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
-          CHECK_ZERO(distribution_update(
+          distribution_update(
               cases[i].fam->metric.ptr[k].value.distribution,
-              cases[i].updates[l][j]));
+              cases[i].updates[l][j]);
         }
       }
     }
@@ -858,7 +858,7 @@ DEF_TEST(uc_get_rate_by_name) {
                   (double[]){26.24206, 29.78883, 35.16503, 28.52225},
                   (double[]){45.65, 78.435, 34.324, 57.45, 67.5743},
                   (double[]){}},
-          .want_ret_value = 35,
+          .want_ret_value = NAN,
       },
       {
           .fam = create_metric_family_for_test6(
@@ -972,9 +972,9 @@ DEF_TEST(uc_get_rate_by_name) {
     for (size_t k = 0; k < cases[i].fam->metric.num; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
-          CHECK_ZERO(distribution_update(
+          distribution_update(
               cases[i].fam->metric.ptr[k].value.distribution,
-              cases[i].updates[l][j]));
+              cases[i].updates[l][j]);
         }
       }
     }
@@ -1162,7 +1162,7 @@ DEF_TEST(uc_get_rate) {
                              4869.61676, 8593.19673, 6.66532},
                   (double[]){57.8407, 34.23938, 5106.707, 227.9787, 7559.3564,
                              5842.238, 72.20576, 9772067, 6875.29363}},
-          .want_ret_value = 453.56405,
+          .want_ret_value = 5214.12859,
       },
       {
           .fam = create_metric_family_for_test7("test7-rate", 7, 35, 743.2),
@@ -1219,7 +1219,7 @@ DEF_TEST(uc_get_rate) {
                   (double[]){9.5663, 34.9285, 282.75, 7719.3},
                   (double[]){},
               },
-          .want_ret_value = 743.2,
+          .want_ret_value = NAN,
       },
   };
 
@@ -1229,9 +1229,9 @@ DEF_TEST(uc_get_rate) {
     for (size_t k = 0; k < cases[i].num_metrics; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
-          CHECK_ZERO(distribution_update(
+          distribution_update(
               cases[i].fam->metric.ptr[k].value.distribution,
-              cases[i].updates[l][j]));
+              cases[i].updates[l][j]);
         }
       }
     }
