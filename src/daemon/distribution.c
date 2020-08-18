@@ -242,7 +242,7 @@ static double tree_get_counter(distribution_t *d, size_t node_index,
 }
 
 double distribution_percentile(distribution_t *dist, double percent) {
-  if (percent <= 0 || percent > 100 || dist == NULL) {
+  if (percent < 0 || percent > 100 || dist == NULL) {
     errno = EINVAL;
     return NAN;
   }
@@ -351,6 +351,7 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
   pthread_mutex_lock(&d2->mutex);
 
   if (d1->total_sum < d2->total_sum) {
+    d1->total_sum = d2->total_sum - d1->total_sum;
     for (size_t i = 0; i < tree_size(d1->num_buckets); ++i) {
       if (d1->tree[i].maximum != d2->tree[i].maximum ||
           d1->tree[i].bucket_counter > d2->tree[i].bucket_counter) {
@@ -363,6 +364,7 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
           d2->tree[i].bucket_counter - d1->tree[i].bucket_counter;
     }
   } else {
+    d1->total_sum -= d2->total_sum;
     for (size_t i = 0; i < tree_size(d1->num_buckets); ++i) {
       if (d1->tree[i].maximum != d2->tree[i].maximum ||
           d1->tree[i].bucket_counter < d2->tree[i].bucket_counter) {
