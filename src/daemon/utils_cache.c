@@ -25,6 +25,7 @@
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian tokkee Harl <sh at tokkee.org>
  *   Manoj Srivastava <srivasta at google.com>
+ *   Barbara Kaczorowska <bkjg at google.com>
  **/
 
 #include "collectd.h"
