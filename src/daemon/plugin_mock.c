@@ -248,3 +248,14 @@ int plugin_thread_create(__attribute__((unused)) pthread_t *thread,
  * would be to hard-code the top-level config keys in daemon/collectd.c to avoid
  * having these references in daemon/configfile.c. */
 int fc_configure(const oconfig_item_t *ci) { return ENOTSUP; }
+
+void plugin_dispatch_cache_event(
+    __attribute__((unused)) enum cache_event_type_e event_type,
+    __attribute__((unused)) unsigned long callbacks_mask,
+    __attribute__((unused)) const char *name,
+    __attribute__((unused)) metric_t const *m) {}
+
+int plugin_dispatch_missing(__attribute__((unused))
+                            metric_family_t const *fam) {
+  return ENOTSUP;
+}
