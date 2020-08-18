@@ -519,7 +519,8 @@ int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
       status = -1;
     } else {
       if (ce->values_distribution == NULL &&
-          ce->values_raw.distribution != NULL) {
+          ce->values_raw.distribution !=
+              NULL) { /* check if the cache entry is not the distribution */
         pthread_mutex_unlock(&cache_lock);
         ERROR("uc_get_percentile: Don't know how to handle data source type "
               "that is not the distribution.");
@@ -579,7 +580,15 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
             name);
       status = -1;
     } else {
-      *ret_values = ce->values_gauge;
+
+      if (ce->values_distribution == NULL &&
+          ce->values_raw.distribution !=
+              NULL) { /* check if the cache entry is not the distribution */
+        *ret_values = ce->values_gauge;
+      } else { /* in case where metric is a distribution, we
+                                     assume that the rate is the middle value */
+        status = uc_get_percentile_by_name(name, ret_values, 50.0);
+      }
     }
   } else {
     DEBUG("utils_cache: uc_get_rate_by_name: No such value: %s", name);
@@ -600,7 +609,14 @@ int uc_get_rate(metric_t const *m, gauge_t *ret) {
     return status;
   }
 
-  status = uc_get_rate_by_name(buf.ptr, ret);
+  if (m->family->type ==
+      METRIC_TYPE_DISTRIBUTION) { /* in case where metric is a distribution, we
+                                     assume that the rate is the middle value */
+    status = uc_get_percentile_by_name(buf.ptr, ret, 50.0);
+  } else {
+    status = uc_get_rate_by_name(buf.ptr, ret);
+  }
+
   STRBUF_DESTROY(buf);
   return status;
 } /* gauge_t *uc_get_rate */
