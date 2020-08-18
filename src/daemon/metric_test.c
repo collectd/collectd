@@ -80,15 +80,24 @@ DEF_TEST(metric_label_set) {
            cases[i].key ? cases[i].key : "(null)",
            cases[i].value ? cases[i].value : "(null)");
 
-    metric_t m = {0};
+    metric_family_t m_fam = {
+        .type = METRIC_TYPE_DISTRIBUTION,
+    };
+    metric_family_t *metric_fam = &m_fam;
+
+    metric_t m = {
+        .family = metric_fam,
+        .value.distribution = NULL,
+    };
+    // metric_t m = {0};
 
     EXPECT_EQ_INT(cases[i].want_err,
                   metric_label_set(&m, cases[i].key, cases[i].value));
     EXPECT_EQ_STR(cases[i].want_get, metric_label_get(&m, cases[i].key));
 
     metric_reset(&m);
-    EXPECT_EQ_PTR(NULL, m.label.ptr);
-    EXPECT_EQ_INT(0, m.label.num);
+    // EXPECT_EQ_PTR(NULL, m.label.ptr);
+    // EXPECT_EQ_INT(0, m.label.num);
   }
 
   return 0;
