@@ -100,9 +100,7 @@ DEF_TEST(uc_update) {
                                 cases[i].updates[k][j]));
       }
     }
-
-    /* TODO(bkjg): check if it was it updated for sure, for example: check if we
-     * can find it in the avl tree or so */
+    
     EXPECT_EQ_INT(cases[i].want_get, uc_update(cases[i].fam));
     EXPECT_EQ_UINT64(
         cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time,
