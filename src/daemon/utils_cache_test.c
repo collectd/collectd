@@ -30,7 +30,6 @@
 #include "testing.h"
 #include "utils_cache.h"
 
-/* TODO(bkjg): change all fams to pointers */
 static metric_family_t *create_metric_family_test1(char *name) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
 
@@ -60,6 +59,7 @@ static metric_family_t *create_metric_family_test1(char *name) {
   return fam;
 }
 
+/* TODO(bkjg): write more test cases */
 DEF_TEST(uc_update) {
   struct {
     int want_get;
@@ -104,6 +104,10 @@ DEF_TEST(uc_update) {
     /* TODO(bkjg): check if it was it updated for sure, for example: check if we
      * can find it in the avl tree or so */
     EXPECT_EQ_INT(cases[i].want_get, uc_update(cases[i].fam));
+    EXPECT_EQ_UINT64(
+        cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time,
+        uc_get_last_time(cases[i].fam->name));
+    EXPECT_EQ_UINT64(cdtime(), uc_get_last_update(cases[i].fam->name));
 
     CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     free(cases[i].fam);
