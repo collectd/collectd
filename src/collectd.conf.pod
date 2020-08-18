@@ -3881,72 +3881,17 @@ Linux perf interface. All events are reported on a per core basis.
 B<Synopsis:>
 
   <Plugin intel_pmu>
-    ReportHardwareCacheEvents true
-    ReportKernelPMUEvents true
-    ReportSoftwareEvents true
     EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
     HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
     Cores "0-3" "4,6" "[12-15]"
+    HardwareEvents "L2_RQSTS.PF_MISS"
+    Cores "[1,2]"
     DispatchMultiPmu false
   </Plugin>
 
 B<Options:>
 
 =over 4
-
-=item B<ReportHardwareCacheEvents> B<false>|B<true>
-
-Enable or disable measuring of hardware CPU cache events:
-  - L1-dcache-loads
-  - L1-dcache-load-misses
-  - L1-dcache-stores
-  - L1-dcache-store-misses
-  - L1-dcache-prefetches
-  - L1-dcache-prefetch-misses
-  - L1-icache-loads
-  - L1-icache-load-misses
-  - L1-icache-prefetches
-  - L1-icache-prefetch-misses
-  - LLC-loads
-  - LLC-load-misses
-  - LLC-stores
-  - LLC-store-misses
-  - LLC-prefetches
-  - LLC-prefetch-misses
-  - dTLB-loads
-  - dTLB-load-misses
-  - dTLB-stores
-  - dTLB-store-misses
-  - dTLB-prefetches
-  - dTLB-prefetch-misses
-  - iTLB-loads
-  - iTLB-load-misses
-  - branch-loads
-  - branch-load-misses
-
-=item B<ReportKernelPMUEvents> B<false>|B<true>
-
-Enable or disable measuring of the following events:
-  - cpu-cycles
-  - instructions
-  - cache-references
-  - cache-misses
-  - branches
-  - branch-misses
-  - bus-cycles
-
-=item B<ReportSoftwareEvents> B<false>|B<true>
-
-Enable or disable measuring of software events provided by kernel:
-  - cpu-clock
-  - task-clock
-  - context-switches
-  - cpu-migrations
-  - page-faults
-  - minor-faults
-  - major-faults
-  - alignment-faults
-  - emulation-faults
 
 =item B<EventList> I<filename>
 
@@ -3957,7 +3902,10 @@ event_download.py script to download event list for current CPU.
 =item B<HardwareEvents> I<events>
 
 This field is a list of event names or groups of comma separated event names.
-This option requires B<EventList> option to be configured.
+This option requires B<EventList> option to be configured. If "All" is
+provided, all events from B<EventList> are going to be loaded. This option
+can be used multiple times in pair with B<Cores> option, as shown in example
+above.
 
 =item B<Cores> I<cores groups>
 
@@ -3975,12 +3923,14 @@ Allowed formats are:
 
 If an empty string is provided as value for this field default cores
 configuration is applied - that is separate group is created for each core.
+This option can be used once for every B<HardwareEvents> set.
 
 =item B<DispatchMultiPmu> B<false>|B<true>
 
 Enable or disable dispatching of cloned multi PMU for uncore events. If
 disabled only total sum is dispatched as single event. If enabled separate
-metric is dispatched for every counter.
+metric is dispatched for every counter. Name of particular PMU counter is
+added to I<plugin_instance>.
 
 =back
 
