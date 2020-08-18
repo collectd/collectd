@@ -40,9 +40,6 @@
 
 #include <assert.h>
 
-/* TODO(bkjg): move it to the proper place */
-#define DS_TYPE_DISTRIBUTION 3
-
 typedef struct cache_entry_s {
   char name[6 * DATA_MAX_NAME_LEN];
   distribution_t *values_distribution;
