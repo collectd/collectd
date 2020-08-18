@@ -401,8 +401,7 @@ static int uc_update_metric(metric_t const *m) {
     break;
   }
 
-  case METRIC_TYPE_DISTRIBUTION: { /* TODO(bkjg): change the return value of
-                                      distribution_sub to EINVAL */
+  case METRIC_TYPE_DISTRIBUTION: {
     int status =
         distribution_sub(ce->values_raw.distribution, m->value.distribution);
 

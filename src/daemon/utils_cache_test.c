@@ -285,9 +285,8 @@ DEF_TEST(uc_update) {
     for (size_t l = 0; l < cases[i].fam->metric.num; ++l) {
       for (size_t k = 0; k <= l; ++k) {
         for (size_t j = 0; j < cases[i].num_updates[k]; ++j) {
-          distribution_update(
-              cases[i].fam->metric.ptr[l].value.distribution,
-              cases[i].updates[k][j]);
+          distribution_update(cases[i].fam->metric.ptr[l].value.distribution,
+                              cases[i].updates[k][j]);
         }
       }
     }
@@ -317,8 +316,6 @@ DEF_TEST(uc_get_percentile_by_name) {
     size_t *num_updates;
   } cases[] = {
       {
-          /* TODO(bkjg): maybe change the return value to EINVAL when the
-             argument is wrong instead of setting errno and returning -1 */
           .fam = create_metric_family_for_test1(
               "test1-percentile-by-name", 4,
               (gauge_t[]){43.543, 654.32, 948.543, 1342.42}),
@@ -533,9 +530,8 @@ DEF_TEST(uc_get_percentile_by_name) {
     for (size_t k = 0; k < cases[i].fam->metric.num; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
-          distribution_update(
-              cases[i].fam->metric.ptr[k].value.distribution,
-              cases[i].updates[l][j]);
+          distribution_update(cases[i].fam->metric.ptr[k].value.distribution,
+                              cases[i].updates[l][j]);
         }
       }
     }
@@ -572,8 +568,6 @@ DEF_TEST(uc_get_percentile) {
     size_t metric_idx;
   } cases[] = {
       {
-          /* TODO(bkjg): maybe change the return value to EINVAL when the
-             argument is wrong instead of setting errno and returning -1 */
           .fam = create_metric_family_for_test1(
               "test1-percentile", 4,
               (gauge_t[]){6.5, 3.423, 5232.523, 432.342, 65.43, 9.7}),
@@ -765,9 +759,8 @@ DEF_TEST(uc_get_percentile) {
     for (size_t k = 0; k < cases[i].fam->metric.num; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
-          distribution_update(
-              cases[i].fam->metric.ptr[k].value.distribution,
-              cases[i].updates[l][j]);
+          distribution_update(cases[i].fam->metric.ptr[k].value.distribution,
+                              cases[i].updates[l][j]);
         }
       }
     }
@@ -807,8 +800,6 @@ DEF_TEST(uc_get_rate_by_name) {
     size_t *num_updates;
   } cases[] = {
       {
-          /* TODO(bkjg): maybe change the return value to EINVAL when the
-             argument is wrong instead of setting errno and returning -1 */
           .fam = create_metric_family_for_test1(
               "test1-rate-by-name", 3, (gauge_t[]){69.54, 95.67, 45.87}),
           .want_ret_value = 45.87,
@@ -972,9 +963,8 @@ DEF_TEST(uc_get_rate_by_name) {
     for (size_t k = 0; k < cases[i].fam->metric.num; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
-          distribution_update(
-              cases[i].fam->metric.ptr[k].value.distribution,
-              cases[i].updates[l][j]);
+          distribution_update(cases[i].fam->metric.ptr[k].value.distribution,
+                              cases[i].updates[l][j]);
         }
       }
     }
@@ -1018,9 +1008,6 @@ DEF_TEST(uc_get_rate) {
     size_t *num_updates;
   } cases[] = {
       {
-
-          /* TODO(bkjg): maybe change the return value to EINVAL when the
-             argument is wrong instead of setting errno and returning -1 */
           .fam = create_metric_family_for_test1(
               "test1-rate", 6,
               (gauge_t[]){6432.3, 9435.67, 8943.3, 8734.32, 123.4, 932.12}),
@@ -1229,9 +1216,8 @@ DEF_TEST(uc_get_rate) {
     for (size_t k = 0; k < cases[i].num_metrics; ++k) {
       for (size_t l = 0; l <= k; ++l) {
         for (size_t j = 0; j < cases[i].num_updates[l]; ++j) {
-          distribution_update(
-              cases[i].fam->metric.ptr[k].value.distribution,
-              cases[i].updates[l][j]);
+          distribution_update(cases[i].fam->metric.ptr[k].value.distribution,
+                              cases[i].updates[l][j]);
         }
       }
     }
