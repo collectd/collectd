@@ -87,6 +87,56 @@ struct uc_iter_s {
 static c_avl_tree_t *cache_tree;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
+/* TODO(bkjg): change to return status and return time in pointer given as
+ * argument */
+cdtime_t uc_get_last_time(char *name) {
+  cache_entry_t *ce = NULL;
+
+  pthread_mutex_lock(&cache_lock);
+
+  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+    assert(ce != NULL);
+
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING) {
+      pthread_mutex_unlock(&cache_lock);
+      return UINT64_MAX;
+    } else {
+      pthread_mutex_unlock(&cache_lock);
+      return ce->last_time;
+    }
+  } else {
+    DEBUG("utils_cache: uc_get_time_of_last_update: No such value: %s", name);
+    pthread_mutex_unlock(&cache_lock);
+    return UINT64_MAX;
+  }
+}
+
+/* TODO(bkjg): change to return status and return time in pointer given as
+ * argument */
+cdtime_t uc_get_last_update(char *name) {
+  cache_entry_t *ce = NULL;
+
+  pthread_mutex_lock(&cache_lock);
+
+  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+    assert(ce != NULL);
+
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING) {
+      pthread_mutex_unlock(&cache_lock);
+      return UINT64_MAX;
+    } else {
+      pthread_mutex_unlock(&cache_lock);
+      return ce->last_update;
+    }
+  } else {
+    DEBUG("utils_cache: uc_get_time_of_last_update: No such value: %s", name);
+    pthread_mutex_unlock(&cache_lock);
+    return UINT64_MAX;
+  }
+}
+
 static int cache_compare(const cache_entry_t *a, const cache_entry_t *b) {
 #if COLLECT_DEBUG
   assert((a != NULL) && (b != NULL));
@@ -103,6 +153,7 @@ static cache_entry_t *cache_alloc() {
     return NULL;
   }
 
+  ce->values_distribution = NULL;
   ce->values_gauge = 0;
   ce->values_raw = (value_t){.gauge = 0};
   ce->history = NULL;
@@ -117,7 +168,6 @@ static void cache_free(cache_entry_t *ce) {
     return;
 
   sfree(ce->history);
-
   meta_data_destroy(ce->meta);
   ce->meta = NULL;
 
@@ -309,7 +359,6 @@ static int uc_update_metric(metric_t const *m) {
   }
 
   pthread_mutex_lock(&cache_lock);
-
   cache_entry_t *ce = NULL;
   status = c_avl_get(cache_tree, buf.ptr, (void *)&ce);
   if (status != 0) /* entry does not yet exist */
@@ -352,11 +401,13 @@ static int uc_update_metric(metric_t const *m) {
     break;
   }
 
-  case METRIC_TYPE_DISTRIBUTION: {
+  case METRIC_TYPE_DISTRIBUTION: { /* TODO(bkjg): change the return value of
+                                      distribution_sub to EINVAL */
     int status =
         distribution_sub(ce->values_raw.distribution, m->value.distribution);
 
     if (status != 0) {
+      pthread_mutex_unlock(&cache_lock);
       ERROR("uc_update: distribution_sub failed with status %d.", status);
       return status;
     }
@@ -442,6 +493,8 @@ int uc_set_callbacks_mask(const char *name, unsigned long mask) {
   return 0;
 }
 
+/* TODO(bkjg): check if this name corresponds to the metric with type
+ * METRIC_TYPE_DISTRIBUTION */
 int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
                               double percent) {
   if (percent < 0 || percent > 100) {
@@ -465,6 +518,14 @@ int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
             name);
       status = -1;
     } else {
+      if (ce->values_distribution == NULL &&
+          ce->values_raw.distribution != NULL) {
+        pthread_mutex_unlock(&cache_lock);
+        ERROR("uc_get_percentile: Don't know how to handle data source type "
+              "that is not the distribution.");
+        return -1;
+      }
+
       *ret_values = distribution_percentile(ce->values_distribution, percent);
     }
   } else {

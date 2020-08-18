@@ -38,6 +38,9 @@
 #define STATE_ERROR 3
 #define STATE_MISSING 15
 
+cdtime_t uc_get_last_time(char *name);
+cdtime_t uc_get_last_update(char *name);
+
 int uc_init(void);
 int uc_check_timeout(void);
 int uc_update(metric_family_t const *fam);
