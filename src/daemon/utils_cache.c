@@ -386,6 +386,7 @@ static int uc_update_metric(metric_t const *m) {
   switch (m->family->type) {
   case METRIC_TYPE_COUNTER: {
     counter_t diff = counter_diff(ce->values_raw.counter, m->value.counter);
+    printf("cdtime to double: %lf\n", (CDTIME_T_TO_DOUBLE(m->time - ce->last_time)));
     ce->values_gauge =
         ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
     ce->values_raw.counter = m->value.counter;
@@ -412,7 +413,7 @@ static int uc_update_metric(metric_t const *m) {
 
     distribution_destroy(ce->values_distribution);
     ce->values_distribution = ce->values_raw.distribution;
-    ce->values_raw.distribution = m->value.distribution;
+    ce->values_raw.distribution = distribution_clone(m->value.distribution);
     break;
   }
 #if 0
@@ -585,6 +586,7 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
         *ret_values = ce->values_gauge;
       } else { /* in case where metric is a distribution, we
                                      assume that the rate is the middle value */
+        pthread_mutex_unlock(&cache_lock);
         status = uc_get_percentile_by_name(name, ret_values, 50.0);
       }
     }
