@@ -242,7 +242,7 @@ static double tree_get_counter(distribution_t *d, size_t node_index,
 }
 
 double distribution_percentile(distribution_t *dist, double percent) {
-  if (percent <= 0 || percent > 100) {
+  if (percent <= 0 || percent > 100 || dist == NULL) {
     errno = EINVAL;
     return NAN;
   }
