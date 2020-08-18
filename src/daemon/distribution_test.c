@@ -474,6 +474,62 @@ DEF_TEST(clone) {
   return 0;
 }
 
+DEF_TEST(getters) {
+  struct {
+    distribution_t *dist;
+    size_t num_buckets;
+    size_t num_gauges;
+    double *update_gauges;
+    uint64_t want_counter;
+    double want_total_sum;
+    double want_average;
+    double want_squared_deviation_sum;
+  } cases[] = {
+      {
+        .dist = distribution_new_linear(5, 7),
+        .num_buckets = 5,
+        .num_gauges = 1,
+        .update_gauges = (double[]){4},
+        .want_counter = 1,
+        .want_total_sum = 4,
+        .want_average = 4,
+        .want_squared_deviation_sum = 0,
+      },
+      {
+        .dist = distribution_new_exponential(5, 2, 1),
+        .num_buckets = 5,
+        .num_gauges = 7,
+        .update_gauges = (double[]){5, 17.4, 22.3, 11, 0.5, 13, 11},
+        .want_counter = 7,
+        .want_total_sum = 80.2,
+        .want_average = 80.2 / 7,
+        .want_squared_deviation_sum = 7 * 80.2 / 7 * 80.2 / 7 - 2 * 80.2 / 7 * 80.2 + 1236.3,
+      },
+      {
+        .dist = distribution_new_linear(100, 10),
+        .num_buckets = 100,
+        .num_gauges = 10,
+        .update_gauges = (double[]){5, 11.23, 29.48, 66.77, 11.22, 33.21, 55, 26.27, 96, 2},
+        .want_counter = 10,
+        .want_total_sum = 336.18,
+        .want_average = 33.618,
+        .want_squared_deviation_sum = 10 * 336.18 / 10 * 336.18 / 10 - 2 * 336.18 / 10 * 336.18 + 19642.3216,
+      },
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    EXPECT_EQ_INT(distribution_num_buckets(cases[i].dist), cases[i].num_buckets);
+    for (size_t j = 0; j < cases[i].num_gauges; j++) {
+      distribution_update(cases[i].dist, cases[i].update_gauges[j]);
+    }
+    EXPECT_EQ_INT(distribution_total_counter(cases[i].dist), cases[i].want_counter);
+    EXPECT_EQ_DOUBLE(distribution_total_sum(cases[i].dist), cases[i].want_total_sum);
+    EXPECT_EQ_DOUBLE(distribution_average(cases[i].dist), cases[i].want_average);
+    EXPECT_EQ_DOUBLE(distribution_squared_deviation_sum(cases[i].dist), cases[i].want_squared_deviation_sum);
+
+    distribution_destroy(cases[i].dist);
+  } 
+  return 0;
+}
 int main() {
   RUN_TEST(distribution_new_linear);
   RUN_TEST(distribution_new_exponential);
@@ -482,5 +538,6 @@ int main() {
   RUN_TEST(average);
   RUN_TEST(percentile);
   RUN_TEST(clone);
+  RUN_TEST(getters);
   END_TEST;
 }
