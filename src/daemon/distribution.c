@@ -32,7 +32,8 @@ struct distribution_s {
   bucket_t *tree;
   size_t num_buckets;
   double total_sum;
-  double total_square_sum; //the sum of squares of gauges. We'll need it to calculate sum of squared deviations
+  double total_square_sum; // the sum of squares of gauges. We'll need it to
+                           // calculate sum of squared deviations
   pthread_mutex_t mutex;
 };
 
@@ -313,14 +314,14 @@ double distribution_total_sum(distribution_t *dist) {
   if (dist == NULL) {
     return NAN;
   }
-  return dist->total_sum; //should I add mutex here?
+  return dist->total_sum; // should I add mutex here?
 }
 
 double distribution_total_counter(distribution_t *dist) {
   if (dist == NULL) {
     return NAN;
   }
-  return dist->tree[0].bucket_counter; //should I add mutex here?
+  return dist->tree[0].bucket_counter; // should I add mutex here?
 }
 
 double distribution_squared_deviation_sum(distribution_t *dist) {
@@ -329,7 +330,9 @@ double distribution_squared_deviation_sum(distribution_t *dist) {
   }
   double mean = distribution_average(dist);
   pthread_mutex_lock(&dist->mutex);
-  double squared_deviation_sum = mean * mean * distribution_total_counter(dist) - 2 * mean * dist->total_sum + dist->total_square_sum;
+  double squared_deviation_sum =
+      mean * mean * distribution_total_counter(dist) -
+      2 * mean * dist->total_sum + dist->total_square_sum;
   pthread_mutex_unlock(&dist->mutex);
   return squared_deviation_sum;
 }
