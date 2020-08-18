@@ -28,6 +28,7 @@
 
 #include "distribution.h"
 #include "testing.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 
 static metric_family_t *create_metric_family_test1(char *name) {
@@ -100,7 +101,7 @@ DEF_TEST(uc_update) {
                                 cases[i].updates[k][j]));
       }
     }
-    
+
     EXPECT_EQ_INT(cases[i].want_get, uc_update(cases[i].fam));
     EXPECT_EQ_UINT64(
         cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time,
@@ -295,6 +296,8 @@ create_metric_family_for_get_percentile_by_name_test9(char *name) {
   return fam;
 }
 
+/* TODO(bkjg): add more metrics to the metric family, to check if it works for
+ * sure */
 DEF_TEST(uc_get_percentile_by_name) {
   struct {
     int want_get;
@@ -710,7 +713,466 @@ DEF_TEST(uc_get_percentile) {
   return 0;
 }
 
-DEF_TEST(uc_get_rate_by_name) { return 0; }
+static metric_family_t *
+create_metric_family_for_get_rate_by_name_test1(char *name) {
+  metric_family_t *fam = calloc(1, sizeof(metric_family_t));
+  fam->name = name;
+  fam->type = METRIC_TYPE_GAUGE;
+
+  metric_t m[] = {{
+                      .family = fam,
+                      .value.gauge = 69.54,
+                      .time = cdtime_mock++,
+                  },
+                  {
+                      .family = fam,
+                      .value.gauge = 95.67,
+                      .time = cdtime_mock++,
+                  },
+                  {
+                      .family = fam,
+                      .value.gauge = 45.87,
+                      .time = cdtime_mock++,
+                  }};
+
+  for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
+    metric_family_metric_append(fam, m[i]);
+  }
+
+  return fam;
+}
+
+static metric_family_t *
+create_metric_family_for_get_rate_by_name_test2(char *name, double *want_ret_value) {
+  metric_family_t *fam = calloc(1, sizeof(metric_family_t));
+  fam->name = name;
+  fam->type = METRIC_TYPE_COUNTER;
+
+  metric_t m[] = {
+      {
+          .family = fam,
+          .value.counter = 432,
+          .time = (cdtime_mock += 16743181),
+      },
+      {
+          .family = fam,
+          .value.counter = 567,
+          .time = (cdtime_mock += 54364233),
+      },
+      {
+          .family = fam,
+          .value.counter = 703,
+          .time = (cdtime_mock += 432423),
+      },
+      {
+          .family = fam,
+          .value.counter = 1743,
+          .time = (cdtime_mock += 3213321),
+      },
+      {
+          .family = fam,
+          .value.counter = 5623,
+          .time = (cdtime_mock += 53452323),
+      },
+      {
+          .family = fam,
+          .value.counter = 20008,
+          .time = (cdtime_mock += 2365432),
+      },
+  };
+
+  size_t num_metrics = (sizeof(m) / sizeof(metric_t));
+  for (size_t i = 0; i < num_metrics; ++i) {
+    metric_family_metric_append(fam, m[i]);
+  }
+
+  *want_ret_value = (counter_diff(m[num_metrics - 2].value.counter, m[num_metrics - 1].value.counter)) / (CDTIME_T_TO_DOUBLE(m[num_metrics - 1].time - m[num_metrics - 2].time));
+
+  return fam;
+}
+
+static metric_family_t *
+create_metric_family_for_get_rate_by_name_test3(char *name) {
+  metric_family_t *fam = calloc(1, sizeof(metric_family_t));
+  fam->name = name;
+  fam->type = METRIC_TYPE_UNTYPED;
+
+  metric_t m[] = {
+      {
+          .family = fam,
+          .value.gauge = 436.54,
+          .time = cdtime_mock++,
+      },
+      {
+          .family = fam,
+          .value.gauge = 543.6,
+          .time = cdtime_mock++,
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
+    metric_family_metric_append(fam, m[i]);
+  }
+
+  return fam;
+}
+
+static metric_family_t *
+create_metric_family_for_get_rate_by_name_test4(char *name) {
+  metric_family_t *fam = calloc(1, sizeof(metric_family_t));
+  fam->name = name;
+  fam->type = METRIC_TYPE_DISTRIBUTION;
+
+  metric_t m[] = {
+      {
+          .family = fam,
+          .value.distribution = NULL,
+          .time = cdtime_mock++,
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
+    metric_family_metric_append(fam, m[i]);
+  }
+
+  return fam;
+}
+
+static metric_family_t *
+create_metric_family_for_get_rate_by_name_test5(char *name) {
+  metric_family_t *fam = calloc(1, sizeof(metric_family_t));
+  fam->name = name;
+  fam->type = METRIC_TYPE_DISTRIBUTION;
+
+  metric_t m[] = {
+      {
+          .value.distribution = distribution_new_exponential(48, 1.033, 35),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_exponential(48, 1.033, 35),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_exponential(48, 1.033, 35),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_exponential(48, 1.033, 35),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
+    metric_family_metric_append(fam, m[i]);
+  }
+
+  return fam;
+}
+
+static metric_family_t *
+create_metric_family_for_get_rate_by_name_test6(char *name) {
+  metric_family_t *fam = calloc(1, sizeof(metric_family_t));
+  fam->name = name;
+  fam->type = METRIC_TYPE_DISTRIBUTION;
+
+  metric_t m[] = {
+      {
+          .value.distribution = distribution_new_custom(
+              47,
+              (double[]){15.59219,  15.72268,  46.7186,   47.36406,  71.31454,
+                         156.26318, 165.59628, 190.89673, 198.56488, 204.75426,
+                         211.34163, 219.18405, 327.3248,  332.87301, 340.41396,
+                         352.51638, 397.20861, 427.08085, 432.74217, 488.64796,
+                         531.66796, 562.29682, 582.26084, 601.33359, 607.72042,
+                         609.88149, 616.78043, 633.19167, 635.81112, 649.09976,
+                         718.85353, 760.45129, 770.40098, 782.68583, 785.02281,
+                         812.37927, 835.96259, 841.42108, 853.20455, 865.72175,
+                         873.74441, 880.88184, 900.20886, 973.97989, 976.72908,
+                         979.7941,  991.89657}),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_custom(
+              47,
+              (double[]){15.59219,  15.72268,  46.7186,   47.36406,  71.31454,
+                         156.26318, 165.59628, 190.89673, 198.56488, 204.75426,
+                         211.34163, 219.18405, 327.3248,  332.87301, 340.41396,
+                         352.51638, 397.20861, 427.08085, 432.74217, 488.64796,
+                         531.66796, 562.29682, 582.26084, 601.33359, 607.72042,
+                         609.88149, 616.78043, 633.19167, 635.81112, 649.09976,
+                         718.85353, 760.45129, 770.40098, 782.68583, 785.02281,
+                         812.37927, 835.96259, 841.42108, 853.20455, 865.72175,
+                         873.74441, 880.88184, 900.20886, 973.97989, 976.72908,
+                         979.7941,  991.89657}),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_custom(
+              47,
+              (double[]){15.59219,  15.72268,  46.7186,   47.36406,  71.31454,
+                         156.26318, 165.59628, 190.89673, 198.56488, 204.75426,
+                         211.34163, 219.18405, 327.3248,  332.87301, 340.41396,
+                         352.51638, 397.20861, 427.08085, 432.74217, 488.64796,
+                         531.66796, 562.29682, 582.26084, 601.33359, 607.72042,
+                         609.88149, 616.78043, 633.19167, 635.81112, 649.09976,
+                         718.85353, 760.45129, 770.40098, 782.68583, 785.02281,
+                         812.37927, 835.96259, 841.42108, 853.20455, 865.72175,
+                         873.74441, 880.88184, 900.20886, 973.97989, 976.72908,
+                         979.7941,  991.89657}),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_custom(
+              47,
+              (double[]){15.59219,  15.72268,  46.7186,   47.36406,  71.31454,
+                         156.26318, 165.59628, 190.89673, 198.56488, 204.75426,
+                         211.34163, 219.18405, 327.3248,  332.87301, 340.41396,
+                         352.51638, 397.20861, 427.08085, 432.74217, 488.64796,
+                         531.66796, 562.29682, 582.26084, 601.33359, 607.72042,
+                         609.88149, 616.78043, 633.19167, 635.81112, 649.09976,
+                         718.85353, 760.45129, 770.40098, 782.68583, 785.02281,
+                         812.37927, 835.96259, 841.42108, 853.20455, 865.72175,
+                         873.74441, 880.88184, 900.20886, 973.97989, 976.72908,
+                         979.7941,  991.89657}),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_custom(
+              47,
+              (double[]){15.59219,  15.72268,  46.7186,   47.36406,  71.31454,
+                         156.26318, 165.59628, 190.89673, 198.56488, 204.75426,
+                         211.34163, 219.18405, 327.3248,  332.87301, 340.41396,
+                         352.51638, 397.20861, 427.08085, 432.74217, 488.64796,
+                         531.66796, 562.29682, 582.26084, 601.33359, 607.72042,
+                         609.88149, 616.78043, 633.19167, 635.81112, 649.09976,
+                         718.85353, 760.45129, 770.40098, 782.68583, 785.02281,
+                         812.37927, 835.96259, 841.42108, 853.20455, 865.72175,
+                         873.74441, 880.88184, 900.20886, 973.97989, 976.72908,
+                         979.7941,  991.89657}),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_custom(
+              47,
+              (double[]){15.59219,  15.72268,  46.7186,   47.36406,  71.31454,
+                         156.26318, 165.59628, 190.89673, 198.56488, 204.75426,
+                         211.34163, 219.18405, 327.3248,  332.87301, 340.41396,
+                         352.51638, 397.20861, 427.08085, 432.74217, 488.64796,
+                         531.66796, 562.29682, 582.26084, 601.33359, 607.72042,
+                         609.88149, 616.78043, 633.19167, 635.81112, 649.09976,
+                         718.85353, 760.45129, 770.40098, 782.68583, 785.02281,
+                         812.37927, 835.96259, 841.42108, 853.20455, 865.72175,
+                         873.74441, 880.88184, 900.20886, 973.97989, 976.72908,
+                         979.7941,  991.89657}),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
+    metric_family_metric_append(fam, m[i]);
+  }
+
+  return fam;
+}
+
+static metric_family_t *
+create_metric_family_for_get_rate_by_name_test7(char *name) {
+  metric_family_t *fam = calloc(1, sizeof(metric_family_t));
+  fam->name = name;
+  fam->type = METRIC_TYPE_DISTRIBUTION;
+
+  metric_t m[] = {
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+      {
+          .value.distribution = distribution_new_linear(532, 98),
+          .family = fam,
+          .time = cdtime_mock++,
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
+    metric_family_metric_append(fam, m[i]);
+  }
+
+  return fam;
+}
+
+/* TODO(bkjg): maybe add cases when the name is not in the tree */
+DEF_TEST(uc_get_rate_by_name) {
+  double want_ret_value_for_test2;
+  metric_family_t *fam_test2 = create_metric_family_for_get_rate_by_name_test2(
+              "test2-rate-by-name", &want_ret_value_for_test2);
+
+  struct {
+    int want_get;
+    gauge_t ret_value;
+    gauge_t want_ret_value;
+    metric_family_t *fam;
+    double *updates;
+    int num_updates;
+  } cases[] = {
+      {
+          /* TODO(bkjg): maybe change the return value to EINVAL when the
+             argument is wrong instead of setting errno and returning -1 */
+          .fam = create_metric_family_for_get_rate_by_name_test1(
+              "test1-rate-by-name"),
+              .want_ret_value = 45.87,
+      },
+      {
+          .fam = fam_test2,
+              .want_ret_value = want_ret_value_for_test2,
+      },
+      {
+          .fam = create_metric_family_for_get_rate_by_name_test3(
+              "test3-rate-by-name"),
+              .want_ret_value = 543.6,
+      },
+      {
+          .fam = create_metric_family_for_get_rate_by_name_test4(
+              "test4-rate-by-name"),
+              .want_ret_value = NAN,
+      },
+      {
+          .fam = create_metric_family_for_get_rate_by_name_test5(
+              "test5-rate-by-name"),
+          .num_updates = 75,
+          .updates =
+              (double[]){
+                  4159.654,   9603.94667, 6060.77104, 20.11649, 21.07854,
+                  7963.46534, 179.10527, 44.50653, 176.80966, 8881.67928,
+                  5330.64572, 4725.76119, 41.95417, 44.85246, 3917.1775,
+                  4252.7976,  82.38465, 91.43321, 553.65691, 3162.53235,
+                  21.63984, 9750.3053,  39.8265,  3745.03322, 565.97145,
+                  2500.5585, 5454.60361, 3249.507, 9847.01554, 4695.82556,
+                  307.72055, 60.01705, 7245.61576, 1777.3541,  510.62964,
+                  5821.57195, 8501.10822, 1017.39535, 5747.66313, 730.39328,
+                  2036.318,  600.15378, 4453.83351, 9879.11423, 9020.87809,
+                  3403.07313, 9429.83863, 11.328, 50.28723, 80.87675,
+                  3841.93743, 2270.33075, 862.9549,  83.00705, 7178.40826,
+                  2368.45065, 3153.68087, 458.31409,  4949.40529, 862.93844,
+                  8778.1962,  95.5752,  8604.12661, 274.7418,  2123.17802,
+                  614.29148,  1915.66805, 7996.38788, 93.39166, 832.57039,
+                  5094.52733, 58.69212, 4746.39854, 722.9694,   6768.01305},
+                  .want_ret_value = 35,
+      },
+      {
+          .fam = create_metric_family_for_get_rate_by_name_test6(
+              "test6-rate-by-name"),
+          .num_updates = 68,
+          .updates =
+              (double[]){
+                  4682.42335, 4020.54089, 565.10587,  3954.73905, 6439.72826,
+                  9010.67591, 8621.51997, 9915.12095, 2913.60702, 8645.39755,
+                  6423.67358, 4830.46203, 8067.11382, 238.90511,  5809.10209,
+                  7820.37444, 2742.35617, 7310.94613, 6630.98218, 8333.84097,
+                  6513.26349, 1295.61267, 5724.2328,  1371.68056, 5650.33203,
+                  8102.43229, 3675.91657, 9497.04227, 7286.45926, 8378.14153,
+                  4291.39604, 9606.11436, 6525.73329, 3496.49047, 1500.50609,
+                  5513.17177, 57.07583,   2666.14731, 6138.06959, 7829.2008,
+                  4590.09268, 6646.89925, 4234.80301, 9875.51713, 8664.20834,
+                  9593.93277, 5290.35192, 9947.5131,  9303.34419, 4821.80711,
+                  5620.28822, 2695.28733, 1496.69721, 4338.82326, 769.33479,
+                  5846.82939, 7256.13839, 5769.4598,  2450.50956, 2482.28105,
+                  4821.93336, 3614.77436, 6639.69338, 3495.76385, 2296.34926,
+                  6616.96188, 2966.60109, 1549.4343},
+                  .want_ret_value = 15.59219,
+      },
+      {
+          .fam = create_metric_family_for_get_rate_by_name_test7(
+              "test7-rate-by-name"),
+          .num_updates = 36,
+          .updates = (double[]){8563.48484, 7737.26182, 8461.55369, 7345.18085,
+                                6922.39556, 9826.36599, 8285.47882, 9242.88802,
+                                1879.60733, 2017.17049, 9946.55565, 5047.35425,
+                                5956.43188, 3637.33311, 2275.67666, 5241.08879,
+                                3752.92924, 4518.3078,  5574.17357, 444.83081,
+                                8731.81445, 4428.15217, 5869.54926, 4006.06406,
+                                6442.546,   8566.80388, 6627.0215,  2276.11951,
+                                7684.56221, 9571.34356, 7074.81794, 3457.6747,
+                                747.35085,  9269.56873, 6193.34178, 1339.58513},
+          .want_ret_value = 98,
+      },
+  };
+
+  uc_init();
+  for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
+    printf("## Case %zu:\n", i);
+    for (int j = 0; j < cases[i].num_updates; ++j) {
+      CHECK_ZERO(distribution_update(
+          cases[i].fam->metric.ptr[0].value.distribution, cases[i].updates[j]));
+    }
+
+    CHECK_ZERO(uc_update(cases[i].fam));
+
+    EXPECT_EQ_INT(cases[i].want_get,
+                  uc_get_rate_by_name(cases[i].fam->name,
+                                            &cases[i].ret_value));
+
+    if (cases[i].want_get != -1) {
+      EXPECT_EQ_DOUBLE(cases[i].want_ret_value, cases[i].ret_value);
+    }
+
+    CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
+    free(cases[i].fam);
+  }
+
+  return 0;
+}
 
 DEF_TEST(uc_get_rate) { return 0; }
 
