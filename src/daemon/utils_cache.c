@@ -939,7 +939,7 @@ int uc_get_last_time(char *name, cdtime_t *ret_value) {
     pthread_mutex_unlock(&cache_lock);
     return -1;
   }
-      pthread_mutex_unlock(&cache_lock);
+  pthread_mutex_unlock(&cache_lock);
   return 0;
 }
 

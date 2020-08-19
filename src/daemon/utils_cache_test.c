@@ -54,11 +54,10 @@ static metric_family_t *create_metric_family_for_test1(char *name,
   return fam;
 }
 
-static metric_family_t *create_metric_family_for_test2(char *name,
-                                                       double *want_ret_value,
-                                                       size_t num_metrics,
-                                                       const counter_t *counters,
-                                                       const uint64_t *times) {
+static metric_family_t *
+create_metric_family_for_test2(char *name, double *want_ret_value,
+                               size_t num_metrics, const counter_t *counters,
+                               const uint64_t *times) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
   fam->name = name;
   fam->type = METRIC_TYPE_COUNTER;
@@ -279,8 +278,8 @@ DEF_TEST(uc_update) {
           .fam = create_metric_family_for_test7("test4-update", 3, 5, 23),
       },
       {
-        .fam = NULL,
-        .want_get = EINVAL,
+          .fam = NULL,
+          .want_get = EINVAL,
       }};
   uc_init();
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
@@ -302,14 +301,15 @@ DEF_TEST(uc_update) {
     if (cases[i].fam != NULL) {
       cdtime_t time;
       CHECK_ZERO(uc_get_last_time(cases[i].fam->name, &time));
-      EXPECT_EQ_UINT64(cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time, time);
+      EXPECT_EQ_UINT64(
+          cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time, time);
       CHECK_ZERO(uc_get_last_update(cases[i].fam->name, &time));
       EXPECT_EQ_UINT64(cdtime(), time);
       CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     } else {
       EXPECT_EQ_INT(EINVAL, metric_family_metric_reset(cases[i].fam));
     }
-    
+
     free(cases[i].fam);
   }
 
