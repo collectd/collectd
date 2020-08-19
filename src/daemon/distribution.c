@@ -32,6 +32,8 @@ struct distribution_s {
   bucket_t *tree;
   size_t num_buckets;
   double total_sum;
+  double total_square_sum; // the sum of squares of gauges. We'll need it to
+                           // calculate sum of squared deviations
   pthread_mutex_t mutex;
 };
 
@@ -218,6 +220,7 @@ void distribution_update(distribution_t *dist, double gauge) {
   pthread_mutex_lock(&dist->mutex);
   update_tree(dist, 0, 0, dist->num_buckets - 1, gauge);
   dist->total_sum += gauge;
+  dist->total_square_sum += gauge * gauge;
   pthread_mutex_unlock(&dist->mutex);
 }
 
@@ -254,8 +257,10 @@ double distribution_percentile(distribution_t *dist, double percent) {
 }
 
 double distribution_average(distribution_t *dist) {
+  if (dist == NULL)
+    return NAN;
   pthread_mutex_lock(&dist->mutex);
-  if (dist == NULL || dist->tree[0].bucket_counter == 0) {
+  if (dist->tree[0].bucket_counter == 0) {
     return NAN;
   }
   double average = dist->total_sum / dist->tree[0].bucket_counter;
@@ -303,4 +308,31 @@ buckets_array_t get_buckets(distribution_t *dist) {
 
 void destroy_buckets_array(buckets_array_t buckets_array) {
   free(buckets_array.buckets);
+}
+
+double distribution_total_sum(distribution_t *dist) {
+  if (dist == NULL) {
+    return NAN;
+  }
+  return dist->total_sum; // should I add mutex here?
+}
+
+double distribution_total_counter(distribution_t *dist) {
+  if (dist == NULL) {
+    return NAN;
+  }
+  return dist->tree[0].bucket_counter; // should I add mutex here?
+}
+
+double distribution_squared_deviation_sum(distribution_t *dist) {
+  if (dist == NULL) {
+    return NAN;
+  }
+  double mean = distribution_average(dist);
+  pthread_mutex_lock(&dist->mutex);
+  double squared_deviation_sum =
+      mean * mean * distribution_total_counter(dist) -
+      2 * mean * dist->total_sum + dist->total_square_sum;
+  pthread_mutex_unlock(&dist->mutex);
+  return squared_deviation_sum;
 }

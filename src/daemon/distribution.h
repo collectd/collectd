@@ -110,6 +110,12 @@ size_t distribution_num_buckets(distribution_t *dist);
 /** @return - array of buckets in the distribution **/
 buckets_array_t get_buckets(distribution_t *dist);
 
+double distribution_total_sum(distribution_t *dist);
+
+double distribution_total_counter(distribution_t *dist);
+
+double distribution_squared_deviation_sum(distribution_t *dist);
+
 void destroy_buckets_array(buckets_array_t buckets_array);
 
 #endif // COLLECTD_DISTRIBUTION_H
