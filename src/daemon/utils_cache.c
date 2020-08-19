@@ -85,56 +85,6 @@ struct uc_iter_s {
 static c_avl_tree_t *cache_tree;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/* TODO(bkjg): change to return status and return time in pointer given as
- * argument */
-cdtime_t uc_get_last_time(char *name) {
-  cache_entry_t *ce = NULL;
-
-  pthread_mutex_lock(&cache_lock);
-
-  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
-    assert(ce != NULL);
-
-    /* remove missing values from getval */
-    if (ce->state == STATE_MISSING) {
-      pthread_mutex_unlock(&cache_lock);
-      return UINT64_MAX;
-    } else {
-      pthread_mutex_unlock(&cache_lock);
-      return ce->last_time;
-    }
-  } else {
-    DEBUG("utils_cache: uc_get_time_of_last_update: No such value: %s", name);
-    pthread_mutex_unlock(&cache_lock);
-    return UINT64_MAX;
-  }
-}
-
-/* TODO(bkjg): change to return status and return time in pointer given as
- * argument */
-cdtime_t uc_get_last_update(char *name) {
-  cache_entry_t *ce = NULL;
-
-  pthread_mutex_lock(&cache_lock);
-
-  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
-    assert(ce != NULL);
-
-    /* remove missing values from getval */
-    if (ce->state == STATE_MISSING) {
-      pthread_mutex_unlock(&cache_lock);
-      return UINT64_MAX;
-    } else {
-      pthread_mutex_unlock(&cache_lock);
-      return ce->last_update;
-    }
-  } else {
-    DEBUG("utils_cache: uc_get_time_of_last_update: No such value: %s", name);
-    pthread_mutex_unlock(&cache_lock);
-    return UINT64_MAX;
-  }
-}
-
 static int cache_compare(const cache_entry_t *a, const cache_entry_t *b) {
 #if COLLECT_DEBUG
   assert((a != NULL) && (b != NULL));
@@ -963,6 +913,55 @@ int uc_inc_hits(metric_t const *m, int step) {
   STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_inc_hits */
+
+int uc_get_last_time(char *name, cdtime_t *ret_value) {
+  cache_entry_t *ce = NULL;
+
+  pthread_mutex_lock(&cache_lock);
+
+  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+    assert(ce != NULL);
+
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING) {
+      pthread_mutex_unlock(&cache_lock);
+      return -1;
+    } else {
+      *ret_value = ce->last_time;
+    }
+  } else {
+    DEBUG("utils_cache: uc_get_time_of_last_time: No such value: %s", name);
+    pthread_mutex_unlock(&cache_lock);
+    return -1;
+  }
+      pthread_mutex_unlock(&cache_lock);
+  return 0;
+}
+
+int uc_get_last_update(char *name, cdtime_t *ret_value) {
+  cache_entry_t *ce = NULL;
+
+  pthread_mutex_lock(&cache_lock);
+
+  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
+    assert(ce != NULL);
+
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING) {
+      pthread_mutex_unlock(&cache_lock);
+      return -1;
+    } else {
+      *ret_value = ce->last_update;
+    }
+  } else {
+    DEBUG("utils_cache: uc_get_time_of_last_update: No such value: %s", name);
+    pthread_mutex_unlock(&cache_lock);
+    return -1;
+  }
+
+  pthread_mutex_unlock(&cache_lock);
+  return 0;
+}
 
 /*
  * Iterator interface

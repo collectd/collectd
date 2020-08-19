@@ -39,9 +39,6 @@
 #define STATE_ERROR 3
 #define STATE_MISSING 15
 
-cdtime_t uc_get_last_time(char *name);
-cdtime_t uc_get_last_update(char *name);
-
 int uc_init(void);
 int uc_check_timeout(void);
 int uc_update(metric_family_t const *fam);
@@ -74,6 +71,10 @@ int uc_set_callbacks_mask(const char *name, unsigned long callbacks_mask);
 int uc_get_history(metric_t const *m, gauge_t *ret_history, size_t num_steps);
 int uc_get_history_by_name(const char *name, gauge_t *ret_history,
                            size_t num_steps);
+
+/* functions for tests purposes */
+int uc_get_last_time(char *name, cdtime_t *ret_value);
+int uc_get_last_update(char *name, cdtime_t *ret_value);
 
 /*
  * Iterator interface

@@ -33,7 +33,7 @@
 
 static metric_family_t *create_metric_family_for_test1(char *name,
                                                        size_t num_metrics,
-                                                       gauge_t *gauges) {
+                                                       const gauge_t *gauges) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
   fam->name = name;
   fam->type = METRIC_TYPE_GAUGE;
@@ -57,8 +57,8 @@ static metric_family_t *create_metric_family_for_test1(char *name,
 static metric_family_t *create_metric_family_for_test2(char *name,
                                                        double *want_ret_value,
                                                        size_t num_metrics,
-                                                       counter_t *counters,
-                                                       uint64_t *times) {
+                                                       const counter_t *counters,
+                                                       const uint64_t *times) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
   fam->name = name;
   fam->type = METRIC_TYPE_COUNTER;
@@ -86,7 +86,7 @@ static metric_family_t *create_metric_family_for_test2(char *name,
 
 static metric_family_t *create_metric_family_for_test3(char *name,
                                                        size_t num_metrics,
-                                                       gauge_t *gauges) {
+                                                       const gauge_t *gauges) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
   fam->name = name;
   fam->type = METRIC_TYPE_UNTYPED;
@@ -291,11 +291,12 @@ DEF_TEST(uc_update) {
       }
     }
 
+    cdtime_t time;
     EXPECT_EQ_INT(cases[i].want_get, uc_update(cases[i].fam));
-    EXPECT_EQ_UINT64(
-        cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time,
-        uc_get_last_time(cases[i].fam->name));
-    EXPECT_EQ_UINT64(cdtime(), uc_get_last_update(cases[i].fam->name));
+    CHECK_ZERO(uc_get_last_time(cases[i].fam->name, &time));
+    EXPECT_EQ_UINT64( cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time, time);
+    CHECK_ZERO(uc_get_last_update(cases[i].fam->name, &time));
+    EXPECT_EQ_UINT64(cdtime(), time);
 
     CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     free(cases[i].fam);
