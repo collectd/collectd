@@ -336,8 +336,6 @@ static int uc_update_metric(metric_t const *m) {
   switch (m->family->type) {
   case METRIC_TYPE_COUNTER: {
     counter_t diff = counter_diff(ce->values_raw.counter, m->value.counter);
-    printf("cdtime to double: %lf\n",
-           (CDTIME_T_TO_DOUBLE(m->time - ce->last_time)));
     ce->values_gauge =
         ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
     ce->values_raw.counter = m->value.counter;
