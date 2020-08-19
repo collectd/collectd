@@ -242,7 +242,7 @@ static double tree_get_counter(distribution_t *d, size_t node_index,
 }
 
 double distribution_percentile(distribution_t *dist, double percent) {
-  if (percent <= 0 || percent > 100) {
+  if (percent < 0 || percent > 100 || dist == NULL) {
     errno = EINVAL;
     return NAN;
   }
@@ -335,4 +335,50 @@ double distribution_squared_deviation_sum(distribution_t *dist) {
       2 * mean * dist->total_sum + dist->total_square_sum;
   pthread_mutex_unlock(&dist->mutex);
   return squared_deviation_sum;
+}
+
+/* TODO(bkjg): add tests for this function */
+int distribution_sub(distribution_t *d1, distribution_t *d2) {
+  if (d1 == NULL || d2 == NULL) {
+    return EINVAL;
+  }
+
+  if (d1->num_buckets != d2->num_buckets) {
+    return EINVAL;
+  }
+
+  pthread_mutex_lock(&d1->mutex);
+  pthread_mutex_lock(&d2->mutex);
+
+  if (d1->total_sum < d2->total_sum) {
+    d1->total_sum = d2->total_sum - d1->total_sum;
+    for (size_t i = 0; i < tree_size(d1->num_buckets); ++i) {
+      if (d1->tree[i].maximum != d2->tree[i].maximum ||
+          d1->tree[i].bucket_counter > d2->tree[i].bucket_counter) {
+        pthread_mutex_unlock(&d2->mutex);
+        pthread_mutex_unlock(&d1->mutex);
+        return EINVAL;
+      }
+
+      d1->tree[i].bucket_counter =
+          d2->tree[i].bucket_counter - d1->tree[i].bucket_counter;
+    }
+  } else {
+    d1->total_sum -= d2->total_sum;
+    for (size_t i = 0; i < tree_size(d1->num_buckets); ++i) {
+      if (d1->tree[i].maximum != d2->tree[i].maximum ||
+          d1->tree[i].bucket_counter < d2->tree[i].bucket_counter) {
+        pthread_mutex_unlock(&d2->mutex);
+        pthread_mutex_unlock(&d1->mutex);
+        return EINVAL;
+      }
+
+      d1->tree[i].bucket_counter -= d2->tree[i].bucket_counter;
+    }
+  }
+
+  pthread_mutex_unlock(&d2->mutex);
+  pthread_mutex_unlock(&d1->mutex);
+
+  return 0;
 }
