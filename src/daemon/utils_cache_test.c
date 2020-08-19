@@ -277,28 +277,39 @@ DEF_TEST(uc_update) {
               },
           .num_updates = (size_t[]){10, 6, 4},
           .fam = create_metric_family_for_test7("test4-update", 3, 5, 23),
+      },
+      {
+        .fam = NULL,
+        .want_get = EINVAL,
       }};
   uc_init();
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
     printf("## Case %zu:\n", i);
 
-    for (size_t l = 0; l < cases[i].fam->metric.num; ++l) {
-      for (size_t k = 0; k <= l; ++k) {
-        for (size_t j = 0; j < cases[i].num_updates[k]; ++j) {
-          distribution_update(cases[i].fam->metric.ptr[l].value.distribution,
-                              cases[i].updates[k][j]);
+    if (cases[i].fam != NULL) {
+      for (size_t l = 0; l < cases[i].fam->metric.num; ++l) {
+        for (size_t k = 0; k <= l; ++k) {
+          for (size_t j = 0; j < cases[i].num_updates[k]; ++j) {
+            distribution_update(cases[i].fam->metric.ptr[l].value.distribution,
+                                cases[i].updates[k][j]);
+          }
         }
       }
     }
 
-    cdtime_t time;
     EXPECT_EQ_INT(cases[i].want_get, uc_update(cases[i].fam));
-    CHECK_ZERO(uc_get_last_time(cases[i].fam->name, &time));
-    EXPECT_EQ_UINT64( cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time, time);
-    CHECK_ZERO(uc_get_last_update(cases[i].fam->name, &time));
-    EXPECT_EQ_UINT64(cdtime(), time);
 
-    CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
+    if (cases[i].fam != NULL) {
+      cdtime_t time;
+      CHECK_ZERO(uc_get_last_time(cases[i].fam->name, &time));
+      EXPECT_EQ_UINT64(cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time, time);
+      CHECK_ZERO(uc_get_last_update(cases[i].fam->name, &time));
+      EXPECT_EQ_UINT64(cdtime(), time);
+      CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
+    } else {
+      EXPECT_EQ_INT(EINVAL, metric_family_metric_reset(cases[i].fam));
+    }
+    
     free(cases[i].fam);
   }
 

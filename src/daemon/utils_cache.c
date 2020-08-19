@@ -415,6 +415,11 @@ static int uc_update_metric(metric_t const *m) {
 } /* int uc_update_metric */
 
 int uc_update(metric_family_t const *fam) {
+  if (fam == NULL) {
+    ERROR("uc_update: uc_update_metric failed: %s", STRERROR(EINVAL));
+    return EINVAL;
+  }
+
   int ret = 0;
   for (size_t i = 0; i < fam->metric.num; i++) {
     int status = uc_update_metric(fam->metric.ptr + i);
