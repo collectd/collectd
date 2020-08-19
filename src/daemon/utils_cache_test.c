@@ -786,7 +786,6 @@ DEF_TEST(uc_get_percentile) {
 
     CHECK_ZERO(uc_update(cases[i].fam));
 
-    printf("num: %lu\n", cases[i].fam->metric.num);
     EXPECT_EQ_INT(cases[i].want_get,
                   uc_get_percentile(&cases[i].fam->metric.ptr[cases[i].metric_idx],
                                     &cases[i].ret_value, cases[i].percent));
@@ -797,7 +796,6 @@ DEF_TEST(uc_get_percentile) {
 
     CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     free(cases[i].fam);
-    printf("after free\n");
   }
   // reset_cache_tree();
   return 0;
