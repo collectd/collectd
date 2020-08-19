@@ -280,7 +280,7 @@ DEF_TEST(metric_reset) {
       },
       {
           .value.distribution =
-              distribution_new_custom(6, (double[]){5, 10, 20, 30, 50}),
+              distribution_new_custom(5, (double[]){5, 10, 20, 30, 50}),
       },
   };
 
