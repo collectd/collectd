@@ -447,6 +447,11 @@ int uc_set_callbacks_mask(const char *name, unsigned long mask) {
 
 int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
                               double percent) {
+  if (name == NULL || ret_values == NULL) {
+    ERROR("uc_get_percentile_by_name: Passed null pointer as an argument.");
+    return -1;
+  }
+
   if (percent < 0 || percent > 100) {
     ERROR("uc_get_percentile_by_name: Illegal percent %lf.", percent);
     return -1;
@@ -490,6 +495,11 @@ int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
 } /* gauge_t *uc_get_percentile_by_name */
 
 int uc_get_percentile(metric_t const *m, gauge_t *ret, double percent) {
+  if (m == NULL || ret == NULL) {
+    ERROR("uc_get_percentile: Passed null pointer as an argument.");
+    return -1;
+  }
+
   if (m->family->type != METRIC_TYPE_DISTRIBUTION) {
     ERROR("uc_get_percentile: Don't know how to handle data source type %i.",
           m->family->type);

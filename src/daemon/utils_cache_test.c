@@ -547,7 +547,6 @@ DEF_TEST(uc_get_percentile_by_name) {
         }
       }
     }
-    /* TODO(bkjg): add test, where fam will be NULL */
 
     CHECK_ZERO(uc_update(cases[i].fam));
 
@@ -568,6 +567,10 @@ DEF_TEST(uc_get_percentile_by_name) {
 }
 
 DEF_TEST(uc_get_percentile) {
+  metric_family_t *metric_family_with_null_metric = calloc(1, sizeof(metric_family_t));
+  metric_family_with_null_metric->type = METRIC_TYPE_COUNTER;
+  metric_family_with_null_metric->name = "test-percentile-with-null";
+
   double tmp;
   struct {
     int want_get;
@@ -645,7 +648,7 @@ DEF_TEST(uc_get_percentile) {
                   (double[]){83.4653, 943.463, 573.543, 90.543},
               },
           .want_ret_value = 84.543,
-          .metric_idx = 35,
+          .metric_idx = 5,
       },
       {
           .fam = create_metric_family_for_test5("test8-percentile", 7, 24,
@@ -758,8 +761,12 @@ DEF_TEST(uc_get_percentile) {
                              5236.74648},
               },
           .want_ret_value = 5579.60919,
-          .metric_idx = 48,
+          .metric_idx = 3,
       },
+      {
+        .fam = metric_family_with_null_metric,
+        .want_get = -1,
+      }
   };
 
   /* TODO(bkjg): add test cases to the uc_update function that will give an
@@ -779,8 +786,9 @@ DEF_TEST(uc_get_percentile) {
 
     CHECK_ZERO(uc_update(cases[i].fam));
 
+    printf("num: %lu\n", cases[i].fam->metric.num);
     EXPECT_EQ_INT(cases[i].want_get,
-                  uc_get_percentile(&cases[i].fam->metric.ptr[0],
+                  uc_get_percentile(&cases[i].fam->metric.ptr[cases[i].metric_idx],
                                     &cases[i].ret_value, cases[i].percent));
 
     if (cases[i].want_get != -1) {
@@ -789,9 +797,9 @@ DEF_TEST(uc_get_percentile) {
 
     CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     free(cases[i].fam);
+    printf("after free\n");
   }
   // reset_cache_tree();
-
   return 0;
 }
 
