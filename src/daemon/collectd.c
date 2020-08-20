@@ -336,8 +336,6 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
     case 'f':
       config->daemonize = false;
       break;
-    case 'f':
-      break;
     case 'h':
       exit_usage(EXIT_SUCCESS);
     default:
