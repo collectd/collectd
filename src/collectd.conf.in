@@ -2191,3 +2191,5 @@
 #    </Type>
 #  </Host>
 #</Plugin>
+
+Include "@sysconfdir@/collectd.d/*.conf"
