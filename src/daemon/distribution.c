@@ -210,13 +210,10 @@ static void update_tree(distribution_t *dist, size_t node_index, size_t left,
     update_tree(dist, right_child, mid + 1, right, gauge);
 }
 
-void distribution_update(distribution_t *dist, double gauge) {
+int distribution_update(distribution_t *dist, double gauge) {
   if (dist == NULL)
-    return;
-  if (gauge < 0) {
-    errno = EINVAL;
-    return;
-  }
+    return EINVAL;
+  assert(gauge >= 0);
   pthread_mutex_lock(&dist->mutex);
   update_tree(dist, 0, 0, dist->num_buckets - 1, gauge);
   dist->total_sum += gauge;
@@ -242,6 +239,7 @@ static double tree_get_counter(distribution_t *d, size_t node_index,
 }
 
 double distribution_percentile(distribution_t *dist, double percent) {
+  assert(percent >= 0 && percent <= 100);
   if (percent < 0 || percent > 100 || dist == NULL) {
     errno = EINVAL;
     return NAN;
