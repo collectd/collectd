@@ -44,6 +44,7 @@ struct intel_pmu_entity_s {
   size_t first_cgroup;
   size_t cgroups_count;
   bool copied;
+  bool all_events;
   struct eventlist *event_list;
   user_data_t user_data;
   struct intel_pmu_entity_s *next;
@@ -53,7 +54,6 @@ typedef struct intel_pmu_entity_s intel_pmu_entity_t;
 struct intel_pmu_ctx_s {
   char event_list_fn[PATH_MAX];
   bool dispatch_cloned_pmus;
-  bool all_events;
 
   intel_pmu_entity_t *entl;
 };
@@ -184,7 +184,7 @@ static int pmu_config_hw_events(oconfig_item_t *ci, intel_pmu_entity_t *ent) {
 
     if (strcasecmp(ci->values[i].value.string, "All") == 0) {
       INFO(PMU_PLUGIN ": Requested all events.");
-      g_ctx.all_events = true;
+      ent->all_events = true;
       return 0;
     }
   }
@@ -595,7 +595,6 @@ static int pmu_setup_events(core_groups_list_t *cores, struct eventlist *el,
                             bool measure_all, int measure_pid) {
   struct event *e, *leader = NULL;
   int ret = -1;
-
   for (e = el->eventlist; e; e = e->next) {
 
     for (size_t i = 0; i < cores->num_cgroups; i++) {
@@ -614,8 +613,18 @@ static int pmu_setup_events(core_groups_list_t *cores, struct eventlist *el,
             continue;
         }
 
-        if (setup_event(e, core, leader, measure_all, measure_pid) < 0) {
+        int res = setup_event(e, core, leader, measure_all, measure_pid);
+        if (res < 0 && errno == EMFILE) {
+          WARNING(PMU_PLUGIN
+                  ": perf event '%s' is not available (cpu=%d). "
+                  "Max number of open files reached for current process.",
+                  e->event, core);
+        } else if (res < 0) {
           WARNING(PMU_PLUGIN ": perf event '%s' is not available (cpu=%d).",
+                  e->event, core);
+        } else if (e->efd[core].fd < 0) {
+          WARNING(PMU_PLUGIN ": max number of events "
+                             "per group reached for event '%s' (cpu=%d).",
                   e->event, core);
         } else {
           /* success if at least one event was set */
@@ -683,6 +692,11 @@ static int pmu_read_all_events(void *data, char *name, char *event,
 
   event_counter++;
 
+  /* zeroing event_counter for next cores events */
+  if (event_counter == ent->hw_events_count) {
+    event_counter = 0;
+  }
+
   return 0;
 }
 
@@ -730,9 +744,14 @@ static int pmu_init(void) {
   }
 
   /* write all events from provided EventList into hw_events */
-  if (g_ctx.all_events) {
-    for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
-      walk_events(pmu_count_all_events, ent);
+  for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL; ent = ent->next) {
+    if (ent->all_events) {
+      ret = walk_events(pmu_count_all_events, ent);
+      if (ret != 0) {
+        ERROR(PMU_PLUGIN ": Invalid core groups configuration.");
+        goto init_error;
+      }
+
       // allocating memory for all events
       ent->hw_events = calloc(ent->hw_events_count, sizeof(*ent->hw_events));
       if (ent->hw_events == NULL) {
@@ -740,7 +759,11 @@ static int pmu_init(void) {
         return -ENOMEM;
       }
 
-      walk_events(pmu_read_all_events, ent);
+      ret = walk_events(pmu_read_all_events, ent);
+      if (ret != 0) {
+        ERROR(PMU_PLUGIN ": Invalid core groups configuration.");
+        goto init_error;
+      }
     }
   }
 
