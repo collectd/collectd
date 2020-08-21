@@ -343,6 +343,22 @@ double distribution_squared_deviation_sum(distribution_t *dist) {
   return squared_deviation_sum;
 }
 
+double distribution_stddev(distribution_t *dist) {
+    if (dist == NULL || dist->num_buckets == 0) {
+        errno = EINVAL;
+        return NAN;
+    }
+    if (dist->num_buckets == 1) {
+        return 0.0;
+    }
+    pthread_mutex_lock(&dist->mutex);
+    double stddev = sqrt(((((double)dist->num_buckets) * dist->total_square_sum) -
+                             (dist->total_sum * dist->total_sum)) /
+                            ((double)(dist->num_buckets * (dist->num_buckets - 1))));
+    pthread_mutex_unlock(&dist->mutex);
+    return stddev;
+}
+
 int distribution_reset(distribution_t *dist) {
   if (dist == NULL) {
     return errno = EINVAL;

@@ -114,9 +114,17 @@ double distribution_total_sum(distribution_t *dist);
 
 uint64_t distribution_total_counter(distribution_t *dist);
 
+double distribution_squares_sum(distribution_t *dist);
+
+/** @return - sum of squared deviation (needed for stackdriver format **/
 double distribution_squared_deviation_sum(distribution_t *dist);
 
+/** @return - standart deviation **/
+double distribution_stddev(distribution_t *dist);
+
 void destroy_buckets_array(buckets_array_t buckets_array);
+
+int distribution_reset(distribution_t *dist);
 
 /* TODO(bkjg): add description */
 int distribution_sub(distribution_t *d1, distribution_t *d2);
