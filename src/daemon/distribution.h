@@ -122,6 +122,6 @@ void destroy_buckets_array(buckets_array_t buckets_array);
 int distribution_sub(distribution_t *d1, distribution_t *d2);
 
 /* proposal for default distribution constructor for time metrics (in sec) */
-#define DISTRIBUTION_DEFAULT_TIME distribution_new_custom((double[]){0.05, 0.1, 0.2, 0.5, 1, 10, 100})
+#define DISTRIBUTION_DEFAULT_TIME distribution_new_custom(7, (double[]){0.05, 0.1, 0.2, 0.5, 1, 10, 100})
 
 #endif // COLLECTD_DISTRIBUTION_H
