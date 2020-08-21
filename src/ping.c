@@ -59,8 +59,7 @@ struct hostlist_s {
   uint32_t pkg_recv;
   uint32_t pkg_missed;
 
-  double latency_total;
-  double latency_squared;
+  distribution_t *dist_latency;
 
   struct hostlist_s *next;
 };
@@ -187,8 +186,9 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
     hl->pkg_sent++;
     if (latency >= 0.0) {
       hl->pkg_recv++;
-      hl->latency_total += latency;
-      hl->latency_squared += (latency * latency);
+
+      /*TODO(sshmidt): check the errors, change distribution_update type to int, add getter for sum of squares*/
+      distribution_update(hl->dist_latency, latency);
 
       /* reset missed packages counter */
       hl->pkg_missed = 0;
@@ -471,8 +471,11 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
     hl->pkg_missed = 0;
-    hl->latency_total = 0.0;
-    hl->latency_squared = 0.0;
+    hl->dist_latency = DISTRIBUTION_DEFAULT_TIME;
+    if (hl->dist_latency == NULL) {
+        ERROR("ping plugin: Cannot create a distribution for latency");
+        return 1;
+    }
     hl->next = hostlist_head;
     hostlist_head = hl;
   } else if (strcasecmp(key, "AddressFamily") == 0) {
@@ -588,8 +591,7 @@ static int ping_read(void) /* {{{ */
     for (hostlist_t *hl = hostlist_head; hl != NULL; hl = hl->next) {
       hl->pkg_sent = 0;
       hl->pkg_recv = 0;
-      hl->latency_total = 0.0;
-      hl->latency_squared = 0.0;
+      distribution_reset(hl->dist_latency);
     }
 
     start_thread();
@@ -601,8 +603,6 @@ static int ping_read(void) /* {{{ */
   {
     uint32_t pkg_sent;
     uint32_t pkg_recv;
-    double latency_total;
-    double latency_squared;
 
     double latency_average;
     double latency_stddev;
@@ -615,13 +615,10 @@ static int ping_read(void) /* {{{ */
 
     pkg_sent = hl->pkg_sent;
     pkg_recv = hl->pkg_recv;
-    latency_total = hl->latency_total;
-    latency_squared = hl->latency_squared;
 
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
-    hl->latency_total = 0.0;
-    hl->latency_squared = 0.0;
+    distribution_reset(hl->dist_latency);
 
     pthread_mutex_unlock(&ping_lock);
 
@@ -632,20 +629,10 @@ static int ping_read(void) /* {{{ */
     }
 
     /* Calculate average. Beware of division by zero. */
-    if (pkg_recv == 0)
-      latency_average = NAN;
-    else
-      latency_average = latency_total / ((double)pkg_recv);
+    latency_average = distribution_average(hl->dist_latency);
 
     /* Calculate standard deviation. Beware even more of division by zero. */
-    if (pkg_recv == 0)
-      latency_stddev = NAN;
-    else if (pkg_recv == 1)
-      latency_stddev = 0.0;
-    else
-      latency_stddev = sqrt(((((double)pkg_recv) * latency_squared) -
-                             (latency_total * latency_total)) /
-                            ((double)(pkg_recv * (pkg_recv - 1))));
+    latency_stddev = distribution_stddev(hl->dist_latency);
 
     /* Calculate drop rate. */
     droprate = ((double)(pkg_sent - pkg_recv)) / ((double)pkg_sent);
