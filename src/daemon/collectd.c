@@ -334,7 +334,9 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
 #endif /* COLLECT_DAEMON */
       break;
     case 'f':
+#if COLLECT_DAEMON
       config->daemonize = false;
+#endif /* COLLECT_DAEMON */
       break;
     case 'h':
       exit_usage(EXIT_SUCCESS);
