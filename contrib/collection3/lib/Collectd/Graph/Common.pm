@@ -526,7 +526,7 @@ sub get_selected_files
   for (qw(hostname plugin plugin_instance type type_instance))
   {
     my $part = $_;
-    my @temp = param ($part);
+    my @temp = multi_param ($part);
     if (!@temp)
     {
       next;
@@ -568,7 +568,7 @@ sub get_host_selection
     $ret{$_} = 0;
   }
 
-  for (param ('hostname'))
+  for (multi_param ('hostname'))
   {
     my $host = _sanitize_generic_allow_minus ($_);
     if (defined ($ret{$host}))
@@ -597,7 +597,7 @@ sub get_plugin_selection
     $ret{$_} = 0;
   }
 
-  for (param ('plugin'))
+  for (multi_param ('plugin'))
   {
     if (defined ($ret{$_}))
     {
