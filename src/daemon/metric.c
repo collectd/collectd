@@ -205,7 +205,7 @@ int metric_reset(metric_t *m) {
   label_set_reset(&m->label);
   meta_data_destroy(m->meta);
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+  if (m->family != NULL && m->family->type == METRIC_TYPE_DISTRIBUTION) {
     distribution_destroy(m->value.distribution);
   }
 
