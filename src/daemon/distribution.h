@@ -82,7 +82,7 @@ distribution_t *distribution_new_custom(size_t array_size,
                                         double *custom_buckets_boundaries);
 
 /** add new value to a distribution **/
-void distribution_update(distribution_t *dist, double gauge);
+int distribution_update(distribution_t *dist, double gauge);
 
 /**
  * @param percent - should be in (0; 100] range
@@ -120,4 +120,8 @@ void destroy_buckets_array(buckets_array_t buckets_array);
 
 /* TODO(bkjg): add description */
 int distribution_sub(distribution_t *d1, distribution_t *d2);
+
+/* proposal for default distribution constructor for time metrics (in sec) */
+#define DISTRIBUTION_DEFAULT_TIME distribution_new_custom((double[]){0.05, 0.1, 0.2, 0.5, 1, 10, 100})
+
 #endif // COLLECTD_DISTRIBUTION_H
