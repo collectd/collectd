@@ -46,6 +46,7 @@
 
 #include "collectd.h"
 
+#include "daemon/utils_random.h"
 #include "plugin.h"
 #include "utils/common/common.h"
 
@@ -98,9 +99,9 @@ struct wg_callback {
   char *prefix;
   char *postfix;
   char escape_char;
-  int delay_retry;
+  int retry_delay;
   int nb_retry;
-  int alea_range;
+  int jitter_range;
 
   unsigned int format_flags;
 
@@ -154,35 +155,42 @@ static void wg_reset_buffer(struct wg_callback *cb) {
   cb->send_buf_init_time = cdtime();
 }
 
-static int randLimited(int a, int b) { return (rand() % (b - a) + a); }
-
 static int wg_send_buffer(struct wg_callback *cb) {
-  ssize_t status = 0;
-  int alea = 0;
-  int nb = 0;
 
   if (cb->sock_fd < 0)
     return -1;
 
-  for (nb = 0; nb <= cb->nb_retry; nb++) {
-    if (status == 0) {
-      status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
-    }
-    if ((status != 0) && (cb->nb_retry > 0)) {
-      if (cb->alea_range != 0) {
-        alea = randLimited(0, cb->alea_range);
-      }
+  ssize_t status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
 
-      cb->last_connect_time = cdtime();
-      sleep(cb->delay_retry + alea);
+  if (status != 0 && cb->nb_retry > 0) {
+    int jitter = 0;
 
+    for (int nb = 0; nb < cb->nb_retry; nb++) {
       if (cb->sock_fd >= 0) {
         close(cb->sock_fd);
         cb->sock_fd = -1;
       }
+
+      /* swrite has failed, before retry we reinialize the */
+      /* network socket with carbon-cache on server side.  */
       status = wg_callback_init(cb);
-    } else {
-      break;
+
+      if (status == 0) {
+        status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
+      }
+
+      if (status == 0) {
+        break;
+      }
+
+      /* we may use a jitter so that different client don't */
+      /* transmit their datas at the same time.             */
+      if (cb->jitter_range != 0) {
+        jitter = cdrand_range((long)0, (long)cb->jitter_range);
+      }
+
+      cb->last_connect_time = cdtime();
+      sleep(cb->retry_delay + jitter);
     }
   }
 
@@ -504,9 +512,9 @@ static int wg_config_node(oconfig_item_t *ci) {
   cb->postfix = NULL;
   cb->escape_char = WG_DEFAULT_ESCAPE;
   cb->format_flags = GRAPHITE_STORE_RATES;
-  cb->delay_retry = 0;
+  cb->retry_delay = 0;
   cb->nb_retry = 0;
-  cb->alea_range = 0;
+  cb->jitter_range = 0;
 
   /* FIXME: Legacy configuration syntax. */
   if (strcasecmp("Carbon", ci->key) != 0) {
@@ -559,12 +567,12 @@ static int wg_config_node(oconfig_item_t *ci) {
       cf_util_get_flag(child, &cb->format_flags, GRAPHITE_REVERSE_HOST);
     else if (strcasecmp("EscapeCharacter", child->key) == 0)
       config_set_char(&cb->escape_char, child);
-    else if (strcasecmp("DelayRetry", child->key) == 0)
-      cf_util_get_int(child, &cb->delay_retry);
-    else if (strcasecmp("NbRetry", child->key) == 0)
+    else if (strcasecmp("RetryDelay", child->key) == 0)
+      cf_util_get_int(child, &cb->retry_delay);
+    else if (strcasecmp("RetryAttempts", child->key) == 0)
       cf_util_get_int(child, &cb->nb_retry);
-    else if (strcasecmp("AleaRange", child->key) == 0)
-      cf_util_get_int(child, &cb->alea_range);
+    else if (strcasecmp("RetryJitter", child->key) == 0)
+      cf_util_get_int(child, &cb->jitter_range);
     else {
       ERROR("write_graphite plugin: Invalid configuration "
             "option: %s.",
