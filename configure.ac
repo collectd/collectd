@@ -6717,6 +6717,7 @@ if test "x$ac_system" = "xLinux"; then
   fi
 
   if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
+    plugin_lvm="yes"
     plugin_ovs_events="yes"
     plugin_ovs_stats="yes"
     plugin_procevent="yes"
@@ -7097,6 +7098,7 @@ AC_PLUGIN([logfile],             [yes],                       [File logging plug
 AC_PLUGIN([logparser],           [yes],                       [Log parsing plugin])
 AC_PLUGIN([lpar],                [$with_perfstat],            [AIX logical partitions statistics])
 AC_PLUGIN([lua],                 [$with_liblua],              [Lua plugin])
+AC_PLUGIN([lvm],                 [$plugin_lvm],               [LVM statistics])
 AC_PLUGIN([madwifi],             [$have_linux_wireless_h],    [Madwifi wireless statistics])
 AC_PLUGIN([match_empty_counter], [yes],                       [The empty counter match])
 AC_PLUGIN([match_hashed],        [yes],                       [The hashed match])
@@ -7544,6 +7546,7 @@ AC_MSG_RESULT([    logparser . . . . . . $enable_logparser])
 AC_MSG_RESULT([    log_logstash  . . . . $enable_log_logstash])
 AC_MSG_RESULT([    lpar  . . . . . . . . $enable_lpar])
 AC_MSG_RESULT([    lua . . . . . . . . . $enable_lua])
+AC_MSG_RESULT([    lvm . . . . . . . . . $enable_lvm])
 AC_MSG_RESULT([    madwifi . . . . . . . $enable_madwifi])
 AC_MSG_RESULT([    match_empty_counter . $enable_match_empty_counter])
 AC_MSG_RESULT([    match_hashed  . . . . $enable_match_hashed])

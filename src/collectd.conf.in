@@ -151,6 +151,7 @@
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_LOGPARSER_TRUE@LoadPlugin logparser
 #@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
+#@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MCELOG_TRUE@LoadPlugin mcelog
