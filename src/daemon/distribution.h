@@ -112,7 +112,7 @@ buckets_array_t get_buckets(distribution_t *dist);
 
 double distribution_total_sum(distribution_t *dist);
 
-double distribution_total_counter(distribution_t *dist);
+uint64_t distribution_total_counter(distribution_t *dist);
 
 double distribution_squared_deviation_sum(distribution_t *dist);
 
