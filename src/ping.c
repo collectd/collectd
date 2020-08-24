@@ -187,7 +187,8 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
     if (latency >= 0.0) {
       hl->pkg_recv++;
 
-      /*TODO(sshmidt): check the errors, change distribution_update type to int, add getter for sum of squares*/
+      /*TODO(sshmidt): check the errors, change distribution_update type to int,
+       * add getter for sum of squares*/
       distribution_update(hl->dist_latency, latency);
 
       /* reset missed packages counter */
@@ -473,8 +474,8 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     hl->pkg_missed = 0;
     hl->dist_latency = DISTRIBUTION_DEFAULT_TIME;
     if (hl->dist_latency == NULL) {
-        ERROR("ping plugin: Cannot create a distribution for latency");
-        return 1;
+      ERROR("ping plugin: Cannot create a distribution for latency");
+      return 1;
     }
     hl->next = hostlist_head;
     hostlist_head = hl;
@@ -568,11 +569,24 @@ static int ping_config(const char *key, const char *value) /* {{{ */
   return 0;
 } /* }}} int ping_config */
 
-static void submit(const char *host, const char *type, /* {{{ */
-                    distribution_t *dist) {
+static void submit_distribution(const char *host, const char *type,
+                                distribution_t *dist) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.distribution = dist};
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "ping", sizeof(vl.plugin));
+  sstrncpy(vl.type_instance, host, sizeof(vl.type_instance));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+
+  plugin_dispatch_values(&vl);
+}
+
+static void submit_gauge(const char *host, const char *type, /* {{{ */
+                         gauge_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "ping", sizeof(vl.plugin));
   sstrncpy(vl.type_instance, host, sizeof(vl.type_instance));
@@ -604,9 +618,6 @@ static int ping_read(void) /* {{{ */
     uint32_t pkg_sent;
     uint32_t pkg_recv;
 
-    double latency_average;
-    double latency_stddev;
-
     double droprate;
 
     /* Locking here works, because the structure of the linked list is only
@@ -615,8 +626,9 @@ static int ping_read(void) /* {{{ */
 
     pkg_sent = hl->pkg_sent;
     pkg_recv = hl->pkg_recv;
-    distribution_t *dist_latency = distribution_clone(hl->dist_latency); //why here???
-
+    distribution_t *dist_latency =
+        distribution_clone(hl->dist_latency); // why here???
+    /*TODO(sshmidt): error handling */
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
     distribution_reset(hl->dist_latency);
@@ -629,18 +641,13 @@ static int ping_read(void) /* {{{ */
       continue;
     }
 
-    /* Calculate average. Beware of division by zero. */
-    latency_average = distribution_average(dist_latency);
-
-    /* Calculate standard deviation. Beware even more of division by zero. */
-    latency_stddev = distribution_stddev(dist_latency);
-
     /* Calculate drop rate. */
     droprate = ((double)(pkg_sent - pkg_recv)) / ((double)pkg_sent);
 
-    submit(hl->host, "ping", latency_average);
-    submit(hl->host, "ping_stddev", latency_stddev);
-    submit(hl->host, "ping_droprate", droprate);
+    /*submit(hl->host, "ping", latency_average);
+    submit(hl->host, "ping_stddev", latency_stddev);*/
+    submit_distribution(hl->host, "ping_distribution_latency", dist_latency);
+    submit_gauge(hl->host, "ping_droprate", droprate);
   } /* }}} for (hl = hostlist_head; hl != NULL; hl = hl->next) */
 
   return 0;
