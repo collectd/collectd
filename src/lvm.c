@@ -143,7 +143,7 @@ static int lvm_process_report(yajl_val json) // {{{
 
 static int lvm_get_report_json(yajl_val *json) // {{{
 {
-  char *jsondata[DEFMAXRPTSIZE];
+  char jsondata[DEFMAXRPTSIZE];
 
   *json = NULL; // default to error condition (gets set if we make it through)
 
