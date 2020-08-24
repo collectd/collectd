@@ -569,10 +569,10 @@ static int ping_config(const char *key, const char *value) /* {{{ */
 } /* }}} int ping_config */
 
 static void submit(const char *host, const char *type, /* {{{ */
-                   gauge_t value) {
+                    distribution_t *dist) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t){.gauge = value};
+  vl.values = &(value_t){.distribution = dist};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "ping", sizeof(vl.plugin));
   sstrncpy(vl.type_instance, host, sizeof(vl.type_instance));
@@ -615,6 +615,7 @@ static int ping_read(void) /* {{{ */
 
     pkg_sent = hl->pkg_sent;
     pkg_recv = hl->pkg_recv;
+    distribution_t *dist_latency = distribution_clone(hl->dist_latency); //why here???
 
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
@@ -629,10 +630,10 @@ static int ping_read(void) /* {{{ */
     }
 
     /* Calculate average. Beware of division by zero. */
-    latency_average = distribution_average(hl->dist_latency);
+    latency_average = distribution_average(dist_latency);
 
     /* Calculate standard deviation. Beware even more of division by zero. */
-    latency_stddev = distribution_stddev(hl->dist_latency);
+    latency_stddev = distribution_stddev(dist_latency);
 
     /* Calculate drop rate. */
     droprate = ((double)(pkg_sent - pkg_recv)) / ((double)pkg_sent);
@@ -660,6 +661,7 @@ static int ping_shutdown(void) /* {{{ */
     hl_next = hl->next;
 
     sfree(hl->host);
+    distribution_destroy(hl->dist_latency);
     sfree(hl);
 
     hl = hl_next;
