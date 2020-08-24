@@ -120,4 +120,4 @@ void destroy_buckets_array(buckets_array_t buckets_array);
 
 /* TODO(bkjg): add description */
 int distribution_sub(distribution_t *d1, distribution_t *d2);
-#endif // COLLECTD_DISTRIBUTION_H
+#endif // COLLECTD_DISTRIBUTION_Hs
