@@ -19,16 +19,19 @@
  *   Joseph Nahmias <joe at nahmias.net>
  **/
 
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "collectd.h"
 #include "plugin.h"
 #include "utils/common/common.h"
-#include "collectd.h"
 
 #include <yajl/yajl_tree.h>
+
+#define P_DEBUG(...) DEBUG("plugin lvm: " __VA_ARGS__)
 
 // Default maximum size of lvm report (8kb)
 #define DEFMAXRPTSIZE (8 << 10)
@@ -60,7 +63,7 @@ static char *get_json_string(yajl_val json, const char *key) // {{{
   yajl_val json_val = yajl_tree_get(json, path, yajl_t_string);
   char *str = YAJL_GET_STRING(json_val);
   if (NULL == str)
-    P_ERROR("get_json_string(): Error: couldn't find '%s' in the JSON data!\n",
+    P_ERROR("get_json_string(): Error: couldn't find '%s' in the JSON data!",
             key);
   return str;
 } // get_json_string() }}}
@@ -73,12 +76,12 @@ static int lvm_process_report(yajl_val json) // {{{
   const char *rpts_path[] = {"report", (const char *)0};
   yajl_val rpts = yajl_tree_get(json, rpts_path, yajl_t_array);
   if (!rpts || !YAJL_IS_ARRAY(rpts)) {
-    P_ERROR("didn't find any lvm reports in the JSON!\n");
+    P_ERROR("didn't find any lvm reports in the JSON!");
     return -1;
   }
   first_rpt = rpts->u.array.values[0];
   if (!first_rpt || !YAJL_IS_OBJECT(first_rpt)) {
-    P_ERROR("didn't find any JSON content in first lvm report!\n");
+    P_ERROR("didn't find any JSON content in first lvm report!");
     return -2;
   }
   // find the first report in the JSON }}}
@@ -87,13 +90,13 @@ static int lvm_process_report(yajl_val json) // {{{
   const char *vg_path[] = {"vg", (const char *)0};
   yajl_val vgs = yajl_tree_get(first_rpt, vg_path, yajl_t_array);
   if (!(vgs && YAJL_IS_ARRAY(vgs))) {
-    P_NOTICE("didn't find any VGs.\n");
+    P_NOTICE("didn't find any VGs.");
     return 0;
   }
   for (int i = 0; i < vgs->u.array.len; ++i) {
     yajl_val vg = vgs->u.array.values[i];
     if (!vg || !YAJL_IS_OBJECT(vg)) {
-      P_WARNING("invalid VG #%d!\n", i);
+      P_WARNING("invalid VG #%d!", i);
       continue;
     }
 
@@ -112,13 +115,13 @@ static int lvm_process_report(yajl_val json) // {{{
   const char *lv_path[] = {"lv", (const char *)0};
   yajl_val lvs = yajl_tree_get(first_rpt, lv_path, yajl_t_array);
   if (!(lvs && YAJL_IS_ARRAY(lvs))) {
-    P_NOTICE("didn't find any LVs.\n");
+    P_NOTICE("didn't find any LVs.");
     return 0;
   }
   for (int i = 0; i < lvs->u.array.len; ++i) {
     yajl_val lv = lvs->u.array.values[i];
     if (!lv || !YAJL_IS_OBJECT(lv)) {
-      P_WARNING("invalid LV #%d!\n", i);
+      P_WARNING("invalid LV #%d!", i);
       continue;
     }
 
@@ -153,7 +156,8 @@ static int lvm_get_report_json(yajl_val *json) // {{{
       " --configreport lv -o vg_name,lv_name,lv_size,lv_attr"
       ",data_percent,data_lv,metadata_lv,lv_metadata_size,metadata_percent"
       " --configreport pvseg -S pv_uuid="
-      " --configreport seg -S lv_uuid=";
+      " --configreport seg -S lv_uuid="
+      " 2>/dev/null";
   size_t rd;
   jsondata[0] = '\0';
   if (NULL == (fp = popen(jsoncmd, "r"))) {
@@ -165,13 +169,21 @@ static int lvm_get_report_json(yajl_val *json) // {{{
     P_ERROR("fread(): %s", STRERRNO);
     return -2;
   } else if (rd >= sizeof(jsondata) - 1) {
-    P_ERROR("too much json data returned [>=%zu]!\n", sizeof(jsondata));
+    P_ERROR("too much json data returned [>=%zu]!", sizeof(jsondata));
     return -2;
   }
-  if (pclose(fp)) {
-    P_WARNING("Command not found or exited with error status!\n");
+  if (feof(fp))
+    P_DEBUG("lvm_get_report_json(): reached EOF.");
+  P_DEBUG("lvm_get_report_json(): read %zu bytes from lvm fullreport.", rd);
+  int rc = pclose(fp);
+  if (-1 == rc && ECHILD != errno) {
     P_ERROR("pclose(): %s", STRERRNO);
     return -3;
+  } else if (-1 == rc && ECHILD == errno) {
+    P_DEBUG("pclose(): unable to obtain status of lvm fullreport; assuming "
+            "that all went okay.");
+  } else {
+    P_DEBUG("pclose(): lvm fullreport returned %d.", rc);
   }
   // Get the lvm report }}}
 
@@ -182,9 +194,9 @@ static int lvm_get_report_json(yajl_val *json) // {{{
   node = yajl_tree_parse((const char *)jsondata, errbuf, sizeof(errbuf));
   if (NULL == node) {
     if (strlen(errbuf))
-      P_ERROR("yajl_tree_parse(): %s\n", errbuf);
+      P_ERROR("yajl_tree_parse(): %s", errbuf);
     else
-      P_ERROR("yajl_tree_parse(): unknown error.\n");
+      P_ERROR("yajl_tree_parse(): unknown error.");
     return -5;
   }
   *json = node; // send back the first report JSON
