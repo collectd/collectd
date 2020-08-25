@@ -22,6 +22,7 @@
  *
  * Authors:
  *   Sebastian Harl <sh@tokkee.org>
+ *   Barbara 'bkjg' Kaczorowska <bkjg at google.com>
  **/
 
 #include "collectd.h"
