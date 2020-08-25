@@ -1426,6 +1426,10 @@
 #		# See contrib/postgresql/collectd_insert.sql for details
 #		Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
 #		StoreRates true
+#		# Meta data can be added to the 10th argument as a JSON string
+#		# Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);"
+#		# MetaData true
+#		# MetaData "network:username" "network:ip_address"
 #	</Writer>
 #	<Database foo>
 #		#Plugin "kingdom"
