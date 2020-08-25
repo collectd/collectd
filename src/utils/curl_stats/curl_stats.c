@@ -70,7 +70,8 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, metric_family_t *fam) {
 
   metric_family_metric_append(fam, m);
 
-  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  /* TODO(bkjg): "This library should optionally be able to update
+   * distribution_t instead of calling plugin_dispatch_values." */
   return plugin_dispatch_metric_family(fam);
 } /* dispatch_gauge */
 
@@ -92,7 +93,8 @@ static int dispatch_speed(CURL *curl, CURLINFO info, metric_family_t *fam) {
 
   metric_family_metric_append(fam, m);
 
-  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  /* TODO(bkjg): "This library should optionally be able to update
+   * distribution_t instead of calling plugin_dispatch_values." */
   return plugin_dispatch_metric_family(fam);
 } /* dispatch_speed */
 
@@ -114,12 +116,12 @@ static int dispatch_size(CURL *curl, CURLINFO info, metric_family_t *fam) {
   };
 
   metric_family_metric_append(fam, m);
-  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  /* TODO(bkjg): "This library should optionally be able to update
+   * distribution_t instead of calling plugin_dispatch_values." */
   return plugin_dispatch_metric_family(fam);
 }
 
-static struct
- {
+static struct {
   const char *name;
   const char *config_key;
   size_t offset;
@@ -225,6 +227,8 @@ void curl_stats_destroy(curl_stats_t *s) {
     free(s);
 } /* curl_stats_destroy */
 
+/* TODO: delete unused arguments when all plugins will migrate to the new metric
+ * data structure */
 int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
                         const char *plugin, const char *plugin_instance) {
   metric_family_t fam = {
