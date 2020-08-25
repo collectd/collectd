@@ -22,7 +22,6 @@
  *
  * Authors:
  *   Sebastian Harl <sh@tokkee.org>
- *   Barbara 'bkjg' Kaczorowska <bkjg at google.com>
  **/
 
 #include "collectd.h"
@@ -30,16 +29,8 @@
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
 
-#include <liboconfig/oconfig.h>
 #include <stdbool.h>
 #include <stddef.h>
-
-typedef struct {
-  metric_family_t *time_fam;
-  metric_family_t *size_fam;
-  metric_family_t *speed_fam;
-  metric_family_t *count_fam;
-} attributes_metrics_t;
 
 struct curl_stats_s {
   bool total_time;
@@ -59,310 +50,176 @@ struct curl_stats_s {
   bool redirect_count;
   bool num_connects;
   bool appconnect_time;
-  attributes_metrics_t *metrics;
 };
 
 /*
  * Private functions
  */
-static int initialize_attributes_metric_families(curl_stats_t *s) {
-  s->metrics = calloc(1, sizeof(attributes_metrics_t));
-
-  if (s->metrics == NULL) {
-    return -1;
-  }
-
-  s->metrics->count_fam = calloc(1, sizeof(metric_family_t));
-  s->metrics->size_fam = calloc(1, sizeof(metric_family_t));
-  s->metrics->speed_fam = calloc(1, sizeof(metric_family_t));
-  s->metrics->time_fam = calloc(1, sizeof(metric_family_t));
-
-  if (s->metrics->count_fam == NULL || s->metrics->size_fam == NULL ||
-      s->metrics->speed_fam == NULL || s->metrics->time_fam == NULL) {
-    free(s->metrics->count_fam);
-    free(s->metrics->size_fam);
-    free(s->metrics->speed_fam);
-    free(s->metrics->time_fam);
-    free(s->metrics);
-    return -1;
-  }
-
-  s->metrics->count_fam->name = "Count";
-  s->metrics->size_fam->name = "Size";
-  s->metrics->speed_fam->name = "Speed";
-  s->metrics->time_fam->name = "Time";
-
-  s->metrics->count_fam->type = METRIC_TYPE_COUNTER;
-  s->metrics->size_fam->type = METRIC_TYPE_DISTRIBUTION;
-  s->metrics->speed_fam->type = METRIC_TYPE_DISTRIBUTION;
-  s->metrics->time_fam->type = METRIC_TYPE_DISTRIBUTION;
-
-  return 0;
-}
-
-/* TODO(bkjg): add initializing the distribution */
-static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
-                                          const char *unit) {
-  metric_t m = {0};
-  metric_label_set(&m, "Attributes", name);
-
-  if (!strcasecmp("bytes", unit)) {
-    return metric_family_metric_append(s->metrics->size_fam, m);
-  } else if (!strcasecmp("bitrate", unit)) {
-    return metric_family_metric_append(s->metrics->speed_fam, m);
-  } else if (!strcasecmp("duration", unit)) {
-    return metric_family_metric_append(s->metrics->time_fam, m);
-  } else if (!strcasecmp("count", unit)) {
-    return metric_family_metric_append(s->metrics->count_fam, m);
-  }
-  /* error */
-  return -1;
-}
-
-static int update_distribution_for_attribute(metric_family_t *fam,
-                                             const char *name, double val) {
-  /* TODO(bkjg): maybe add to the fields offset in metric family :) */
-  size_t field;
-  for (field = 0; field < fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"),
-                    name)) {
-      break;
-    }
-  }
-
-  if (field >= fam->metric.num) {
-    /* error */
-    return -1;
-  }
-
-  distribution_update(fam->metric.ptr[field].value.distribution, val);
-  return 0;
-}
-
-static int increment_counter_for_attribute(metric_family_t *fam,
-                                           const char *name) {
-  /* TODO(bkjg): maybe add to the fields offset in metric family :) */
-  size_t field;
-  for (field = 0; field < fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"),
-                    name)) {
-      break;
-    }
-  }
-
-  if (field >= fam->metric.num) {
-    /* error */
-    return -1;
-  }
-
-  fam->metric.ptr[field].value.counter++;
-
-  return 0;
-}
-static int dispatch_time(CURL *curl, CURLINFO info,
-                         attributes_metrics_t *attr_m, const char *name) {
+/*static int dispatch_gauge(CURL *curl, CURLINFO info, value_list_t *vl) {
   CURLcode code;
-  double val;
+  value_t v;
 
-  code = curl_easy_getinfo(curl, info, &val);
+  code = curl_easy_getinfo(curl, info, &v.gauge);
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status = update_distribution_for_attribute(attr_m->time_fam, name, val);
+  vl->values = &v;
+  vl->values_len = 1;
+*/
+  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  //return plugin_dispatch_values(vl);
+//} /* dispatch_gauge */
 
-  if (status != 0)
-    return -1;
-
-  return plugin_dispatch_metric_family(attr_m->time_fam);
-} /* dispatch_time */
-
-/* TODO(bkjg): implement counter logic here */
-static int dispatch_count(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *name) {
+static int dispatch_gauge_metric(CURL *curl, CURLINFO info, metric_family_t *fam) {
   CURLcode code;
-  double val;
+  value_t v;
 
-  code = curl_easy_getinfo(curl, info, &val);
+  code = curl_easy_getinfo(curl, info, &v.gauge);
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status = increment_counter_for_attribute(attr_m->count_fam, name);
+  metric_t m = {
+      .family = fam,
+      .value = v,
+  };
 
-  if (status != 0)
-    return -1;
+  metric_family_metric_append(fam, m);
 
-  return plugin_dispatch_metric_family(attr_m->count_fam);
-} /* dispatch_count */
+  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  return plugin_dispatch_metric_family(fam);
+} /* dispatch_gauge */
 
 /* dispatch a speed, in bytes/second */
-static int dispatch_speed(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *name) {
+/*static int dispatch_speed(CURL *curl, CURLINFO info, value_list_t *vl) {
   CURLcode code;
-  double val;
+  value_t v;
 
-  code = curl_easy_getinfo(curl, info, &val);
+  code = curl_easy_getinfo(curl, info, &v.gauge);
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8);
+  v.gauge *= 8;
 
-  if (status != 0)
+  vl->values = &v;
+  vl->values_len = 1;
+*/
+  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  //return plugin_dispatch_values(vl);
+//} /* dispatch_speed */
+
+/* dispatch a speed, in bytes/second */
+static int dispatch_speed_metric(CURL *curl, CURLINFO info, metric_family_t *fam) {
+  CURLcode code;
+  value_t v;
+
+  code = curl_easy_getinfo(curl, info, &v.gauge);
+  if (code != CURLE_OK)
     return -1;
 
-  return plugin_dispatch_metric_family(attr_m->speed_fam);
+  v.gauge *= 8;
+
+  metric_t m = {
+      .family = fam,
+      .value = v,
+  };
+
+  metric_family_metric_append(fam, m);
+
+  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  return plugin_dispatch_metric_family(fam);
 } /* dispatch_speed */
 
 /* dispatch a size/count, reported as a long value */
-static int dispatch_size(CURL *curl, CURLINFO info,
-                         attributes_metrics_t *attr_m, const char *name) {
+/*static int dispatch_size(CURL *curl, CURLINFO info, value_list_t *vl) {
   CURLcode code;
+  value_t v;
   long raw;
 
   code = curl_easy_getinfo(curl, info, &raw);
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status =
-      update_distribution_for_attribute(attr_m->size_fam, name, (double)raw);
+  v.gauge = (double)raw;
 
-  if (status != 0)
-    return -1;
+  vl->values = &v;
+  vl->values_len = 1;
+*/
+  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  //return plugin_dispatch_values(vl);
+//} /* dispatch_size */
 
-  return plugin_dispatch_metric_family(attr_m->size_fam);
-} /* dispatch_size */
-
-static int account_data_time(CURL *curl, CURLINFO info,
-                             attributes_metrics_t *attr_m, const char *name) {
+/* dispatch a size/count, reported as a long value */
+static int dispatch_size_metric(CURL *curl, CURLINFO info, metric_family_t *fam) {
   CURLcode code;
-  double val;
-
-  code = curl_easy_getinfo(curl, info, &val);
-  if (code != CURLE_OK)
-    return -1;
-
-  int status;
-  status = update_distribution_for_attribute(attr_m->time_fam, name, val);
-
-  if (status != 0)
-    return -1;
-
-  return 0;
-} /* account_data_gauge */
-
-static int account_data_count(CURL *curl, CURLINFO info,
-                              attributes_metrics_t *attr_m, const char *name) {
-  CURLcode code;
-  double val;
-
-  code = curl_easy_getinfo(curl, info, &val);
-  if (code != CURLE_OK)
-    return -1;
-
-  int status;
-  status = increment_counter_for_attribute(attr_m->count_fam, name);
-
-  if (status != 0)
-    return -1;
-
-  return 0;
-} /* account_data_gauge */
-
-static int account_data_speed(CURL *curl, CURLINFO info,
-                              attributes_metrics_t *attr_m, const char *name) {
-  CURLcode code;
-  double val;
-
-  code = curl_easy_getinfo(curl, info, &val);
-  if (code != CURLE_OK)
-    return -1;
-
-  int status;
-  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8);
-
-  if (status != 0)
-    return -1;
-
-  return 0;
-} /* account_data_speed */
-
-static int account_data_size(CURL *curl, CURLINFO info,
-                             attributes_metrics_t *attr_m, const char *name) {
-  CURLcode code;
-  double raw;
+  value_t v;
+  long raw;
 
   code = curl_easy_getinfo(curl, info, &raw);
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status =
-      update_distribution_for_attribute(attr_m->size_fam, name, raw);
+  v.gauge = (double)raw;
 
-  if (status != 0)
-    return -1;
+  metric_t m = {
+      .family = fam,
+      .value = v,
+  };
+  //vl->values = &v;
+  //vl->values_len = 1;
 
-  return 0;
-} /* account_data_size */
+  metric_family_metric_append(fam, m);
+  /* TODO(bkjg): "This library should optionally be able to update distribution_t instead of calling plugin_dispatch_values." */
+  //return plugin_dispatch_values(vl);
+  return plugin_dispatch_metric_family(fam);
+}
 
-static struct {
+static struct
+ {
   const char *name;
   const char *config_key;
   size_t offset;
-
-  int (*dispatcher)(CURL *, CURLINFO, attributes_metrics_t *attr_m,
-                    const char *unit);
-
-  int (*account_data)(CURL *, CURLINFO, attributes_metrics_t *attr_m,
-                      const char *unit);
-
+  int (*dispatcher)(CURL *, CURLINFO, metric_family_t *);
   const char *type;
   CURLINFO info;
 } field_specs[] = {
-#define SPEC(name, config_key, dispatcher, account_data, type, info)           \
-  {                                                                            \
-#name, config_key, offsetof(curl_stats_t, name), dispatcher, account_data, \
-        type, info                                                             \
-  }
+#define SPEC(name, config_key, dispatcher, type, info)                         \
+  { #name, config_key, offsetof(curl_stats_t, name), dispatcher, type, info }
 
-    SPEC(total_time, "TotalTime", dispatch_time, account_data_time, "duration",
+    SPEC(total_time, "TotalTime", dispatch_gauge_metric, "duration",
          CURLINFO_TOTAL_TIME),
-    SPEC(namelookup_time, "NamelookupTime", dispatch_time, account_data_time,
-         "duration", CURLINFO_NAMELOOKUP_TIME),
-    SPEC(connect_time, "ConnectTime", dispatch_time, account_data_time,
-         "duration", CURLINFO_CONNECT_TIME),
-    SPEC(pretransfer_time, "PretransferTime", dispatch_time, account_data_time,
-         "duration", CURLINFO_PRETRANSFER_TIME),
-    SPEC(size_upload, "SizeUpload", dispatch_size, account_data_size, "bytes",
+    SPEC(namelookup_time, "NamelookupTime", dispatch_gauge_metric, "duration",
+         CURLINFO_NAMELOOKUP_TIME),
+    SPEC(connect_time, "ConnectTime", dispatch_gauge_metric, "duration",
+         CURLINFO_CONNECT_TIME),
+    SPEC(pretransfer_time, "PretransferTime", dispatch_gauge_metric, "duration",
+         CURLINFO_PRETRANSFER_TIME),
+    SPEC(size_upload, "SizeUpload", dispatch_gauge_metric, "bytes",
          CURLINFO_SIZE_UPLOAD),
-    SPEC(size_download, "SizeDownload", dispatch_size, account_data_size,
-         "bytes", CURLINFO_SIZE_DOWNLOAD),
-    SPEC(speed_download, "SpeedDownload", dispatch_speed, account_data_speed,
-         "bitrate", CURLINFO_SPEED_DOWNLOAD),
-    SPEC(speed_upload, "SpeedUpload", dispatch_speed, account_data_speed,
-         "bitrate", CURLINFO_SPEED_UPLOAD),
-    SPEC(header_size, "HeaderSize", dispatch_size, account_data_size, "bytes",
+    SPEC(size_download, "SizeDownload", dispatch_gauge_metric, "bytes",
+         CURLINFO_SIZE_DOWNLOAD),
+    SPEC(speed_download, "SpeedDownload", dispatch_speed_metric, "bitrate",
+         CURLINFO_SPEED_DOWNLOAD),
+    SPEC(speed_upload, "SpeedUpload", dispatch_speed_metric, "bitrate",
+         CURLINFO_SPEED_UPLOAD),
+    SPEC(header_size, "HeaderSize", dispatch_size_metric, "bytes",
          CURLINFO_HEADER_SIZE),
-    SPEC(request_size, "RequestSize", dispatch_size, account_data_size, "bytes",
+    SPEC(request_size, "RequestSize", dispatch_size_metric, "bytes",
          CURLINFO_REQUEST_SIZE),
-    SPEC(content_length_download, "ContentLengthDownload", dispatch_size,
-         account_data_size, "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
-    SPEC(content_length_upload, "ContentLengthUpload", dispatch_size,
-         account_data_size, "bytes", CURLINFO_CONTENT_LENGTH_UPLOAD),
-    SPEC(starttransfer_time, "StarttransferTime", dispatch_time,
-         account_data_time, "duration", CURLINFO_STARTTRANSFER_TIME),
-    SPEC(redirect_time, "RedirectTime", dispatch_time, account_data_time,
-         "duration", CURLINFO_REDIRECT_TIME),
-    SPEC(redirect_count, "RedirectCount", dispatch_count, account_data_count,
-         "count", CURLINFO_REDIRECT_COUNT),
-    SPEC(num_connects, "NumConnects", dispatch_count, account_data_count,
-         "count", CURLINFO_NUM_CONNECTS),
+    SPEC(content_length_download, "ContentLengthDownload", dispatch_gauge_metric,
+         "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
+    SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge_metric, "bytes",
+         CURLINFO_CONTENT_LENGTH_UPLOAD),
+    SPEC(starttransfer_time, "StarttransferTime", dispatch_gauge_metric, "duration",
+         CURLINFO_STARTTRANSFER_TIME),
+    SPEC(redirect_time, "RedirectTime", dispatch_gauge_metric, "duration",
+         CURLINFO_REDIRECT_TIME),
+    SPEC(redirect_count, "RedirectCount", dispatch_size_metric, "count",
+         CURLINFO_REDIRECT_COUNT),
+    SPEC(num_connects, "NumConnects", dispatch_size_metric, "count",
+         CURLINFO_NUM_CONNECTS),
 #ifdef HAVE_CURLINFO_APPCONNECT_TIME
-    SPEC(appconnect_time, "AppconnectTime", dispatch_time, account_data_time,
-         "duration", CURLINFO_APPCONNECT_TIME),
+    SPEC(appconnect_time, "AppconnectTime", dispatch_gauge_metric, "duration",
+         CURLINFO_APPCONNECT_TIME),
 #endif
 
 #undef SPEC
@@ -389,11 +246,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   if (s == NULL)
     return NULL;
 
-  if (initialize_attributes_metric_families(s) != 0) {
-    free(s);
-    return NULL;
-  }
-
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
     size_t field;
@@ -406,7 +258,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       if (!strcasecmp(c->key, field_specs[field].name))
         break;
     }
-
     if (field >= STATIC_ARRAY_SIZE(field_specs)) {
       ERROR("curl stats: Unknown field name %s", c->key);
       free(s);
@@ -417,32 +268,64 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       free(s);
       return NULL;
     }
-
-    if (enabled) {
+    if (enabled)
       enable_field(s, field_specs[field].offset);
-      append_metric_to_metric_family(s, field_specs[field].config_key,
-                                     field_specs[field].type);
-    }
   }
 
   return s;
 } /* curl_stats_from_config */
 
 void curl_stats_destroy(curl_stats_t *s) {
-  if (s != NULL) {
-    metric_family_metric_reset(s->metrics->count_fam);
-    metric_family_metric_reset(s->metrics->size_fam);
-    metric_family_metric_reset(s->metrics->speed_fam);
-    metric_family_metric_reset(s->metrics->time_fam);
-    free(s->metrics);
+  if (s != NULL)
     free(s);
-  }
 } /* curl_stats_destroy */
 
-/* TODO: delete unused arguments when all plugins will migrate to the new metric
- * data structure */
+/*int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
+                        const char *plugin, const char *plugin_instance) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  if (s == NULL)
+    return 0;
+  if ((curl == NULL) || (plugin == NULL)) {
+    ERROR("curl stats: dispatch() called with missing arguments "
+          "(curl=%p; plugin=%s)",
+          curl, plugin == NULL ? "<NULL>" : plugin);
+    return -1;
+  }
+
+  if (hostname != NULL)
+    sstrncpy(vl.host, hostname, sizeof(vl.host));
+  sstrncpy(vl.plugin, plugin, sizeof(vl.plugin));
+  if (plugin_instance != NULL)
+    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+
+  for (size_t field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
+    int status;
+
+    if (!field_enabled(s, field_specs[field].offset))
+      continue;
+
+    sstrncpy(vl.type, field_specs[field].type, sizeof(vl.type));
+    sstrncpy(vl.type_instance, field_specs[field].name,
+             sizeof(vl.type_instance));
+
+    vl.values = NULL;
+    vl.values_len = 0;
+    status = field_specs[field].dispatcher(curl, field_specs[field].info, &vl);
+    if (status < 0)
+      return status;
+  }
+
+  return 0;
+}*/ /* curl_stats_dispatch */
+
 int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
                         const char *plugin, const char *plugin_instance) {
+  metric_family_t fam = {
+      .name = "curl_stats_dispatch",
+      .type = METRIC_TYPE_GAUGE,
+  };
+
   if (s == NULL)
     return 0;
   if (curl == NULL) {
@@ -456,49 +339,10 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
     if (!field_enabled(s, field_specs[field].offset))
       continue;
 
-    status = field_specs[field].dispatcher(curl, field_specs[field].info,
-                                           s->metrics, field_specs[field].type);
-
-    if (status < 0) {
+    status = field_specs[field].dispatcher(curl, field_specs[field].info, &fam);
+    if (status < 0)
       return status;
-    }
   }
 
   return 0;
 } /* curl_stats_dispatch */
-
-int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
-  if (s == NULL)
-    return 0;
-  if (curl == NULL) {
-    ERROR("curl stats: dispatch() called with missing argument: curl=%p", curl);
-    return -1;
-  }
-
-  for (size_t field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
-    int status;
-
-    if (!field_enabled(s, field_specs[field].offset))
-      continue;
-
-    status = field_specs[field].account_data(
-        curl, field_specs[field].info, s->metrics, field_specs[field].name);
-
-    if (status < 0) {
-      return status;
-    }
-  }
-
-  return 0;
-} /* curl_stats_account_data */
-
-int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
-  int status;
-
-  status = plugin_dispatch_metric_family(s->metrics->count_fam);
-  status |= plugin_dispatch_metric_family(s->metrics->size_fam);
-  status |= plugin_dispatch_metric_family(s->metrics->speed_fam);
-  status |= plugin_dispatch_metric_family(s->metrics->time_fam);
-
-  return status;
-} /* curl_stats_send_metric_to_daemon */
