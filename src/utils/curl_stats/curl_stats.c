@@ -56,77 +56,57 @@ struct curl_stats_s {
 /*
  * Private functions
  */
-static int dispatch_gauge(CURL *curl, CURLINFO info, metric_family_t *fam) {
+static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m,
+                          bool asynchronous) {
   CURLcode code;
-  value_t v;
 
-  code = curl_easy_getinfo(curl, info, &v.gauge);
+  code = curl_easy_getinfo(curl, info, &m->value.gauge);
   if (code != CURLE_OK)
     return -1;
 
-  metric_t m = {
-      .family = fam,
-      .value = v,
-  };
-
-  metric_family_metric_append(fam, m);
-
   /* TODO(bkjg): "This library should optionally be able to update
    * distribution_t instead of calling plugin_dispatch_values." */
-  return plugin_dispatch_metric_family(fam);
+  return plugin_dispatch_metric_family(m->family);
 } /* dispatch_gauge */
 
 /* dispatch a speed, in bytes/second */
-static int dispatch_speed(CURL *curl, CURLINFO info, metric_family_t *fam) {
+static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m,
+                          bool asynchronous) {
   CURLcode code;
-  value_t v;
 
-  code = curl_easy_getinfo(curl, info, &v.gauge);
+  code = curl_easy_getinfo(curl, info, &m->value.gauge);
   if (code != CURLE_OK)
     return -1;
 
-  v.gauge *= 8;
-
-  metric_t m = {
-      .family = fam,
-      .value = v,
-  };
-
-  metric_family_metric_append(fam, m);
+  m->value.gauge *= 8;
 
   /* TODO(bkjg): "This library should optionally be able to update
    * distribution_t instead of calling plugin_dispatch_values." */
-  return plugin_dispatch_metric_family(fam);
+  return plugin_dispatch_metric_family(m->family);
 } /* dispatch_speed */
 
 /* dispatch a size/count, reported as a long value */
-static int dispatch_size(CURL *curl, CURLINFO info, metric_family_t *fam) {
+static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m,
+                         bool asynchronous) {
   CURLcode code;
-  value_t v;
   long raw;
 
   code = curl_easy_getinfo(curl, info, &raw);
   if (code != CURLE_OK)
     return -1;
 
-  v.gauge = (double)raw;
+  m->value.gauge = (double)raw;
 
-  metric_t m = {
-      .family = fam,
-      .value = v,
-  };
-
-  metric_family_metric_append(fam, m);
   /* TODO(bkjg): "This library should optionally be able to update
    * distribution_t instead of calling plugin_dispatch_values." */
-  return plugin_dispatch_metric_family(fam);
+  return plugin_dispatch_metric_family(m->family);
 }
 
 static struct {
   const char *name;
   const char *config_key;
   size_t offset;
-  int (*dispatcher)(CURL *, CURLINFO, metric_family_t *);
+  int (*dispatcher)(CURL *, CURLINFO, metric_t *, bool);
   const char *type;
   CURLINFO info;
 } field_specs[] = {
@@ -231,11 +211,9 @@ void curl_stats_destroy(curl_stats_t *s) {
 /* TODO: delete unused arguments when all plugins will migrate to the new metric
  * data structure */
 int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
-                        const char *plugin, const char *plugin_instance) {
-  metric_family_t fam = {
-      .name = "curl_stats_dispatch",
-      .type = METRIC_TYPE_GAUGE,
-  };
+                        const char *plugin, const char *plugin_instance,
+                        bool asynchronous) {
+  metric_t *m = metric_parse_identity(hostname);
 
   if (s == NULL)
     return 0;
@@ -250,10 +228,14 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
     if (!field_enabled(s, field_specs[field].offset))
       continue;
 
-    status = field_specs[field].dispatcher(curl, field_specs[field].info, &fam);
-    if (status < 0)
+    status = field_specs[field].dispatcher(curl, field_specs[field].info, m,
+                                           asynchronous);
+    if (status < 0) {
+      metric_family_free(m->family);
       return status;
+    }
   }
 
+  metric_family_free(m->family);
   return 0;
 } /* curl_stats_dispatch */
