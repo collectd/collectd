@@ -31,24 +31,24 @@
 // Helper functions
 // static int ctx_entl_size = 0;
 
-intel_pmu_ctx_t* stub_pmu_init() {
-  intel_pmu_ctx_t* pmu_ctx = calloc(1, sizeof(*pmu_ctx));
-  intel_pmu_entity_t* entl = calloc(1, sizeof(*entl));
+intel_pmu_ctx_t *stub_pmu_init() {
+  intel_pmu_ctx_t *pmu_ctx = calloc(1, sizeof(*pmu_ctx));
+  intel_pmu_entity_t *entl = calloc(1, sizeof(*entl));
 
   pmu_ctx->entl = entl;
 
   return pmu_ctx;
 }
 
-void stub_pmu_teardown(intel_pmu_ctx_t* pmu_ctx) {
+void stub_pmu_teardown(intel_pmu_ctx_t *pmu_ctx) {
   free(pmu_ctx->entl);
   free(pmu_ctx);
 }
 
 DEF_TEST(pmu_config_hw_events__all_events) {
   // setup
-  intel_pmu_ctx_t* pmu_ctx = stub_pmu_init();
-  intel_pmu_entity_t* ent = pmu_ctx->entl;
+  intel_pmu_ctx_t *pmu_ctx = stub_pmu_init();
+  intel_pmu_entity_t *ent = pmu_ctx->entl;
 
   oconfig_value_t values[] = {
       {.value.string = "All", .type = OCONFIG_TYPE_STRING},
@@ -71,16 +71,15 @@ DEF_TEST(pmu_config_hw_events__all_events) {
 
 DEF_TEST(pmu_config_hw_events__few_events) {
   // setup
-  intel_pmu_ctx_t* pmu_ctx = stub_pmu_init();
-  intel_pmu_entity_t* ent = pmu_ctx->entl;
+  intel_pmu_ctx_t *pmu_ctx = stub_pmu_init();
+  intel_pmu_entity_t *ent = pmu_ctx->entl;
 
   oconfig_value_t values[] = {
       {.value.string = "event0", .type = OCONFIG_TYPE_STRING},
       {.value.string = "event1", .type = OCONFIG_TYPE_STRING},
       {.value.string = "event2", .type = OCONFIG_TYPE_STRING},
       {.value.string = "event3", .type = OCONFIG_TYPE_STRING},
-      {.value.string = "event4", .type = OCONFIG_TYPE_STRING}
-  };
+      {.value.string = "event4", .type = OCONFIG_TYPE_STRING}};
   oconfig_item_t config_item = {
       .key = "HardwareEvents",
       .values = values,
@@ -91,7 +90,7 @@ DEF_TEST(pmu_config_hw_events__few_events) {
   int result = pmu_config_hw_events(&config_item, ent);
   EXPECT_EQ_INT(0, result);
   EXPECT_EQ_INT(config_item.values_num, ent->hw_events_count);
-  for(int i = 0; i < ent->hw_events_count; i++) {
+  for (int i = 0; i < ent->hw_events_count; i++) {
     EXPECT_EQ_STR(values[i].value.string, ent->hw_events[i]);
   }
 
@@ -100,10 +99,7 @@ DEF_TEST(pmu_config_hw_events__few_events) {
   return 0;
 }
 
-DEF_TEST(config_cores_parse) {
-
-  return 0;
-}
+DEF_TEST(config_cores_parse) { return 0; }
 
 int main(void) {
   RUN_TEST(pmu_config_hw_events__all_events);
