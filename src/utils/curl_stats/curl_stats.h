@@ -52,7 +52,8 @@ void curl_stats_destroy(curl_stats_t *s);
  * cURL session to the daemon.
  */
 int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
-                        const char *plugin, const char *plugin_instance);
+                        const char *plugin, const char *plugin_instance,
+                        bool asynchronous);
 
 /* TODO(bkjg): add descriptions of these functions */
 int curl_stats_account_data(curl_stats_t *s, CURL *curl);
