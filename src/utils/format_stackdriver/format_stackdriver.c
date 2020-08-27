@@ -184,6 +184,8 @@ static int format_metric_kind(yajl_gen gen, metric_t const *m) {
     return json_string(gen, "GAUGE");
   case METRIC_TYPE_COUNTER:
     return json_string(gen, "CUMULATIVE");
+  case METRIC_TYPE_DISTRIBUTION:
+    return json_string(gen, "CUMULATIVE");
   default:
     ERROR("format_metric_kind: unknown value type %d.", m->family->type);
     return EINVAL;
