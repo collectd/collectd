@@ -156,26 +156,40 @@ static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
   return 0;
 }
 
-static double account_new_data_double(CURL *curl, CURLINFO info) {
+static int account_new_data_double(CURL *curl, CURLINFO info, metric_t *m) {
   CURLcode code;
-  double raw;
+  double val;
 
-  code = curl_easy_getinfo(curl, info, &raw);
+  code = curl_easy_getinfo(curl, info, &val);
   if (code != CURLE_OK)
-    return NAN;
+    return -1;
 
-  return raw;
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val * 8);
+  } else {
+    m->value.gauge = val * 8;
+  }
+
+  return 0;
 }
 
-static double account_new_data_long(CURL *curl, CURLINFO info) {
+static int account_new_data_long(CURL *curl, CURLINFO info, metric_t *m) {
   CURLcode code;
   long raw;
 
   code = curl_easy_getinfo(curl, info, &raw);
   if (code != CURLE_OK)
-    return NAN;
+    return -1;
 
-  return (double)raw;
+  double val = (double)raw;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val * 8);
+  } else {
+    m->value.gauge = val * 8;
+  }
+
+  return 0;
 }
 
 static int send_metrics_to_the_daemon(metric_family_t *fam) {
@@ -188,16 +202,12 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m,
                           bool asynchronous) {
   DEBUG("curl_stats: dispatch_gauge");
   if (asynchronous) {
-    double val = account_new_data_double(curl, info);
-    if (val == NAN) {
+    int status = account_new_data_double(curl, info, m);
+
+    if (status != 0) {
       return -1;
     }
 
-    if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-      distribution_update(m->value.distribution, val);
-    } else {
-      m->value.gauge = val;
-    }
     return send_metrics_to_the_daemon(m->family);
   } else {
     CURLcode code;
@@ -223,15 +233,10 @@ static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m,
                           bool asynchronous) {
   DEBUG("curl_stats: dispatch_speed");
   if (asynchronous) {
-    double val = account_new_data_double(curl, info);
-    if (val == NAN) {
-      return -1;
-    }
+    int status = account_new_data_double(curl, info, m);
 
-    if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-      distribution_update(m->value.distribution, val * 8);
-    } else {
-      m->value.gauge = val * 8;
+    if (status != 0) {
+      return -1;
     }
 
     return send_metrics_to_the_daemon(m->family);
@@ -260,16 +265,12 @@ static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m,
                          bool asynchronous) {
   DEBUG("curl_stats: dispatch_size");
   if (asynchronous) {
-    double val = account_new_data_long(curl, info);
-    if (val == NAN) {
+    int status = account_new_data_long(curl, info, m);
+
+    if (status != 0) {
       return -1;
     }
 
-    if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-      distribution_update(m->value.distribution, val);
-    } else {
-      m->value.gauge = val;
-    }
     return send_metrics_to_the_daemon(m->family);
   } else {
     CURLcode code;
