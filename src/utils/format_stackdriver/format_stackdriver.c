@@ -82,6 +82,12 @@ static int json_time(yajl_gen gen, cdtime_t t) {
   return json_string(gen, buffer);
 } /* }}} int json_time */
 
+static int json_longint(yajl_gen gen, uint64_t num) {
+  char buffer[64];
+  sprintf(buffer, "%" PRIu64, num);
+  return json_string(gen, buffer);
+} /* }}} int json_longint */
+
 /* MonitoredResource
  *
  * {
@@ -779,3 +785,71 @@ int sd_format_metric_descriptor(strbuf_t *buf, metric_t const *m) {
   yajl_gen_free(gen);
   return status;
 } /* }}} int sd_format_metric_descriptor */
+
+static int format_buckets(yajl_gen gen, distribution_t *dist) {
+  int status = json_string(gen, "bucketOptions");
+  if (status != 0) {
+    return status;
+  }
+
+  yajl_gen_map_open(gen);
+  /* We provide explicit buckets to avoid issues with precision */
+  status = json_string(gen, "explicitBuckets");
+  if (status != 0) {
+    return status;
+  }
+
+  yajl_gen_map_open(gen);
+  status = json_string(gen, "buckets");
+  if (status != 0) {
+    return status;
+  }
+
+  buckets_array_t buckets_array = distribution_get_buckets(dist);
+  yajl_gen_array_open(gen);
+  for (size_t i = 0; i < buckets_array.num_buckets - 1; i++) {
+    yajl_gen_status status = yajl_gen_double(gen, buckets_array.buckets[i].maximum);
+    if (status != yajl_gen_status_ok) {
+      return status;
+    }
+  }
+  yajl_gen_array_close(gen);
+  yajl_gen_map_close(gen);
+  yajl_gen_map_close(gen);
+
+  status = json_string(gen, "bucketCounts");
+  if (status != 0) {
+    return status;
+  }
+
+  yajl_gen_array_open(gen);
+  for (size_t i = 0; i < buckets_array.num_buckets; i++) {
+    int status = json_longint(gen, buckets_array.buckets[i].bucket_counter);
+    if (status != 0) {
+      return status;
+    }
+  }
+  yajl_gen_array_close(gen);
+  distribution_destroy_buckets_array(buckets_array);
+  return 0;
+}
+
+int format_distribution(yajl_gen gen, distribution_t *dist) {
+  if (dist == NULL) {
+    return 1;
+  }
+  yajl_gen_map_open(gen);
+  int status = json_string(gen, "count") || json_longint(gen, distribution_total_counter(dist)) ||
+               json_string(gen, "mean") || (int)yajl_gen_double(gen, distribution_average(dist)) ||
+               json_string(gen, "sumOfSquaredDeviation") || (int)yajl_gen_double(gen, distribution_squared_deviation_sum(dist));
+  if (status != 0) {
+    yajl_gen_free(gen);
+    return status;
+  }
+
+  status = format_buckets(gen, dist);
+  if (status != 0) {
+    yajl_gen_free(gen);
+    return status;
+  }
+}
