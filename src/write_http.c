@@ -146,7 +146,7 @@ static int wh_post(wh_callback_t *cb, char const *data) {
 
   if (cb->curl_stats != NULL) {
     int rc = curl_stats_dispatch(cb->curl_stats, cb->curl, NULL, "write_http",
-                                 cb->name);
+                                 cb->name, 1);
     if (rc != 0) {
       ERROR("write_http plugin: curl_stats_dispatch failed with status %d", rc);
     }

@@ -553,6 +553,7 @@ static int cc_config(oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Page", child->key) == 0) {
+      DEBUG("CC_config: Page true\n");
       status = cc_config_add_page(child);
       if (status == 0)
         success++;
@@ -652,7 +653,7 @@ static int cc_read_page(user_data_t *ud) /* {{{ */
   if (wp->response_time)
     cc_submit_response_time(wp, CDTIME_T_TO_DOUBLE(cdtime() - start));
   if (wp->stats != NULL)
-    curl_stats_dispatch(wp->stats, wp->curl, NULL, "curl", wp->instance);
+    curl_stats_dispatch(wp->stats, wp->curl, NULL, "curl", wp->instance, 0);
 
   if (wp->response_code) {
     long response_code = 0;
