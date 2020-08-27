@@ -224,16 +224,17 @@ static int decode_string(char const *in, uint8_t *out, size_t *out_size) {
 }
 
 DEF_TEST(parse_packet) {
-  sockent_t se = {
-      .data.server =
-          (struct sockent_server){
+  sockent_t se
 #if HAVE_GCRYPT_H
-              .cypher = NULL,
-              .userdb = NULL,
-              .security_level = SECURITY_LEVEL_NONE,
+      = {.data.server =
+             (struct sockent_server){
+                 .cypher = NULL,
+                 .userdb = NULL,
+                 .security_level = SECURITY_LEVEL_NONE,
+             },
+        }
 #endif
-          },
-  };
+  ;
 
   for (size_t i = 0; i < sizeof(raw_packet_data) / sizeof(raw_packet_data[0]);
        i++) {
