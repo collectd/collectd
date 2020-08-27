@@ -116,7 +116,7 @@ uint64_t distribution_total_counter(distribution_t *dist);
 
 double distribution_squared_deviation_sum(distribution_t *dist);
 
-void destroy_buckets_array(buckets_array_t buckets_array);
+void distribution_destroy_buckets_array(buckets_array_t buckets_array);
 
 /* TODO(bkjg): add description */
 int distribution_sub(distribution_t *d1, distribution_t *d2);
