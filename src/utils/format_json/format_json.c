@@ -125,11 +125,11 @@ static int format_metric_distribution(strbuf_t buf, yajl_gen g,
 
     double max = buckets.buckets[i].maximum;
     char max_char[sizeof(max)];
-    snprintf(max_char, 64, "%.2f", max);
+    snprintf(max_char, sizeof(max), "%.2f", max);
 
     uint64_t bucket_counter = buckets.buckets[i].bucket_counter;
     char counter_char[sizeof(bucket_counter)];
-    snprintf(counter_char, 64, "%lu", bucket_counter);
+    snprintf(counter_char, sizeof(bucket_counter), "%lu", bucket_counter);
     CHECK(json_add_string(g, max_char));
     CHECK(json_add_string(g, counter_char));
   }
