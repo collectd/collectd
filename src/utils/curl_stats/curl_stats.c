@@ -364,12 +364,16 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   if (s == NULL)
     return NULL;
 
-  s->m = metric_parse_identity("curl_stats");
+  /* TODO(bkjg): figure out how to assign different identities. Maybe in config file put the value of identity */
+  /* one brute force solution is to append an address that is in s pointer */
+  char identity[256];
 
-  if (s->m == NULL) {
-    return NULL;
-  }
+  snprintf(identity, 256, "curl_stats_%p", s);
 
+  oconfig_item_t *conf_distribution = NULL;
+
+
+  metric_type_t metric_family_type = METRIC_TYPE_UNTYPED;
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
     size_t field;
@@ -382,17 +386,30 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       if (!strcasecmp(c->key, field_specs[field].name))
         break;
     }
+
     if (field >= STATIC_ARRAY_SIZE(field_specs)) {
+      DEBUG("curl_stats: Will read unknown field\n");
+      /* TODO(bkjg): create an array with names of metric types */
+      /* TODO(bkjg): check if only one type of distribution is specified (??) */
       if (!strcasecmp(c->key, "METRIC_TYPE_DISTRIBUTION")) {
-        s->m->family->type = METRIC_TYPE_DISTRIBUTION;
-        parse_distribution_from_config(s->m, c);
+        metric_family_type = METRIC_TYPE_DISTRIBUTION;
+        conf_distribution = c;
         continue;
       } else if (!strcasecmp(c->key, "METRIC_TYPE_GAUGE")) {
-        s->m->family->type = METRIC_TYPE_GAUGE;
+        metric_family_type = METRIC_TYPE_GAUGE;
+        continue;
       } else if (!strcasecmp(c->key, "METRIC_TYPE_COUNTER")) {
-        s->m->family->type = METRIC_TYPE_COUNTER;
+        metric_family_type = METRIC_TYPE_COUNTER;
+        continue;
       } else if (!strcasecmp(c->key, "METRIC_TYPE_UNTYPED")) {
-        s->m->family->type = METRIC_TYPE_UNTYPED;
+        metric_family_type = METRIC_TYPE_UNTYPED;
+        continue;
+      } else if (!strcasecmp(c->key, "Identity")) {
+        if (cf_util_get_string_buffer(c, identity, 256) != 0) {
+          free(s);
+          return NULL;
+        }
+        continue;
       } else {
         ERROR("curl stats: Unknown field name %s", c->key);
         free(s);
@@ -407,6 +424,15 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     if (enabled)
       enable_field(s, field_specs[field].offset);
   }
+
+  s->m = metric_parse_identity(identity);
+
+  if (s->m == NULL) {
+    return NULL;
+  }
+
+  s->m->family->type = metric_family_type;
+  parse_distribution_from_config(s->m, conf_distribution);
 
   return s;
 } /* curl_stats_from_config */
