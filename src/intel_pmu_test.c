@@ -41,7 +41,7 @@ intel_pmu_ctx_t *stub_pmu_init() {
 }
 
 void stub_pmu_teardown(intel_pmu_ctx_t *pmu_ctx) {
-  for(int i = 0; i < pmu_ctx->entl->hw_events_count; i++) {
+  for (int i = 0; i < pmu_ctx->entl->hw_events_count; i++) {
     sfree(pmu_ctx->entl->hw_events[i]);
   }
   sfree(pmu_ctx->entl->hw_events);
