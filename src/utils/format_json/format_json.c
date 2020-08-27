@@ -129,7 +129,7 @@ static int format_metric_distribution(strbuf_t buf, yajl_gen g,
 
     uint64_t bucket_counter = buckets.buckets[i].bucket_counter;
     char counter_char[sizeof(bucket_counter)];
-    snprintf(counter_char, sizeof(bucket_counter), "%lu", bucket_counter);
+    snprintf(counter_char, sizeof(bucket_counter), "%" PRIu64, bucket_counter);
     CHECK(json_add_string(g, max_char));
     CHECK(json_add_string(g, counter_char));
   }
