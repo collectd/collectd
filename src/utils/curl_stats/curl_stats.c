@@ -354,6 +354,7 @@ static bool field_enabled(curl_stats_t *s, size_t offset) {
  * Public API
  */
 curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
+  const static int MAX_IDENTITY_LENGTH = 256;
   DEBUG("curl_stats_from_config\n");
   curl_stats_t *s;
 
@@ -364,14 +365,12 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   if (s == NULL)
     return NULL;
 
-  /* TODO(bkjg): figure out how to assign different identities. Maybe in config file put the value of identity */
-  /* one brute force solution is to append an address that is in s pointer */
-  char identity[256];
+  char identity[MAX_IDENTITY_LENGTH];
 
-  snprintf(identity, 256, "curl_stats_%p", s);
+  /* make identity of each metric unique */
+  snprintf(identity, MAX_IDENTITY_LENGTH, "curl_stats_%p", s);
 
   oconfig_item_t *conf_distribution = NULL;
-
 
   metric_type_t metric_family_type = METRIC_TYPE_UNTYPED;
   for (int i = 0; i < ci->children_num; ++i) {
@@ -388,7 +387,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
 
     if (field >= STATIC_ARRAY_SIZE(field_specs)) {
-      DEBUG("curl_stats: Will read unknown field\n");
       /* TODO(bkjg): create an array with names of metric types */
       /* TODO(bkjg): check if only one type of distribution is specified (??) */
       if (!strcasecmp(c->key, "METRIC_TYPE_DISTRIBUTION")) {
@@ -405,7 +403,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         metric_family_type = METRIC_TYPE_UNTYPED;
         continue;
       } else if (!strcasecmp(c->key, "Identity")) {
-        if (cf_util_get_string_buffer(c, identity, 256) != 0) {
+        if (cf_util_get_string_buffer(c, identity, MAX_IDENTITY_LENGTH) != 0) {
           free(s);
           return NULL;
         }
