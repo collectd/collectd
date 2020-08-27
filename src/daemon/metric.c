@@ -55,17 +55,38 @@ int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist) {
 int distribution_marshal_text(strbuf_t *buf, distribution_t *dist) {
 
   buckets_array_t buckets = get_buckets(dist);
-  strbuf_printf(buf, "buckets:\n");
+  int status_buckets_heading = strbuf_printf(buf, "\"buckets:\" {\n");
+  if (status_buckets_heading != 0) {
+    return status_buckets_heading;
+  }
   for (size_t i = 0; i < buckets.num_buckets; i++) {
-    int status =
-        strbuf_printf(buf, "\"%.2f\":\"%lu\",\n", buckets.buckets[i].maximum,
-                      buckets.buckets[i].bucket_counter);
-    if (status != 0) {
-      return status;
+    if (i < buckets.num_buckets - 1) {
+      int status_buckets =
+          strbuf_printf(buf, "\"%.2f\":\"%lu\",\n", buckets.buckets[i].maximum,
+                        buckets.buckets[i].bucket_counter);
+      if (status_buckets != 0) {
+        return status_buckets;
+      }
+    } else {
+      int status_buckets =
+          strbuf_printf(buf, "\"%.2f\":\"%lu\"\n", buckets.buckets[i].maximum,
+                        buckets.buckets[i].bucket_counter);
+      if (status_buckets != 0) {
+        return status_buckets;
+      }
     }
   }
-  strbuf_printf(buf, "%" PRIu64, distribution_total_counter(dist));
-  strbuf_printf(buf, GAUGE_FORMAT, distribution_total_sum(dist));
+  int status_count = strbuf_printf(buf, "},\n\"count\":\"%lu\",\n",
+                                   distribution_total_counter(dist));
+  if (status_count != 0) {
+    return status_count;
+  }
+
+  int status_sum =
+      strbuf_printf(buf, "\"sum\":\"%.2f\n", distribution_total_sum(dist));
+  if (status_sum != 0) {
+    return status_sum;
+  }
   return 0;
 }
 
