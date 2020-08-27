@@ -271,8 +271,12 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
                         const char *plugin, const char *plugin_instance,
                         bool asynchronous) {
   DEBUG("curl_stats_dispatch\n");
-  metric_t *m = metric_parse_identity(hostname);
-
+  metric_t *m = metric_parse_identity("curl_stats_dispatch");
+  DEBUG("curl_stats_dispatch: After parsing identity\n");
+  if (m == NULL) {
+    ERROR("curl stats: creating metric failed: %s", hostname);
+    return -1;
+  }
   if (s == NULL)
     return 0;
   if (curl == NULL) {
@@ -280,20 +284,26 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
     return -1;
   }
 
+  DEBUG("curl_stats_dispatch: Starting the loop\n");
   for (size_t field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
     int status;
 
+    DEBUG("curl_stats_dispatch: Checking if %ld is enabled. Array size is %ld.\n", field, STATIC_ARRAY_SIZE(field_specs));
     if (!field_enabled(s, field_specs[field].offset))
       continue;
 
+    DEBUG("curl_stats_dispatch: Calling dispatcher\n");
     status = field_specs[field].dispatcher(curl, field_specs[field].info, m,
                                            asynchronous);
+    DEBUG("curl_stats_dispatch: After calling dispatcher\n");
     if (status < 0) {
       metric_family_free(m->family);
       return status;
     }
   }
 
+  DEBUG("curl_stats_dispatch: Freeing metric family: %p\n", m->family);
   metric_family_free(m->family);
+  DEBUG("curl_stats_dispatch: Returning from function\n");
   return 0;
 } /* curl_stats_dispatch */
