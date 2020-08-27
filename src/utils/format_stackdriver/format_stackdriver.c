@@ -852,4 +852,5 @@ int format_distribution(yajl_gen gen, distribution_t *dist) {
     yajl_gen_free(gen);
     return status;
   }
+  return 0;
 }
