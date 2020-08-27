@@ -108,7 +108,7 @@ void distribution_destroy(distribution_t *d);
 size_t distribution_num_buckets(distribution_t *dist);
 
 /** @return - array of buckets in the distribution **/
-buckets_array_t get_buckets(distribution_t *dist);
+buckets_array_t distribution_get_buckets(distribution_t *dist);
 
 double distribution_total_sum(distribution_t *dist);
 

@@ -294,7 +294,7 @@ static void tree_write_leave_buckets(distribution_t *dist, bucket_t *write_ptr,
   tree_write_leave_buckets(dist, write_ptr, right_child, mid + 1, right);
 }
 
-buckets_array_t get_buckets(distribution_t *dist) {
+buckets_array_t distribution_get_buckets(distribution_t *dist) {
   buckets_array_t bucket_array = {
       .num_buckets = dist == NULL ? 0 : dist->num_buckets,
       .buckets = dist == NULL
@@ -323,7 +323,7 @@ double distribution_total_sum(distribution_t *dist) {
 
 uint64_t distribution_total_counter(distribution_t *dist) {
   if (dist == NULL) {
-    return EINVAL;
+    return 0;
   }
   return dist->tree[0].bucket_counter; // should I add mutex here?
 }
