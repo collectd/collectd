@@ -1,3 +1,4 @@
+
 /**
  * collectd - src/utils_format_json.c
  * Copyright (C) 2009-2015  Florian octo Forster
@@ -113,6 +114,41 @@ static int format_time(yajl_gen g, cdtime_t t) /* {{{ */
   return 0;
 } /* }}} int format_time */
 
+static int format_metric_distribution(strbuf_t buf, yajl_gen g,
+                                      metric_t const *m) {
+
+  CHECK(json_add_string(g, "buckets"));
+  CHECK(yajl_gen_map_open(g)); /*Begin Buckets*/
+
+  buckets_array_t buckets = get_buckets(m->value.distribution);
+  for (size_t i = 0; i < buckets.num_buckets; i++) {
+
+    double max = buckets.buckets[i].maximum;
+    char max_char[sizeof(max)];
+    snprintf(max_char, 15, "%.2f", max);
+
+    uint64_t bucket_counter = buckets.buckets[i].bucket_counter;
+    char counter_char[sizeof(bucket_counter)];
+    snprintf(counter_char, 15, "%lu", bucket_counter);
+    CHECK(json_add_string(g, max_char));
+    CHECK(json_add_string(g, counter_char));
+  }
+  CHECK(yajl_gen_map_close(g)); /*End Buckets*/
+
+  distribution_count_marshal_text(&buf, m->value.distribution);
+
+  CHECK(json_add_string(g, "count"));
+  CHECK(json_add_string(g, buf.ptr));
+  strbuf_reset(&buf);
+
+  distribution_sum_marshal_text(&buf, m->value.distribution);
+
+  CHECK(json_add_string(g, "sum"));
+  CHECK(json_add_string(g, buf.ptr));
+  STRBUF_DESTROY(buf);
+  return 0;
+}
+
 /* TODO(octo): format_metric should export the interval, too. */
 /* TODO(octo): Decide whether format_metric should export meta data. */
 static int format_metric(yajl_gen g, metric_t const *m) {
@@ -140,6 +176,14 @@ static int format_metric(yajl_gen g, metric_t const *m) {
   }
 
   strbuf_t buf = STRBUF_CREATE;
+
+  if (m->family != NULL && m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    format_metric_distribution(buf, g, m);
+    STRBUF_DESTROY(buf);
+    CHECK(yajl_gen_map_close(g)); /* END metric */
+    return 0;
+  }
+
   int status = value_marshal_text(&buf, m->value, m->family->type);
   if (status != 0) {
     STRBUF_DESTROY(buf);
@@ -187,6 +231,9 @@ static int json_metric_family(yajl_gen g, metric_family_t const *fam) {
     break;
   case METRIC_TYPE_UNTYPED:
     type = "UNTYPED";
+    break;
+  case METRIC_TYPE_DISTRIBUTION:
+    type = "DISTRIBUTION";
     break;
   default:
     ERROR("format_json_metric: Unknown value type: %d", fam->type);
