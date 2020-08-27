@@ -203,35 +203,39 @@ DEF_TEST(metric_family) {
         .value.distribution = distribution_new_linear(2, 20),
         .type = METRIC_TYPE_DISTRIBUTION,
         .time = MS_TO_CDTIME_T(1592987324125),
-        .want =
-            "[{\"name\":\"distribution_metric\",\"type\":\"DISTRIBUTION\",\"metrics\":["
-            "{\"timestamp_ms\":\"1592987324125\",\"buckets\":"
-            "{\"20.00\":\"0\",\"inf\":\"0\"},\"count\":\"0\",\"sum\":\"0\""
-            "}]}]",
+        .want = "[{\"name\":\"distribution_metric\",\"type\":\"DISTRIBUTION\","
+                "\"metrics\":["
+                "{\"timestamp_ms\":\"1592987324125\",\"buckets\":"
+                "{\"20.00\":\"0\",\"inf\":\"0\"},\"count\":\"0\",\"sum\":\"0\""
+                "}]}]",
     },
     {
         .identity = "distribution_metric",
         .value.distribution = distribution_new_exponential(10, 2, 3),
         .type = METRIC_TYPE_DISTRIBUTION,
         .time = MS_TO_CDTIME_T(1592987324125),
-        .want =
-            "[{\"name\":\"distribution_metric\",\"type\":\"DISTRIBUTION\",\"metrics\":["
-            "{\"timestamp_ms\":\"1592987324125\",\"buckets\":"
-            "{\"3.00\":\"0\",\"6.00\":\"0\",\"12.00\":\"0\",\"24.00\":\"0\",\"48.00\":\"0\",\"96.00\":\"0\",\"192.00\":\"0\",\"384.00\":\"0\",\"768.00\":\"0\",\"inf\":\"0\"},"
-            "\"count\":\"0\",\"sum\":\"0\""
-            "}]}]",
+        .want = "[{\"name\":\"distribution_metric\",\"type\":\"DISTRIBUTION\","
+                "\"metrics\":["
+                "{\"timestamp_ms\":\"1592987324125\",\"buckets\":"
+                "{\"3.00\":\"0\",\"6.00\":\"0\",\"12.00\":\"0\",\"24.00\":"
+                "\"0\",\"48.00\":\"0\",\"96.00\":\"0\",\"192.00\":\"0\",\"384."
+                "00\":\"0\",\"768.00\":\"0\",\"inf\":\"0\"},"
+                "\"count\":\"0\",\"sum\":\"0\""
+                "}]}]",
     },
     {
         .identity = "distribution_metric",
-        .value.distribution = distribution_new_custom(4, (double[]){3, 10, 50, 100}),
+        .value.distribution =
+            distribution_new_custom(4, (double[]){3, 10, 50, 100}),
         .type = METRIC_TYPE_DISTRIBUTION,
         .time = MS_TO_CDTIME_T(1592987324125),
-        .want =
-            "[{\"name\":\"distribution_metric\",\"type\":\"DISTRIBUTION\",\"metrics\":["
-            "{\"timestamp_ms\":\"1592987324125\",\"buckets\":"
-            "{\"3.00\":\"0\",\"10.00\":\"0\",\"50.00\":\"0\",\"100.00\":\"0\",\"inf\":\"0\"},"
-            "\"count\":\"0\",\"sum\":\"0\""
-            "}]}]",
+        .want = "[{\"name\":\"distribution_metric\",\"type\":\"DISTRIBUTION\","
+                "\"metrics\":["
+                "{\"timestamp_ms\":\"1592987324125\",\"buckets\":"
+                "{\"3.00\":\"0\",\"10.00\":\"0\",\"50.00\":\"0\",\"100.00\":"
+                "\"0\",\"inf\":\"0\"},"
+                "\"count\":\"0\",\"sum\":\"0\""
+                "}]}]",
     },
 #if 0
       {
@@ -266,11 +270,10 @@ DEF_TEST(metric_family) {
     CHECK_NOT_NULL(m = metric_parse_identity(cases[i].identity));
 
     m->family->type = cases[i].type;
-    if(m->family != NULL && m->family->type == METRIC_TYPE_DISTRIBUTION) {
-        m->value.distribution = cases[i].value.distribution;
-    }
-    else {
-        m->value = cases[i].value;
+    if (m->family != NULL && m->family->type == METRIC_TYPE_DISTRIBUTION) {
+      m->value.distribution = cases[i].value.distribution;
+    } else {
+      m->value = cases[i].value;
     }
     m->time = cases[i].time;
     m->interval = cases[i].interval;
