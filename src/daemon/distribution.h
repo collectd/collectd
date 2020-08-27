@@ -116,7 +116,7 @@ uint64_t distribution_total_counter(distribution_t *dist);
 
 double distribution_squared_deviation_sum(distribution_t *dist);
 
-void destroy_buckets_array(buckets_array_t buckets_array);
+void distribution_destroy_buckets_array(buckets_array_t buckets_array);
 
 /** @return true if distributions are equal false otherwise
  * This function holds both mutexes for d1 and d2. Be sure that you call the
