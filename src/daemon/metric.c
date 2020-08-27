@@ -26,6 +26,7 @@
  **/
 
 #include "collectd.h"
+#include "distribution.h"
 #include "metric.h"
 #include "plugin.h"
 
@@ -41,6 +42,33 @@
 /* Metric names must match the regex `[a-zA-Z_:][a-zA-Z0-9_:]*` */
 #define VALID_NAME_CHARS VALID_LABEL_CHARS ":"
 
+int distribution_count_marshal_text(strbuf_t *buf, distribution_t *dist) {
+
+  return strbuf_printf(buf, "%" PRIu64, distribution_total_counter(dist));
+}
+
+int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist) {
+
+  return strbuf_printf(buf, GAUGE_FORMAT, distribution_total_sum(dist));
+}
+
+int distribution_marshal_text(strbuf_t *buf, distribution_t *dist) {
+
+  buckets_array_t buckets = get_buckets(dist);
+  strbuf_printf(buf, "buckets:\n");
+  for (size_t i = 0; i < buckets.num_buckets; i++) {
+    int status =
+        strbuf_printf(buf, "\"%.2f\":\"%lu\",\n", buckets.buckets[i].maximum,
+                      buckets.buckets[i].bucket_counter);
+    if (status != 0) {
+      return status;
+    }
+  }
+  strbuf_printf(buf, "%" PRIu64, distribution_total_counter(dist));
+  strbuf_printf(buf, GAUGE_FORMAT, distribution_total_sum(dist));
+  return 0;
+}
+
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   switch (type) {
   case METRIC_TYPE_GAUGE:
@@ -48,6 +76,8 @@ int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
     return strbuf_printf(buf, GAUGE_FORMAT, v.gauge);
   case METRIC_TYPE_COUNTER:
     return strbuf_printf(buf, "%" PRIu64, v.counter);
+  case METRIC_TYPE_DISTRIBUTION:
+    return distribution_marshal_text(buf, v.distribution);
   default:
     ERROR("Unknown metric value type: %d", (int)type);
     return EINVAL;
