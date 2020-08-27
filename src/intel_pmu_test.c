@@ -44,6 +44,11 @@ void stub_pmu_teardown(intel_pmu_ctx_t *pmu_ctx) {
   for (int i = 0; i < pmu_ctx->entl->hw_events_count; i++) {
     sfree(pmu_ctx->entl->hw_events[i]);
   }
+  for (int i = 0; i < pmu_ctx->entl->cores.num_cgroups; i++) {
+    sfree(pmu_ctx->entl->cores.cgroups[i].desc);
+    sfree(pmu_ctx->entl->cores.cgroups[i].cores);
+  }
+  sfree(pmu_ctx->entl->cores.cgroups);
   sfree(pmu_ctx->entl->hw_events);
   sfree(pmu_ctx->entl);
   sfree(pmu_ctx);
@@ -103,12 +108,128 @@ DEF_TEST(pmu_config_hw_events__few_events) {
   return 0;
 }
 
-DEF_TEST(config_cores_parse) { return 0; }
+DEF_TEST(config_cores_parse__null_group) {
+  // setup
+  intel_pmu_ctx_t *pmu_ctx = stub_pmu_init();
+  core_groups_list_t *cores = &pmu_ctx->entl->cores;
+
+  oconfig_value_t values[] = {
+      {.value.string = NULL, .type = OCONFIG_TYPE_STRING}};
+  oconfig_item_t config_item = {
+      .key = "Cores",
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
+  };
+
+  // check
+  int result = config_cores_parse(&config_item, cores);
+  EXPECT_EQ_INT(-EINVAL, result);
+
+  // cleanup
+  stub_pmu_teardown(pmu_ctx);
+  return 0;
+}
+
+DEF_TEST(config_cores_parse__empty_group) {
+  // setup
+  intel_pmu_ctx_t *pmu_ctx = stub_pmu_init();
+  core_groups_list_t *cores = &pmu_ctx->entl->cores;
+
+  oconfig_value_t values[] = {
+      {.value.string = "", .type = OCONFIG_TYPE_STRING}};
+  oconfig_item_t config_item = {
+      .key = "Cores",
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
+  };
+
+  // check
+  int result = config_cores_parse(&config_item, cores);
+  EXPECT_EQ_INT(0, result);
+
+  // cleanup
+  stub_pmu_teardown(pmu_ctx);
+  return 0;
+}
+
+DEF_TEST(config_cores_parse__aggregated_groups) {
+  // setup
+  intel_pmu_ctx_t *pmu_ctx = stub_pmu_init();
+  core_groups_list_t *cores = &pmu_ctx->entl->cores;
+
+  char *core_groups[] = {
+      "0",    // 1 core
+      "1,2",  // 2 cores
+      "3,4-8" // 6 cores (3,4,5,6,7,8)
+  };
+  int group_cores[][6] = {{0}, {1, 2}, {3, 4, 5, 6, 7, 8}};
+  int cores_count[] = {1, 2, 6};
+  int groups_num = sizeof(cores_count) / sizeof(int);
+
+  oconfig_value_t values[] = {
+      {.value.string = core_groups[0], .type = OCONFIG_TYPE_STRING},
+      {.value.string = core_groups[1], .type = OCONFIG_TYPE_STRING},
+      {.value.string = core_groups[2], .type = OCONFIG_TYPE_STRING}};
+  oconfig_item_t config_item = {
+      .key = "Cores",
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
+  };
+
+  // check
+  int result = config_cores_parse(&config_item, cores);
+  EXPECT_EQ_INT(0, result);
+  EXPECT_EQ_INT(groups_num, cores->num_cgroups);
+  for (int group = 0; group < cores->num_cgroups; group++) {
+    EXPECT_EQ_INT(cores_count[group], cores->cgroups[group].num_cores);
+    EXPECT_EQ_STR(core_groups[group], cores->cgroups[group].desc);
+    for (int c = 0; c < cores->cgroups[group].num_cores; c++) {
+      EXPECT_EQ_INT(group_cores[group][c], cores->cgroups[group].cores[c]);
+    }
+  }
+
+  // cleanup
+  stub_pmu_teardown(pmu_ctx);
+  return 0;
+}
+
+DEF_TEST(config_cores_parse__not_aggregated_groups) {
+  // setup
+  intel_pmu_ctx_t *pmu_ctx = stub_pmu_init();
+  core_groups_list_t *cores = &pmu_ctx->entl->cores;
+
+  char *core_groups[] = {"[0-3]", "[4,5-8]"};
+
+  oconfig_value_t values[] = {
+      {.value.string = core_groups[0], .type = OCONFIG_TYPE_STRING},
+      {.value.string = core_groups[1], .type = OCONFIG_TYPE_STRING}};
+  oconfig_item_t config_item = {
+      .key = "Cores",
+      .values = values,
+      .values_num = STATIC_ARRAY_SIZE(values),
+  };
+
+  // check
+  int result = config_cores_parse(&config_item, cores);
+  EXPECT_EQ_INT(0, result);
+  EXPECT_EQ_INT(9, cores->num_cgroups);
+  for (int group = 0; group < cores->num_cgroups; group++) {
+    EXPECT_EQ_INT(1, cores->cgroups[group].num_cores);
+    EXPECT_EQ_INT(group, atoi(cores->cgroups[group].desc));
+  }
+
+  // cleanup
+  stub_pmu_teardown(pmu_ctx);
+  return 0;
+}
 
 int main(void) {
   RUN_TEST(pmu_config_hw_events__all_events);
   RUN_TEST(pmu_config_hw_events__few_events);
-  RUN_TEST(config_cores_parse);
+  RUN_TEST(config_cores_parse__null_group);
+  RUN_TEST(config_cores_parse__empty_group);
+  RUN_TEST(config_cores_parse__aggregated_groups);
+  RUN_TEST(config_cores_parse__not_aggregated_groups);
 
   END_TEST;
 }
