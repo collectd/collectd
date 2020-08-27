@@ -204,6 +204,8 @@ static int format_value_type(yajl_gen gen, metric_t const *m) {
     return json_string(gen, "DOUBLE");
   case METRIC_TYPE_COUNTER:
     return json_string(gen, "INT64");
+  case METRIC_TYPE_DISTRIBUTION:
+    return json_string(gen, "DISTRIBUTION");
   default:
     ERROR("format_value_type: unknown value type %d.", m->family->type);
     return EINVAL;
