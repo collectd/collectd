@@ -117,11 +117,11 @@ DEF_TEST(distribution_new_linear) {
     distribution_t *d;
     CHECK_NOT_NULL(
         d = distribution_new_linear(cases[i].num_buckets, cases[i].size));
-    buckets_array_t buckets_array = get_buckets(d);
+    buckets_array_t buckets_array = distribution_get_buckets(d);
     for (size_t j = 0; j < cases[i].num_buckets; j++) {
       EXPECT_EQ_DOUBLE(cases[i].want_get[j], buckets_array.buckets[j].maximum);
     }
-    destroy_buckets_array(buckets_array);
+    distribution_destroy_buckets_array(buckets_array);
     distribution_destroy(d);
   }
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
@@ -211,11 +211,11 @@ DEF_TEST(distribution_new_exponential) {
     distribution_t *d;
     CHECK_NOT_NULL(d = distribution_new_exponential(
                        cases[i].num_buckets, cases[i].base, cases[i].factor));
-    buckets_array_t buckets_array = get_buckets(d);
+    buckets_array_t buckets_array = distribution_get_buckets(d);
     for (size_t j = 0; j < cases[i].num_buckets; j++) {
       EXPECT_EQ_DOUBLE(cases[i].want_get[j], buckets_array.buckets[j].maximum);
     }
-    destroy_buckets_array(buckets_array);
+    distribution_destroy_buckets_array(buckets_array);
     distribution_destroy(d);
   }
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
@@ -290,11 +290,11 @@ DEF_TEST(distribution_new_custom) {
     distribution_t *d;
     CHECK_NOT_NULL(d = distribution_new_custom(cases[i].array_size,
                                                cases[i].custom_boundaries));
-    buckets_array_t buckets_array = get_buckets(d);
+    buckets_array_t buckets_array = distribution_get_buckets(d);
     for (size_t j = 0; j < cases[i].array_size + 1; j++) {
       EXPECT_EQ_DOUBLE(cases[i].want_get[j], buckets_array.buckets[j].maximum);
     }
-    destroy_buckets_array(buckets_array);
+    distribution_destroy_buckets_array(buckets_array);
     distribution_destroy(d);
   }
   return 0;
@@ -348,12 +348,12 @@ DEF_TEST(update) {
       distribution_destroy(cases[i].dist);
       continue;
     }
-    buckets_array_t buckets_array = get_buckets(cases[i].dist);
+    buckets_array_t buckets_array = distribution_get_buckets(cases[i].dist);
     for (size_t j = 0; j < buckets_array.num_buckets; j++) {
       EXPECT_EQ_INT(cases[i].want_counters[j],
                     buckets_array.buckets[j].bucket_counter);
     }
-    destroy_buckets_array(buckets_array);
+    distribution_destroy_buckets_array(buckets_array);
     distribution_destroy(cases[i].dist);
   }
   return 0;
