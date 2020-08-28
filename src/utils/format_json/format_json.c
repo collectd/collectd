@@ -24,6 +24,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Manoj Srivastava <srivasta at google.com>
+ *   Elene Margalitadze <elene.margalit at gmail.com>
  **/
 
 #include "collectd.h"
@@ -146,6 +147,7 @@ static int format_metric_distribution(strbuf_t buf, yajl_gen g,
   CHECK(json_add_string(g, "sum"));
   CHECK(json_add_string(g, buf.ptr));
   STRBUF_DESTROY(buf);
+  destroy_buckets_array(buckets);
   return 0;
 }
 
