@@ -61,6 +61,14 @@ static void inline lvm_vg_submit(const char *vg_name, // {{{
   lvm_submit("lvm_vg", vg_name, "df_complex", lv_name, size);
 } // lvm_vg_submit() }}}
 
+static void lvm_snap_submit(const char *vg_name, const char *lv_name, // {{{
+                            double pct_used) {
+  char *pi = ssnprintf_alloc("%s_%s", vg_name, lv_name);
+  lvm_submit("lvm_snap", pi, "percent_bytes", "used", pct_used);
+  lvm_submit("lvm_snap", pi, "percent_bytes", "free", 100.0 - pct_used);
+  sfree(pi);
+} // lvm_snap_submit() }}}
+
 static char *get_json_string(yajl_val json, const char *key) // {{{
 {
   const char *path[] = {NULL, NULL};
@@ -155,6 +163,15 @@ static int lvm_process_report(yajl_val json) // {{{
     }
     long long int lv_size = atoll(lv_size_str);
     lvm_vg_submit(vg_name, lv_name, lv_size);
+
+    // Additionally, if it's a snapshot, submit space usage within it
+    if ('s' == lv_attr[0] || 'S' == lv_attr[0]) {
+      char *lv_datap_str = get_json_string(lv, "data_percent");
+      if (lv_datap_str) {
+        double lv_datap = atof(lv_datap_str);
+        lvm_snap_submit(vg_name, lv_name, lv_datap);
+      }
+    }
   } // foreach LV }}}
 
   return 0;
