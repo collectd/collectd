@@ -267,7 +267,7 @@ DEF_TEST(metric_family) {
   };
 
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
-    metric_t *m = malloc(sizeof(metric_t*));
+    metric_t *m = NULL;
     CHECK_NOT_NULL(m = metric_parse_identity(cases[i].identity));
 
     m->family->type = cases[i].type;
