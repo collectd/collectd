@@ -153,6 +153,7 @@ check_LTLIBRARIES = \
 check_PROGRAMS = \
 	test_utils_cache \
 	test_common \
+	test_curl_stats \
 	test_distribution \
 	test_format_graphite \
 	test_meta_data \
@@ -359,6 +360,16 @@ test_common_SOURCES = \
 	src/utils/common/common_test.c \
 	src/testing.h
 test_common_LDADD = libmetric.la libplugin_mock.la
+
+test_curl_stats_SOURCES = \
+    src/utils/curl_stats/curl_stats.c \
+    src/utils/curl_stats/curl_stats.h \
+    src/utils/curl_stats/curl_stats_test.c \
+    src/daemon/configfile.c \
+    src/daemon/configfile.h \
+    src/daemon/types_list.c \
+    src/testing.h
+test_curl_stats_LDADD = liboconfig.la libmetric.la libplugin_mock.la $(BUILD_WITH_LIBCURL_LIBS)
 
 test_meta_data_SOURCES = \
 	src/utils/metadata/meta_data_test.c \
