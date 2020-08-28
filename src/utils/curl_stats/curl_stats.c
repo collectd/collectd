@@ -75,7 +75,7 @@ static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
   if (!strcasecmp(c->values[0].value.string, "DISTRIBUTION_LINEAR")) {
     if (c->values_num != 3) {
       ERROR("curl stats: Wrong number of arguments for metric type "
-            "distribution. Required %d, received %d.",
+            "linear distribution. Required %d, received %d.",
             2, c->values_num);
       return -1;
     }
@@ -83,7 +83,7 @@ static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
     if (c->values[1].type != OCONFIG_TYPE_NUMBER ||
         c->values[2].type != OCONFIG_TYPE_NUMBER) {
       ERROR("curl stats: Wrong type of arguments for metric type "
-            "distribution. Required %d, %d, received %d, %d.",
+            "linear distribution. Required %d, %d, received %d, %d.",
             OCONFIG_TYPE_NUMBER, OCONFIG_TYPE_NUMBER, c->values[1].type,
             c->values[2].type);
       return -1;
@@ -96,7 +96,7 @@ static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
                          "DISTRIBUTION_EXPONENTIAL")) {
     if (c->values_num != 4) {
       ERROR("curl stats: Wrong number of arguments for metric type "
-            "distribution. Required %d, received %d.",
+            "exponential distribution. Required %d, received %d.",
             3, c->values_num);
       return -1;
     }
@@ -105,7 +105,7 @@ static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
         c->values[2].type != OCONFIG_TYPE_NUMBER ||
         c->values[3].type != OCONFIG_TYPE_NUMBER) {
       ERROR("curl stats: Wrong type of arguments for metric type "
-            "distribution. Required %d, %d, %d, received %d, %d, %d.",
+            "exponential distribution. Required %d, %d, %d, received %d, %d, %d.",
             OCONFIG_TYPE_NUMBER, OCONFIG_TYPE_NUMBER, OCONFIG_TYPE_NUMBER,
             c->values[1].type, c->values[2].type, c->values[2].type);
       return -1;
@@ -124,17 +124,17 @@ static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
 
     if (c->values_num != c->values[1].value.number + 2) {
       ERROR("curl stats: Wrong number of arguments for metric type "
-            "distribution. Required %lf, received %d.",
+            "custom distribution. Required %lf, received %d.",
             c->values[1].value.number + 1, c->values_num);
       return -1;
     }
 
     size_t num_boundaries = (size_t)c->values[1].value.number;
     double boundaries[num_boundaries];
-    for (size_t i = 0; i < num_boundaries; ++i) {
+    for (size_t i = 2; i < num_boundaries; ++i) {
       if (c->values[i].type != OCONFIG_TYPE_NUMBER) {
         ERROR("curl stats: Wrong type of arguments for metric type "
-              "distribution. Required %d, received %d.",
+              "custom distribution. Required %d, received %d.",
               OCONFIG_TYPE_NUMBER, c->values[i].type);
         return -1;
       }
@@ -200,7 +200,6 @@ static int send_metrics_to_the_daemon(metric_family_t *fam) {
  */
 static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m,
                           bool asynchronous) {
-  DEBUG("curl_stats: dispatch_gauge");
   if (asynchronous) {
     int status = account_new_data_double(curl, info, m);
 
@@ -231,7 +230,6 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m,
 /* dispatch a speed, in bytes/second */
 static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m,
                           bool asynchronous) {
-  DEBUG("curl_stats: dispatch_speed");
   if (asynchronous) {
     int status = account_new_data_double(curl, info, m);
 
@@ -263,7 +261,6 @@ static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m,
 /* dispatch a size/count, reported as a long value */
 static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m,
                          bool asynchronous) {
-  DEBUG("curl_stats: dispatch_size");
   if (asynchronous) {
     int status = account_new_data_long(curl, info, m);
 
@@ -356,7 +353,6 @@ static bool field_enabled(curl_stats_t *s, size_t offset) {
  */
 curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   const static int MAX_IDENTITY_LENGTH = 256;
-  DEBUG("curl_stats_from_config\n");
   curl_stats_t *s;
 
   if (ci == NULL)
@@ -405,6 +401,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         continue;
       } else if (!strcasecmp(c->key, "Identity")) {
         if (cf_util_get_string_buffer(c, identity, MAX_IDENTITY_LENGTH) != 0) {
+          ERROR("curl stats: Parsing identity failed");
           free(s);
           return NULL;
         }
@@ -431,15 +428,21 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   }
 
   s->m->family->type = metric_family_type;
-  parse_distribution_from_config(s->m, conf_distribution);
+  int status = parse_distribution_from_config(s->m, conf_distribution);
+
+  if (status != 0) {
+    metric_family_free(s->m->family);
+    free(s);
+    return NULL;
+  }
 
   return s;
 } /* curl_stats_from_config */
 
 void curl_stats_destroy(curl_stats_t *s) {
   if (s != NULL) {
-    free(s);
     metric_family_free(s->m->family);
+    free(s);
   }
 } /* curl_stats_destroy */
 
@@ -455,18 +458,15 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
     return -1;
   }
 
-  DEBUG("curl_stats_dispatch: Starting the loop\n");
   for (size_t field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
     int status;
-    DEBUG("curl_stats_dispatch: Loop, field: %ld, size: %ld", field,
-          STATIC_ARRAY_SIZE(field_specs));
+
     if (!field_enabled(s, field_specs[field].offset))
       continue;
 
-    DEBUG("curl_stats_dispatch: Calling dispatcher: %s\n", plugin);
     status = field_specs[field].dispatcher(curl, field_specs[field].info, s->m,
                                            asynchronous);
-    DEBUG("curl_stats_dispatch: After calling dispatcher: %s\n", plugin);
+
     if (status < 0) {
       return status;
     }
