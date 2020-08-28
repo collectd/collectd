@@ -39,7 +39,7 @@
 // Timestamp of latest report
 static cdtime_t t = 0;
 
-static void lvm_submit(const char *plug, char const *pi, // {{{,
+static void lvm_submit(const char *plug, char const *pi, // {{{
                        char const *dt, char const *ti, gauge_t val) {
   value_list_t vl = VALUE_LIST_INIT;
 
