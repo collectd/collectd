@@ -131,7 +131,7 @@ static int lvm_process_report(yajl_val json) // {{{
 
     char *lv_attr = get_json_string(lv, "lv_attr");
     if (!lv_attr)
-      continue;   // get_json_string() would have emitted an error message
+      continue; // get_json_string() would have emitted an error message
 
     // Skip virtual/thin LVs that don't use actual space in the VG
     if ('v' == lv_attr[0] || 'V' == lv_attr[0])
@@ -147,7 +147,7 @@ static int lvm_process_report(yajl_val json) // {{{
     char *vg_name = get_json_string(lv, "vg_name");
     char *lv_size_str = get_json_string(lv, "lv_size");
     if (!(vg_name && lv_name && lv_size_str))
-      continue;   // get_json_string() would have emitted an error message
+      continue; // get_json_string() would have emitted an error message
     if (lv_name[0] == '[' && lv_name[strlen(lv_name) - 1] == ']') {
       // remove [] brackets around names of hidden LVs (eg. thin meta/data)
       lv_name[strlen(lv_name) - 1] = '\0';
