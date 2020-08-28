@@ -129,13 +129,29 @@ static int lvm_process_report(yajl_val json) // {{{
       continue;
     }
 
+    char *lv_attr = get_json_string(lv, "lv_attr");
+    if (!lv_attr)
+      continue;   // get_json_string() would have emitted an error message
+
+    // Skip virtual/thin LVs that don't use actual space in the VG
+    if ('v' == lv_attr[0] || 'V' == lv_attr[0])
+      continue;
+
+    if ('t' == lv_attr[0]) {
+      continue; // ignore for VG; space for thin pool is counted in the
+                // underlying meta/data LVs
+    }
+
+    // Submit the size of the LV as used in the VG
     char *lv_name = get_json_string(lv, "lv_name");
     char *vg_name = get_json_string(lv, "vg_name");
     char *lv_size_str = get_json_string(lv, "lv_size");
-    char *lv_attr = get_json_string(lv, "lv_attr");
-    if (!(vg_name && lv_name && lv_size_str && lv_attr)) {
-      // get_json_string() would have emitted an error message
-      continue;
+    if (!(vg_name && lv_name && lv_size_str))
+      continue;   // get_json_string() would have emitted an error message
+    if (lv_name[0] == '[' && lv_name[strlen(lv_name) - 1] == ']') {
+      // remove [] brackets around names of hidden LVs (eg. thin meta/data)
+      lv_name[strlen(lv_name) - 1] = '\0';
+      lv_name++;
     }
     long long int lv_size = atoll(lv_size_str);
     lvm_vg_submit(vg_name, lv_name, lv_size);
@@ -153,7 +169,7 @@ static int lvm_get_report_json(yajl_val *json) // {{{
   // Get the report from lvm into a buffer {{{
   FILE *fp;
   char *jsoncmd =
-      "lvm fullreport --units=b --nosuffix --reportformat json"
+      "lvm fullreport --all --units=b --nosuffix --reportformat json"
       " --configreport vg -o vg_name,vg_size,vg_free"
       " --configreport pv -S pv_uuid="
       " --configreport lv -o vg_name,lv_name,lv_size,lv_attr"
