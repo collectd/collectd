@@ -167,6 +167,9 @@ static int df_read(void) {
   int retval = 0;
   /* struct STATANYFS statbuf; */
   cu_mount_t *mnt_list;
+  cu_mount_t **dup_array;
+  int dup_array_maxnum = 0;
+  int dup_array_num = 0;
 
   mnt_list = NULL;
   if (cu_mount_getlist(&mnt_list) == NULL) {
@@ -174,14 +177,18 @@ static int df_read(void) {
     return -1;
   }
 
+  for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
+    dup_array_maxnum++;
+  dup_array = (cu_mount_t **)calloc(dup_array_maxnum, sizeof(cu_mount_t *));
+
   for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL;
        mnt_ptr = mnt_ptr->next) {
     unsigned long long blocksize;
     char disk_name[256];
-    cu_mount_t *dup_ptr;
     uint64_t blk_free;
     uint64_t blk_reserved;
     uint64_t blk_used;
+    size_t dup_i;
 
     char const *dev =
         (mnt_ptr->spec_device != NULL) ? mnt_ptr->spec_device : mnt_ptr->device;
@@ -193,26 +200,22 @@ static int df_read(void) {
     if (ignorelist_match(il_fstype, mnt_ptr->type))
       continue;
 
-    /* search for duplicates *in front of* the current mnt_ptr. */
-    for (dup_ptr = mnt_list; dup_ptr != NULL; dup_ptr = dup_ptr->next) {
-      /* No duplicate found: mnt_ptr is the first of its kind. */
-      if (dup_ptr == mnt_ptr) {
-        dup_ptr = NULL;
-        break;
-      }
-
-      /* Duplicate found: leave non-NULL dup_ptr. */
+    /* search for duplicates with cu_mount_t pointer array
+     * of information already acquired items. */
+    for (dup_i = 0; dup_i < dup_array_num; dup_i++) {
       if (by_device && (mnt_ptr->spec_device != NULL) &&
-          (dup_ptr->spec_device != NULL) &&
-          (strcmp(mnt_ptr->spec_device, dup_ptr->spec_device) == 0))
+          (dup_array[dup_i]->spec_device != NULL) &&
+          (strcmp(mnt_ptr->spec_device, dup_array[dup_i]->spec_device) == 0))
         break;
-      else if (!by_device && (strcmp(mnt_ptr->dir, dup_ptr->dir) == 0))
+      else if (!by_device && (strcmp(mnt_ptr->dir, dup_array[dup_i]->dir) == 0))
         break;
     }
 
     /* ignore duplicates */
-    if (dup_ptr != NULL)
+    if (dup_i < dup_array_num)
       continue;
+
+    dup_array[dup_array_num++] = mnt_ptr;
 
     if (STATANYFS(mnt_ptr->dir, &statbuf) < 0) {
       if (log_once == false || ignorelist_match(il_errors, mnt_ptr->dir) == 0) {
@@ -349,6 +352,7 @@ static int df_read(void) {
     }
   }
 
+  free(dup_array);
   cu_mount_freelist(mnt_list);
 
   return retval;
