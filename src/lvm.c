@@ -228,4 +228,4 @@ void module_register(void) // {{{
   plugin_register_read("lvm", lvm_read);
 } // module_register() }}}
 
-// vim: set ts=4 sw=4 et si fdm=marker :
+// vim: set ts=2 sw=2 et si fdm=marker :
