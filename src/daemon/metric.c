@@ -23,6 +23,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Manoj Srivastava <srivasta at google.com>
+ *   Elene Margalitadze <elene.margalit at gmail.com>
  **/
 
 #include "collectd.h"
