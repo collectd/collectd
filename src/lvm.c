@@ -34,7 +34,7 @@
 #define P_DEBUG(...) DEBUG("plugin lvm: " __VA_ARGS__)
 
 // Default maximum size of lvm report (8kb)
-#define DEFMAXRPTSIZE (8 << 10)
+#define DEFMAXRPTSIZE (8UL << 10)
 
 // Timestamp of latest report
 static cdtime_t t = 0;
