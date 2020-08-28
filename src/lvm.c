@@ -39,22 +39,27 @@
 // Timestamp of latest report
 static cdtime_t t = 0;
 
-static void lvm_submit(char const *pi, char const *ti, uint64_t val) // {{{
-{
+static void lvm_submit(const char *plug, char const *pi, // {{{,
+                       char const *dt, char const *ti, gauge_t val) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t){.gauge = (gauge_t)val};
+  vl.values = &(value_t){.gauge = val};
   vl.values_len = 1;
   vl.time = t;
   // don't set interval or host
-  sstrncpy(vl.plugin, "lvm", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, plug, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "df_complex", sizeof(vl.type));
+  sstrncpy(vl.type, dt, sizeof(vl.type));
   sstrncpy(vl.type_instance, ti, sizeof(vl.type_instance));
   // leave meta as NULL
 
   plugin_dispatch_values(&vl);
 } // lvm_submit() }}}
+
+static void inline lvm_vg_submit(const char *vg_name, // {{{
+                                 const char *lv_name, double size) {
+  lvm_submit("lvm_vg", vg_name, "df_complex", lv_name, size);
+} // lvm_vg_submit() }}}
 
 static char *get_json_string(yajl_val json, const char *key) // {{{
 {
@@ -107,9 +112,8 @@ static int lvm_process_report(yajl_val json) // {{{
       continue;
     }
     long long int vg_free = atoll(vg_free_str);
-    lvm_submit(vg_name, "free", vg_free);
-  }
-  // process the VGs }}}
+    lvm_vg_submit(vg_name, "free", vg_free);
+  } // foreach VG }}}
 
   // process the LVs {{{
   const char *lv_path[] = {"lv", (const char *)0};
@@ -134,9 +138,8 @@ static int lvm_process_report(yajl_val json) // {{{
       continue;
     }
     long long int lv_size = atoll(lv_size_str);
-    lvm_submit(vg_name, lv_name, lv_size);
-  }
-  // process the LVs }}}
+    lvm_vg_submit(vg_name, lv_name, lv_size);
+  } // foreach LV }}}
 
   return 0;
 } // lvm_process_report() }}}
