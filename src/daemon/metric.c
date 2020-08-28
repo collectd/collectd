@@ -88,6 +88,7 @@ int distribution_marshal_text(strbuf_t *buf, distribution_t *dist) {
   if (status_sum != 0) {
     return status_sum;
   }
+  destroy_buckets_array(buckets);
   return 0;
 }
 
