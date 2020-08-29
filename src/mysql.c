@@ -69,6 +69,7 @@ struct mysql_database_s /* {{{ */
 
   MYSQL *con;
   bool is_connected;
+  unsigned long mysql_version;
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 
@@ -299,6 +300,7 @@ static MYSQL *getconnection(mysql_database_t *db) {
 
   cipher = mysql_get_ssl_cipher(db->con);
 
+  db->mysql_version = mysql_get_server_version(db->con);
   INFO("mysql plugin: Successfully connected to database %s "
        "at server %s with cipher %s "
        "(server version: %s, protocol version: %d) ",
@@ -602,8 +604,12 @@ static int mysql_read_innodb_stats(mysql_database_t *db, MYSQL *con) {
 
       {NULL, NULL, 0}};
 
-  query = "SELECT name, count, type FROM information_schema.innodb_metrics "
-          "WHERE status = 'enabled'";
+  if (db->mysql_version >= 100500)
+    query = "SELECT name, count, type FROM information_schema.innodb_metrics "
+            "WHERE enabled";
+  else
+    query = "SELECT name, count, type FROM information_schema.innodb_metrics "
+            "WHERE status = 'enabled'";
 
   res = exec_query(con, query);
   if (res == NULL)
@@ -745,7 +751,6 @@ static int mysql_read(user_data_t *ud) {
 
   unsigned long long traffic_incoming = 0ULL;
   unsigned long long traffic_outgoing = 0ULL;
-  unsigned long mysql_version = 0ULL;
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("mysql plugin: mysql_database_read: Invalid user data.");
@@ -758,10 +763,8 @@ static int mysql_read(user_data_t *ud) {
   if ((con = getconnection(db)) == NULL)
     return -1;
 
-  mysql_version = mysql_get_server_version(con);
-
   query = "SHOW STATUS";
-  if (mysql_version >= 50002)
+  if (db->mysql_version >= 50002)
     query = "SHOW GLOBAL STATUS";
 
   res = exec_query(con, query);
@@ -944,7 +947,7 @@ static int mysql_read(user_data_t *ud) {
 
   traffic_submit(traffic_incoming, traffic_outgoing, db);
 
-  if (mysql_version >= 50600 && db->innodb_stats)
+  if (db->mysql_version >= 50600 && db->innodb_stats)
     mysql_read_innodb_stats(db, con);
 
   if (db->master_stats)
