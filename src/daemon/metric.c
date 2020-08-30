@@ -44,17 +44,14 @@
 #define VALID_NAME_CHARS VALID_LABEL_CHARS ":"
 
 int distribution_count_marshal_text(strbuf_t *buf, distribution_t *dist) {
-
   return strbuf_printf(buf, "%" PRIu64, distribution_total_counter(dist));
 }
 
 int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist) {
-
   return strbuf_printf(buf, GAUGE_FORMAT, distribution_total_sum(dist));
 }
 
 int distribution_marshal_text(strbuf_t *buf, distribution_t *dist) {
-
   buckets_array_t buckets = get_buckets(dist);
   int status_buckets_heading = strbuf_printf(buf, "\"buckets:\" {\n");
   if (status_buckets_heading != 0) {
