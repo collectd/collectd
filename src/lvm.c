@@ -95,105 +95,106 @@ static char *get_json_string(yajl_val json, const char *key) // {{{
 
 static int lvm_process_report(yajl_val json) // {{{
 {
-  yajl_val first_rpt;
 
-  // find the first report in the JSON {{{
   const char *rpts_path[] = {"report", (const char *)0};
   yajl_val rpts = yajl_tree_get(json, rpts_path, yajl_t_array);
   if (!rpts || !YAJL_IS_ARRAY(rpts)) {
-    P_ERROR("didn't find any lvm reports in the JSON!");
+    P_WARNING("didn't find any lvm reports in the JSON!");
     return -1;
   }
-  first_rpt = rpts->u.array.values[0];
-  if (!first_rpt || !YAJL_IS_OBJECT(first_rpt)) {
-    P_ERROR("didn't find any JSON content in first lvm report!");
-    return -2;
-  }
-  // find the first report in the JSON }}}
 
-  // process the VGs {{{
-  const char *vg_path[] = {"vg", (const char *)0};
-  yajl_val vgs = yajl_tree_get(first_rpt, vg_path, yajl_t_array);
-  if (!(vgs && YAJL_IS_ARRAY(vgs))) {
-    P_NOTICE("didn't find any VGs.");
-    return 0;
-  }
-  for (int i = 0; i < vgs->u.array.len; ++i) {
-    yajl_val vg = vgs->u.array.values[i];
-    if (!vg || !YAJL_IS_OBJECT(vg)) {
-      P_WARNING("invalid VG #%d!", i);
+  for (int rpt_num = 0; rpt_num < rpts->u.array.len; ++rpt_num) {
+    yajl_val lvm_rpt = rpts->u.array.values[rpt_num];
+    if (!lvm_rpt || !YAJL_IS_OBJECT(lvm_rpt)) {
+      P_ERROR("invalid lvm rpt #%d!", rpt_num);
       continue;
     }
 
-    char *vg_name = get_json_string(vg, "vg_name");
-    char *vg_free_str = get_json_string(vg, "vg_free");
-    if (!(vg_name && vg_free_str)) {
-      // get_json_string() would have emitted an error message
+    // process the VGs {{{
+    const char *vg_path[] = {"vg", (const char *)0};
+    yajl_val vgs = yajl_tree_get(lvm_rpt, vg_path, yajl_t_array);
+    if (!(vgs && YAJL_IS_ARRAY(vgs))) {
+      P_NOTICE("didn't find any VGs in rpt #%d.", rpt_num);
       continue;
     }
-    long long int vg_free = atoll(vg_free_str);
-    lvm_vg_submit(vg_name, "free", vg_free);
-  } // foreach VG }}}
+    for (int i = 0; i < vgs->u.array.len; ++i) {
+      yajl_val vg = vgs->u.array.values[i];
+      if (!vg || !YAJL_IS_OBJECT(vg)) {
+        P_ERROR("invalid VG #%d in rpt #%d!", i, rpt_num);
+        continue;
+      }
 
-  // process the LVs {{{
-  const char *lv_path[] = {"lv", (const char *)0};
-  yajl_val lvs = yajl_tree_get(first_rpt, lv_path, yajl_t_array);
-  if (!(lvs && YAJL_IS_ARRAY(lvs))) {
-    P_NOTICE("didn't find any LVs.");
-    return 0;
-  }
-  for (int i = 0; i < lvs->u.array.len; ++i) {
-    yajl_val lv = lvs->u.array.values[i];
-    if (!lv || !YAJL_IS_OBJECT(lv)) {
-      P_WARNING("invalid LV #%d!", i);
+      char *vg_name = get_json_string(vg, "vg_name");
+      char *vg_free_str = get_json_string(vg, "vg_free");
+      if (!(vg_name && vg_free_str)) {
+        // get_json_string() would have emitted an error message
+        continue;
+      }
+      long long int vg_free = atoll(vg_free_str);
+      lvm_vg_submit(vg_name, "free", vg_free);
+    } // foreach VG }}}
+
+    // process the LVs {{{
+    const char *lv_path[] = {"lv", (const char *)0};
+    yajl_val lvs = yajl_tree_get(lvm_rpt, lv_path, yajl_t_array);
+    if (!(lvs && YAJL_IS_ARRAY(lvs))) {
+      P_NOTICE("didn't find any LVs in rpt #%d.", rpt_num);
       continue;
     }
+    for (int i = 0; i < lvs->u.array.len; ++i) {
+      yajl_val lv = lvs->u.array.values[i];
+      if (!lv || !YAJL_IS_OBJECT(lv)) {
+        P_ERROR("invalid LV #%d in rpt #%d!", i, rpt_num);
+        continue;
+      }
 
-    char *lv_attr = get_json_string(lv, "lv_attr");
-    if (!lv_attr)
-      continue; // get_json_string() would have emitted an error message
+      char *lv_attr = get_json_string(lv, "lv_attr");
+      if (!lv_attr)
+        continue; // get_json_string() would have emitted an error message
 
-    // Skip virtual/thin LVs that don't use actual space in the VG
-    if ('v' == lv_attr[0] || 'V' == lv_attr[0])
-      continue;
+      // Skip virtual/thin LVs that don't use actual space in the VG
+      if ('v' == lv_attr[0] || 'V' == lv_attr[0])
+        continue;
 
-    if ('t' == lv_attr[0]) {
+      // Report usage within thin pools
+      if ('t' == lv_attr[0]) {
+        char *lv_name = get_json_string(lv, "lv_name");
+        char *vg_name = get_json_string(lv, "vg_name");
+        char *data_pct_str = get_json_string(lv, "data_percent");
+        char *meta_pct_str = get_json_string(lv, "metadata_percent");
+        if (!(vg_name && lv_name && data_pct_str && meta_pct_str))
+          continue; // get_json_string() would have emitted an error message
+        double data_pct = atof(data_pct_str);
+        double meta_pct = atof(meta_pct_str);
+        lvm_thinp_submit(vg_name, lv_name, data_pct, meta_pct);
+        continue; // skip reporting space allocated in the VG to the thin pool
+                  // as it is counted in the underlying meta/data LVs
+      }
+
+      // Submit the size of the LV as used in the VG
       char *lv_name = get_json_string(lv, "lv_name");
       char *vg_name = get_json_string(lv, "vg_name");
-      char *data_pct_str = get_json_string(lv, "data_percent");
-      char *meta_pct_str = get_json_string(lv, "metadata_percent");
-      if (!(vg_name && lv_name && data_pct_str && meta_pct_str))
+      char *lv_size_str = get_json_string(lv, "lv_size");
+      if (!(vg_name && lv_name && lv_size_str))
         continue; // get_json_string() would have emitted an error message
-      double data_pct = atof(data_pct_str);
-      double meta_pct = atof(meta_pct_str);
-      lvm_thinp_submit(vg_name, lv_name, data_pct, meta_pct);
-      continue; // space allocated in the VG to the thin pool is counted in the
-                // underlying meta/data LVs
-    }
-
-    // Submit the size of the LV as used in the VG
-    char *lv_name = get_json_string(lv, "lv_name");
-    char *vg_name = get_json_string(lv, "vg_name");
-    char *lv_size_str = get_json_string(lv, "lv_size");
-    if (!(vg_name && lv_name && lv_size_str))
-      continue; // get_json_string() would have emitted an error message
-    if (lv_name[0] == '[' && lv_name[strlen(lv_name) - 1] == ']') {
-      // remove [] brackets around names of hidden LVs (eg. thin meta/data)
-      lv_name[strlen(lv_name) - 1] = '\0';
-      lv_name++;
-    }
-    long long int lv_size = atoll(lv_size_str);
-    lvm_vg_submit(vg_name, lv_name, lv_size);
-
-    // Additionally, if it's a snapshot, submit space usage within it
-    if ('s' == lv_attr[0] || 'S' == lv_attr[0]) {
-      char *lv_datap_str = get_json_string(lv, "data_percent");
-      if (lv_datap_str) {
-        double lv_datap = atof(lv_datap_str);
-        lvm_snap_submit(vg_name, lv_name, lv_datap);
+      if (lv_name[0] == '[' && lv_name[strlen(lv_name) - 1] == ']') {
+        // remove [] brackets around names of hidden LVs (eg. thin meta/data)
+        lv_name[strlen(lv_name) - 1] = '\0';
+        lv_name++;
       }
-    }
-  } // foreach LV }}}
+      long long int lv_size = atoll(lv_size_str);
+      lvm_vg_submit(vg_name, lv_name, lv_size);
+
+      // Additionally, if it's a snapshot, submit space usage within it
+      if ('s' == lv_attr[0] || 'S' == lv_attr[0]) {
+        char *lv_datap_str = get_json_string(lv, "data_percent");
+        if (lv_datap_str) {
+          double lv_datap = atof(lv_datap_str);
+          lvm_snap_submit(vg_name, lv_name, lv_datap);
+        }
+      } // snapshot
+    }   // foreach LV }}}
+  }     // foreach report
 
   return 0;
 } // lvm_process_report() }}}
