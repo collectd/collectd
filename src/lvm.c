@@ -233,6 +233,7 @@ static int lvm_get_report_json(yajl_val *json) // {{{
   if (feof(fp))
     P_DEBUG("lvm_get_report_json(): reached EOF.");
   P_DEBUG("lvm_get_report_json(): read %zu bytes from lvm fullreport.", rd);
+  jsondata[rd] = '\0'; // ensure that JSON is NUL-terminated
   int rc = pclose(fp);
   if (-1 == rc && ECHILD != errno) {
     P_ERROR("pclose(): %s", STRERRNO);
