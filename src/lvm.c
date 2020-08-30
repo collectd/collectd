@@ -208,10 +208,10 @@ static int lvm_get_report_json(yajl_val *json) // {{{
   FILE *fp;
   char *jsoncmd =
       "lvm fullreport --all --units=b --nosuffix --reportformat json"
-      " --configreport vg -o vg_name,vg_size,vg_free"
+      " --configreport vg -o vg_name,vg_free"
       " --configreport pv -S pv_uuid="
       " --configreport lv -o vg_name,lv_name,lv_size,lv_attr"
-      ",data_percent,data_lv,metadata_lv,lv_metadata_size,metadata_percent"
+      ",data_percent,metadata_percent"
       " --configreport pvseg -S pv_uuid="
       " --configreport seg -S lv_uuid="
       " 2>/dev/null";
