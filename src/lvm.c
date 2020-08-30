@@ -69,6 +69,18 @@ static void lvm_snap_submit(const char *vg_name, const char *lv_name, // {{{
   sfree(pi);
 } // lvm_snap_submit() }}}
 
+static void lvm_thinp_submit(const char *vg_name, const char *lv_name, // {{{
+                             double pct_data_used, double pct_meta_used) {
+  char *pi = ssnprintf_alloc("%s_%s", vg_name, lv_name);
+  lvm_submit("lvm_thinp.data", pi, "percent_bytes", "used", pct_data_used);
+  lvm_submit("lvm_thinp.data", pi, "percent_bytes", "free",
+             100.0 - pct_data_used);
+  lvm_submit("lvm_thinp.meta", pi, "percent_bytes", "used", pct_meta_used);
+  lvm_submit("lvm_thinp.meta", pi, "percent_bytes", "free",
+             100.0 - pct_meta_used);
+  sfree(pi);
+} // lvm_thinp_submit() }}}
+
 static char *get_json_string(yajl_val json, const char *key) // {{{
 {
   const char *path[] = {NULL, NULL};
@@ -146,7 +158,16 @@ static int lvm_process_report(yajl_val json) // {{{
       continue;
 
     if ('t' == lv_attr[0]) {
-      continue; // ignore for VG; space for thin pool is counted in the
+      char *lv_name = get_json_string(lv, "lv_name");
+      char *vg_name = get_json_string(lv, "vg_name");
+      char *data_pct_str = get_json_string(lv, "data_percent");
+      char *meta_pct_str = get_json_string(lv, "metadata_percent");
+      if (!(vg_name && lv_name && data_pct_str && meta_pct_str))
+        continue; // get_json_string() would have emitted an error message
+      double data_pct = atof(data_pct_str);
+      double meta_pct = atof(meta_pct_str);
+      lvm_thinp_submit(vg_name, lv_name, data_pct, meta_pct);
+      continue; // space allocated in the VG to the thin pool is counted in the
                 // underlying meta/data LVs
     }
 
