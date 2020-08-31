@@ -1326,6 +1326,7 @@ static ssize_t cconn_main_loop(uint32_t request_type) {
         .d = g_daemons[i],
         .request_type = request_type,
         .state = CSTATE_UNCONNECTED,
+        .asok = -1,
     };
   }
 
