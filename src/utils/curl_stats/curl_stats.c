@@ -34,6 +34,17 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+typedef struct {
+  char *metric_type;
+  char *distribution_type;
+  char *metric_identity;
+  double base;
+  double factor;
+  double *boundaries;
+  size_t num_buckets;
+  size_t num_boundaries;
+} metric_spec;
+
 struct curl_stats_s {
   bool total_time;
   bool namelookup_time;
@@ -52,8 +63,54 @@ struct curl_stats_s {
   bool redirect_count;
   bool num_connects;
   bool appconnect_time;
+  char *metric_type;
+  char *distribution_type;
+  char *metric_identity;
+  double base;
+  double factor;
+  double *boundaries;
+  size_t num_buckets;
+  size_t num_boundaries;
   metric_t *m;
 };
+
+/* maybe instead of metric_t pointer, pointer to some structure with arguments for metric??? */
+static int configure_string(const char *key, const void *value, metric_t *m) {
+  if (!strcasecmp(key, "MetricType")) {
+
+  } else if (!strcasecmp(key, "DistributionType")) {
+
+  } else if (!strcasecmp(key, "MetricIdentity")) {
+
+  } else {
+    ERROR("curl_stats_from_config: Unknown field: %s", key);
+    return -1;
+  }
+}
+
+static int configure_double(const char *key, const void *value, metric_t *m) {
+if (!strcasecmp(key, "Base")) {
+
+  } else if (!strcasecmp(key, "Factor")) {
+
+  } else if (!strcasecmp(key, "Boundaries")) { /* special case, urgent!!! */
+
+  } else {
+    ERROR("curl_stats_from_config: Unknown field: %s", key);
+    return -1;
+  }
+}
+
+static int configure_int(const char *key, const void *value, metric_t *m) {
+if (!strcasecmp(key, "NumBuckets")) {
+
+  } else if (!strcasecmp(key, "NumBoundaries")) {
+
+  } else {
+    ERROR("curl_stats_from_config: Unknown field: %s", key);
+    return -1;
+  }
+}
 
 static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
   if (m == NULL || c == NULL) {
@@ -155,60 +212,10 @@ static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
 
   return 0;
 }
-
-static int account_new_data_double(CURL *curl, CURLINFO info, metric_t *m) {
-  CURLcode code;
-  double val;
-
-  code = curl_easy_getinfo(curl, info, &val);
-  if (code != CURLE_OK)
-    return -1;
-
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val * 8);
-  } else {
-    m->value.gauge = val * 8;
-  }
-
-  return 0;
-}
-
-static int account_new_data_long(CURL *curl, CURLINFO info, metric_t *m) {
-  CURLcode code;
-  long raw;
-
-  code = curl_easy_getinfo(curl, info, &raw);
-  if (code != CURLE_OK)
-    return -1;
-
-  double val = (double)raw;
-
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val * 8);
-  } else {
-    m->value.gauge = val * 8;
-  }
-
-  return 0;
-}
-
-static int send_metrics_to_the_daemon(metric_family_t *fam) {
-  return plugin_dispatch_metric_family(fam);
-}
 /*
  * Private functions
  */
-static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m,
-                          bool asynchronous) {
-  if (asynchronous) {
-    int status = account_new_data_double(curl, info, m);
-
-    if (status != 0) {
-      return -1;
-    }
-
-    return send_metrics_to_the_daemon(m->family);
-  } else {
+static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m) {
     CURLcode code;
     double val;
 
@@ -224,21 +231,10 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m,
     /* TODO(bkjg): "This library should optionally be able to update
      * distribution_t instead of calling plugin_dispatch_values." */
     return plugin_dispatch_metric_family(m->family);
-  }
 } /* dispatch_gauge */
 
 /* dispatch a speed, in bytes/second */
-static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m,
-                          bool asynchronous) {
-  if (asynchronous) {
-    int status = account_new_data_double(curl, info, m);
-
-    if (status != 0) {
-      return -1;
-    }
-
-    return send_metrics_to_the_daemon(m->family);
-  } else {
+static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m) {
     CURLcode code;
     double val;
 
@@ -255,22 +251,11 @@ static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m,
     /* TODO(bkjg): "This library should optionally be able to update
      * distribution_t instead of calling plugin_dispatch_values." */
     return plugin_dispatch_metric_family(m->family);
-  }
 } /* dispatch_speed */
 
 /* dispatch a size/count, reported as a long value */
-static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m,
-                         bool asynchronous) {
-  if (asynchronous) {
-    int status = account_new_data_long(curl, info, m);
-
-    if (status != 0) {
-      return -1;
-    }
-
-    return send_metrics_to_the_daemon(m->family);
-  } else {
-    CURLcode code;
+static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m) {
+  CURLcode code;
     long raw;
 
     code = curl_easy_getinfo(curl, info, &raw);
@@ -286,14 +271,13 @@ static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m,
     /* TODO(bkjg): "This library should optionally be able to update
      * distribution_t instead of calling plugin_dispatch_values." */
     return plugin_dispatch_metric_family(m->family);
-  }
-}
+} /* dispatch_size */
 
 static struct {
   const char *name;
   const char *config_key;
   size_t offset;
-  int (*dispatcher)(CURL *, CURLINFO, metric_t *, bool);
+  int (*dispatcher)(CURL *, CURLINFO, metric_t *);
   const char *type;
   CURLINFO info;
 } field_specs[] = {
@@ -340,6 +324,26 @@ static struct {
 #undef SPEC
 };
 
+static struct {
+  const char *name;
+  const char *config_key;
+  size_t offset;
+  int (*configure)(const char *, const void *, metric_t);
+} metric_specs[] = {
+#define SPEC(name, config_key, configure)                         \
+  { #name, config_key, offsetof(curl_stats_t, name), configure}
+
+    SPEC(metric_type, "MetricType", configure_string),
+    SPEC(distribution_type, "DistributionType", configure_string),
+    SPEC(metric_identity, "MetricIdentity", configure_string),
+    SPEC(base, "Base", configure_double),
+    SPEC(factor, "Factor", configure_double),
+    SPEC(boundaries, "Boundaries", configure_double), /* attention: this will be an array of double, for consideration: how to handle it? */
+    SPEC(num_buckets, "NumBuckets", configure_int),
+    SPEC(num_boundaries, "NumBoundaries", configure_int),
+#undef SPEC
+};
+
 static void enable_field(curl_stats_t *s, size_t offset) {
   *(bool *)((char *)s + offset) = true;
 } /* enable_field */
@@ -352,7 +356,7 @@ static bool field_enabled(curl_stats_t *s, size_t offset) {
  * Public API
  */
 curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
-  const static int MAX_IDENTITY_LENGTH = 256;
+  const static int MAX_BUFFER_LENGTH = 256;
   curl_stats_t *s;
 
   if (ci == NULL)
@@ -362,10 +366,10 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   if (s == NULL)
     return NULL;
 
-  char identity[MAX_IDENTITY_LENGTH];
+  char identity[MAX_BUFFER_LENGTH];
 
   /* make identity of each metric unique */
-  snprintf(identity, MAX_IDENTITY_LENGTH, "curl_stats_%p", s);
+  snprintf(identity, MAX_BUFFER_LENGTH, "curl_stats_%p", s);
 
   oconfig_item_t *conf_distribution = NULL;
 
@@ -386,6 +390,44 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     if (field >= STATIC_ARRAY_SIZE(field_specs)) {
       /* TODO(bkjg): create an array with names of metric types */
       /* TODO(bkjg): check if only one type of distribution is specified (??) */
+      for (field = 0; field < STATIC_ARRAY_SIZE(metric_specs); ++field) {
+        if (!strcasecmp(c->key, metric_specs[field].config_key)) {
+          break;
+        }
+
+        if (!strcasecmp(c->key, metric_specs[field].name)) {
+          break;
+        }
+      }
+
+      if (field >= STATIC_ARRAY_SIZE(metric_specs)) {
+        ERROR("curl stats: Unknown field name %s", c->key);
+        free(s);
+        return NULL;
+      }
+
+      if (field > 5) { /* read int */
+        int value;
+
+        if (cf_util_get_int(c, &value) != 0) {
+          free(s);
+          return NULL;
+        }
+      } else if (field > 2) { /* read double */
+        double value;
+
+        if (cf_util_get_double(c, &value) != 0) {
+          free(s);
+          return NULL;
+        }
+      } else { /* read char * */
+        char buffer[MAX_BUFFER_LENGTH];
+
+        if (cf_util_get_string_buffer(c, buffer, MAX_BUFFER_LENGTH) != 0) {
+          free(s);
+          return NULL;
+        }
+      }
       if (!strcasecmp(c->key, "METRIC_TYPE_DISTRIBUTION")) {
         metric_family_type = METRIC_TYPE_DISTRIBUTION;
         conf_distribution = c;
@@ -400,7 +442,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         metric_family_type = METRIC_TYPE_UNTYPED;
         continue;
       } else if (!strcasecmp(c->key, "Identity")) {
-        if (cf_util_get_string_buffer(c, identity, MAX_IDENTITY_LENGTH) != 0) {
+        if (cf_util_get_string_buffer(c, identity, MAX_BUFFER_LENGTH) != 0) {
           ERROR("curl stats: Parsing identity failed");
           free(s);
           return NULL;
