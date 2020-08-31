@@ -81,6 +81,10 @@ static double ping_interval = 1.0;
 static double ping_timeout = 0.9;
 static int ping_max_missed = -1;
 
+/* Private variables for distribution for latency */
+static size_t num_buckets = 100;
+#define PING_DEF_DISTRIBUTION distribution_new_linear(num_buckets, ping_timeout / num_buckets)
+
 static pthread_mutex_t ping_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ping_cond = PTHREAD_COND_INITIALIZER;
 static int ping_thread_loop;
@@ -472,7 +476,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
     hl->pkg_missed = 0;
-    hl->dist_latency = DISTRIBUTION_DEFAULT_TIME;
+    hl->dist_latency = PING_DEF_DISTRIBUTION;
     if (hl->dist_latency == NULL) {
       ERROR("ping plugin: Cannot create a distribution for latency");
       return 1;
