@@ -52,36 +52,38 @@ int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist) {
 }
 
 int distribution_marshal_text(strbuf_t *buf, distribution_t *dist) {
-  buckets_array_t buckets = get_buckets(dist);
-  int status_buckets_heading = strbuf_printf(buf, "\"buckets:\" {\n");
-  if (status_buckets_heading != 0) {
-    return status_buckets_heading;
+  if (dist == NULL) {
+    return EINVAL;
   }
+
+  buckets_array_t buckets = get_buckets(dist);
+
   for (size_t i = 0; i < buckets.num_buckets; i++) {
     if (i < buckets.num_buckets - 1) {
-      int status_buckets =
-          strbuf_printf(buf, "\"%.2f\":\"%lu\",\n", buckets.buckets[i].maximum,
-                        buckets.buckets[i].bucket_counter);
+      int status_buckets = strbuf_printf(buf, "bucket{l=\"%.2f\"} %lu\n",
+                                         buckets.buckets[i].maximum,
+                                         buckets.buckets[i].bucket_counter);
       if (status_buckets != 0) {
         return status_buckets;
       }
     } else {
-      int status_buckets =
-          strbuf_printf(buf, "\"%.2f\":\"%lu\"\n", buckets.buckets[i].maximum,
-                        buckets.buckets[i].bucket_counter);
+      int status_buckets = strbuf_printf(buf, "bucket{l=\"+%.2f\"} %lu\n",
+                                         buckets.buckets[i].maximum,
+                                         buckets.buckets[i].bucket_counter);
       if (status_buckets != 0) {
         return status_buckets;
       }
     }
   }
-  int status_count = strbuf_printf(buf, "},\n\"count\":\"%lu\",\n",
-                                   distribution_total_counter(dist));
+
+  int status_count =
+      strbuf_printf(buf, "sum %.2f\n", distribution_total_sum(dist));
   if (status_count != 0) {
     return status_count;
   }
 
   int status_sum =
-      strbuf_printf(buf, "\"sum\":\"%.2f\n", distribution_total_sum(dist));
+      strbuf_printf(buf, "count %lu\n", distribution_total_counter(dist));
   if (status_sum != 0) {
     return status_sum;
   }

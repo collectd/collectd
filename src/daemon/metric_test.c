@@ -309,39 +309,36 @@ DEF_TEST(distribution_marshal_text) {
   } cases[] = {
       {
           .value.distribution = distribution_new_linear(2, 20),
-          .want = "\"buckets:\" {\n"
-                  "\"20.00\":\"0\",\n"
-                  "\"inf\":\"0\"\n"
-                  "},\n\"count\":\"0\",\n"
-                  "\"sum\":\"0.00\n",
+          .want = "bucket{l=\"20.00\"} 0\n"
+                  "bucket{l=\"+inf\"} 0\n"
+                  "sum 0.00\n"
+                  "count 0\n"
       },
       {
           .value.distribution = distribution_new_exponential(10, 2, 3),
-          .want = "\"buckets:\" {\n"
-                  "\"3.00\":\"0\",\n"
-                  "\"6.00\":\"0\",\n"
-                  "\"12.00\":\"0\",\n"
-                  "\"24.00\":\"0\",\n"
-                  "\"48.00\":\"0\",\n"
-                  "\"96.00\":\"0\",\n"
-                  "\"192.00\":\"0\",\n"
-                  "\"384.00\":\"0\",\n"
-                  "\"768.00\":\"0\",\n"
-                  "\"inf\":\"0\"\n"
-                  "},\n\"count\":\"0\",\n"
-                  "\"sum\":\"0.00\n",
+          .want = "bucket{l=\"3.00\"} 0\n" 
+                  "bucket{l=\"6.00\"} 0\n" 
+                  "bucket{l=\"12.00\"} 0\n" 
+                  "bucket{l=\"24.00\"} 0\n" 
+                  "bucket{l=\"48.00\"} 0\n" 
+                  "bucket{l=\"96.00\"} 0\n" 
+                  "bucket{l=\"192.00\"} 0\n" 
+                  "bucket{l=\"384.00\"} 0\n" 
+                  "bucket{l=\"768.00\"} 0\n" 
+                  "bucket{l=\"+inf\"} 0\n" 
+                  "sum 0.00\n"
+                  "count 0\n"
       },
       {
           .value.distribution =
               distribution_new_custom(4, (double[]){3, 10, 50, 100}),
-          .want = "\"buckets:\" {\n"
-                  "\"3.00\":\"0\",\n"
-                  "\"10.00\":\"0\",\n"
-                  "\"50.00\":\"0\",\n"
-                  "\"100.00\":\"0\",\n"
-                  "\"inf\":\"0\"\n"
-                  "},\n\"count\":\"0\",\n"
-                  "\"sum\":\"0.00\n",
+          .want = "bucket{l=\"3.00\"} 0\n" 
+                  "bucket{l=\"10.00\"} 0\n" 
+                  "bucket{l=\"50.00\"} 0\n" 
+                  "bucket{l=\"100.00\"} 0\n" 
+                  "bucket{l=\"+inf\"} 0\n" 
+                  "sum 0.00\n"
+                  "count 0\n"
       },
   };
 
