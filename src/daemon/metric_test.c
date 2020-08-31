@@ -307,39 +307,33 @@ DEF_TEST(distribution_marshal_text) {
     value_t value;
     char const *want;
   } cases[] = {
-      {
-          .value.distribution = distribution_new_linear(2, 20),
-          .want = "bucket{l=\"20.00\"} 0\n"
-                  "bucket{l=\"+inf\"} 0\n"
-                  "sum 0.00\n"
-                  "count 0\n"
-      },
-      {
-          .value.distribution = distribution_new_exponential(10, 2, 3),
-          .want = "bucket{l=\"3.00\"} 0\n" 
-                  "bucket{l=\"6.00\"} 0\n" 
-                  "bucket{l=\"12.00\"} 0\n" 
-                  "bucket{l=\"24.00\"} 0\n" 
-                  "bucket{l=\"48.00\"} 0\n" 
-                  "bucket{l=\"96.00\"} 0\n" 
-                  "bucket{l=\"192.00\"} 0\n" 
-                  "bucket{l=\"384.00\"} 0\n" 
-                  "bucket{l=\"768.00\"} 0\n" 
-                  "bucket{l=\"+inf\"} 0\n" 
-                  "sum 0.00\n"
-                  "count 0\n"
-      },
-      {
-          .value.distribution =
-              distribution_new_custom(4, (double[]){3, 10, 50, 100}),
-          .want = "bucket{l=\"3.00\"} 0\n" 
-                  "bucket{l=\"10.00\"} 0\n" 
-                  "bucket{l=\"50.00\"} 0\n" 
-                  "bucket{l=\"100.00\"} 0\n" 
-                  "bucket{l=\"+inf\"} 0\n" 
-                  "sum 0.00\n"
-                  "count 0\n"
-      },
+      {.value.distribution = distribution_new_linear(2, 20),
+       .want = "bucket{l=\"20.00\"} 0\n"
+               "bucket{l=\"+inf\"} 0\n"
+               "sum 0.00\n"
+               "count 0\n"},
+      {.value.distribution = distribution_new_exponential(10, 2, 3),
+       .want = "bucket{l=\"3.00\"} 0\n"
+               "bucket{l=\"6.00\"} 0\n"
+               "bucket{l=\"12.00\"} 0\n"
+               "bucket{l=\"24.00\"} 0\n"
+               "bucket{l=\"48.00\"} 0\n"
+               "bucket{l=\"96.00\"} 0\n"
+               "bucket{l=\"192.00\"} 0\n"
+               "bucket{l=\"384.00\"} 0\n"
+               "bucket{l=\"768.00\"} 0\n"
+               "bucket{l=\"+inf\"} 0\n"
+               "sum 0.00\n"
+               "count 0\n"},
+      {.value.distribution =
+           distribution_new_custom(4, (double[]){3, 10, 50, 100}),
+       .want = "bucket{l=\"3.00\"} 0\n"
+               "bucket{l=\"10.00\"} 0\n"
+               "bucket{l=\"50.00\"} 0\n"
+               "bucket{l=\"100.00\"} 0\n"
+               "bucket{l=\"+inf\"} 0\n"
+               "sum 0.00\n"
+               "count 0\n"},
   };
 
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
