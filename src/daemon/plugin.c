@@ -436,7 +436,7 @@ static int plugin_load_file(char const *file, bool global) {
     return ENOENT;
   }
 
-  void (*reg_handle)(void) = dlsym(dlh, "module_register");
+  void (*reg_handle)(void) = (void *)dlsym(dlh, "module_register");
   if (reg_handle == NULL) {
     ERROR("Couldn't find symbol \"module_register\" in \"%s\": %s\n", file,
           dlerror());
@@ -528,16 +528,13 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
     old_ctx = plugin_set_ctx(rf->rf_ctx);
 
     if (rf_type == RF_SIMPLE) {
-      int (*callback)(void);
+      int (*callback)(void) = (void *)rf->rf_callback;
 
-      callback = rf->rf_callback;
       status = (*callback)();
     } else {
-      plugin_read_cb callback;
-
       assert(rf_type == RF_COMPLEX);
 
-      callback = rf->rf_callback;
+      plugin_read_cb callback = (void *)rf->rf_callback;
       status = (*callback)(&rf->rf_udata);
     }
 
@@ -1707,13 +1704,9 @@ EXPORT int plugin_init_all(void) {
    * callback. */
   le = llist_head(list_init);
   while (le != NULL) {
-    callback_func_t *cf;
-    plugin_init_cb callback;
-    plugin_ctx_t old_ctx;
-
-    cf = le->value;
-    old_ctx = plugin_set_ctx(cf->cf_ctx);
-    callback = cf->cf_callback;
+    callback_func_t *cf = le->value;
+    plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
+    plugin_init_cb callback = (void *)cf->cf_callback;
     status = (*callback)();
     plugin_set_ctx(old_ctx);
 
@@ -1779,14 +1772,10 @@ EXPORT int plugin_read_all_once(void) {
     old_ctx = plugin_set_ctx(rf->rf_ctx);
 
     if (rf->rf_type == RF_SIMPLE) {
-      int (*callback)(void);
-
-      callback = rf->rf_callback;
+      int (*callback)(void) = (void *)rf->rf_callback;
       status = (*callback)();
     } else {
-      plugin_read_cb callback;
-
-      callback = rf->rf_callback;
+      plugin_read_cb callback = (void *)rf->rf_callback;
       status = (*callback)(&rf->rf_udata);
     }
 
@@ -1822,7 +1811,6 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
     le = llist_head(list_write);
     while (le != NULL) {
       callback_func_t *cf = le->value;
-      plugin_write_cb callback;
 
       /* Keep the read plugin's interval and flush information but update the
        * plugin name. */
@@ -1832,7 +1820,7 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
       plugin_set_ctx(ctx);
 
       DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
-      callback = cf->cf_callback;
+      plugin_write_cb callback = (void *)cf->cf_callback;
       status = (*callback)(fam, &cf->cf_udata);
       if (status != 0)
         failure++;
@@ -1849,9 +1837,6 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
       status = 0;
   } else /* plugin != NULL */
   {
-    callback_func_t *cf;
-    plugin_write_cb callback;
-
     le = llist_head(list_write);
     while (le != NULL) {
       if (strcasecmp(plugin, le->key) == 0)
@@ -1863,13 +1848,13 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
     if (le == NULL)
       return ENOENT;
 
-    cf = le->value;
+    callback_func_t *cf = le->value;
 
     /* do not switch plugin context; rather keep the context (interval)
      * information of the calling read plugin */
 
     DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
-    callback = cf->cf_callback;
+    plugin_write_cb callback = (void *)cf->cf_callback;
     status = (*callback)(fam, &cf->cf_udata);
   }
 
@@ -1885,18 +1870,14 @@ EXPORT int plugin_flush(const char *plugin, cdtime_t timeout,
 
   le = llist_head(list_flush);
   while (le != NULL) {
-    callback_func_t *cf;
-    plugin_flush_cb callback;
-    plugin_ctx_t old_ctx;
-
     if ((plugin != NULL) && (strcmp(plugin, le->key) != 0)) {
       le = le->next;
       continue;
     }
 
-    cf = le->value;
-    old_ctx = plugin_set_ctx(cf->cf_ctx);
-    callback = cf->cf_callback;
+    callback_func_t *cf = le->value;
+    plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
+    plugin_flush_cb callback = (void *)cf->cf_callback;
 
     (*callback)(timeout, identifier, &cf->cf_udata);
 
@@ -1935,13 +1916,9 @@ EXPORT int plugin_shutdown_all(void) {
     le = llist_head(list_shutdown);
 
   while (le != NULL) {
-    callback_func_t *cf;
-    plugin_shutdown_cb callback;
-    plugin_ctx_t old_ctx;
-
-    cf = le->value;
-    old_ctx = plugin_set_ctx(cf->cf_ctx);
-    callback = cf->cf_callback;
+    callback_func_t *cf = le->value;
+    plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
+    plugin_shutdown_cb callback = (void *)cf->cf_callback;
 
     /* Advance the pointer before calling the callback allows
      * shutdown functions to unregister themselves. If done the
@@ -2375,11 +2352,8 @@ EXPORT void plugin_log(int level, const char *format, ...) {
 
   le = llist_head(list_log);
   while (le != NULL) {
-    callback_func_t *cf;
-    plugin_log_cb callback;
-
-    cf = le->value;
-    callback = cf->cf_callback;
+    callback_func_t *cf = le->value;
+    plugin_log_cb callback = (void *)cf->cf_callback;
 
     /* do not switch plugin context; rather keep the context
      * (interval) information of the calling plugin */
