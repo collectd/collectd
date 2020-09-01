@@ -332,8 +332,8 @@ static struct {
     SPEC(num_connects, "NumConnects", dispatch_size, account_data_size, "count",
          CURLINFO_NUM_CONNECTS),
 #ifdef HAVE_CURLINFO_APPCONNECT_TIME
-    SPEC(appconnect_time, "AppconnectTime", dispatch_gauge, "duration",
-         CURLINFO_APPCONNECT_TIME),
+    SPEC(appconnect_time, "AppconnectTime", dispatch_gauge, account_data_gauge,
+         "duration", CURLINFO_APPCONNECT_TIME),
 #endif
 
 #undef SPEC
