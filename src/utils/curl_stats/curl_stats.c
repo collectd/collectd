@@ -308,8 +308,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   /* make identity of each metric unique */
   snprintf(identity, MAX_BUFFER_LENGTH, "curl_stats_%p", s);
 
-  oconfig_item_t *conf_distribution = NULL;
-
   metric_spec *m_spec;
   m_spec = calloc(1, sizeof(metric_spec));
 
