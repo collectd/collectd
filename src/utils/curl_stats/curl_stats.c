@@ -75,8 +75,7 @@ struct curl_stats_s {
   metric_t *m;
 };
 
-static metric_t * parse_metric_from_config(metric_spec *m_spec) {
-  DEBUG("parse_metric_from_config function");
+static metric_t *parse_metric_from_config(metric_spec *m_spec) {
   if (m_spec == NULL) {
     return NULL;
   }
@@ -87,7 +86,6 @@ static metric_t * parse_metric_from_config(metric_spec *m_spec) {
     return NULL;
   }
 
-  DEBUG("Reading metric type");
   if (m_spec->metric_type != NULL) {
     if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_DISTRIBUTION")) {
       m->family->type = METRIC_TYPE_DISTRIBUTION;
@@ -98,7 +96,8 @@ static metric_t * parse_metric_from_config(metric_spec *m_spec) {
     } else if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_UNTYPED")) {
       m->family->type = METRIC_TYPE_UNTYPED;
     } else {
-      ERROR("curl_stats_from_config: Unknown metric type %s.", m_spec->metric_type);
+      ERROR("curl_stats_from_config: Unknown metric type %s.",
+            m_spec->metric_type);
       free(m);
       return NULL;
     }
@@ -113,7 +112,6 @@ static metric_t * parse_metric_from_config(metric_spec *m_spec) {
     }
   }
 
-  DEBUG("Reading type of distribution");
   if (!strcasecmp(m_spec->distribution_type, "LINEAR")) {
     if (m_spec->num_buckets == 0 ||
         (m_spec->base == 0 && m_spec->factor == 0)) {
@@ -141,7 +139,6 @@ static metric_t * parse_metric_from_config(metric_spec *m_spec) {
     m->value.distribution = distribution_new_exponential(
         m_spec->num_buckets, m_spec->base, m_spec->factor);
   } else if (!strcasecmp(m_spec->distribution_type, "CUSTOM")) {
-    DEBUG("read_metric_from_config: custom distribution");
     if (m_spec->num_boundaries == 0) {
       ERROR("curl_stats_from_config: Missing arguments for metric type "
             "exponential distribution");
@@ -184,7 +181,6 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m) {
   if (code != CURLE_OK)
     return -1;
 
-  DEBUG("dispatch_gauge: pointer to metric: %p", m);
   if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
     distribution_update(m->value.distribution, val);
   } else {
@@ -300,9 +296,7 @@ static struct {
     SPEC(metric_identity, "MetricIdentity"),
     SPEC(base, "Base"),
     SPEC(factor, "Factor"),
-    SPEC(boundaries,
-         "Boundaries"), /* attention: this will be an array of double, for
-                           consideration: how to handle it? */
+    SPEC(boundaries, "Boundaries"),
     SPEC(num_buckets, "NumBuckets"),
     SPEC(num_boundaries, "NumBoundaries"),
 #undef SPEC
@@ -445,7 +439,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   free(m_spec);
 
   if (s->m == NULL) {
-      metric_family_free(s->m->family);
+    metric_family_free(s->m->family);
     free(s);
     return NULL;
   }
