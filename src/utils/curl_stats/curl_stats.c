@@ -34,6 +34,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+/* TODO(bkjg): consider making this structure static with creation of the
+ * variable in the compile time */
 typedef struct {
   char *metric_type;
   char *distribution_type;
@@ -483,3 +485,12 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
 
   return 0;
 } /* curl_stats_dispatch */
+
+int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
+  return 0;
+} /* curl_stats_account_data */
+
+
+int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
+  return 0;
+} /* curl_stats_send_metric_to_daemon */
