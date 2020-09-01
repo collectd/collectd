@@ -390,6 +390,9 @@ DEF_TEST(average) {
     }
     EXPECT_EQ_DOUBLE(cases[i].want_average,
                      distribution_average(cases[i].dist));
+    /* Check it second time for deadlocks. */
+    EXPECT_EQ_DOUBLE(cases[i].want_average,
+                     distribution_average(cases[i].dist));
     distribution_destroy(cases[i].dist);
   }
   return 0;
@@ -445,6 +448,9 @@ DEF_TEST(percentile) {
     for (size_t j = 0; j < cases[i].num_gauges; j++) {
       distribution_update(cases[i].dist, cases[i].update_gauges[j]);
     }
+    EXPECT_EQ_DOUBLE(cases[i].want_percentile,
+                     distribution_percentile(cases[i].dist, cases[i].percent));
+    /* Check it second time for deadlocks. */
     EXPECT_EQ_DOUBLE(cases[i].want_percentile,
                      distribution_percentile(cases[i].dist, cases[i].percent));
     if (cases[i].want_err != 0)

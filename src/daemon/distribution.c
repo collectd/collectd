@@ -247,8 +247,10 @@ double distribution_percentile(distribution_t *dist, double percent) {
     return NAN;
   }
   pthread_mutex_lock(&dist->mutex);
-  if (dist->tree[0].bucket_counter == 0)
+  if (dist->tree[0].bucket_counter == 0) {
+    pthread_mutex_unlock(&dist->mutex);
     return NAN;
+  }
   uint64_t counter = ceil(dist->tree[0].bucket_counter * percent / 100.0);
   double percentile =
       tree_get_counter(dist, 0, 0, dist->num_buckets - 1, counter);
@@ -261,6 +263,7 @@ double distribution_average(distribution_t *dist) {
     return NAN;
   pthread_mutex_lock(&dist->mutex);
   if (dist->tree[0].bucket_counter == 0) {
+    pthread_mutex_unlock(&dist->mutex);
     return NAN;
   }
   double average = dist->total_sum / dist->tree[0].bucket_counter;
