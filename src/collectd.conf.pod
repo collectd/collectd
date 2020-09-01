@@ -5348,7 +5348,7 @@ C<Bytes_{received,sent}>, C<Com_*>, C<Handler_*>, C<Qcache_*> and C<Threads_*>
 return values. Please refer to the B<MySQL reference manual>, I<5.1.6. Server
 Status Variables> for an explanation of these values.
 
-Optionally, master and slave statistics may be collected in a MySQL
+Optionally, primary and replica statistics may be collected in a MySQL
 replication setup. In that case, information about the synchronization state
 of the nodes are collected by evaluating the C<Position> return value of the
 C<SHOW MASTER STATUS> command and the C<Seconds_Behind_Master>,
@@ -5450,7 +5450,7 @@ Disabled by default.
 
 =item B<SlaveStats> I<true|false>
 
-Enable the collection of master / slave statistics in a replication setup. In
+Enable the collection of primary / replica statistics in a replication setup. In
 order to be able to get access to these statistics, the user needs special
 privileges. See the B<User> documentation above. Defaults to B<false>.
 
@@ -10721,7 +10721,7 @@ The output format to use. Can be one of C<Graphite> or C<JSON>.
 =head2 Plugin C<write_tsdb>
 
 The C<write_tsdb> plugin writes data to I<OpenTSDB>, a scalable open-source
-time series database. The plugin connects to a I<TSD>, a masterless, no shared
+time series database. The plugin connects to a I<TSD>, a leaderless, no shared
 state daemon that ingests metrics and stores them in HBase. The plugin uses
 I<TCP> over the "line based" protocol with a default port 4242. The data will
 be sent in blocks of at most 1428 bytes to minimize the number of network
