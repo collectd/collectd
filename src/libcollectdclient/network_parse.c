@@ -258,7 +258,7 @@ static double ntohd(double val) /* {{{ */
       config = 4;
   }
 
-  if (memcmp((char[]){0, 0, 0, 0, 0, 0, 0xf8, 0x7f}, in.byte, 8) == 0) {
+  if (memcmp((uint8_t[]){0, 0, 0, 0, 0, 0, 0xf8, 0x7f}, in.byte, 8) == 0) {
     return NAN;
   } else if (config == 1) {
     return val;
