@@ -78,6 +78,7 @@ struct curl_stats_s {
 };
 
 static void metric_spec_destroy(metric_spec_t *m_spec) {
+  free(m_spec->boundaries);
   free(m_spec->distribution_type);
   free(m_spec->metric_identity);
   free(m_spec->metric_type);
