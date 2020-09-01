@@ -1097,7 +1097,7 @@ int cf_util_get_int(const oconfig_item_t *ci, int *ret_value) /* {{{ */
 } /* }}} int cf_util_get_int */
 
 /* Assures the config option is a number and returns it as an uint64_t. */
-int cf_util_get_uint64(const oconfig_item_t *ci, uint64_t *ret_value) /* {{{ */
+int cf_util_get_int64(const oconfig_item_t *ci, uint64_t *ret_value) /* {{{ */
 {
   if ((ci == NULL) || (ret_value == NULL))
     return EINVAL;
