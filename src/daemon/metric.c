@@ -51,45 +51,6 @@ int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist) {
   return strbuf_printf(buf, GAUGE_FORMAT, distribution_total_sum(dist));
 }
 
-int distribution_marshal_text(strbuf_t *buf, distribution_t *dist) {
-  if (dist == NULL) {
-    return EINVAL;
-  }
-
-  buckets_array_t buckets = get_buckets(dist);
-
-  for (size_t i = 0; i < buckets.num_buckets; i++) {
-    if (i < buckets.num_buckets - 1) {
-      int status_buckets = strbuf_printf(buf, "bucket{l=\"%.2f\"} %lu\n",
-                                         buckets.buckets[i].maximum,
-                                         buckets.buckets[i].bucket_counter);
-      if (status_buckets != 0) {
-        return status_buckets;
-      }
-    } else {
-      int status_buckets = strbuf_printf(buf, "bucket{l=\"+%.2f\"} %lu\n",
-                                         buckets.buckets[i].maximum,
-                                         buckets.buckets[i].bucket_counter);
-      if (status_buckets != 0) {
-        return status_buckets;
-      }
-    }
-  }
-
-  int status_count =
-      strbuf_printf(buf, "sum %.2f\n", distribution_total_sum(dist));
-  if (status_count != 0) {
-    return status_count;
-  }
-
-  int status_sum =
-      strbuf_printf(buf, "count %lu\n", distribution_total_counter(dist));
-  if (status_sum != 0) {
-    return status_sum;
-  }
-  destroy_buckets_array(buckets);
-  return 0;
-}
 
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   switch (type) {
@@ -98,8 +59,6 @@ int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
     return strbuf_printf(buf, GAUGE_FORMAT, v.gauge);
   case METRIC_TYPE_COUNTER:
     return strbuf_printf(buf, "%" PRIu64, v.counter);
-  case METRIC_TYPE_DISTRIBUTION:
-    return distribution_marshal_text(buf, v.distribution);
   default:
     ERROR("Unknown metric value type: %d", (int)type);
     return EINVAL;
