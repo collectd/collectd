@@ -291,7 +291,7 @@ static struct {
   int (*configure)(const char *, const void *, metric_t);
 } metric_specs[] = {
 #define SPEC(name, config_key)                                                 \
-  { #name, config_key, offsetof(metric_spec, name) }
+  { #name, config_key, offsetof(metric_spec_t, name) }
 
     SPEC(metric_type, "MetricType"),
     SPEC(distribution_type, "DistributionType"),
