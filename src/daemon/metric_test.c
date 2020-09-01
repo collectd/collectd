@@ -302,7 +302,6 @@ DEF_TEST(metric_reset) {
   return 0;
 }
 
-
 int main(void) {
   RUN_TEST(metric_label_set);
   RUN_TEST(metric_identity);
