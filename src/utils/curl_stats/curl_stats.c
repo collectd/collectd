@@ -386,7 +386,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
             ERROR("curl_stats_from_config: Wrong type for distribution custom "
                   "boundary. Required %d, received %d.",
                   OCONFIG_TYPE_NUMBER, c->values->type);
-            /* TODO(bkjg): here should be function for destroying metric_spec_t */
+            /* TODO(bkjg): here should be function for destroying metric_spec_t
+             */
             free(m_spec);
             free(s);
             return NULL;
@@ -486,21 +487,46 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
   return 0;
 } /* curl_stats_dispatch */
 
-int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
+int curl_stats_account_data(curl_stats_t *s, CURL *curl) {}
 
-}
+static int curl_stats_account_data_gauge(CURL *curl, CURLINFO info,
+                                         metric_t *m) {
+  CURLcode code;
+  double val;
 
-static int curl_stats_account_data_gauge(CURL *curl, CURLINFO info, metric_t *m) {
+  code = curl_easy_getinfo(curl, info, &val);
+  if (code != CURLE_OK)
+    return -1;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val);
+  } else {
+    m->value.gauge = val;
+  }
 
   return 0;
 } /* curl_stats_account_data_gauge */
 
-static int curl_stats_account_data_speed(CURL *curl, CURLINFO info, metric_t *m) {
+static int curl_stats_account_data_speed(CURL *curl, CURLINFO info,
+                                         metric_t *m) {
+  CURLcode code;
+  double val;
+
+  code = curl_easy_getinfo(curl, info, &val);
+  if (code != CURLE_OK)
+    return -1;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val * 8);
+  } else {
+    m->value.gauge = val * 8;
+  }
 
   return 0;
 } /* curl_stats_account_data_speed */
 
-static int curl_stats_account_data_size(CURL *curl, CURLINFO info, metric_t *m) {
+static int curl_stats_account_data_size(CURL *curl, CURLINFO info,
+                                        metric_t *m) {
   CURLcode code;
   long raw;
 
@@ -518,5 +544,5 @@ static int curl_stats_account_data_size(CURL *curl, CURLINFO info, metric_t *m) 
 } /* curl_stats_account_data_size */
 
 int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
-  return 0;
+  return plugin_dispatch_metric_family(s->m->family);;
 } /* curl_stats_send_metric_to_daemon */
