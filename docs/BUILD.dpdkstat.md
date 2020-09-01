@@ -217,7 +217,7 @@ See also: http://dpdk.org/doc/guides/prog_guide/multi_proc_support.html
 
  *  The same PCI device configuration should be passed to the primary process as
     the secondary process uses the same port indexes as the primary.
- *  A deny-list / allow-list of NICs isn't supported yet.
+ *  A blocklist / allowlist of NICs isn't supported yet.
  *  Plugin initialization time depends on read interval. It requires 5 read
     cycles to set up internal buffers and states. During that time no statistics
     are submitted.
