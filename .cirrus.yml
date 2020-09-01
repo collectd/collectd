@@ -28,9 +28,6 @@ debian_default_toolchain_task:
   matrix:
     - allow_failures: false
       container:
-        image: collectd/ci:jessie_amd64
-    - allow_failures: false
-      container:
         image: collectd/ci:stretch_amd64
     - allow_failures: false
       container:
