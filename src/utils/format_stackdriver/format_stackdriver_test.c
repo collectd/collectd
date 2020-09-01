@@ -26,52 +26,78 @@
 #include "utils/format_stackdriver/format_stackdriver.h"
 
 DEF_TEST(sd_format_metric_descriptor) {
-  value_list_t vl = {
-      .host = "example.com",
-      .plugin = "unit-test",
-      .type = "example",
+  struct {
+    char *name;
+    metric_type_t type;
+    label_t *labels;
+    size_t labels_num;
+    char *want;
+  } cases[] = {
+      {
+          .name = "gauge_metric",
+          .type = METRIC_TYPE_GAUGE,
+          .want = "{\"type\":\"custom.googleapis.com/collectd/"
+                  "gauge_metric\",\"metricKind\":\"GAUGE\",\"valueType\":"
+                  "\"DOUBLE\",\"labels\":[]}",
+      },
+      {
+          .name = "counter_metric",
+          .type = METRIC_TYPE_COUNTER,
+          .want = "{\"type\":\"custom.googleapis.com/collectd/"
+                  "counter_metric\",\"metricKind\":\"CUMULATIVE\","
+                  "\"valueType\":\"INT64\",\"labels\":[]}",
+      },
+      {
+          .name = "untyped_metric",
+          .type = METRIC_TYPE_UNTYPED,
+          .want = "{\"type\":\"custom.googleapis.com/collectd/"
+                  "untyped_metric\",\"metricKind\":\"GAUGE\",\"valueType\":"
+                  "\"DOUBLE\",\"labels\":[]}",
+      },
+      {
+          .name = "metric_with_labels",
+          .type = METRIC_TYPE_GAUGE,
+          .labels =
+              (label_t[]){
+                  {"region", "here be dragons"},
+                  {"instance", "example.com"},
+              },
+          .labels_num = 2,
+          .want = "{\"type\":\"custom.googleapis.com/collectd/"
+                  "metric_with_labels\",\"metricKind\":\"GAUGE\",\"valueType\":"
+                  "\"DOUBLE\",\"labels\":[{\"key\":\"instance\",\"valueType\":"
+                  "\"STRING\"},{\"key\":\"region\",\"valueType\":\"STRING\"}]}",
+      },
+      {
+          .name = "stored:aggregation:metric",
+          .type = METRIC_TYPE_GAUGE,
+          .want = "{\"type\":\"custom.googleapis.com/collectd/"
+                  "stored_aggregation_metric\",\"metricKind\":\"GAUGE\","
+                  "\"valueType\":\"DOUBLE\",\"labels\":[]}",
+      },
   };
-  char got[1024];
 
-  data_set_t ds_single = {
-      .type = "example",
-      .ds_num = 1,
-      .ds =
-          &(data_source_t){
-              .name = "value",
-              .type = DS_TYPE_GAUGE,
-              .min = NAN,
-              .max = NAN,
-          },
-  };
-  EXPECT_EQ_INT(
-      0, sd_format_metric_descriptor(got, sizeof(got), &ds_single, &vl, 0));
-  char const *want_single =
-      "{\"type\":\"custom.googleapis.com/collectd/unit_test/"
-      "example\",\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"labels\":["
-      "{\"key\":\"host\",\"valueType\":\"STRING\"},{\"key\":\"plugin_"
-      "instance\",\"valueType\":\"STRING\"},{\"key\":\"type_instance\","
-      "\"valueType\":\"STRING\"}]}";
-  EXPECT_EQ_STR(want_single, got);
+  for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
+    metric_family_t fam = {
+        .name = cases[i].name,
+        .type = cases[i].type,
+    };
+    metric_t m = {
+        .family = &fam,
+    };
+    for (size_t j = 0; j < cases[i].labels_num; j++) {
+      label_t *l = cases[i].labels + j;
+      EXPECT_EQ_INT(0, metric_label_set(&m, l->name, l->value));
+    }
 
-  data_set_t ds_double = {
-      .type = "example",
-      .ds_num = 2,
-      .ds =
-          (data_source_t[]){
-              {.name = "one", .type = DS_TYPE_DERIVE, .min = 0, .max = NAN},
-              {.name = "two", .type = DS_TYPE_DERIVE, .min = 0, .max = NAN},
-          },
-  };
-  EXPECT_EQ_INT(
-      0, sd_format_metric_descriptor(got, sizeof(got), &ds_double, &vl, 0));
-  char const *want_double =
-      "{\"type\":\"custom.googleapis.com/collectd/unit_test/"
-      "example_one\",\"metricKind\":\"CUMULATIVE\",\"valueType\":\"INT64\","
-      "\"labels\":[{\"key\":\"host\",\"valueType\":\"STRING\"},{\"key\":"
-      "\"plugin_instance\",\"valueType\":\"STRING\"},{\"key\":\"type_"
-      "instance\",\"valueType\":\"STRING\"}]}";
-  EXPECT_EQ_STR(want_double, got);
+    strbuf_t buf = STRBUF_CREATE;
+    EXPECT_EQ_INT(0, sd_format_metric_descriptor(&buf, &m));
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
+
+    STRBUF_DESTROY(buf);
+    metric_reset(&m);
+  }
+
   return 0;
 }
 

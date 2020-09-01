@@ -56,10 +56,9 @@ typedef struct wr_node_s wr_node_t;
 /*
  * Functions
  */
-static int wr_write(const data_set_t *ds, /* {{{ */
-                    const value_list_t *vl, user_data_t *ud) {
+static int wr_write(/* {{{ */
+                    metric_single_t const *m, user_data_t *ud) {
   wr_node_t *node = ud->data;
-  char ident[512];
   char key[512];
   char value[512] = {0};
   char time[24];
@@ -68,19 +67,23 @@ static int wr_write(const data_set_t *ds, /* {{{ */
   int status;
   redisReply *rr;
 
-  status = FORMAT_VL(ident, sizeof(ident), vl);
-  if (status != 0)
-    return status;
+  char *metric_string_p = NULL;
+  if ((metric_string_p = metric_marshal_text(m)) != 0) {
+    return -1;
+  }
+
   ssnprintf(key, sizeof(key), "%s%s",
             (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX,
-            ident);
-  ssnprintf(time, sizeof(time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
+            metric_string_p);
+  ssnprintf(time, sizeof(time), "%.9f", CDTIME_T_TO_DOUBLE(m->time));
 
   value_size = sizeof(value);
   value_ptr = &value[0];
-  status = format_values(value_ptr, value_size, ds, vl, node->store_rates);
-  if (status != 0)
+  status = format_values(value_ptr, value_size, m, node->store_rates);
+  if (status != 0) {
+    sfree(metric_string_p);
     return status;
+  }
 
   pthread_mutex_lock(&node->lock);
 
@@ -93,6 +96,7 @@ static int wr_write(const data_set_t *ds, /* {{{ */
             (node->host != NULL) ? node->host : "localhost",
             (node->port != 0) ? node->port : 6379);
       pthread_mutex_unlock(&node->lock);
+      sfree(metric_string_p);
       return -1;
     } else if (node->conn->err) {
       ERROR(
@@ -100,6 +104,7 @@ static int wr_write(const data_set_t *ds, /* {{{ */
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : 6379, node->conn->errstr);
       pthread_mutex_unlock(&node->lock);
+      sfree(metric_string_p);
       return -1;
     }
 
@@ -133,7 +138,7 @@ static int wr_write(const data_set_t *ds, /* {{{ */
      * '(...' indicates 'less than' in redis CLI.
      */
     rr = redisCommand(node->conn, "ZREMRANGEBYSCORE %s -1 (%.9f", key,
-                      (CDTIME_T_TO_DOUBLE(vl->time) - node->max_set_duration));
+                      (CDTIME_T_TO_DOUBLE(m->time) - node->max_set_duration));
     if (rr == NULL)
       WARNING("ZREMRANGEBYSCORE command error. key:%s message:%s", key,
               node->conn->errstr);
@@ -144,17 +149,18 @@ static int wr_write(const data_set_t *ds, /* {{{ */
   /* TODO(octo): This is more overhead than necessary. Use the cache and
    * metadata to determine if it is a new metric and call SADD only once for
    * each metric. */
-  rr = redisCommand(
-      node->conn, "SADD %svalues %s",
-      (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX, ident);
+  rr =
+      redisCommand(node->conn, "SADD %svalues %s",
+                   (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX,
+                   metric_string_p);
   if (rr == NULL)
-    WARNING("SADD command error. ident:%s message:%s", ident,
+    WARNING("SADD command error. ident:%s message:%s", metric_string_p,
             node->conn->errstr);
   else
     freeReplyObject(rr);
 
   pthread_mutex_unlock(&node->lock);
-
+  sfree(metric_string_p);
   return 0;
 } /* }}} int wr_write */
 

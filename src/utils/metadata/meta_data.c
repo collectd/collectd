@@ -160,7 +160,7 @@ static int md_entry_insert(meta_data_t *md, meta_entry_t *e) /* {{{ */
   meta_entry_t *prev;
 
   if ((md == NULL) || (e == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
@@ -351,7 +351,7 @@ void meta_data_destroy(meta_data_t *md) /* {{{ */
 int meta_data_exists(meta_data_t *md, const char *key) /* {{{ */
 {
   if ((md == NULL) || (key == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
@@ -369,7 +369,7 @@ int meta_data_exists(meta_data_t *md, const char *key) /* {{{ */
 int meta_data_type(meta_data_t *md, const char *key) /* {{{ */
 {
   if ((md == NULL) || (key == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
@@ -389,7 +389,7 @@ int meta_data_toc(meta_data_t *md, char ***toc) /* {{{ */
   int i = 0, count = 0;
 
   if ((md == NULL) || (toc == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
@@ -415,7 +415,7 @@ int meta_data_delete(meta_data_t *md, const char *key) /* {{{ */
   meta_entry_t *prev;
 
   if ((md == NULL) || (key == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
@@ -431,7 +431,7 @@ int meta_data_delete(meta_data_t *md, const char *key) /* {{{ */
 
   if (this == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   if (prev == NULL)
@@ -455,17 +455,17 @@ int meta_data_add_string(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return -ENOMEM;
+    return ENOMEM;
 
   e->value.mv_string = md_strdup(value);
   if (e->value.mv_string == NULL) {
     ERROR("meta_data_add_string: md_strdup failed.");
     md_entry_free(e);
-    return -ENOMEM;
+    return ENOMEM;
   }
   e->type = MD_TYPE_STRING;
 
@@ -477,11 +477,11 @@ int meta_data_add_signed_int(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return -ENOMEM;
+    return ENOMEM;
 
   e->value.mv_signed_int = value;
   e->type = MD_TYPE_SIGNED_INT;
@@ -494,11 +494,11 @@ int meta_data_add_unsigned_int(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return -ENOMEM;
+    return ENOMEM;
 
   e->value.mv_unsigned_int = value;
   e->type = MD_TYPE_UNSIGNED_INT;
@@ -511,11 +511,11 @@ int meta_data_add_double(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return -ENOMEM;
+    return ENOMEM;
 
   e->value.mv_double = value;
   e->type = MD_TYPE_DOUBLE;
@@ -528,11 +528,11 @@ int meta_data_add_boolean(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return -ENOMEM;
+    return ENOMEM;
 
   e->value.mv_boolean = value;
   e->type = MD_TYPE_BOOLEAN;
@@ -549,27 +549,27 @@ int meta_data_get_string(meta_data_t *md, /* {{{ */
   char *temp;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   if (e->type != MD_TYPE_STRING) {
     ERROR("meta_data_get_string: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   temp = md_strdup(e->value.mv_string);
   if (temp == NULL) {
     pthread_mutex_unlock(&md->lock);
     ERROR("meta_data_get_string: md_strdup failed.");
-    return -ENOMEM;
+    return ENOMEM;
   }
 
   pthread_mutex_unlock(&md->lock);
@@ -584,20 +584,20 @@ int meta_data_get_signed_int(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   if (e->type != MD_TYPE_SIGNED_INT) {
     ERROR("meta_data_get_signed_int: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   *value = e->value.mv_signed_int;
@@ -611,20 +611,20 @@ int meta_data_get_unsigned_int(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   if (e->type != MD_TYPE_UNSIGNED_INT) {
     ERROR("meta_data_get_unsigned_int: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   *value = e->value.mv_unsigned_int;
@@ -638,20 +638,20 @@ int meta_data_get_double(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   if (e->type != MD_TYPE_DOUBLE) {
     ERROR("meta_data_get_double: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   *value = e->value.mv_double;
@@ -665,20 +665,20 @@ int meta_data_get_boolean(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   if (e->type != MD_TYPE_BOOLEAN) {
     ERROR("meta_data_get_boolean: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   *value = e->value.mv_boolean;
@@ -696,14 +696,14 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
   int type;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return -EINVAL;
+    return EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
+    return ENOENT;
   }
 
   type = e->type;
@@ -730,7 +730,7 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
   default:
     pthread_mutex_unlock(&md->lock);
     ERROR("meta_data_as_string: unknown type %d for key `%s'", type, key);
-    return -ENOENT;
+    return ENOENT;
   }
 
   pthread_mutex_unlock(&md->lock);
@@ -738,7 +738,7 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
   temp = md_strdup(actual);
   if (temp == NULL) {
     ERROR("meta_data_as_string: md_strdup failed for key `%s'.", key);
-    return -ENOMEM;
+    return ENOMEM;
   }
 
   *value = temp;

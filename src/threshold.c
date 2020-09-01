@@ -52,8 +52,11 @@ static int ut_threshold_add(const threshold_t *th) { /* {{{ */
   threshold_t *th_ptr;
   int status = 0;
 
-  if (format_name(name, sizeof(name), th->host, th->plugin, th->plugin_instance,
-                  th->type, th->type_instance) != 0) {
+  if (snprintf(
+          name, sizeof(name), "%s/%s/%s/%s", (th->host == NULL) ? "" : th->host,
+          (th->plugin == NULL) ? "" : th->plugin,
+          (th->type == NULL) ? "" : th->type,
+          (th->data_source == NULL) ? "" : th->data_source) > sizeof(name)) {
     ERROR("ut_threshold_add: format_name failed.");
     return -1;
   }
@@ -76,8 +79,7 @@ static int ut_threshold_add(const threshold_t *th) { /* {{{ */
 
   pthread_mutex_lock(&threshold_lock);
 
-  th_ptr = threshold_get(th->host, th->plugin, th->plugin_instance, th->type,
-                         th->type_instance);
+  th_ptr = threshold_get(th->host, th->plugin, th->type, th->data_source);
 
   while ((th_ptr != NULL) && (th_ptr->next != NULL))
     th_ptr = th_ptr->next;
@@ -138,10 +140,7 @@ static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
-    if (strcasecmp("Instance", option->key) == 0)
-      status = cf_util_get_string_buffer(option, th.type_instance,
-                                         sizeof(th.type_instance));
-    else if (strcasecmp("DataSource", option->key) == 0)
+    if (strcasecmp("DataSource", option->key) == 0)
       status = cf_util_get_string_buffer(option, th.data_source,
                                          sizeof(th.data_source));
     else if (strcasecmp("WarningMax", option->key) == 0)
@@ -208,9 +207,9 @@ static int ut_config_plugin(const threshold_t *th_orig, oconfig_item_t *ci) {
 
     if (strcasecmp("Type", option->key) == 0)
       status = ut_config_type(&th, option);
-    else if (strcasecmp("Instance", option->key) == 0)
-      status = cf_util_get_string_buffer(option, th.plugin_instance,
-                                         sizeof(th.plugin_instance));
+    else if (strcasecmp("Source", option->key) == 0)
+      status = cf_util_get_string_buffer(option, th.data_source,
+                                         sizeof(th.data_source));
     else {
       WARNING("threshold values: Option `%s' not allowed inside a `Plugin' "
               "block.",
@@ -276,9 +275,8 @@ static int ut_config_host(const threshold_t *th_orig, oconfig_item_t *ci) {
  * if appropriate.
  * Does not fail.
  */
-static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
-                           const threshold_t *th, const gauge_t *values,
-                           int ds_index, int state) { /* {{{ */
+static int ut_report_state(metric_single_t const *m, const threshold_t *th,
+                           const gauge_t value, int state) { /* {{{ */
   int state_old;
   notification_t n;
 
@@ -289,22 +287,22 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
 
   /* Check if hits matched */
   if ((th->hits != 0)) {
-    int hits = uc_get_hits(ds, vl);
+    int hits = uc_get_hits(m);
     /* STATE_OKAY resets hits unless PERSIST_OK flag is set. Hits resets if
      * threshold is hit. */
     if (((state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0)) ||
         (hits > th->hits)) {
       DEBUG("ut_report_state: reset uc_get_hits = 0");
-      uc_set_hits(ds, vl, 0); /* reset hit counter and notify */
+      uc_set_hits(m, 0); /* reset hit counter and notify */
     } else {
       DEBUG("ut_report_state: th->hits = %d, uc_get_hits = %d", th->hits,
-            uc_get_hits(ds, vl));
-      (void)uc_inc_hits(ds, vl, 1); /* increase hit counter */
+            uc_get_hits(mstric_p));
+      (void)uc_inc_hits(m, 1); /* increase hit counter */
       return 0;
     }
   } /* end check hits */
 
-  state_old = uc_get_state(ds, vl);
+  state_old = uc_get_state(m);
 
   /* If the state didn't change, report if `persistent' is specified. If the
    * state is `okay', then only report if `persist_ok` flag is set. */
@@ -319,9 +317,9 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
   }
 
   if (state != state_old)
-    uc_set_state(ds, vl, state);
+    uc_set_state(m, state);
 
-  NOTIFICATION_INIT_VL(&n, vl);
+  notification_init_metric(&n, NOTIF_FAILURE, NULL, m);
 
   buf = n.message;
   bufsize = sizeof(n.message);
@@ -333,30 +331,34 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
   else
     n.severity = NOTIF_FAILURE;
 
-  n.time = vl->time;
+  n.time = m->time;
 
-  status = ssnprintf(buf, bufsize, "Host %s, plugin %s", vl->host, vl->plugin);
+  status = ssnprintf(buf, bufsize, "Name %s", m->identity->name);
   buf += status;
   bufsize -= status;
 
-  if (vl->plugin_instance[0] != '\0') {
-    status = ssnprintf(buf, bufsize, " (instance %s)", vl->plugin_instance);
-    buf += status;
-    bufsize -= status;
+  if (m->identity->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(m->identity->root_p);
+    if (iter_p != NULL) {
+      char *key_p = NULL;
+      char *value_p = NULL;
+      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
+                                  (void **)&value_p)) == 0) {
+        if ((key_p != NULL) && (value_p != NULL)) {
+          int tmp_str_len = strlen(key_p) + strlen(value_p) + 2;
+          if (tmp_str_len < bufsize) {
+            status = ssnprintf(buf, bufsize, "%s %s", key_p, value_p);
+            buf += status;
+            bufsize -= status;
+          }
+        }
+      }
+    }
+    c_avl_iterator_destroy(iter_p);
   }
 
-  status = ssnprintf(buf, bufsize, " type %s", vl->type);
-  buf += status;
-  bufsize -= status;
-
-  if (vl->type_instance[0] != '\0') {
-    status = ssnprintf(buf, bufsize, " (instance %s)", vl->type_instance);
-    buf += status;
-    bufsize -= status;
-  }
-
-  plugin_notification_meta_add_string(&n, "DataSource", ds->ds[ds_index].name);
-  plugin_notification_meta_add_double(&n, "CurrentValue", values[ds_index]);
+  plugin_notification_meta_add_string(&n, "DataSource", m->ds->name);
+  plugin_notification_meta_add_double(&n, "CurrentValue", value);
   plugin_notification_meta_add_double(&n, "WarningMin", th->warning_min);
   plugin_notification_meta_add_double(&n, "WarningMax", th->warning_max);
   plugin_notification_meta_add_double(&n, "FailureMin", th->failure_min);
@@ -370,7 +372,7 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
       ssnprintf(buf, bufsize,
                 ": All data sources are within range again. "
                 "Current value of \"%s\" is %f.",
-                ds->ds[ds_index].name, values[ds_index]);
+                m->ds->name, value);
   } else if (state == STATE_UNKNOWN) {
     ERROR("ut_report_state: metric transition to UNKNOWN from a different "
           "state. This shouldn't happen.");
@@ -387,7 +389,7 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
         ssnprintf(buf, bufsize,
                   ": Data source \"%s\" is currently "
                   "%f. That is within the %s region of %f%s and %f%s.",
-                  ds->ds[ds_index].name, values[ds_index],
+                  m->ds->name, value,
                   (state == STATE_ERROR) ? "failure" : "warning", min,
                   ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "", max,
                   ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
@@ -395,34 +397,16 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
         ssnprintf(buf, bufsize,
                   ": Data source \"%s\" is currently "
                   "%f. That is %s the %s threshold of %f%s.",
-                  ds->ds[ds_index].name, values[ds_index],
-                  isnan(min) ? "below" : "above",
+                  m->ds->name, value, isnan(min) ? "below" : "above",
                   (state == STATE_ERROR) ? "failure" : "warning",
                   isnan(min) ? max : min,
                   ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       }
     } else if (th->flags & UT_FLAG_PERCENTAGE) {
-      gauge_t value;
-      gauge_t sum;
-
-      sum = 0.0;
-      for (size_t i = 0; i < vl->values_len; i++) {
-        if (isnan(values[i]))
-          continue;
-
-        sum += values[i];
-      }
-
-      if (sum == 0.0)
-        value = NAN;
-      else
-        value = 100.0 * values[ds_index] / sum;
-
       ssnprintf(buf, bufsize,
                 ": Data source \"%s\" is currently "
                 "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
-                ds->ds[ds_index].name, values[ds_index], value,
-                (value < min) ? "below" : "above",
+                m->ds->name, value, value, (value < min) ? "below" : "above",
                 (state == STATE_ERROR) ? "failure" : "warning",
                 (value < min) ? min : max);
     } else /* is not inverted */
@@ -430,10 +414,9 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
       ssnprintf(buf, bufsize,
                 ": Data source \"%s\" is currently "
                 "%f. That is %s the %s threshold of %f.",
-                ds->ds[ds_index].name, values[ds_index],
-                (values[ds_index] < min) ? "below" : "above",
+                m->ds->name, value, (value < min) ? "below" : "above",
                 (state == STATE_ERROR) ? "failure" : "warning",
-                (values[ds_index] < min) ? min : max);
+                (value < min) ? min : max);
     }
   }
 
@@ -453,20 +436,16 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
  * appropriate.
  * Does not fail.
  */
-static int ut_check_one_data_source(
-    const data_set_t *ds, const value_list_t __attribute__((unused)) * vl,
-    const threshold_t *th, const gauge_t *values, int ds_index) { /* {{{ */
-  const char *ds_name;
+static int ut_check_one_data_source(metric_single_t const *m,
+                                    const threshold_t *th,
+                                    const gauge_t value) { /* {{{ */
   int is_warning = 0;
   int is_failure = 0;
   int prev_state = STATE_OKAY;
 
   /* check if this threshold applies to this data source */
-  if (ds != NULL) {
-    ds_name = ds->ds[ds_index].name;
-    if ((th->data_source[0] != 0) && (strcmp(ds_name, th->data_source) != 0))
-      return STATE_UNKNOWN;
-  }
+  if ((th->data_source[0] != 0) && (strcmp(m->ds->name, th->data_source) != 0))
+    return STATE_UNKNOWN;
 
   if ((th->flags & UT_FLAG_INVERT) != 0) {
     is_warning--;
@@ -476,7 +455,7 @@ static int ut_check_one_data_source(
   /* XXX: This is an experimental code, not optimized, not fast, not reliable,
    * and probably, do not work as you expect. Enjoy! :D */
   if (th->hysteresis > 0) {
-    prev_state = uc_get_state(ds, vl);
+    prev_state = uc_get_state(m);
     /* The purpose of hysteresis is elliminating flapping state when the value
      * oscilates around the thresholds. In other words, what is important is
      * the previous state; if the new value would trigger a transition, make
@@ -501,24 +480,24 @@ static int ut_check_one_data_source(
     }
 
     if ((!isnan(th->failure_min) &&
-         (th->failure_min + hysteresis_for_failure > values[ds_index])) ||
+         (th->failure_min + hysteresis_for_failure > value)) ||
         (!isnan(th->failure_max) &&
-         (th->failure_max - hysteresis_for_failure < values[ds_index])))
+         (th->failure_max - hysteresis_for_failure < value)))
       is_failure++;
 
     if ((!isnan(th->warning_min) &&
-         (th->warning_min + hysteresis_for_warning > values[ds_index])) ||
+         (th->warning_min + hysteresis_for_warning > value)) ||
         (!isnan(th->warning_max) &&
-         (th->warning_max - hysteresis_for_warning < values[ds_index])))
+         (th->warning_max - hysteresis_for_warning < value)))
       is_warning++;
 
   } else { /* no hysteresis */
-    if ((!isnan(th->failure_min) && (th->failure_min > values[ds_index])) ||
-        (!isnan(th->failure_max) && (th->failure_max < values[ds_index])))
+    if ((!isnan(th->failure_min) && (th->failure_min > value)) ||
+        (!isnan(th->failure_max) && (th->failure_max < value)))
       is_failure++;
 
-    if ((!isnan(th->warning_min) && (th->warning_min > values[ds_index])) ||
-        (!isnan(th->warning_max) && (th->warning_max < values[ds_index])))
+    if ((!isnan(th->warning_min) && (th->warning_min > value)) ||
+        (!isnan(th->warning_max) && (th->warning_max < value)))
       is_warning++;
   }
 
@@ -540,60 +519,38 @@ static int ut_check_one_data_source(
  * defined.
  * Returns less than zero if the data set doesn't have any data sources.
  */
-static int ut_check_one_threshold(const data_set_t *ds, const value_list_t *vl,
-                                  const threshold_t *th, const gauge_t *values,
-                                  int *ret_ds_index) { /* {{{ */
+static int ut_check_one_threshold(metric_single_t const *m,
+                                  const threshold_t *th,
+                                  const gauge_t value) { /* {{{ */
   int ret = -1;
-  int ds_index = -1;
-  gauge_t values_copy[ds->ds_num];
-
-  memcpy(values_copy, values, sizeof(values_copy));
+  gauge_t values_copy = value;
 
   if ((th->flags & UT_FLAG_PERCENTAGE) != 0) {
     int num = 0;
     gauge_t sum = 0.0;
 
-    if (ds->ds_num == 1) {
-      WARNING(
-          "ut_check_one_threshold: The %s type has only one data "
-          "source, but you have configured to check this as a percentage. "
-          "That doesn't make much sense, because the percentage will always "
-          "be 100%%!",
-          ds->type);
-    }
-
     /* Prepare `sum' and `num'. */
-    for (size_t i = 0; i < ds->ds_num; i++)
-      if (!isnan(values[i])) {
-        num++;
-        sum += values[i];
-      }
+    if (!isnan(value)) {
+      num++;
+      sum += value;
+    }
 
     if ((num == 0)       /* All data sources are undefined. */
         || (sum == 0.0)) /* Sum is zero, cannot calculate percentage. */
     {
-      for (size_t i = 0; i < ds->ds_num; i++)
-        values_copy[i] = NAN;
+      values_copy = NAN;
     } else /* We can actually calculate the percentage. */
     {
-      for (size_t i = 0; i < ds->ds_num; i++)
-        values_copy[i] = 100.0 * values[i] / sum;
+      values_copy = 100.0;
     }
   } /* if (UT_FLAG_PERCENTAGE) */
 
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    int status;
+  int status;
 
-    status = ut_check_one_data_source(ds, vl, th, values_copy, i);
-    if (ret < status) {
-      ret = status;
-      ds_index = i;
-    }
-  } /* for (ds->ds_num) */
-
-  if (ret_ds_index != NULL)
-    *ret_ds_index = ds_index;
-
+  status = ut_check_one_data_source(m, th, values_copy);
+  if (ret < status) {
+    ret = status;
+  }
   return ret;
 } /* }}} int ut_check_one_threshold */
 
@@ -606,16 +563,15 @@ static int ut_check_one_threshold(const data_set_t *ds, const value_list_t *vl,
  * Returns zero on success and if no threshold has been configured. Returns
  * less than zero on failure.
  */
-static int ut_check_threshold(const data_set_t *ds, const value_list_t *vl,
+static int ut_check_threshold(metric_single_t const *m,
                               __attribute__((unused))
                               user_data_t *ud) { /* {{{ */
   threshold_t *th;
-  gauge_t *values;
+  gauge_t value;
   int status;
 
   int worst_state = -1;
   threshold_t *worst_th = NULL;
-  int worst_ds_index = -1;
 
   if (threshold_tree == NULL)
     return 0;
@@ -623,45 +579,38 @@ static int ut_check_threshold(const data_set_t *ds, const value_list_t *vl,
   /* Is this lock really necessary? So far, thresholds are only inserted at
    * startup. -octo */
   pthread_mutex_lock(&threshold_lock);
-  th = threshold_search(vl);
+  th = threshold_search(m);
   pthread_mutex_unlock(&threshold_lock);
   if (th == NULL)
     return 0;
 
   DEBUG("ut_check_threshold: Found matching threshold(s)");
 
-  values = uc_get_rate(ds, vl);
-  if (values == NULL)
+  status = uc_get_rate(m, &value);
+  if (status != 0)
     return 0;
 
   while (th != NULL) {
-    int ds_index = -1;
 
-    status = ut_check_one_threshold(ds, vl, th, values, &ds_index);
+    status = ut_check_one_threshold(m, th, value);
     if (status < 0) {
       ERROR("ut_check_threshold: ut_check_one_threshold failed.");
-      sfree(values);
       return -1;
     }
 
     if (worst_state < status) {
       worst_state = status;
       worst_th = th;
-      worst_ds_index = ds_index;
     }
 
     th = th->next;
   } /* while (th) */
 
-  status =
-      ut_report_state(ds, vl, worst_th, values, worst_ds_index, worst_state);
+  status = ut_report_state(m, worst_th, value, worst_state);
   if (status != 0) {
     ERROR("ut_check_threshold: ut_report_state failed.");
-    sfree(values);
     return -1;
   }
-
-  sfree(values);
 
   return 0;
 } /* }}} int ut_check_threshold */
@@ -671,31 +620,34 @@ static int ut_check_threshold(const data_set_t *ds, const value_list_t *vl,
  *
  * This function is called whenever a value goes "missing".
  */
-static int ut_missing(const value_list_t *vl,
+static int ut_missing(metric_single_t const *m,
                       __attribute__((unused)) user_data_t *ud) { /* {{{ */
   threshold_t *th;
   cdtime_t missing_time;
-  char identifier[6 * DATA_MAX_NAME_LEN];
+  char *identifier_p = NULL;
   notification_t n;
   cdtime_t now;
 
   if (threshold_tree == NULL)
     return 0;
 
-  th = threshold_search(vl);
+  th = threshold_search(m);
   /* dispatch notifications for "interesting" values only */
   if ((th == NULL) || ((th->flags & UT_FLAG_INTERESTING) == 0))
     return 0;
 
   now = cdtime();
-  missing_time = now - vl->time;
-  FORMAT_VL(identifier, sizeof(identifier), vl);
+  missing_time = now - m->time;
+  if ((identifier_p = metric_marshal_text(m)) != 0) {
+    ERROR("uc_update: metric_marshal_text failed.");
+  }
 
-  NOTIFICATION_INIT_VL(&n, vl);
+  notification_init_metric(&n, NOTIF_FAILURE, NULL, m);
   ssnprintf(n.message, sizeof(n.message),
-            "%s has not been updated for %.3f seconds.", identifier,
+            "%s has not been updated for %.3f seconds.", identifier_p,
             CDTIME_T_TO_DOUBLE(missing_time));
   n.time = now;
+  sfree(identifier_p);
 
   plugin_dispatch_notification(&n);
 

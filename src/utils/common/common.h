@@ -323,13 +323,36 @@ int format_name(char *ret, int ret_len, const char *hostname,
 #define FORMAT_VL(ret, ret_len, vl)                                            \
   format_name(ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance,   \
               (vl)->type, (vl)->type_instance)
-int format_values(char *ret, size_t ret_len, const data_set_t *ds,
-                  const value_list_t *vl, bool store_rates);
+int format_values(strbuf_t *buf, metric_t const *m, bool store_rates);
 
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
-                     char **ret_plugin_instance, char **ret_type,
-                     char **ret_type_instance, char *default_host);
-int parse_identifier_vl(const char *str, value_list_t *vl);
+                     char **ret_type, char **ret_data_source,
+                     char *default_host);
+
+/* parse_identifier_vl parses an identifier in the form
+ * "host/plugin[-inst]/type[-inst]/data_source" and stores the fields in a
+ * value_list_t. If vl->host is not empty, then it is used as the default value
+ * if a host name is omitted, i.e. the "plugin/type" format is accepted. If
+ * ret_data_source is not NULL, a four-part identifier is accepted and a
+ * pointer to the data source name is (optionally) stored and needs to be freed
+ * by the caller. If the provided format does not fit the provided arguments,
+ * e.g. a two-part format but no default host provided, or a four-part format
+ * but no ret_data_source pointer, then EINVAL is returned.
+ */
+int parse_identifier_vl(const char *str, value_list_t *vl,
+                        char **ret_data_source);
+
+/* parse_legacy_identifier parses a legacy identifier in the form
+ * "host/plugin/type" and converts it to a metric_t. */
+metric_t *parse_legacy_identifier(char const *s);
+
+/* plugin_value_list_to_metric_family converts a value in a value_list_t to a
+ * metric_family_t. In case of error, errno is set and NULL is returned. The
+ * returned pointer must be freed using metric_family_free(). */
+metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
+                                                    data_set_t const *ds,
+                                                    size_t index);
+
 int parse_value(const char *value, value_t *ret_value, int ds_type);
 int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
 
@@ -344,6 +367,9 @@ struct passwd;
 int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
                struct passwd **pwbufp);
 #endif
+
+int notification_init_metric(notification_t *n, int severity,
+                             const char *message, metric_t const *m);
 
 int notification_init(notification_t *n, int severity, const char *message,
                       const char *host, const char *plugin,

@@ -132,7 +132,6 @@ noinst_LTLIBRARIES = \
 	libcmds.la \
 	libcommon.la \
 	libformat_graphite.la \
-	libformat_json.la \
 	libheap.la \
 	libignorelist.la \
 	liblatency.la \
@@ -242,10 +241,10 @@ collectd_SOURCES = \
 	src/daemon/filter_chain.h \
 	src/daemon/globals.c \
 	src/daemon/globals.h \
-	src/utils/metadata/meta_data.c \
-	src/utils/metadata/meta_data.h \
 	src/daemon/plugin.c \
 	src/daemon/plugin.h \
+	src/daemon/types_list.c \
+	src/daemon/types_list.h \
 	src/daemon/utils_cache.c \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
@@ -254,13 +253,10 @@ collectd_SOURCES = \
 	src/daemon/utils_random.h \
 	src/daemon/utils_subst.c \
 	src/daemon/utils_subst.h \
-	src/daemon/utils_time.c \
-	src/daemon/utils_time.h \
-	src/daemon/types_list.c \
-	src/daemon/types_list.h \
 	src/daemon/utils_threshold.c \
-	src/daemon/utils_threshold.h
-
+	src/daemon/utils_threshold.h \
+	src/daemon/utils_time.c \
+	src/daemon/utils_time.h
 
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_CPPFLAGS = $(AM_CPPFLAGS)
@@ -270,6 +266,7 @@ collectd_LDADD = \
 	libcommon.la \
 	libheap.la \
 	libllist.la \
+	libmetadata.la \
 	libmetric.la \
 	liboconfig.la \
 	-lm \
@@ -349,7 +346,7 @@ endif
 test_common_SOURCES = \
 	src/utils/common/common_test.c \
 	src/testing.h
-test_common_LDADD = libplugin_mock.la
+test_common_LDADD = libmetric.la libplugin_mock.la
 
 test_meta_data_SOURCES = \
 	src/utils/metadata/meta_data_test.c \
@@ -407,7 +404,7 @@ libavltree_la_SOURCES = \
 libcommon_la_SOURCES = \
 	src/utils/common/common.c \
 	src/utils/common/common.h
-libcommon_la_LIBADD = libstrbuf.la $(COMMON_LIBS)
+libcommon_la_LIBADD = libmetric.la libstrbuf.la $(COMMON_LIBS)
 
 libheap_la_SOURCES = \
 	src/utils/heap/heap.c \
@@ -439,11 +436,12 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/utils_time.h
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
-libplugin_mock_la_LIBADD = libcommon.la libignorelist.la $(COMMON_LIBS)
+libplugin_mock_la_LIBADD = libcommon.la libignorelist.la libmetadata.la $(COMMON_LIBS)
 
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
 	src/utils/format_graphite/format_graphite.h
+libformat_graphite_la_LIBADD = $(COMMON_LIBS)
 
 test_format_graphite_SOURCES = \
 	src/utils/format_graphite/format_graphite_test.c \
@@ -451,16 +449,19 @@ test_format_graphite_SOURCES = \
 test_format_graphite_LDADD = \
 	libformat_graphite.la \
 	libmetadata.la \
+	libmetric.la \
 	libplugin_mock.la \
+	libstrbuf.la \
 	-lm
 
+if BUILD_WITH_LIBYAJL
+noinst_LTLIBRARIES += libformat_json.la
 libformat_json_la_SOURCES = \
 	src/utils/format_json/format_json.c \
 	src/utils/format_json/format_json.h
 libformat_json_la_CPPFLAGS  = $(AM_CPPFLAGS)
 libformat_json_la_LDFLAGS   = $(AM_LDFLAGS)
-libformat_json_la_LIBADD    =
-if BUILD_WITH_LIBYAJL
+libformat_json_la_LIBADD    = libmetric.la
 libformat_json_la_CPPFLAGS += $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 libformat_json_la_LDFLAGS  += $(BUILD_WITH_LIBYAJL_LDFLAGS)
 libformat_json_la_LIBADD   += $(BUILD_WITH_LIBYAJL_LIBS)
@@ -513,22 +514,22 @@ libcmds_la_SOURCES = \
 	src/utils/cmds/getval.h \
 	src/utils/cmds/listval.c \
 	src/utils/cmds/listval.h \
+	src/utils/cmds/putmetric.c \
+	src/utils/cmds/putmetric.h \
 	src/utils/cmds/putnotif.c \
 	src/utils/cmds/putnotif.h \
 	src/utils/cmds/putval.c \
 	src/utils/cmds/putval.h \
 	src/utils/cmds/parse_option.c \
 	src/utils/cmds/parse_option.h
-libcmds_la_LIBADD = \
-	libcommon.la \
-	libmetadata.la \
-	-lm
+libcmds_la_LIBADD = -lm
 
 test_utils_cmds_SOURCES = \
 	src/utils/cmds/cmds_test.c \
 	src/testing.h
 test_utils_cmds_LDADD = \
 	libcmds.la \
+	libmetric.la \
 	libplugin_mock.la
 
 liblookup_la_SOURCES = \
@@ -674,6 +675,7 @@ test_format_stackdriver_SOURCES = \
 	src/testing.h
 test_format_stackdriver_LDADD = \
 	libformat_stackdriver.la \
+	libmetric.la \
 	libplugin_mock.la \
 	-lm
 endif
@@ -1695,7 +1697,10 @@ test_plugin_pcie_errors_SOURCES = \
 	src/daemon/types_list.c
 test_plugin_pcie_errors_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_pcie_errors_LDFLAGS = $(PLUGIN_LDFLAGS)
-test_plugin_pcie_errors_LDADD = liboconfig.la libplugin_mock.la
+test_plugin_pcie_errors_LDADD = \
+	libllist.la \
+	liboconfig.la \
+	libplugin_mock.la
 check_PROGRAMS += test_plugin_pcie_errors
 TESTS += test_plugin_pcie_errors
 endif
@@ -1819,12 +1824,11 @@ redfish_la_LIBADD = $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish
 
 test_plugin_redfish_SOURCES = src/redfish_test.c \
                               src/utils/avltree/avltree.c \
-                              src/daemon/utils_llist.c \
                               src/daemon/configfile.c \
                               src/daemon/types_list.c
 test_plugin_redfish_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
 test_plugin_redfish_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
-test_plugin_redfish_LDADD = liboconfig.la libplugin_mock.la \
+test_plugin_redfish_LDADD = liboconfig.la libplugin_mock.la libllist.la \
                             $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish -ljansson
 check_PROGRAMS += test_plugin_redfish
 TESTS += test_plugin_redfish
@@ -1925,14 +1929,13 @@ snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
 
 test_plugin_snmp_agent_SOURCES = src/snmp_agent_test.c \
                                  src/utils/avltree/avltree.c \
-                                 src/daemon/utils_llist.c \
                                  src/daemon/configfile.c \
                                  src/daemon/types_list.c
 test_plugin_snmp_agent_CPPFLAGS = $(AM_CPPFLAGS) \
 	$(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
 test_plugin_snmp_agent_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
-test_plugin_snmp_agent_LDADD = liboconfig.la libplugin_mock.la \
+test_plugin_snmp_agent_LDADD = liboconfig.la libplugin_mock.la libllist.la \
 	$(BUILD_WITH_LIBNETSNMPAGENT_LIBS) $(BUILD_WITH_LIBNETSNMP_LIBS)
 
 check_PROGRAMS += test_plugin_snmp_agent
@@ -2209,7 +2212,7 @@ if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
 write_graphite_la_SOURCES = src/write_graphite.c
 write_graphite_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_graphite_la_LIBADD = libformat_graphite.la
+write_graphite_la_LIBADD = libformat_graphite.la libstrbuf.la
 endif
 
 if BUILD_PLUGIN_WRITE_HTTP
@@ -2222,7 +2225,7 @@ write_http_la_SOURCES = \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
+write_http_la_LIBADD = libcmds.la libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_INFLUXDB_UDP
@@ -2512,4 +2515,3 @@ generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 
 jar_DATA = collectd-api.jar generic-jmx.jar
 endif
-

@@ -17,6 +17,7 @@
  *
  * Authors:
  *   Tomas Menzl
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #include "collectd.h"
@@ -315,7 +316,6 @@ static double averaging_add_sample(averaging_t *avg, long int sample) {
  */
 typedef struct temperature_list_s {
   char *sensor_name;               /**< sensor name/reference */
-  size_t num_values;               /**< number of values (usually one) */
   bool initialized;                /**< sensor already provides data */
   struct temperature_list_s *next; /**< next in the list */
 } temperature_list_t;
@@ -339,7 +339,6 @@ static int temp_list_add(temperature_list_t *list, const char *sensor) {
 
   new_temp->sensor_name = strdup(sensor);
   new_temp->initialized = 0;
-  new_temp->num_values = 0;
   if (new_temp->sensor_name == NULL) {
     free(new_temp);
     return -1;
@@ -387,8 +386,7 @@ static void temp_list_delete(temperature_list_t **list) {
 static int get_reference_temperature(double *result) {
   temperature_list_t *list = temp_list;
 
-  gauge_t *values = NULL; /**< rate values */
-  size_t values_num = 0;  /**< number of rate values */
+  gauge_t value; /**< rate values */
 
   gauge_t values_history[REF_TEMP_AVG_NUM];
 
@@ -407,7 +405,7 @@ static int get_reference_temperature(double *result) {
        dynamic changing of number of temperarure values in runtime yet (are
        there any such cases?). */
     if (!list->initialized) {
-      if (uc_get_rate_by_name(list->sensor_name, &values, &values_num)) {
+      if (uc_get_rate_by_name(list->sensor_name, &value)) {
         DEBUG(
             "barometer: get_reference_temperature - rate \"%s\" not found yet",
             list->sensor_name);
@@ -415,38 +413,32 @@ static int get_reference_temperature(double *result) {
         continue;
       }
 
-      DEBUG("barometer: get_reference_temperature - initialize \"%s\", %" PRIsz
+      DEBUG("barometer: get_reference_temperature - initialize \"%s\"" PRIsz
             " vals",
-            list->sensor_name, values_num);
+            list->sensor_name);
 
       list->initialized = 1;
-      list->num_values = values_num;
 
-      for (size_t i = 0; i < values_num; ++i) {
-        DEBUG("barometer: get_reference_temperature - rate %" PRIsz ": %lf **",
-              i, values[i]);
-        if (!isnan(values[i])) {
-          avg_sum += values[i];
-          ++avg_num;
-        }
+      DEBUG("barometer: get_reference_temperature - rate " PRIsz ": %lf **",
+            value);
+      if (!isnan(value)) {
+        avg_sum += value;
+        ++avg_num;
       }
-      free(values);
-      values = NULL;
     }
 
     /* It is OK to get here the first time as well, in the worst case
        the history will full of NANs. */
     if (uc_get_history_by_name(list->sensor_name, values_history,
-                               REF_TEMP_AVG_NUM, list->num_values)) {
+                               REF_TEMP_AVG_NUM)) {
       ERROR("barometer: get_reference_temperature - history \"%s\" lost",
             list->sensor_name);
       list->initialized = 0;
-      list->num_values = 0;
       list = list->next;
       continue;
     }
 
-    for (size_t i = 0; i < REF_TEMP_AVG_NUM * list->num_values; ++i) {
+    for (size_t i = 0; i < REF_TEMP_AVG_NUM; ++i) {
       DEBUG("barometer: get_reference_temperature - history %" PRIsz ": %lf", i,
             values_history[i]);
       if (!isnan(values_history[i])) {
@@ -457,33 +449,27 @@ static int get_reference_temperature(double *result) {
 
     if (avg_num == 0) /* still no history? fallback to current */
     {
-      if (uc_get_rate_by_name(list->sensor_name, &values, &values_num)) {
+      if (uc_get_rate_by_name(list->sensor_name, &value)) {
         ERROR("barometer: get_reference_temperature - rate \"%s\" lost",
               list->sensor_name);
         list->initialized = 0;
-        list->num_values = 0;
         list = list->next;
         continue;
       }
 
-      for (size_t i = 0; i < values_num; ++i) {
-        DEBUG("barometer: get_reference_temperature - rate last %" PRIsz
-              ": %lf **",
-              i, values[i]);
-        if (!isnan(values[i])) {
-          avg_sum += values[i];
-          ++avg_num;
-        }
+      DEBUG("barometer: get_reference_temperature - rate last %" PRIsz
+            ": %lf **",
+            value);
+      if (!isnan(value)) {
+        avg_sum += value;
+        ++avg_num;
       }
-      free(values);
-      values = NULL;
     }
 
     if (avg_num == 0) {
       ERROR("barometer: get_reference_temperature - could not read \"%s\"",
             list->sensor_name);
       list->initialized = 0;
-      list->num_values = 0;
     } else {
       average = avg_sum / (double)avg_num;
       if (isnan(*result))
@@ -1372,12 +1358,24 @@ static int MPL115_collectd_barometer_read(void) {
   double temperature = 0.0;
   double norm_pressure = 0.0;
 
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[1];
+  metrics_list_t *index_p = NULL;
+  metrics_list_t *ml = NULL;
+  ml = (metrics_list_t *)malloc(sizeof(*ml));
+  if (ml == NULL)
+    return -1;
+
+  index_p = ml;
+
+  index_p->metric.ds = NULL;
+  index_p->metric.identity = NULL;
+  index_p->metric.meta = NULL;
+  index_p->metric.time = cdtime();
+  index_p->metric.interval = plugin_get_interval();
+  index_p->next_p = NULL;
 
   DEBUG("barometer: MPL115_collectd_barometer_read");
-
   if (!configured) {
+    destroy_metrics_list(ml);
     return -1;
   }
 
@@ -1399,36 +1397,81 @@ static int MPL115_collectd_barometer_read(void) {
   }
 
   result = MPL115_read_averaged(&pressure, &temperature);
-  if (result)
+  if (result) {
+    destroy_metrics_list(ml);
     return result;
+  }
 
   norm_pressure = abs_to_mean_sea_level_pressure(pressure);
 
-  sstrncpy(vl.plugin, "barometer", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, "mpl115", sizeof(vl.plugin_instance));
+  index_p->metric.identity =
+      identity_create_legacy("barometer", "pressure", "value", NULL);
+  if (index_p->metric.identity == NULL) {
+    destroy_metrics_list(ml);
+    return -1;
+  }
+  result =
+      identity_add_label(index_p->metric.identity, "plugin_instance", "mpl115");
+  if (result) {
+    destroy_metrics_list(ml);
+    return result;
+  }
 
-  vl.values_len = 1;
-  vl.values = values;
+  result = identity_add_label(index_p->metric.identity, "type_instance",
+                              "normalized");
+  if (result) {
+    destroy_metrics_list(ml);
+    return result;
+  }
 
-  /* dispatch normalized air pressure */
-  sstrncpy(vl.type, "pressure", sizeof(vl.type));
-  sstrncpy(vl.type_instance, "normalized", sizeof(vl.type_instance));
-  values[0].gauge = norm_pressure;
-  plugin_dispatch_values(&vl);
+  index_p->metric.value.gauge = norm_pressure;
+  index_p = index_p->next_p;
+  index_p->metric.ds = NULL;
+  index_p->metric.identity = NULL;
+  index_p->metric.meta = NULL;
+  index_p->metric.time = ml->metric.time;
+  index_p->metric.interval = ml->metric.interval;
+  index_p->next_p = NULL;
 
-  /* dispatch absolute air pressure */
-  sstrncpy(vl.type, "pressure", sizeof(vl.type));
-  sstrncpy(vl.type_instance, "absolute", sizeof(vl.type_instance));
-  values[0].gauge = pressure;
-  plugin_dispatch_values(&vl);
+  index_p->metric.identity =
+      identity_create_legacy("barometer", "pressure", "value", NULL);
+  if (index_p->metric.identity == NULL) {
+    destroy_metrics_list(ml);
+    return -1;
+  }
+  result =
+      identity_add_label(index_p->metric.identity, "plugin_instance", "mpl115");
+  if (result) {
+    destroy_metrics_list(ml);
+    return result;
+  }
+
+  result =
+      identity_add_label(index_p->metric.identity, "type_instance", "absolute");
+  if (result) {
+    destroy_metrics_list(ml);
+    return result;
+  }
+
+  index_p->metric.value.gauge = pressure;
+
+  index_p = index_p->next_p;
+  index_p->metric.ds = NULL;
+  index_p->metric.identity = NULL;
+  index_p->metric.meta = NULL;
+  index_p->metric.time = ml->metric.time;
+  index_p->metric.interval = ml->metric.interval;
+  index_p->next_p = NULL;
 
   /* dispatch sensor temperature */
-  sstrncpy(vl.type, "temperature", sizeof(vl.type));
-  sstrncpy(vl.type_instance, "", sizeof(vl.type_instance));
-  values[0].gauge = temperature;
-  plugin_dispatch_values(&vl);
+  index_p->metric.identity =
+      identity_create_legacy("barometer", "temperature", "value", NULL);
 
-  return 0;
+  index_p->metric.value.gauge = temperature;
+
+  result = plugin_dispatch_metric_list(ml);
+  destroy_metrics_list(ml);
+  return result;
 }
 
 /**

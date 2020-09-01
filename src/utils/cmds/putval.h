@@ -41,7 +41,4 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer);
 
 void cmd_destroy_putval(cmd_putval_t *putval);
 
-int cmd_create_putval(char *ret, size_t ret_len, const data_set_t *ds,
-                      const value_list_t *vl);
-
 #endif /* UTILS_CMD_PUTVAL_H */

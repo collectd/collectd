@@ -1,6 +1,7 @@
 /**
  * collectd - src/utils_format_kairosdb.h
  * Copyright (C) 2016       Aurelien Rougemont
+ * Copyright (C) 2020       Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +23,7 @@
  *
  * Authors:
  *   Aurelien beorn Rougemont <beorn at gandi dot net>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #ifndef UTILS_FORMAT_KAIROSDB_H
@@ -31,19 +33,18 @@
 
 #include "plugin.h"
 
-#ifndef JSON_GAUGE_FORMAT
-#define JSON_GAUGE_FORMAT GAUGE_FORMAT
+typedef struct {
+  bool store_rates;
+  int ttl_secs;
+  char const *metrics_prefix;
+} format_kairosdb_opts_t;
+
+/* format_kairosdb_metric_family adds the metric family "fam" to the buffer
+ * "buf". Calling this function repeatedly with the same buffer will append
+ * additional metric families to the buffer. If the buffer has fixed size and
+ * the serialized metric family exceeds the buffer length, the buffer is
+ * unmodified and ENOBUFS is returned. */
+int format_kairosdb_metric_family(strbuf_t *buf, metric_family_t const *fam,
+                                  format_kairosdb_opts_t const *opts);
+
 #endif
-
-int format_kairosdb_initialize(char *buffer, size_t *ret_buffer_fill,
-                               size_t *ret_buffer_free);
-int format_kairosdb_value_list(char *buffer, size_t *ret_buffer_fill,
-                               size_t *ret_buffer_free, const data_set_t *ds,
-                               const value_list_t *vl, int store_rates,
-                               char const *const *http_attrs,
-                               size_t http_attrs_num, int data_ttl,
-                               char const *metrics_prefix);
-int format_kairosdb_finalize(char *buffer, size_t *ret_buffer_fill,
-                             size_t *ret_buffer_free);
-
-#endif /* UTILS_FORMAT_KAIROSDB_H */

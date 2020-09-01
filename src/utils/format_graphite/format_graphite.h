@@ -25,6 +25,7 @@
 #include "collectd.h"
 
 #include "plugin.h"
+#include "utils/strbuf/strbuf.h"
 
 #define GRAPHITE_STORE_RATES 0x01
 #define GRAPHITE_SEPARATE_INSTANCES 0x02
@@ -34,9 +35,8 @@
 #define GRAPHITE_USE_TAGS 0x20
 #define GRAPHITE_REVERSE_HOST 0x40
 
-int format_graphite(char *buffer, size_t buffer_size, const data_set_t *ds,
-                    const value_list_t *vl, const char *prefix,
-                    const char *postfix, const char escape_char,
+int format_graphite(strbuf_t *buf, metric_t const *m, const char *prefix,
+                    const char *suffix, const char escape_char,
                     unsigned int flags);
 
 #endif /* UTILS_FORMAT_GRAPHITE_H */

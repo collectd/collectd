@@ -39,8 +39,55 @@ script:
   - type pkg-config
   - pkg-config --list-all | sort -u
   - ./configure
-  - cat config.log
-  - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+    --disable-aggregation
+    --disable-amqp
+    --disable-amqp1
+    --disable-barometer
+    --disable-check_uptime
+    --disable-csv
+    --disable-curl_xml
+    --disable-gmond
+    --disable-java
+    --disable-lua
+    --disable-match_empty_counter
+    --disable-match_hashed
+    --disable-match_regex
+    --disable-match_timediff
+    --disable-match_value
+    --disable-modbus
+    --disable-mqtt
+    --disable-network
+    --disable-openldap
+    --disable-perl
+    --disable-postgresql
+    --disable-python
+    --disable-redis
+    --disable-rrdcached
+    --disable-rrdtool
+    --disable-snmp
+    --disable-snmp_agent
+    --disable-statsd
+    --disable-target_notification
+    --disable-target_replace
+    --disable-target_scale
+    --disable-target_set
+    --disable-target_v5upgrade
+    --disable-threshold
+    --disable-write_graphite
+    --disable-write_influxdb_udp
+    --disable-write_kafka
+    --disable-write_mongodb
+    --disable-write_prometheus
+    --disable-write_redis
+    --disable-write_riemann
+    --disable-write_sensu
+    --disable-write_syslog
+    --disable-write_tsdb
+    --enable-debug
+    --disable-dependency-tracking
+  - make -sk all
+  - make -sk check
+  #- make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
 
 addons:
   apt:

@@ -29,9 +29,12 @@
  * Explicit order is required or _FILE_OFFSET_BITS will have definition mismatches on Solaris
  * See Github Issue #3193 for details
  */
-#include "utils/common/common.h"
-#include "testing.h"
 #include "utils/cmds/cmds.h"
+
+#include "utils/common/common.h"
+#include "utils/strbuf/strbuf.h"
+#include "testing.h"
+#include "utils/cmds/putmetric.h"
 // clang-format on
 
 static void error_cb(void *ud, cmd_status_t status, const char *format,
@@ -39,10 +42,20 @@ static void error_cb(void *ud, cmd_status_t status, const char *format,
   if (status == CMD_OK)
     return;
 
-  printf("ERROR[%d]: ", status);
-  vprintf(format, ap);
-  printf("\n");
-  fflush(stdout);
+  strbuf_t *buf = ud;
+
+  strbuf_printf(buf, "ERROR[%d]: ", status);
+
+  va_list ap_copy;
+  va_copy(ap_copy, ap);
+
+  int size = vsnprintf(NULL, 0, format, ap_copy);
+  assert(size > 0);
+
+  char buffer[size + 1];
+  vsnprintf(buffer, sizeof(buffer), format, ap);
+
+  strbuf_print(buf, buffer);
 } /* void error_cb */
 
 static cmd_options_t default_host_opts = {
@@ -124,12 +137,15 @@ static struct {
         CMD_OK,
         CMD_GETVAL,
     },
+#if 0
+    /* TODO(octo): implement default host behavior or remove test. */
     {
         "GETVAL magic/MAGIC",
         &default_host_opts,
         CMD_OK,
         CMD_GETVAL,
     },
+#endif
 
     /* Invalid GETVAL commands. */
     {
@@ -276,6 +292,68 @@ static struct {
     },
     */
 
+    /* Valid PUTMETRIC commands. */
+    {
+        "PUTMETRIC unit_test 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC gauge type=GAUGE 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC counter type=Counter 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC untyped type=untyped 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC quoted_gauge type=\"GAUGE\" 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC with_interval interval=10.0 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC with_time time=1594806526 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC with_label label:unquoted=bare 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC with_label label:quoted=\"with space\" 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+    {
+        "PUTMETRIC multiple_label label:foo=1 label:bar=2 42",
+        NULL,
+        CMD_OK,
+        CMD_PUTMETRIC,
+    },
+
     /* Invalid commands. */
     {
         "INVALID",
@@ -292,31 +370,34 @@ static struct {
 };
 
 DEF_TEST(parse) {
-  cmd_error_handler_t err = {error_cb, NULL};
   int test_result = 0;
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(parse_data); i++) {
     char *input = strdup(parse_data[i].input);
 
+    strbuf_t errbuf = STRBUF_CREATE;
+    cmd_error_handler_t err = {error_cb, &errbuf};
+
+    cmd_t cmd = {0};
+    cmd_status_t status = cmd_parse(input, &cmd, parse_data[i].opts, &err);
+
     char description[1024];
-    cmd_status_t status;
-    cmd_t cmd;
-
-    bool result;
-
-    memset(&cmd, 0, sizeof(cmd));
-
-    status = cmd_parse(input, &cmd, parse_data[i].opts, &err);
     ssnprintf(description, sizeof(description),
-              "cmd_parse (\"%s\", opts=%p) = "
+              "cmd_parse(\"%s\", opts=%p) = "
               "%d (type=%d [%s]); want %d "
               "(type=%d [%s])",
               parse_data[i].input, parse_data[i].opts, status, cmd.type,
               CMD_TO_STRING(cmd.type), parse_data[i].expected_status,
               parse_data[i].expected_type,
               CMD_TO_STRING(parse_data[i].expected_type));
-    result = (status == parse_data[i].expected_status) &&
-             (cmd.type == parse_data[i].expected_type);
+
+    bool result = (status == parse_data[i].expected_status) &&
+                  (cmd.type == parse_data[i].expected_type);
+
+    if (errbuf.ptr != NULL) {
+      printf("error buffer = \"%s\"\n", errbuf.ptr);
+    }
+
     LOG(result, description);
 
     /* Run all tests before failing. */
@@ -324,13 +405,120 @@ DEF_TEST(parse) {
       test_result = -1;
 
     cmd_destroy(&cmd);
+    STRBUF_DESTROY(errbuf);
     free(input);
   }
 
   return test_result;
 }
 
+DEF_TEST(format_putmetric) {
+  struct {
+    metric_t m;
+    char *want;
+    int want_err;
+  } cases[] = {
+      {
+          .m =
+              {
+                  .family =
+                      &(metric_family_t){
+                          .name = "test",
+                          .type = METRIC_TYPE_UNTYPED,
+                      },
+                  .value.gauge = 42,
+              },
+          .want = "PUTMETRIC test 42",
+      },
+      {
+          .m =
+              {
+                  .family =
+                      &(metric_family_t){
+                          .name = "test",
+                          .type = METRIC_TYPE_GAUGE,
+                      },
+                  .value.gauge = 42,
+              },
+          .want = "PUTMETRIC test type=GAUGE 42",
+      },
+      {
+          .m =
+              {
+                  .family =
+                      &(metric_family_t){
+                          .name = "test",
+                          .type = METRIC_TYPE_COUNTER,
+                      },
+                  .value.counter = 42,
+              },
+          .want = "PUTMETRIC test type=COUNTER 42",
+      },
+      {
+          .m =
+              {
+                  .family =
+                      &(metric_family_t){
+                          .name = "test",
+                          .type = METRIC_TYPE_UNTYPED,
+                      },
+                  .value.gauge = 42,
+                  .time = TIME_T_TO_CDTIME_T(1594809888),
+              },
+          .want = "PUTMETRIC test time=1594809888.000 42",
+      },
+      {
+          .m =
+              {
+                  .family =
+                      &(metric_family_t){
+                          .name = "test",
+                          .type = METRIC_TYPE_UNTYPED,
+                      },
+                  .value.gauge = 42,
+                  .interval = TIME_T_TO_CDTIME_T(10),
+              },
+          .want = "PUTMETRIC test interval=10.000 42",
+      },
+      {
+          .m =
+              {
+                  .family =
+                      &(metric_family_t){
+                          .name = "test",
+                          .type = METRIC_TYPE_UNTYPED,
+                      },
+                  .value.gauge = 42,
+                  .label.ptr =
+                      &(label_pair_t){
+                          .name = "foo",
+                          .value = "with \"quotes\"",
+                      },
+                  .label.num = 1,
+              },
+          .want = "PUTMETRIC test label:foo=\"with \\\"quotes\\\"\" 42",
+      },
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    strbuf_t buf = STRBUF_CREATE;
+
+    EXPECT_EQ_INT(cases[i].want_err, cmd_format_putmetric(&buf, &cases[i].m));
+    if (cases[i].want_err) {
+      STRBUF_DESTROY(buf);
+      continue;
+    }
+
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
+
+    STRBUF_DESTROY(buf);
+  }
+
+  return 0;
+}
+
 int main(int argc, char **argv) {
   RUN_TEST(parse);
+  RUN_TEST(format_putmetric);
   END_TEST;
 }

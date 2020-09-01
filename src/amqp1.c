@@ -430,7 +430,7 @@ static int amqp1_notify(notification_t const *n,
 
 } /* }}} int amqp1_notify */
 
-static int amqp1_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
+static int amqp1_write(metric_single_t const *m, /* {{{ */
                        user_data_t *user_data) {
   int status = 0;
   size_t bfree = BUFSIZE;
@@ -479,8 +479,8 @@ static int amqp1_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     break;
   case AMQP1_FORMAT_JSON:
     format_json_initialize((char *)cdm->mbuf.start, &bfill, &bfree);
-    format_json_value_list((char *)cdm->mbuf.start, &bfill, &bfree, ds, vl,
-                           instance->store_rates);
+    format_json_metric((char *)cdm->mbuf.start, &bfill, &bfree, m,
+                       instance->store_rates);
     status = format_json_finalize((char *)cdm->mbuf.start, &bfill, &bfree);
     if (status != 0) {
       ERROR("amqp1 plugin: format_json_finalize failed with status %i.",

@@ -30,7 +30,7 @@
 #include "utils/common/common.h"
 #include "utils/lookup/vl_lookup.h"
 #include "utils/metadata/meta_data.h"
-#include "utils_cache.h" /* for uc_get_rate() */
+#include "utils_cache.h" /* for uc_get_rate_vl() */
 #include "utils_subst.h"
 
 #define AGG_MATCHES_ALL(str) (strcmp("/.*/", str) == 0)
@@ -292,7 +292,7 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
     return EINVAL;
   }
 
-  gauge_t *rate = uc_get_rate(ds, vl);
+  gauge_t *rate = uc_get_rate_vl(ds, vl);
   if (rate == NULL) {
     char ident[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL(ident, sizeof(ident), vl);
@@ -715,12 +715,12 @@ static int agg_read(void) /* {{{ */
   return (success > 0) ? 0 : -1;
 } /* }}} int agg_read */
 
-static int agg_write(data_set_t const *ds, value_list_t const *vl, /* {{{ */
+static int agg_write(metric_single_t const *m, /* {{{ */
                      __attribute__((unused)) user_data_t *user_data) {
   bool created_by_aggregation = false;
   /* Ignore values that were created by the aggregation plugin to avoid weird
    * effects. */
-  (void)meta_data_get_boolean(vl->meta, "aggregation:created",
+  (void)meta_data_get_boolean(m->meta->meta, "aggregation:created",
                               &created_by_aggregation);
   if (created_by_aggregation)
     return 0;
@@ -730,7 +730,7 @@ static int agg_write(data_set_t const *ds, value_list_t const *vl, /* {{{ */
   if (lookup == NULL)
     status = ENOENT;
   else {
-    status = lookup_search(lookup, ds, vl);
+    status = lookup_search(lookup, m);
     if (status > 0)
       status = 0;
   }

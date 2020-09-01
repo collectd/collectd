@@ -1,6 +1,6 @@
 /**
- * collectd - src/utils_format_json.h
- * Copyright (C) 2009-2020  Florian octo Forster
+ * collectd - src/utils_cmd_putval.h
+ * Copyright (C) 2007–2020  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,28 +24,23 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#ifndef UTILS_FORMAT_JSON_H
-#define UTILS_FORMAT_JSON_H 1
-
-#include "collectd.h"
+#ifndef UTILS_CMD_PUTMETRIC_H
+#define UTILS_CMD_PUTMETRIC_H 1
 
 #include "plugin.h"
-#include "utils/strbuf/strbuf.h"
+#include "utils/cmds/cmds.h"
 
-#ifndef JSON_GAUGE_FORMAT
-#define JSON_GAUGE_FORMAT GAUGE_FORMAT
-#endif
+#include <stdio.h>
 
-/* format_json_metric_family adds the metric family "fam" to the buffer "buf"
- * in JSON format. The format produced is compatible to the
- * "prometheus/prom2json" project. Calling this function repeatedly with the
- * same buffer will append additional metric families to the buffer. If the
- * buffer has fixed size and the serialized metric family exceeds the buffer
- * length, the buffer is unmodified and ENOBUFS is returned. */
-int format_json_metric_family(strbuf_t *buf, metric_family_t const *fam,
-                              bool store_rates);
+cmd_status_t cmd_parse_putmetric(size_t argc, char **argv,
+                                 cmd_putmetric_t *ret_putmetric,
+                                 const cmd_options_t *opts,
+                                 cmd_error_handler_t *err);
 
-int format_json_notification(char *buffer, size_t buffer_size,
-                             notification_t const *n);
+cmd_status_t cmd_handle_putmetric(FILE *fh, char *buffer);
 
-#endif /* UTILS_FORMAT_JSON_H */
+void cmd_destroy_putmetric(cmd_putmetric_t *putmetric);
+
+int cmd_format_putmetric(strbuf_t *buf, metric_t const *m);
+
+#endif /* UTILS_CMD_PUTMETRIC_H */

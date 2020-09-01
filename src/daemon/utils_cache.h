@@ -24,6 +24,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian tokkee Harl <sh at tokkee.org>
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #ifndef UTILS_CACHE_H
@@ -39,29 +40,33 @@
 
 int uc_init(void);
 int uc_check_timeout(void);
-int uc_update(const data_set_t *ds, const value_list_t *vl);
-int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
-                        size_t *ret_values_num);
-gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl);
-int uc_get_value_by_name(const char *name, value_t **ret_values,
-                         size_t *ret_values_num);
-value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl);
+int uc_update(metric_family_t const *fam);
+
+gauge_t *uc_get_rate_vl(const data_set_t *ds, const value_list_t *vl);
+int uc_get_value_by_name_vl(const char *name, value_t **ret_values,
+                            size_t *ret_values_num);
+value_t *uc_get_value_vl(const data_set_t *ds, const value_list_t *vl);
+
+int uc_get_rate_by_name(const char *name, gauge_t *ret_value);
+int uc_get_rate(metric_t const *m, gauge_t *ret_value);
+int uc_get_value_by_name(const char *name, value_t *ret_value);
+int uc_get_value(metric_t const *m, value_t *ret_value);
 
 size_t uc_get_size(void);
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);
 
-int uc_get_state(const data_set_t *ds, const value_list_t *vl);
-int uc_set_state(const data_set_t *ds, const value_list_t *vl, int state);
-int uc_get_hits(const data_set_t *ds, const value_list_t *vl);
-int uc_set_hits(const data_set_t *ds, const value_list_t *vl, int hits);
-int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step);
+int uc_get_state(metric_t const *m);
+int uc_set_state(metric_t const *m, int state);
+
+int uc_get_hits(metric_t const *m);
+int uc_set_hits(metric_t const *m, int hits);
+int uc_inc_hits(metric_t const *m, int step);
 
 int uc_set_callbacks_mask(const char *name, unsigned long callbacks_mask);
 
-int uc_get_history(const data_set_t *ds, const value_list_t *vl,
-                   gauge_t *ret_history, size_t num_steps, size_t num_ds);
+int uc_get_history(metric_t const *m, gauge_t *ret_history, size_t num_steps);
 int uc_get_history_by_name(const char *name, gauge_t *ret_history,
-                           size_t num_steps, size_t num_ds);
+                           size_t num_steps);
 
 /*
  * Iterator interface
@@ -106,8 +111,7 @@ void uc_iterator_destroy(uc_iter_t *iter);
 /* Return the timestamp of the value at the current position. */
 int uc_iterator_get_time(uc_iter_t *iter, cdtime_t *ret_time);
 /* Return the (raw) value at the current position. */
-int uc_iterator_get_values(uc_iter_t *iter, value_t **ret_values,
-                           size_t *ret_num);
+int uc_iterator_get_values(uc_iter_t *iter, value_t *ret_value);
 /* Return the interval of the value at the current position. */
 int uc_iterator_get_interval(uc_iter_t *iter, cdtime_t *ret_interval);
 /* Return the metadata for the value at the current position. */
@@ -116,31 +120,37 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta);
 /*
  * Meta data interface
  */
-int uc_meta_data_exists(const value_list_t *vl, const char *key);
-int uc_meta_data_delete(const value_list_t *vl, const char *key);
+int uc_meta_data_exists(metric_t const *m, const char *key);
+int uc_meta_data_delete(metric_t const *m, const char *key);
 /* Same API as meta_data_toc. */
-int uc_meta_data_toc(const value_list_t *vl, char ***toc);
+int uc_meta_data_toc(metric_t const *m, char ***toc);
 
-int uc_meta_data_add_string(const value_list_t *vl, const char *key,
+int uc_meta_data_add_string(metric_t const *m, const char *key,
                             const char *value);
-int uc_meta_data_add_signed_int(const value_list_t *vl, const char *key,
+int uc_meta_data_add_signed_int(metric_t const *m, const char *key,
                                 int64_t value);
-int uc_meta_data_add_unsigned_int(const value_list_t *vl, const char *key,
+int uc_meta_data_add_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t value);
-int uc_meta_data_add_double(const value_list_t *vl, const char *key,
-                            double value);
-int uc_meta_data_add_boolean(const value_list_t *vl, const char *key,
-                             bool value);
+int uc_meta_data_add_double(metric_t const *m, const char *key, double value);
+int uc_meta_data_add_boolean(metric_t const *m, const char *key, bool value);
 
-int uc_meta_data_get_string(const value_list_t *vl, const char *key,
-                            char **value);
-int uc_meta_data_get_signed_int(const value_list_t *vl, const char *key,
+int uc_meta_data_get_string(metric_t const *m, const char *key, char **value);
+int uc_meta_data_get_signed_int(metric_t const *m, const char *key,
                                 int64_t *value);
-int uc_meta_data_get_unsigned_int(const value_list_t *vl, const char *key,
+int uc_meta_data_get_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t *value);
-int uc_meta_data_get_double(const value_list_t *vl, const char *key,
-                            double *value);
-int uc_meta_data_get_boolean(const value_list_t *vl, const char *key,
-                             bool *value);
+int uc_meta_data_get_double(metric_t const *m, const char *key, double *value);
+int uc_meta_data_get_boolean(metric_t const *m, const char *key, bool *value);
+
+/* TODO(octo): Remove these dummy functions after format_stackdriver has been
+ * migrated. */
+int uc_meta_data_get_signed_int_vl(value_list_t const *vl, char const *key,
+                                   int64_t *value);
+int uc_meta_data_get_unsigned_int_vl(value_list_t const *vl, char const *key,
+                                     uint64_t *value);
+int uc_meta_data_add_signed_int_vl(value_list_t const *vl, char const *key,
+                                   int64_t value);
+int uc_meta_data_add_unsigned_int_vl(value_list_t const *vl, char const *key,
+                                     uint64_t value);
 
 #endif /* !UTILS_CACHE_H */

@@ -25,6 +25,7 @@
  *   Niki W. Waibel <niki.waibel@gmx.net>
  *   Sebastian Harl <sh at tokkee.org>
  *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #include "collectd.h"
@@ -903,127 +904,272 @@ int format_name(char *ret, int ret_len, const char *hostname,
   return 0;
 } /* int format_name */
 
-int format_values(char *ret, size_t ret_len, /* {{{ */
-                  const data_set_t *ds, const value_list_t *vl,
-                  bool store_rates) {
-  assert(0 == strcmp(ds->type, vl->type));
+int format_values(strbuf_t *buf, metric_t const *m, bool store_rates) {
+  strbuf_printf(buf, "%.3f", CDTIME_T_TO_DOUBLE(m->time));
 
-  ret[0] = 0;
-  strbuf_t buf = STRBUF_CREATE_FIXED(ret, ret_len);
-
-  strbuf_printf(&buf, "%.3f", CDTIME_T_TO_DOUBLE(vl->time));
-
-  gauge_t *rates = NULL;
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    if (ds->ds[i].type == DS_TYPE_GAUGE) {
-      strbuf_printf(&buf, ":" GAUGE_FORMAT, vl->values[i].gauge);
-    } else if (store_rates) {
-      if (rates == NULL)
-        rates = uc_get_rate(ds, vl);
-      if (rates == NULL) {
-        WARNING("format_values: uc_get_rate failed.");
-        return -1;
-      }
-      strbuf_printf(&buf, ":" GAUGE_FORMAT, rates[i]);
-    } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      strbuf_printf(&buf, ":%" PRIu64, (uint64_t)vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      strbuf_printf(&buf, ":%" PRIi64, vl->values[i].derive);
-    else {
-      ERROR("format_values: Unknown data source type: %i", ds->ds[i].type);
-      sfree(rates);
-      return -1;
+  if (m->family->type == METRIC_TYPE_GAUGE)
+    strbuf_printf(buf, ":" GAUGE_FORMAT, m->value.gauge);
+  else if (store_rates) {
+    gauge_t rates = NAN;
+    int status = uc_get_rate(m, &rates);
+    if (status != 0) {
+      WARNING("format_values: uc_get_rate failed.");
+      return status;
     }
-  } /* for ds->ds_num */
+    strbuf_printf(buf, ":" GAUGE_FORMAT, rates);
+  } else if (m->family->type == METRIC_TYPE_COUNTER) {
+    strbuf_printf(buf, ":%" PRIu64, m->value.counter);
+  } else if (m->family->type == DS_TYPE_DERIVE) {
+    strbuf_printf(buf, ":%" PRIi64, m->value.derive);
+  } else {
+    ERROR("format_values: Unknown metric type: %d", m->family->type);
+    return -1;
+  }
 
-  sfree(rates);
   return 0;
 } /* }}} int format_values */
 
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
-                     char **ret_plugin_instance, char **ret_type,
-                     char **ret_type_instance, char *default_host) {
-  char *hostname = NULL;
-  char *plugin = NULL;
-  char *plugin_instance = NULL;
-  char *type = NULL;
-  char *type_instance = NULL;
+                     char **ret_type, char **ret_data_source,
+                     char *default_host) {
+  char *fields[5];
+  size_t fields_num = 0;
 
-  hostname = str;
-  if (hostname == NULL)
-    return -1;
+  do {
+    fields[fields_num] = str;
+    fields_num++;
 
-  plugin = strchr(hostname, '/');
-  if (plugin == NULL)
-    return -1;
-  *plugin = '\0';
-  plugin++;
+    char *ptr = strchr(str, '/');
+    if (ptr == NULL) {
+      break;
+    }
 
-  type = strchr(plugin, '/');
-  if (type == NULL) {
-    if (default_host == NULL)
-      return -1;
-    /* else: no host specified; use default */
-    type = plugin;
-    plugin = hostname;
-    hostname = default_host;
-  } else {
-    *type = '\0';
-    type++;
+    *ptr = 0;
+    str = ptr + 1;
+  } while (fields_num < STATIC_ARRAY_SIZE(fields));
+
+  switch (fields_num) {
+  case 4:
+    *ret_data_source = fields[3];
+    /* fall-through */
+  case 3:
+    *ret_type = fields[2];
+    *ret_plugin = fields[1];
+    *ret_host = fields[0];
+    break;
+  case 2:
+    if ((default_host == NULL) || (strlen(default_host) == 0)) {
+      return EINVAL;
+    }
+    *ret_type = fields[1];
+    *ret_plugin = fields[0];
+    *ret_host = default_host;
+    break;
+  default:
+    return EINVAL;
   }
 
-  plugin_instance = strchr(plugin, '-');
-  if (plugin_instance != NULL) {
-    *plugin_instance = '\0';
-    plugin_instance++;
-  }
-
-  type_instance = strchr(type, '-');
-  if (type_instance != NULL) {
-    *type_instance = '\0';
-    type_instance++;
-  }
-
-  *ret_host = hostname;
-  *ret_plugin = plugin;
-  *ret_plugin_instance = plugin_instance;
-  *ret_type = type;
-  *ret_type_instance = type_instance;
   return 0;
 } /* int parse_identifier */
 
-int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
-{
-  char str_copy[6 * DATA_MAX_NAME_LEN];
-  char *host = NULL;
-  char *plugin = NULL;
-  char *plugin_instance = NULL;
-  char *type = NULL;
-  char *type_instance = NULL;
-  int status;
-
+int parse_identifier_vl(const char *str, value_list_t *vl,
+                        char **ret_data_source) {
   if ((str == NULL) || (vl == NULL))
     return EINVAL;
 
+  char str_copy[6 * DATA_MAX_NAME_LEN];
   sstrncpy(str_copy, str, sizeof(str_copy));
 
-  status = parse_identifier(str_copy, &host, &plugin, &plugin_instance, &type,
-                            &type_instance,
-                            /* default_host = */ NULL);
-  if (status != 0)
-    return status;
+  char *default_host = NULL;
+  if (strlen(vl->host) != 0) {
+    default_host = vl->host;
+  }
 
-  sstrncpy(vl->host, host, sizeof(vl->host));
+  char *host = NULL;
+  char *plugin = NULL;
+  char *type = NULL;
+  char *data_source = NULL;
+  int status = parse_identifier(str_copy, &host, &plugin, &type, &data_source,
+                                default_host);
+  if (status != 0) {
+    return status;
+  }
+
+  if (data_source != NULL) {
+    if (ret_data_source == NULL) {
+      return EINVAL;
+    }
+    *ret_data_source = strdup(data_source);
+  }
+
+  char *plugin_instance = strchr(plugin, '-');
+  if (plugin_instance != NULL) {
+    *plugin_instance = 0;
+    plugin_instance++;
+  }
+  char *type_instance = strchr(type, '-');
+  if (type_instance != NULL) {
+    *type_instance = 0;
+    type_instance++;
+  }
+
+  if (host != vl->host) {
+    sstrncpy(vl->host, host, sizeof(vl->host));
+  }
   sstrncpy(vl->plugin, plugin, sizeof(vl->plugin));
-  sstrncpy(vl->plugin_instance,
-           (plugin_instance != NULL) ? plugin_instance : "",
-           sizeof(vl->plugin_instance));
+  if (plugin_instance != NULL) {
+    sstrncpy(vl->plugin_instance, plugin_instance, sizeof(vl->plugin_instance));
+  }
   sstrncpy(vl->type, type, sizeof(vl->type));
-  sstrncpy(vl->type_instance, (type_instance != NULL) ? type_instance : "",
-           sizeof(vl->type_instance));
+  if (type_instance != NULL) {
+    sstrncpy(vl->type_instance, type_instance, sizeof(vl->type_instance));
+  }
 
   return 0;
 } /* }}} int parse_identifier_vl */
+
+metric_t *parse_legacy_identifier(char const *s) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  char *data_source = NULL;
+  int status = parse_identifier_vl(s, &vl, &data_source);
+  if (status != 0) {
+    errno = status;
+    return NULL;
+  }
+
+  data_set_t const *ds = plugin_get_ds(vl.type);
+  if (ds == NULL) {
+    errno = ENOENT;
+    return NULL;
+  }
+
+  if ((ds->ds_num != 1) && (data_source == NULL)) {
+    DEBUG("parse_legacy_identifier: data set \"%s\" has multiple data sources, "
+          "but \"%s\" does not specify a data source",
+          ds->type, s);
+    errno = EINVAL;
+    return NULL;
+  }
+
+  value_t values[ds->ds_num];
+  memset(values, 0, sizeof(values));
+  vl.values = values;
+  vl.values_len = ds->ds_num;
+
+  size_t ds_index = 0;
+  if (data_source != NULL) {
+    bool found = 0;
+    for (size_t i = 0; i < ds->ds_num; i++) {
+      if (strcasecmp(data_source, ds->ds[i].name) == 0) {
+        ds_index = i;
+        found = true;
+      }
+    }
+
+    if (!found) {
+      DEBUG("parse_legacy_identifier: data set \"%s\" does not have a \"%s\" "
+            "data source",
+            ds->type, data_source);
+      free(data_source);
+      errno = EINVAL;
+      return NULL;
+    }
+  }
+  free(data_source);
+  data_source = NULL;
+
+  metric_family_t *fam = plugin_value_list_to_metric_family(&vl, ds, ds_index);
+  if (fam == NULL) {
+    return NULL;
+  }
+
+  return fam->metric.ptr;
+}
+
+static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
+                              data_source_t const *dsrc) {
+  int status = strbuf_print(buf, "collectd");
+
+  if (strcmp(vl->plugin, vl->type) != 0) {
+    status = status || strbuf_print(buf, "_");
+    status = status || strbuf_print(buf, vl->plugin);
+  }
+
+  status = status || strbuf_print(buf, "_");
+  status = status || strbuf_print(buf, vl->type);
+
+  if (strcmp("value", dsrc->name) != 0) {
+    status = status || strbuf_print(buf, "_");
+    status = status || strbuf_print(buf, dsrc->name);
+  }
+
+  if ((dsrc->type == DS_TYPE_COUNTER) || (dsrc->type == DS_TYPE_DERIVE)) {
+    status = status || strbuf_print(buf, "_total");
+  }
+
+  return status;
+}
+
+metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
+                                                    data_set_t const *ds,
+                                                    size_t index) {
+  if ((vl == NULL) || (ds == NULL)) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  metric_family_t *fam = calloc(1, sizeof(*fam));
+  if (fam == NULL) {
+    return NULL;
+  }
+
+  data_source_t const *dsrc = ds->ds + index;
+  strbuf_t name = STRBUF_CREATE;
+  int status = metric_family_name(&name, vl, dsrc);
+  if (status != 0) {
+    STRBUF_DESTROY(name);
+    metric_family_free(fam);
+    errno = status;
+    return NULL;
+  }
+  fam->name = name.ptr;
+  name = (strbuf_t){0};
+
+  fam->type =
+      (dsrc->type == DS_TYPE_GAUGE) ? METRIC_TYPE_GAUGE : METRIC_TYPE_COUNTER;
+
+  metric_t m = {
+      .family = fam,
+      .value = vl->values[index],
+      .time = vl->time,
+      .interval = vl->interval,
+  };
+
+  status = metric_label_set(&m, "instance",
+                            (strlen(vl->host) != 0) ? vl->host : hostname_g);
+  if (strlen(vl->plugin_instance) != 0) {
+    status = status || metric_label_set(&m, vl->plugin, vl->plugin_instance);
+  }
+  if (strlen(vl->type_instance) != 0) {
+    char const *name = "type";
+    if (strlen(vl->plugin_instance) == 0) {
+      name = vl->plugin;
+    }
+    status = status || metric_label_set(&m, name, vl->type_instance);
+  }
+
+  status = status || metric_family_metric_append(fam, m);
+  if (status != 0) {
+    metric_reset(&m);
+    metric_family_free(fam);
+    errno = status;
+    return NULL;
+  }
+
+  metric_reset(&m);
+  return fam;
+}
 
 int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
   char *value;
@@ -1228,6 +1374,26 @@ int notification_init(notification_t *n, int severity, const char *message,
   return 0;
 } /* int notification_init */
 
+int notification_init_metric(notification_t *n, int severity,
+                             char const *message, metric_t const *m) {
+  if ((n == NULL) || (message == NULL) || (m == NULL)) {
+    return EINVAL;
+  }
+
+  (*n) = (notification_t){
+      /* TODO(octo): add "identity" to the notification_t type. */
+      /* .identity = identity_clone(m->identity), */
+      .severity = severity,
+      .time = m->time,
+      /* TODO(octo): change the type of the "meta" field to "meta_data_t". */
+      /* .meta = meta_data_clone(m->meta), */
+  };
+
+  sstrncpy(n->message, message, sizeof(n->message));
+
+  return 0;
+}
+
 int walk_directory(const char *dir, dirwalk_callback_f callback,
                    void *user_data, int include_hidden) {
   struct dirent *ent;
@@ -1325,9 +1491,8 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     return 0;
   }
 
-  /* Counter and absolute can't handle negative rates. Reset "last time"
-   * to zero, so that the next valid rate will re-initialize the
-   * structure. */
+  /* Counter can't handle negative rates. Reset "last time" to zero, so that
+   * the next valid rate will re-initialize the structure. */
   if ((rate < 0.0) && (ds_type == DS_TYPE_COUNTER)) {
     memset(state, 0, sizeof(*state));
     return EINVAL;

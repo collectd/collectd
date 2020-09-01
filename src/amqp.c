@@ -29,6 +29,7 @@
 #include "collectd.h"
 
 #include "plugin.h"
+#include "utils/avltree/avltree.h"
 #include "utils/cmds/putval.h"
 #include "utils/common/common.h"
 #include "utils/format_graphite/format_graphite.h"
@@ -787,26 +788,56 @@ static int camqp_write_locked(camqp_config_t *conf, /* {{{ */
   return status;
 } /* }}} int camqp_write_locked */
 
-static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
+static int camqp_write(metric_single_t const *m, /* {{{ */
                        user_data_t *user_data) {
   camqp_config_t *conf = user_data->data;
   char routing_key[6 * DATA_MAX_NAME_LEN];
   char buffer[8192];
   int status;
+  char *index_p = (char *)&buffer[0];
 
-  if ((ds == NULL) || (vl == NULL) || (conf == NULL))
+  if ((m == NULL) || (metric_p->ds == NULL) || (conf == NULL))
     return EINVAL;
 
   if (conf->routing_key != NULL) {
     sstrncpy(routing_key, conf->routing_key, sizeof(routing_key));
   } else {
-    ssnprintf(routing_key, sizeof(routing_key), "collectd/%s/%s/%s/%s/%s",
-              vl->host, vl->plugin, vl->plugin_instance, vl->type,
-              vl->type_instance);
+    int buffer_size = sizeof(routing_key);
+    int tmp_str_len = 0;
+    tmp_str_len = strlen(m->identity->name);
+    if (tmp_str_len < buffer_size) {
+      snprintf(index_p, tmp_str_len + 1, "%s", m->identity->name);
+      index_p += tmp_str_len; /* This is the location of the trailing nul */
+      buffer_size -= tmp_str_len;
+    }
+
+    if (m->identity->root_p != NULL) {
+      c_avl_iterator_t *iter_p = c_avl_get_iterator(m->identity->root_p);
+      if (iter_p != NULL) {
+        char *key_p = NULL;
+        char *value_p = NULL;
+        while ((c_avl_iterator_next(iter_p, (void **)&key_p,
+                                    (void **)&value_p)) == 0) {
+          if ((key_p != NULL) && (value_p != NULL)) {
+            tmp_str_len = strlen(key_p) + strlen(value_p) + 2;
+            if (tmp_str_len < buffer_size) {
+              snprintf(index_p, tmp_str_len + 1, ";%s=%s", key_p, value_p);
+              index_p += tmp_str_len;
+              buffer_size -= tmp_str_len;
+            } else {
+              snprintf(index_p, buffer_size, ";%s", value_p);
+              buffer_size = 0;
+              break;
+            }
+          }
+        }
+        c_avl_iterator_destroy(iter_p);
+      }
+    }
 
     /* Switch slashes (the only character forbidden by collectd) and dots
      * (the separation character used by AMQP). */
-    for (size_t i = 0; routing_key[i] != 0; i++) {
+    for (size_t i = 0; index_p[i] != 0; i++) {
       if (routing_key[i] == '.')
         routing_key[i] = '/';
       else if (routing_key[i] == '/')
@@ -815,7 +846,7 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   }
 
   if (conf->format == CAMQP_FORMAT_COMMAND) {
-    status = cmd_create_putval(buffer, sizeof(buffer), ds, vl);
+    status = cmd_create_putval(buffer, sizeof(buffer), m);
     if (status != 0) {
       ERROR("amqp plugin: cmd_create_putval failed with status %i.", status);
       return status;
@@ -825,12 +856,12 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     size_t bfill = 0;
 
     format_json_initialize(buffer, &bfill, &bfree);
-    format_json_value_list(buffer, &bfill, &bfree, ds, vl, conf->store_rates);
+    format_json_metric(buffer, &bfill, &bfree, m, conf->store_rates);
     format_json_finalize(buffer, &bfill, &bfree);
   } else if (conf->format == CAMQP_FORMAT_GRAPHITE) {
     status =
-        format_graphite(buffer, sizeof(buffer), ds, vl, conf->prefix,
-                        conf->postfix, conf->escape_char, conf->graphite_flags);
+        format_graphite(buffer, sizeof(buffer), m, conf->prefix, conf->postfix,
+                        conf->escape_char, conf->graphite_flags);
     if (status != 0) {
       ERROR("amqp plugin: format_graphite failed with status %i.", status);
       return status;

@@ -76,7 +76,8 @@ static grpc::string default_addr("0.0.0.0:50051");
  * helper functions
  */
 
-static bool ident_matches(const value_list_t *vl, const value_list_t *matcher) {
+static bool ident_matches(metric_single_t const *vl,
+                          const metric_single_t *matcher) {
   if (fnmatch(matcher->host, vl->host, 0))
     return false;
 
@@ -455,7 +456,7 @@ private:
     char *name = NULL;
     while (uc_iterator_next(iter, &name) == 0) {
       value_list_t vl;
-      if (parse_identifier_vl(name, &vl) != 0) {
+      if (parse_identifier_vl(name, &vl, NULL) != 0) {
         status = grpc::Status(grpc::StatusCode::INTERNAL,
                               grpc::string("failed to parse identifier"));
         break;

@@ -88,11 +88,11 @@ DEF_TEST(base) {
   OK1(b, "b evaluates to true");
 
   /* retrieving the wrong type always fails */
-  EXPECT_EQ_INT(-2, meta_data_get_boolean(m, "string", &b));
-  EXPECT_EQ_INT(-2, meta_data_get_string(m, "signed_int", &s));
-  EXPECT_EQ_INT(-2, meta_data_get_string(m, "unsigned_int", &s));
-  EXPECT_EQ_INT(-2, meta_data_get_string(m, "double", &s));
-  EXPECT_EQ_INT(-2, meta_data_get_string(m, "boolean", &s));
+  EXPECT_EQ_INT(ENOENT, meta_data_get_boolean(m, "string", &b));
+  EXPECT_EQ_INT(ENOENT, meta_data_get_string(m, "signed_int", &s));
+  EXPECT_EQ_INT(ENOENT, meta_data_get_string(m, "unsigned_int", &s));
+  EXPECT_EQ_INT(ENOENT, meta_data_get_string(m, "double", &s));
+  EXPECT_EQ_INT(ENOENT, meta_data_get_string(m, "boolean", &s));
 
   /* replace existing keys */
   CHECK_ZERO(meta_data_add_signed_int(m, "string", 666));
@@ -104,7 +104,7 @@ DEF_TEST(base) {
 
   /* deleting keys */
   CHECK_ZERO(meta_data_delete(m, "signed_int"));
-  EXPECT_EQ_INT(-2, meta_data_delete(m, "doesnt exist"));
+  EXPECT_EQ_INT(ENOENT, meta_data_delete(m, "doesnt exist"));
 
   meta_data_destroy(m);
   return 0;

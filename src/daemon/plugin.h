@@ -23,6 +23,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
+ *   Manoj Srivastava <srivasta at google.com>
  **/
 
 #ifndef PLUGIN_H
@@ -39,8 +40,8 @@
 #include <pthread.h>
 
 #define DS_TYPE_COUNTER 0
-#define DS_TYPE_GAUGE 1
-#define DS_TYPE_DERIVE 2
+#define DS_TYPE_GAUGE VALUE_TYPE_GAUGE
+#define DS_TYPE_DERIVE VALUE_TYPE_DERIVE
 
 #define DS_TYPE_TO_STRING(t)                                                   \
   (t == DS_TYPE_COUNTER)                                                       \
@@ -159,7 +160,7 @@ enum cache_event_type_e { CE_VALUE_NEW, CE_VALUE_UPDATE, CE_VALUE_EXPIRED };
 
 typedef struct cache_event_s {
   enum cache_event_type_e type;
-  const value_list_t *value_list;
+  metric_t const *metric;
   const char *value_list_name;
   int ret;
 } cache_event_t;
@@ -177,14 +178,13 @@ typedef struct plugin_ctx_s plugin_ctx_t;
  */
 typedef int (*plugin_init_cb)(void);
 typedef int (*plugin_read_cb)(user_data_t *);
-typedef int (*plugin_write_cb)(const data_set_t *, const value_list_t *,
-                               user_data_t *);
+typedef int (*plugin_write_cb)(metric_family_t const *, user_data_t *);
 typedef int (*plugin_flush_cb)(cdtime_t timeout, const char *identifier,
                                user_data_t *);
 /* "missing" callback. Returns less than zero on failure, zero if other
  * callbacks should be called, greater than zero if no more callbacks should be
  * called. */
-typedef int (*plugin_missing_cb)(const value_list_t *, user_data_t *);
+typedef int (*plugin_missing_cb)(metric_family_t const *, user_data_t *);
 /* "cache event" callback. CE_VALUE_NEW events are sent to all registered
  * callbacks. Callback should check if it interested in further CE_VALUE_UPDATE
  * and CE_VALUE_EXPIRED events for metric and set event->ret = 1 if so.
@@ -252,9 +252,7 @@ int plugin_shutdown_all(void);
  * ARGUMENTS
  *  plugin     Name of the plugin. If NULL, the value is sent to all registered
  *             write functions.
- *  ds         Pointer to the data_set_t structure. If NULL, the data set is
- *             looked up according to the `type' member in the `vl' argument.
- *  vl         The actual value to be processed. Must not be NULL.
+ *  m   The actual value to be processed. Must not be NULL.
  *
  * RETURN VALUE
  *  Returns zero upon success or non-zero if an error occurred. If `plugin' is
@@ -265,8 +263,7 @@ int plugin_shutdown_all(void);
  *  This is the function used by the `write' built-in target. May be used by
  *  other target plugins.
  */
-int plugin_write(const char *plugin, const data_set_t *ds,
-                 const value_list_t *vl);
+int plugin_write(const char *plugin, metric_family_t const *fam);
 
 int plugin_flush(const char *plugin, cdtime_t timeout, const char *identifier);
 
@@ -345,6 +342,22 @@ void plugin_log_available_writers(void);
  *              function.
  */
 int plugin_dispatch_values(value_list_t const *vl);
+/*
+ * NAME
+ *  plugin_dispatch_metric_list
+ *
+ * DESCRIPTION
+
+ *  This function is called by reading processes with the list of metrics
+ *  they've aquired. The function fetches the data-set definition (that has been
+ *  registered using `plugin_register_data_set') and calls _all_ registered
+ *  write-functions.
+ *
+ * ARGUMENTS
+ *  `ml'        Value list of the metrics that have been read by a `read'
+ *              function.
+ */
+int plugin_dispatch_metric_family(metric_family_t const *fam);
 
 /*
  * NAME
@@ -381,10 +394,10 @@ __attribute__((sentinel)) int plugin_dispatch_multivalue(value_list_t const *vl,
                                                          bool store_percentage,
                                                          int store_type, ...);
 
-int plugin_dispatch_missing(const value_list_t *vl);
+int plugin_dispatch_missing(metric_family_t const *fam);
 void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
                                  unsigned long callbacks_mask, const char *name,
-                                 const value_list_t *vl);
+                                 metric_t const *m);
 
 int plugin_dispatch_notification(const notification_t *notif);
 

@@ -931,9 +931,9 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
   memset(statuses, 0, vl->values_len * sizeof(*statuses));
 
   if (host->store_rates) {
-    rates = uc_get_rate(ds, vl);
+    rates = uc_get_rate_vl(ds, vl);
     if (rates == NULL) {
-      ERROR("write_sensu plugin: uc_get_rate failed.");
+      ERROR("write_sensu plugin: uc_get_rate_vl failed.");
       pthread_mutex_unlock(&host->lock);
       return -1;
     }

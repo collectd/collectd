@@ -43,18 +43,19 @@ pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
  * threshold_t *threshold_get
  *
  * Retrieve one specific threshold configuration. For looking up a threshold
- * matching a value_list_t, see "threshold_search" below. Returns NULL if the
+ * matching a metric_t, see "threshold_search" below. Returns NULL if the
  * specified threshold doesn't exist.
  */
 threshold_t *threshold_get(const char *hostname, const char *plugin,
-                           const char *plugin_instance, const char *type,
-                           const char *type_instance) { /* {{{ */
-  char name[6 * DATA_MAX_NAME_LEN];
+                           const char *type,
+                           const char *data_source) { /* {{{ */
+  char name[5 * DATA_MAX_NAME_LEN];
   threshold_t *th = NULL;
 
-  format_name(name, sizeof(name), (hostname == NULL) ? "" : hostname,
-              (plugin == NULL) ? "" : plugin, plugin_instance,
-              (type == NULL) ? "" : type, type_instance);
+  (void)snprintf(name, sizeof(name), "%s/%s/%s/%s",
+                 (hostname == NULL) ? "" : hostname,
+                 (plugin == NULL) ? "" : plugin, (type == NULL) ? "" : type,
+                 (data_source == NULL) ? "" : data_source);
   name[sizeof(name) - 1] = '\0';
 
   if (c_avl_get(threshold_tree, name, (void *)&th) == 0)
@@ -67,60 +68,35 @@ threshold_t *threshold_get(const char *hostname, const char *plugin,
  * threshold_t *threshold_search
  *
  * Searches for a threshold configuration using all the possible variations of
- * "Host", "Plugin" and "Type" blocks. Returns NULL if no threshold could be
- * found.
- * XXX: This is likely the least efficient function in collectd.
+ * "Host", "Plugin", "Type", "Data Source" values. Returns NULL if no threshold
+ * could be found.
+ *
+ * TODO(octo): threshold_search only searches by host name right now; should
+ * also search by metric name and possibly other labels.
  */
-threshold_t *threshold_search(const value_list_t *vl) { /* {{{ */
-  threshold_t *th;
+static threshold_t *threshold_search(metric_t const *m) { /* {{{ */
+  if (m == NULL) {
+    return NULL;
+  }
 
-  if ((th = threshold_get(vl->host, vl->plugin, vl->plugin_instance, vl->type,
-                          vl->type_instance)) != NULL)
-    return th;
-  else if ((th = threshold_get(vl->host, vl->plugin, vl->plugin_instance,
-                               vl->type, NULL)) != NULL)
-    return th;
-  else if ((th = threshold_get(vl->host, vl->plugin, NULL, vl->type,
-                               vl->type_instance)) != NULL)
-    return th;
-  else if ((th = threshold_get(vl->host, vl->plugin, NULL, vl->type, NULL)) !=
-           NULL)
-    return th;
-  else if ((th = threshold_get(vl->host, "", NULL, vl->type,
-                               vl->type_instance)) != NULL)
-    return th;
-  else if ((th = threshold_get(vl->host, "", NULL, vl->type, NULL)) != NULL)
-    return th;
-  else if ((th = threshold_get("", vl->plugin, vl->plugin_instance, vl->type,
-                               vl->type_instance)) != NULL)
-    return th;
-  else if ((th = threshold_get("", vl->plugin, vl->plugin_instance, vl->type,
-                               NULL)) != NULL)
-    return th;
-  else if ((th = threshold_get("", vl->plugin, NULL, vl->type,
-                               vl->type_instance)) != NULL)
-    return th;
-  else if ((th = threshold_get("", vl->plugin, NULL, vl->type, NULL)) != NULL)
-    return th;
-  else if ((th = threshold_get("", "", NULL, vl->type, vl->type_instance)) !=
-           NULL)
-    return th;
-  else if ((th = threshold_get("", "", NULL, vl->type, NULL)) != NULL)
-    return th;
+  char const *instance = metric_label_get(m, "instance");
+  if (instance == NULL) {
+    return NULL;
+  }
 
-  return NULL;
+  return threshold_get(instance, NULL, NULL, NULL);
 } /* }}} threshold_t *threshold_search */
 
-int ut_search_threshold(const value_list_t *vl, /* {{{ */
+int ut_search_threshold(metric_t const *m, /* {{{ */
                         threshold_t *ret_threshold) {
   threshold_t *t;
 
-  if (vl == NULL)
+  if (m == NULL)
     return EINVAL;
 
   /* Is this lock really necessary? */
   pthread_mutex_lock(&threshold_lock);
-  t = threshold_search(vl);
+  t = threshold_search(m);
   if (t == NULL) {
     pthread_mutex_unlock(&threshold_lock);
     return ENOENT;

@@ -40,15 +40,10 @@
 #endif
 
 typedef struct {
-  char const *key;
-  char const *value;
-} keyval_t;
-
-typedef struct {
-  keyval_t *expected_labels;
+  label_t *expected_labels;
   size_t expected_labels_num;
 
-  keyval_t *current_label;
+  label_t *current_label;
 } test_case_t;
 
 #if HAVE_YAJL_V2
@@ -63,9 +58,9 @@ static int test_map_key(void *ctx, unsigned char const *key,
 
   c->current_label = NULL;
   for (i = 0; i < c->expected_labels_num; i++) {
-    keyval_t *l = c->expected_labels + i;
-    if ((strlen(l->key) == key_len) &&
-        (strncmp(l->key, (char const *)key, key_len) == 0)) {
+    label_t *l = c->expected_labels + i;
+    if ((strlen(l->name) == key_len) &&
+        (strncmp(l->name, (char const *)key, key_len) == 0)) {
       c->current_label = l;
       break;
     }
@@ -98,7 +93,7 @@ static int test_string(void *ctx, unsigned char const *value,
   test_case_t *c = ctx;
 
   if (c->current_label != NULL) {
-    keyval_t *l = c->current_label;
+    label_t *l = c->current_label;
     char *got;
     int status;
 
@@ -106,7 +101,7 @@ static int test_string(void *ctx, unsigned char const *value,
     memmove(got, value, value_len);
     got[value_len] = 0;
 
-    status = expect_label(l->key, got, l->value);
+    status = expect_label(l->name, got, l->value);
 
     free(got);
 
@@ -117,7 +112,7 @@ static int test_string(void *ctx, unsigned char const *value,
   return 1; /* continue */
 }
 
-static int expect_json_labels(char *json, keyval_t *labels, size_t labels_num) {
+static int expect_json_labels(char *json, label_t *labels, size_t labels_num) {
   yajl_callbacks funcs = {
       .yajl_string = test_string,
       .yajl_map_key = test_map_key,
@@ -139,7 +134,7 @@ static int expect_json_labels(char *json, keyval_t *labels, size_t labels_num) {
 }
 
 DEF_TEST(notification) {
-  keyval_t labels[] = {
+  label_t labels[] = {
       {"summary", "this is a message"},
       {"alertname", "collectd_unit_test"},
       {"instance", "example.com"},
@@ -165,8 +160,137 @@ DEF_TEST(notification) {
   return expect_json_labels(got, labels, STATIC_ARRAY_SIZE(labels));
 }
 
+DEF_TEST(metric_family) {
+  struct {
+    char const *identity;
+    metric_type_t type;
+    value_t value;
+    cdtime_t time;
+    cdtime_t interval;
+    char const *want;
+  } cases[] = {
+    {
+        .identity = "metric_name",
+        .value.gauge = 42,
+        .type = METRIC_TYPE_GAUGE,
+        .want = "[{\"name\":\"metric_name\",\"type\":\"GAUGE\",\"metrics\":["
+                "{\"value\":\"42\"}"
+                "]}]",
+    },
+    {
+        .identity =
+            "metric_with_labels{sorted=\"true\",alphabetically=\"yes\"}",
+        .value.gauge = 42,
+        .type = METRIC_TYPE_GAUGE,
+        .want = "[{\"name\":\"metric_with_labels\",\"type\":\"GAUGE\","
+                "\"metrics\":["
+                "{\"labels\":{\"alphabetically\":\"yes\",\"sorted\":\"true\"}"
+                ",\"value\":\"42\"}"
+                "]}]",
+    },
+    {
+        .identity = "metric_with_time",
+        .value.gauge = 42,
+        .type = METRIC_TYPE_GAUGE,
+        .time = MS_TO_CDTIME_T(1592987324125),
+        .want =
+            "[{\"name\":\"metric_with_time\",\"type\":\"GAUGE\",\"metrics\":["
+            "{\"timestamp_ms\":\"1592987324125\",\"value\":\"42\"}"
+            "]}]",
+    },
+#if 0
+      {
+          .identity = "derive_max",
+          .value.derive = INT64_MAX,
+          .type = METRIC_TYPE_COUNTER,
+          .want = "[{\"name\":\"derive_max\",\"type\":\"COUNTER\",\"metrics\":["
+                  "{\"value\":\"9223372036854775807\"}"
+                  "]}]",
+      },
+      {
+          .identity = "derive_min",
+          .value = (value_t){.derive = INT64_MIN},
+          .type = METRIC_TYPE_COUNTER,
+          .want = "[{\"name\":\"derive_min\",\"type\":\"COUNTER\",\"metrics\":["
+                  "{\"value\":\"-9223372036854775808\"}"
+                  "]}]",
+      },
+#endif
+    {
+        .identity = "counter_max",
+        .value = (value_t){.counter = UINT64_MAX},
+        .type = METRIC_TYPE_COUNTER,
+        .want = "[{\"name\":\"counter_max\",\"type\":\"COUNTER\",\"metrics\":["
+                "{\"value\":\"18446744073709551615\"}"
+                "]}]",
+    },
+  };
+
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    metric_t *m = NULL;
+    CHECK_NOT_NULL(m = metric_parse_identity(cases[i].identity));
+
+    m->family->type = cases[i].type;
+    m->value = cases[i].value;
+    m->time = cases[i].time;
+    m->interval = cases[i].interval;
+
+    strbuf_t buf = STRBUF_CREATE;
+    CHECK_ZERO(format_json_metric_family(&buf, m->family, false));
+
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
+    STRBUF_DESTROY(buf);
+
+    metric_family_free(m->family);
+  }
+
+  return 0;
+}
+
+DEF_TEST(metric_family_append) {
+  strbuf_t buf = STRBUF_CREATE;
+
+  metric_family_t fam = {
+      .name = "first",
+      .type = METRIC_TYPE_UNTYPED,
+  };
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = 0,
+                                    });
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = 1,
+                                    });
+  CHECK_ZERO(format_json_metric_family(&buf, &fam, false));
+  EXPECT_EQ_STR("[{\"name\":\"first\",\"type\":\"UNTYPED\",\"metrics\":[{"
+                "\"value\":\"0\"},{\"value\":\"1\"}]}]",
+                buf.ptr);
+
+  metric_family_metric_reset(&fam);
+
+  fam = (metric_family_t){
+      .name = "second",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = 2,
+                                    });
+
+  CHECK_ZERO(format_json_metric_family(&buf, &fam, false));
+  EXPECT_EQ_STR("[{\"name\":\"first\",\"type\":\"UNTYPED\",\"metrics\":[{"
+                "\"value\":\"0\"},{\"value\":\"1\"}]},{\"name\":\"second\","
+                "\"type\":\"GAUGE\",\"metrics\":[{\"value\":\"2\"}]}]",
+                buf.ptr);
+
+  metric_family_metric_reset(&fam);
+  STRBUF_DESTROY(buf);
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(notification);
+  RUN_TEST(metric_family);
+  RUN_TEST(metric_family_append);
 
   END_TEST;
 }

@@ -50,6 +50,7 @@
 #include "utils/common/common.h"
 
 #include "utils/format_graphite/format_graphite.h"
+#include "utils/strbuf/strbuf.h"
 #include "utils_complain.h"
 
 #include <netdb.h>
@@ -387,43 +388,28 @@ static int wg_send_message(char const *message, struct wg_callback *cb) {
   return 0;
 }
 
-static int wg_write_messages(const data_set_t *ds, const value_list_t *vl,
-                             struct wg_callback *cb) {
-  char buffer[WG_SEND_BUF_SIZE] = {0};
-  int status;
+static int wg_write_messages(metric_single_t const *m, struct wg_callback *cb) {
+  strbuf_t buf = STRBUF_CREATE;
 
-  if (0 != strcmp(ds->type, vl->type)) {
-    ERROR("write_graphite plugin: DS type does not match "
-          "value list type");
-    return -1;
+  int status = format_graphite(&buf, m, cb->prefix, cb->postfix,
+                               cb->escape_char, cb->format_flags);
+  if (status != 0) {
+    STRBUF_DESTROY(buf);
+    return status;
   }
 
-  status = format_graphite(buffer, sizeof(buffer), ds, vl, cb->prefix,
-                           cb->postfix, cb->escape_char, cb->format_flags);
-  if (status != 0) /* error message has been printed already. */
-    return status;
-
   /* Send the message to graphite */
-  status = wg_send_message(buffer, cb);
-  if (status != 0) /* error message has been printed already. */
-    return status;
-
-  return 0;
+  status = wg_send_message(buf.ptr, cb);
+  STRBUF_DESTROY(buf);
+  return status;
 } /* int wg_write_messages */
 
-static int wg_write(const data_set_t *ds, const value_list_t *vl,
-                    user_data_t *user_data) {
-  struct wg_callback *cb;
-  int status;
-
-  if (user_data == NULL)
+static int wg_write(metric_single_t const *m, user_data_t *user_data) {
+  if ((m == NULL) || (user_data == NULL)) {
     return EINVAL;
+  }
 
-  cb = user_data->data;
-
-  status = wg_write_messages(ds, vl, cb);
-
-  return status;
+  return wg_write_messages(m, user_data->data);
 }
 
 static int config_set_char(char *dest, oconfig_item_t *ci) {
