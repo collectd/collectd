@@ -142,11 +142,13 @@ static int parse_metric_from_config(metric_spec *m_spec, metric_t *m) {
     }
 
     if (m_spec->num_boundaries != m_spec->num_boundaries_from_array) {
-      ERROR("curl_stats_from_config: Wrong number of boundaries for custom distribution");
+      ERROR("curl_stats_from_config: Wrong number of boundaries for custom "
+            "distribution");
       return -1;
     }
 
-    m->value.distribution = distribution_new_custom(m_spec->num_boundaries, m_spec->boundaries);
+    m->value.distribution =
+        distribution_new_custom(m_spec->num_boundaries, m_spec->boundaries);
   } else {
     ERROR("curl_stats_from_config: Unknown distribution type: %s",
           m_spec->distribution_type);
@@ -368,11 +370,14 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       } else if (field == 5) {
         m_spec->num_boundaries_from_array = c->values_num;
 
-        double *boundaries = calloc(m_spec->num_boundaries_from_array, sizeof(double));
+        double *boundaries =
+            calloc(m_spec->num_boundaries_from_array, sizeof(double));
 
         for (size_t j = 0; j < m_spec->num_boundaries_from_array; ++j) {
           if (c->values->type != OCONFIG_TYPE_NUMBER) {
-            ERROR("curl_stats_from_config: Wrong type for distribution custom boundary. Required %d, received %d.", OCONFIG_TYPE_NUMBER, c->values->type);
+            ERROR("curl_stats_from_config: Wrong type for distribution custom "
+                  "boundary. Required %d, received %d.",
+                  OCONFIG_TYPE_NUMBER, c->values->type);
             /* TODO(bkjg): here should be function for destroying metric_spec */
             free(m_spec);
             free(s);
@@ -383,7 +388,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         }
 
         *(double **)((char *)m_spec + metric_specs[field].offset) = boundaries;
-    } else if (field > 2) { /* read double */
+      } else if (field > 2) { /* read double */
         double value;
 
         if (cf_util_get_double(c, &value) != 0) {
@@ -424,7 +429,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   /* TODO(bkjg): create function for destroying metric_spec structure */
   free(m_spec->distribution_type);
   free(m_spec->metric_type);
-  //free(m_spec->metric_identity);
+  // free(m_spec->metric_identity);
   free(m_spec);
 
   if (status != 0) {
