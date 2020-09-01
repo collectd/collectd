@@ -435,7 +435,9 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   /* TODO(bkjg): create function for destroying metric_spec structure */
   free(m_spec->distribution_type);
   free(m_spec->metric_type);
-  // free(m_spec->metric_identity);
+  if (m_spec->metric_identity != identity) {
+    free(m_spec->metric_identity);
+  }
   free(m_spec);
 
   if (s->m == NULL) {
