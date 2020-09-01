@@ -920,6 +920,7 @@ AC_CHECK_FUNCS([host_statistics], [have_host_statistics="yes"], [have_host_stati
 AC_CHECK_FUNCS([processor_info], [have_processor_info="yes"], [have_processor_info="no"])
 AC_CHECK_FUNCS([statfs], [have_statfs="yes"], [have_statfs="no"])
 AC_CHECK_FUNCS([statvfs], [have_statvfs="yes"], [have_statvfs="no"])
+AC_CHECK_FUNCS([strnlen], [have_strnlen="yes"], [have_strnlen="no"])
 AC_CHECK_FUNCS([sysctl], [have_sysctl="yes"], [have_sysctl="no"])
 AC_CHECK_FUNCS([sysctlbyname], [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
 AC_CHECK_FUNCS([syslog], [have_syslog="yes"], [have_syslog="no"])

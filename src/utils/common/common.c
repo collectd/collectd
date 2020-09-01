@@ -162,14 +162,16 @@ char *sstrdup(const char *s) {
   return r;
 } /* char *sstrdup */
 
-size_t sstrnlen(const char *s, size_t n) {
-  const char *p = s;
-
-  while (n-- > 0 && *p)
-    p++;
-
-  return p - s;
-} /* size_t sstrnlen */
+#if !HAVE_STRNLEN
+size_t strnlen(const char *s, size_t maxlen) {
+  for (size_t i = 0; i < maxlen; i++) {
+    if (s[i] == 0) {
+      return i;
+    }
+  }
+  return maxlen;
+}
+#endif
 
 char *sstrndup(const char *s, size_t n) {
   char *r;
@@ -178,7 +180,7 @@ char *sstrndup(const char *s, size_t n) {
   if (s == NULL)
     return NULL;
 
-  sz = sstrnlen(s, n);
+  sz = strnlen(s, n);
   r = malloc(sz + 1);
   if (r == NULL) {
     ERROR("sstrndup: Out of memory.");

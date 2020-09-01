@@ -200,6 +200,17 @@ int strbuf_printf(strbuf_t *buf, char const *format, ...) {
   return 0;
 }
 
+#if !HAVE_STRNLEN
+static size_t strnlen(const char *s, size_t maxlen) {
+  for (size_t i = 0; i < maxlen; i++) {
+    if (s[i] == 0) {
+      return i;
+    }
+  }
+  return maxlen;
+}
+#endif
+
 int strbuf_printn(strbuf_t *buf, char const *s, size_t n) {
   if ((buf == NULL) || (s == NULL))
     return EINVAL;
