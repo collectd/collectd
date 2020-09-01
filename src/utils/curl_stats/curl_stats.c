@@ -46,7 +46,7 @@ typedef struct {
   size_t num_buckets;
   size_t num_boundaries;
   size_t num_boundaries_from_array;
-} metric_spec;
+} metric_spec_t;
 
 struct curl_stats_s {
   bool total_time;
@@ -77,7 +77,7 @@ struct curl_stats_s {
   metric_t *m;
 };
 
-static metric_t *parse_metric_from_config(metric_spec *m_spec) {
+static metric_t *parse_metric_from_config(metric_spec_t *m_spec) {
   if (m_spec == NULL) {
     return NULL;
   }
@@ -331,8 +331,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   /* make identity of each metric unique */
   snprintf(identity, MAX_BUFFER_LENGTH, "curl_stats_%p", s);
 
-  metric_spec *m_spec;
-  m_spec = calloc(1, sizeof(metric_spec));
+  metric_spec_t *m_spec;
+  m_spec = calloc(1, sizeof(metric_spec_t));
 
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
@@ -386,7 +386,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
             ERROR("curl_stats_from_config: Wrong type for distribution custom "
                   "boundary. Required %d, received %d.",
                   OCONFIG_TYPE_NUMBER, c->values->type);
-            /* TODO(bkjg): here should be function for destroying metric_spec */
+            /* TODO(bkjg): here should be function for destroying metric_spec_t */
             free(m_spec);
             free(s);
             return NULL;
@@ -434,7 +434,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
   s->m = parse_metric_from_config(m_spec);
 
-  /* TODO(bkjg): create function for destroying metric_spec structure */
+  /* TODO(bkjg): create function for destroying metric_spec_t structure */
   free(m_spec->distribution_type);
   free(m_spec->metric_type);
   if (m_spec->metric_identity != identity) {
