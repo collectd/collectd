@@ -486,10 +486,20 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
   return 0;
 } /* curl_stats_dispatch */
 
-int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
-  return 0;
-} /* curl_stats_account_data */
+int curl_stats_account_data_gauge(curl_stats_t *s, CURL *curl) {
 
+  return 0;
+} /* curl_stats_account_data_gauge */
+
+int curl_stats_account_data_speed(curl_stats_t *s, CURL *curl) {
+
+  return 0;
+} /* curl_stats_account_data_speed */
+
+int curl_stats_account_data_size(curl_stats_t *s, CURL *curl) {
+
+  return 0;
+} /* curl_stats_account_data_size */
 
 int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
   return 0;
