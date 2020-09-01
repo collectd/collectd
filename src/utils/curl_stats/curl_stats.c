@@ -43,6 +43,7 @@ typedef struct {
   double *boundaries;
   size_t num_buckets;
   size_t num_boundaries;
+  size_t num_boundaries_from_array;
 } metric_spec;
 
 struct curl_stats_s {
@@ -75,7 +76,8 @@ struct curl_stats_s {
 };
 
 static int parse_metric_from_config(metric_spec *m_spec, metric_t *m) {
-  if (m_spec == NULL || m == NULL) {
+  DEBUG("parse_metric_from_config function");
+  if (m_spec == NULL) {
     return -1;
   }
 
@@ -85,6 +87,7 @@ static int parse_metric_from_config(metric_spec *m_spec, metric_t *m) {
     return -1;
   }
 
+  DEBUG("Reading metric type");
   if (m_spec->metric_type != NULL) {
     if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_DISTRIBUTION")) {
       m->family->type = METRIC_TYPE_DISTRIBUTION;
@@ -105,11 +108,13 @@ static int parse_metric_from_config(metric_spec *m_spec, metric_t *m) {
     }
   }
 
+  DEBUG("Reading type of distribution");
   if (!strcasecmp(m_spec->distribution_type, "LINEAR")) {
     if (m_spec->num_buckets == 0 ||
         (m_spec->base == 0 && m_spec->factor == 0)) {
       ERROR("curl_stats_from_config: Missing arguments for metric type linear "
             "distribution");
+      return -1;
     }
 
     if (m_spec->base != 0) {
@@ -123,17 +128,25 @@ static int parse_metric_from_config(metric_spec *m_spec, metric_t *m) {
     if (m_spec->num_buckets == 0 || m_spec->base == 0 || m_spec->factor == 0) {
       ERROR("curl_stats_from_config: Missing arguments for metric type "
             "exponential distribution");
+      return -1;
     }
 
     m->value.distribution = distribution_new_exponential(
         m_spec->num_buckets, m_spec->base, m_spec->factor);
   } else if (!strcasecmp(m_spec->distribution_type, "CUSTOM")) {
+    DEBUG("read_metric_from_config: custom distribution");
     if (m_spec->num_boundaries == 0) {
       ERROR("curl_stats_from_config: Missing arguments for metric type "
             "exponential distribution");
+      return -1;
     }
 
+    if (m_spec->num_boundaries != m_spec->num_boundaries_from_array) {
+      ERROR("curl_stats_from_config: Wrong number of boundaries for custom distribution");
+      return -1;
+    }
 
+    m->value.distribution = distribution_new_custom(m_spec->num_boundaries, m_spec->boundaries);
   } else {
     ERROR("curl_stats_from_config: Unknown distribution type: %s",
           m_spec->distribution_type);
@@ -352,7 +365,25 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         }
 
         *(size_t *)((char *)m_spec + metric_specs[field].offset) = value;
-      } else if (field > 2) { /* read double */
+      } else if (field == 5) {
+        m_spec->num_boundaries_from_array = c->values_num;
+
+        double *boundaries = calloc(m_spec->num_boundaries_from_array, sizeof(double));
+
+        for (size_t j = 0; j < m_spec->num_boundaries_from_array; ++j) {
+          if (c->values->type != OCONFIG_TYPE_NUMBER) {
+            ERROR("curl_stats_from_config: Wrong type for distribution custom boundary. Required %d, received %d.", OCONFIG_TYPE_NUMBER, c->values->type);
+            /* TODO(bkjg): here should be function for destroying metric_spec */
+            free(m_spec);
+            free(s);
+            return NULL;
+          }
+
+          boundaries[j] = c->values[j].value.number;
+        }
+
+        *(double **)((char *)m_spec + metric_specs[field].offset) = boundaries;
+    } else if (field > 2) { /* read double */
         double value;
 
         if (cf_util_get_double(c, &value) != 0) {
@@ -389,10 +420,17 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   }
 
   int status = parse_metric_from_config(m_spec, s->m);
+
+  /* TODO(bkjg): create function for destroying metric_spec structure */
+  free(m_spec->distribution_type);
+  free(m_spec->metric_type);
+  //free(m_spec->metric_identity);
   free(m_spec);
 
   if (status != 0) {
-    metric_family_free(s->m->family);
+    if (s->m != NULL) {
+      metric_family_free(s->m->family);
+    }
     free(s);
     return NULL;
   }
