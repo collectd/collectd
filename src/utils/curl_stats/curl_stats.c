@@ -233,48 +233,103 @@ static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m) {
   return plugin_dispatch_metric_family(m->family);
 } /* dispatch_size */
 
+static int account_data_gauge(CURL *curl, CURLINFO info, metric_t *m) {
+  CURLcode code;
+  double val;
+
+  code = curl_easy_getinfo(curl, info, &val);
+  if (code != CURLE_OK)
+    return -1;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val);
+  } else {
+    m->value.gauge = val;
+  }
+
+  return 0;
+} /* account_data_gauge */
+
+static int account_data_speed(CURL *curl, CURLINFO info, metric_t *m) {
+  CURLcode code;
+  double val;
+
+  code = curl_easy_getinfo(curl, info, &val);
+  if (code != CURLE_OK)
+    return -1;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val * 8);
+  } else {
+    m->value.gauge = val * 8;
+  }
+
+  return 0;
+} /* account_data_speed */
+
+static int account_data_size(CURL *curl, CURLINFO info, metric_t *m) {
+  CURLcode code;
+  long raw;
+
+  code = curl_easy_getinfo(curl, info, &raw);
+  if (code != CURLE_OK)
+    return -1;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, (double)raw);
+  } else {
+    m->value.gauge = (double)raw;
+  }
+
+  return 0;
+} /* account_data_size */
+
 static struct {
   const char *name;
   const char *config_key;
   size_t offset;
   int (*dispatcher)(CURL *, CURLINFO, metric_t *);
+  int (*account_data)(CURL *, CURLINFO, metric_t *);
   const char *type;
   CURLINFO info;
 } field_specs[] = {
-#define SPEC(name, config_key, dispatcher, type, info)                         \
-  { #name, config_key, offsetof(curl_stats_t, name), dispatcher, type, info }
+#define SPEC(name, config_key, dispatcher, account_data, type, info)           \
+  {                                                                            \
+#name, config_key, offsetof(curl_stats_t, name), dispatcher, account_data, \
+        type, info                                                             \
+  }
 
-    SPEC(total_time, "TotalTime", dispatch_gauge, "duration",
-         CURLINFO_TOTAL_TIME),
-    SPEC(namelookup_time, "NamelookupTime", dispatch_gauge, "duration",
-         CURLINFO_NAMELOOKUP_TIME),
-    SPEC(connect_time, "ConnectTime", dispatch_gauge, "duration",
-         CURLINFO_CONNECT_TIME),
-    SPEC(pretransfer_time, "PretransferTime", dispatch_gauge, "duration",
-         CURLINFO_PRETRANSFER_TIME),
-    SPEC(size_upload, "SizeUpload", dispatch_gauge, "bytes",
+    SPEC(total_time, "TotalTime", dispatch_gauge, account_data_gauge,
+         "duration", CURLINFO_TOTAL_TIME),
+    SPEC(namelookup_time, "NamelookupTime", dispatch_gauge, account_data_gauge,
+         "duration", CURLINFO_NAMELOOKUP_TIME),
+    SPEC(connect_time, "ConnectTime", dispatch_gauge, account_data_gauge,
+         "duration", CURLINFO_CONNECT_TIME),
+    SPEC(pretransfer_time, "PretransferTime", dispatch_gauge,
+         account_data_gauge, "duration", CURLINFO_PRETRANSFER_TIME),
+    SPEC(size_upload, "SizeUpload", dispatch_gauge, account_data_gauge, "bytes",
          CURLINFO_SIZE_UPLOAD),
-    SPEC(size_download, "SizeDownload", dispatch_gauge, "bytes",
-         CURLINFO_SIZE_DOWNLOAD),
-    SPEC(speed_download, "SpeedDownload", dispatch_speed, "bitrate",
-         CURLINFO_SPEED_DOWNLOAD),
-    SPEC(speed_upload, "SpeedUpload", dispatch_speed, "bitrate",
-         CURLINFO_SPEED_UPLOAD),
-    SPEC(header_size, "HeaderSize", dispatch_size, "bytes",
+    SPEC(size_download, "SizeDownload", dispatch_gauge, account_data_gauge,
+         "bytes", CURLINFO_SIZE_DOWNLOAD),
+    SPEC(speed_download, "SpeedDownload", dispatch_speed, account_data_speed,
+         "bitrate", CURLINFO_SPEED_DOWNLOAD),
+    SPEC(speed_upload, "SpeedUpload", dispatch_speed, account_data_speed,
+         "bitrate", CURLINFO_SPEED_UPLOAD),
+    SPEC(header_size, "HeaderSize", dispatch_size, account_data_size, "bytes",
          CURLINFO_HEADER_SIZE),
-    SPEC(request_size, "RequestSize", dispatch_size, "bytes",
+    SPEC(request_size, "RequestSize", dispatch_size, account_data_size, "bytes",
          CURLINFO_REQUEST_SIZE),
     SPEC(content_length_download, "ContentLengthDownload", dispatch_gauge,
-         "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
-    SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge, "bytes",
-         CURLINFO_CONTENT_LENGTH_UPLOAD),
-    SPEC(starttransfer_time, "StarttransferTime", dispatch_gauge, "duration",
-         CURLINFO_STARTTRANSFER_TIME),
-    SPEC(redirect_time, "RedirectTime", dispatch_gauge, "duration",
-         CURLINFO_REDIRECT_TIME),
-    SPEC(redirect_count, "RedirectCount", dispatch_size, "count",
-         CURLINFO_REDIRECT_COUNT),
-    SPEC(num_connects, "NumConnects", dispatch_size, "count",
+         account_data_gauge, "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
+    SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge,
+         account_data_gauge, "bytes", CURLINFO_CONTENT_LENGTH_UPLOAD),
+    SPEC(starttransfer_time, "StarttransferTime", dispatch_gauge,
+         account_data_gauge, "duration", CURLINFO_STARTTRANSFER_TIME),
+    SPEC(redirect_time, "RedirectTime", dispatch_gauge, account_data_gauge,
+         "duration", CURLINFO_REDIRECT_TIME),
+    SPEC(redirect_count, "RedirectCount", dispatch_size, account_data_size,
+         "count", CURLINFO_REDIRECT_COUNT),
+    SPEC(num_connects, "NumConnects", dispatch_size, account_data_size, "count",
          CURLINFO_NUM_CONNECTS),
 #ifdef HAVE_CURLINFO_APPCONNECT_TIME
     SPEC(appconnect_time, "AppconnectTime", dispatch_gauge, "duration",
@@ -487,62 +542,32 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
   return 0;
 } /* curl_stats_dispatch */
 
-int curl_stats_account_data(curl_stats_t *s, CURL *curl) {}
-
-static int curl_stats_account_data_gauge(CURL *curl, CURLINFO info,
-                                         metric_t *m) {
-  CURLcode code;
-  double val;
-
-  code = curl_easy_getinfo(curl, info, &val);
-  if (code != CURLE_OK)
+int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
+  if (s == NULL)
+    return 0;
+  if (curl == NULL) {
+    ERROR("curl stats: dispatch() called with missing argument: curl=%p", curl);
     return -1;
+  }
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val);
-  } else {
-    m->value.gauge = val;
+  for (size_t field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
+    int status;
+
+    if (!field_enabled(s, field_specs[field].offset))
+      continue;
+
+    status =
+        field_specs[field].account_data(curl, field_specs[field].info, s->m);
+
+    if (status < 0) {
+      return status;
+    }
   }
 
   return 0;
-} /* curl_stats_account_data_gauge */
-
-static int curl_stats_account_data_speed(CURL *curl, CURLINFO info,
-                                         metric_t *m) {
-  CURLcode code;
-  double val;
-
-  code = curl_easy_getinfo(curl, info, &val);
-  if (code != CURLE_OK)
-    return -1;
-
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val * 8);
-  } else {
-    m->value.gauge = val * 8;
-  }
-
-  return 0;
-} /* curl_stats_account_data_speed */
-
-static int curl_stats_account_data_size(CURL *curl, CURLINFO info,
-                                        metric_t *m) {
-  CURLcode code;
-  long raw;
-
-  code = curl_easy_getinfo(curl, info, &raw);
-  if (code != CURLE_OK)
-    return -1;
-
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, (double)raw);
-  } else {
-    m->value.gauge = (double)raw;
-  }
-
-  return 0;
-} /* curl_stats_account_data_size */
+} /* curl_stats_account_data */
 
 int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
-  return plugin_dispatch_metric_family(s->m->family);;
+  return plugin_dispatch_metric_family(s->m->family);
+  ;
 } /* curl_stats_send_metric_to_daemon */
