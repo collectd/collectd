@@ -2316,14 +2316,6 @@ xencpu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBXENCTL_LDFLAGS)
 xencpu_la_LIBADD = -lxenctrl
 endif
 
-if BUILD_PLUGIN_XMMS
-pkglib_LTLIBRARIES += xmms.la
-xmms_la_SOURCES = src/xmms.c
-xmms_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBXMMS_CFLAGS)
-xmms_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-xmms_la_LIBADD = $(BUILD_WITH_LIBXMMS_LIBS)
-endif
-
 if BUILD_PLUGIN_ZFS_ARC
 pkglib_LTLIBRARIES += zfs_arc.la
 zfs_arc_la_SOURCES = src/zfs_arc.c

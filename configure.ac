@@ -5855,72 +5855,6 @@ AC_SUBST([LIBXENCTL_CPPFLAGS])
 AC_SUBST([LIBXENCTL_LDFLAGS])
 # }}}
 
-# --with-libxmms {{{
-with_xmms_config="xmms-config"
-AC_ARG_WITH([libxmms],
-  [AS_HELP_STRING([--with-libxmms@<:@=PREFIX@:>@], [Path to libxmms.])],
-  [
-    if test "x$withval" = "xno" || test "x$withval" = "xyes"; then
-      with_libxmms="$withval"
-    else
-      if test -f "$withval" && test -x "$withval"; then
-        with_xmms_config="$withval"
-      else if test -x "$withval/bin/xmms-config"; then
-        with_xmms_config="$withval/bin/xmms-config"
-      fi; fi
-      with_libxmms="yes"
-    fi
-  ],
-  [with_libxmms="yes"]
-)
-
-if test "x$with_libxmms" = "xyes"; then
-  with_xmms_cflags=`$with_xmms_config --cflags 2>/dev/null`
-  if test $? -ne 0; then
-    with_libxmms="no"
-  fi
-fi
-
-if test "x$with_libxmms" = "xyes"; then
-  with_xmms_libs=`$with_xmms_config --libs 2>/dev/null`
-  if test $? -ne 0; then
-    with_libxmms="no"
-  fi
-fi
-
-if test "x$with_libxmms" = "xyes"; then
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$with_xmms_cflags"
-
-  AC_CHECK_HEADER([xmmsctrl.h],
-    [with_libxmms="yes"],
-    [with_libxmms="no"],
-  )
-
-  CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-
-if test "x$with_libxmms" = "xyes"; then
-  SAVE_LIBS="$LIBS"
-  LIBS="$with_xmms_libs"
-
-  AC_CHECK_LIB([xmms], [xmms_remote_get_info],
-    [with_libxmss="yes"],
-    [with_libxmms="no"],
-    [$with_xmms_libs]
-
-  )
-
-  LIBS="$SAVE_LIBS"
-fi
-
-BUILD_WITH_LIBXMMS_CFLAGS="$with_xmms_cflags"
-BUILD_WITH_LIBXMMS_LIBS="$with_xmms_libs"
-
-AC_SUBST([BUILD_WITH_LIBXMMS_CFLAGS])
-AC_SUBST([BUILD_WITH_LIBXMMS_LIBS])
-# }}}
-
 # --with-libyajl {{{
 AC_ARG_WITH([libyajl],
   [AS_HELP_STRING([--with-libyajl@<:@=PREFIX@:>@], [Path to libyajl.])],
@@ -7172,7 +7106,6 @@ AC_PLUGIN([write_stackdriver],   [$plugin_write_stackdriver], [Google Stackdrive
 AC_PLUGIN([write_syslog],        [yes],                       [Syslog output plugin])
 AC_PLUGIN([write_tsdb],          [yes],                       [TSDB output plugin])
 AC_PLUGIN([xencpu],              [$plugin_xencpu],            [Xen Host CPU usage])
-AC_PLUGIN([xmms],                [$with_libxmms],             [XMMS statistics])
 AC_PLUGIN([zfs_arc],             [$plugin_zfs_arc],           [ZFS ARC statistics])
 AC_PLUGIN([zone],                [$plugin_zone],              [Solaris container statistics])
 AC_PLUGIN([zookeeper],           [yes],                       [Zookeeper statistics])
@@ -7433,7 +7366,6 @@ AC_MSG_RESULT([    libvarnish  . . . . . $with_libvarnish])
 AC_MSG_RESULT([    libvirt . . . . . . . $with_libvirt])
 AC_MSG_RESULT([    libxenctrl  . . . . . $with_libxenctrl])
 AC_MSG_RESULT([    libxml2 . . . . . . . $with_libxml2])
-AC_MSG_RESULT([    libxmms . . . . . . . $with_libxmms])
 AC_MSG_RESULT([    libyajl . . . . . . . $with_libyajl])
 AC_MSG_RESULT([    oracle  . . . . . . . $with_oracle])
 AC_MSG_RESULT([    protobuf-c  . . . . . $have_protoc_c])
@@ -7615,7 +7547,6 @@ AC_MSG_RESULT([    write_stackdriver . . $enable_write_stackdriver])
 AC_MSG_RESULT([    write_syslog . .  . . $enable_write_syslog])
 AC_MSG_RESULT([    write_tsdb  . . . . . $enable_write_tsdb])
 AC_MSG_RESULT([    xencpu  . . . . . . . $enable_xencpu])
-AC_MSG_RESULT([    xmms  . . . . . . . . $enable_xmms])
 AC_MSG_RESULT([    zfs_arc . . . . . . . $enable_zfs_arc])
 AC_MSG_RESULT([    zone  . . . . . . . . $enable_zone])
 AC_MSG_RESULT([    zookeeper . . . . . . $enable_zookeeper])
