@@ -559,5 +559,4 @@ int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
 
 int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
   return plugin_dispatch_metric_family(s->m->family);
-  ;
 } /* curl_stats_send_metric_to_daemon */
