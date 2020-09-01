@@ -51,7 +51,6 @@ int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist) {
   return strbuf_printf(buf, GAUGE_FORMAT, distribution_total_sum(dist));
 }
 
-
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   switch (type) {
   case METRIC_TYPE_GAUGE:
