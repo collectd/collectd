@@ -55,4 +55,9 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
                         const char *plugin, const char *plugin_instance,
                         bool asynchronous);
 
+/* TODO(bkjg): add descriptions of these functions */
+int curl_stats_account_data(curl_stats_t *s, CURL *curl);
+
+int curl_stats_send_metric_to_daemon(curl_stats_t *s, CURL *curl);
+
 #endif /* UTILS_CURL_STATS_H */
