@@ -89,13 +89,13 @@ static metric_t *parse_metric_from_config(metric_spec *m_spec) {
   }
 
   if (m_spec->metric_type != NULL) {
-    if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_DISTRIBUTION")) {
+    if (!strcasecmp(m_spec->metric_type, "DISTRIBUTION")) {
       m->family->type = METRIC_TYPE_DISTRIBUTION;
-    } else if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_GAUGE")) {
+    } else if (!strcasecmp(m_spec->metric_type, "GAUGE")) {
       m->family->type = METRIC_TYPE_GAUGE;
-    } else if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_COUNTER")) {
+    } else if (!strcasecmp(m_spec->metric_type, "COUNTER")) {
       m->family->type = METRIC_TYPE_COUNTER;
-    } else if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_UNTYPED")) {
+    } else if (!strcasecmp(m_spec->metric_type, "UNTYPED")) {
       m->family->type = METRIC_TYPE_UNTYPED;
     } else {
       ERROR("curl_stats_from_config: Unknown metric type %s.",
