@@ -302,8 +302,8 @@ When B<Table> is set to I<false> then this option has no effect.
 =item B<InvertMatch> I<true|false(default)>
 
 The invertmatch value should be use in combination of the Ignore option.
-It changes the behaviour of the Ignore option, from a deny-list behaviour
-when InvertMatch is set to false, to a allow-list when specified to true.
+It changes the behaviour of the Ignore option, from a blocklist behaviour
+when InvertMatch is set to false, to a allowlist when specified to true.
 
 =item B<FilterOID> I<OID>
 
