@@ -6565,7 +6565,6 @@ AC_COLLECTD([werror],    [disable], [feature], [building with -Werror])
 dependency_warning="no"
 dependency_error="no"
 
-plugin_ascent="no"
 plugin_barometer="no"
 plugin_battery="no"
 plugin_bind="no"
@@ -6796,13 +6795,6 @@ if test "x$with_libstatgrab" = "xyes"; then
   plugin_users="yes"
 fi
 
-if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
-  plugin_ascent="yes"
-  if test "x$have_strptime" = "xyes"; then
-    plugin_bind="yes"
-  fi
-fi
-
 if test "x$with_libopenipmipthread" = "xyes"; then
   plugin_ipmi="yes"
 fi
@@ -6817,6 +6809,9 @@ fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
   plugin_curl_xml="yes"
+  if test "x$have_strptime" = "xyes"; then
+    plugin_bind="yes"
+  fi
 fi
 
 if test "x$with_libyajl" = "xyes"; then
@@ -7015,7 +7010,6 @@ AC_PLUGIN([apache],              [$with_libcurl],             [Apache httpd stat
 AC_PLUGIN([apcups],              [yes],                       [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors],       [$with_libiokit],            [Apple hardware sensors])
 AC_PLUGIN([aquaero],             [$with_libaquaero5],         [Aquaero hardware sensors])
-AC_PLUGIN([ascent],              [$plugin_ascent],            [AscentEmu player statistics])
 AC_PLUGIN([barometer],           [$plugin_barometer],         [Barometer sensor on I2C])
 AC_PLUGIN([battery],             [$plugin_battery],           [Battery statistics])
 AC_PLUGIN([bind],                [$plugin_bind],              [ISC Bind nameserver statistics])
@@ -7460,7 +7454,6 @@ AC_MSG_RESULT([    apache  . . . . . . . $enable_apache])
 AC_MSG_RESULT([    apcups  . . . . . . . $enable_apcups])
 AC_MSG_RESULT([    apple_sensors . . . . $enable_apple_sensors])
 AC_MSG_RESULT([    aquaero . . . . . . . $enable_aquaero])
-AC_MSG_RESULT([    ascent  . . . . . . . $enable_ascent])
 AC_MSG_RESULT([    barometer . . . . . . $enable_barometer])
 AC_MSG_RESULT([    battery . . . . . . . $enable_battery])
 AC_MSG_RESULT([    bind  . . . . . . . . $enable_bind])
