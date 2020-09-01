@@ -29,7 +29,7 @@ DEF_TEST(sd_format_metric_descriptor) {
   struct {
     char *name;
     metric_type_t type;
-    label_t *labels;
+    label_pair_t *labels;
     size_t labels_num;
     char *want;
   } cases[] = {
@@ -58,7 +58,7 @@ DEF_TEST(sd_format_metric_descriptor) {
           .name = "metric_with_labels",
           .type = METRIC_TYPE_GAUGE,
           .labels =
-              (label_t[]){
+              (label_pair_t[]){
                   {"region", "here be dragons"},
                   {"instance", "example.com"},
               },
@@ -86,7 +86,7 @@ DEF_TEST(sd_format_metric_descriptor) {
         .family = &fam,
     };
     for (size_t j = 0; j < cases[i].labels_num; j++) {
-      label_t *l = cases[i].labels + j;
+      label_pair_t *l = cases[i].labels + j;
       EXPECT_EQ_INT(0, metric_label_set(&m, l->name, l->value));
     }
 

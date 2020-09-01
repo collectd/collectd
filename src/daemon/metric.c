@@ -66,7 +66,10 @@ static label_pair_t *label_set_read(label_set_t labels, char const *name) {
     return NULL;
   }
 
-  label_t label = {
+  struct {
+    char const *name;
+    char const *value;
+  } label = {
       .name = name,
   };
 
