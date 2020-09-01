@@ -77,6 +77,13 @@ struct curl_stats_s {
   metric_t *m;
 };
 
+static void metric_spec_destroy(metric_spec_t *m_spec) {
+  free(m_spec->distribution_type);
+  free(m_spec->metric_identity);
+  free(m_spec->metric_type);
+  free(m_spec);
+}
+
 static metric_t *parse_metric_from_config(metric_spec_t *m_spec) {
   if (m_spec == NULL) {
     return NULL;
@@ -188,8 +195,7 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m) {
   } else {
     m->value.gauge = val;
   }
-  /* TODO(bkjg): "This library should optionally be able to update
-   * distribution_t instead of calling plugin_dispatch_values." */
+
   return plugin_dispatch_metric_family(m->family);
 } /* dispatch_gauge */
 
@@ -208,8 +214,6 @@ static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m) {
     m->value.gauge = val * 8;
   }
 
-  /* TODO(bkjg): "This library should optionally be able to update
-   * distribution_t instead of calling plugin_dispatch_values." */
   return plugin_dispatch_metric_family(m->family);
 } /* dispatch_speed */
 
@@ -228,8 +232,6 @@ static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m) {
     m->value.gauge = (double)raw;
   }
 
-  /* TODO(bkjg): "This library should optionally be able to update
-   * distribution_t instead of calling plugin_dispatch_values." */
   return plugin_dispatch_metric_family(m->family);
 } /* dispatch_size */
 
@@ -381,11 +383,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   if (s == NULL)
     return NULL;
 
-  char identity[MAX_BUFFER_LENGTH];
-
-  /* make identity of each metric unique */
-  snprintf(identity, MAX_BUFFER_LENGTH, "curl_stats_%p", s);
-
   metric_spec_t *m_spec;
   m_spec = calloc(1, sizeof(metric_spec_t));
 
@@ -403,8 +400,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
 
     if (field >= STATIC_ARRAY_SIZE(field_specs)) {
-      /* TODO(bkjg): create an array with names of metric types */
-      /* TODO(bkjg): check if only one type of distribution is specified (??) */
       for (field = 0; field < STATIC_ARRAY_SIZE(metric_specs); ++field) {
         if (!strcasecmp(c->key, metric_specs[field].config_key)) {
           break;
@@ -441,9 +436,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
             ERROR("curl_stats_from_config: Wrong type for distribution custom "
                   "boundary. Required %d, received %d.",
                   OCONFIG_TYPE_NUMBER, c->values->type);
-            /* TODO(bkjg): here should be function for destroying metric_spec_t
-             */
-            free(m_spec);
+            metric_spec_destroy(m_spec);
             free(s);
             return NULL;
           }
@@ -474,7 +467,10 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       }
 
       if (m_spec->metric_identity == NULL) {
-        m_spec->metric_identity = identity;
+        m_spec->metric_identity = calloc(MAX_BUFFER_LENGTH, sizeof(char));
+        /* make identity of each metric unique */
+        snprintf(m_spec->metric_identity, MAX_BUFFER_LENGTH, "curl_stats_%p",
+                 s);
       }
 
       continue;
@@ -490,13 +486,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
   s->m = parse_metric_from_config(m_spec);
 
-  /* TODO(bkjg): create function for destroying metric_spec_t structure */
-  free(m_spec->distribution_type);
-  free(m_spec->metric_type);
-  if (m_spec->metric_identity != identity) {
-    free(m_spec->metric_identity);
-  }
-  free(m_spec);
+  metric_spec_destroy(m_spec);
 
   if (s->m == NULL) {
     metric_family_free(s->m->family);
