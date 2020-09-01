@@ -74,134 +74,69 @@ struct curl_stats_s {
   metric_t *m;
 };
 
-/* maybe instead of metric_t pointer, pointer to some structure with arguments for metric??? */
-static int configure_string(const char *key, const void *value, metric_t *m) {
-  if (!strcasecmp(key, "MetricType")) {
-
-  } else if (!strcasecmp(key, "DistributionType")) {
-
-  } else if (!strcasecmp(key, "MetricIdentity")) {
-
-  } else {
-    ERROR("curl_stats_from_config: Unknown field: %s", key);
-    return -1;
-  }
-}
-
-static int configure_double(const char *key, const void *value, metric_t *m) {
-if (!strcasecmp(key, "Base")) {
-
-  } else if (!strcasecmp(key, "Factor")) {
-
-  } else if (!strcasecmp(key, "Boundaries")) { /* special case, urgent!!! */
-
-  } else {
-    ERROR("curl_stats_from_config: Unknown field: %s", key);
-    return -1;
-  }
-}
-
-static int configure_int(const char *key, const void *value, metric_t *m) {
-if (!strcasecmp(key, "NumBuckets")) {
-
-  } else if (!strcasecmp(key, "NumBoundaries")) {
-
-  } else {
-    ERROR("curl_stats_from_config: Unknown field: %s", key);
-    return -1;
-  }
-}
-
-static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
-  if (m == NULL || c == NULL) {
+static int parse_metric_from_config(metric_spec *m_spec, metric_t *m) {
+  if (m_spec == NULL || m == NULL) {
     return -1;
   }
 
-  if (c->values_num < 3) {
-    ERROR("curl stats: Distribution parameters are not correctly specified ");
+  m = metric_parse_identity(m_spec->metric_identity);
+
+  if (m == NULL) {
     return -1;
   }
 
-  if (c->values[0].type != OCONFIG_TYPE_STRING) {
-    ERROR("curl stats: OConfig type is not correctly specified. Required %d, "
-          "received %d.",
-          OCONFIG_TYPE_STRING, c->values[0].type);
-    return -1;
+  if (m_spec->metric_type != NULL) {
+    if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_DISTRIBUTION")) {
+      m->family->type = METRIC_TYPE_DISTRIBUTION;
+    } else if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_GAUGE")) {
+      m->family->type = METRIC_TYPE_GAUGE;
+    } else if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_COUNTER")) {
+      m->family->type = METRIC_TYPE_COUNTER;
+    } else if (!strcasecmp(m_spec->metric_type, "METRIC_TYPE_UNTYPED")) {
+      m->family->type = METRIC_TYPE_UNTYPED;
+    }
   }
 
-  if (!strcasecmp(c->values[0].value.string, "DISTRIBUTION_LINEAR")) {
-    if (c->values_num != 3) {
-      ERROR("curl stats: Wrong number of arguments for metric type "
-            "linear distribution. Required %d, received %d.",
-            2, c->values_num);
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    if (m_spec->distribution_type == NULL) {
+      ERROR("curl_stats_from_config: Metric type is distribution. Missing "
+            "distribution type specification.");
       return -1;
     }
+  }
 
-    if (c->values[1].type != OCONFIG_TYPE_NUMBER ||
-        c->values[2].type != OCONFIG_TYPE_NUMBER) {
-      ERROR("curl stats: Wrong type of arguments for metric type "
-            "linear distribution. Required %d, %d, received %d, %d.",
-            OCONFIG_TYPE_NUMBER, OCONFIG_TYPE_NUMBER, c->values[1].type,
-            c->values[2].type);
-      return -1;
+  if (!strcasecmp(m_spec->distribution_type, "LINEAR")) {
+    if (m_spec->num_buckets == 0 ||
+        (m_spec->base == 0 && m_spec->factor == 0)) {
+      ERROR("curl_stats_from_config: Missing arguments for metric type linear "
+            "distribution");
     }
 
-    m->value.distribution = distribution_new_linear(c->values[1].value.number,
-                                                    c->values[2].value.number);
-
-  } else if (!strcasecmp(c->values[0].value.string,
-                         "DISTRIBUTION_EXPONENTIAL")) {
-    if (c->values_num != 4) {
-      ERROR("curl stats: Wrong number of arguments for metric type "
-            "exponential distribution. Required %d, received %d.",
-            3, c->values_num);
-      return -1;
+    if (m_spec->base != 0) {
+      m->value.distribution =
+          distribution_new_linear(m_spec->num_buckets, m_spec->base);
+    } else {
+      m->value.distribution =
+          distribution_new_linear(m_spec->num_buckets, m_spec->factor);
     }
-
-    if (c->values[1].type != OCONFIG_TYPE_NUMBER ||
-        c->values[2].type != OCONFIG_TYPE_NUMBER ||
-        c->values[3].type != OCONFIG_TYPE_NUMBER) {
-      ERROR("curl stats: Wrong type of arguments for metric type "
-            "exponential distribution. Required %d, %d, %d, received %d, %d, %d.",
-            OCONFIG_TYPE_NUMBER, OCONFIG_TYPE_NUMBER, OCONFIG_TYPE_NUMBER,
-            c->values[1].type, c->values[2].type, c->values[2].type);
-      return -1;
+  } else if (!strcasecmp(m_spec->distribution_type, "EXPONENTIAL")) {
+    if (m_spec->num_buckets == 0 || m_spec->base == 0 || m_spec->factor == 0) {
+      ERROR("curl_stats_from_config: Missing arguments for metric type "
+            "exponential distribution");
     }
 
     m->value.distribution = distribution_new_exponential(
-        c->values[1].value.number, c->values[2].value.number,
-        c->values[2].value.number);
-  } else if (!strcasecmp(c->values[0].value.string, "DISTRIBUTION_CUSTOM")) {
-    if (c->values[1].type != OCONFIG_TYPE_NUMBER) {
-      ERROR("curl stats: Number of boundaries in custom distribution have to "
-            "be number. Required %d, received %d.",
-            OCONFIG_TYPE_NUMBER, c->values[1].type);
-      return -1;
+        m_spec->num_buckets, m_spec->base, m_spec->factor);
+  } else if (!strcasecmp(m_spec->distribution_type, "CUSTOM")) {
+    if (m_spec->num_boundaries == 0) {
+      ERROR("curl_stats_from_config: Missing arguments for metric type "
+            "exponential distribution");
     }
 
-    if (c->values_num != c->values[1].value.number + 2) {
-      ERROR("curl stats: Wrong number of arguments for metric type "
-            "custom distribution. Required %lf, received %d.",
-            c->values[1].value.number + 1, c->values_num);
-      return -1;
-    }
 
-    size_t num_boundaries = (size_t)c->values[1].value.number;
-    double boundaries[num_boundaries];
-    for (size_t i = 2; i < num_boundaries; ++i) {
-      if (c->values[i].type != OCONFIG_TYPE_NUMBER) {
-        ERROR("curl stats: Wrong type of arguments for metric type "
-              "custom distribution. Required %d, received %d.",
-              OCONFIG_TYPE_NUMBER, c->values[i].type);
-        return -1;
-      }
-      boundaries[i] = c->values[i].value.number;
-    }
-
-    m->value.distribution = distribution_new_custom(num_boundaries, boundaries);
   } else {
-    ERROR("curl stats: Unknown distribution type: %s",
-          c->values[0].value.string);
+    ERROR("curl_stats_from_config: Unknown distribution type: %s",
+          m_spec->distribution_type);
     return -1;
   }
 
@@ -216,61 +151,61 @@ static int parse_distribution_from_config(metric_t *m, oconfig_item_t *c) {
  * Private functions
  */
 static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m) {
-    CURLcode code;
-    double val;
+  CURLcode code;
+  double val;
 
-    code = curl_easy_getinfo(curl, info, &val);
-    if (code != CURLE_OK)
-      return -1;
+  code = curl_easy_getinfo(curl, info, &val);
+  if (code != CURLE_OK)
+    return -1;
 
-    if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-      distribution_update(m->value.distribution, val);
-    } else {
-      m->value.gauge = val;
-    }
-    /* TODO(bkjg): "This library should optionally be able to update
-     * distribution_t instead of calling plugin_dispatch_values." */
-    return plugin_dispatch_metric_family(m->family);
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val);
+  } else {
+    m->value.gauge = val;
+  }
+  /* TODO(bkjg): "This library should optionally be able to update
+   * distribution_t instead of calling plugin_dispatch_values." */
+  return plugin_dispatch_metric_family(m->family);
 } /* dispatch_gauge */
 
 /* dispatch a speed, in bytes/second */
 static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m) {
-    CURLcode code;
-    double val;
+  CURLcode code;
+  double val;
 
-    code = curl_easy_getinfo(curl, info, &val);
-    if (code != CURLE_OK)
-      return -1;
+  code = curl_easy_getinfo(curl, info, &val);
+  if (code != CURLE_OK)
+    return -1;
 
-    if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-      distribution_update(m->value.distribution, val * 8);
-    } else {
-      m->value.gauge = val * 8;
-    }
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val * 8);
+  } else {
+    m->value.gauge = val * 8;
+  }
 
-    /* TODO(bkjg): "This library should optionally be able to update
-     * distribution_t instead of calling plugin_dispatch_values." */
-    return plugin_dispatch_metric_family(m->family);
+  /* TODO(bkjg): "This library should optionally be able to update
+   * distribution_t instead of calling plugin_dispatch_values." */
+  return plugin_dispatch_metric_family(m->family);
 } /* dispatch_speed */
 
 /* dispatch a size/count, reported as a long value */
 static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m) {
   CURLcode code;
-    long raw;
+  long raw;
 
-    code = curl_easy_getinfo(curl, info, &raw);
-    if (code != CURLE_OK)
-      return -1;
+  code = curl_easy_getinfo(curl, info, &raw);
+  if (code != CURLE_OK)
+    return -1;
 
-    if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-      distribution_update(m->value.distribution, (double)raw);
-    } else {
-      m->value.gauge = (double)raw;
-    }
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, (double)raw);
+  } else {
+    m->value.gauge = (double)raw;
+  }
 
-    /* TODO(bkjg): "This library should optionally be able to update
-     * distribution_t instead of calling plugin_dispatch_values." */
-    return plugin_dispatch_metric_family(m->family);
+  /* TODO(bkjg): "This library should optionally be able to update
+   * distribution_t instead of calling plugin_dispatch_values." */
+  return plugin_dispatch_metric_family(m->family);
 } /* dispatch_size */
 
 static struct {
@@ -330,17 +265,19 @@ static struct {
   size_t offset;
   int (*configure)(const char *, const void *, metric_t);
 } metric_specs[] = {
-#define SPEC(name, config_key, configure)                         \
-  { #name, config_key, offsetof(curl_stats_t, name), configure}
+#define SPEC(name, config_key)                                                 \
+  { #name, config_key, offsetof(metric_spec, name) }
 
-    SPEC(metric_type, "MetricType", configure_string),
-    SPEC(distribution_type, "DistributionType", configure_string),
-    SPEC(metric_identity, "MetricIdentity", configure_string),
-    SPEC(base, "Base", configure_double),
-    SPEC(factor, "Factor", configure_double),
-    SPEC(boundaries, "Boundaries", configure_double), /* attention: this will be an array of double, for consideration: how to handle it? */
-    SPEC(num_buckets, "NumBuckets", configure_int),
-    SPEC(num_boundaries, "NumBoundaries", configure_int),
+    SPEC(metric_type, "MetricType"),
+    SPEC(distribution_type, "DistributionType"),
+    SPEC(metric_identity, "MetricIdentity"),
+    SPEC(base, "Base"),
+    SPEC(factor, "Factor"),
+    SPEC(boundaries,
+         "Boundaries"), /* attention: this will be an array of double, for
+                           consideration: how to handle it? */
+    SPEC(num_buckets, "NumBuckets"),
+    SPEC(num_boundaries, "NumBoundaries"),
 #undef SPEC
 };
 
@@ -373,7 +310,9 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
   oconfig_item_t *conf_distribution = NULL;
 
-  metric_type_t metric_family_type = METRIC_TYPE_UNTYPED;
+  metric_spec *m_spec;
+  m_spec = calloc(1, sizeof(metric_spec));
+
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
     size_t field;
@@ -406,13 +345,15 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         return NULL;
       }
 
-      if (field > 5) { /* read int */
-        int value;
+      if (field > 5) { /* read uint64_t */
+        size_t value;
 
-        if (cf_util_get_int(c, &value) != 0) {
+        if (cf_util_get_uint64(c, &value) != 0) {
           free(s);
           return NULL;
         }
+
+        *(size_t *)((char *)m_spec + metric_specs[field].offset) = value;
       } else if (field > 2) { /* read double */
         double value;
 
@@ -420,6 +361,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           free(s);
           return NULL;
         }
+
+        *(double *)((char *)m_spec + metric_specs[field].offset) = value;
       } else { /* read char * */
         char buffer[MAX_BUFFER_LENGTH];
 
@@ -427,32 +370,16 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           free(s);
           return NULL;
         }
+
+        *(char **)((char *)m_spec + metric_specs[field].offset) =
+            strdup(buffer);
       }
-      if (!strcasecmp(c->key, "METRIC_TYPE_DISTRIBUTION")) {
-        metric_family_type = METRIC_TYPE_DISTRIBUTION;
-        conf_distribution = c;
-        continue;
-      } else if (!strcasecmp(c->key, "METRIC_TYPE_GAUGE")) {
-        metric_family_type = METRIC_TYPE_GAUGE;
-        continue;
-      } else if (!strcasecmp(c->key, "METRIC_TYPE_COUNTER")) {
-        metric_family_type = METRIC_TYPE_COUNTER;
-        continue;
-      } else if (!strcasecmp(c->key, "METRIC_TYPE_UNTYPED")) {
-        metric_family_type = METRIC_TYPE_UNTYPED;
-        continue;
-      } else if (!strcasecmp(c->key, "Identity")) {
-        if (cf_util_get_string_buffer(c, identity, MAX_BUFFER_LENGTH) != 0) {
-          ERROR("curl stats: Parsing identity failed");
-          free(s);
-          return NULL;
-        }
-        continue;
-      } else {
-        ERROR("curl stats: Unknown field name %s", c->key);
-        free(s);
-        return NULL;
+
+      if (m_spec->metric_identity == NULL) {
+        m_spec->metric_identity = identity;
       }
+
+      continue;
     }
 
     if (cf_util_get_boolean(c, &enabled) != 0) {
@@ -463,14 +390,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       enable_field(s, field_specs[field].offset);
   }
 
-  s->m = metric_parse_identity(identity);
-
-  if (s->m == NULL) {
-    return NULL;
-  }
-
-  s->m->family->type = metric_family_type;
-  int status = parse_distribution_from_config(s->m, conf_distribution);
+  int status = parse_metric_from_config(m_spec, s->m);
+  free(m_spec);
 
   if (status != 0) {
     metric_family_free(s->m->family);
@@ -506,8 +427,7 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
     if (!field_enabled(s, field_specs[field].offset))
       continue;
 
-    status = field_specs[field].dispatcher(curl, field_specs[field].info, s->m,
-                                           asynchronous);
+    status = field_specs[field].dispatcher(curl, field_specs[field].info, s->m);
 
     if (status < 0) {
       return status;
