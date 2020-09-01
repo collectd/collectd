@@ -486,17 +486,29 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
   return 0;
 } /* curl_stats_dispatch */
 
-int curl_stats_account_data_gauge(curl_stats_t *s, CURL *curl) {
+int curl_stats_account_data_gauge(CURL *curl, CURLINFO info, metric_t *m) {
 
   return 0;
 } /* curl_stats_account_data_gauge */
 
-int curl_stats_account_data_speed(curl_stats_t *s, CURL *curl) {
+int curl_stats_account_data_speed(CURL *curl, CURLINFO info, metric_t *m) {
 
   return 0;
 } /* curl_stats_account_data_speed */
 
-int curl_stats_account_data_size(curl_stats_t *s, CURL *curl) {
+int curl_stats_account_data_size(CURL *curl, CURLINFO info, metric_t *m) {
+  CURLcode code;
+  long raw;
+
+  code = curl_easy_getinfo(curl, info, &raw);
+  if (code != CURLE_OK)
+    return -1;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, (double)raw);
+  } else {
+    m->value.gauge = (double)raw;
+  }
 
   return 0;
 } /* curl_stats_account_data_size */
