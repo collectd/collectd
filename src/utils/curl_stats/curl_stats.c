@@ -119,7 +119,26 @@ static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
   return -1;
 }
 
-static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m) {
+static int dispatch_time(CURL *curl, CURLINFO info,
+                          attributes_metrics_t *attr_m, const char *unit) {
+  CURLcode code;
+  double val;
+
+  code = curl_easy_getinfo(curl, info, &val);
+  if (code != CURLE_OK)
+    return -1;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val);
+  } else {
+    m->value.gauge = val;
+  }
+
+  return plugin_dispatch_metric_family(m->family);
+} /* dispatch_gauge */
+
+static int dispatch_count(CURL *curl, CURLINFO info,
+                          attributes_metrics_t *attr_m, const char *unit) {
   CURLcode code;
   double val;
 
@@ -137,7 +156,8 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m) {
 } /* dispatch_gauge */
 
 /* dispatch a speed, in bytes/second */
-static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m) {
+static int dispatch_speed(CURL *curl, CURLINFO info,
+                          attributes_metrics_t *attr_m, const char *unit) {
   CURLcode code;
   double val;
 
@@ -155,7 +175,8 @@ static int dispatch_speed(CURL *curl, CURLINFO info, metric_t *m) {
 } /* dispatch_speed */
 
 /* dispatch a size/count, reported as a long value */
-static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m) {
+static int dispatch_size(CURL *curl, CURLINFO info,
+                         attributes_metrics_t *attr_m, const char *unit) {
   CURLcode code;
   long raw;
 
@@ -172,7 +193,8 @@ static int dispatch_size(CURL *curl, CURLINFO info, metric_t *m) {
   return plugin_dispatch_metric_family(m->family);
 } /* dispatch_size */
 
-static int account_data_gauge(CURL *curl, CURLINFO info, metric_t *m) {
+static int account_data_time(CURL *curl, CURLINFO info,
+                              attributes_metrics_t *attr_m, const char *unit) {
   CURLcode code;
   double val;
 
@@ -189,7 +211,26 @@ static int account_data_gauge(CURL *curl, CURLINFO info, metric_t *m) {
   return 0;
 } /* account_data_gauge */
 
-static int account_data_speed(CURL *curl, CURLINFO info, metric_t *m) {
+static int account_data_count(CURL *curl, CURLINFO info,
+                              attributes_metrics_t *attr_m, const char *unit) {
+  CURLcode code;
+  double val;
+
+  code = curl_easy_getinfo(curl, info, &val);
+  if (code != CURLE_OK)
+    return -1;
+
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_update(m->value.distribution, val);
+  } else {
+    m->value.gauge = val;
+  }
+
+  return 0;
+} /* account_data_gauge */
+
+static int account_data_speed(CURL *curl, CURLINFO info,
+                              attributes_metrics_t *attr_m, const char *unit) {
   CURLcode code;
   double val;
 
@@ -206,7 +247,8 @@ static int account_data_speed(CURL *curl, CURLINFO info, metric_t *m) {
   return 0;
 } /* account_data_speed */
 
-static int account_data_size(CURL *curl, CURLINFO info, metric_t *m) {
+static int account_data_size(CURL *curl, CURLINFO info,
+                             attributes_metrics_t *attr_m, const char *unit) {
   CURLcode code;
   long raw;
 
@@ -227,8 +269,10 @@ static struct {
   const char *name;
   const char *config_key;
   size_t offset;
-  int (*dispatcher)(CURL *, CURLINFO, metric_t *);
-  int (*account_data)(CURL *, CURLINFO, metric_t *);
+  int (*dispatcher)(CURL *, CURLINFO, attributes_metrics_t *attr_m,
+                    const char *unit);
+  int (*account_data)(CURL *, CURLINFO, attributes_metrics_t *attr_m,
+                      const char *unit);
   const char *type;
   CURLINFO info;
 } field_specs[] = {
@@ -238,14 +282,14 @@ static struct {
         type, info                                                             \
   }
 
-    SPEC(total_time, "TotalTime", dispatch_gauge, account_data_gauge,
+    SPEC(total_time, "TotalTime", dispatch_time, account_data_time,
          "duration", CURLINFO_TOTAL_TIME),
-    SPEC(namelookup_time, "NamelookupTime", dispatch_gauge, account_data_gauge,
+    SPEC(namelookup_time, "NamelookupTime", dispatch_time, account_data_time,
          "duration", CURLINFO_NAMELOOKUP_TIME),
-    SPEC(connect_time, "ConnectTime", dispatch_gauge, account_data_gauge,
+    SPEC(connect_time, "ConnectTime", dispatch_time, account_data_time,
          "duration", CURLINFO_CONNECT_TIME),
-    SPEC(pretransfer_time, "PretransferTime", dispatch_gauge,
-         account_data_gauge, "duration", CURLINFO_PRETRANSFER_TIME),
+    SPEC(pretransfer_time, "PretransferTime", dispatch_time,
+         account_data_time, "duration", CURLINFO_PRETRANSFER_TIME),
     SPEC(size_upload, "SizeUpload", dispatch_gauge, account_data_gauge, "bytes",
          CURLINFO_SIZE_UPLOAD),
     SPEC(size_download, "SizeDownload", dispatch_gauge, account_data_gauge,
@@ -262,9 +306,9 @@ static struct {
          account_data_gauge, "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
     SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge,
          account_data_gauge, "bytes", CURLINFO_CONTENT_LENGTH_UPLOAD),
-    SPEC(starttransfer_time, "StarttransferTime", dispatch_gauge,
-         account_data_gauge, "duration", CURLINFO_STARTTRANSFER_TIME),
-    SPEC(redirect_time, "RedirectTime", dispatch_gauge, account_data_gauge,
+    SPEC(starttransfer_time, "StarttransferTime", dispatch_time,
+         account_data_time, "duration", CURLINFO_STARTTRANSFER_TIME),
+    SPEC(redirect_time, "RedirectTime", dispatch_time, account_data_time,
          "duration", CURLINFO_REDIRECT_TIME),
     SPEC(redirect_count, "RedirectCount", dispatch_size, account_data_size,
          "count", CURLINFO_REDIRECT_COUNT),
@@ -362,7 +406,8 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
     if (!field_enabled(s, field_specs[field].offset))
       continue;
 
-    status = field_specs[field].dispatcher(curl, field_specs[field].info, s->m);
+    status = field_specs[field].dispatcher(curl, field_specs[field].info,
+                                           s->metrics, field_specs[field].type);
 
     if (status < 0) {
       return status;
