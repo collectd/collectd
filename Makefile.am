@@ -749,19 +749,6 @@ aquaero_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBAQUAERO5_LDFLAGS)
 aquaero_la_LIBADD = -laquaero5
 endif
 
-if BUILD_PLUGIN_ASCENT
-pkglib_LTLIBRARIES += ascent.la
-ascent_la_SOURCES = src/ascent.c
-ascent_la_CFLAGS = \
-	$(AM_CFLAGS) \
-	$(BUILD_WITH_LIBCURL_CFLAGS) \
-	$(BUILD_WITH_LIBXML2_CFLAGS)
-ascent_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-ascent_la_LIBADD = \
-	$(BUILD_WITH_LIBCURL_LIBS) \
-	$(BUILD_WITH_LIBXML2_LIBS)
-endif
-
 if BUILD_PLUGIN_BAROMETER
 pkglib_LTLIBRARIES += barometer.la
 barometer_la_SOURCES = src/barometer.c

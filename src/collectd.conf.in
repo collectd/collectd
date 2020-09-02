@@ -95,7 +95,6 @@
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
 #@BUILD_PLUGIN_AQUAERO_TRUE@LoadPlugin aquaero
-#@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
 #@BUILD_PLUGIN_BAROMETER_TRUE@LoadPlugin barometer
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
@@ -333,13 +332,6 @@
 
 #<Plugin aquaero>
 #	Device ""
-#</Plugin>
-
-#<Plugin ascent>
-#	URL "http://localhost/ascent/status/"
-#	User "www-user"
-#	Password "secret"
-#	CACert "/etc/ssl/ca.crt"
 #</Plugin>
 
 #<Plugin "barometer">

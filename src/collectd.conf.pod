@@ -1104,55 +1104,6 @@ to auto-detect the Aquaero 5 USB device based on vendor-ID and product-ID.
 
 =back
 
-=head2 Plugin C<ascent>
-
-This plugin collects information about an Ascent server, a free server for the
-"World of Warcraft" game. This plugin gathers the information by fetching the
-XML status page using C<libcurl> and parses it using C<libxml2>.
-
-The configuration options are the same as for the C<apache> plugin above:
-
-=over 4
-
-=item B<URL> I<http://localhost/ascent/status/>
-
-Sets the URL of the XML status output.
-
-=item B<User> I<Username>
-
-Optional user name needed for authentication.
-
-=item B<Password> I<Password>
-
-Optional password needed for authentication.
-
-=item B<VerifyPeer> B<true|false>
-
-Enable or disable peer SSL certificate verification. See
-L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
-
-=item B<VerifyHost> B<true|false>
-
-Enable or disable peer host name verification. If enabled, the plugin checks
-if the C<Common Name> or a C<Subject Alternate Name> field of the SSL
-certificate matches the host name provided by the B<URL> option. If this
-identity check fails, the connection is aborted. Obviously, only works when
-connecting to a SSL enabled server. Enabled by default.
-
-=item B<CACert> I<File>
-
-File that holds one or more SSL certificates. If you want to use HTTPS you will
-possibly need this option. What CA certificates come bundled with C<libcurl>
-and are checked by default depends on the distribution you use.
-
-=item B<Timeout> I<Milliseconds>
-
-The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
-milliseconds. By default, the configured B<Interval> is used to set the
-timeout.
-
-=back
-
 =head2 Plugin C<barometer>
 
 This plugin reads absolute air pressure using digital barometer sensor on a I2C

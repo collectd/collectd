@@ -29,9 +29,6 @@ Features
     - aquaero
       Various sensors in the Aquaero 5 water cooling board made by Aquacomputer.
 
-    - ascent
-      Statistics about Ascent, a free server for the game `World of Warcraft'.
-
     - barometer
       Reads absolute barometric pressure, air pressure reduced to sea level and
       temperature.  Supported sensors are MPL115A2 and MPL3115 from Freescale
