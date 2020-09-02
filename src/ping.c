@@ -584,7 +584,7 @@ static void submit_distribution(const char *host, const char *type,
     ERROR("ping plugin: Can't create metric family to dispatch");
     return;
   }
-  strcpy(name, type);
+  sstrncpy(name, type, strlen(type) * sizeof(*name));
   fam->name = name;
   fam->type = METRIC_TYPE_DISTRIBUTION;
   metric_t m = {
@@ -593,7 +593,7 @@ static void submit_distribution(const char *host, const char *type,
   };
   int status = metric_label_set(&m, "instance", hostname_g) ||
                metric_label_set(&m, "ping", host);
-  status |= metric_family_metric_append(fam, m);
+  status = status || metric_family_metric_append(fam, m);
   if (status != 0) {
     metric_reset(&m);
     metric_family_free(fam);
