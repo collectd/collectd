@@ -508,8 +508,7 @@ void curl_stats_destroy(curl_stats_t *s) {
 /* TODO: delete unused arguments when all plugins will migrate to the new metric
  * data structure */
 int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
-                        const char *plugin, const char *plugin_instance,
-                        bool asynchronous) {
+                        const char *plugin, const char *plugin_instance) {
   if (s == NULL)
     return 0;
   if (curl == NULL) {
