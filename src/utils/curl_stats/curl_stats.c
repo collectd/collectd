@@ -65,10 +65,45 @@ struct curl_stats_s {
 /*
  * Private functions
  */
+static int initialize_attributes_metric_families(curl_stats_t *s) {
+  s->metrics = calloc(1, sizeof(attributes_metrics_t));
+
+  if (s->metrics == NULL) {
+    return -1;
+  }
+
+  s->metrics->count_fam = calloc(1, sizeof(metric_family_t));
+  s->metrics->size_fam = calloc(1, sizeof(metric_family_t));
+  s->metrics->speed_fam = calloc(1, sizeof(metric_family_t));
+  s->metrics->time_fam = calloc(1, sizeof(metric_family_t));
+
+  if (s->metrics->count_fam == NULL || s->metrics->size_fam == NULL ||
+      s->metrics->speed_fam == NULL || s->metrics->time_fam == NULL) {
+    free(s->metrics->count_fam);
+    free(s->metrics->size_fam);
+    free(s->metrics->speed_fam);
+    free(s->metrics->time_fam);
+    free(s->metrics);
+    return -1;
+  }
+
+  s->metrics->count_fam->name = "Count";
+  s->metrics->size_fam->name = "Size";
+  s->metrics->speed_fam->name = "Speed";
+  s->metrics->time_fam->name = "Time";
+
+  s->metrics->count_fam->type = METRIC_TYPE_COUNTER;
+  s->metrics->size_fam->type = METRIC_TYPE_DISTRIBUTION;
+  s->metrics->speed_fam->type = METRIC_TYPE_DISTRIBUTION;
+  s->metrics->time_fam->type = METRIC_TYPE_DISTRIBUTION;
+
+  return 0;
+}
+
+/* TODO(bkjg): add initializing the distribution */
 static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
                                           const char *unit) {
   metric_t m;
-
   metric_label_set(&m, "Attributes", name);
 
   if (!strcasecmp("bytes", unit)) {
@@ -264,6 +299,11 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   if (s == NULL)
     return NULL;
 
+  if (initialize_attributes_metric_families(s) != 0) {
+    free(s);
+    return NULL;
+  }
+
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
     size_t field;
@@ -287,8 +327,12 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       free(s);
       return NULL;
     }
-    if (enabled)
+
+    if (enabled) {
       enable_field(s, field_specs[field].offset);
+      append_metric_to_metric_family(s, field_specs[field].config_key,
+                                     field_specs[field].type);
+    }
   }
 
   return s;
