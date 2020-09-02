@@ -83,7 +83,8 @@ static int ping_max_missed = -1;
 
 /* Private variables for distribution for latency */
 static size_t num_buckets = 100;
-#define PING_DEF_DISTRIBUTION distribution_new_linear(num_buckets, ping_timeout / num_buckets)
+#define PING_DEF_DISTRIBUTION                                                  \
+  distribution_new_linear(num_buckets, ping_timeout / num_buckets)
 
 static pthread_mutex_t ping_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ping_cond = PTHREAD_COND_INITIALIZER;
@@ -587,10 +588,11 @@ static void submit_distribution(const char *host, const char *type,
   fam->name = name;
   fam->type = METRIC_TYPE_DISTRIBUTION;
   metric_t m = {
-    .family = fam,
-    .value = (value_t){.distribution = dist},
+      .family = fam,
+      .value = (value_t){.distribution = dist},
   };
-  int status = metric_label_set(&m, "instance", hostname_g) || metric_label_set(&m, "ping", host);
+  int status = metric_label_set(&m, "instance", hostname_g) ||
+               metric_label_set(&m, "ping", host);
   status |= metric_family_metric_append(fam, m);
   if (status != 0) {
     metric_reset(&m);
