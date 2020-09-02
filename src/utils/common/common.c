@@ -1141,8 +1141,6 @@ metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
     fam->type = METRIC_TYPE_GAUGE;
   case DS_TYPE_COUNTER:
     fam->type = METRIC_TYPE_COUNTER;
-  case DS_TYPE_DISTRIBUTION:
-    fam->type = METRIC_TYPE_DISTRIBUTION;
   default:
     fam->type = METRIC_TYPE_UNTYPED;
   }
