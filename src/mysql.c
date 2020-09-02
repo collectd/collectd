@@ -418,7 +418,7 @@ static int mysql_read_primary_stats(mysql_database_t *db, MYSQL *con) {
   }
 
   position = atoll(row[1]);
-  derive_submit("mysql_log_position", "primary-bin", position, db);
+  derive_submit("mysql_log_position", "master-bin", position, db);
 
   row = mysql_fetch_row(res);
   if (row != NULL)
@@ -474,21 +474,21 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
     unsigned long long counter;
     double gauge;
 
-    gauge_submit("bool", "replica-sql-running",
+    gauge_submit("bool", "slave-sql-running",
                  (row[SLAVE_SQL_RUNNING_IDX] != NULL) &&
                      (strcasecmp(row[SLAVE_SQL_RUNNING_IDX], "yes") == 0),
                  db);
 
-    gauge_submit("bool", "replica-io-running",
+    gauge_submit("bool", "slave-io-running",
                  (row[SLAVE_IO_RUNNING_IDX] != NULL) &&
                      (strcasecmp(row[SLAVE_IO_RUNNING_IDX], "yes") == 0),
                  db);
 
     counter = atoll(row[READ_MASTER_LOG_POS_IDX]);
-    derive_submit("mysql_log_position", "replica-read", counter, db);
+    derive_submit("mysql_log_position", "slave-read", counter, db);
 
     counter = atoll(row[EXEC_MASTER_LOG_POS_IDX]);
-    derive_submit("mysql_log_position", "replica-exec", counter, db);
+    derive_submit("mysql_log_position", "slave-exec", counter, db);
 
     if (row[SECONDS_BEHIND_MASTER_IDX] != NULL) {
       gauge = atof(row[SECONDS_BEHIND_MASTER_IDX]);
