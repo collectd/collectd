@@ -182,7 +182,7 @@ static int sensors_load_conf(void) {
       if (feature == NULL)
         break;
 
-      /* "master features" only */
+      /* "main features" only */
       if (feature->mapping != SENSORS_NO_MAPPING) {
         DEBUG("sensors plugin: sensors_load_conf: "
               "Ignoring subfeature `%s', "
