@@ -38,7 +38,6 @@ typedef struct {
   metric_family_t *time_fam;
   metric_family_t *size_fam;
   metric_family_t *speed_fam;
-  metric_family_t *length_fam;
   metric_family_t *count_fam;
 } attributes_metrics_t;
 
@@ -66,6 +65,25 @@ struct curl_stats_s {
 /*
  * Private functions
  */
+static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
+                                          const char *unit) {
+  metric_t m;
+
+  metric_label_set(&m, "Attributes", name);
+
+  if (!strcasecmp("bytes", unit)) {
+    return metric_family_metric_append(s->metrics->size_fam, m);
+  } else if (!strcasecmp("bitrate", unit)) {
+    return metric_family_metric_append(s->metrics->speed_fam, m);
+  } else if (!strcasecmp("duration", unit)) {
+    return metric_family_metric_append(s->metrics->time_fam, m);
+  } else if (!strcasecmp("count", unit)) {
+    return metric_family_metric_append(s->metrics->count_fam, m);
+  }
+  /* error */
+  return -1;
+}
+
 static int dispatch_gauge(CURL *curl, CURLINFO info, metric_t *m) {
   CURLcode code;
   double val;
@@ -336,6 +354,6 @@ int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
 } /* curl_stats_account_data */
 
 int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
-  //return plugin_dispatch_metric_family(s->m->family);
+  // return plugin_dispatch_metric_family(s->m->family);
   return 0;
 } /* curl_stats_send_metric_to_daemon */
