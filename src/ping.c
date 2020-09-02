@@ -663,7 +663,7 @@ static int ping_read(void) /* {{{ */
 
     /* Calculate drop rate. */
     droprate = ((double)(pkg_sent - pkg_recv)) / ((double)pkg_sent);
-    
+
     submit_gauge(hl->host, "ping_droprate", droprate);
     submit_distribution(hl->host, "ping_distribution_latency", dist_latency);
   } /* }}} for (hl = hostlist_head; hl != NULL; hl = hl->next) */
