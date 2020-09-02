@@ -34,6 +34,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+typedef struct {
+  metric_family_t *time_fam;
+  metric_family_t *size_fam;
+  metric_family_t *speed_fam;
+  metric_family_t *length_fam;
+  metric_family_t *count_fam;
+} attributes_metrics_t;
+
 struct curl_stats_s {
   bool total_time;
   bool namelookup_time;
@@ -52,6 +60,7 @@ struct curl_stats_s {
   bool redirect_count;
   bool num_connects;
   bool appconnect_time;
+  attributes_metrics_t *metrics;
 };
 
 /*
