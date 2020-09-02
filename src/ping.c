@@ -575,15 +575,31 @@ static int ping_config(const char *key, const char *value) /* {{{ */
 
 static void submit_distribution(const char *host, const char *type,
                                 distribution_t *dist) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.distribution = dist};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "ping", sizeof(vl.plugin));
-  sstrncpy(vl.type_instance, host, sizeof(vl.type_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
+  metric_family_t *fam = calloc(1, sizeof(*fam));
+  char *name = calloc(strlen(type), sizeof(*name));
+  if (fam == NULL || name == NULL) {
+    free(fam);
+    free(name);
+    ERROR("ping plugin: Can't create metric family to dispatch");
+    return;
+  }
+  strcpy(name, type);
+  fam->name = name;
+  fam->type = METRIC_TYPE_DISTRIBUTION;
+  metric_t m = {
+    .family = fam,
+    .value = (value_t){.distribution = dist},
+  };
+  int status = metric_label_set(&m, "instance", hostname_g) || metric_label_set(&m, "ping", host);
+  status |= metric_family_metric_append(fam, m);
+  if (status != 0) {
+    metric_reset(&m);
+    metric_family_free(fam);
+    errno = status;
+    return;
+  }
+  metric_reset(&m);
+  plugin_dispatch_metric_family(fam);
 }
 
 static void submit_gauge(const char *host, const char *type, /* {{{ */
@@ -647,11 +663,9 @@ static int ping_read(void) /* {{{ */
 
     /* Calculate drop rate. */
     droprate = ((double)(pkg_sent - pkg_recv)) / ((double)pkg_sent);
-
-    /*submit(hl->host, "ping", latency_average);
-    submit(hl->host, "ping_stddev", latency_stddev);*/
-    submit_distribution(hl->host, "ping_distribution_latency", dist_latency);
+    
     submit_gauge(hl->host, "ping_droprate", droprate);
+    submit_distribution(hl->host, "ping_distribution_latency", dist_latency);
   } /* }}} for (hl = hostlist_head; hl != NULL; hl = hl->next) */
 
   return 0;
