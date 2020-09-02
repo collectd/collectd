@@ -3878,6 +3878,11 @@ B<except> the ones matched.
 The I<intel_pmu> plugin collects performance counters data on Intel CPUs using
 Linux perf interface. All events are reported on a per core basis.
 
+B<Note:> When using intel_pmu plugin number of reading threads in collectd
+should be adjusted accordingly. The value should be more than a half of
+configured cores, so for 60 monitored cores the recommendation is to set
+B<ReadThreads> > 30.
+
 B<Synopsis:>
 
   <Plugin intel_pmu>
@@ -3886,7 +3891,7 @@ B<Synopsis:>
     Cores "0-3" "4,6" "[12-15]"
     HardwareEvents "L2_RQSTS.PF_MISS"
     Cores "[1,2]"
-    DispatchMultiPmu false
+    DispatchMultiPmu true
   </Plugin>
 
 B<Options:>
@@ -3927,10 +3932,13 @@ This option can be used once for every B<HardwareEvents> set.
 
 =item B<DispatchMultiPmu> B<false>|B<true>
 
-Enable or disable dispatching of cloned multi PMU for uncore events. If
-disabled only total sum is dispatched as single event. If enabled separate
-metric is dispatched for every counter. Name of particular PMU counter is
-added to I<plugin_instance>.
+This option toggles the event value reporting from all the uncore PMUs to
+either dispatch as aggregated value in a single metric or dispatch as
+individual values. If DispatchMultiPmu is set to 'false' uncore events are
+reported as single metric, even for multi PMU. The total value is obtained by
+summing all counters across all the units (e.g. CHAs). If DispatchMultiPmu is
+set to 'true' all cloned PMUs are dispatched separately with 'type' value of
+PMU added to Collectd's I<type_instance>.
 
 =back
 
