@@ -577,15 +577,12 @@ static int ping_config(const char *key, const char *value) /* {{{ */
 static void submit_distribution(const char *host, const char *type,
                                 distribution_t *dist) {
   metric_family_t *fam = calloc(1, sizeof(*fam));
-  char *name = calloc(strlen(type), sizeof(*name));
-  if (fam == NULL || name == NULL) {
+  if (fam == NULL) {
     free(fam);
-    free(name);
     ERROR("ping plugin: Can't create metric family to dispatch");
     return;
   }
-  sstrncpy(name, type, strlen(type) + 1);
-  fam->name = name;
+  fam->name = strdup(type);
   fam->type = METRIC_TYPE_DISTRIBUTION;
   metric_t m = {
       .family = fam,
@@ -652,7 +649,7 @@ static int ping_read(void) /* {{{ */
     pkg_sent = hl->pkg_sent;
     pkg_recv = hl->pkg_recv;
     distribution_t *dist_latency =
-        distribution_clone(hl->dist_latency); // why here???
+        distribution_clone(hl->dist_latency);
     /*TODO(sshmidt): error handling */
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
