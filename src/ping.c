@@ -589,7 +589,7 @@ static void submit_distribution(const char *host, const char *type,
   fam->type = METRIC_TYPE_DISTRIBUTION;
   metric_t m = {
       .family = fam,
-      .value = (value_t){.distribution = dist},
+      .value = (value_t){.distribution = distribution_clone(dist)},
   };
   int status = metric_label_set(&m, "instance", hostname_g) ||
                metric_label_set(&m, "ping", host);
