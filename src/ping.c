@@ -589,7 +589,10 @@ static void submit_distribution(const char *host, const char *type,
   fam->type = METRIC_TYPE_DISTRIBUTION;
   metric_t m = {
       .family = fam,
-      .value = (value_t){.distribution = distribution_clone(dist)},
+      .value = (value_t){.distribution =
+                             dist}, // not cloning here as this function is
+                                    // called from ping_read that already uses
+                                    // the copy that's not need after submitting
   };
   int status = metric_label_set(&m, "instance", hostname_g) ||
                metric_label_set(&m, "ping", host);
@@ -667,7 +670,9 @@ static int ping_read(void) /* {{{ */
     droprate = ((double)(pkg_sent - pkg_recv)) / ((double)pkg_sent);
 
     submit_gauge(hl->host, "ping_droprate", droprate);
-    submit_distribution(hl->host, "ping_distribution_latency", dist_latency);
+    submit_distribution(
+        hl->host, "ping_distribution_latency",
+        dist_latency); // dist_latency will be destroyed in submit_distribution
   } /* }}} for (hl = hostlist_head; hl != NULL; hl = hl->next) */
 
   return 0;
