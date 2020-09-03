@@ -1167,9 +1167,9 @@ test_plugin_intel_rdt_SOURCES = \
 	src/utils/proc_pids/proc_pids.c \
 	src/daemon/configfile.c \
 	src/daemon/types_list.c
-test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS)
-test_plugin_intel_rdt_LDFLAGS = $(PLUGIN_LDFLAGS)
-test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la
+test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
+test_plugin_intel_rdt_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
+test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBPQOS_LIBS)
 check_PROGRAMS += test_plugin_intel_rdt
 TESTS += test_plugin_intel_rdt
 
