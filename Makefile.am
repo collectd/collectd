@@ -35,6 +35,8 @@ CLEANFILES = \
 	prometheus.pb-c.h \
 	src/pinba.pb-c.c \
 	src/pinba.pb-c.h \
+	types.grpc.pb.cc \
+	types.grpc.pb.h \
 	types.pb.cc \
 	types.pb.h
 
@@ -2403,9 +2405,9 @@ endif
 
 if HAVE_PROTOC3
 if HAVE_GRPC_CPP
-BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
+BUILT_SOURCES += collectd.grpc.pb.cc types.grpc.pb.cc collectd.pb.cc types.pb.cc
 
-collectd.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
+collectd.grpc.pb.cc types.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
 		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) \
 	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
