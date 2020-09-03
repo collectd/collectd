@@ -577,7 +577,7 @@ DEF_TEST(uc_get_percentile) {
   metric_family_t *metric_family_with_null_metric =
       calloc(1, sizeof(metric_family_t));
   metric_family_with_null_metric->type = METRIC_TYPE_COUNTER;
-  metric_family_with_null_metric->name = "test-percentile-with-null";
+  metric_family_with_null_metric->name = strdup("test-percentile-with-null");
 
   double tmp;
   struct {
