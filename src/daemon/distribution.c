@@ -187,6 +187,7 @@ distribution_t *distribution_clone(distribution_t *dist) {
   memcpy(nodes, dist->tree, tree_size(dist->num_buckets) * sizeof(bucket_t));
   new_distribution->num_buckets = dist->num_buckets;
   new_distribution->total_sum = dist->total_sum;
+  new_distribution->total_square_sum = dist->total_square_sum;
   pthread_mutex_unlock(&dist->mutex);
   new_distribution->tree = nodes;
   pthread_mutex_init(&new_distribution->mutex, NULL);
