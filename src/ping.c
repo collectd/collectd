@@ -648,8 +648,7 @@ static int ping_read(void) /* {{{ */
 
     pkg_sent = hl->pkg_sent;
     pkg_recv = hl->pkg_recv;
-    distribution_t *dist_latency =
-        distribution_clone(hl->dist_latency);
+    distribution_t *dist_latency = distribution_clone(hl->dist_latency);
     /*TODO(sshmidt): error handling */
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
