@@ -3937,8 +3937,8 @@ either dispatch as aggregated value in a single metric or dispatch as
 individual values. If DispatchMultiPmu is set to 'false' uncore events are
 reported as single metric, even for multi PMU. The total value is obtained by
 summing all counters across all the units (e.g. CHAs). If DispatchMultiPmu is
-set to 'true' all cloned PMUs are dispatched separately with 'type' value of
-PMU added to Collectd's I<type_instance>.
+set to 'true' all cloned PMUs are dispatched separately with PMU name added to
+Collectd's I<plugin_instance>.
 
 =back
 

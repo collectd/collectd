@@ -225,7 +225,7 @@ static int pmu_config(oconfig_item_t *ci) {
       ret = cf_util_get_string_buffer(child, g_ctx.event_list_fn,
                                       sizeof(g_ctx.event_list_fn));
     } else if (strcasecmp("HardwareEvents", child->key) == 0) {
-      intel_pmu_entity_t *ent = calloc(1, sizeof(*g_ctx.entl));
+      intel_pmu_entity_t *ent = calloc(1, sizeof(*ent));
       if (ent == NULL) {
         ERROR(PMU_PLUGIN ": Failed to allocate pmu ent.");
         ret = -ENOMEM;
@@ -267,8 +267,7 @@ static int pmu_config(oconfig_item_t *ci) {
 }
 
 static void pmu_submit_counters(const char *cgroup, const char *event,
-                                const char *pmu_name,
-                                const uint32_t *event_type, bool multi_pmu,
+                                const char *pmu_name, bool multi_pmu,
                                 counter_t scaled, counter_t raw,
                                 counter_t enabled, counter_t running) {
   value_list_t vl = VALUE_LIST_INIT;
@@ -286,14 +285,9 @@ static void pmu_submit_counters(const char *cgroup, const char *event,
               pmu_name);
   else
     sstrncpy(vl.plugin_instance, cgroup, sizeof(vl.plugin_instance));
+
   sstrncpy(vl.type, "pmu_counter", sizeof(vl.type));
-  if (event_type)
-    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s:type=%d", event,
-              *event_type);
-  else if (multi_pmu)
-    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s:total", event);
-  else
-    sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
+  sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
 
   DEBUG(PMU_PLUGIN ": %s/%s = %llu (%llu * %llu / %llu)", vl.type_instance,
         vl.plugin_instance, scaled, raw, enabled, running);
@@ -417,7 +411,7 @@ static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
 
       if (event_enabled_cgroup > 0)
         /* dispatch per core group values */
-        pmu_submit_counters(cgroup->desc, e->event, pmu_name, event_type,
+        pmu_submit_counters(cgroup->desc, e->event, pmu_name,
                             e->extra.multi_pmu, cgroup_value, cgroup_value_raw,
                             cgroup_time_enabled, cgroup_time_running);
     }
@@ -652,7 +646,7 @@ static int pmu_split_cores(intel_pmu_entity_t *ent) {
   intel_pmu_entity_t *prev = ent;
   for (size_t i = CGROUPS_PER_ENT; i < ent->cores.num_cgroups;
        i += CGROUPS_PER_ENT) {
-    intel_pmu_entity_t *entc = calloc(1, sizeof(*g_ctx.entl));
+    intel_pmu_entity_t *entc = calloc(1, sizeof(*entc));
     if (entc == NULL) {
       ERROR(PMU_PLUGIN ": pmu_split_cores: Failed to allocate pmu ent.");
       return -ENOMEM;
@@ -887,7 +881,7 @@ static int pmu_shutdown(void) {
 }
 
 void module_register(void) {
-  plugin_register_init(PMU_PLUGIN, pmu_init);
   plugin_register_complex_config(PMU_PLUGIN, pmu_config);
+  plugin_register_init(PMU_PLUGIN, pmu_init);
   plugin_register_shutdown(PMU_PLUGIN, pmu_shutdown);
 }

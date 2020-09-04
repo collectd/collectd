@@ -29,7 +29,6 @@
 #include "testing.h"
 
 // Helper functions
-// static int ctx_entl_size = 0;
 
 intel_pmu_ctx_t *stub_pmu_init() {
   intel_pmu_ctx_t *pmu_ctx = calloc(1, sizeof(*pmu_ctx));
