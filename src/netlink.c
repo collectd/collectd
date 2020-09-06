@@ -240,7 +240,7 @@ static int check_ignorelist(const char *dev, const char *type,
   for (ir_ignorelist_t *i = ir_ignorelist_head; i != NULL; i = i->next) {
 #if HAVE_REGEX_H
     if (i->rdevice != NULL) {
-      if (regexec(i->rdevice, dev, 0, NULL, 0) != REG_NOERROR)
+      if (regexec(i->rdevice, dev, 0, NULL, 0))
         continue;
     } else
 #endif
