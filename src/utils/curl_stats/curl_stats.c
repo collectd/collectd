@@ -119,11 +119,13 @@ static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
   return -1;
 }
 
-static int update_distribution_for_attribute(metric_family_t *fam, const char *name, double val) {
+static int update_distribution_for_attribute(metric_family_t *fam,
+                                             const char *name, double val) {
   /* TODO(bkjg): maybe add to the fields offset in metric family :) */
   size_t field;
   for (field = 0; field < fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"), name)) {
+    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"),
+                    name)) {
       break;
     }
   }
@@ -137,11 +139,13 @@ static int update_distribution_for_attribute(metric_family_t *fam, const char *n
   return 0;
 }
 
-static int increment_counter_for_attribute(metric_family_t *fam, const char *name) {
+static int increment_counter_for_attribute(metric_family_t *fam,
+                                           const char *name) {
   /* TODO(bkjg): maybe add to the fields offset in metric family :) */
   size_t field;
   for (field = 0; field < fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"), name)) {
+    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"),
+                    name)) {
       break;
     }
   }
@@ -352,10 +356,10 @@ static struct {
          account_data_time, "duration", CURLINFO_STARTTRANSFER_TIME),
     SPEC(redirect_time, "RedirectTime", dispatch_time, account_data_time,
          "duration", CURLINFO_REDIRECT_TIME),
-    SPEC(redirect_count, "RedirectCount", dispatch_size, account_data_size,
+    SPEC(redirect_count, "RedirectCount", dispatch_count, account_data_count,
          "count", CURLINFO_REDIRECT_COUNT),
-    SPEC(num_connects, "NumConnects", dispatch_size, account_data_size, "count",
-         CURLINFO_NUM_CONNECTS),
+    SPEC(num_connects, "NumConnects", dispatch_count, account_data_count,
+         "count", CURLINFO_NUM_CONNECTS),
 #ifdef HAVE_CURLINFO_APPCONNECT_TIME
     SPEC(appconnect_time, "AppconnectTime", dispatch_time, account_data_time,
          "duration", CURLINFO_APPCONNECT_TIME),
@@ -426,7 +430,11 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
 void curl_stats_destroy(curl_stats_t *s) {
   if (s != NULL) {
-    metric_family_free(s->m->family);
+    metric_family_metric_reset(s->metrics->count_fam);
+    metric_family_metric_reset(s->metrics->size_fam);
+    metric_family_metric_reset(s->metrics->speed_fam);
+    metric_family_metric_reset(s->metrics->time_fam);
+    free(s->metrics);
     free(s);
   }
 } /* curl_stats_destroy */
@@ -473,8 +481,8 @@ int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
     if (!field_enabled(s, field_specs[field].offset))
       continue;
 
-    status =
-        field_specs[field].account_data(curl, field_specs[field].info, s->m);
+    status = field_specs[field].account_data(
+        curl, field_specs[field].info, s->metrics, field_specs[field].name);
 
     if (status < 0) {
       return status;
