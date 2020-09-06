@@ -120,7 +120,7 @@ static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
 }
 
 static int dispatch_time(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *unit) {
+                          attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
@@ -128,17 +128,37 @@ static int dispatch_time(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val);
-  } else {
-    m->value.gauge = val;
-  }
+  /* TODO(bkjg): maybe add to the fields offset in metric family :) */
+  /* if (!strcasecmp("total_time", name)) {
+    return update_distribution_for_attribute(attr_m->time_fam, name);
+  } else if (!strcasecmp("namelookup_time", name)) {
+    return metric_family_metric_append(s->metrics->speed_fam, m);
+  } else if (!strcasecmp("connect_time", name)) {
+    return metric_family_metric_append(s->metrics->time_fam, m);
+  } else if (!strcasecmp("pretransfer_time", name)) {
+    return metric_family_metric_append(s->metrics->count_fam, m);
+  } else if (!strcasecmp("starttransfer_time", name)) {
 
-  return plugin_dispatch_metric_family(m->family);
+  } else if (!strcasecmp("redirect_time", name)) {
+
+  } else if (!strcasecmp("appconnect_time", name)) {
+
+  } else {
+    // error
+    return -1;
+  } */
+
+  int status;
+  status = update_distribution_for_attribute(attr_m->time_fam, name, val);
+
+  if (status != 0)
+    return -1;
+
+  return plugin_dispatch_metric_family(attr_m->time_fam);
 } /* dispatch_gauge */
 
 static int dispatch_count(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *unit) {
+                          attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
@@ -146,23 +166,29 @@ static int dispatch_count(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val);
-  } else {
-    m->value.gauge = val;
-  }
+  int status;
+  status = increment_counter_for_attribute(attr_m->count_fam, name, val);
 
-  return plugin_dispatch_metric_family(m->family);
+  if (status != 0)
+    return -1;
+
+  return plugin_dispatch_metric_family(attr_m->count_fam);
 } /* dispatch_gauge */
 
 /* dispatch a speed, in bytes/second */
 static int dispatch_speed(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *unit) {
+                          attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
   code = curl_easy_getinfo(curl, info, &val);
   if (code != CURLE_OK)
+    return -1;
+
+  int status;
+  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8);
+
+  if (status != 0)
     return -1;
 
   if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
@@ -171,12 +197,12 @@ static int dispatch_speed(CURL *curl, CURLINFO info,
     m->value.gauge = val * 8;
   }
 
-  return plugin_dispatch_metric_family(m->family);
+  return plugin_dispatch_metric_family(attr_m->speed_fam);
 } /* dispatch_speed */
 
 /* dispatch a size/count, reported as a long value */
 static int dispatch_size(CURL *curl, CURLINFO info,
-                         attributes_metrics_t *attr_m, const char *unit) {
+                         attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   long raw;
 
@@ -184,17 +210,17 @@ static int dispatch_size(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, (double)raw);
-  } else {
-    m->value.gauge = (double)raw;
-  }
+  int status;
+  status = update_distribution_for_attribute(attr_m->size_fam, name, (double)raw);
 
-  return plugin_dispatch_metric_family(m->family);
+  if (status != 0)
+    return -1;
+
+  return plugin_dispatch_metric_family(attr_m->size_fam);
 } /* dispatch_size */
 
 static int account_data_time(CURL *curl, CURLINFO info,
-                              attributes_metrics_t *attr_m, const char *unit) {
+                              attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
