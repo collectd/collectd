@@ -255,7 +255,7 @@ static int dispatch_size(CURL *curl, CURLINFO info,
 } /* dispatch_speed */
 
 static int account_data_time(CURL *curl, CURLINFO info,
-                             attributes_metrics_t *attr_m, const char *unit) {
+                             attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
@@ -263,17 +263,17 @@ static int account_data_time(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val);
-  } else {
-    m->value.gauge = val;
-  }
+  int status;
+  status = update_distribution_for_attribute(attr_m->time_fam, name, val);
+
+  if (status != 0)
+    return -1;
 
   return 0;
 } /* account_data_gauge */
 
 static int account_data_count(CURL *curl, CURLINFO info,
-                              attributes_metrics_t *attr_m, const char *unit) {
+                              attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
@@ -281,17 +281,17 @@ static int account_data_count(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val);
-  } else {
-    m->value.gauge = val;
-  }
+  int status;
+  status = increment_counter_for_attribute(attr_m->count_fam, name, val);
+
+  if (status != 0)
+    return -1;
 
   return 0;
 } /* account_data_gauge */
 
 static int account_data_speed(CURL *curl, CURLINFO info,
-                              attributes_metrics_t *attr_m, const char *unit) {
+                              attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
@@ -299,17 +299,17 @@ static int account_data_speed(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, val * 8);
-  } else {
-    m->value.gauge = val * 8;
-  }
+  int status;
+  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8);
+
+  if (status != 0)
+    return -1;
 
   return 0;
 } /* account_data_speed */
 
 static int account_data_size(CURL *curl, CURLINFO info,
-                             attributes_metrics_t *attr_m, const char *unit) {
+                             attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   long raw;
 
@@ -317,11 +317,12 @@ static int account_data_size(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(m->value.distribution, (double)raw);
-  } else {
-    m->value.gauge = (double)raw;
-  }
+  int status;
+  status =
+      update_distribution_for_attribute(attr_m->size_fam, name, (double)raw);
+
+  if (status != 0)
+    return -1;
 
   return 0;
 } /* account_data_size */
