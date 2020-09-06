@@ -119,8 +119,44 @@ static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
   return -1;
 }
 
+static int update_distribution_for_attribute(metric_family_t *fam, const char *name, double val) {
+  /* TODO(bkjg): maybe add to the fields offset in metric family :) */
+  size_t field;
+  for (field = 0; field < fam->metric.num; ++field) {
+    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"), name)) {
+      break;
+    }
+  }
+
+  if (field >= fam->metric.num) {
+    /* error */
+    return -1;
+  }
+
+  distribution_update(fam->metric.ptr[field].value.distribution, val);
+  return 0;
+}
+
+static int increment_counter_for_attribute(metric_family_t *fam, const char *name) {
+  /* TODO(bkjg): maybe add to the fields offset in metric family :) */
+  size_t field;
+  for (field = 0; field < fam->metric.num; ++field) {
+    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"), name)) {
+      break;
+    }
+  }
+
+  if (field >= fam->metric.num) {
+    /* error */
+    return -1;
+  }
+
+  fam->metric.ptr[field].value.counter++;
+
+  return 0;
+}
 static int dispatch_time(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *unit) {
+                         attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
@@ -128,33 +164,18 @@ static int dispatch_time(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  size_t field;
-  for (field = 0; field < attr_m->time_fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&attr_m->time_fam->metric.ptr[field],
-                                     "Attributes"),
-                    unit)) {
-      break;
-    }
-  }
+  int status;
+  status = update_distribution_for_attribute(attr_m->time_fam, name, val);
 
-  if (field >= attr_m->time_fam->metric.num) {
-    /* error */
+  if (status != 0)
     return -1;
-  }
-
-  if (attr_m->time_fam->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(attr_m->time_fam->metric.ptr[field].value.distribution,
-                        val);
-  } else {
-    attr_m->time_fam->metric.ptr[field].value.gauge = val;
-  }
 
   return plugin_dispatch_metric_family(attr_m->time_fam);
 } /* dispatch_time */
 
 /* TODO(bkjg): implement counter logic here */
 static int dispatch_count(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *unit) {
+                          attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
@@ -162,33 +183,18 @@ static int dispatch_count(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  size_t field;
-  for (field = 0; field < attr_m->count_fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&attr_m->count_fam->metric.ptr[field],
-                                     "Attributes"),
-                    unit)) {
-      break;
-    }
-  }
+  int status;
+  status = increment_counter_for_attribute(attr_m->count_fam, name);
 
-  if (field >= attr_m->count_fam->metric.num) {
-    /* error */
+  if (status != 0)
     return -1;
-  }
-
-  if (attr_m->count_fam->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(attr_m->count_fam->metric.ptr[field].value.distribution,
-                        val);
-  } else {
-    attr_m->count_fam->metric.ptr[field].value.gauge = val;
-  }
 
   return plugin_dispatch_metric_family(attr_m->count_fam);
 } /* dispatch_count */
 
 /* dispatch a speed, in bytes/second */
 static int dispatch_speed(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *unit) {
+                          attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   double val;
 
@@ -196,33 +202,18 @@ static int dispatch_speed(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  size_t field;
-  for (field = 0; field < attr_m->speed_fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&attr_m->speed_fam->metric.ptr[field],
-                                     "Attributes"),
-                    unit)) {
-      break;
-    }
-  }
+  int status;
+  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8);
 
-  if (field >= attr_m->speed_fam->metric.num) {
-    /* error */
+  if (status != 0)
     return -1;
-  }
-
-  if (attr_m->speed_fam->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(attr_m->speed_fam->metric.ptr[field].value.distribution,
-                        val * 8);
-  } else {
-    attr_m->speed_fam->metric.ptr[field].value.gauge = val * 8;
-  }
 
   return plugin_dispatch_metric_family(attr_m->speed_fam);
 } /* dispatch_speed */
 
 /* dispatch a size/count, reported as a long value */
 static int dispatch_size(CURL *curl, CURLINFO info,
-                         attributes_metrics_t *attr_m, const char *unit) {
+                         attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
   long raw;
 
@@ -230,29 +221,15 @@ static int dispatch_size(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  size_t field;
-  for (field = 0; field < attr_m->speed_fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&attr_m->speed_fam->metric.ptr[field],
-                                     "Attributes"),
-                    unit)) {
-      break;
-    }
-  }
+  int status;
+  status =
+      update_distribution_for_attribute(attr_m->size_fam, name, (double)raw);
 
-  if (field >= attr_m->speed_fam->metric.num) {
-    /* error */
+  if (status != 0)
     return -1;
-  }
 
-  if (attr_m->speed_fam->type == METRIC_TYPE_DISTRIBUTION) {
-    distribution_update(attr_m->speed_fam->metric.ptr[field].value.distribution,
-                        (double)raw);
-  } else {
-    attr_m->speed_fam->metric.ptr[field].value.gauge = (double)raw;
-  }
-
-  return plugin_dispatch_metric_family(attr_m->speed_fam);
-} /* dispatch_speed */
+  return plugin_dispatch_metric_family(attr_m->size_fam);
+} /* dispatch_size */
 
 static int account_data_time(CURL *curl, CURLINFO info,
                              attributes_metrics_t *attr_m, const char *name) {
@@ -282,7 +259,7 @@ static int account_data_count(CURL *curl, CURLINFO info,
     return -1;
 
   int status;
-  status = increment_counter_for_attribute(attr_m->count_fam, name, val);
+  status = increment_counter_for_attribute(attr_m->count_fam, name);
 
   if (status != 0)
     return -1;
@@ -380,7 +357,7 @@ static struct {
     SPEC(num_connects, "NumConnects", dispatch_size, account_data_size, "count",
          CURLINFO_NUM_CONNECTS),
 #ifdef HAVE_CURLINFO_APPCONNECT_TIME
-    SPEC(appconnect_time, "AppconnectTime", dispatch_gauge, account_data_gauge,
+    SPEC(appconnect_time, "AppconnectTime", dispatch_time, account_data_time,
          "duration", CURLINFO_APPCONNECT_TIME),
 #endif
 
@@ -508,6 +485,12 @@ int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
 } /* curl_stats_account_data */
 
 int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
-  // return plugin_dispatch_metric_family(s->m->family);
-  return 0;
+  int status;
+
+  status = plugin_dispatch_metric_family(s->metrics->count_fam);
+  status |= plugin_dispatch_metric_family(s->metrics->size_fam);
+  status |= plugin_dispatch_metric_family(s->metrics->speed_fam);
+  status |= plugin_dispatch_metric_family(s->metrics->time_fam);
+
+  return status;
 } /* curl_stats_send_metric_to_daemon */
