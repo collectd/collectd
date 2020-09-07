@@ -292,7 +292,7 @@ static int account_data_speed(CURL *curl, CURLINFO info,
 static int account_data_size(CURL *curl, CURLINFO info,
                              attributes_metrics_t *attr_m, const char *name) {
   CURLcode code;
-  long raw;
+  double raw;
 
   code = curl_easy_getinfo(curl, info, &raw);
   if (code != CURLE_OK)
@@ -300,7 +300,7 @@ static int account_data_size(CURL *curl, CURLINFO info,
 
   int status;
   status =
-      update_distribution_for_attribute(attr_m->size_fam, name, (double)raw);
+      update_distribution_for_attribute(attr_m->size_fam, name, raw);
 
   if (status != 0)
     return -1;
@@ -336,9 +336,9 @@ static struct {
          "duration", CURLINFO_CONNECT_TIME),
     SPEC(pretransfer_time, "PretransferTime", dispatch_time, account_data_time,
          "duration", CURLINFO_PRETRANSFER_TIME),
-    SPEC(size_upload, "SizeUpload", dispatch_gauge, account_data_gauge, "bytes",
+    SPEC(size_upload, "SizeUpload", dispatch_size, account_data_size, "bytes",
          CURLINFO_SIZE_UPLOAD),
-    SPEC(size_download, "SizeDownload", dispatch_gauge, account_data_gauge,
+    SPEC(size_download, "SizeDownload", dispatch_size, account_data_size,
          "bytes", CURLINFO_SIZE_DOWNLOAD),
     SPEC(speed_download, "SpeedDownload", dispatch_speed, account_data_speed,
          "bitrate", CURLINFO_SPEED_DOWNLOAD),
@@ -348,10 +348,10 @@ static struct {
          CURLINFO_HEADER_SIZE),
     SPEC(request_size, "RequestSize", dispatch_size, account_data_size, "bytes",
          CURLINFO_REQUEST_SIZE),
-    SPEC(content_length_download, "ContentLengthDownload", dispatch_gauge,
-         account_data_gauge, "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
-    SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge,
-         account_data_gauge, "bytes", CURLINFO_CONTENT_LENGTH_UPLOAD),
+    SPEC(content_length_download, "ContentLengthDownload", dispatch_size,
+         account_data_size, "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
+    SPEC(content_length_upload, "ContentLengthUpload", dispatch_size,
+         account_data_size, "bytes", CURLINFO_CONTENT_LENGTH_UPLOAD),
     SPEC(starttransfer_time, "StarttransferTime", dispatch_time,
          account_data_time, "duration", CURLINFO_STARTTRANSFER_TIME),
     SPEC(redirect_time, "RedirectTime", dispatch_time, account_data_time,
