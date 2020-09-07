@@ -103,7 +103,6 @@ static int initialize_attributes_metric_families(curl_stats_t *s) {
 static int update_distribution_for_attribute(metric_family_t *fam,
                                              const char *name, double val,
                                              size_t offset) {
-  /* TODO(bkjg): maybe add to the fields config_offset in metric family :) */
   if (strcasecmp(metric_label_get(&fam->metric.ptr[offset], "Attributes"),
                  name) != 0) {
     /* error */
@@ -116,7 +115,6 @@ static int update_distribution_for_attribute(metric_family_t *fam,
 
 static int increment_counter_for_attribute(metric_family_t *fam,
                                            const char *name, size_t offset) {
-  /* TODO(bkjg): maybe add to the fields config_offset in metric family :) */
   if (strcasecmp(metric_label_get(&fam->metric.ptr[offset], "Attributes"),
                  name) != 0) {
     /* error */
@@ -127,6 +125,7 @@ static int increment_counter_for_attribute(metric_family_t *fam,
 
   return 0;
 }
+
 static int dispatch_time(CURL *curl, CURLINFO info,
                          attributes_metrics_t *attr_m, const char *name,
                          size_t offset) {
@@ -218,14 +217,7 @@ static int account_data_time(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status =
-      update_distribution_for_attribute(attr_m->time_fam, name, val, offset);
-
-  if (status != 0)
-    return -1;
-
-  return 0;
+  return update_distribution_for_attribute(attr_m->time_fam, name, val, offset);
 } /* account_data_time */
 
 static int account_data_count(CURL *curl, CURLINFO info,
@@ -238,13 +230,7 @@ static int account_data_count(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status = increment_counter_for_attribute(attr_m->count_fam, name, offset);
-
-  if (status != 0)
-    return -1;
-
-  return 0;
+  return increment_counter_for_attribute(attr_m->count_fam, name, offset);
 } /* account_data_count */
 
 static int account_data_speed(CURL *curl, CURLINFO info,
@@ -257,14 +243,8 @@ static int account_data_speed(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8,
-                                             offset);
-
-  if (status != 0)
-    return -1;
-
-  return 0;
+  return update_distribution_for_attribute(attr_m->speed_fam, name, val * 8,
+                                           offset);
 } /* account_data_speed */
 
 static int account_data_size(CURL *curl, CURLINFO info,
@@ -277,14 +257,7 @@ static int account_data_size(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status =
-      update_distribution_for_attribute(attr_m->size_fam, name, raw, offset);
-
-  if (status != 0)
-    return -1;
-
-  return 0;
+  return update_distribution_for_attribute(attr_m->size_fam, name, raw, offset);
 } /* account_data_size */
 
 static struct {
@@ -359,7 +332,6 @@ static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx,
     status =
         metric_family_append(s->metrics->size_fam, "Attributes", name, v, NULL);
     *idx = s->metrics->size_fam->metric.num - 1;
-    // return metric_family_metric_append(s->metrics->size_fam, m);
   } else if (!strcasecmp("bitrate", unit)) {
     status = metric_family_append(s->metrics->speed_fam, "Attributes", name, v,
                                   NULL);
