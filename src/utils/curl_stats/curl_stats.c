@@ -103,7 +103,7 @@ static int initialize_attributes_metric_families(curl_stats_t *s) {
 /* TODO(bkjg): add initializing the distribution */
 static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
                                           const char *unit) {
-  metric_t m;
+  metric_t m = {0};
   metric_label_set(&m, "Attributes", name);
 
   if (!strcasecmp("bytes", unit)) {
