@@ -344,45 +344,56 @@ static int compare_longint(uint64_t a, uint64_t b) {
   return a == b ? 0 : a < b ? -1 : 1;
 }
 
-int distribution_cmp(distribution_t *d1, distribution_t *d2) {
-  if (d1 == NULL || d2 == NULL) {
-    return EINVAL;
+/** return a pointer to array int[2].
+ * The first value is error code or 0 if succeed.
+ * The second value is result of comparison
+ */
+static int *distribution_cmp(distribution_t *d1, distribution_t *d2) {
+  int *comparison = calloc(2, sizeof(*comparison));
+  if (comparison == NULL) {
+    return NULL;
   }
-  if (d1-> num_buckets != d2->num_buckets) {
-    return EINVAL;
+  if (d1 == NULL || d2 == NULL) {
+    comparison[0] = EINVAL;
+    return comparison;
+  }
+  if (d1->num_buckets != d2->num_buckets) {
+    comparison[0] = EINVAL;
+    return comparison;
   }
   for (size_t i = 0; i < tree_size(d1->num_buckets); i++) {
     if (d1->tree[i].maximum != d2->tree[i].maximum) { // will it work with doubles?
-      return EINVAL;
+      comparison[0] = EINVAL;
+      return comparison;
     }
   }
 
-  pthread_mutex_lock(&d1->mutex);
-  pthread_mutex_unlock(&d2->mutex);
-  int comparison = compare_longint(d1->tree[0].bucket_counter, d2->tree[0].bucket_counter);
+  int res = compare_longint(d1->tree[0].bucket_counter, d2->tree[0].bucket_counter);
   for (size_t i = 1; i < tree_size(d1->num_buckets); i++) {
-    if (comparison != compare_longint(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter)) {
-      comparison = ERANGE;
+    if (res != compare_longint(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter)) {
+      comparison[0] = ERANGE;
       break;
     }
   }
-  pthread_mutex_unlock(&d2->mutex);
-  pthread_mutex_unlock(&d1->mutex);
+  comparison[1] = res;
   return comparison;
 }
 
 /* TODO(bkjg): add tests for this function */
 int distribution_sub(distribution_t *d1, distribution_t *d2) {
-
-  int cmp_status = distribution_cmp(d1, d2);
-  if (cmp_status != 1 && cmp_status != 0) { // i.e. d1 < d2 or can't compare
-    if (cmp_status == -1)
-      cmp_status = ERANGE;
-    return cmp_status;
-  }
-
   pthread_mutex_lock(&d1->mutex);
   pthread_mutex_lock(&d2->mutex);
+
+  int *cmp_status = distribution_cmp(d1, d2);
+  if (cmp_status[0] != 0 || cmp_status[1] == -1) { // i.e. d1 < d2 or can't compare
+    int status = cmp_status[0];
+    if (cmp_status[1] == -1)
+      status = ERANGE;
+    pthread_mutex_unlock(&d2->mutex);
+    pthread_mutex_unlock(&d1->mutex);
+    free(cmp_status);
+    return status;
+  }
 
   d1->total_sum -= d2->total_sum;
   d1->total_square_sum -= d2->total_square_sum;

@@ -118,14 +118,6 @@ double distribution_squared_deviation_sum(distribution_t *dist);
 
 void destroy_buckets_array(buckets_array_t buckets_array);
 
-/** return EINVAL if bucket boundaries are not the same or NULL pointer received
- *  return -1 if d1 < d2
- *  return 0  if d1 == d2
- *  return 1  if d1 > d2
- *  return ERANGE if distributions can't be compared
- */
-int distribution_cmp(distribution_t *d1, distribution_t *d2);
-
 /* TODO(bkjg): add description */
 int distribution_sub(distribution_t *d1, distribution_t *d2);
 #endif // COLLECTD_DISTRIBUTION_H
