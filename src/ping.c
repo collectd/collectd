@@ -652,7 +652,6 @@ static int ping_read(void) /* {{{ */
     /*TODO(sshmidt): error handling */
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
-    distribution_reset(hl->dist_latency);
 
     pthread_mutex_unlock(&ping_lock);
 
