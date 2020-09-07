@@ -113,9 +113,9 @@ static int update_distribution_for_attribute(metric_family_t *fam,
   return 0;
 }
 
-static int increment_counter_for_attribute(metric_family_t *fam,
-                                           const char *name, double val,
-                                           size_t offset) {
+static int update_gauge_for_attribute(metric_family_t *fam,
+                                      const char *name, double val,
+                                      size_t offset) {
   if (strcasecmp(metric_label_get(&fam->metric.ptr[offset], "Attributes"),
                  name) != 0) {
     /* error */
@@ -224,7 +224,7 @@ static int account_data_count(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  return increment_counter_for_attribute(attr_m->count_fam, name, val, offset);
+  return update_gauge_for_attribute(attr_m->count_fam, name, val, offset);
 } /* account_data_count */
 
 static int account_data_speed(CURL *curl, CURLINFO info,
@@ -487,6 +487,8 @@ int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
   status |= plugin_dispatch_metric_family(s->metrics->size_fam);
   status |= plugin_dispatch_metric_family(s->metrics->speed_fam);
   status |= plugin_dispatch_metric_family(s->metrics->time_fam);
+
+  /* TODO(bkjg): should I here reset the all metrics??? */
 
   return status;
 } /* curl_stats_send_metric_to_daemon */
