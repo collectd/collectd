@@ -92,7 +92,7 @@ static int initialize_attributes_metric_families(curl_stats_t *s) {
   s->metrics->speed_fam->name = "Speed";
   s->metrics->time_fam->name = "Time";
 
-  s->metrics->count_fam->type = METRIC_TYPE_COUNTER;
+  s->metrics->count_fam->type = METRIC_TYPE_GAUGE;
   s->metrics->size_fam->type = METRIC_TYPE_DISTRIBUTION;
   s->metrics->speed_fam->type = METRIC_TYPE_DISTRIBUTION;
   s->metrics->time_fam->type = METRIC_TYPE_DISTRIBUTION;
@@ -114,21 +114,20 @@ static int update_distribution_for_attribute(metric_family_t *fam,
 }
 
 static int increment_counter_for_attribute(metric_family_t *fam,
-                                           const char *name, size_t offset) {
+                                           const char *name, double val,
+                                           size_t offset) {
   if (strcasecmp(metric_label_get(&fam->metric.ptr[offset], "Attributes"),
                  name) != 0) {
     /* error */
     return -1;
   }
 
-  fam->metric.ptr[offset].value.counter++;
+  fam->metric.ptr[offset].value.gauge = val;
 
   return 0;
 }
 
-static int dispatch_time(CURL *curl, CURLINFO info,
-                         attributes_metrics_t *attr_m, const char *name,
-                         size_t offset) {
+static int dispatch_gauge(CURL *curl, CURLINFO info, const char *name) {
   CURLcode code;
   double val;
 
@@ -136,39 +135,24 @@ static int dispatch_time(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status =
-      update_distribution_for_attribute(attr_m->time_fam, name, val, offset);
+  metric_family_t fam = {
+      .metric =
+          {
+              .num = 1,
+              .ptr = (metric_t[]){{
+                  .value.gauge = val,
+              }},
+          },
+      .name = (char *)name,
+  };
 
-  if (status != 0)
-    return -1;
+  fam.metric.ptr[0].family = &fam;
 
-  return plugin_dispatch_metric_family(attr_m->time_fam);
-} /* dispatch_time */
-
-static int dispatch_count(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *name,
-                          size_t offset) {
-  CURLcode code;
-  double val;
-
-  code = curl_easy_getinfo(curl, info, &val);
-  if (code != CURLE_OK)
-    return -1;
-
-  int status;
-  status = increment_counter_for_attribute(attr_m->count_fam, name, offset);
-
-  if (status != 0)
-    return -1;
-
-  return plugin_dispatch_metric_family(attr_m->count_fam);
-} /* dispatch_count */
+  return plugin_dispatch_metric_family(&fam);
+} /* dispatch_gauge */
 
 /* dispatch a speed, in bytes/second */
-static int dispatch_speed(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *name,
-                          size_t offset) {
+static int dispatch_speed(CURL *curl, CURLINFO info, const char *name) {
   CURLcode code;
   double val;
 
@@ -176,20 +160,24 @@ static int dispatch_speed(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8,
-                                             offset);
+  metric_family_t fam = {
+      .metric =
+          {
+              .num = 1,
+              .ptr = (metric_t[]){{
+                  .value.gauge = val * 8,
+              }},
+          },
+      .name = (char *)name,
+  };
 
-  if (status != 0)
-    return -1;
+  fam.metric.ptr[0].family = &fam;
 
-  return plugin_dispatch_metric_family(attr_m->speed_fam);
+  return plugin_dispatch_metric_family(&fam);
 } /* dispatch_speed */
 
 /* dispatch a size/count, reported as a long value */
-static int dispatch_size(CURL *curl, CURLINFO info,
-                         attributes_metrics_t *attr_m, const char *name,
-                         size_t offset) {
+static int dispatch_size(CURL *curl, CURLINFO info, const char *name) {
   CURLcode code;
   long raw;
 
@@ -197,14 +185,20 @@ static int dispatch_size(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  int status;
-  status = update_distribution_for_attribute(attr_m->size_fam, name,
-                                             (double)raw, offset);
+  metric_family_t fam = {
+      .metric =
+          {
+              .num = 1,
+              .ptr = (metric_t[]){{
+                  .value.gauge = (double)raw,
+              }},
+          },
+      .name = (char *)name,
+  };
 
-  if (status != 0)
-    return -1;
+  fam.metric.ptr[0].family = &fam;
 
-  return plugin_dispatch_metric_family(attr_m->size_fam);
+  return plugin_dispatch_metric_family(&fam);
 } /* dispatch_size */
 
 static int account_data_time(CURL *curl, CURLINFO info,
@@ -230,7 +224,7 @@ static int account_data_count(CURL *curl, CURLINFO info,
   if (code != CURLE_OK)
     return -1;
 
-  return increment_counter_for_attribute(attr_m->count_fam, name, offset);
+  return increment_counter_for_attribute(attr_m->count_fam, name, val, offset);
 } /* account_data_count */
 
 static int account_data_speed(CURL *curl, CURLINFO info,
@@ -266,8 +260,7 @@ static struct {
   size_t config_offset;
   size_t metric_family_offset;
 
-  int (*dispatcher)(CURL *, CURLINFO, attributes_metrics_t *attr_m,
-                    const char *unit, size_t);
+  int (*dispatcher)(CURL *, CURLINFO, const char *);
 
   int (*account_data)(CURL *, CURLINFO, attributes_metrics_t *attr_m,
                       const char *unit, size_t);
@@ -281,17 +274,17 @@ static struct {
         account_data, type, info                                               \
   }
 
-    SPEC(total_time, "TotalTime", dispatch_time, account_data_time, "duration",
+    SPEC(total_time, "TotalTime", dispatch_gauge, account_data_time, "duration",
          CURLINFO_TOTAL_TIME),
-    SPEC(namelookup_time, "NamelookupTime", dispatch_time, account_data_time,
+    SPEC(namelookup_time, "NamelookupTime", dispatch_gauge, account_data_time,
          "duration", CURLINFO_NAMELOOKUP_TIME),
-    SPEC(connect_time, "ConnectTime", dispatch_time, account_data_time,
+    SPEC(connect_time, "ConnectTime", dispatch_gauge, account_data_time,
          "duration", CURLINFO_CONNECT_TIME),
-    SPEC(pretransfer_time, "PretransferTime", dispatch_time, account_data_time,
+    SPEC(pretransfer_time, "PretransferTime", dispatch_gauge, account_data_time,
          "duration", CURLINFO_PRETRANSFER_TIME),
-    SPEC(size_upload, "SizeUpload", dispatch_size, account_data_size, "bytes",
+    SPEC(size_upload, "SizeUpload", dispatch_gauge, account_data_size, "bytes",
          CURLINFO_SIZE_UPLOAD),
-    SPEC(size_download, "SizeDownload", dispatch_size, account_data_size,
+    SPEC(size_download, "SizeDownload", dispatch_gauge, account_data_size,
          "bytes", CURLINFO_SIZE_DOWNLOAD),
     SPEC(speed_download, "SpeedDownload", dispatch_speed, account_data_speed,
          "bitrate", CURLINFO_SPEED_DOWNLOAD),
@@ -301,20 +294,20 @@ static struct {
          CURLINFO_HEADER_SIZE),
     SPEC(request_size, "RequestSize", dispatch_size, account_data_size, "bytes",
          CURLINFO_REQUEST_SIZE),
-    SPEC(content_length_download, "ContentLengthDownload", dispatch_size,
+    SPEC(content_length_download, "ContentLengthDownload", dispatch_gauge,
          account_data_size, "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
-    SPEC(content_length_upload, "ContentLengthUpload", dispatch_size,
+    SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge,
          account_data_size, "bytes", CURLINFO_CONTENT_LENGTH_UPLOAD),
-    SPEC(starttransfer_time, "StarttransferTime", dispatch_time,
+    SPEC(starttransfer_time, "StarttransferTime", dispatch_gauge,
          account_data_time, "duration", CURLINFO_STARTTRANSFER_TIME),
-    SPEC(redirect_time, "RedirectTime", dispatch_time, account_data_time,
+    SPEC(redirect_time, "RedirectTime", dispatch_gauge, account_data_time,
          "duration", CURLINFO_REDIRECT_TIME),
-    SPEC(redirect_count, "RedirectCount", dispatch_count, account_data_count,
+    SPEC(redirect_count, "RedirectCount", dispatch_size, account_data_count,
          "count", CURLINFO_REDIRECT_COUNT),
-    SPEC(num_connects, "NumConnects", dispatch_count, account_data_count,
+    SPEC(num_connects, "NumConnects", dispatch_size, account_data_count,
          "count", CURLINFO_NUM_CONNECTS),
 #ifdef HAVE_CURLINFO_APPCONNECT_TIME
-    SPEC(appconnect_time, "AppconnectTime", dispatch_time, account_data_time,
+    SPEC(appconnect_time, "AppconnectTime", dispatch_gauge, account_data_time,
          "duration", CURLINFO_APPCONNECT_TIME),
 #endif
 
@@ -450,9 +443,8 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
     if (!field_enabled(s, field_specs[field].config_offset))
       continue;
 
-    status = field_specs[field].dispatcher(
-        curl, field_specs[field].info, s->metrics, field_specs[field].type,
-        field_specs[field].metric_family_offset);
+    status = field_specs[field].dispatcher(curl, field_specs[field].info,
+                                           field_specs[field].type);
 
     if (status < 0) {
       return status;
