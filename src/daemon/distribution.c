@@ -340,18 +340,39 @@ double distribution_squared_deviation_sum(distribution_t *dist) {
   return squared_deviation_sum;
 }
 
-/* TODO(bkjg): add tests for this function */
-int distribution_sub(distribution_t *d1, distribution_t *d2) {
+static int compare_longint(uint64_t a, uint64_t b) {
+  return a == b ? 0 : a < b ? -1 : 1;
+}
+
+int distribution_cmp(distribution_t *d1, distribution_t *d2) {
   if (d1 == NULL || d2 == NULL) {
     return EINVAL;
   }
-
-  if (d1->num_buckets != d2->num_buckets) {
+  if (d1-> num_buckets != d2->num_buckets) {
     return EINVAL;
+  }
+  for (size_t i = 0; i < tree_size(d1->num_buckets); i++) {
+    if (d1->tree[i].maximum != d2->tree[i].maximum) { // will it work with doubles?
+      return EINVAL;
+    }
   }
 
   pthread_mutex_lock(&d1->mutex);
-  pthread_mutex_lock(&d2->mutex);
+  pthread_mutex_unlock(&d2->mutex);
+  int comparison = compare_longint(d1->tree[0].bucket_counter, d2->tree[0].bucket_counter);
+  for (size_t i = 1; i < tree_size(d1->num_buckets); i++) {
+    if (comparison != compare_longint(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter)) {
+      comparison = ERANGE;
+      break;
+    }
+  }
+  pthread_mutex_unlock(&d2->mutex);
+  pthread_mutex_unlock(&d1->mutex);
+  return comparison;
+}
+
+/* TODO(bkjg): add tests for this function */
+int distribution_sub(distribution_t *d1, distribution_t *d2) {
 
   if (d1->total_sum < d2->total_sum) {
     d1->total_sum = d2->total_sum - d1->total_sum;
