@@ -100,67 +100,32 @@ static int initialize_attributes_metric_families(curl_stats_t *s) {
   return 0;
 }
 
-/* TODO(bkjg): add initializing the distribution */
-static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
-                                          const char *unit) {
-  value_t v = {0};
-
-  if (!strcasecmp("bytes", unit)) {
-    return metric_family_append(s->metrics->size_fam, "Attributes", name, v, NULL);
-    //return metric_family_metric_append(s->metrics->size_fam, m);
-  } else if (!strcasecmp("bitrate", unit)) {
-    return metric_family_append(s->metrics->speed_fam, "Attributes", name, v, NULL);
-  } else if (!strcasecmp("duration", unit)) {
-    return metric_family_append(s->metrics->time_fam, "Attributes", name, v, NULL);
-  } else if (!strcasecmp("count", unit)) {
-    return metric_family_append(s->metrics->count_fam, "Attributes", name, v, NULL);
-  }
-  /* error */
-  return -1;
-}
-
 static int update_distribution_for_attribute(metric_family_t *fam,
-                                             const char *name, double val) {
-  /* TODO(bkjg): maybe add to the fields offset in metric family :) */
-  size_t field;
-  for (field = 0; field < fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"),
-                    name)) {
-      break;
+                                             const char *name, double val, size_t offset) {
+  /* TODO(bkjg): maybe add to the fields config_offset in metric family :) */
+    if (strcasecmp(metric_label_get(&fam->metric.ptr[offset], "Attributes"), name) != 0) {
+      /* error */
+      return -1;
     }
-  }
 
-  if (field >= fam->metric.num) {
-    /* error */
-    return -1;
-  }
-
-  distribution_update(fam->metric.ptr[field].value.distribution, val);
+  distribution_update(fam->metric.ptr[offset].value.distribution, val);
   return 0;
 }
 
 static int increment_counter_for_attribute(metric_family_t *fam,
-                                           const char *name) {
-  /* TODO(bkjg): maybe add to the fields offset in metric family :) */
-  size_t field;
-  for (field = 0; field < fam->metric.num; ++field) {
-    if (!strcasecmp(metric_label_get(&fam->metric.ptr[field], "Attributes"),
-                    name)) {
-      break;
+                                           const char *name, size_t offset) {
+  /* TODO(bkjg): maybe add to the fields config_offset in metric family :) */
+  if (strcasecmp(metric_label_get(&fam->metric.ptr[offset], "Attributes"), name) != 0) {
+      /* error */
+      return -1;
     }
-  }
 
-  if (field >= fam->metric.num) {
-    /* error */
-    return -1;
-  }
-
-  fam->metric.ptr[field].value.counter++;
+  fam->metric.ptr[offset].value.counter++;
 
   return 0;
 }
 static int dispatch_time(CURL *curl, CURLINFO info,
-                         attributes_metrics_t *attr_m, const char *name) {
+                         attributes_metrics_t *attr_m, const char *name, size_t offset) {
   CURLcode code;
   double val;
 
@@ -169,7 +134,7 @@ static int dispatch_time(CURL *curl, CURLINFO info,
     return -1;
 
   int status;
-  status = update_distribution_for_attribute(attr_m->time_fam, name, val);
+  status = update_distribution_for_attribute(attr_m->time_fam, name, val, offset);
 
   if (status != 0)
     return -1;
@@ -177,9 +142,8 @@ static int dispatch_time(CURL *curl, CURLINFO info,
   return plugin_dispatch_metric_family(attr_m->time_fam);
 } /* dispatch_time */
 
-/* TODO(bkjg): implement counter logic here */
 static int dispatch_count(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *name) {
+                          attributes_metrics_t *attr_m, const char *name, size_t offset) {
   CURLcode code;
   double val;
 
@@ -188,7 +152,7 @@ static int dispatch_count(CURL *curl, CURLINFO info,
     return -1;
 
   int status;
-  status = increment_counter_for_attribute(attr_m->count_fam, name);
+  status = increment_counter_for_attribute(attr_m->count_fam, name, offset);
 
   if (status != 0)
     return -1;
@@ -198,7 +162,7 @@ static int dispatch_count(CURL *curl, CURLINFO info,
 
 /* dispatch a speed, in bytes/second */
 static int dispatch_speed(CURL *curl, CURLINFO info,
-                          attributes_metrics_t *attr_m, const char *name) {
+                          attributes_metrics_t *attr_m, const char *name, size_t offset) {
   CURLcode code;
   double val;
 
@@ -207,7 +171,7 @@ static int dispatch_speed(CURL *curl, CURLINFO info,
     return -1;
 
   int status;
-  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8);
+  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8, offset);
 
   if (status != 0)
     return -1;
@@ -217,7 +181,7 @@ static int dispatch_speed(CURL *curl, CURLINFO info,
 
 /* dispatch a size/count, reported as a long value */
 static int dispatch_size(CURL *curl, CURLINFO info,
-                         attributes_metrics_t *attr_m, const char *name) {
+                         attributes_metrics_t *attr_m, const char *name, size_t offset) {
   CURLcode code;
   long raw;
 
@@ -227,7 +191,7 @@ static int dispatch_size(CURL *curl, CURLINFO info,
 
   int status;
   status =
-      update_distribution_for_attribute(attr_m->size_fam, name, (double)raw);
+      update_distribution_for_attribute(attr_m->size_fam, name, (double)raw, offset);
 
   if (status != 0)
     return -1;
@@ -236,7 +200,7 @@ static int dispatch_size(CURL *curl, CURLINFO info,
 } /* dispatch_size */
 
 static int account_data_time(CURL *curl, CURLINFO info,
-                             attributes_metrics_t *attr_m, const char *name) {
+                             attributes_metrics_t *attr_m, const char *name, size_t offset) {
   CURLcode code;
   double val;
 
@@ -245,16 +209,16 @@ static int account_data_time(CURL *curl, CURLINFO info,
     return -1;
 
   int status;
-  status = update_distribution_for_attribute(attr_m->time_fam, name, val);
+  status = update_distribution_for_attribute(attr_m->time_fam, name, val, offset);
 
   if (status != 0)
     return -1;
 
   return 0;
-} /* account_data_gauge */
+} /* account_data_time */
 
 static int account_data_count(CURL *curl, CURLINFO info,
-                              attributes_metrics_t *attr_m, const char *name) {
+                              attributes_metrics_t *attr_m, const char *name, size_t offset) {
   CURLcode code;
   double val;
 
@@ -263,16 +227,16 @@ static int account_data_count(CURL *curl, CURLINFO info,
     return -1;
 
   int status;
-  status = increment_counter_for_attribute(attr_m->count_fam, name);
+  status = increment_counter_for_attribute(attr_m->count_fam, name, offset);
 
   if (status != 0)
     return -1;
 
   return 0;
-} /* account_data_gauge */
+} /* account_data_count */
 
 static int account_data_speed(CURL *curl, CURLINFO info,
-                              attributes_metrics_t *attr_m, const char *name) {
+                              attributes_metrics_t *attr_m, const char *name, size_t offset) {
   CURLcode code;
   double val;
 
@@ -281,7 +245,7 @@ static int account_data_speed(CURL *curl, CURLINFO info,
     return -1;
 
   int status;
-  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8);
+  status = update_distribution_for_attribute(attr_m->speed_fam, name, val * 8, offset);
 
   if (status != 0)
     return -1;
@@ -290,7 +254,7 @@ static int account_data_speed(CURL *curl, CURLINFO info,
 } /* account_data_speed */
 
 static int account_data_size(CURL *curl, CURLINFO info,
-                             attributes_metrics_t *attr_m, const char *name) {
+                             attributes_metrics_t *attr_m, const char *name, size_t offset) {
   CURLcode code;
   double raw;
 
@@ -300,7 +264,7 @@ static int account_data_size(CURL *curl, CURLINFO info,
 
   int status;
   status =
-      update_distribution_for_attribute(attr_m->size_fam, name, raw);
+      update_distribution_for_attribute(attr_m->size_fam, name, raw, offset);
 
   if (status != 0)
     return -1;
@@ -311,20 +275,21 @@ static int account_data_size(CURL *curl, CURLINFO info,
 static struct {
   const char *name;
   const char *config_key;
-  size_t offset;
+  size_t config_offset;
+  size_t metric_family_offset;
 
   int (*dispatcher)(CURL *, CURLINFO, attributes_metrics_t *attr_m,
-                    const char *unit);
+                    const char *unit, size_t);
 
   int (*account_data)(CURL *, CURLINFO, attributes_metrics_t *attr_m,
-                      const char *unit);
+                      const char *unit, size_t);
 
   const char *type;
   CURLINFO info;
 } field_specs[] = {
 #define SPEC(name, config_key, dispatcher, account_data, type, info)           \
   {                                                                            \
-#name, config_key, offsetof(curl_stats_t, name), dispatcher, account_data, \
+#name, config_key, offsetof(curl_stats_t, name), 0, dispatcher, account_data, \
         type, info                                                             \
   }
 
@@ -367,6 +332,30 @@ static struct {
 
 #undef SPEC
 };
+
+/* TODO(bkjg): add initializing the distribution */
+static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx, const char *name, const char *unit) {
+  value_t v = {0};
+  int status = -1;
+
+  /* TODO(bkjg): what should the arguments for distribution look like? */
+  if (!strcasecmp("bytes", unit)) {
+     status = metric_family_append(s->metrics->size_fam, "Attributes", name, v, NULL);
+     *idx = s->metrics->size_fam->metric.num - 1;
+    //return metric_family_metric_append(s->metrics->size_fam, m);
+  } else if (!strcasecmp("bitrate", unit)) {
+    status = metric_family_append(s->metrics->speed_fam, "Attributes", name, v, NULL);
+    *idx = s->metrics->speed_fam->metric.num - 1;
+  } else if (!strcasecmp("duration", unit)) {
+    status = metric_family_append(s->metrics->time_fam, "Attributes", name, v, NULL);
+    *idx = s->metrics->time_fam->metric.num - 1;
+  } else if (!strcasecmp("count", unit)) {
+    status = metric_family_append(s->metrics->count_fam, "Attributes", name, v, NULL);
+    *idx = s->metrics->count_fam->metric.num - 1;
+  }
+
+  return status;
+}
 
 static void enable_field(curl_stats_t *s, size_t offset) {
   *(bool *)((char *)s + offset) = true;
@@ -419,9 +408,17 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
 
     if (enabled) {
-      enable_field(s, field_specs[field].offset);
-      append_metric_to_metric_family(s, field_specs[field].config_key,
-                                     field_specs[field].type);
+      size_t offset = 0;
+      enable_field(s, field_specs[field].config_offset);
+      int status = append_metric_to_metric_family(s, &offset, field_specs[field].config_key, field_specs[field].type);
+
+      if (status != 0) {
+        /* error */
+        /* TODO(bkjg): free all data */
+        return NULL;
+      }
+
+      field_specs[field].metric_family_offset = offset;
     }
   }
 
@@ -457,11 +454,10 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
   for (size_t field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
     int status;
 
-    if (!field_enabled(s, field_specs[field].offset))
+    if (!field_enabled(s, field_specs[field].config_offset))
       continue;
 
-    status = field_specs[field].dispatcher(curl, field_specs[field].info,
-                                           s->metrics, field_specs[field].type);
+    status = field_specs[field].dispatcher(curl, field_specs[field].info, s->metrics, field_specs[field].type, field_specs[field].metric_family_offset);
 
     if (status < 0) {
       return status;
@@ -482,11 +478,10 @@ int curl_stats_account_data(curl_stats_t *s, CURL *curl) {
   for (size_t field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
     int status;
 
-    if (!field_enabled(s, field_specs[field].offset))
+    if (!field_enabled(s, field_specs[field].config_offset))
       continue;
 
-    status = field_specs[field].account_data(
-        curl, field_specs[field].info, s->metrics, field_specs[field].name);
+    status = field_specs[field].account_data(curl, field_specs[field].info, s->metrics, field_specs[field].name, field_specs[field].metric_family_offset);
 
     if (status < 0) {
       return status;
