@@ -387,7 +387,7 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
   d1->total_sum -= d2->total_sum;
   d1->total_square_sum -= d2->total_square_sum;
   for (size_t i = 0; i < tree_size(d1->num_buckets); i++) {
-    d1->tree[i].bucket_counter -= d2.tree[i].bucket_counter;
+    d1->tree[i].bucket_counter -= d2->tree[i].bucket_counter;
   }
 
   pthread_mutex_unlock(&d2->mutex);
