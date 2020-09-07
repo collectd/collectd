@@ -42,7 +42,7 @@
 
 typedef struct cache_entry_s {
   char name[6 * DATA_MAX_NAME_LEN];
-  distribution_t *values_distribution;
+  distribution_t *distribution_increase;
   gauge_t values_gauge;
   value_t values_raw;
   /* Time contained in the package
@@ -69,6 +69,11 @@ typedef struct cache_entry_s {
   gauge_t *history;
   size_t history_index; /* points to the next position to write to. */
   size_t history_length;
+
+  /* The first value and time for the metric when it was received.
+   * When metric is reset the time and value are reset too */
+  value_t start_value;
+  cdtime_t start_time;
 
   meta_data_t *meta;
 
@@ -101,7 +106,7 @@ static cache_entry_t *cache_alloc() {
     return NULL;
   }
 
-  ce->values_distribution = NULL;
+  ce->distribution_increase = NULL;
   ce->values_gauge = 0;
   ce->values_raw = (value_t){.gauge = 0};
   ce->history = NULL;
@@ -143,25 +148,29 @@ static int uc_insert(metric_t const *m, char const *key) {
   case DS_TYPE_COUNTER:
     ce->values_gauge = NAN;
     ce->values_raw.counter = m->value.counter;
-    ce->values_distribution = NULL;
+    ce->distribution_increase = NULL;
+    ce->start_value.counter = m->value.counter;
     break;
 
   case DS_TYPE_GAUGE:
     ce->values_gauge = m->value.gauge;
     ce->values_raw.gauge = m->value.gauge;
-    ce->values_distribution = NULL;
+    ce->distribution_increase = NULL;
+    ce->start_value.gauge = m->value.gauge;
     break;
 
   case DS_TYPE_DERIVE:
     ce->values_gauge = NAN;
     ce->values_raw.derive = m->value.derive;
-    ce->values_distribution = NULL;
+    ce->distribution_increase = NULL;
+    ce->start_value.derive = m->value.derive;
     break;
 
   case DS_TYPE_DISTRIBUTION:
     ce->values_gauge = NAN;
     ce->values_raw.distribution = distribution_clone(m->value.distribution);
-    ce->values_distribution = distribution_clone(m->value.distribution);
+    ce->distribution_increase = distribution_clone(m->value.distribution);
+    ce->start_value.distribution = distribution_clone(m->value.distribution);
     break;
 
   default:
@@ -350,17 +359,23 @@ static int uc_update_metric(metric_t const *m) {
   }
 
   case METRIC_TYPE_DISTRIBUTION: {
+    distribution_destroy(ce->distribution_increase);
+    ce->distribution_increase = ce->values_raw.distribution;
     int status =
-        distribution_sub(ce->values_raw.distribution, m->value.distribution);
+        distribution_sub(ce->distribution_increase, m->value.distribution);
+    if (status == ERANGE) {
+      distribution_destroy(ce->distribution_increase);
+      ce->distribution_increase = NULL;
+      distribution_destroy(ce->start_value.distribution);
+      ce->start_value.distribution = distribution_clone(m->value.distribution);
+      status = 0;
+    }
 
     if (status != 0) {
       pthread_mutex_unlock(&cache_lock);
       ERROR("uc_update: distribution_sub failed with status %d.", status);
       return status;
     }
-
-    distribution_destroy(ce->values_distribution);
-    ce->values_distribution = ce->values_raw.distribution;
     ce->values_raw.distribution = distribution_clone(m->value.distribution);
     break;
   }
