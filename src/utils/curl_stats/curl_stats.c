@@ -103,17 +103,17 @@ static int initialize_attributes_metric_families(curl_stats_t *s) {
 /* TODO(bkjg): add initializing the distribution */
 static int append_metric_to_metric_family(curl_stats_t *s, const char *name,
                                           const char *unit) {
-  metric_t m;
-  metric_label_set(&m, "Attributes", name);
+  value_t v = {0};
 
   if (!strcasecmp("bytes", unit)) {
-    return metric_family_metric_append(s->metrics->size_fam, m);
+    return metric_family_append(s->metrics->size_fam, "Attributes", name, v, NULL);
+    //return metric_family_metric_append(s->metrics->size_fam, m);
   } else if (!strcasecmp("bitrate", unit)) {
-    return metric_family_metric_append(s->metrics->speed_fam, m);
+    return metric_family_append(s->metrics->speed_fam, "Attributes", name, v, NULL);
   } else if (!strcasecmp("duration", unit)) {
-    return metric_family_metric_append(s->metrics->time_fam, m);
+    return metric_family_append(s->metrics->time_fam, "Attributes", name, v, NULL);
   } else if (!strcasecmp("count", unit)) {
-    return metric_family_metric_append(s->metrics->count_fam, m);
+    return metric_family_append(s->metrics->count_fam, "Attributes", name, v, NULL);
   }
   /* error */
   return -1;
@@ -434,6 +434,10 @@ void curl_stats_destroy(curl_stats_t *s) {
     metric_family_metric_reset(s->metrics->size_fam);
     metric_family_metric_reset(s->metrics->speed_fam);
     metric_family_metric_reset(s->metrics->time_fam);
+    free(s->metrics->count_fam);
+    free(s->metrics->size_fam);
+    free(s->metrics->speed_fam);
+    free(s->metrics->time_fam);
     free(s->metrics);
     free(s);
   }
