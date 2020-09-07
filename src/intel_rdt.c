@@ -155,6 +155,21 @@ static void rdt_submit(const struct pqos_mon_data *group) {
     }
   }
 
+  if (events & PQOS_MON_EVENT_TMEM_BW) {
+    const struct pqos_monitor *mon = NULL;
+
+    int retval =
+        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_TMEM_BW, &mon);
+    if (retval == PQOS_RETVAL_OK) {
+      uint64_t value = values->mbm_total;
+
+      if (mon->scale_factor != 0)
+        value = value * mon->scale_factor;
+
+      rdt_submit_derive(desc, "memory_bandwidth", "total", value);
+    }
+  }
+
   if (events & PQOS_MON_EVENT_RMEM_BW) {
     const struct pqos_monitor *mon = NULL;
 
