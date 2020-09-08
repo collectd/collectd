@@ -269,7 +269,7 @@ static struct {
 #define SPEC(name, config_key, metric_family_name, dispatcher, account_data,   \
              type, info)                                                       \
   {                                                                            \
-#name, config_key, #metric_family_name, offsetof(curl_stats_t, name), 0,    \
+#name, config_key, #metric_family_name, offsetof(curl_stats_t, name), 0,       \
         offsetof(attributes_metrics_t, metric_family_name), dispatcher,        \
         account_data, type, info                                               \
   }
@@ -402,7 +402,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
       if (status != 0) {
         /* error */
-        /* TODO(bkjg): free all data */
+        curl_stats_destroy(s);
         return NULL;
       }
 
