@@ -364,11 +364,13 @@ int distribution_reset(distribution_t *dist) {
   if (dist == NULL) {
     return errno = EINVAL;
   }
+  pthread_mutex_lock(&dist->mutex);
   dist->total_sum = 0;
   dist->total_square_sum = 0;
   for (size_t i = 0; i < tree_size(dist->num_buckets); i++) {
     dist->tree[i].bucket_counter = 0;
   }
+  pthread_mutex_unlock(&dist->mutex);
   return 0;
 }
 
