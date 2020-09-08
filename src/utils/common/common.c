@@ -1137,12 +1137,19 @@ metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
   name = (strbuf_t){0};
 
   switch (dsrc->type) {
-  case DS_TYPE_GAUGE:
+  case DS_TYPE_GAUGE: {
     fam->type = METRIC_TYPE_GAUGE;
-  case DS_TYPE_COUNTER:
+    break;
+  }
+  case DS_TYPE_COUNTER: {
     fam->type = METRIC_TYPE_COUNTER;
-  default:
+    break;
+  }
+  default: {
     fam->type = METRIC_TYPE_UNTYPED;
+    break;
+  }
+
   }
 
   metric_t m = {
