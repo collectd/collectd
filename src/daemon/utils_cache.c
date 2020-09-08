@@ -360,9 +360,9 @@ static int uc_update_metric(metric_t const *m) {
 
   case METRIC_TYPE_DISTRIBUTION: {
     distribution_destroy(ce->distribution_increase);
-    ce->distribution_increase = ce->values_raw.distribution;
+    ce->distribution_increase = distribution_clone(m->value.distribution);
     status =
-        distribution_sub(ce->distribution_increase, m->value.distribution);
+        distribution_sub(ce->distribution_increase, ce->values_raw.distribution);
     if (status == ERANGE) {
       distribution_destroy(ce->distribution_increase);
       ce->distribution_increase = distribution_clone(m->value.distribution);
@@ -377,6 +377,7 @@ static int uc_update_metric(metric_t const *m) {
       ERROR("uc_update: distribution_sub failed with status %d.", status);
       return status;
     }
+    distribution_destroy(ce->values_raw.distribution);
     ce->values_raw.distribution = distribution_clone(m->value.distribution);
     break;
   }
