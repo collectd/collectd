@@ -361,13 +361,14 @@ static int uc_update_metric(metric_t const *m) {
   case METRIC_TYPE_DISTRIBUTION: {
     distribution_destroy(ce->distribution_increase);
     ce->distribution_increase = ce->values_raw.distribution;
-    int status =
+    status =
         distribution_sub(ce->distribution_increase, m->value.distribution);
     if (status == ERANGE) {
       distribution_destroy(ce->distribution_increase);
-      ce->distribution_increase = NULL;
+      ce->distribution_increase = distribution_clone(m->value.distribution);
       distribution_destroy(ce->start_value.distribution);
       ce->start_value.distribution = distribution_clone(m->value.distribution);
+      ce->start_time = m->time;
       status = 0;
     }
 
@@ -488,7 +489,7 @@ int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
             name);
       status = -1;
     } else {
-      if (ce->distribution_increase == NULL &&
+        if (ce->distribution_increase == NULL &&
           ce->values_raw.distribution !=
               NULL) { /* check if the cache entry is not the distribution */
         pthread_mutex_unlock(&cache_lock);
