@@ -187,6 +187,7 @@ distribution_t *distribution_clone(distribution_t *dist) {
   memcpy(nodes, dist->tree, tree_size(dist->num_buckets) * sizeof(bucket_t));
   new_distribution->num_buckets = dist->num_buckets;
   new_distribution->total_sum = dist->total_sum;
+  new_distribution->total_square_sum = dist->total_square_sum;
   pthread_mutex_unlock(&dist->mutex);
   new_distribution->tree = nodes;
   pthread_mutex_init(&new_distribution->mutex, NULL);
@@ -370,7 +371,14 @@ static int *distribution_cmp(distribution_t *d1, distribution_t *d2) {
 
   int res = compare_longint(d1->tree[0].bucket_counter, d2->tree[0].bucket_counter);
   for (size_t i = 1; i < tree_size(d1->num_buckets); i++) {
-    if (res != compare_longint(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter)) {
+    int cur_res = compare_longint(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter);
+    if (res != cur_res) {
+      if (cur_res == 0)
+        continue;
+      if (res == 0) {
+        res = cur_res;
+        continue;
+      }
       comparison[0] = ERANGE;
       break;
     }
