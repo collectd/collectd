@@ -118,6 +118,14 @@ double distribution_squared_deviation_sum(distribution_t *dist);
 
 void destroy_buckets_array(buckets_array_t buckets_array);
 
-/* TODO(bkjg): add description */
+/** @return true if distributions are equal false otherwise
+ * This function holds both mutexes for d1 and d2. Be sure that you call the function with the same order of arguments everytime **/
+bool distribution_equals(distribution_t *d1, distribution_t *d2);
+
+/** This function subtracts d2 from d1 if arguments are correct
+ *  if arguments are NULL pointers or the structure of distributions is different then EINVAL is returned
+ *  if distributions have the same structure but the second distribution is not less then the first then ERANGE is returned
+ *  in case of success returns 0
+ *  This function holds both mutexes for d1 and d2. Be sure that you call the function with the same order of arguments everytime **/
 int distribution_sub(distribution_t *d1, distribution_t *d2);
 #endif // COLLECTD_DISTRIBUTION_H

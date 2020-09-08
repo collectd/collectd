@@ -379,6 +379,17 @@ static int *distribution_cmp(distribution_t *d1, distribution_t *d2) {
   return comparison;
 }
 
+bool distribution_equal(distribution_t *d1, distribution_t *d2) {
+  pthread_mutex_lock(&d1->mutex);
+  pthread_mutex_lock(&d2->mutex);
+  int *cmp = distribution_cmp(d1, d2);
+  bool ans = (cmp[0] == 0 && cmp[1] == 0);
+  pthread_mutex_unlock(&d2->mutex);
+  pthread_mutex_unlock(&d1->mutex);
+  free(cmp);
+  return ans;
+}
+
 /* TODO(bkjg): add tests for this function */
 int distribution_sub(distribution_t *d1, distribution_t *d2) {
   pthread_mutex_lock(&d1->mutex);
@@ -403,6 +414,6 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
 
   pthread_mutex_unlock(&d2->mutex);
   pthread_mutex_unlock(&d1->mutex);
-
+  free(cmp_status);
   return 0;
 }
