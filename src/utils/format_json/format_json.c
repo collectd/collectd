@@ -136,13 +136,13 @@ static int format_metric_distribution(strbuf_t buf, yajl_gen g,
   }
   CHECK(yajl_gen_map_close(g)); /*End Buckets*/
 
-  distribution_count_marshal_text(&buf, m->value.distribution);
+  strbuf_printf(&buf, "%" PRIu64, distribution_total_counter(m->value.distribution));
 
   CHECK(json_add_string(g, "count"));
   CHECK(json_add_string(g, buf.ptr));
   strbuf_reset(&buf);
 
-  distribution_sum_marshal_text(&buf, m->value.distribution);
+  strbuf_printf(&buf, GAUGE_FORMAT, distribution_total_sum(m->value.distribution));
 
   CHECK(json_add_string(g, "sum"));
   CHECK(json_add_string(g, buf.ptr));
