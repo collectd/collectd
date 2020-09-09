@@ -105,7 +105,9 @@ static int update_distribution_for_attribute(metric_family_t *fam,
                                              size_t offset) {
   if (strcasecmp(metric_label_get(&fam->metric.ptr[offset], "Attributes"),
                  name) != 0) {
-    /* error */
+    ERROR("curl_stats: updating distribution failed. Wrong attribute, wanted: "
+          "%s, received: %s",
+          metric_label_get(&fam->metric.ptr[offset], "Attributes"), name);
     return -1;
   }
 
@@ -117,7 +119,9 @@ static int update_gauge_for_attribute(metric_family_t *fam, const char *name,
                                       double val, size_t offset) {
   if (strcasecmp(metric_label_get(&fam->metric.ptr[offset], "Attributes"),
                  name) != 0) {
-    /* error */
+    ERROR("curl_stats: updating gauge failed. Wrong attribute, wanted: %s, "
+          "received: %s",
+          metric_label_get(&fam->metric.ptr[offset], "Attributes"), name);
     return -1;
   }
 
@@ -128,12 +132,13 @@ static int update_gauge_for_attribute(metric_family_t *fam, const char *name,
 
 static int dispatch_gauge(CURL *curl, CURLINFO info, const char *name) {
   CURLcode code;
-  double val;
+  gauge_t val;
 
   code = curl_easy_getinfo(curl, info, &val);
   if (code != CURLE_OK)
     return -1;
 
+  DEBUG("Gauge: %lf", val);
   metric_family_t fam = {
       .metric =
           {
@@ -143,6 +148,7 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, const char *name) {
               }},
           },
       .name = (char *)name,
+      .type = METRIC_TYPE_GAUGE,
   };
 
   fam.metric.ptr[0].family = &fam;
@@ -153,12 +159,13 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, const char *name) {
 /* dispatch a speed, in bytes/second */
 static int dispatch_speed(CURL *curl, CURLINFO info, const char *name) {
   CURLcode code;
-  double val;
+  gauge_t val;
 
   code = curl_easy_getinfo(curl, info, &val);
   if (code != CURLE_OK)
     return -1;
 
+  DEBUG("Speed: %lf", val * 8);
   metric_family_t fam = {
       .metric =
           {
@@ -168,6 +175,7 @@ static int dispatch_speed(CURL *curl, CURLINFO info, const char *name) {
               }},
           },
       .name = (char *)name,
+      .type = METRIC_TYPE_GAUGE,
   };
 
   fam.metric.ptr[0].family = &fam;
@@ -184,6 +192,7 @@ static int dispatch_size(CURL *curl, CURLINFO info, const char *name) {
   if (code != CURLE_OK)
     return -1;
 
+  DEBUG("Size: %ld", raw);
   metric_family_t fam = {
       .metric =
           {
@@ -193,6 +202,7 @@ static int dispatch_size(CURL *curl, CURLINFO info, const char *name) {
               }},
           },
       .name = (char *)name,
+      .type = METRIC_TYPE_GAUGE,
   };
 
   fam.metric.ptr[0].family = &fam;
@@ -324,12 +334,12 @@ static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx,
   if (!strcasecmp("bytes", unit)) {
     status = metric_family_append(
         s->metrics->size_fam, "Attributes", name,
-        (value_t){.distribution = distribution_new_linear(1024, 0.001)}, NULL);
+        (value_t){.distribution = distribution_new_linear(1024, 8)}, NULL);
     *idx = s->metrics->size_fam->metric.num - 1;
   } else if (!strcasecmp("bitrate", unit)) {
     status = metric_family_append(
         s->metrics->speed_fam, "Attributes", name,
-        (value_t){.distribution = distribution_new_linear(1024, 0.001)}, NULL);
+        (value_t){.distribution = distribution_new_linear(1024, 1.5)}, NULL);
     *idx = s->metrics->speed_fam->metric.num - 1;
   } else if (!strcasecmp("duration", unit)) {
     status = metric_family_append(
@@ -493,7 +503,7 @@ int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
   status |= plugin_dispatch_metric_family(s->metrics->time_fam);
 
   /* TODO(bkjg): reset all distributions (wait for pull request with this
-   * functionality to be merged */
+   * functionality to be merged) */
 
   return status;
 } /* curl_stats_send_metric_to_daemon */
