@@ -554,7 +554,6 @@ static int cc_config(oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Page", child->key) == 0) {
-      DEBUG("CC_config: Page true\n");
       status = cc_config_add_page(child);
       if (status == 0)
         success++;

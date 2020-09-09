@@ -138,7 +138,6 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, const char *name) {
   if (code != CURLE_OK)
     return -1;
 
-  DEBUG("Gauge: %lf", val);
   metric_family_t fam = {
       .metric =
           {
@@ -165,7 +164,6 @@ static int dispatch_speed(CURL *curl, CURLINFO info, const char *name) {
   if (code != CURLE_OK)
     return -1;
 
-  DEBUG("Speed: %lf", val * 8);
   metric_family_t fam = {
       .metric =
           {
@@ -192,7 +190,6 @@ static int dispatch_size(CURL *curl, CURLINFO info, const char *name) {
   if (code != CURLE_OK)
     return -1;
 
-  DEBUG("Size: %ld", raw);
   metric_family_t fam = {
       .metric =
           {
