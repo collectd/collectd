@@ -269,13 +269,13 @@ static struct {
 #define SPEC(name, config_key, metric_family_name, dispatcher, account_data,   \
              type, info)                                                       \
   {                                                                            \
-#name, config_key, #metric_family_name, offsetof(curl_stats_t, name), 0,       \
+#name, config_key, #metric_family_name, offsetof(curl_stats_t, name), 0,   \
         offsetof(attributes_metrics_t, metric_family_name), dispatcher,        \
         account_data, type, info                                               \
   }
 
-    SPEC(total_time, "TotalTime", time_fam, dispatch_gauge,
-         account_data_gauge, "duration", CURLINFO_TOTAL_TIME),
+    SPEC(total_time, "TotalTime", time_fam, dispatch_gauge, account_data_gauge,
+         "duration", CURLINFO_TOTAL_TIME),
     SPEC(namelookup_time, "NamelookupTime", time_fam, dispatch_gauge,
          account_data_gauge, "duration", CURLINFO_NAMELOOKUP_TIME),
     SPEC(connect_time, "ConnectTime", time_fam, dispatch_gauge,
@@ -290,16 +290,15 @@ static struct {
          account_data_speed, "bitrate", CURLINFO_SPEED_DOWNLOAD),
     SPEC(speed_upload, "SpeedUpload", speed_fam, dispatch_speed,
          account_data_speed, "bitrate", CURLINFO_SPEED_UPLOAD),
-    SPEC(header_size, "HeaderSize", size_fam, dispatch_size,
-         account_data_size, "bytes", CURLINFO_HEADER_SIZE),
+    SPEC(header_size, "HeaderSize", size_fam, dispatch_size, account_data_size,
+         "bytes", CURLINFO_HEADER_SIZE),
     SPEC(request_size, "RequestSize", size_fam, dispatch_size,
          account_data_size, "bytes", CURLINFO_REQUEST_SIZE),
     SPEC(content_length_download, "ContentLengthDownload", size_fam,
          dispatch_gauge, account_data_gauge, "bytes",
          CURLINFO_CONTENT_LENGTH_DOWNLOAD),
-    SPEC(content_length_upload, "ContentLengthUpload", size_fam,
-         dispatch_gauge, account_data_gauge, "bytes",
-         CURLINFO_CONTENT_LENGTH_UPLOAD),
+    SPEC(content_length_upload, "ContentLengthUpload", size_fam, dispatch_gauge,
+         account_data_gauge, "bytes", CURLINFO_CONTENT_LENGTH_UPLOAD),
     SPEC(starttransfer_time, "StarttransferTime", time_fam, dispatch_gauge,
          account_data_gauge, "duration", CURLINFO_STARTTRANSFER_TIME),
     SPEC(redirect_time, "RedirectTime", time_fam, dispatch_gauge,
@@ -319,25 +318,24 @@ static struct {
 /* TODO(bkjg): add initializing the distribution */
 static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx,
                                           const char *name, const char *unit) {
-  value_t v = {0};
   int status = -1;
 
   /* TODO(bkjg): what should the arguments for distribution look like? */
   if (!strcasecmp("bytes", unit)) {
-    status =
-        metric_family_append(s->metrics->size_fam, "Attributes", name, v, NULL);
+    status = metric_family_append(s->metrics->size_fam, "Attributes", name,
+                                  (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->size_fam->metric.num - 1;
   } else if (!strcasecmp("bitrate", unit)) {
-    status = metric_family_append(s->metrics->speed_fam, "Attributes", name, v,
-                                  NULL);
+    status = metric_family_append(s->metrics->speed_fam, "Attributes", name,
+                                  (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->speed_fam->metric.num - 1;
   } else if (!strcasecmp("duration", unit)) {
-    status =
-        metric_family_append(s->metrics->time_fam, "Attributes", name, v, NULL);
+    status = metric_family_append(s->metrics->time_fam, "Attributes", name,
+                                  (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->time_fam->metric.num - 1;
   } else if (!strcasecmp("count", unit)) {
-    status = metric_family_append(s->metrics->count_fam, "Attributes", name, v,
-                                  NULL);
+    status = metric_family_append(s->metrics->count_fam, "Attributes", name,
+                                  (value_t){.gauge = 0}, NULL);
     *idx = s->metrics->count_fam->metric.num - 1;
   }
 
