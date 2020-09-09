@@ -1149,7 +1149,6 @@ metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
     fam->type = METRIC_TYPE_UNTYPED;
     break;
   }
-
   }
 
   metric_t m = {
