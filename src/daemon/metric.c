@@ -643,3 +643,4 @@ metric_t *metric_parse_identity(char const *buf) {
 
   return fam->metric.ptr;
 }
+
