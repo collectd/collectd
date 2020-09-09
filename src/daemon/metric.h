@@ -59,18 +59,6 @@ typedef union value_u value_t;
 /* value_marshal_text prints a text representation of v to buf. */
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type);
 
-/*distribution_marshal_text prints a text representation of a distribution
- * metric to buf.*/
-int distribution_marshal_text(strbuf_t *buf, distribution_t *dist);
-
-/*distribution_marshal_text prints the total count of gauges registered in a
- * distribution metric to buf.*/
-int distribution_count_marshal_text(strbuf_t *buf, distribution_t *dist);
-
-/*distribution_marshal_text prints the sum of all gauges registered in a
- * distribution metric to buf.*/
-int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist);
-
 /*
  * Labels
  */

@@ -23,7 +23,6 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Manoj Srivastava <srivasta at google.com>
- *   Elene Margalitadze <elene.margalit at gmail.com>
  **/
 
 #include "collectd.h"
@@ -43,14 +42,6 @@
 /* Metric names must match the regex `[a-zA-Z_:][a-zA-Z0-9_:]*` */
 #define VALID_NAME_CHARS VALID_LABEL_CHARS ":"
 
-int distribution_count_marshal_text(strbuf_t *buf, distribution_t *dist) {
-  return strbuf_printf(buf, "%" PRIu64, distribution_total_counter(dist));
-}
-
-int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist) {
-  return strbuf_printf(buf, GAUGE_FORMAT, distribution_total_sum(dist));
-}
-
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   switch (type) {
   case METRIC_TYPE_GAUGE:
@@ -58,6 +49,9 @@ int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
     return strbuf_printf(buf, GAUGE_FORMAT, v.gauge);
   case METRIC_TYPE_COUNTER:
     return strbuf_printf(buf, "%" PRIu64, v.counter);
+  case METRIC_TYPE_DISTRIBUTION:
+    ERROR("Distribution metrics are not to be represented as text.");
+    return EINVAL;
   default:
     ERROR("Unknown metric value type: %d", (int)type);
     return EINVAL;
