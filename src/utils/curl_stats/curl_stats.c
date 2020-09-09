@@ -322,16 +322,19 @@ static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx,
 
   /* TODO(bkjg): what should the arguments for distribution look like? */
   if (!strcasecmp("bytes", unit)) {
-    status = metric_family_append(s->metrics->size_fam, "Attributes", name,
-                                  (value_t){.distribution = NULL}, NULL);
+    status = metric_family_append(
+        s->metrics->size_fam, "Attributes", name,
+        (value_t){.distribution = distribution_new_linear(1024, 0.001)}, NULL);
     *idx = s->metrics->size_fam->metric.num - 1;
   } else if (!strcasecmp("bitrate", unit)) {
-    status = metric_family_append(s->metrics->speed_fam, "Attributes", name,
-                                  (value_t){.distribution = NULL}, NULL);
+    status = metric_family_append(
+        s->metrics->speed_fam, "Attributes", name,
+        (value_t){.distribution = distribution_new_linear(1024, 0.001)}, NULL);
     *idx = s->metrics->speed_fam->metric.num - 1;
   } else if (!strcasecmp("duration", unit)) {
-    status = metric_family_append(s->metrics->time_fam, "Attributes", name,
-                                  (value_t){.distribution = NULL}, NULL);
+    status = metric_family_append(
+        s->metrics->time_fam, "Attributes", name,
+        (value_t){.distribution = distribution_new_linear(1024, 0.001)}, NULL);
     *idx = s->metrics->time_fam->metric.num - 1;
   } else if (!strcasecmp("count", unit)) {
     status = metric_family_append(s->metrics->count_fam, "Attributes", name,
@@ -489,7 +492,8 @@ int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
   status |= plugin_dispatch_metric_family(s->metrics->speed_fam);
   status |= plugin_dispatch_metric_family(s->metrics->time_fam);
 
-  /* TODO(bkjg): should I here reset the all metrics??? */
+  /* TODO(bkjg): reset all distributions (wait for pull request with this
+   * functionality to be merged */
 
   return status;
 } /* curl_stats_send_metric_to_daemon */
