@@ -201,4 +201,3 @@ metric_family_t *metric_family_clone(metric_family_t const *fam);
  *the element in the source list. */
 
 #endif
-
