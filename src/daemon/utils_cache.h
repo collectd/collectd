@@ -55,6 +55,8 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_value);
 int uc_get_rate(metric_t const *m, gauge_t *ret_value);
 int uc_get_value_by_name(const char *name, value_t *ret_value);
 int uc_get_value(metric_t const *m, value_t *ret_value);
+int uc_get_start_value_by_name(const char *name, value_t *ret_start_value, cdtime_t *ret_start_time);
+int uc_get_start_value(metric_t const *m, value_t *ret_start_value, cdtime_t *ret_start_time);
 
 size_t uc_get_size(void);
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);

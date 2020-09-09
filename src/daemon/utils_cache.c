@@ -666,6 +666,45 @@ int uc_get_value(metric_t const *m, value_t *ret) {
   return status;
 } /* value_t *uc_get_value */
 
+int uc_get_start_value_by_name(const char *name, value_t *ret_start_value, cdtime_t *ret_start_time) {
+  pthread_mutex_lock(&cache_lock);
+
+  cache_entry_t *ce = NULL;
+  int status = 0;
+  if (c_avl_get(cache_tree, name, (void *) &ce) == 0) {
+    assert(ce != NULL);
+
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING) {
+      status = -1;
+    } else {
+      *ret_start_value = ce->start_value;
+      *ret_start_time = ce->start_time;
+    }
+  } else {
+    DEBUG("utils_cache: uc_get_start_value_by_name: No such value: %s", name);
+    status = -1;
+  }
+
+  pthread_mutex_unlock(&cache_lock);
+
+  return status;
+}
+
+int uc_get_start_value(metric_t const *m, value_t *ret_start_value, cdtime_t *ret_start_time) {
+  strbuf_t buf = STRBUF_CREATE;
+  int status = metric_identity(&buf, m);
+  if (status != 0) {
+    ERROR("uc_get_start_value: metric_identity failed with status %d.", status);
+    STRBUF_DESTROY(buf);
+    return status;
+  }
+
+  status = uc_get_start_value_by_name(buf.ptr, ret_start_value, ret_start_time);
+  STRBUF_DESTROY(buf);
+  return status;
+}
+
 size_t uc_get_size(void) {
   size_t size_arrays = 0;
 
