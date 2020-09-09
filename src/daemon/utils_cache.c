@@ -361,8 +361,8 @@ static int uc_update_metric(metric_t const *m) {
   case METRIC_TYPE_DISTRIBUTION: {
     distribution_destroy(ce->distribution_increase);
     ce->distribution_increase = distribution_clone(m->value.distribution);
-    status =
-        distribution_sub(ce->distribution_increase, ce->values_raw.distribution);
+    status = distribution_sub(ce->distribution_increase,
+                              ce->values_raw.distribution);
     if (status == ERANGE) {
       distribution_destroy(ce->distribution_increase);
       ce->distribution_increase = distribution_clone(m->value.distribution);
@@ -490,7 +490,7 @@ int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
             name);
       status = -1;
     } else {
-        if (ce->distribution_increase == NULL &&
+      if (ce->distribution_increase == NULL &&
           ce->values_raw.distribution !=
               NULL) { /* check if the cache entry is not the distribution */
         pthread_mutex_unlock(&cache_lock);
@@ -666,12 +666,13 @@ int uc_get_value(metric_t const *m, value_t *ret) {
   return status;
 } /* value_t *uc_get_value */
 
-int uc_get_start_value_by_name(const char *name, value_t *ret_start_value, cdtime_t *ret_start_time) {
+int uc_get_start_value_by_name(const char *name, value_t *ret_start_value,
+                               cdtime_t *ret_start_time) {
   pthread_mutex_lock(&cache_lock);
 
   cache_entry_t *ce = NULL;
   int status = 0;
-  if (c_avl_get(cache_tree, name, (void *) &ce) == 0) {
+  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
     assert(ce != NULL);
 
     /* remove missing values from getval */
@@ -691,7 +692,8 @@ int uc_get_start_value_by_name(const char *name, value_t *ret_start_value, cdtim
   return status;
 }
 
-int uc_get_start_value(metric_t const *m, value_t *ret_start_value, cdtime_t *ret_start_time) {
+int uc_get_start_value(metric_t const *m, value_t *ret_start_value,
+                       cdtime_t *ret_start_time) {
   strbuf_t buf = STRBUF_CREATE;
   int status = metric_identity(&buf, m);
   if (status != 0) {

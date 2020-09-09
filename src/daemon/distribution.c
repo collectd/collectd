@@ -363,15 +363,18 @@ static int *distribution_cmp(distribution_t *d1, distribution_t *d2) {
     return comparison;
   }
   for (size_t i = 0; i < tree_size(d1->num_buckets); i++) {
-    if (d1->tree[i].maximum != d2->tree[i].maximum) { // will it work with doubles?
+    if (d1->tree[i].maximum !=
+        d2->tree[i].maximum) { // will it work with doubles?
       comparison[0] = EINVAL;
       return comparison;
     }
   }
 
-  int res = compare_longint(d1->tree[0].bucket_counter, d2->tree[0].bucket_counter);
+  int res =
+      compare_longint(d1->tree[0].bucket_counter, d2->tree[0].bucket_counter);
   for (size_t i = 1; i < tree_size(d1->num_buckets); i++) {
-    int cur_res = compare_longint(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter);
+    int cur_res =
+        compare_longint(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter);
     if (res != cur_res) {
       if (cur_res == 0)
         continue;
@@ -404,7 +407,8 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
   pthread_mutex_lock(&d2->mutex);
 
   int *cmp_status = distribution_cmp(d1, d2);
-  if (cmp_status[0] != 0 || cmp_status[1] == -1) { // i.e. d1 < d2 or can't compare
+  if (cmp_status[0] != 0 ||
+      cmp_status[1] == -1) { // i.e. d1 < d2 or can't compare
     int status = cmp_status[0];
     if (cmp_status[1] == -1)
       status = ERANGE;
@@ -425,4 +429,3 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
   free(cmp_status);
   return 0;
 }
-
