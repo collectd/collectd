@@ -364,7 +364,9 @@ static int *distribution_cmp(distribution_t *d1, distribution_t *d2) {
   }
   for (size_t i = 0; i < tree_size(d1->num_buckets); i++) {
     if (d1->tree[i].maximum !=
-        d2->tree[i].maximum) { // will it work with doubles?
+        d2->tree[i].maximum) { // there can be a trouble with double comparison
+                               // but we assume that distributions were created
+                               // in the same way
       comparison[0] = EINVAL;
       return comparison;
     }
