@@ -345,14 +345,17 @@ static int compare_uint64(uint64_t a, uint64_t b) {
   return a == b ? 0 : a < b ? -1 : 1;
 }
 
-/* distribution_cmp compares d1 and d2 and stores the result of the comparison in result:
- *     1 if d1 is larger than d2,
- *    -1 if d1 is smaller than d2, and
- *     0 if d1 and d2 are equal.
- * On error an error code is returned and result is undefined.
- * If distributions don't exist or don't have the same structure EINVAL will be returned
- * If distributions have* the same structure but are uncomparable ERANGE will be returned */
-static int distribution_cmp(distribution_t *d1, distribution_t *d2, int *result) {
+/* distribution_cmp compares d1 and d2 and stores the result of the comparison
+ * in result:
+ *   1 if d1 is larger than d2,
+ *   -1 if d1 is smaller than d2,
+ *   and 0 if d1 and d2 are equal.
+ * On error an error code is returned and result is
+ * undefined. If distributions don't exist or don't have the same structure
+ * EINVAL will be returned If distributions have* the same structure but are
+ * uncomparable ERANGE will be returned */
+static int distribution_cmp(distribution_t *d1, distribution_t *d2,
+                            int *result) {
   if (d1 == NULL || d2 == NULL) {
     return EINVAL;
   }
@@ -373,7 +376,7 @@ static int distribution_cmp(distribution_t *d1, distribution_t *d2, int *result)
   for (size_t i = 1; i < tree_size(d1->num_buckets); i++) {
     int cur_res =
         compare_uint64(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter);
-    if (cur_res != 0 && cur_res != *result)  {
+    if (cur_res != 0 && cur_res != *result) {
       return ERANGE;
     }
   }

@@ -362,7 +362,7 @@ static int uc_update_metric(metric_t const *m) {
     distribution_destroy(ce->distribution_increase);
     ce->distribution_increase = distribution_clone(m->value.distribution);
     int status = distribution_sub(ce->distribution_increase,
-                              ce->values_raw.distribution);
+                                  ce->values_raw.distribution);
     if (status == ERANGE) {
       distribution_destroy(ce->distribution_increase);
       ce->distribution_increase = distribution_clone(m->value.distribution);
