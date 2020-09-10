@@ -361,7 +361,7 @@ static int uc_update_metric(metric_t const *m) {
   case METRIC_TYPE_DISTRIBUTION: {
     distribution_destroy(ce->distribution_increase);
     ce->distribution_increase = distribution_clone(m->value.distribution);
-    status = distribution_sub(ce->distribution_increase,
+    int status = distribution_sub(ce->distribution_increase,
                               ce->values_raw.distribution);
     if (status == ERANGE) {
       distribution_destroy(ce->distribution_increase);
