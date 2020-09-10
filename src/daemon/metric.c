@@ -23,7 +23,6 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Manoj Srivastava <srivasta at google.com>
- *   Elene Margalitadze <elene.margalit at gmail.com>
  **/
 
 #include "collectd.h"
@@ -43,52 +42,6 @@
 /* Metric names must match the regex `[a-zA-Z_:][a-zA-Z0-9_:]*` */
 #define VALID_NAME_CHARS VALID_LABEL_CHARS ":"
 
-int distribution_count_marshal_text(strbuf_t *buf, distribution_t *dist) {
-  return strbuf_printf(buf, "%" PRIu64, distribution_total_counter(dist));
-}
-
-int distribution_sum_marshal_text(strbuf_t *buf, distribution_t *dist) {
-  return strbuf_printf(buf, GAUGE_FORMAT, distribution_total_sum(dist));
-}
-
-int distribution_marshal_text(strbuf_t *buf, distribution_t *dist) {
-  buckets_array_t buckets = get_buckets(dist);
-  int status_buckets_heading = strbuf_printf(buf, "\"buckets:\" {\n");
-  if (status_buckets_heading != 0) {
-    return status_buckets_heading;
-  }
-  for (size_t i = 0; i < buckets.num_buckets; i++) {
-    if (i < buckets.num_buckets - 1) {
-      int status_buckets =
-          strbuf_printf(buf, "\"%.2f\":\"%lu\",\n", buckets.buckets[i].maximum,
-                        buckets.buckets[i].bucket_counter);
-      if (status_buckets != 0) {
-        return status_buckets;
-      }
-    } else {
-      int status_buckets =
-          strbuf_printf(buf, "\"%.2f\":\"%lu\"\n", buckets.buckets[i].maximum,
-                        buckets.buckets[i].bucket_counter);
-      if (status_buckets != 0) {
-        return status_buckets;
-      }
-    }
-  }
-  int status_count = strbuf_printf(buf, "},\n\"count\":\"%lu\",\n",
-                                   distribution_total_counter(dist));
-  if (status_count != 0) {
-    return status_count;
-  }
-
-  int status_sum =
-      strbuf_printf(buf, "\"sum\":\"%.2f\n", distribution_total_sum(dist));
-  if (status_sum != 0) {
-    return status_sum;
-  }
-  destroy_buckets_array(buckets);
-  return 0;
-}
-
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   switch (type) {
   case METRIC_TYPE_GAUGE:
@@ -97,7 +50,8 @@ int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   case METRIC_TYPE_COUNTER:
     return strbuf_printf(buf, "%" PRIu64, v.counter);
   case METRIC_TYPE_DISTRIBUTION:
-    return distribution_marshal_text(buf, v.distribution);
+    ERROR("Distribution metrics are not to be represented as text.");
+    return EINVAL;
   default:
     ERROR("Unknown metric value type: %d", (int)type);
     return EINVAL;

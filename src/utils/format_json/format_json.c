@@ -125,24 +125,26 @@ static int format_metric_distribution(strbuf_t buf, yajl_gen g,
   for (size_t i = 0; i < buckets.num_buckets; i++) {
 
     double max = buckets.buckets[i].maximum;
-    char max_char[sizeof(max)];
-    snprintf(max_char, sizeof(max), "%.2f", max);
+    char max_char[32];
+    ssnprintf(max_char, sizeof(max_char), GAUGE_FORMAT, max);
 
     uint64_t bucket_counter = buckets.buckets[i].bucket_counter;
-    char counter_char[sizeof(bucket_counter)];
-    snprintf(counter_char, sizeof(bucket_counter), "%" PRIu64, bucket_counter);
+    char counter_char[32];
+    ssnprintf(counter_char, sizeof(counter_char), "%" PRIu64, bucket_counter);
     CHECK(json_add_string(g, max_char));
     CHECK(json_add_string(g, counter_char));
   }
   CHECK(yajl_gen_map_close(g)); /*End Buckets*/
 
-  distribution_count_marshal_text(&buf, m->value.distribution);
+  strbuf_printf(&buf, "%" PRIu64,
+                distribution_total_counter(m->value.distribution));
 
   CHECK(json_add_string(g, "count"));
   CHECK(json_add_string(g, buf.ptr));
   strbuf_reset(&buf);
 
-  distribution_sum_marshal_text(&buf, m->value.distribution);
+  strbuf_printf(&buf, GAUGE_FORMAT,
+                distribution_total_sum(m->value.distribution));
 
   CHECK(json_add_string(g, "sum"));
   CHECK(json_add_string(g, buf.ptr));
