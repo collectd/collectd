@@ -31,14 +31,16 @@ import java.util.Map;
 import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 import javax.management.MBeanServerConnection;
 
 import javax.management.remote.JMXServiceURL;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
+
+import static javax.management.remote.rmi.RMIConnectorServer.RMI_CLIENT_SOCKET_FACTORY_ATTRIBUTE;
+
+import javax.rmi.ssl.SslRMIClientSocketFactory;
 
 import org.collectd.api.Collectd;
 import org.collectd.api.PluginData;
@@ -52,6 +54,7 @@ class GenericJMXConfConnection
   private String _host = null;
   private String _instance_prefix = null;
   private String _service_url = null;
+  private boolean _ssl = false;
   private JMXConnector _jmx_connector = null;
   private MBeanServerConnection _mbean_connection = null;
   private List<GenericJMXConfMBean> _mbeans = null;
@@ -116,6 +119,17 @@ class GenericJMXConfConnection
       environment = new HashMap<String,Object> ();
       environment.put (JMXConnector.CREDENTIALS, credentials);
       environment.put (JMXConnectorFactory.PROTOCOL_PROVIDER_CLASS_LOADER, this.getClass().getClassLoader());
+      if(this._ssl) {
+        SslRMIClientSocketFactory rmiClientSocketFactory = new SslRMIClientSocketFactory();
+        // Required when JMX is secured with SSL
+        // with com.sun.management.jmxremote.ssl=true
+        // as shown in http://docs.oracle.com/javase/8/docs/technotes/guides/management/agent.html#gdfvq
+        environment.put(RMI_CLIENT_SOCKET_FACTORY_ATTRIBUTE, rmiClientSocketFactory);
+        // Required when JNDI Registry is secured with SSL
+        // with com.sun.management.jmxremote.registry.ssl=true
+        // This property is defined in com.sun.jndi.rmi.registry.RegistryContext.SOCKET_FACTORY
+        environment.put("com.sun.jndi.rmi.factory.socket", rmiClientSocketFactory);
+      }
     }
 
     try
@@ -220,6 +234,11 @@ class GenericJMXConfConnection
           Collectd.logDebug ("GenericJMXConfConnection: " + this._host + ": Add " + tmp);
           this._mbeans.add (mbean);
         }
+      } else if (child.getKey ().equalsIgnoreCase ("Ssl"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._ssl = Boolean.valueOf(tmp);
       }
       else
         throw (new IllegalArgumentException ("Unknown option: "
