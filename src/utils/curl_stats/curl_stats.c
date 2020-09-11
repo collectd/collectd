@@ -46,6 +46,7 @@ typedef struct {
   double factor;
   size_t num_boundaries;
   double *boundaries;
+  size_t num_boundaries_from_array;
 } distribution_specs_t;
 
 typedef struct {
@@ -499,6 +500,12 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     return NULL;
   }
 
+  distribution_specs_t **dists_specs = calloc(NUM_ATTR, sizeof(distribution_specs_t*));
+
+  for (int i = 0; i < NUM_ATTR; ++i) {
+    dists_specs[i] = calloc(1, sizeof(distribution_specs_t));
+  }
+
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
     size_t field;
@@ -533,6 +540,9 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         return NULL;
       }
 
+      /* jakos trzeba wziac dobry index */
+      int idx;
+
       if (field > 5) { /* read uint64_t */
         size_t value;
 
@@ -541,20 +551,20 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           return NULL;
         }
 
-        *(size_t *)((char *)m_spec + metric_specs[field].offset) = value;
+        *(size_t *)((char *)dists_specs[idx] + metric_specs[field].offset) = value;
       } else if (field == 5) {
-        m_spec->num_boundaries_from_array = c->values_num;
+        dists_specs[idx]->num_boundaries_from_array = c->values_num;
 
         double *boundaries =
-            calloc(m_spec->num_boundaries_from_array, sizeof(double));
+            calloc(dists_specs[idx]->num_boundaries_from_array, sizeof(double));
 
-        for (size_t j = 0; j < m_spec->num_boundaries_from_array; ++j) {
+        for (size_t j = 0; j < dists_specs[idx]->num_boundaries_from_array; ++j) {
           if (c->values->type != OCONFIG_TYPE_NUMBER) {
             ERROR("curl_stats_from_config: Wrong type for distribution custom "
                   "boundary. Required %d, received %d.",
                   OCONFIG_TYPE_NUMBER, c->values->type);
             /* TODO(bkjg): here should be function for destroying metric_spec */
-            free(m_spec);
+            free(dists_specs);
             free(s);
             return NULL;
           }
@@ -562,7 +572,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           boundaries[j] = c->values[j].value.number;
         }
 
-        *(double **)((char *)m_spec + metric_specs[field].offset) = boundaries;
+        *(double **)((char *)dists_specs[idx] + metric_specs[field].offset) = boundaries;
       } else if (field > 2) { /* read double */
         double value;
 
@@ -571,8 +581,9 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           return NULL;
         }
 
-        *(double *)((char *)m_spec + metric_specs[field].offset) = value;
+        *(double *)((char *)dists_specs[idx] + metric_specs[field].offset) = value;
       } else { /* read char * */
+        static const int MAX_BUFFER_LENGTH = 256;
         char buffer[MAX_BUFFER_LENGTH];
 
         if (cf_util_get_string_buffer(c, buffer, MAX_BUFFER_LENGTH) != 0) {
@@ -580,12 +591,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           return NULL;
         }
 
-        *(char **)((char *)m_spec + metric_specs[field].offset) =
+        *(char **)((char *)dists_specs[idx] + metric_specs[field].offset) =
             strdup(buffer);
-      }
-
-      if (m_spec->metric_identity == NULL) {
-        m_spec->metric_identity = identity;
       }
 
       continue;
@@ -610,6 +617,13 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
       field_specs[field].metric_family_offset = offset;
     }
+  }
+
+  distribution_t **d;
+  if ((d = parse_metric_from_config(dists_specs)) == NULL) {
+    /* error */
+    curl_stats_destroy(s);
+    return NULL;
   }
 
   return s;
