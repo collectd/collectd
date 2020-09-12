@@ -36,9 +36,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-static const int SIZE_CONF = 0;
-static const int SPEED_CONF = 1;
-static const int TIME_CONF = 2;
 static const int NUM_ATTR = 3;
 
 typedef struct {
@@ -95,17 +92,26 @@ parse_metric_from_config(distribution_specs_t *dists_specs[NUM_ATTR]) {
     }
   }
 
+  /* idx = 0 <- per size attribute
+   * idx = 1 <- per speed attribute
+   * idx = 2 <- per time attribute */
   distribution_t **d = calloc(NUM_ATTR, sizeof(distribution_t *));
 
   if (d == NULL) {
     return NULL;
   }
 
+  static const double default_linear_base_per_attr[] = {8.0, 16.0, 0.001};
+
+  static const double default_exponential_base_per_attr[] = {2.0, 1.25, 1.1};
+
+  static const double default_factor_per_attr[] = {2.0, 8.0, 0.001};
+
   /* TODO(bkjg): choose reasonable distribution arguments for every type of data
    */
   for (int attr = 0; attr < NUM_ATTR; ++attr) {
     if (dists_specs[attr]->distribution_type == NULL) {
-
+      d[attr] = distribution_new_linear(MAX_NUM_BUCKETS, default_linear_base_per_attr[attr]);
     } else if (!strcasecmp(dists_specs[attr]->distribution_type, "Linear")) {
       size_t num_buckets;
 
@@ -117,7 +123,7 @@ parse_metric_from_config(distribution_specs_t *dists_specs[NUM_ATTR]) {
 
       double base;
       if (dists_specs[attr]->base == 0 && dists_specs[attr]->factor == 0) {
-        base = 8;
+        base = default_linear_base_per_attr[attr];
       } else if (dists_specs[attr]->base == 0) {
         base = dists_specs[attr]->factor;
       } else {
@@ -137,14 +143,17 @@ parse_metric_from_config(distribution_specs_t *dists_specs[NUM_ATTR]) {
 
       double base, factor;
       if (dists_specs[attr]->base == 0 && dists_specs[attr]->factor == 0) {
-        base = 2;
-        factor = 2;
+        base = default_exponential_base_per_attr[attr];
+        factor = default_factor_per_attr[attr];
       } else if (dists_specs[attr]->base == 0) {
-        base = 2;
+        base = default_exponential_base_per_attr[attr];
         factor = dists_specs[attr]->factor;
+      } else if (dists_specs[attr]->factor == 0) {
+        base = dists_specs[attr]->base;
+        factor = default_factor_per_attr[attr];
       } else {
         base = dists_specs[attr]->base;
-        factor = 2;
+        factor = dists_specs[attr]->factor;
       }
 
       d[attr] = distribution_new_exponential(num_buckets, base, factor);
@@ -153,7 +162,7 @@ parse_metric_from_config(distribution_specs_t *dists_specs[NUM_ATTR]) {
       size_t num_boundaries;
 
       if (dists_specs[attr]->num_boundaries == 0) {
-        num_boundaries = MAX_NUM_BUCKETS - 1;
+        num_boundaries = dists_specs[attr]->num_boundaries_from_array;
       } else {
         num_boundaries = dists_specs[attr]->num_boundaries;
       }
@@ -485,21 +494,21 @@ static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx,
   /* TODO(bkjg): what should the arguments for distribution look like? */
   if (!strcasecmp("bytes", unit)) {
     status = metric_family_append(
-        s->metrics->size_fam, "Attributes", name,
-        (value_t){.distribution = distribution_new_linear(1024, 8)}, NULL);
+        s->metrics->size_fam, "Attributes", strdup(name),
+        (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->size_fam->metric.num - 1;
   } else if (!strcasecmp("bitrate", unit)) {
     status = metric_family_append(
-        s->metrics->speed_fam, "Attributes", name,
-        (value_t){.distribution = distribution_new_linear(1024, 1.5)}, NULL);
+        s->metrics->speed_fam, "Attributes", strdup(name),
+        (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->speed_fam->metric.num - 1;
   } else if (!strcasecmp("duration", unit)) {
     status = metric_family_append(
-        s->metrics->time_fam, "Attributes", name,
-        (value_t){.distribution = distribution_new_linear(1024, 0.001)}, NULL);
+        s->metrics->time_fam, "Attributes", strdup(name),
+        (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->time_fam->metric.num - 1;
   } else if (!strcasecmp("count", unit)) {
-    status = metric_family_append(s->metrics->count_fam, "Attributes", name,
+    status = metric_family_append(s->metrics->count_fam, "Attributes", strdup(name),
                                   (value_t){.gauge = 0}, NULL);
     *idx = s->metrics->count_fam->metric.num - 1;
   }
@@ -560,8 +569,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
 
     if (field >= STATIC_ARRAY_SIZE(field_specs)) {
-      /* TODO(bkjg): create an array with names of metric types */
-      /* TODO(bkjg): check if only one type of distribution is specified (??) */
       for (field = 0; field < STATIC_ARRAY_SIZE(metric_specs); ++field) {
         if (!strcasecmp(c->key, metric_specs[field].config_key)) {
           break;
@@ -575,7 +582,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       }
 
       /* jakos trzeba wziac dobry index */
-      int idx;
+      size_t num_fields_per_attr = STATIC_ARRAY_SIZE(metric_specs) / NUM_ATTR;
+      size_t idx = field / num_fields_per_attr;
 
       if (field > 5) { /* read uint64_t */
         size_t value;
@@ -599,7 +607,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
             ERROR("curl_stats_from_config: Wrong type for distribution custom "
                   "boundary. Required %d, received %d.",
                   OCONFIG_TYPE_NUMBER, c->values->type);
-            /* TODO(bkjg): here should be function for destroying metric_spec */
+            /* TODO(bkjg): here should be function for destroying metric_spec
+             * and dists_specs */
             free(dists_specs);
             free(s);
             return NULL;
@@ -660,6 +669,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   distribution_t **d;
   if ((d = parse_metric_from_config(dists_specs)) == NULL) {
     /* error */
+    /* TODO(bkjg): function for destroying dists_specs */
     curl_stats_destroy(s);
     return NULL;
   }
