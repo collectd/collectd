@@ -32,223 +32,226 @@ DEF_TEST(curl_stats_from_config) {
   struct {
     oconfig_item_t ci;
     curl_stats_t *want_get;
-  } cases[] = {
+  } cases[] =
       {
-          .ci =
-              {
-                  .children =
-                      (oconfig_item_t[]){
-                          {
-                              .key = "SizeDistributionType",
-                              .values_num = 1,
-                              .values =
-                                  (oconfig_value_t[]){
-                                      {
-                                          .type = OCONFIG_TYPE_STRING,
-                                          .value.string = "test",
-                                      },
-                                  },
-
-                          },
-                      },
-                  .children_num = 1,
-              },
-          .want_get = NULL,
-      },
-      {
-          .ci =
-              {
-                  .children =
-                      (oconfig_item_t[]){
-                          {
-                              .key = "SpeedDistributionType",
-                              .values_num = 1,
-                              .values =
-                                  (oconfig_value_t[]){
-                                      {
-                                          .type = OCONFIG_TYPE_NUMBER,
-                                          .value.number = 5,
-                                      },
-                                  },
-
-                          },
-                      },
-                  .children_num = 1,
-              },
-          .want_get = NULL,
-      },
-      {
-          .ci =
-              {
-                  .children =
-                      (oconfig_item_t[]){
-                          {
-                              .key = "SizeDistributionType",
-                              .values_num = 2,
-                              .values =
-                                  (oconfig_value_t[]){
-                                      {
-                                          .type = OCONFIG_TYPE_STRING,
-                                          .value.string = "linear",
-                                      },
-                                      {
-                                          .type = OCONFIG_TYPE_STRING,
-                                          .value.string = "exponential",
-                                      },
-                                  },
-
-                          },
-                      },
-                  .children_num = 1,
-              },
-          .want_get = NULL,
-      },
-      {
-          .ci =
-              {
-                  .children =
-                      (oconfig_item_t[]){
-                          {
-                              .key = "TimeDistributionType",
-                              .values_num = 1,
-                              .values =
-                                  (oconfig_value_t[]){
-                                      {
-                                          .type = OCONFIG_TYPE_STRING,
-                                          .value.string = "exponential",
-                                      },
-                                  },
-
-                          },
-                          {.key = "TimeBase",
-                           .values_num = 1,
-                           .values = (oconfig_value_t[]){{
-                               .type = OCONFIG_TYPE_BOOLEAN,
-                               .value.boolean = 1,
-                           }}},
-                      },
-                  .children_num = 2,
-              },
-          .want_get = NULL,
-      },
-      {
-          .ci =
-              {
-                  .children =
-                      (oconfig_item_t[]){
-                          {
-                              .key = "SpeedDistributionType",
-                              .values_num = 1,
-                              .values =
-                                  (oconfig_value_t[]){
-                                      {
-                                          .type = OCONFIG_TYPE_STRING,
-                                          .value.string = "custom",
-                                      },
-                                  },
-
-                          },
-                          {.key = "SizeFactor",
-                           .values_num = 1,
-                           .values = (oconfig_value_t[]){{
-                               .type = OCONFIG_TYPE_NUMBER,
-                               .value.number = 5,
-                           }}},
-                      },
-                  .children_num = 2,
-              },
-          .want_get = NULL,
-      },
-      {
-          .ci =
-              {
-                  .children =
-                  (oconfig_item_t[]){
-                      {
-                          .key = "SpeedDistributionType",
-                          .values_num = 1,
-                          .values =
-                          (oconfig_value_t[]){
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
                               {
-                                  .type = OCONFIG_TYPE_STRING,
-                                  .value.string = "custom",
+                                  .key = "SizeDistributionType",
+                                  .values_num = 1,
+                                  .values =
+                                      (oconfig_value_t[]){
+                                          {
+                                              .type = OCONFIG_TYPE_STRING,
+                                              .value.string = "test",
+                                          },
+                                      },
+
                               },
                           },
-
-                      },
-                      {.key = "SizeFactor",
-                          .values_num = 1,
-                          .values = (oconfig_value_t[]){{
-                                                            .type = OCONFIG_TYPE_NUMBER,
-                                                            .value.number = 5,
-                                                        }}},
-                      {.key = "SpeedBoundaries",
-                          .values_num = 3,
-                          .values = (oconfig_value_t[]){{
-                                                            .type = OCONFIG_TYPE_NUMBER,
-                                                            .value.number = 5,
-                                                        },
-                                                        {
-                                                            .type = OCONFIG_TYPE_NUMBER,
-                                                            .value.number = 7.8,
-                                                        },
-                                                        {
-                                                            .type = OCONFIG_TYPE_STRING,
-                                                            .value.string = "7",
-                                                        }}}
+                      .children_num = 1,
                   },
-                  .children_num = 3,
-              },
-          .want_get = NULL,
-      },
-      {
-          .ci =
-              {
-                  .children =
-                  (oconfig_item_t[]){
-                      {
-                          .key = "TimeDistributionType",
-                          .values_num = 1,
-                          .values =
-                          (oconfig_value_t[]){
+              .want_get = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
                               {
-                                  .type = OCONFIG_TYPE_STRING,
-                                  .value.string = "exponential",
+                                  .key = "SpeedDistributionType",
+                                  .values_num = 1,
+                                  .values =
+                                      (oconfig_value_t[]){
+                                          {
+                                              .type = OCONFIG_TYPE_NUMBER,
+                                              .value.number = 5,
+                                          },
+                                      },
+
                               },
                           },
+                      .children_num = 1,
+                  },
+              .want_get = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .key = "SizeDistributionType",
+                                  .values_num = 2,
+                                  .values =
+                                      (oconfig_value_t[]){
+                                          {
+                                              .type = OCONFIG_TYPE_STRING,
+                                              .value.string = "linear",
+                                          },
+                                          {
+                                              .type = OCONFIG_TYPE_STRING,
+                                              .value.string = "exponential",
+                                          },
+                                      },
 
-                      },
-                      {.key = "TimeFactor",
-                          .values_num = 1,
-                          .values = (oconfig_value_t[]){{
-                                                            .type = OCONFIG_TYPE_NUMBER,
-                                                            .value.number = 5,
-                                                        }}},
-                      {.key = "TimeBase",
-                          .values_num = 1,
-                          .values = (oconfig_value_t[]){{
-                                                            .type = OCONFIG_TYPE_NUMBER,
-                                                            .value.number = 0.5,
-                                                        }}}
+                              },
+                          },
+                      .children_num = 1,
                   },
-                  .children_num = 3,
-              },
-          .want_get = NULL,
-      },
-      {
-          .ci =
-              {
-                  .children =
-                  (oconfig_item_t[]){
-                      {
-                          .key = "AnyAttribute",
-                      },
+              .want_get = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .key = "TimeDistributionType",
+                                  .values_num = 1,
+                                  .values =
+                                      (oconfig_value_t[]){
+                                          {
+                                              .type = OCONFIG_TYPE_STRING,
+                                              .value.string = "exponential",
+                                          },
+                                      },
+
+                              },
+                              {.key = "TimeBase",
+                               .values_num = 1,
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_BOOLEAN,
+                                   .value.boolean = 1,
+                               }}},
+                          },
+                      .children_num = 2,
                   },
-                  .children_num = 1,
-              },
-          .want_get = NULL,
-      },
-  };
+              .want_get = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .key = "SpeedDistributionType",
+                                  .values_num = 1,
+                                  .values =
+                                      (oconfig_value_t[]){
+                                          {
+                                              .type = OCONFIG_TYPE_STRING,
+                                              .value.string = "custom",
+                                          },
+                                      },
+
+                              },
+                              {.key = "SizeFactor",
+                               .values_num = 1,
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_NUMBER,
+                                   .value.number = 5,
+                               }}},
+                          },
+                      .children_num = 2,
+                  },
+              .want_get = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .key = "SpeedDistributionType",
+                                  .values_num = 1,
+                                  .values =
+                                      (oconfig_value_t[]){
+                                          {
+                                              .type = OCONFIG_TYPE_STRING,
+                                              .value.string = "custom",
+                                          },
+                                      },
+
+                              },
+                              {.key = "SizeFactor",
+                               .values_num = 1,
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_NUMBER,
+                                   .value.number = 5,
+                               }}},
+                              {.key = "SpeedBoundaries",
+                               .values_num = 3,
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 5,
+                                       },
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 7.8,
+                                       },
+                                       {
+                                           .type = OCONFIG_TYPE_STRING,
+                                           .value.string = "7",
+                                       }}}},
+                      .children_num = 3,
+                  },
+              .want_get = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .key = "TimeDistributionType",
+                                  .values_num = 1,
+                                  .values =
+                                      (oconfig_value_t[]){
+                                          {
+                                              .type = OCONFIG_TYPE_STRING,
+                                              .value.string = "exponential",
+                                          },
+                                      },
+
+                              },
+                              {.key = "TimeFactor",
+                               .values_num = 1,
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_NUMBER,
+                                   .value.number = 5,
+                               }}},
+                              {.key = "TimeBase",
+                               .values_num = 1,
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 0.5,
+                                       }}}},
+                      .children_num = 3,
+                  },
+              .want_get = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .key = "AnyAttribute",
+                              },
+                          },
+                      .children_num = 1,
+                  },
+              .want_get = NULL,
+          },
+      };
 
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
     curl_stats_t *s;
@@ -259,8 +262,6 @@ DEF_TEST(curl_stats_from_config) {
       EXPECT_EQ_PTR(cases[i].want_get, s);
     } else {
       CHECK_NOT_NULL(s);
-
-
     }
   }
 
