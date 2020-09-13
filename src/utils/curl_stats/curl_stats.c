@@ -80,16 +80,10 @@ struct curl_stats_s {
  * Private functions
  */
 static distribution_t **
-parse_metric_from_config(distribution_specs_t *dists_specs[NUM_ATTR]) {
+parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
   const size_t MAX_NUM_BUCKETS = 1024;
   if (dists_specs == NULL) {
     return NULL;
-  }
-
-  for (int i = 0; i < NUM_ATTR; ++i) {
-    if (dists_specs[i] == NULL) {
-      return NULL;
-    }
   }
 
   /* idx = 0 <- per size attribute
@@ -108,71 +102,84 @@ parse_metric_from_config(distribution_specs_t *dists_specs[NUM_ATTR]) {
   static const double default_factor_per_attr[] = {2.0, 8.0, 0.001};
 
   for (int attr = 0; attr < NUM_ATTR; ++attr) {
-    if (dists_specs[attr]->distribution_type == NULL) {
-      d[attr] = distribution_new_linear(MAX_NUM_BUCKETS, default_linear_base_per_attr[attr]);
-    } else if (!strcasecmp(dists_specs[attr]->distribution_type, "Linear")) {
+    printf("distirbution type: %s\n", dists_specs[attr].distribution_type);
+    if (dists_specs[attr].distribution_type == NULL) {
+      d[attr] = distribution_new_linear(MAX_NUM_BUCKETS,
+                                        default_linear_base_per_attr[attr]);
+    } else if (!strcasecmp(dists_specs[attr].distribution_type, "Linear")) {
       size_t num_buckets;
 
-      if (dists_specs[attr]->num_buckets == 0) {
+      if (dists_specs[attr].num_buckets == 0) {
         num_buckets = MAX_NUM_BUCKETS;
       } else {
-        num_buckets = dists_specs[attr]->num_buckets;
+        num_buckets = dists_specs[attr].num_buckets;
       }
 
       double base;
-      if (dists_specs[attr]->base == 0 && dists_specs[attr]->factor == 0) {
+      if (dists_specs[attr].base == 0 && dists_specs[attr].factor == 0) {
         base = default_linear_base_per_attr[attr];
-      } else if (dists_specs[attr]->base == 0) {
-        base = dists_specs[attr]->factor;
+      } else if (dists_specs[attr].base == 0) {
+        base = dists_specs[attr].factor;
       } else {
-        base = dists_specs[attr]->base;
+        base = dists_specs[attr].base;
       }
 
       d[attr] = distribution_new_linear(num_buckets, base);
-    } else if (!strcasecmp(dists_specs[attr]->distribution_type,
+    } else if (!strcasecmp(dists_specs[attr].distribution_type,
                            "Exponential")) {
       size_t num_buckets;
 
-      if (dists_specs[attr]->num_buckets == 0) {
+      if (dists_specs[attr].num_buckets == 0) {
         num_buckets = MAX_NUM_BUCKETS;
       } else {
-        num_buckets = dists_specs[attr]->num_buckets;
+        num_buckets = dists_specs[attr].num_buckets;
       }
 
       double base, factor;
-      if (dists_specs[attr]->base == 0 && dists_specs[attr]->factor == 0) {
+      if (dists_specs[attr].base == 0 && dists_specs[attr].factor == 0) {
         base = default_exponential_base_per_attr[attr];
         factor = default_factor_per_attr[attr];
-      } else if (dists_specs[attr]->base == 0) {
+      } else if (dists_specs[attr].base == 0) {
         base = default_exponential_base_per_attr[attr];
-        factor = dists_specs[attr]->factor;
-      } else if (dists_specs[attr]->factor == 0) {
-        base = dists_specs[attr]->base;
+        factor = dists_specs[attr].factor;
+      } else if (dists_specs[attr].factor == 0) {
+        base = dists_specs[attr].base;
         factor = default_factor_per_attr[attr];
       } else {
-        base = dists_specs[attr]->base;
-        factor = dists_specs[attr]->factor;
+        base = dists_specs[attr].base;
+        factor = dists_specs[attr].factor;
       }
 
       d[attr] = distribution_new_exponential(num_buckets, base, factor);
-    } else if (!strcasecmp(dists_specs[attr]->distribution_type, "Custom") &&
-               dists_specs[attr]->boundaries != NULL) {
+    } else if (!strcasecmp(dists_specs[attr].distribution_type, "Custom")) {
+      if (dists_specs[attr].boundaries == NULL) {
+        ERROR("curl_stats_from_config: Buckets boundaries for distribution "
+              "type custom are required!");
+
+        for (int i = 0; i < attr; ++i) {
+          distribution_destroy(d[i]);
+        }
+
+        free(d);
+
+        return NULL;
+      }
       size_t num_boundaries;
 
-      if (dists_specs[attr]->num_boundaries == 0) {
-        num_boundaries = dists_specs[attr]->num_boundaries_from_array;
+      if (dists_specs[attr].num_boundaries == 0) {
+        num_boundaries = dists_specs[attr].num_boundaries_from_array;
       } else {
-        num_boundaries = dists_specs[attr]->num_boundaries;
+        num_boundaries = dists_specs[attr].num_boundaries;
       }
 
-      double *boundaries = dists_specs[attr]->boundaries;
+      double *boundaries = dists_specs[attr].boundaries;
       d[attr] = distribution_new_custom(num_boundaries, boundaries);
     } else {
       ERROR("curl_stats_from_config: distribution type: %s is not supported!",
-            dists_specs[attr]->distribution_type);
+            dists_specs[attr].distribution_type);
 
       for (int i = 0; i < attr; ++i) {
-        free(d[i]);
+        distribution_destroy(d[i]);
       }
 
       free(d);
@@ -459,8 +466,8 @@ static struct {
   size_t offset;
   const char *unit;
 } metric_specs[] = {
-#define SPEC(name, config_key, unit)                                                 \
-  { #name, config_key, offsetof(distribution_specs_t, name), unit}
+#define SPEC(name, config_key, unit)                                           \
+  { #name, config_key, offsetof(distribution_specs_t, name), unit }
 
     SPEC(distribution_type, "SizeDistributionType", "string"),
     SPEC(base, "SizeBase", "double"),
@@ -492,19 +499,16 @@ static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx,
 
   /* TODO(bkjg): what should the arguments for distribution look like? */
   if (!strcasecmp("bytes", unit)) {
-    status = metric_family_append(
-        s->metrics->size_fam, "Attributes", name,
-        (value_t){.distribution = NULL}, NULL);
+    status = metric_family_append(s->metrics->size_fam, "Attributes", name,
+                                  (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->size_fam->metric.num - 1;
   } else if (!strcasecmp("bitrate", unit)) {
-    status = metric_family_append(
-        s->metrics->speed_fam, "Attributes", name,
-        (value_t){.distribution = NULL}, NULL);
+    status = metric_family_append(s->metrics->speed_fam, "Attributes", name,
+                                  (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->speed_fam->metric.num - 1;
   } else if (!strcasecmp("duration", unit)) {
-    status = metric_family_append(
-        s->metrics->time_fam, "Attributes", name,
-        (value_t){.distribution = NULL}, NULL);
+    status = metric_family_append(s->metrics->time_fam, "Attributes", name,
+                                  (value_t){.distribution = NULL}, NULL);
     *idx = s->metrics->time_fam->metric.num - 1;
   } else if (!strcasecmp("count", unit)) {
     status = metric_family_append(s->metrics->count_fam, "Attributes", name,
@@ -541,14 +545,12 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     return NULL;
   }
 
-  distribution_specs_t **dists_specs =
-      calloc(NUM_ATTR, sizeof(distribution_specs_t *));
+  distribution_specs_t *dists_specs =
+      calloc(NUM_ATTR, sizeof(distribution_specs_t));
 
-  for (int i = 0; i < NUM_ATTR; ++i) {
-    dists_specs[i] = calloc(1, sizeof(distribution_specs_t));
-  }
-
+  printf("Before first for loop, %d\n", ci->children_num);
   for (int i = 0; i < ci->children_num; ++i) {
+    printf("First for loop\n");
     oconfig_item_t *c = ci->children + i;
     size_t field;
 
@@ -562,24 +564,25 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
 
     if (field >= STATIC_ARRAY_SIZE(field_specs)) {
-      ERROR("curl stats: Unknown field name %s", c->key);
-      free(s);
-      return NULL;
-    }
-
-    if (field >= STATIC_ARRAY_SIZE(field_specs)) {
       for (field = 0; field < STATIC_ARRAY_SIZE(metric_specs); ++field) {
         if (!strcasecmp(c->key, metric_specs[field].config_key)) {
           break;
         }
       }
 
+      printf("After for loop\n");
       if (field >= STATIC_ARRAY_SIZE(metric_specs)) {
         ERROR("curl stats: Unknown field name %s", c->key);
-        free(s);
+
+        for (int j = 0; j < NUM_ATTR; ++j) {
+          free(dists_specs[j].distribution_type);
+        }
+        free(dists_specs);
+        curl_stats_destroy(s);
         return NULL;
       }
 
+      printf("field: %ld\n", field);
       size_t num_fields_per_attr = STATIC_ARRAY_SIZE(metric_specs) / NUM_ATTR;
       size_t attr_idx = field / num_fields_per_attr;
 
@@ -587,64 +590,88 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         size_t value;
 
         if (cf_util_get_uint64(c, &value) != 0) {
-          free(s);
+          for (int j = 0; j < NUM_ATTR; ++j) {
+            free(dists_specs[j].distribution_type);
+          }
+          free(dists_specs);
+          curl_stats_destroy(s);
           return NULL;
         }
 
-        *(size_t *)((char *)dists_specs[attr_idx] + metric_specs[field].offset) =
-            value;
+        *(size_t *)((char *)&dists_specs[attr_idx] +
+                    metric_specs[field].offset) = value;
       } else if (!strcasecmp(metric_specs[field].unit, "double*")) {
-        dists_specs[attr_idx]->num_boundaries_from_array = c->values_num;
+        dists_specs[attr_idx].num_boundaries_from_array = c->values_num;
 
-        double *boundaries =
-            calloc(dists_specs[attr_idx]->num_boundaries_from_array, sizeof(double));
+        double *boundaries = calloc(
+            dists_specs[attr_idx].num_boundaries_from_array, sizeof(double));
 
-        for (size_t j = 0; j < dists_specs[attr_idx]->num_boundaries_from_array;
+        for (size_t j = 0; j < dists_specs[attr_idx].num_boundaries_from_array;
              ++j) {
           if (c->values[j].type != OCONFIG_TYPE_NUMBER) {
             ERROR("curl_stats_from_config: Wrong type for distribution custom "
                   "boundary. Required %d, received %d.",
-                  OCONFIG_TYPE_NUMBER, c->values->type);
+                  OCONFIG_TYPE_NUMBER, c->values[j].type);
             /* TODO(bkjg): here should be function for destroying metric_spec
              * and dists_specs */
+            for (int k = 0; k < NUM_ATTR; ++k) {
+              free(dists_specs[k].distribution_type);
+            }
             free(dists_specs);
-            free(s);
+            free(boundaries);
+            curl_stats_destroy(s);
             return NULL;
           }
 
           boundaries[j] = c->values[j].value.number;
         }
 
-        *(double **)((char *)dists_specs[attr_idx] + metric_specs[field].offset) =
-            boundaries;
-      } else if (!strcasecmp(metric_specs[field].unit, "double")) { /* read double */
+        *(double **)((char *)&dists_specs[attr_idx] +
+                     metric_specs[field].offset) = boundaries;
+      } else if (!strcasecmp(metric_specs[field].unit,
+                             "double")) { /* read double */
         double value;
 
         if (cf_util_get_double(c, &value) != 0) {
-          free(s);
+          for (int j = 0; j < NUM_ATTR; ++j) {
+            free(dists_specs[j].distribution_type);
+          }
+          free(dists_specs);
+
+          curl_stats_destroy(s);
           return NULL;
         }
 
-        *(double *)((char *)dists_specs[attr_idx] + metric_specs[field].offset) =
-            value;
+        *(double *)((char *)&dists_specs[attr_idx] +
+                    metric_specs[field].offset) = value;
       } else { /* read string */
         static const int MAX_BUFFER_LENGTH = 256;
         char buffer[MAX_BUFFER_LENGTH];
 
+        printf("string\n");
         if (cf_util_get_string_buffer(c, buffer, MAX_BUFFER_LENGTH) != 0) {
-          free(s);
+          printf("Error inside getting string buffer\n");
+          for (int j = 0; j < NUM_ATTR; ++j) {
+            free(dists_specs[j].distribution_type);
+          }
+          free(dists_specs);
+          curl_stats_destroy(s);
           return NULL;
         }
 
-        *(char **)((char *)dists_specs[attr_idx] + metric_specs[field].offset) =
-            strdup(buffer);
+        *(char **)((char *)&dists_specs[attr_idx] +
+                   metric_specs[field].offset) = strdup(buffer);
       }
 
       continue;
     }
 
     if (cf_util_get_boolean(c, &enabled) != 0) {
-      free(s);
+      for (int j = 0; j < NUM_ATTR; ++j) {
+        free(dists_specs[j].distribution_type);
+      }
+      free(dists_specs);
+      curl_stats_destroy(s);
       return NULL;
     }
 
@@ -656,6 +683,10 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
       if (status != 0) {
         /* error */
+        for (int j = 0; j < NUM_ATTR; ++j) {
+          free(dists_specs[j].distribution_type);
+        }
+        free(dists_specs);
         curl_stats_destroy(s);
         return NULL;
       }
@@ -667,17 +698,25 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   distribution_t **d;
   if ((d = parse_metric_from_config(dists_specs)) == NULL) {
     /* error */
+    printf("error\n");
     /* TODO(bkjg): function for destroying dists_specs */
+    for (int i = 0; i < NUM_ATTR; ++i) {
+      free(dists_specs[i].distribution_type);
+    }
+    free(dists_specs);
     curl_stats_destroy(s);
     return NULL;
   }
 
   for (int i = 0; i < NUM_ATTR; ++i) {
     distribution_destroy(d[i]);
-    free(dists_specs[i]);
   }
 
   free(d);
+
+  for (int i = 0; i < NUM_ATTR; ++i) {
+    free(dists_specs[i].distribution_type);
+  }
   free(dists_specs);
 
   return s;
