@@ -102,7 +102,6 @@ parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
   static const double default_factor_per_attr[] = {2.0, 8.0, 0.001};
 
   for (int attr = 0; attr < NUM_ATTR; ++attr) {
-    printf("distirbution type: %s\n", dists_specs[attr].distribution_type);
     if (dists_specs[attr].distribution_type == NULL) {
       d[attr] = distribution_new_linear(MAX_NUM_BUCKETS,
                                         default_linear_base_per_attr[attr]);
@@ -548,9 +547,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   distribution_specs_t *dists_specs =
       calloc(NUM_ATTR, sizeof(distribution_specs_t));
 
-  printf("Before first for loop, %d\n", ci->children_num);
   for (int i = 0; i < ci->children_num; ++i) {
-    printf("First for loop\n");
     oconfig_item_t *c = ci->children + i;
     size_t field;
 
@@ -570,7 +567,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         }
       }
 
-      printf("After for loop\n");
       if (field >= STATIC_ARRAY_SIZE(metric_specs)) {
         ERROR("curl stats: Unknown field name %s", c->key);
 
@@ -582,7 +578,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         return NULL;
       }
 
-      printf("field: %ld\n", field);
       size_t num_fields_per_attr = STATIC_ARRAY_SIZE(metric_specs) / NUM_ATTR;
       size_t attr_idx = field / num_fields_per_attr;
 
@@ -648,9 +643,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         static const int MAX_BUFFER_LENGTH = 256;
         char buffer[MAX_BUFFER_LENGTH];
 
-        printf("string\n");
         if (cf_util_get_string_buffer(c, buffer, MAX_BUFFER_LENGTH) != 0) {
-          printf("Error inside getting string buffer\n");
           for (int j = 0; j < NUM_ATTR; ++j) {
             free(dists_specs[j].distribution_type);
           }
@@ -698,7 +691,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   distribution_t **d;
   if ((d = parse_metric_from_config(dists_specs)) == NULL) {
     /* error */
-    printf("error\n");
     /* TODO(bkjg): function for destroying dists_specs */
     for (int i = 0; i < NUM_ATTR; ++i) {
       free(dists_specs[i].distribution_type);
