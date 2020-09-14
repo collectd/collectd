@@ -113,18 +113,7 @@ parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
       num_buckets = dists_specs[attr].num_buckets;
     }
 
-    if (dists_specs[attr].distribution_type == NULL) {
-      double base;
-      if (dists_specs[attr].base == 0 && dists_specs[attr].factor == 0) {
-        base = default_linear_base_per_attr[attr];
-      } else if (dists_specs[attr].base == 0) {
-        base = dists_specs[attr].factor;
-      } else {
-        base = dists_specs[attr].base;
-      }
-
-      d[attr] = distribution_new_linear(num_buckets, base);
-    } else if (!strcasecmp(dists_specs[attr].distribution_type, "Linear")) {
+    if (dists_specs[attr].distribution_type == NULL || !strcasecmp(dists_specs[attr].distribution_type, "Linear")) {
       double base;
       if (dists_specs[attr].base == 0 && dists_specs[attr].factor == 0) {
         base = default_linear_base_per_attr[attr];
@@ -288,6 +277,10 @@ static int initialize_distributions_for_metrics(curl_stats_t *s,
 
 static void distribution_specs_destroy(distribution_specs_t *dists_specs,
                                        size_t num_dists) {
+  if (dists_specs == NULL) {
+    return;
+  }
+
   for (size_t i = 0; i < num_dists; ++i) {
     free(dists_specs[i].distribution_type);
     free(dists_specs[i].boundaries);
@@ -592,7 +585,7 @@ char **curl_stats_get_enabled_attributes(curl_stats_t *s,
     return NULL;
   }
 
-  int idx = 0;
+  size_t idx = 0;
 
   char **enabled_attributes =
       calloc(STATIC_ARRAY_SIZE(field_specs), sizeof(char *));
@@ -607,6 +600,7 @@ char **curl_stats_get_enabled_attributes(curl_stats_t *s,
     }
   }
 
+  /* if copying name of some attribute failed, then free all copied names of attributes */
   for (int i = 0; i < idx; ++i) {
     if (enabled_attributes[i] == NULL) {
       for (int j = 0; j < idx; ++j) {
@@ -642,9 +636,9 @@ curl_stats_get_metric_families_for_attributes(curl_stats_t *s,
 
   if (fam[SIZE_ATTR] == NULL || fam[SPEED_ATTR] == NULL ||
       fam[TIME_ATTR] == NULL) {
-    metric_family_metric_reset(fam[SIZE_ATTR]);
-    metric_family_metric_reset(fam[SPEED_ATTR]);
-    metric_family_metric_reset(fam[TIME_ATTR]);
+    metric_family_free(fam[SIZE_ATTR]);
+    metric_family_free(fam[SPEED_ATTR]);
+    metric_family_free(fam[TIME_ATTR]);
 
     free(fam);
   }
@@ -685,6 +679,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
 
     if (field >= STATIC_ARRAY_SIZE(field_specs)) {
+      /* check if config is for distribution specification */
       for (field = 0; field < STATIC_ARRAY_SIZE(metric_specs); ++field) {
         if (!strcasecmp(c->key, metric_specs[field].config_key)) {
           break;
@@ -693,7 +688,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
       if (field >= STATIC_ARRAY_SIZE(metric_specs)) {
         ERROR("curl stats: Unknown field name %s", c->key);
-
         distribution_specs_destroy(dists_specs, NUM_ATTR);
         curl_stats_destroy(s);
         return NULL;
@@ -764,6 +758,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
                    metric_specs[field].offset) = strdup(buffer);
       }
 
+      /* don't enable any field for distribution config specs */
       continue;
     }
 
@@ -795,17 +790,16 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   distribution_t **d;
   if ((d = parse_metric_from_config(dists_specs)) == NULL) {
     ERROR("curl_stats_from_config: parsing distributions from config failed!!");
-
     distribution_specs_destroy(dists_specs, NUM_ATTR);
     curl_stats_destroy(s);
     return NULL;
   }
 
+  /* initialize all distributions inside all metric families */
   if (initialize_distributions_for_metrics(s, d) != 0) {
     for (int i = 0; i < NUM_ATTR; ++i) {
       distribution_destroy(d[i]);
     }
-
     free(d);
 
     distribution_specs_destroy(dists_specs, NUM_ATTR);
@@ -815,7 +809,6 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   for (int i = 0; i < NUM_ATTR; ++i) {
     distribution_destroy(d[i]);
   }
-
   free(d);
 
   distribution_specs_destroy(dists_specs, NUM_ATTR);
@@ -825,6 +818,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
 void curl_stats_destroy(curl_stats_t *s) {
   if (s != NULL) {
+    /* if curl_stats_t was proper created, via curl_stats_from_config function, then we are sure that s->metrics is not equal to null */
     metric_family_metric_reset(s->metrics->count_fam);
     metric_family_metric_reset(s->metrics->size_fam);
     metric_family_metric_reset(s->metrics->speed_fam);
