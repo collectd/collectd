@@ -63,6 +63,7 @@ char **curl_stats_get_enabled_attributes(curl_stats_t *s,
                                          size_t *num_enabled_attr);
 
 metric_family_t **
-curl_stats_get_metric_families_for_attributes(curl_stats_t *s, size_t *num_attr)
+curl_stats_get_metric_families_for_attributes(curl_stats_t *s,
+                                              size_t *num_attr);
 
 #endif /* UTILS_CURL_STATS_H */
