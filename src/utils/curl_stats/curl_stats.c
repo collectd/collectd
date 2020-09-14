@@ -581,7 +581,7 @@ char **curl_stats_get_enabled_attributes(curl_stats_t *s,
   if (s == NULL) {
     return NULL;
   }
-  
+
   int idx = 0;
 
   char **enabled_attributes =
@@ -614,7 +614,8 @@ char **curl_stats_get_enabled_attributes(curl_stats_t *s,
 }
 
 metric_family_t **
-curl_stats_get_metric_families_for_attributes(curl_stats_t *s) {
+curl_stats_get_metric_families_for_attributes(curl_stats_t *s,
+                                              size_t *num_attr) {
   if (s == NULL) {
     return NULL;
   }
@@ -638,6 +639,7 @@ curl_stats_get_metric_families_for_attributes(curl_stats_t *s) {
     free(fam);
   }
 
+  *num_attr = NUM_ATTR;
   return fam;
 }
 
