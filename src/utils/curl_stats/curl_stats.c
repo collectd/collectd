@@ -540,7 +540,6 @@ static struct {
 #undef SPEC
 };
 
-/* TODO(bkjg): add initializing the distribution */
 static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx,
                                           const char *name, const char *unit) {
   int status = -1;
@@ -577,6 +576,59 @@ static bool field_enabled(curl_stats_t *s, size_t offset) {
 /*
  * Public API
  */
+char **get_enabled_attributes(curl_stats_t *s, size_t *num_enabled_attr) {
+  int idx = 0;
+
+  char **enabled_attributes = calloc(STATIC_ARRAY_SIZE(field_specs), sizeof(char *));
+
+  if (enabled_attributes == NULL) {
+    return NULL;
+  }
+
+  for (size_t field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
+    if (field_enabled(s, field_specs[field].config_offset)) {
+      enabled_attributes[idx++] = strdup(field_specs[field].config_key);
+    }
+  }
+
+  for (int i = 0; i < idx; ++i) {
+    if (enabled_attributes[i] == NULL) {
+      for (int j = 0; j < idx; ++j) {
+        free(enabled_attributes[j]);
+      }
+
+      free(enabled_attributes);
+      return NULL;
+    }
+  }
+
+  *num_enabled_attr = idx;
+
+  return enabled_attributes;
+}
+
+metric_family_t **get_metric_families_for_attributes(curl_stats_t *s) {
+  metric_family_t **fam = calloc(NUM_ATTR, sizeof(metric_family_t *));
+
+  if (fam == NULL) {
+    return NULL;
+  }
+
+  fam[SIZE_ATTR] = metric_family_clone(s->metrics->size_fam);
+  fam[SPEED_ATTR] = metric_family_clone(s->metrics->speed_fam);
+  fam[TIME_ATTR] = metric_family_clone(s->metrics->time_fam);
+
+  if (fam[SIZE_ATTR] == NULL || fam[SPEED_ATTR] == NULL || fam[TIME_ATTR] == NULL) {
+    metric_family_metric_reset(fam[SIZE_ATTR]);
+    metric_family_metric_reset(fam[SPEED_ATTR]);
+    metric_family_metric_reset(fam[TIME_ATTR]);
+
+    free(fam);
+  }
+
+  return fam;
+}
+
 curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   curl_stats_t *s;
 
