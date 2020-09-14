@@ -368,7 +368,8 @@ static int uc_update_metric(metric_t const *m) {
       distribution_destroy(ce->distribution_increase);
       ce->distribution_increase = distribution_clone(m->value.distribution);
       distribution_destroy(ce->start_value.value.distribution);
-      ce->start_value.value.distribution = distribution_clone(m->value.distribution);
+      ce->start_value.value.distribution =
+          distribution_clone(m->value.distribution);
       ce->start_time = m->time;
       status = 0;
     }
