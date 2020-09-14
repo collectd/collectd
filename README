@@ -487,9 +487,6 @@ Features
     - xencpu
       XEN Hypervisor CPU stats.
 
-    - xmms
-      Bitrate and frequency of music played with XMMS.
-
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
 
