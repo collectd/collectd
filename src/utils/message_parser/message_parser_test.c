@@ -25,7 +25,9 @@
  *   Marcin Mozejko <marcinx.mozejko@intel.com>
  **/
 
+#include "collectd.h"
 #include "testing.h"
+
 #include "utils/message_parser/message_parser.c"
 
 #define TEST_PATTERN_NAME "test_pattern_name"
