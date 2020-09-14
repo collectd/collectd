@@ -579,7 +579,8 @@ static bool field_enabled(curl_stats_t *s, size_t offset) {
 char **get_enabled_attributes(curl_stats_t *s, size_t *num_enabled_attr) {
   int idx = 0;
 
-  char **enabled_attributes = calloc(STATIC_ARRAY_SIZE(field_specs), sizeof(char *));
+  char **enabled_attributes =
+      calloc(STATIC_ARRAY_SIZE(field_specs), sizeof(char *));
 
   if (enabled_attributes == NULL) {
     return NULL;
@@ -618,7 +619,8 @@ metric_family_t **get_metric_families_for_attributes(curl_stats_t *s) {
   fam[SPEED_ATTR] = metric_family_clone(s->metrics->speed_fam);
   fam[TIME_ATTR] = metric_family_clone(s->metrics->time_fam);
 
-  if (fam[SIZE_ATTR] == NULL || fam[SPEED_ATTR] == NULL || fam[TIME_ATTR] == NULL) {
+  if (fam[SIZE_ATTR] == NULL || fam[SPEED_ATTR] == NULL ||
+      fam[TIME_ATTR] == NULL) {
     metric_family_metric_reset(fam[SIZE_ATTR]);
     metric_family_metric_reset(fam[SPEED_ATTR]);
     metric_family_metric_reset(fam[TIME_ATTR]);
