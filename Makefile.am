@@ -35,6 +35,8 @@ CLEANFILES = \
 	prometheus.pb-c.h \
 	src/pinba.pb-c.c \
 	src/pinba.pb-c.h \
+	types.grpc.pb.cc \
+	types.grpc.pb.h \
 	types.pb.cc \
 	types.pb.h
 
@@ -1135,7 +1137,7 @@ if BUILD_PLUGIN_INFINIBAND
 pkglib_LTLIBRARIES += infiniband.la
 infiniband_la_SOURCES = src/infiniband.c
 infiniband_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-infiniband_la_LIBADD = libignorelist.la $(BUILD_WITH_INFINIBAND_LIBS)
+infiniband_la_LIBADD = libignorelist.la
 endif
 
 if BUILD_PLUGIN_INTEL_PMU
@@ -1167,9 +1169,9 @@ test_plugin_intel_rdt_SOURCES = \
 	src/utils/proc_pids/proc_pids.c \
 	src/daemon/configfile.c \
 	src/daemon/types_list.c
-test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS)
-test_plugin_intel_rdt_LDFLAGS = $(PLUGIN_LDFLAGS)
-test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la
+test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
+test_plugin_intel_rdt_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
+test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBPQOS_LIBS)
 check_PROGRAMS += test_plugin_intel_rdt
 TESTS += test_plugin_intel_rdt
 
@@ -2403,9 +2405,9 @@ endif
 
 if HAVE_PROTOC3
 if HAVE_GRPC_CPP
-BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
+BUILT_SOURCES += collectd.grpc.pb.cc types.grpc.pb.cc collectd.pb.cc types.pb.cc
 
-collectd.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
+collectd.grpc.pb.cc types.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
 		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) \
 	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
