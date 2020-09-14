@@ -36,8 +36,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-static const int NUM_ATTR = 3;
-
 typedef struct {
   char *distribution_type;
   size_t num_buckets;
@@ -75,6 +73,11 @@ struct curl_stats_s {
   bool appconnect_time;
   attributes_metrics_t *metrics;
 };
+
+static const int SIZE_ATTR = 0;
+static const int SPEED_ATTR = 1;
+static const int TIME_ATTR = 2;
+static const int NUM_ATTR = 3;
 
 /*
  * Private functions
@@ -167,6 +170,20 @@ parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
 
       if (dists_specs[attr].num_boundaries == 0) {
         num_boundaries = dists_specs[attr].num_boundaries_from_array;
+      } else if (dists_specs[attr].num_boundaries !=
+                 dists_specs[attr].num_boundaries_from_array) {
+        ERROR("curl_stats_from_config: Wrong number of buckets boundaries is "
+              "provided. Required: %ld, received %ld!",
+              dists_specs[attr].num_boundaries,
+              dists_specs[attr].num_boundaries_from_array);
+
+        for (int i = 0; i < attr; ++i) {
+          distribution_destroy(d[i]);
+        }
+
+        free(d);
+
+        return NULL;
       } else {
         num_boundaries = dists_specs[attr].num_boundaries;
       }
@@ -233,6 +250,38 @@ static int initialize_attributes_metric_families(curl_stats_t *s) {
   s->metrics->size_fam->type = METRIC_TYPE_DISTRIBUTION;
   s->metrics->speed_fam->type = METRIC_TYPE_DISTRIBUTION;
   s->metrics->time_fam->type = METRIC_TYPE_DISTRIBUTION;
+
+  return 0;
+}
+
+static int initialize_distributions_for_metrics(curl_stats_t *s,
+                                                distribution_t *d[NUM_ATTR]) {
+  for (size_t i = 0; i < s->metrics->size_fam->metric.num; ++i) {
+    s->metrics->size_fam->metric.ptr[i].value.distribution =
+        distribution_clone(d[SIZE_ATTR]);
+
+    if (s->metrics->size_fam->metric.ptr[i].value.distribution == NULL) {
+      return -1;
+    }
+  }
+
+  for (size_t i = 0; i < s->metrics->speed_fam->metric.num; ++i) {
+    s->metrics->speed_fam->metric.ptr[i].value.distribution =
+        distribution_clone(d[SPEED_ATTR]);
+
+    if (s->metrics->speed_fam->metric.ptr[i].value.distribution == NULL) {
+      return -1;
+    }
+  }
+
+  for (size_t i = 0; i < s->metrics->time_fam->metric.num; ++i) {
+    s->metrics->time_fam->metric.ptr[i].value.distribution =
+        distribution_clone(d[TIME_ATTR]);
+
+    if (s->metrics->time_fam->metric.ptr[i].value.distribution == NULL) {
+      return -1;
+    }
+  }
 
   return 0;
 }
@@ -496,7 +545,6 @@ static int append_metric_to_metric_family(curl_stats_t *s, size_t *idx,
                                           const char *name, const char *unit) {
   int status = -1;
 
-  /* TODO(bkjg): what should the arguments for distribution look like? */
   if (!strcasecmp("bytes", unit)) {
     status = metric_family_append(s->metrics->size_fam, "Attributes", name,
                                   (value_t){.distribution = NULL}, NULL);
@@ -573,6 +621,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         for (int j = 0; j < NUM_ATTR; ++j) {
           free(dists_specs[j].distribution_type);
         }
+
         free(dists_specs);
         curl_stats_destroy(s);
         return NULL;
@@ -588,6 +637,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           for (int j = 0; j < NUM_ATTR; ++j) {
             free(dists_specs[j].distribution_type);
           }
+
           free(dists_specs);
           curl_stats_destroy(s);
           return NULL;
@@ -595,7 +645,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
         *(size_t *)((char *)&dists_specs[attr_idx] +
                     metric_specs[field].offset) = value;
-      } else if (!strcasecmp(metric_specs[field].unit, "double*")) {
+      } else if (!strcasecmp(metric_specs[field].unit,
+                             "double*")) { /* read array of doubles */
         dists_specs[attr_idx].num_boundaries_from_array = c->values_num;
 
         double *boundaries = calloc(
@@ -607,11 +658,11 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
             ERROR("curl_stats_from_config: Wrong type for distribution custom "
                   "boundary. Required %d, received %d.",
                   OCONFIG_TYPE_NUMBER, c->values[j].type);
-            /* TODO(bkjg): here should be function for destroying metric_spec
-             * and dists_specs */
+
             for (int k = 0; k < NUM_ATTR; ++k) {
               free(dists_specs[k].distribution_type);
             }
+
             free(dists_specs);
             free(boundaries);
             curl_stats_destroy(s);
@@ -647,6 +698,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           for (int j = 0; j < NUM_ATTR; ++j) {
             free(dists_specs[j].distribution_type);
           }
+
           free(dists_specs);
           curl_stats_destroy(s);
           return NULL;
@@ -663,6 +715,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       for (int j = 0; j < NUM_ATTR; ++j) {
         free(dists_specs[j].distribution_type);
       }
+
       free(dists_specs);
       curl_stats_destroy(s);
       return NULL;
@@ -675,7 +728,9 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
           s, &offset, field_specs[field].config_key, field_specs[field].type);
 
       if (status != 0) {
-        /* error */
+        ERROR("curl_stats_from_config: appending attribute: %s to metric "
+              "family failed!",
+              field_specs[field].config_key);
         for (int j = 0; j < NUM_ATTR; ++j) {
           free(dists_specs[j].distribution_type);
         }
@@ -690,14 +745,30 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
   distribution_t **d;
   if ((d = parse_metric_from_config(dists_specs)) == NULL) {
-    /* error */
-    /* TODO(bkjg): function for destroying dists_specs */
+    ERROR("curl_stats_from_config: parsing distributions from config failed!!");
+
+    for (int i = 0; i < NUM_ATTR; ++i) {
+      free(dists_specs[i].distribution_type);
+    }
+
+    free(dists_specs);
+    curl_stats_destroy(s);
+    return NULL;
+  }
+
+  if (initialize_distributions_for_metrics(s, d) != 0) {
+    for (int i = 0; i < NUM_ATTR; ++i) {
+      distribution_destroy(d[i]);
+    }
+
+    free(d);
+
     for (int i = 0; i < NUM_ATTR; ++i) {
       free(dists_specs[i].distribution_type);
     }
     free(dists_specs);
+
     curl_stats_destroy(s);
-    return NULL;
   }
 
   for (int i = 0; i < NUM_ATTR; ++i) {
