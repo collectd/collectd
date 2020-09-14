@@ -24,9 +24,9 @@
  *   Barbara 'bkjg' Kaczorowska <bkjg at google.com>
  */
 
+#include "collectd.h"
 #include "curl_stats.h"
 #include "testing.h"
-#include "collectd.h"
 
 DEF_TEST(curl_stats_from_config) {
   struct {
