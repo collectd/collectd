@@ -576,7 +576,8 @@ static bool field_enabled(curl_stats_t *s, size_t offset) {
 /*
  * Public API
  */
-char **get_enabled_attributes(curl_stats_t *s, size_t *num_enabled_attr) {
+char **curl_stats_get_enabled_attributes(curl_stats_t *s,
+                                         size_t *num_enabled_attr) {
   int idx = 0;
 
   char **enabled_attributes =
@@ -608,7 +609,8 @@ char **get_enabled_attributes(curl_stats_t *s, size_t *num_enabled_attr) {
   return enabled_attributes;
 }
 
-metric_family_t **get_metric_families_for_attributes(curl_stats_t *s) {
+metric_family_t **
+curl_stats_get_metric_families_for_attributes(curl_stats_t *s) {
   metric_family_t **fam = calloc(NUM_ATTR, sizeof(metric_family_t *));
 
   if (fam == NULL) {
