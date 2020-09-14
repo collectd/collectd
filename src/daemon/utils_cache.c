@@ -72,7 +72,7 @@ typedef struct cache_entry_s {
 
   /* The first value and time for the metric when it was received.
    * When metric is reset the time and value are reset too */
-  value_t start_value;
+  typed_value_t start_value;
   cdtime_t start_time;
 
   meta_data_t *meta;
@@ -149,28 +149,28 @@ static int uc_insert(metric_t const *m, char const *key) {
     ce->values_gauge = NAN;
     ce->values_raw.counter = m->value.counter;
     ce->distribution_increase = NULL;
-    ce->start_value.counter = m->value.counter;
+    ce->start_value = create_typed_value(m->value, METRIC_TYPE_COUNTER);
     break;
 
   case DS_TYPE_GAUGE:
     ce->values_gauge = m->value.gauge;
     ce->values_raw.gauge = m->value.gauge;
     ce->distribution_increase = NULL;
-    ce->start_value.gauge = m->value.gauge;
+    ce->start_value = create_typed_value(m->value, METRIC_TYPE_GAUGE);
     break;
 
   case DS_TYPE_DERIVE:
     ce->values_gauge = NAN;
     ce->values_raw.derive = m->value.derive;
     ce->distribution_increase = NULL;
-    ce->start_value.derive = m->value.derive;
+    /* TODO: METRIC_TYPE_DERIVE? */
     break;
 
   case DS_TYPE_DISTRIBUTION:
     ce->values_gauge = NAN;
     ce->values_raw.distribution = distribution_clone(m->value.distribution);
     ce->distribution_increase = distribution_clone(m->value.distribution);
-    ce->start_value.distribution = distribution_clone(m->value.distribution);
+    ce->start_value = create_typed_value(m->value, METRIC_TYPE_DISTRIBUTION);
     break;
 
   default:
@@ -182,6 +182,7 @@ static int uc_insert(metric_t const *m, char const *key) {
     return -1;
   } /* switch (ds->ds[i].type) */
 
+  ce->start_time = m->time;
   ce->last_time = m->time;
   ce->last_update = cdtime();
   ce->interval = m->interval;
@@ -366,8 +367,8 @@ static int uc_update_metric(metric_t const *m) {
     if (status == ERANGE) {
       distribution_destroy(ce->distribution_increase);
       ce->distribution_increase = distribution_clone(m->value.distribution);
-      distribution_destroy(ce->start_value.distribution);
-      ce->start_value.distribution = distribution_clone(m->value.distribution);
+      distribution_destroy(ce->start_value.value.distribution);
+      ce->start_value.value.distribution = distribution_clone(m->value.distribution);
       ce->start_time = m->time;
       status = 0;
     }
@@ -679,7 +680,7 @@ int uc_get_start_value_by_name(const char *name, value_t *ret_start_value,
     if (ce->state == STATE_MISSING) {
       status = -1;
     } else {
-      *ret_start_value = ce->start_value;
+      *ret_start_value = typed_value_clone(ce->start_value).value;
       *ret_start_time = ce->start_time;
     }
   } else {
