@@ -9,7 +9,7 @@ env:
 #
 release_ready_task:
   container:
-    image: collectd/ci:stretch_amd64
+    image: collectd/ci:buster_amd64
   lint_script:
     - /checks/check-bashisms.sh
     - /checks/check-pod.sh
@@ -26,6 +26,9 @@ release_ready_task:
 #
 debian_default_toolchain_task:
   matrix:
+    - container:
+        image: collectd/ci:buster_amd64
+      allow_failures: false
     - allow_failures: false
       container:
         image: collectd/ci:jessie_amd64
