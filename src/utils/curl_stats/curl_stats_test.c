@@ -37,6 +37,7 @@ DEF_TEST(curl_stats_from_config) {
     size_t *want_get_num_metrics;
     distribution_t **want_get_distributions;
     size_t num_enabled_attr;
+    const char ***want_get_label_attributes;
   } cases[] =
       {
           {
@@ -248,28 +249,240 @@ DEF_TEST(curl_stats_from_config) {
                       .children_num = 1,
                   },
           },
-          {
-              .ci =
-                  {
-                      .children =
-                          (oconfig_item_t[]){
-                              {
-                                  .values_num = 1,
-                                  .key = "SizeDistributionType",
-                                  .values =
-                                      (oconfig_value_t[]){
-                                          {
-                                              .type = OCONFIG_TYPE_STRING,
-                                              .value.string = "linear",
-                                          }},
-                              },
-                          },
-                      .children_num = 1,
-                  },
-          },
+          {.ci =
+               {
+                   .children =
+                       (oconfig_item_t[]){
+                           {
+                               .values_num = 1,
+                               .key = "SizeDistributionType",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_STRING,
+                                           .value.string = "linear",
+                                       }},
+                           },
+                       },
+                   .children_num = 1,
+               },
+           .want_get_num_attr = 3,
+           .want_get_metric_type =
+               (int[]){METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_DISTRIBUTION,
+                       METRIC_TYPE_DISTRIBUTION},
+           .want_get_distributions = (distribution_t *[]){NULL, NULL, NULL},
+           .num_enabled_attr = 0,
+           .want_get_num_metrics = (size_t[]){0, 0, 0}},
+          {.ci =
+               {
+                   .children =
+                       (oconfig_item_t[]){
+                           {
+                               .values_num = 1,
+                               .key = "SizeUpload",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_BOOLEAN,
+                                           .value.boolean = 1,
+                                       }},
+                           },
+                       },
+                   .children_num = 1,
+               },
+           .want_get_num_attr = 3,
+           .want_get_metric_type =
+               (int[]){METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_DISTRIBUTION,
+                       METRIC_TYPE_DISTRIBUTION},
+           .want_get_distributions =
+               (distribution_t *[]){distribution_new_linear(1024, 8),
+                                    distribution_new_linear(1024, 16),
+                                    distribution_new_linear(1024, 0.001)},
+           .num_enabled_attr = 1,
+           .want_get_num_metrics = (size_t[]){1, 0, 0},
+           .want_get_enabled_attr = (char *[]){"SizeUpload"},
+           .want_get_label_attributes =
+               (const char **[]){(const char *[]){"SizeUpload"},
+                                 (const char *[]){}, (const char *[]){}}},
+          {.ci =
+               {
+                   .children =
+                       (oconfig_item_t[]){
+                           {
+                               .values_num = 1,
+                               .key = "SpeedDownload",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_BOOLEAN,
+                                           .value.boolean = 1,
+                                       }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "ContentLengthDownload",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_BOOLEAN,
+                                           .value.boolean = 1,
+                                       }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "TimeNumBuckets",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 256,
+                                       }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "SpeedFactor",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 7.2,
+                                       }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "SizeDistributionType",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_STRING,
+                                           .value.string = "exponential",
+                                       }},
+                           },
+                       },
+                   .children_num = 5,
+               },
+           .want_get_num_attr = 3,
+           .want_get_metric_type =
+               (int[]){METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_DISTRIBUTION,
+                       METRIC_TYPE_DISTRIBUTION},
+           .want_get_distributions =
+               (distribution_t *[]){
+                   distribution_new_exponential(1024, 2.0, 2.0),
+                   distribution_new_linear(1024, 7.2),
+                   distribution_new_linear(256, 0.001)},
+           .num_enabled_attr = 2,
+           .want_get_num_metrics = (size_t[]){1, 1, 0},
+           .want_get_label_attributes =
+               (const char **[]){(const char *[]){"ContentLengthDownload"},
+                                 (const char *[]){"SpeedDownload"},
+                                 (const char *[]){}},
+           .want_get_enabled_attr =
+               (char *[]){"SpeedDownload", "ContentLengthDownload"}},
+          {.ci =
+               {
+                   .children =
+                       (oconfig_item_t[]){
+                           {
+                               .values_num = 1,
+                               .key = "PretransferTime",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_BOOLEAN,
+                                           .value.boolean = 1,
+                                       }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "StarttransferTime",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_BOOLEAN,
+                                           .value.boolean = 1,
+                                       }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "TimeNumBuckets",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 256,
+                                       }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "SpeedFactor",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 4.2,
+                                       }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "TimeDistributionType",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_STRING,
+                                           .value.string = "custom",
+                                       }},
+                           },
+                           {
+                               .values_num = 5,
+                               .key = "TimeBoundaries",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 25,
+                                       },
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 50,
+                                       },
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 100,
+                                       },
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 200,
+                                       },
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 400,
+                                       }},
+                           },
+                       },
+                   .children_num = 6,
+               },
+           .want_get_num_attr = 3,
+           .want_get_metric_type =
+               (int[]){METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_DISTRIBUTION,
+                       METRIC_TYPE_DISTRIBUTION},
+           .want_get_distributions =
+               (distribution_t *[]){
+                   distribution_new_exponential(1024, 2.0, 2.0),
+                   distribution_new_linear(1024, 4.3),
+                   distribution_new_custom(5,
+                                           (double[]){25, 50, 100, 200, 400})},
+           .num_enabled_attr = 2,
+           .want_get_num_metrics = (size_t[]){0, 0, 2},
+           .want_get_label_attributes =
+               (const char **[]){
+                   (const char *[]){}, (const char *[]){},
+                   (const char *[]){"PretransferTime", "StarttransferTime"}},
+           .want_get_enabled_attr =
+               (char *[]){"PretransferTime", "StarttransferTime"}},
       };
 
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    printf("## Case %zu: \n", i);
     curl_stats_t *s;
 
     s = curl_stats_from_config(&cases[i].ci);
@@ -287,29 +500,34 @@ DEF_TEST(curl_stats_from_config) {
       EXPECT_EQ_UINT64(cases[i].want_get_num_attr, num_attr);
 
       for (size_t family = 0; family < num_attr; ++family) {
-        for (size_t metric = 0; metric < cases[i].want_get_num_metrics[family];
-             ++metric) {
-          EXPECT_EQ_INT(cases[i].want_get_metric_type[metric],
-                        fam[family]->type);
+        EXPECT_EQ_INT(cases[i].want_get_metric_type[family], fam[family]->type);
+        EXPECT_EQ_UINT64(cases[i].want_get_num_metrics[family],
+                         fam[family]->metric.num);
 
-          EXPECT_EQ_UINT64(cases[i].want_get_num_metrics[family],
-                           fam[family]->metric.num);
+        if (fam[family]->type == METRIC_TYPE_DISTRIBUTION) {
+          for (size_t j = 0; j < fam[family]->metric.num; ++j) {
+            /* TODO(bkjg): check labels */
+            const char *label =
+                metric_label_get(&fam[family]->metric.ptr[j], "Attributes");
 
-          if (fam[family]->type == METRIC_TYPE_DISTRIBUTION) {
-            for (size_t j = 0; j < fam[family]->metric.num; ++j) {
-              buckets_array_t buckets =
-                  get_buckets(fam[family]->metric.ptr[j].value.distribution);
-              buckets_array_t wanted_buckets =
-                  get_buckets(cases[i].want_get_distributions[j]);
+            EXPECT_EQ_STR(cases[i].want_get_label_attributes[family][j], label);
+            // free(label);
 
-              EXPECT_EQ_UINT64(wanted_buckets.num_buckets, buckets.num_buckets);
-              for (size_t k = 0; k < wanted_buckets.num_buckets; ++k) {
-                EXPECT_EQ_DOUBLE(wanted_buckets.buckets[k].maximum,
-                                 buckets.buckets[k].maximum);
-                EXPECT_EQ_UINT64(wanted_buckets.buckets[k].bucket_counter,
-                                 buckets.buckets[k].bucket_counter);
-              }
+            buckets_array_t buckets =
+                get_buckets(fam[family]->metric.ptr[j].value.distribution);
+            buckets_array_t wanted_buckets =
+                get_buckets(cases[i].want_get_distributions[family]);
+
+            EXPECT_EQ_UINT64(wanted_buckets.num_buckets, buckets.num_buckets);
+            for (size_t k = 0; k < wanted_buckets.num_buckets; ++k) {
+              EXPECT_EQ_DOUBLE(wanted_buckets.buckets[k].maximum,
+                               buckets.buckets[k].maximum);
+              EXPECT_EQ_UINT64(wanted_buckets.buckets[k].bucket_counter,
+                               buckets.buckets[k].bucket_counter);
             }
+
+            free(buckets.buckets);
+            free(wanted_buckets.buckets);
           }
         }
       }
@@ -320,21 +538,30 @@ DEF_TEST(curl_stats_from_config) {
 
       EXPECT_EQ_UINT64(cases[i].num_enabled_attr, num_enabled_attr);
 
+      if (num_enabled_attr > 0) {
+        CHECK_NOT_NULL(enabled_attr);
+      }
+
       for (size_t attr = 0; attr < num_enabled_attr; ++attr) {
-        EXPECT_EQ_STR(cases[i].want_get_enabled_attr[i], enabled_attr[i]);
+        EXPECT_EQ_STR(cases[i].want_get_enabled_attr[attr], enabled_attr[attr]);
       }
 
       for (size_t family = 0; family < num_attr; ++family) {
-        metric_family_metric_reset(fam[family]);
+        metric_family_free(fam[family]);
       }
 
       free(fam);
 
+      for (size_t dist = 0; dist < cases[i].want_get_num_attr; ++dist) {
+        distribution_destroy(cases[i].want_get_distributions[dist]);
+      }
+
       for (size_t attr = 0; attr < num_enabled_attr; ++attr) {
-        free(enabled_attr[i]);
+        free(enabled_attr[attr]);
       }
 
       free(enabled_attr);
+      curl_stats_destroy(s);
     }
   }
 
