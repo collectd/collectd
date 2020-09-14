@@ -105,18 +105,26 @@ parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
   static const double default_factor_per_attr[] = {2.0, 8.0, 0.001};
 
   for (int attr = 0; attr < NUM_ATTR; ++attr) {
-    if (dists_specs[attr].distribution_type == NULL) {
-      d[attr] = distribution_new_linear(MAX_NUM_BUCKETS,
-                                        default_linear_base_per_attr[attr]);
-    } else if (!strcasecmp(dists_specs[attr].distribution_type, "Linear")) {
-      size_t num_buckets;
+    size_t num_buckets;
 
-      if (dists_specs[attr].num_buckets == 0) {
-        num_buckets = MAX_NUM_BUCKETS;
+    if (dists_specs[attr].num_buckets == 0) {
+      num_buckets = MAX_NUM_BUCKETS;
+    } else {
+      num_buckets = dists_specs[attr].num_buckets;
+    }
+
+    if (dists_specs[attr].distribution_type == NULL) {
+      double base;
+      if (dists_specs[attr].base == 0 && dists_specs[attr].factor == 0) {
+        base = default_linear_base_per_attr[attr];
+      } else if (dists_specs[attr].base == 0) {
+        base = dists_specs[attr].factor;
       } else {
-        num_buckets = dists_specs[attr].num_buckets;
+        base = dists_specs[attr].base;
       }
 
+      d[attr] = distribution_new_linear(num_buckets, base);
+    } else if (!strcasecmp(dists_specs[attr].distribution_type, "Linear")) {
       double base;
       if (dists_specs[attr].base == 0 && dists_specs[attr].factor == 0) {
         base = default_linear_base_per_attr[attr];
@@ -129,14 +137,6 @@ parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
       d[attr] = distribution_new_linear(num_buckets, base);
     } else if (!strcasecmp(dists_specs[attr].distribution_type,
                            "Exponential")) {
-      size_t num_buckets;
-
-      if (dists_specs[attr].num_buckets == 0) {
-        num_buckets = MAX_NUM_BUCKETS;
-      } else {
-        num_buckets = dists_specs[attr].num_buckets;
-      }
-
       double base, factor;
       if (dists_specs[attr].base == 0 && dists_specs[attr].factor == 0) {
         base = default_exponential_base_per_attr[attr];
@@ -188,8 +188,8 @@ parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
         num_boundaries = dists_specs[attr].num_boundaries;
       }
 
-      double *boundaries = dists_specs[attr].boundaries;
-      d[attr] = distribution_new_custom(num_boundaries, boundaries);
+      d[attr] =
+          distribution_new_custom(num_boundaries, dists_specs[attr].boundaries);
     } else {
       ERROR("curl_stats_from_config: distribution type: %s is not supported!",
             dists_specs[attr].distribution_type);
@@ -284,6 +284,16 @@ static int initialize_distributions_for_metrics(curl_stats_t *s,
   }
 
   return 0;
+}
+
+static void distribution_specs_destroy(distribution_specs_t *dists_specs,
+                                       size_t num_dists) {
+  for (size_t i = 0; i < num_dists; ++i) {
+    free(dists_specs[i].distribution_type);
+    free(dists_specs[i].boundaries);
+  }
+
+  free(dists_specs);
 }
 
 static int update_distribution_for_attribute(metric_family_t *fam,
@@ -684,11 +694,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
       if (field >= STATIC_ARRAY_SIZE(metric_specs)) {
         ERROR("curl stats: Unknown field name %s", c->key);
 
-        for (int j = 0; j < NUM_ATTR; ++j) {
-          free(dists_specs[j].distribution_type);
-        }
-
-        free(dists_specs);
+        distribution_specs_destroy(dists_specs, NUM_ATTR);
         curl_stats_destroy(s);
         return NULL;
       }
@@ -700,11 +706,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         size_t value;
 
         if (cf_util_get_uint64(c, &value) != 0) {
-          for (int j = 0; j < NUM_ATTR; ++j) {
-            free(dists_specs[j].distribution_type);
-          }
-
-          free(dists_specs);
+          distribution_specs_destroy(dists_specs, NUM_ATTR);
           curl_stats_destroy(s);
           return NULL;
         }
@@ -725,11 +727,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
                   "boundary. Required %d, received %d.",
                   OCONFIG_TYPE_NUMBER, c->values[j].type);
 
-            for (int k = 0; k < NUM_ATTR; ++k) {
-              free(dists_specs[k].distribution_type);
-            }
-
-            free(dists_specs);
+            distribution_specs_destroy(dists_specs, NUM_ATTR);
             free(boundaries);
             curl_stats_destroy(s);
             return NULL;
@@ -745,11 +743,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         double value;
 
         if (cf_util_get_double(c, &value) != 0) {
-          for (int j = 0; j < NUM_ATTR; ++j) {
-            free(dists_specs[j].distribution_type);
-          }
-          free(dists_specs);
-
+          distribution_specs_destroy(dists_specs, NUM_ATTR);
           curl_stats_destroy(s);
           return NULL;
         }
@@ -761,11 +755,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         char buffer[MAX_BUFFER_LENGTH];
 
         if (cf_util_get_string_buffer(c, buffer, MAX_BUFFER_LENGTH) != 0) {
-          for (int j = 0; j < NUM_ATTR; ++j) {
-            free(dists_specs[j].distribution_type);
-          }
-
-          free(dists_specs);
+          distribution_specs_destroy(dists_specs, NUM_ATTR);
           curl_stats_destroy(s);
           return NULL;
         }
@@ -778,11 +768,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
 
     if (cf_util_get_boolean(c, &enabled) != 0) {
-      for (int j = 0; j < NUM_ATTR; ++j) {
-        free(dists_specs[j].distribution_type);
-      }
-
-      free(dists_specs);
+      distribution_specs_destroy(dists_specs, NUM_ATTR);
       curl_stats_destroy(s);
       return NULL;
     }
@@ -797,10 +783,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         ERROR("curl_stats_from_config: appending attribute: %s to metric "
               "family failed!",
               field_specs[field].config_key);
-        for (int j = 0; j < NUM_ATTR; ++j) {
-          free(dists_specs[j].distribution_type);
-        }
-        free(dists_specs);
+        distribution_specs_destroy(dists_specs, NUM_ATTR);
         curl_stats_destroy(s);
         return NULL;
       }
@@ -813,11 +796,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   if ((d = parse_metric_from_config(dists_specs)) == NULL) {
     ERROR("curl_stats_from_config: parsing distributions from config failed!!");
 
-    for (int i = 0; i < NUM_ATTR; ++i) {
-      free(dists_specs[i].distribution_type);
-    }
-
-    free(dists_specs);
+    distribution_specs_destroy(dists_specs, NUM_ATTR);
     curl_stats_destroy(s);
     return NULL;
   }
@@ -829,11 +808,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
     free(d);
 
-    for (int i = 0; i < NUM_ATTR; ++i) {
-      free(dists_specs[i].distribution_type);
-    }
-    free(dists_specs);
-
+    distribution_specs_destroy(dists_specs, NUM_ATTR);
     curl_stats_destroy(s);
   }
 
@@ -843,10 +818,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
   free(d);
 
-  for (int i = 0; i < NUM_ATTR; ++i) {
-    free(dists_specs[i].distribution_type);
-  }
-  free(dists_specs);
+  distribution_specs_destroy(dists_specs, NUM_ATTR);
 
   return s;
 } /* curl_stats_from_config */
