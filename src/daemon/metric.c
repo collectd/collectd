@@ -31,6 +31,17 @@
 #include "metric.h"
 #include "plugin.h"
 
+typed_value_t typed_value_clone(typed_value_t val) {
+  typed_value_t copy = {
+    .value = val.value,
+    .type = val.type,
+  };
+  if (val.type == METRIC_TYPE_DISTRIBUTION) {
+    copy.value.distribution = distribution_clone(val.value.distribution);
+  }
+  return copy;
+}
+
 /* Label names must match the regex `[a-zA-Z_][a-zA-Z0-9_]*`. Label names
  * beginning with __ are reserved for internal use.
  *

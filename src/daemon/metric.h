@@ -56,6 +56,13 @@ union value_u {
 };
 typedef union value_u value_t;
 
+typedef struct {
+  value_t value;
+  metric_type_t type;
+} typed_value_t;
+
+typed_value_t typed_value_clone(typed_value_t val);
+
 /* value_marshal_text prints a text representation of v to buf. */
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type);
 
