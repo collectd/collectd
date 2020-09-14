@@ -1,6 +1,6 @@
 /**
  * collectd - src/daemon/curl_stats_test.c
- * Copyright (C) 2020       Barbara bkjg Kaczorowska
+ * Copyright (C) 2020       Barbara 'bkjg' Kaczorowska
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,17 +21,18 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Barbara bkjg Kaczorowska <bkjg at google.com>
+ *   Barbara 'bkjg' Kaczorowska <bkjg at google.com>
  */
 
-#include "collectd.h"
 #include "curl_stats.h"
 #include "testing.h"
+#include "collectd.h"
 
 DEF_TEST(curl_stats_from_config) {
   struct {
     oconfig_item_t ci;
-    curl_stats_t *want_get;
+    char **want_get_enabled_attr;
+    metric_family_t **want_get_metric_families;
   } cases[] =
       {
           {
@@ -54,7 +55,6 @@ DEF_TEST(curl_stats_from_config) {
                           },
                       .children_num = 1,
                   },
-              .want_get = NULL,
           },
           {
               .ci =
@@ -76,7 +76,6 @@ DEF_TEST(curl_stats_from_config) {
                           },
                       .children_num = 1,
                   },
-              .want_get = NULL,
           },
           {
               .ci =
@@ -102,7 +101,6 @@ DEF_TEST(curl_stats_from_config) {
                           },
                       .children_num = 1,
                   },
-              .want_get = NULL,
           },
           {
               .ci =
@@ -130,7 +128,6 @@ DEF_TEST(curl_stats_from_config) {
                           },
                       .children_num = 2,
                   },
-              .want_get = NULL,
           },
           {
               .ci =
@@ -158,7 +155,6 @@ DEF_TEST(curl_stats_from_config) {
                           },
                       .children_num = 2,
                   },
-              .want_get = NULL,
           },
           {
               .ci =
@@ -201,7 +197,6 @@ DEF_TEST(curl_stats_from_config) {
                                        }}}},
                       .children_num = 3,
                   },
-              .want_get = NULL,
           },
           {
               .ci =
@@ -236,7 +231,6 @@ DEF_TEST(curl_stats_from_config) {
                                        }}}},
                       .children_num = 3,
                   },
-              .want_get = NULL,
           },
           {
               .ci =
@@ -249,7 +243,25 @@ DEF_TEST(curl_stats_from_config) {
                           },
                       .children_num = 1,
                   },
-              .want_get = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .values_num = 1,
+                                  .key = "SizeDistributionType",
+                                  .values =
+                                      (oconfig_value_t[]){
+                                          {
+                                              .type = OCONFIG_TYPE_STRING,
+                                              .value.string = "linear",
+                                          }},
+                              },
+                          },
+                      .children_num = 1,
+                  },
           },
       };
 
@@ -258,8 +270,9 @@ DEF_TEST(curl_stats_from_config) {
 
     s = curl_stats_from_config(&cases[i].ci);
 
-    if (cases[i].want_get == NULL) {
-      EXPECT_EQ_PTR(cases[i].want_get, s);
+    if (cases[i].want_get_metric_families == NULL &&
+        cases[i].want_get_enabled_attr == NULL) {
+      EXPECT_EQ_PTR(NULL, s);
     } else {
       CHECK_NOT_NULL(s);
     }
@@ -268,12 +281,8 @@ DEF_TEST(curl_stats_from_config) {
   return 0;
 }
 
-DEF_TEST(curl_stats_dispatch) { return 0; }
-
 int main() {
   RUN_TEST(curl_stats_from_config);
-  RUN_TEST(curl_stats_dispatch);
-  /* TODO(bkjg): add tests for account_data and send_metrics_to_daemon */
 
   END_TEST;
 }
