@@ -31,8 +31,12 @@
 DEF_TEST(curl_stats_from_config) {
   struct {
     oconfig_item_t ci;
+    size_t want_get_num_attr;
     char **want_get_enabled_attr;
-    metric_family_t **want_get_metric_families;
+    int *want_get_metric_type;
+    size_t *want_get_num_metrics;
+    distribution_t **want_get_distributions;
+    size_t num_enabled_attr;
   } cases[] =
       {
           {
@@ -270,11 +274,67 @@ DEF_TEST(curl_stats_from_config) {
 
     s = curl_stats_from_config(&cases[i].ci);
 
-    if (cases[i].want_get_metric_families == NULL &&
+    if (cases[i].want_get_metric_type == NULL &&
         cases[i].want_get_enabled_attr == NULL) {
       EXPECT_EQ_PTR(NULL, s);
     } else {
       CHECK_NOT_NULL(s);
+
+      size_t num_attr = 0;
+      metric_family_t **fam =
+          curl_stats_get_metric_families_for_attributes(s, &num_attr);
+
+      EXPECT_EQ_UINT64(cases[i].want_get_num_attr, num_attr);
+
+      for (size_t family = 0; family < num_attr; ++family) {
+        for (size_t metric = 0; metric < cases[i].want_get_num_metrics[family];
+             ++metric) {
+          EXPECT_EQ_INT(cases[i].want_get_metric_type[metric],
+                        fam[family]->type);
+
+          EXPECT_EQ_UINT64(cases[i].want_get_num_metrics[family],
+                           fam[family]->metric.num);
+
+          if (fam[family]->type == METRIC_TYPE_DISTRIBUTION) {
+            for (size_t j = 0; j < fam[family]->metric.num; ++j) {
+              buckets_array_t buckets =
+                  get_buckets(fam[family]->metric.ptr[j].value.distribution);
+              buckets_array_t wanted_buckets =
+                  get_buckets(cases[i].want_get_distributions[j]);
+
+              EXPECT_EQ_UINT64(wanted_buckets.num_buckets, buckets.num_buckets);
+              for (size_t k = 0; k < wanted_buckets.num_buckets; ++k) {
+                EXPECT_EQ_DOUBLE(wanted_buckets.buckets[k].maximum,
+                                 buckets.buckets[k].maximum);
+                EXPECT_EQ_UINT64(wanted_buckets.buckets[k].bucket_counter,
+                                 buckets.buckets[k].bucket_counter);
+              }
+            }
+          }
+        }
+      }
+
+      size_t num_enabled_attr = 0;
+      char **enabled_attr =
+          curl_stats_get_enabled_attributes(s, &num_enabled_attr);
+
+      EXPECT_EQ_UINT64(cases[i].num_enabled_attr, num_enabled_attr);
+
+      for (size_t attr = 0; attr < num_enabled_attr; ++attr) {
+        EXPECT_EQ_STR(cases[i].want_get_enabled_attr[i], enabled_attr[i]);
+      }
+
+      for (size_t family = 0; family < num_attr; ++family) {
+        metric_family_metric_reset(fam[family]);
+      }
+
+      free(fam);
+
+      for (size_t attr = 0; attr < num_enabled_attr; ++attr) {
+        free(enabled_attr[i]);
+      }
+
+      free(enabled_attr);
     }
   }
 
