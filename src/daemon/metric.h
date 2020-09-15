@@ -61,8 +61,14 @@ typedef struct {
   metric_type_t type;
 } typed_value_t;
 
+/* return a copy of typed_value_t val
+ * if type is METRIC_TYPE_DISTRIBUTION then distribution will be cloned
+ * that means that it should be freed */
 typed_value_t typed_value_clone(typed_value_t val);
 
+/* create a typed_value_t object from val and type
+ * if type is METRIC_TYPE_DISTRIBUTION then distribution will be cloned
+ * that means that it should be freed */
 typed_value_t typed_value_create(value_t val, metric_type_t type);
 
 /* value_marshal_text prints a text representation of v to buf. */
