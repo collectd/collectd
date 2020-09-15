@@ -334,7 +334,7 @@ static int wh_write_command(metric_family_t const *fam, wh_callback_t *cb) {
 
   int ret = 0;
   for (size_t i = 0; i < fam->metric.num; i++) {
-    metric_t const *m = fam->metric.ptr;
+    metric_t const *m = fam->metric.ptr + i;
 
     int status = cmd_format_putmetric(&cb->send_buffer, m);
     if (status != 0) {
