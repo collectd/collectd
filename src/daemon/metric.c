@@ -33,8 +33,8 @@
 
 typed_value_t typed_value_clone(typed_value_t val) {
   typed_value_t copy = {
-    .value = val.value,
-    .type = val.type,
+      .value = val.value,
+      .type = val.type,
   };
   if (val.type == METRIC_TYPE_DISTRIBUTION) {
     copy.value.distribution = distribution_clone(val.value.distribution);
