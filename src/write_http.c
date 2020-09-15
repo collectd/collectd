@@ -281,7 +281,7 @@ static int wh_flush(cdtime_t timeout,
     return 0;
   }
 
-  char const *json = strdup(cb->send_buffer.ptr);
+  char *json = strdup(cb->send_buffer.ptr);
   strbuf_reset(&cb->send_buffer);
   cb->send_buffer_init_time = cdtime();
   pthread_mutex_unlock(&cb->send_buffer_lock);
@@ -291,7 +291,7 @@ static int wh_flush(cdtime_t timeout,
   }
 
   int status = wh_post(cb, json);
-  free((char *)json);
+  free(json);
 
   return status;
 } /* int wh_flush */
