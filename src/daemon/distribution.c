@@ -345,17 +345,19 @@ double distribution_squared_deviation_sum(distribution_t *dist) {
 }
 
 double distribution_stddev(distribution_t *dist) {
-  if (dist == NULL || dist->num_buckets == 0) {
+  if (dist == NULL) {
     errno = EINVAL;
     return NAN;
   }
-  if (dist->num_buckets == 1) {
+  pthread_mutex_lock(&dist->mutex);
+  uint64_t total_counter = distribution_total_counter(dist);
+  if (total_counter == 1) {
+    pthread_mutex_unlock(&dist->mutex);
     return 0.0;
   }
-  pthread_mutex_lock(&dist->mutex);
-  double stddev = sqrt(((((double)dist->num_buckets) * dist->total_square_sum) -
+  double stddev = sqrt(((((double)total_counter) * dist->total_square_sum) -
                         (dist->total_sum * dist->total_sum)) /
-                       ((double)(dist->num_buckets * (dist->num_buckets - 1))));
+                       ((double)(total_counter * (total_counter - 1))));
   pthread_mutex_unlock(&dist->mutex);
   return stddev;
 }
