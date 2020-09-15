@@ -290,7 +290,10 @@ static int wh_flush(cdtime_t timeout,
     return ENOMEM;
   }
 
-  return wh_post(cb, json);
+  int status = wh_post(cb, json);
+  free((char*)json);
+
+  return status;
 } /* int wh_flush */
 
 static void wh_callback_free(void *data) {
@@ -314,6 +317,8 @@ static void wh_callback_free(void *data) {
     cb->headers = NULL;
   }
 
+  STRBUF_DESTROY(cb->send_buffer);
+  
   sfree(cb->name);
   sfree(cb->location);
   sfree(cb->user);
