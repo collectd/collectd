@@ -78,7 +78,9 @@ struct curl_stats_s {
 static const int SIZE_ATTR = 0;
 static const int SPEED_ATTR = 1;
 static const int TIME_ATTR = 2;
-static const int NUM_ATTR = 3;
+/* last attribute have to be NUM_ATTR - 1 due to calculations reason */
+static const int COUNT_ATTR = 3;
+static const int NUM_ATTR = 4;
 
 /*
  * Private functions
@@ -105,7 +107,7 @@ parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
 
   static const double default_factor_per_attr[] = {2.0, 8.0, 0.001};
 
-  for (int attr = 0; attr < NUM_ATTR; ++attr) {
+  for (int attr = 0; attr < NUM_ATTR - 1; ++attr) {
     size_t num_buckets;
 
     if (dists_specs[attr].num_buckets == 0) {
@@ -636,14 +638,18 @@ curl_stats_get_metric_families_for_attributes(curl_stats_t *s,
   fam[SIZE_ATTR] = metric_family_clone(s->metrics->size_fam);
   fam[SPEED_ATTR] = metric_family_clone(s->metrics->speed_fam);
   fam[TIME_ATTR] = metric_family_clone(s->metrics->time_fam);
+  fam[COUNT_ATTR] = metric_family_clone(s->metrics->count_fam);
 
   if (fam[SIZE_ATTR] == NULL || fam[SPEED_ATTR] == NULL ||
-      fam[TIME_ATTR] == NULL) {
+      fam[TIME_ATTR] == NULL || fam[COUNT_ATTR] == NULL) {
     metric_family_free(fam[SIZE_ATTR]);
     metric_family_free(fam[SPEED_ATTR]);
     metric_family_free(fam[TIME_ATTR]);
+    metric_family_free(fam[COUNT_ATTR]);
 
     free(fam);
+
+    return NULL;
   }
 
   *num_attr = NUM_ATTR;
@@ -666,7 +672,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   }
 
   distribution_specs_t *dists_specs =
-      calloc(NUM_ATTR, sizeof(distribution_specs_t));
+      calloc(NUM_ATTR - 1, sizeof(distribution_specs_t));
 
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
@@ -691,19 +697,20 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
       if (field >= STATIC_ARRAY_SIZE(metric_specs)) {
         ERROR("curl stats: Unknown field name %s", c->key);
-        distribution_specs_destroy(dists_specs, NUM_ATTR);
+        distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
         curl_stats_destroy(s);
         return NULL;
       }
 
-      size_t num_fields_per_attr = STATIC_ARRAY_SIZE(metric_specs) / NUM_ATTR;
+      size_t num_fields_per_attr =
+          STATIC_ARRAY_SIZE(metric_specs) / (NUM_ATTR - 1);
       size_t attr_idx = field / num_fields_per_attr;
 
       if (!strcasecmp(metric_specs[field].unit, "size_t")) { /* read uint64_t */
         size_t value;
 
         if (cf_util_get_uint64(c, &value) != 0) {
-          distribution_specs_destroy(dists_specs, NUM_ATTR);
+          distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
           curl_stats_destroy(s);
           return NULL;
         }
@@ -724,7 +731,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
                   "boundary. Required %d, received %d.",
                   OCONFIG_TYPE_NUMBER, c->values[j].type);
 
-            distribution_specs_destroy(dists_specs, NUM_ATTR);
+            distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
             free(boundaries);
             curl_stats_destroy(s);
             return NULL;
@@ -740,7 +747,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         double value;
 
         if (cf_util_get_double(c, &value) != 0) {
-          distribution_specs_destroy(dists_specs, NUM_ATTR);
+          distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
           curl_stats_destroy(s);
           return NULL;
         }
@@ -752,7 +759,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         char buffer[MAX_BUFFER_LENGTH];
 
         if (cf_util_get_string_buffer(c, buffer, MAX_BUFFER_LENGTH) != 0) {
-          distribution_specs_destroy(dists_specs, NUM_ATTR);
+          distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
           curl_stats_destroy(s);
           return NULL;
         }
@@ -766,7 +773,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
 
     if (cf_util_get_boolean(c, &enabled) != 0) {
-      distribution_specs_destroy(dists_specs, NUM_ATTR);
+      distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
       curl_stats_destroy(s);
       return NULL;
     }
@@ -781,7 +788,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
         ERROR("curl_stats_from_config: appending attribute: %s to metric "
               "family failed!",
               field_specs[field].config_key);
-        distribution_specs_destroy(dists_specs, NUM_ATTR);
+        distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
         curl_stats_destroy(s);
         return NULL;
       }
@@ -793,7 +800,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   distribution_t **d;
   if ((d = parse_metric_from_config(dists_specs)) == NULL) {
     ERROR("curl_stats_from_config: parsing distributions from config failed!!");
-    distribution_specs_destroy(dists_specs, NUM_ATTR);
+    distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
     curl_stats_destroy(s);
     return NULL;
   }
@@ -805,7 +812,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     }
     free(d);
 
-    distribution_specs_destroy(dists_specs, NUM_ATTR);
+    distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
     curl_stats_destroy(s);
   }
 
@@ -814,7 +821,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
   }
   free(d);
 
-  distribution_specs_destroy(dists_specs, NUM_ATTR);
+  distribution_specs_destroy(dists_specs, NUM_ATTR - 1);
 
   return s;
 } /* curl_stats_from_config */

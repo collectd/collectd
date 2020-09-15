@@ -266,13 +266,13 @@ DEF_TEST(curl_stats_from_config) {
                        },
                    .children_num = 1,
                },
-           .want_get_num_attr = 3,
+           .want_get_num_attr = 4,
            .want_get_metric_type =
                (int[]){METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_DISTRIBUTION,
-                       METRIC_TYPE_DISTRIBUTION},
+                       METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_GAUGE},
            .want_get_distributions = (distribution_t *[]){NULL, NULL, NULL},
            .num_enabled_attr = 0,
-           .want_get_num_metrics = (size_t[]){0, 0, 0}},
+           .want_get_num_metrics = (size_t[]){0, 0, 0, 0}},
           {.ci =
                {
                    .children =
@@ -290,20 +290,21 @@ DEF_TEST(curl_stats_from_config) {
                        },
                    .children_num = 1,
                },
-           .want_get_num_attr = 3,
+           .want_get_num_attr = 4,
            .want_get_metric_type =
                (int[]){METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_DISTRIBUTION,
-                       METRIC_TYPE_DISTRIBUTION},
+                       METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_GAUGE},
            .want_get_distributions =
                (distribution_t *[]){distribution_new_linear(1024, 8),
                                     distribution_new_linear(1024, 16),
                                     distribution_new_linear(1024, 0.001)},
            .num_enabled_attr = 1,
-           .want_get_num_metrics = (size_t[]){1, 0, 0},
+           .want_get_num_metrics = (size_t[]){1, 0, 0, 0},
            .want_get_enabled_attr = (char *[]){"SizeUpload"},
            .want_get_label_attributes =
                (const char **[]){(const char *[]){"SizeUpload"},
-                                 (const char *[]){}, (const char *[]){}}},
+                                 (const char *[]){}, (const char *[]){},
+                                 (const char *[]){}}},
           {.ci =
                {
                    .children =
@@ -361,21 +362,21 @@ DEF_TEST(curl_stats_from_config) {
                        },
                    .children_num = 5,
                },
-           .want_get_num_attr = 3,
+           .want_get_num_attr = 4,
            .want_get_metric_type =
                (int[]){METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_DISTRIBUTION,
-                       METRIC_TYPE_DISTRIBUTION},
+                       METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_GAUGE},
            .want_get_distributions =
                (distribution_t *[]){
                    distribution_new_exponential(1024, 2.0, 2.0),
                    distribution_new_linear(1024, 7.2),
                    distribution_new_linear(256, 0.001)},
            .num_enabled_attr = 2,
-           .want_get_num_metrics = (size_t[]){1, 1, 0},
+           .want_get_num_metrics = (size_t[]){1, 1, 0, 0},
            .want_get_label_attributes =
                (const char **[]){(const char *[]){"ContentLengthDownload"},
                                  (const char *[]){"SpeedDownload"},
-                                 (const char *[]){}},
+                                 (const char *[]){}, (const char *[]){}},
            .want_get_enabled_attr =
                (char *[]){"SpeedDownload", "ContentLengthDownload"}},
           {.ci =
@@ -461,10 +462,10 @@ DEF_TEST(curl_stats_from_config) {
                        },
                    .children_num = 6,
                },
-           .want_get_num_attr = 3,
+           .want_get_num_attr = 4,
            .want_get_metric_type =
                (int[]){METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_DISTRIBUTION,
-                       METRIC_TYPE_DISTRIBUTION},
+                       METRIC_TYPE_DISTRIBUTION, METRIC_TYPE_GAUGE},
            .want_get_distributions =
                (distribution_t *[]){
                    distribution_new_exponential(1024, 2.0, 2.0),
@@ -472,11 +473,12 @@ DEF_TEST(curl_stats_from_config) {
                    distribution_new_custom(5,
                                            (double[]){25, 50, 100, 200, 400})},
            .num_enabled_attr = 2,
-           .want_get_num_metrics = (size_t[]){0, 0, 2},
+           .want_get_num_metrics = (size_t[]){0, 0, 2, 0},
            .want_get_label_attributes =
                (const char **[]){
                    (const char *[]){}, (const char *[]){},
-                   (const char *[]){"PretransferTime", "StarttransferTime"}},
+                   (const char *[]){"PretransferTime", "StarttransferTime"},
+                   (const char *[]){}},
            .want_get_enabled_attr =
                (char *[]){"PretransferTime", "StarttransferTime"}},
       };
@@ -550,7 +552,7 @@ DEF_TEST(curl_stats_from_config) {
 
       free(fam);
 
-      for (size_t dist = 0; dist < cases[i].want_get_num_attr; ++dist) {
+      for (size_t dist = 0; dist < cases[i].want_get_num_attr - 1; ++dist) {
         distribution_destroy(cases[i].want_get_distributions[dist]);
       }
 
@@ -567,6 +569,7 @@ DEF_TEST(curl_stats_from_config) {
 }
 
 DEF_TEST(curl_stats_get_metric_families_for_attributes) {
+  size_t num_attr;
   struct {
     oconfig_item_t ci;
     size_t *num_attr;
@@ -686,7 +689,6 @@ DEF_TEST(curl_stats_get_metric_families_for_attributes) {
               },
           .want_get_metric_families =
               (metric_family_t[]){
-                  {.type = METRIC_TYPE_GAUGE, .name = "Count"},
                   {
                       .type = METRIC_TYPE_DISTRIBUTION,
                       .name = "Size",
@@ -695,12 +697,16 @@ DEF_TEST(curl_stats_get_metric_families_for_attributes) {
                           (metric_t[]){
                               {.value.distribution =
                                    distribution_new_linear(1024, 8),
-                               .label = (label_pair_t[]){{"Attributes",
-                                                          "RequestSize"}}}},
+                               .label =
+                                   (label_set_t){
+                                       .num = 1,
+                                       .ptr =
+                                           (label_pair_t[]){{"Attributes",
+                                                             "RequestSize"}}}}},
                   },
                   {
                       .type = METRIC_TYPE_DISTRIBUTION,
-                      .name = "SPEED",
+                      .name = "Speed",
                   },
                   {
                       .type = METRIC_TYPE_DISTRIBUTION,
@@ -710,12 +716,27 @@ DEF_TEST(curl_stats_get_metric_families_for_attributes) {
                           (metric_t[]){
                               {.value.distribution =
                                    distribution_new_linear(1024, 0.001),
-                               .label = (label_pair_t[]){{"Attributes",
-                                                          "NamelookupTime"}}}},
+                               .label =
+                                   (label_set_t){
+                                       .num = 1,
+                                       .ptr = (label_pair_t[]){{"Attributes", "Namelook"
+                                                                              "upTim"
+                                                                              "e"}}}}},
                   },
+                  {.type = METRIC_TYPE_GAUGE,
+                   .name = "Count",
+                   .metric.num = 1,
+                   .metric.ptr =
+                       (metric_t[]){
+                           {.label =
+                                (label_set_t){
+                                    .num = 1,
+                                    .ptr = (label_pair_t
+                                                []){{.name = "Attributes", .value = "NumConnects"}},
+                                }}}},
               },
-          .num_attr = (size_t *)2,
-          .want_get_num_attr = 3,
+          .num_attr = &num_attr,
+          .want_get_num_attr = 4,
       },
       {
           .ci =
@@ -766,13 +787,6 @@ DEF_TEST(curl_stats_get_metric_families_for_attributes) {
               },
           .want_get_metric_families =
               (metric_family_t[]){
-                  {.type = METRIC_TYPE_GAUGE,
-                   .name = "Count",
-                   .metric.num = 1,
-                   .metric.ptr =
-                       (metric_t[]){{.label =
-                                         (label_pair_t[]){{"Attributes",
-                                                           "RedirectCount"}}}}},
                   {
                       .type = METRIC_TYPE_DISTRIBUTION,
                       .name = "Size",
@@ -781,24 +795,43 @@ DEF_TEST(curl_stats_get_metric_families_for_attributes) {
                           (metric_t[]){
                               {.value.distribution =
                                    distribution_new_exponential(1024, 2, 2),
-                               .label = (label_pair_t[]){{"Attributes",
-                                                          "SizeDownload"}}},
+                               .label =
+                                   (label_set_t){
+                                       .num = 1,
+                                       .ptr =
+                                           (label_pair_t[]){{"Attributes",
+                                                             "SizeDownload"}}}},
                               {.value.distribution =
                                    distribution_new_exponential(1024, 2, 2),
-                               .label = (label_pair_t[]){{"Attributes",
-                                                          "RequestSize"}}}},
+                               .label =
+                                   (label_set_t){
+                                       .num = 1,
+                                       .ptr =
+                                           (label_pair_t[]){{"Attributes",
+                                                             "RequestSize"}}}}},
                   },
                   {
                       .type = METRIC_TYPE_DISTRIBUTION,
-                      .name = "SPEED",
+                      .name = "Speed",
                   },
                   {
                       .type = METRIC_TYPE_DISTRIBUTION,
                       .name = "Time",
                   },
+                  {.type = METRIC_TYPE_GAUGE,
+                   .name = "Count",
+                   .metric.num = 1,
+                   .metric.ptr =
+                       (metric_t[]){
+                           {.label =
+                                (label_set_t){
+                                    .num = 1,
+                                    .ptr =
+                                        (label_pair_t[]){{"Attributes",
+                                                          "RedirectCount"}}}}}},
               },
-          .num_attr = (size_t *)2,
-          .want_get_num_attr = 3,
+          .num_attr = &num_attr,
+          .want_get_num_attr = 4,
       },
   };
 
@@ -825,15 +858,15 @@ DEF_TEST(curl_stats_get_metric_families_for_attributes) {
         EXPECT_EQ_STR(cases[i].want_get_metric_families[family].name,
                       fam[family]->name);
 
-        if (fam[family]->type == METRIC_TYPE_DISTRIBUTION) {
-          for (size_t j = 0; j < fam[family]->metric.num; ++j) {
-            const char *label =
-                metric_label_get(&fam[family]->metric.ptr[j], "Attributes");
-            const char *want_label = metric_label_get(
-                &cases[i].want_get_metric_families[family]->metric.ptr[j],
-                "Attributes");
-            EXPECT_EQ_STR(want_label, label);
+        for (size_t j = 0; j < fam[family]->metric.num; ++j) {
+          const char *label =
+              metric_label_get(&fam[family]->metric.ptr[j], "Attributes");
+          const char *want_label = metric_label_get(
+              &cases[i].want_get_metric_families[family].metric.ptr[j],
+              "Attributes");
+          EXPECT_EQ_STR(want_label, label);
 
+          if (fam[family]->type == METRIC_TYPE_DISTRIBUTION) {
             buckets_array_t buckets =
                 get_buckets(fam[family]->metric.ptr[j].value.distribution);
             buckets_array_t wanted_buckets =
@@ -855,8 +888,20 @@ DEF_TEST(curl_stats_get_metric_families_for_attributes) {
           }
         }
       }
+
       for (size_t family = 0; family < *cases[i].num_attr; ++family) {
         metric_family_free(fam[family]);
+
+        if (cases[i].want_get_metric_families[family].type ==
+            METRIC_TYPE_DISTRIBUTION) {
+          for (size_t j = 0;
+               j < cases[i].want_get_metric_families[family].metric.num; ++j) {
+            distribution_destroy(cases[i]
+                                     .want_get_metric_families[family]
+                                     .metric.ptr[j]
+                                     .value.distribution);
+          }
+        }
       }
 
       free(fam);
@@ -868,6 +913,7 @@ DEF_TEST(curl_stats_get_metric_families_for_attributes) {
 }
 
 DEF_TEST(curl_stats_get_enabled_attributes) {
+  size_t num_attr;
   struct {
     oconfig_item_t ci;
     size_t *num_enabled_attr;
@@ -908,7 +954,7 @@ DEF_TEST(curl_stats_get_enabled_attributes) {
                               },
                               {
                                   .values_num = 1,
-                                  .key = "SizeUpload",
+                                  .key = "Size",
                                   .values = (oconfig_value_t[]){{
                                       .type = OCONFIG_TYPE_BOOLEAN,
                                       .value.boolean = 1,
@@ -918,7 +964,7 @@ DEF_TEST(curl_stats_get_enabled_attributes) {
                       .children_num = 2,
                   },
               .want_get_enabled_attr = NULL,
-              .num_enabled_attr = (size_t *)2,
+              .num_enabled_attr = &num_attr,
           },
           {
               .ci =
@@ -970,9 +1016,9 @@ DEF_TEST(curl_stats_get_enabled_attributes) {
                    .children_num = 3,
                },
 
-           .num_enabled_attr = (size_t *)2,
+           .num_enabled_attr = &num_attr,
            .want_get_num_enabled_attr = 3,
-           .want_get_enabled_attr = (char *[]){"ConnectTime", "NamelookupTime",
+           .want_get_enabled_attr = (char *[]){"NamelookupTime", "ConnectTime",
                                                "ContentLengthDownload"}},
           {.ci =
                {
@@ -1014,7 +1060,7 @@ DEF_TEST(curl_stats_get_enabled_attributes) {
                            }},
                    .children_num = 4,
                },
-           .num_enabled_attr = (size_t *)0,
+           .num_enabled_attr = &num_attr,
            .want_get_num_enabled_attr = 2,
            .want_get_enabled_attr =
                (char *[]){
@@ -1033,9 +1079,9 @@ DEF_TEST(curl_stats_get_enabled_attributes) {
         curl_stats_get_enabled_attributes(s, cases[i].num_enabled_attr);
 
     if (cases[i].want_get_enabled_attr == NULL) {
-      EXPECT_EQ_PTR(NULL, *cases[i].num_enabled_attr);
+      EXPECT_EQ_PTR(NULL, enabled_attr);
     } else {
-      EXPECT_EQ_UINT64(cases[i].want_get_enabled_attr,
+      EXPECT_EQ_UINT64(cases[i].want_get_num_enabled_attr,
                        *cases[i].num_enabled_attr);
 
       if (*cases[i].num_enabled_attr > 0) {
