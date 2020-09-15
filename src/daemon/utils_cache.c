@@ -161,9 +161,9 @@ static int uc_insert(metric_t const *m, char const *key) {
 
   case DS_TYPE_DERIVE:
     ce->values_gauge = NAN;
-    // ce->values_raw.derive = m->value.derive;
+    ce->values_raw = typed_value_create(m->value, METRIC_TYPE_COUNTER);
     ce->distribution_increase = NULL;
-    /* TODO: METRIC_TYPE_DERIVE? */
+    ce->start_value = typed_value_create(m->value, METRIC_TYPE_COUNTER);
     break;
 
   case DS_TYPE_DISTRIBUTION:
