@@ -213,7 +213,7 @@ static void update_tree(distribution_t *dist, size_t node_index, size_t left,
 
 int distribution_update(distribution_t *dist, double gauge) {
   if (dist == NULL || gauge < 0) {
-    return errno = EINVAL;
+    return EINVAL;
   }
   pthread_mutex_lock(&dist->mutex);
   update_tree(dist, 0, 0, dist->num_buckets - 1, gauge);
@@ -364,7 +364,7 @@ double distribution_stddev(distribution_t *dist) {
 
 int distribution_reset(distribution_t *dist) {
   if (dist == NULL) {
-    return errno = EINVAL;
+    return EINVAL;
   }
   pthread_mutex_lock(&dist->mutex);
   dist->total_sum = 0;
@@ -379,11 +379,11 @@ int distribution_reset(distribution_t *dist) {
 /* TODO(bkjg): add tests for this function */
 int distribution_sub(distribution_t *d1, distribution_t *d2) {
   if (d1 == NULL || d2 == NULL) {
-    return errno = EINVAL;
+    return EINVAL;
   }
 
   if (d1->num_buckets != d2->num_buckets) {
-    return errno = EINVAL;
+    return EINVAL;
   }
 
   pthread_mutex_lock(&d1->mutex);
@@ -396,7 +396,7 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
           d1->tree[i].bucket_counter > d2->tree[i].bucket_counter) {
         pthread_mutex_unlock(&d2->mutex);
         pthread_mutex_unlock(&d1->mutex);
-        return errno = EINVAL;
+        return EINVAL;
       }
 
       d1->tree[i].bucket_counter =
@@ -409,7 +409,7 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
           d1->tree[i].bucket_counter < d2->tree[i].bucket_counter) {
         pthread_mutex_unlock(&d2->mutex);
         pthread_mutex_unlock(&d1->mutex);
-        return errno = EINVAL;
+        return EINVAL;
       }
 
       d1->tree[i].bucket_counter -= d2->tree[i].bucket_counter;
