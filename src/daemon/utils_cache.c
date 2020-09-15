@@ -676,19 +676,20 @@ int uc_get_start_value_by_name(const char *name, value_t *ret_start_value,
 
   cache_entry_t *ce = NULL;
   int status = 0;
-  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
-    assert(ce != NULL);
-
-    /* remove missing values from getval */
-    if (ce->state == STATE_MISSING) {
-      status = -1;
-    } else {
-      *ret_start_value = typed_value_clone(ce->start_value).value;
-      *ret_start_time = ce->start_time;
-    }
-  } else {
+  if (c_avl_get(cache_tree, name, (void *)&ce) != 0) {
     DEBUG("utils_cache: uc_get_start_value_by_name: No such value: %s", name);
     status = -1;
+    pthread_mutex_unlock(&cache_lock);
+    return status;
+  }
+  assert(ce != NULL);
+
+  /* remove missing values from getval */
+  if (ce->state == STATE_MISSING) {
+    status = -1;
+  } else {
+    *ret_start_value = typed_value_clone(ce->start_value).value;
+    *ret_start_time = ce->start_time;
   }
 
   pthread_mutex_unlock(&cache_lock);
