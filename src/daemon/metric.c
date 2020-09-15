@@ -42,6 +42,17 @@ typed_value_t typed_value_clone(typed_value_t val) {
   return copy;
 }
 
+typed_value_t create_typed_value(value_t val, metric_type_t type) {
+  typed_value_t tval = {
+      .value = val,
+      .type = type,
+  };
+  if (type == METRIC_TYPE_DISTRIBUTION) {
+    tval.value.distribution = distribution_clone(val.distribution);
+  }
+  return tval;
+}
+
 /* Label names must match the regex `[a-zA-Z_][a-zA-Z0-9_]*`. Label names
  * beginning with __ are reserved for internal use.
  *
