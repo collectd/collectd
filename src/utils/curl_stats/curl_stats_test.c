@@ -506,12 +506,10 @@ DEF_TEST(curl_stats_from_config) {
 
         if (fam[family]->type == METRIC_TYPE_DISTRIBUTION) {
           for (size_t j = 0; j < fam[family]->metric.num; ++j) {
-            /* TODO(bkjg): check labels */
             const char *label =
                 metric_label_get(&fam[family]->metric.ptr[j], "Attributes");
 
             EXPECT_EQ_STR(cases[i].want_get_label_attributes[family][j], label);
-            // free(label);
 
             buckets_array_t buckets =
                 get_buckets(fam[family]->metric.ptr[j].value.distribution);
@@ -568,8 +566,501 @@ DEF_TEST(curl_stats_from_config) {
   return 0;
 }
 
+DEF_TEST(curl_stats_get_metric_families_for_attributes) {
+  struct {
+    oconfig_item_t ci;
+    size_t *num_attr;
+    size_t want_get_num_attr;
+    metric_family_t *want_get_metric_families;
+  } cases[] = {
+      {
+          .ci =
+              {
+                  .children =
+                      (oconfig_item_t[]){
+                          {
+                              .values_num = 1,
+                              .key = "SpeedUpload",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_BOOLEAN,
+                                  .value.boolean = 1,
+                              }},
+                          },
+                          {
+                              .values_num = 1,
+                              .key = "SpeedDownload",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_BOOLEAN,
+                                  .value.boolean = 1,
+                              }},
+                          },
+                      },
+                  .children_num = 2,
+              },
+          .want_get_metric_families = NULL,
+      },
+      {
+          .ci =
+              {
+                  .children =
+                      (oconfig_item_t[]){
+                          {
+                              .values_num = 1,
+                              .key = "HeaderSize",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_BOOLEAN,
+                                  .value.boolean = 1,
+                              }},
+                          },
+                          {
+                              .values_num = 1,
+                              .key = "ContentLengthUpload",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_BOOLEAN,
+                                  .value.boolean = 1,
+                              }},
+                          },
+                          {
+                              .values_num = 1,
+                              .key = "Time",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_BOOLEAN,
+                                  .value.boolean = 1,
+                              }},
+                          },
+                      },
+                  .children_num = 3,
+              },
+          .want_get_metric_families = NULL,
+          .num_attr = (size_t *)2,
+      },
+      {
+          .ci =
+              {
+                  .children =
+                      (oconfig_item_t[]){
+                          {
+                              .values_num = 1,
+                              .key = "HeaderSize",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_STRING,
+                                  .value.string = "1",
+                              }},
+                          },
+                      },
+                  .children_num = 1,
+              },
+          .want_get_metric_families = NULL,
+      },
+      {
+          .ci =
+              {
+                  .children =
+                      (oconfig_item_t[]){
+                          {
+                              .values_num = 1,
+                              .key = "RequestSize",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_BOOLEAN,
+                                  .value.boolean = 1,
+                              }},
+                          },
+                          {
+                              .values_num = 1,
+                              .key = "NamelookupTime",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_BOOLEAN,
+                                  .value.boolean = 1,
+                              }},
+                          },
+                          {
+                              .values_num = 1,
+                              .key = "NumConnects",
+                              .values = (oconfig_value_t[]){{
+                                  .type = OCONFIG_TYPE_BOOLEAN,
+                                  .value.boolean = 1,
+                              }},
+                          },
+                      },
+                  .children_num = 3,
+              },
+          .want_get_metric_families =
+              (metric_family_t[]){
+                  {.type = METRIC_TYPE_GAUGE, .name = "Count"},
+                  {
+                      .type = METRIC_TYPE_DISTRIBUTION,
+                      .name = "Size",
+                      .metric.num = 1,
+                      .metric.ptr =
+                          (metric_t[]){
+                              {.value.distribution =
+                                   distribution_new_linear(1024, 8),
+                               .label = (label_pair_t[]){{"Attributes",
+                                                          "RequestSize"}}}},
+                  },
+                  {
+                      .type = METRIC_TYPE_DISTRIBUTION,
+                      .name = "SPEED",
+                  },
+                  {
+                      .type = METRIC_TYPE_DISTRIBUTION,
+                      .name = "Time",
+                      .metric.num = 1,
+                      .metric.ptr =
+                          (metric_t[]){
+                              {.value.distribution =
+                                   distribution_new_linear(1024, 0.001),
+                               .label = (label_pair_t[]){{"Attributes",
+                                                          "NamelookupTime"}}}},
+                  },
+              },
+          .num_attr = (size_t *)2,
+          .want_get_num_attr = 3,
+      },
+      {
+          .ci =
+              {
+                  .children =
+                      (oconfig_item_t[]){
+                          {
+                              .values_num = 1,
+                              .key = "SizeDownload",
+                              .values =
+                                  (oconfig_value_t[]){
+                                      {
+                                          .type = OCONFIG_TYPE_BOOLEAN,
+                                          .value.boolean = 1,
+                                      }},
+                          },
+                          {
+                              .values_num = 1,
+                              .key = "RequestSize",
+                              .values =
+                                  (oconfig_value_t[]){
+                                      {
+                                          .type = OCONFIG_TYPE_BOOLEAN,
+                                          .value.boolean = 1,
+                                      }},
+                          },
+                          {
+                              .values_num = 1,
+                              .key = "RedirectCount",
+                              .values =
+                                  (oconfig_value_t[]){
+                                      {
+                                          .type = OCONFIG_TYPE_BOOLEAN,
+                                          .value.boolean = 1,
+                                      }},
+                          },
+                          {
+                              .values_num = 1,
+                              .key = "SizeDistributionType",
+                              .values =
+                                  (oconfig_value_t[]){
+                                      {
+                                          .type = OCONFIG_TYPE_STRING,
+                                          .value.string = "Exponential",
+                                      }},
+                          }},
+                  .children_num = 4,
+              },
+          .want_get_metric_families =
+              (metric_family_t[]){
+                  {.type = METRIC_TYPE_GAUGE,
+                   .name = "Count",
+                   .metric.num = 1,
+                   .metric.ptr =
+                       (metric_t[]){{.label =
+                                         (label_pair_t[]){{"Attributes",
+                                                           "RedirectCount"}}}}},
+                  {
+                      .type = METRIC_TYPE_DISTRIBUTION,
+                      .name = "Size",
+                      .metric.num = 2,
+                      .metric.ptr =
+                          (metric_t[]){
+                              {.value.distribution =
+                                   distribution_new_exponential(1024, 2, 2),
+                               .label = (label_pair_t[]){{"Attributes",
+                                                          "SizeDownload"}}},
+                              {.value.distribution =
+                                   distribution_new_exponential(1024, 2, 2),
+                               .label = (label_pair_t[]){{"Attributes",
+                                                          "RequestSize"}}}},
+                  },
+                  {
+                      .type = METRIC_TYPE_DISTRIBUTION,
+                      .name = "SPEED",
+                  },
+                  {
+                      .type = METRIC_TYPE_DISTRIBUTION,
+                      .name = "Time",
+                  },
+              },
+          .num_attr = (size_t *)2,
+          .want_get_num_attr = 3,
+      },
+  };
+
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    printf("## Case %zu: \n", i);
+    curl_stats_t *s;
+
+    s = curl_stats_from_config(&cases[i].ci);
+
+    metric_family_t **fam =
+        curl_stats_get_metric_families_for_attributes(s, cases[i].num_attr);
+
+    if (cases[i].want_get_metric_families == NULL) {
+      EXPECT_EQ_PTR(NULL, fam);
+    } else {
+      CHECK_NOT_NULL(cases[i].want_get_metric_families);
+      EXPECT_EQ_UINT64(cases[i].want_get_num_attr, *cases[i].num_attr);
+
+      for (size_t family = 0; family < *cases[i].num_attr; ++family) {
+        EXPECT_EQ_INT(cases[i].want_get_metric_families[family].type,
+                      fam[family]->type);
+        EXPECT_EQ_UINT64(cases[i].want_get_metric_families[family].metric.num,
+                         fam[family]->metric.num);
+        EXPECT_EQ_STR(cases[i].want_get_metric_families[family].name,
+                      fam[family]->name);
+
+        if (fam[family]->type == METRIC_TYPE_DISTRIBUTION) {
+          for (size_t j = 0; j < fam[family]->metric.num; ++j) {
+            const char *label =
+                metric_label_get(&fam[family]->metric.ptr[j], "Attributes");
+            const char *want_label = metric_label_get(
+                &cases[i].want_get_metric_families[family]->metric.ptr[j],
+                "Attributes");
+            EXPECT_EQ_STR(want_label, label);
+
+            buckets_array_t buckets =
+                get_buckets(fam[family]->metric.ptr[j].value.distribution);
+            buckets_array_t wanted_buckets =
+                get_buckets(cases[i]
+                                .want_get_metric_families[family]
+                                .metric.ptr[j]
+                                .value.distribution);
+
+            EXPECT_EQ_UINT64(wanted_buckets.num_buckets, buckets.num_buckets);
+            for (size_t k = 0; k < wanted_buckets.num_buckets; ++k) {
+              EXPECT_EQ_DOUBLE(wanted_buckets.buckets[k].maximum,
+                               buckets.buckets[k].maximum);
+              EXPECT_EQ_UINT64(wanted_buckets.buckets[k].bucket_counter,
+                               buckets.buckets[k].bucket_counter);
+            }
+
+            free(buckets.buckets);
+            free(wanted_buckets.buckets);
+          }
+        }
+      }
+      for (size_t family = 0; family < *cases[i].num_attr; ++family) {
+        metric_family_free(fam[family]);
+      }
+
+      free(fam);
+    }
+    curl_stats_destroy(s);
+  }
+
+  return 0;
+}
+
+DEF_TEST(curl_stats_get_enabled_attributes) {
+  struct {
+    oconfig_item_t ci;
+    size_t *num_enabled_attr;
+    size_t want_get_num_enabled_attr;
+    char **want_get_enabled_attr;
+  } cases[] =
+      {
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .values_num = 1,
+                                  .key = "RequestSize",
+                                  .values = (oconfig_value_t[]){{
+                                      .type = OCONFIG_TYPE_BOOLEAN,
+                                      .value.boolean = 1,
+                                  }},
+                              },
+                          },
+                      .children_num = 1,
+                  },
+              .want_get_enabled_attr = NULL,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .values_num = 1,
+                                  .key = "NumConnects",
+                                  .values = (oconfig_value_t[]){{
+                                      .type = OCONFIG_TYPE_BOOLEAN,
+                                      .value.boolean = 1,
+                                  }},
+                              },
+                              {
+                                  .values_num = 1,
+                                  .key = "SizeUpload",
+                                  .values = (oconfig_value_t[]){{
+                                      .type = OCONFIG_TYPE_BOOLEAN,
+                                      .value.boolean = 1,
+                                  }},
+                              },
+                          },
+                      .children_num = 2,
+                  },
+              .want_get_enabled_attr = NULL,
+              .num_enabled_attr = (size_t *)2,
+          },
+          {
+              .ci =
+                  {
+                      .children =
+                          (oconfig_item_t[]){
+                              {
+                                  .values_num = 1,
+                                  .key = "NumConnects",
+                                  .values = (oconfig_value_t[]){{
+                                      .type = OCONFIG_TYPE_STRING,
+                                      .value.string = "1",
+                                  }},
+                              },
+                          },
+                      .children_num = 1,
+                  },
+              .want_get_enabled_attr = NULL,
+          },
+          {.ci =
+               {
+                   .children =
+                       (oconfig_item_t[]){
+                           {
+                               .values_num = 1,
+                               .key = "ConnectTime",
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_BOOLEAN,
+                                   .value.boolean = 1,
+                               }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "NamelookupTime",
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_BOOLEAN,
+                                   .value.boolean = 1,
+                               }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "ContentLengthDownload",
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_BOOLEAN,
+                                   .value.boolean = 1,
+                               }},
+                           },
+                       },
+                   .children_num = 3,
+               },
+
+           .num_enabled_attr = (size_t *)2,
+           .want_get_num_enabled_attr = 3,
+           .want_get_enabled_attr = (char *[]){"ConnectTime", "NamelookupTime",
+                                               "ContentLengthDownload"}},
+          {.ci =
+               {
+                   .children =
+                       (oconfig_item_t[]){
+                           {
+                               .values_num = 1,
+                               .key = "TotalTime",
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_BOOLEAN,
+                                   .value.boolean = 1,
+                               }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "StarttransferTime",
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_BOOLEAN,
+                                   .value.boolean = 1,
+                               }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "SizeFactor",
+                               .values = (oconfig_value_t[]){{
+                                   .type = OCONFIG_TYPE_NUMBER,
+                                   .value.number = 5,
+                               }},
+                           },
+                           {
+                               .values_num = 1,
+                               .key = "SpeedBase",
+                               .values =
+                                   (oconfig_value_t[]){
+                                       {
+                                           .type = OCONFIG_TYPE_NUMBER,
+                                           .value.number = 10,
+                                       }},
+                           }},
+                   .children_num = 4,
+               },
+           .num_enabled_attr = (size_t *)0,
+           .want_get_num_enabled_attr = 2,
+           .want_get_enabled_attr =
+               (char *[]){
+                   "TotalTime",
+                   "StarttransferTime",
+               }},
+      };
+
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    printf("## Case %zu: \n", i);
+    curl_stats_t *s;
+
+    s = curl_stats_from_config(&cases[i].ci);
+
+    char **enabled_attr =
+        curl_stats_get_enabled_attributes(s, cases[i].num_enabled_attr);
+
+    if (cases[i].want_get_enabled_attr == NULL) {
+      EXPECT_EQ_PTR(NULL, *cases[i].num_enabled_attr);
+    } else {
+      EXPECT_EQ_UINT64(cases[i].want_get_enabled_attr,
+                       *cases[i].num_enabled_attr);
+
+      if (*cases[i].num_enabled_attr > 0) {
+        CHECK_NOT_NULL(enabled_attr);
+      }
+
+      for (size_t attr = 0; attr < *cases[i].num_enabled_attr; ++attr) {
+        EXPECT_EQ_STR(cases[i].want_get_enabled_attr[attr], enabled_attr[attr]);
+      }
+
+      for (size_t attr = 0; attr < *cases[i].num_enabled_attr; ++attr) {
+        free(enabled_attr[attr]);
+      }
+
+      free(enabled_attr);
+    }
+    curl_stats_destroy(s);
+  }
+
+  return 0;
+}
+
 int main() {
   RUN_TEST(curl_stats_from_config);
-
+  RUN_TEST(curl_stats_get_metric_families_for_attributes);
+  RUN_TEST(curl_stats_get_enabled_attributes);
   END_TEST;
 }
