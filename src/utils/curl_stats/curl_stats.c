@@ -904,15 +904,18 @@ int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
   }
 
   for (size_t i = 0; i < s->metrics->size_fam->metric.num; ++i) {
-    status |= distribution_reset(s->metrics->size_fam->metric.ptr[i].value.distribution);
+    status |= distribution_reset(
+        s->metrics->size_fam->metric.ptr[i].value.distribution);
   }
 
   for (size_t i = 0; i < s->metrics->speed_fam->metric.num; ++i) {
-    status |= distribution_reset(s->metrics->speed_fam->metric.ptr[i].value.distribution);
+    status |= distribution_reset(
+        s->metrics->speed_fam->metric.ptr[i].value.distribution);
   }
 
   for (size_t i = 0; i < s->metrics->time_fam->metric.num; ++i) {
-    status |= distribution_reset(s->metrics->time_fam->metric.ptr[i].value.distribution);
+    status |= distribution_reset(
+        s->metrics->time_fam->metric.ptr[i].value.distribution);
   }
 
   return status;
