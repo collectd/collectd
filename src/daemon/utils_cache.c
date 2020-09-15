@@ -149,14 +149,14 @@ static int uc_insert(metric_t const *m, char const *key) {
     ce->values_gauge = NAN;
     ce->values_raw.counter = m->value.counter;
     ce->distribution_increase = NULL;
-    ce->start_value = create_typed_value(m->value, METRIC_TYPE_COUNTER);
+    ce->start_value = typed_value_create(m->value, METRIC_TYPE_COUNTER);
     break;
 
   case DS_TYPE_GAUGE:
     ce->values_gauge = m->value.gauge;
     ce->values_raw.gauge = m->value.gauge;
     ce->distribution_increase = NULL;
-    ce->start_value = create_typed_value(m->value, METRIC_TYPE_GAUGE);
+    ce->start_value = typed_value_create(m->value, METRIC_TYPE_GAUGE);
     break;
 
   case DS_TYPE_DERIVE:
@@ -170,7 +170,7 @@ static int uc_insert(metric_t const *m, char const *key) {
     ce->values_gauge = NAN;
     ce->values_raw.distribution = distribution_clone(m->value.distribution);
     ce->distribution_increase = distribution_clone(m->value.distribution);
-    ce->start_value = create_typed_value(m->value, METRIC_TYPE_DISTRIBUTION);
+    ce->start_value = typed_value_create(m->value, METRIC_TYPE_DISTRIBUTION);
     break;
 
   default:

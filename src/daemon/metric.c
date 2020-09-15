@@ -42,7 +42,7 @@ typed_value_t typed_value_clone(typed_value_t val) {
   return copy;
 }
 
-typed_value_t create_typed_value(value_t val, metric_type_t type) {
+typed_value_t typed_value_create(value_t val, metric_type_t type) {
   typed_value_t tval = {
       .value = val,
       .type = type,

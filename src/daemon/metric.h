@@ -63,7 +63,7 @@ typedef struct {
 
 typed_value_t typed_value_clone(typed_value_t val);
 
-typed_value_t create_typed_value(value_t val, metric_type_t type);
+typed_value_t typed_value_create(value_t val, metric_type_t type);
 
 /* value_marshal_text prints a text representation of v to buf. */
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type);
