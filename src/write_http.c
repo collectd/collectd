@@ -291,7 +291,7 @@ static int wh_flush(cdtime_t timeout,
   }
 
   int status = wh_post(cb, json);
-  free((char*)json);
+  free((char *)json);
 
   return status;
 } /* int wh_flush */
@@ -318,7 +318,7 @@ static void wh_callback_free(void *data) {
   }
 
   STRBUF_DESTROY(cb->send_buffer);
-  
+
   sfree(cb->name);
   sfree(cb->location);
   sfree(cb->user);
