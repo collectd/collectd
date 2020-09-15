@@ -32,6 +32,7 @@
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
 
+#include <daemon/distribution.h>
 #include <liboconfig/oconfig.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -113,7 +114,8 @@ parse_metric_from_config(distribution_specs_t dists_specs[NUM_ATTR]) {
       num_buckets = dists_specs[attr].num_buckets;
     }
 
-    if (dists_specs[attr].distribution_type == NULL || !strcasecmp(dists_specs[attr].distribution_type, "Linear")) {
+    if (dists_specs[attr].distribution_type == NULL ||
+        !strcasecmp(dists_specs[attr].distribution_type, "Linear")) {
       double base;
       if (dists_specs[attr].base == 0 && dists_specs[attr].factor == 0) {
         base = default_linear_base_per_attr[attr];
@@ -581,7 +583,7 @@ static bool field_enabled(curl_stats_t *s, size_t offset) {
  */
 char **curl_stats_get_enabled_attributes(curl_stats_t *s,
                                          size_t *num_enabled_attr) {
-  if (s == NULL) {
+  if (s == NULL || num_enabled_attr == NULL) {
     return NULL;
   }
 
@@ -600,7 +602,8 @@ char **curl_stats_get_enabled_attributes(curl_stats_t *s,
     }
   }
 
-  /* if copying name of some attribute failed, then free all copied names of attributes */
+  /* if copying name of some attribute failed, then free all copied names of
+   * attributes */
   for (int i = 0; i < idx; ++i) {
     if (enabled_attributes[i] == NULL) {
       for (int j = 0; j < idx; ++j) {
@@ -620,7 +623,7 @@ char **curl_stats_get_enabled_attributes(curl_stats_t *s,
 metric_family_t **
 curl_stats_get_metric_families_for_attributes(curl_stats_t *s,
                                               size_t *num_attr) {
-  if (s == NULL) {
+  if (s == NULL || num_attr == NULL) {
     return NULL;
   }
 
@@ -818,7 +821,8 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
 
 void curl_stats_destroy(curl_stats_t *s) {
   if (s != NULL) {
-    /* if curl_stats_t was proper created, via curl_stats_from_config function, then we are sure that s->metrics is not equal to null */
+    /* if curl_stats_t was proper created, via curl_stats_from_config function,
+     * then we are sure that s->metrics is not equal to null */
     metric_family_metric_reset(s->metrics->count_fam);
     metric_family_metric_reset(s->metrics->size_fam);
     metric_family_metric_reset(s->metrics->speed_fam);
@@ -895,8 +899,21 @@ int curl_stats_send_metric_to_daemon(curl_stats_t *s) {
   status |= plugin_dispatch_metric_family(s->metrics->speed_fam);
   status |= plugin_dispatch_metric_family(s->metrics->time_fam);
 
-  /* TODO(bkjg): reset all distributions (wait for pull request with this
-   * functionality to be merged) */
+  for (size_t i = 0; i < s->metrics->count_fam->metric.num; ++i) {
+    s->metrics->count_fam->metric.ptr[i].value.gauge = 0;
+  }
+
+  for (size_t i = 0; i < s->metrics->size_fam->metric.num; ++i) {
+    status |= distribution_reset(s->metrics->size_fam->metric.ptr[i].value.distribution);
+  }
+
+  for (size_t i = 0; i < s->metrics->speed_fam->metric.num; ++i) {
+    status |= distribution_reset(s->metrics->speed_fam->metric.ptr[i].value.distribution);
+  }
+
+  for (size_t i = 0; i < s->metrics->time_fam->metric.num; ++i) {
+    status |= distribution_reset(s->metrics->time_fam->metric.ptr[i].value.distribution);
+  }
 
   return status;
 } /* curl_stats_send_metric_to_daemon */
