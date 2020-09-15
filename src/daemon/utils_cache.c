@@ -161,7 +161,7 @@ static int uc_insert(metric_t const *m, char const *key) {
 
   case DS_TYPE_DERIVE:
     ce->values_gauge = NAN;
-    //ce->values_raw.derive = m->value.derive;
+    // ce->values_raw.derive = m->value.derive;
     ce->distribution_increase = NULL;
     /* TODO: METRIC_TYPE_DERIVE? */
     break;
@@ -345,7 +345,8 @@ static int uc_update_metric(metric_t const *m) {
 
   switch (m->family->type) {
   case METRIC_TYPE_COUNTER: {
-    counter_t diff = counter_diff(ce->values_raw.value.counter, m->value.counter);
+    counter_t diff =
+        counter_diff(ce->values_raw.value.counter, m->value.counter);
     ce->values_gauge =
         ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
     ce->values_raw.value.counter = m->value.counter;
@@ -380,7 +381,8 @@ static int uc_update_metric(metric_t const *m) {
       return status;
     }
     distribution_destroy(ce->values_raw.value.distribution);
-    ce->values_raw.value.distribution = distribution_clone(m->value.distribution);
+    ce->values_raw.value.distribution =
+        distribution_clone(m->value.distribution);
     break;
   }
 #if 0
@@ -492,9 +494,9 @@ int uc_get_percentile_by_name(const char *name, gauge_t *ret_values,
             name);
       status = -1;
     } else {
-      if (ce->distribution_increase == NULL &&
-          ce->values_raw.value.distribution !=
-              NULL) { /* check if the cache entry is not the distribution */
+      if (ce->values_raw.type !=
+          METRIC_TYPE_DISTRIBUTION) { /* check if the cache entry is not the
+                                         distribution */
         pthread_mutex_unlock(&cache_lock);
         ERROR("uc_get_percentile: Don't know how to handle data source type "
               "that is not the distribution.");
@@ -560,9 +562,9 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
       status = -1;
     } else {
 
-      if (ce->distribution_increase == NULL &&
-          ce->values_raw.value.distribution !=
-              NULL) { /* check if the cache entry is not the distribution */
+      if (ce->values_raw.type !=
+          METRIC_TYPE_DISTRIBUTION) { /* check if the cache entry is not the
+                                         distribution */
         *ret_values = ce->values_gauge;
       } else { /* in case where metric is a distribution, we
                                      assume that the rate is the middle value */
