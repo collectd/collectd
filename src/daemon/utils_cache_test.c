@@ -312,7 +312,7 @@ DEF_TEST(uc_update) {
 
     free(cases[i].fam);
   }
-
+  uc_destroy();
   return 0;
 }
 
@@ -562,7 +562,7 @@ DEF_TEST(uc_get_percentile_by_name) {
     CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     free(cases[i].fam);
   }
-
+  uc_destroy();
   return 0;
 }
 
@@ -801,7 +801,7 @@ DEF_TEST(uc_get_percentile) {
     CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     free(cases[i].fam);
   }
-  // reset_cache_tree();
+  uc_destroy();
   return 0;
 }
 
@@ -1003,7 +1003,7 @@ DEF_TEST(uc_get_rate_by_name) {
     CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     free(cases[i].fam);
   }
-
+  uc_destroy();
   return 0;
 }
 
@@ -1257,7 +1257,7 @@ DEF_TEST(uc_get_rate) {
     CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     free(cases[i].fam);
   }
-
+  uc_destroy();
   return 0;
 }
 
