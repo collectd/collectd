@@ -123,7 +123,9 @@ static void cache_free(cache_entry_t *ce) {
   sfree(ce->history);
   meta_data_destroy(ce->meta);
   ce->meta = NULL;
-
+  typed_value_destroy(ce->values_raw);
+  typed_value_destroy(ce->start_value);
+  distribution_destroy(ce->distribution_increase);
   sfree(ce);
 } /* void cache_free */
 
