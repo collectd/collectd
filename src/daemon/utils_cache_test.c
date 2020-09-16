@@ -35,7 +35,7 @@ static metric_family_t *create_metric_family_for_test1(char *name,
                                                        size_t num_metrics,
                                                        const gauge_t *gauges) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
-  fam->name = name;
+  fam->name = strdup(name);
   fam->type = METRIC_TYPE_GAUGE;
 
   metric_t m[num_metrics];
@@ -49,6 +49,7 @@ static metric_family_t *create_metric_family_for_test1(char *name,
 
   for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -59,7 +60,7 @@ create_metric_family_for_test2(char *name, double *want_ret_value,
                                size_t num_metrics, const counter_t *counters,
                                const uint64_t *times) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
-  fam->name = name;
+  fam->name = strdup(name);
   fam->type = METRIC_TYPE_COUNTER;
 
   metric_t m[num_metrics];
@@ -80,6 +81,10 @@ create_metric_family_for_test2(char *name, double *want_ret_value,
                     m[num_metrics - 1].value.counter)) /
       (CDTIME_T_TO_DOUBLE(m[num_metrics - 1].time - m[num_metrics - 2].time));
 
+  for (size_t i = 0; i < num_metrics; ++i) {
+    metric_reset(&m[i]);
+  }
+
   return fam;
 }
 
@@ -87,7 +92,7 @@ static metric_family_t *create_metric_family_for_test3(char *name,
                                                        size_t num_metrics,
                                                        const gauge_t *gauges) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
-  fam->name = name;
+  fam->name = strdup(name);
   fam->type = METRIC_TYPE_UNTYPED;
 
   metric_t m[num_metrics];
@@ -101,6 +106,7 @@ static metric_family_t *create_metric_family_for_test3(char *name,
 
   for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -108,7 +114,7 @@ static metric_family_t *create_metric_family_for_test3(char *name,
 
 static metric_family_t *create_metric_family_for_test4(char *name) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
-  fam->name = name;
+  fam->name = strdup(name);
   fam->type = METRIC_TYPE_DISTRIBUTION;
 
   metric_t m[] = {
@@ -121,6 +127,7 @@ static metric_family_t *create_metric_family_for_test4(char *name) {
 
   for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -130,7 +137,7 @@ static metric_family_t *
 create_metric_family_for_test5(char *name, size_t num_metrics,
                                size_t num_buckets, double base, double factor) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
-  fam->name = name;
+  fam->name = strdup(name);
   fam->type = METRIC_TYPE_DISTRIBUTION;
 
   metric_t m[num_metrics];
@@ -145,6 +152,7 @@ create_metric_family_for_test5(char *name, size_t num_metrics,
 
   for (size_t i = 0; i < num_metrics; ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -155,7 +163,7 @@ static metric_family_t *create_metric_family_for_test6(char *name,
                                                        size_t num_boundaries,
                                                        double *boundaries) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
-  fam->name = name;
+  fam->name = strdup(name);
   fam->type = METRIC_TYPE_DISTRIBUTION;
 
   metric_t m[num_metrics];
@@ -170,6 +178,7 @@ static metric_family_t *create_metric_family_for_test6(char *name,
 
   for (size_t i = 0; i < num_metrics; ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -180,7 +189,7 @@ static metric_family_t *create_metric_family_for_test7(char *name,
                                                        size_t num_buckets,
                                                        double size) {
   metric_family_t *fam = calloc(1, sizeof(metric_family_t));
-  fam->name = name;
+  fam->name = strdup(name);
   fam->type = METRIC_TYPE_DISTRIBUTION;
 
   metric_t m[num_metrics];
@@ -194,6 +203,7 @@ static metric_family_t *create_metric_family_for_test7(char *name,
 
   for (size_t i = 0; i < num_metrics; ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -305,12 +315,11 @@ DEF_TEST(uc_update) {
           cases[i].fam->metric.ptr[cases[i].fam->metric.num - 1].time, time);
       CHECK_ZERO(uc_get_last_update(cases[i].fam->name, &time));
       EXPECT_EQ_UINT64(cdtime(), time);
-      CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
     } else {
       EXPECT_EQ_INT(EINVAL, metric_family_metric_reset(cases[i].fam));
     }
 
-    free(cases[i].fam);
+    metric_family_free(cases[i].fam);
   }
 
   return 0;
@@ -558,9 +567,7 @@ DEF_TEST(uc_get_percentile_by_name) {
     if (cases[i].want_get != -1) {
       EXPECT_EQ_DOUBLE(cases[i].want_ret_value, cases[i].ret_value);
     }
-
-    CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
-    free(cases[i].fam);
+    metric_family_free(cases[i].fam);
   }
 
   return 0;
@@ -570,7 +577,7 @@ DEF_TEST(uc_get_percentile) {
   metric_family_t *metric_family_with_null_metric =
       calloc(1, sizeof(metric_family_t));
   metric_family_with_null_metric->type = METRIC_TYPE_COUNTER;
-  metric_family_with_null_metric->name = "test-percentile-with-null";
+  metric_family_with_null_metric->name = strdup("test-percentile-with-null");
 
   double tmp;
   struct {
@@ -797,9 +804,7 @@ DEF_TEST(uc_get_percentile) {
     if (cases[i].want_get != -1) {
       EXPECT_EQ_DOUBLE(cases[i].want_ret_value, cases[i].ret_value);
     }
-
-    CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
-    free(cases[i].fam);
+    metric_family_free(cases[i].fam);
   }
   // reset_cache_tree();
   return 0;
@@ -999,9 +1004,7 @@ DEF_TEST(uc_get_rate_by_name) {
     if (cases[i].want_get != -1) {
       EXPECT_EQ_DOUBLE(cases[i].want_ret_value, cases[i].ret_value);
     }
-
-    CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
-    free(cases[i].fam);
+    metric_family_free(cases[i].fam);
   }
 
   return 0;
@@ -1253,9 +1256,7 @@ DEF_TEST(uc_get_rate) {
     if (cases[i].want_get != -1) {
       EXPECT_EQ_DOUBLE(cases[i].want_ret_value, cases[i].ret_value);
     }
-
-    CHECK_ZERO(metric_family_metric_reset(cases[i].fam));
-    free(cases[i].fam);
+    metric_family_free(cases[i].fam);
   }
 
   return 0;

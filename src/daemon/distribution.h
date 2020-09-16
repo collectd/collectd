@@ -82,7 +82,7 @@ distribution_t *distribution_new_custom(size_t array_size,
                                         double *custom_buckets_boundaries);
 
 /** add new value to a distribution **/
-void distribution_update(distribution_t *dist, double gauge);
+int distribution_update(distribution_t *dist, double gauge);
 
 /**
  * @param percent - should be in (0; 100] range
@@ -114,10 +114,19 @@ double distribution_total_sum(distribution_t *dist);
 
 uint64_t distribution_total_counter(distribution_t *dist);
 
+double distribution_squares_sum(distribution_t *dist);
+
+/** @return - sum of squared deviation (needed for stackdriver format **/
 double distribution_squared_deviation_sum(distribution_t *dist);
+
+/** @return - standart deviation **/
+double distribution_stddev(distribution_t *dist);
 
 void destroy_buckets_array(buckets_array_t buckets_array);
 
+int distribution_reset(distribution_t *dist);
+
 /* TODO(bkjg): add description */
 int distribution_sub(distribution_t *d1, distribution_t *d2);
+
 #endif // COLLECTD_DISTRIBUTION_H

@@ -187,6 +187,7 @@ distribution_t *distribution_clone(distribution_t *dist) {
   memcpy(nodes, dist->tree, tree_size(dist->num_buckets) * sizeof(bucket_t));
   new_distribution->num_buckets = dist->num_buckets;
   new_distribution->total_sum = dist->total_sum;
+  new_distribution->total_square_sum = dist->total_square_sum;
   pthread_mutex_unlock(&dist->mutex);
   new_distribution->tree = nodes;
   pthread_mutex_init(&new_distribution->mutex, NULL);
@@ -210,18 +211,16 @@ static void update_tree(distribution_t *dist, size_t node_index, size_t left,
     update_tree(dist, right_child, mid + 1, right, gauge);
 }
 
-void distribution_update(distribution_t *dist, double gauge) {
-  if (dist == NULL)
-    return;
-  if (gauge < 0) {
-    errno = EINVAL;
-    return;
+int distribution_update(distribution_t *dist, double gauge) {
+  if (dist == NULL || gauge < 0) {
+    return EINVAL;
   }
   pthread_mutex_lock(&dist->mutex);
   update_tree(dist, 0, 0, dist->num_buckets - 1, gauge);
   dist->total_sum += gauge;
   dist->total_square_sum += gauge * gauge;
   pthread_mutex_unlock(&dist->mutex);
+  return 0;
 }
 
 static double tree_get_counter(distribution_t *d, size_t node_index,
@@ -327,6 +326,14 @@ uint64_t distribution_total_counter(distribution_t *dist) {
   return dist->tree[0].bucket_counter; // should I add mutex here?
 }
 
+/* TODO(sshmidt): Add tests for this function */
+double distribution_squares_sum(distribution_t *dist) {
+  if (dist == NULL) {
+    return NAN;
+  }
+  return dist->total_square_sum;
+}
+
 double distribution_squared_deviation_sum(distribution_t *dist) {
   if (dist == NULL) {
     return NAN;
@@ -338,6 +345,38 @@ double distribution_squared_deviation_sum(distribution_t *dist) {
       2 * mean * dist->total_sum + dist->total_square_sum;
   pthread_mutex_unlock(&dist->mutex);
   return squared_deviation_sum;
+}
+
+double distribution_stddev(distribution_t *dist) {
+  if (dist == NULL) {
+    errno = EINVAL;
+    return NAN;
+  }
+  pthread_mutex_lock(&dist->mutex);
+  uint64_t total_counter = distribution_total_counter(dist);
+  if (total_counter == 1) {
+    pthread_mutex_unlock(&dist->mutex);
+    return 0.0;
+  }
+  double stddev = sqrt(((((double)total_counter) * dist->total_square_sum) -
+                        (dist->total_sum * dist->total_sum)) /
+                       ((double)(total_counter * (total_counter - 1))));
+  pthread_mutex_unlock(&dist->mutex);
+  return stddev;
+}
+
+int distribution_reset(distribution_t *dist) {
+  if (dist == NULL) {
+    return EINVAL;
+  }
+  pthread_mutex_lock(&dist->mutex);
+  dist->total_sum = 0;
+  dist->total_square_sum = 0;
+  for (size_t i = 0; i < tree_size(dist->num_buckets); i++) {
+    dist->tree[i].bucket_counter = 0;
+  }
+  pthread_mutex_unlock(&dist->mutex);
+  return 0;
 }
 
 /* TODO(bkjg): add tests for this function */

@@ -305,11 +305,14 @@ static int metric_list_add(metric_list_t *metrics, metric_t m) {
 
   metric_t copy = {
       .family = m.family,
-      .value = m.value,
       .time = m.time,
       .interval = m.interval,
       .meta = meta_data_clone(m.meta),
   };
+  copy.value =
+      (m.family->type == METRIC_TYPE_DISTRIBUTION)
+          ? (value_t){.distribution = distribution_clone(m.value.distribution)}
+          : m.value;
   int status = label_set_clone(&copy.label, m.label);
   if (((m.meta != NULL) && (copy.meta == NULL)) || (status != 0)) {
     label_set_reset(&copy.label);
