@@ -27,6 +27,12 @@ matrix:
       dist: bionic
       compiler: gcc
       jdk: openjdk10
+    - os: linux-ppc64le
+      dist: xenial
+      compiler: gcc
+    - os: linux-ppc64le
+      dist: xenial
+      compiler: clang
 
 before_install:
   # When building the coverity_scan branch, allow only the first job to continue to avoid travis-ci/travis-ci#1975.
@@ -35,6 +41,7 @@ before_install:
 before_script: autoreconf -vif
 
 script:
+  - if [ $(uname -m) == x86_64 && "$TRAVIS_OS_NAME" != "osx"]; then sudo apt-get install -y libxen-dev; fi
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
   - type pkg-config
   - pkg-config --list-all | sort -u
@@ -90,7 +97,6 @@ addons:
     - libupsclient-dev
     - libvarnish-dev
     - libvirt-dev
-    - libxen-dev
     - libxml2-dev
     - libyajl-dev
     - linux-libc-dev
