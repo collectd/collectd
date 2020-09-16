@@ -215,7 +215,7 @@ void uc_destroy(void) {
   if (cache_tree == NULL)
     return;
 
-  while (c_avl_pick(cache_tree, &key, (void**)&ce) == 0) {
+  while (c_avl_pick(cache_tree, &key, (void **)&ce) == 0) {
     sfree(key);
     cache_free(ce);
   }
