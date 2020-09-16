@@ -1969,6 +1969,7 @@ EXPORT int plugin_shutdown_all(void) {
   destroy_all_callbacks(&list_shutdown);
   destroy_all_callbacks(&list_log);
 
+  uc_destroy();
   plugin_free_loaded();
   plugin_free_data_sets();
   return ret;
