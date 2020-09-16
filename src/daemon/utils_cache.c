@@ -208,6 +208,22 @@ int uc_init(void) {
   return 0;
 } /* int uc_init */
 
+void uc_destroy(void) {
+  void *key;
+  cache_entry_t *ce;
+
+  if (cache_tree == NULL)
+    return;
+
+  while (c_avl_pick(cache_tree, &key, (void**)&ce) == 0) {
+    sfree(key);
+    cache_free(ce);
+  }
+
+  c_avl_destroy(cache_tree);
+  cache_tree = NULL;
+}
+
 int uc_check_timeout(void) {
   struct {
     char *key;

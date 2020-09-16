@@ -42,6 +42,7 @@
 int uc_init(void);
 int uc_check_timeout(void);
 int uc_update(metric_family_t const *fam);
+void uc_destroy(void);
 
 gauge_t *uc_get_rate_vl(const data_set_t *ds, const value_list_t *vl);
 int uc_get_value_by_name_vl(const char *name, value_t **ret_values,
