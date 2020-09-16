@@ -26,6 +26,7 @@
  *   Sebastian tokkee Harl <sh at tokkee.org>
  *   Manoj Srivastava <srivasta at google.com>
  *   Barbara bkjg Kaczorowska <bkjg at google.com>
+ *   Svetlana sshmidt Shmidt <sshmidt at google.com>
  **/
 
 #include "collectd.h"
