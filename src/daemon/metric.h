@@ -71,6 +71,9 @@ typed_value_t typed_value_clone(typed_value_t val);
  * that means that it should be freed */
 typed_value_t typed_value_create(value_t val, metric_type_t type);
 
+/* if type is distribution then it will be freed */
+void typed_value_destroy(typed_value_t val);
+
 /* value_marshal_text prints a text representation of v to buf. */
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type);
 
