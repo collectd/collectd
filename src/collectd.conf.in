@@ -835,6 +835,7 @@
 #</Plugin>
 
 #<Plugin "intel_rdt">
+#  MonIPCEnabled true
 #  Cores "0-2"
 #  Processes "sshd"
 #</Plugin>
