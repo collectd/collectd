@@ -187,6 +187,7 @@ distribution_t *distribution_clone(distribution_t *dist) {
   memcpy(nodes, dist->tree, tree_size(dist->num_buckets) * sizeof(bucket_t));
   new_distribution->num_buckets = dist->num_buckets;
   new_distribution->total_sum = dist->total_sum;
+  new_distribution->total_square_sum = dist->total_square_sum;
   pthread_mutex_unlock(&dist->mutex);
   new_distribution->tree = nodes;
   pthread_mutex_init(&new_distribution->mutex, NULL);
@@ -340,48 +341,81 @@ double distribution_squared_deviation_sum(distribution_t *dist) {
   return squared_deviation_sum;
 }
 
-/* TODO(bkjg): add tests for this function */
-int distribution_sub(distribution_t *d1, distribution_t *d2) {
+static int compare_uint64(uint64_t a, uint64_t b) {
+  return a == b ? 0 : a < b ? -1 : 1;
+}
+
+/* distribution_cmp compares d1 and d2 and stores the result of the comparison
+ * in result:
+ *   1 if d1 is larger than d2,
+ *   -1 if d1 is smaller than d2,
+ *   and 0 if d1 and d2 are equal.
+ * On error an error code is returned and result is
+ * undefined. If distributions don't exist or don't have the same structure
+ * EINVAL will be returned If distributions have* the same structure but are
+ * uncomparable ERANGE will be returned */
+static int distribution_cmp(distribution_t *d1, distribution_t *d2,
+                            int *result) {
   if (d1 == NULL || d2 == NULL) {
     return EINVAL;
   }
-
   if (d1->num_buckets != d2->num_buckets) {
     return EINVAL;
   }
+  for (size_t i = 0; i < tree_size(d1->num_buckets); i++) {
+    if (d1->tree[i].maximum !=
+        d2->tree[i].maximum) { // there can be a trouble with double comparison
+                               // but we assume that distributions were created
+                               // in the same way
+      return EINVAL;
+    }
+  }
 
+  *result =
+      compare_uint64(d1->tree[0].bucket_counter, d2->tree[0].bucket_counter);
+  for (size_t i = 1; i < tree_size(d1->num_buckets); i++) {
+    int cur_res =
+        compare_uint64(d1->tree[i].bucket_counter, d2->tree[i].bucket_counter);
+    if (cur_res != 0 && cur_res != *result) {
+      return ERANGE;
+    }
+  }
+  return 0;
+}
+
+bool distribution_equal(distribution_t *d1, distribution_t *d2) {
+  pthread_mutex_lock(&d1->mutex);
+  pthread_mutex_lock(&d2->mutex);
+  int cmp_result;
+  int cmp_status = distribution_cmp(d1, d2, &cmp_result);
+  bool ans = (cmp_status == 0 && cmp_result == 0);
+  pthread_mutex_unlock(&d2->mutex);
+  pthread_mutex_unlock(&d1->mutex);
+  return ans;
+}
+
+/* TODO(bkjg): add tests for this function */
+int distribution_sub(distribution_t *d1, distribution_t *d2) {
   pthread_mutex_lock(&d1->mutex);
   pthread_mutex_lock(&d2->mutex);
 
-  if (d1->total_sum < d2->total_sum) {
-    d1->total_sum = d2->total_sum - d1->total_sum;
-    for (size_t i = 0; i < tree_size(d1->num_buckets); ++i) {
-      if (d1->tree[i].maximum != d2->tree[i].maximum ||
-          d1->tree[i].bucket_counter > d2->tree[i].bucket_counter) {
-        pthread_mutex_unlock(&d2->mutex);
-        pthread_mutex_unlock(&d1->mutex);
-        return EINVAL;
-      }
+  int cmp_result = 0;
+  int cmp_status = distribution_cmp(d1, d2, &cmp_status);
+  if (cmp_status != 0 || cmp_result == -1) { // i.e. d1 < d2 or can't compare
+    if (cmp_result == -1)
+      cmp_status = ERANGE;
+    pthread_mutex_unlock(&d2->mutex);
+    pthread_mutex_unlock(&d1->mutex);
+    return cmp_status;
+  }
 
-      d1->tree[i].bucket_counter =
-          d2->tree[i].bucket_counter - d1->tree[i].bucket_counter;
-    }
-  } else {
-    d1->total_sum -= d2->total_sum;
-    for (size_t i = 0; i < tree_size(d1->num_buckets); ++i) {
-      if (d1->tree[i].maximum != d2->tree[i].maximum ||
-          d1->tree[i].bucket_counter < d2->tree[i].bucket_counter) {
-        pthread_mutex_unlock(&d2->mutex);
-        pthread_mutex_unlock(&d1->mutex);
-        return EINVAL;
-      }
-
-      d1->tree[i].bucket_counter -= d2->tree[i].bucket_counter;
-    }
+  d1->total_sum -= d2->total_sum;
+  d1->total_square_sum -= d2->total_square_sum;
+  for (size_t i = 0; i < tree_size(d1->num_buckets); i++) {
+    d1->tree[i].bucket_counter -= d2->tree[i].bucket_counter;
   }
 
   pthread_mutex_unlock(&d2->mutex);
   pthread_mutex_unlock(&d1->mutex);
-
   return 0;
 }
