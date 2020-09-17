@@ -173,6 +173,32 @@ static char *format_labels(char *buffer, size_t buffer_size,
   return buffer;
 }
 
+static int histrogram_exposition(strbuf_t buf, distribution_t *dist,
+                                 Io__Prometheus__Client__MetricFamily *fam) {
+  buckets_array_t buckets = get_buckets(m->value.distribution);
+
+  for (size_t i = 0; i < buckets.num_buckets; i++) {
+    int status_buckets = strbuf_printf(
+        buf, "%s_bucket{le=\"" GAUGE_FORMAT "\"} %lu\n", fam->name,
+        buckets.buckets[i].maximum, buckets.buckets[i].bucket_counter);
+    if (status_buckets != 0) {
+      return status_buckets;
+    }
+  }
+  int status_sum = strbuf_printf(buf, "%s_sum " GAUGE_FORMAT "\n", fam->name,
+                                 distribution_total_sum(dist));
+  if (status_sum != 0) {
+    return status_sum;
+  }
+  int status_count = strbuf_printf(buf, "%s_count %lu\n", fam->name,
+                                   distribution_total_counter(dist));
+  if (status_count != 0) {
+    return status_count;
+  }
+  destroy_buckets_array(buckets);
+  return 0;
+}
+
 /* format_protobuf iterates over all metric families in "metrics" and adds them
  * to a buffer in plain text format. */
 static void format_text(ProtobufCBuffer *buffer) {
@@ -183,14 +209,20 @@ static void format_text(ProtobufCBuffer *buffer) {
   c_avl_iterator_t *iter = c_avl_get_iterator(metrics);
   while (c_avl_iterator_next(iter, (void *)&unused_name, (void *)&fam) == 0) {
     char line[1024]; /* 4x DATA_MAX_NAME_LEN? */
-
+    strbuf_t buf = STRBUF_CREATE;
     ssnprintf(line, sizeof(line), "# HELP %s %s\n", fam->name, fam->help);
     buffer->append(buffer, strlen(line), (uint8_t *)line);
 
-    ssnprintf(line, sizeof(line), "# TYPE %s %s\n", fam->name,
-              (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__GAUGE)
-                  ? "gauge"
-                  : "counter");
+    char family_type[32];
+
+    if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__GAUGE) {
+      family_type = "gauge";
+    } else if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__COUNTER) {
+      family_type = "counter";
+    } else {
+      family_type = "histogram";
+    }
+    ssnprintf(line, sizeof(line), "# TYPE %s %s\n", fam->name, family_type);
     buffer->append(buffer, strlen(line), (uint8_t *)line);
 
     for (size_t i = 0; i < fam->n_metric; i++) {
@@ -207,12 +239,19 @@ static void format_text(ProtobufCBuffer *buffer) {
         ssnprintf(line, sizeof(line), "%s{%s} " GAUGE_FORMAT "%s\n", fam->name,
                   format_labels(labels, sizeof(labels), m), m->gauge->value,
                   timestamp_ms);
-      else /* if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__COUNTER) */
+      else if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__COUNTER)
         ssnprintf(line, sizeof(line), "%s{%s} %.0f%s\n", fam->name,
                   format_labels(labels, sizeof(labels), m), m->counter->value,
                   timestamp_ms);
+      else { // fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__HISTOGRAM
+        histogram_exposition(buf, m->value.distribution));
+      }
 
-      buffer->append(buffer, strlen(line), (uint8_t *)line);
+      fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__HISTOGRAM
+          ? buffer->append(buffer, strlen(line), (uint8_t *)buf->ptr)
+          : buffer->append(buffer, strlen(line), (uint8_t *)line);
+
+      STRBUF_DESTROY(buf);
     }
   }
   c_avl_iterator_destroy(iter);
@@ -332,7 +371,7 @@ static void metric_destroy(Io__Prometheus__Client__Metric *msg) {
 
   sfree(msg->gauge);
   sfree(msg->counter);
-
+  distribution_destroy(msg->distribution);
   sfree(msg);
 }
 
@@ -464,7 +503,8 @@ static int metric_update(Io__Prometheus__Client__Metric *m, value_t value,
 
     m->gauge->value = (double)value.gauge;
     m->gauge->has_value = 1;
-  } else { /* not gauge */
+  } else if (ds_type == DS_TYPE_COUNTER ||
+             ds_type == DS_TYPE_DERIVE) { /* not gauge */
     sfree(m->gauge);
     if (m->counter == NULL) {
       m->counter = calloc(1, sizeof(*m->counter));
