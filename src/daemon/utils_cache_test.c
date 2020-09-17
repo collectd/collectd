@@ -49,6 +49,7 @@ static metric_family_t *create_metric_family_for_test1(char *name,
 
   for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -71,14 +72,19 @@ create_metric_family_for_test2(char *name, double *want_ret_value,
     m[i].time = (cdtime_mock += times[i]);
   }
 
-  for (size_t i = 0; i < num_metrics; ++i) {
-    metric_family_metric_append(fam, m[i]);
+  if (num_metrics >= 2) {
+    *want_ret_value =
+        (counter_diff(m[num_metrics - 2].value.counter,
+                      m[num_metrics - 1].value.counter)) /
+        (CDTIME_T_TO_DOUBLE(m[num_metrics - 1].time - m[num_metrics - 2].time));
+  } else {
+    *want_ret_value = 0;
   }
 
-  *want_ret_value =
-      (counter_diff(m[num_metrics - 2].value.counter,
-                    m[num_metrics - 1].value.counter)) /
-      (CDTIME_T_TO_DOUBLE(m[num_metrics - 1].time - m[num_metrics - 2].time));
+  for (size_t i = 0; i < num_metrics; ++i) {
+    metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
+  }
 
   return fam;
 }
@@ -101,6 +107,7 @@ static metric_family_t *create_metric_family_for_test3(char *name,
 
   for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -121,6 +128,7 @@ static metric_family_t *create_metric_family_for_test4(char *name) {
 
   for (size_t i = 0; i < (sizeof(m) / sizeof(metric_t)); ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -145,6 +153,7 @@ create_metric_family_for_test5(char *name, size_t num_metrics,
 
   for (size_t i = 0; i < num_metrics; ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -170,6 +179,7 @@ static metric_family_t *create_metric_family_for_test6(char *name,
 
   for (size_t i = 0; i < num_metrics; ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
@@ -194,6 +204,7 @@ static metric_family_t *create_metric_family_for_test7(char *name,
 
   for (size_t i = 0; i < num_metrics; ++i) {
     metric_family_metric_append(fam, m[i]);
+    metric_reset(&m[i]);
   }
 
   return fam;
