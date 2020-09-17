@@ -26,6 +26,7 @@
  *   Sebastian tokkee Harl <sh at tokkee.org>
  *   Manoj Srivastava <srivasta at google.com>
  *   Barbara bkjg Kaczorowska <bkjg at google.com>
+ *   Svetlana sshmidt Shmidt <sshmidt at google.com>
  **/
 
 #include "collectd.h"
@@ -123,7 +124,9 @@ static void cache_free(cache_entry_t *ce) {
   sfree(ce->history);
   meta_data_destroy(ce->meta);
   ce->meta = NULL;
-
+  typed_value_destroy(ce->values_raw);
+  typed_value_destroy(ce->start_value);
+  distribution_destroy(ce->distribution_increase);
   sfree(ce);
 } /* void cache_free */
 
@@ -205,6 +208,22 @@ int uc_init(void) {
 
   return 0;
 } /* int uc_init */
+
+void uc_destroy(void) {
+  void *key;
+  cache_entry_t *ce;
+
+  if (cache_tree == NULL)
+    return;
+
+  while (c_avl_pick(cache_tree, &key, (void **)&ce) == 0) {
+    sfree(key);
+    cache_free(ce);
+  }
+
+  c_avl_destroy(cache_tree);
+  cache_tree = NULL;
+}
 
 int uc_check_timeout(void) {
   struct {

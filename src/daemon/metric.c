@@ -52,6 +52,12 @@ typed_value_t typed_value_create(value_t val, metric_type_t type) {
   return tval;
 }
 
+void typed_value_destroy(typed_value_t val) {
+  if (val.type == METRIC_TYPE_DISTRIBUTION) {
+    distribution_destroy(val.value.distribution);
+  }
+}
+
 /* Label names must match the regex `[a-zA-Z_][a-zA-Z0-9_]*`. Label names
  * beginning with __ are reserved for internal use.
  *
