@@ -175,7 +175,7 @@ static char *format_labels(char *buffer, size_t buffer_size,
 
 static int histrogram_exposition(strbuf_t buf, distribution_t *dist,
                                  Io__Prometheus__Client__MetricFamily *fam) {
-  buckets_array_t buckets = get_buckets(m->value.distribution);
+  buckets_array_t buckets = get_buckets(dist);
 
   for (size_t i = 0; i < buckets.num_buckets; i++) {
     int status_buckets = strbuf_printf(
@@ -511,6 +511,9 @@ static int metric_update(Io__Prometheus__Client__Metric *m, value_t value,
       if (m->counter == NULL)
         return ENOMEM;
       io__prometheus__client__counter__init(m->counter);
+    }
+
+    else { /*distribution*/
     }
 
     switch (ds_type) {
