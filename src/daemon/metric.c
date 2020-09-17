@@ -333,13 +333,24 @@ static int metric_list_add(metric_list_t *metrics, metric_t m) {
 
   metric_t copy = {
       .family = m.family,
-      .value = m.value,
       .time = m.time,
       .interval = m.interval,
       .meta = meta_data_clone(m.meta),
   };
+
+  if (m.family->type == METRIC_TYPE_DISTRIBUTION) {
+    copy.value.distribution = distribution_clone(m.value.distribution);
+  } else {
+    copy.value = m.value;
+  }
+
   int status = label_set_clone(&copy.label, m.label);
-  if (((m.meta != NULL) && (copy.meta == NULL)) || (status != 0)) {
+  if (((m.family->type == METRIC_TYPE_DISTRIBUTION) &&
+       (m.value.distribution != NULL) && (copy.value.distribution == NULL)) ||
+      ((m.meta != NULL) && (copy.meta == NULL)) || (status != 0)) {
+    if (m.family->type == METRIC_TYPE_DISTRIBUTION) {
+      distribution_destroy(copy.value.distribution);
+    }
     label_set_reset(&copy.label);
     meta_data_destroy(copy.meta);
     return status;
