@@ -47,9 +47,6 @@
 #include <kstat.h>
 #endif
 
-#if KERNEL_SOLARIS
-#include <string.h>
-#endif
 /*
  * Global variables
  */
@@ -77,7 +74,6 @@ static void submit(const char *protocol_name, const char *str_key,
 
   vl.values = &value;
   vl.values_len = 1;
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "protocols", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, protocol_name, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "protocol_counter", sizeof(vl.type));
@@ -204,19 +200,14 @@ static int read_kstat(const char *mod_name) {
     return -1;
   for (ksp_chain = kc->kc_chain; ksp_chain != NULL;
        ksp_chain = ksp_chain->ks_next) {
-    if (strncmp(ksp_chain->ks_module, mod_name, sizeof(ksp_chain->ks_module)) ==
-            0 &&
+    if (strcmp(ksp_chain->ks_module, mod_name) == 0 &&
         ksp_chain->ks_type == KSTAT_TYPE_NAMED) {
       kstat_named_t *kn = NULL;
       kstat_read(kc, ksp_chain, kn);
       kn = (kstat_named_t *)ksp_chain->ks_data;
       for (int i = 0; (kn != NULL) && (i < ksp_chain->ks_ndata); i++, kn++) {
         char value[16];
-        char name[256];
-
-        if (kn == NULL) {
-          continue;
-        }
+        char name[256] = "";
 
         get_kstat_value_to_string(kn, name, value);
         if ((strlen(name) > 0) && (strlen(value) > 0)) {
