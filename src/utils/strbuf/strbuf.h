@@ -27,11 +27,13 @@
 #ifndef UTILS_STRBUF_H
 #define UTILS_STRBUF_H 1
 
+#include <stdbool.h>
+
 typedef struct {
   char *ptr;
   size_t pos;
   size_t size;
-  _Bool fixed;
+  bool fixed;
 } strbuf_t;
 
 /* STRBUF_CREATE allocates a new strbuf_t on the stack, which must be freed
