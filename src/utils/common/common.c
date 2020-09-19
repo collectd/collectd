@@ -909,16 +909,26 @@ int format_name(char *ret, int ret_len, const char *hostname,
 int format_values(strbuf_t *buf, metric_t const *m, bool store_rates) {
   strbuf_printf(buf, "%.3f", CDTIME_T_TO_DOUBLE(m->time));
 
-  if (m->family->type == METRIC_TYPE_GAUGE)
-    strbuf_printf(buf, ":" GAUGE_FORMAT, m->value.gauge);
-  else if (store_rates) {
+  if (m->family->type == METRIC_TYPE_GAUGE) {
+    /* Solaris' printf tends to print NAN as "-nan", breaking unit tests, so we
+     * introduce a special case here. */
+    if (isnan(m->value.gauge)) {
+      strbuf_print(buf, ":nan");
+    } else {
+      strbuf_printf(buf, ":" GAUGE_FORMAT, m->value.gauge);
+    }
+  } else if (store_rates) {
     gauge_t rates = NAN;
     int status = uc_get_rate(m, &rates);
     if (status != 0) {
       WARNING("format_values: uc_get_rate failed.");
       return status;
     }
-    strbuf_printf(buf, ":" GAUGE_FORMAT, rates);
+    if (isnan(rates)) {
+      strbuf_print(buf, ":nan");
+    } else {
+      strbuf_printf(buf, ":" GAUGE_FORMAT, rates);
+    }
   } else if (m->family->type == METRIC_TYPE_COUNTER) {
     strbuf_printf(buf, ":%" PRIu64, m->value.counter);
   } else if (m->family->type == DS_TYPE_DERIVE) {
