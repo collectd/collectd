@@ -35,15 +35,23 @@
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
 
-static int gr_format_values(strbuf_t *buf, metric_t const *m, gauge_t rate) {
-  if (m->family->type == DS_TYPE_GAUGE)
-    return strbuf_printf(buf, GAUGE_FORMAT, m->value.gauge);
-  else if (rate != -1)
-    return strbuf_printf(buf, "%f", rate);
-  else if (m->family->type == DS_TYPE_COUNTER)
+static int gr_format_values(strbuf_t *buf, metric_t const *m, gauge_t rate,
+                            bool store_rate) {
+  if (!store_rate && ((m->family->type == METRIC_TYPE_GAUGE) ||
+                      (m->family->type == METRIC_TYPE_UNTYPED))) {
+    rate = m->value.gauge;
+    store_rate = true;
+  }
+
+  if (store_rate) {
+    if (isnan(rate)) {
+      return strbuf_print(buf, "nan");
+    } else {
+      return strbuf_printf(buf, GAUGE_FORMAT, m->value.gauge);
+    }
+  } else if (m->family->type == METRIC_TYPE_COUNTER) {
     return strbuf_printf(buf, "%" PRIu64, (uint64_t)m->value.counter);
-  else if (m->family->type == DS_TYPE_DERIVE)
-    return strbuf_printf(buf, "%" PRIi64, m->value.derive);
+  }
 
   P_ERROR("gr_format_values: Unknown data source type: %d", m->family->type);
   return EINVAL;
@@ -113,13 +121,15 @@ static int gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
 int format_graphite(strbuf_t *buf, metric_t const *m, char const *prefix,
                     char const *postfix, char const escape_char,
                     unsigned int flags) {
-  gauge_t rate = -1;
+  gauge_t rate = NAN;
+  bool store_rate = false;
   if (flags & GRAPHITE_STORE_RATES) {
     int status = uc_get_rate(m, &rate);
     if (status != 0) {
       P_ERROR("format_graphite: error with uc_get_rate");
       return -1;
     }
+    store_rate = true;
   }
 
   /* format:
@@ -132,7 +142,7 @@ int format_graphite(strbuf_t *buf, metric_t const *m, char const *prefix,
 
   /* Convert the values to an ASCII representation and put that into
    * `values'. */
-  int status = gr_format_values(buf, m, rate);
+  int status = gr_format_values(buf, m, rate, store_rate);
   if (status != 0) {
     P_ERROR("format_graphite: error with gr_format_values");
     return status;
