@@ -149,7 +149,7 @@ static int metric_family_to_filename(char *buffer, size_t buffer_size,
   return 0;
 } /* int metric_family_to_filename */
 
-static int csv_create_file(const char *filename, const data_set_t *ds) {
+static int csv_create_file(const char *filename, metric_family_t const *fam) {
   FILE *csv;
 
   if (check_create_dir(filename))
@@ -162,8 +162,8 @@ static int csv_create_file(const char *filename, const data_set_t *ds) {
   }
 
   fprintf(csv, "epoch");
-  for (size_t i = 0; i < ds->ds_num; i++)
-    fprintf(csv, ",%s", ds->ds[i].name);
+  // for (size_t i = 0; i < fam->metric.num; i++)
+    fprintf(csv, ",%s", fam->name);
 
   fprintf(csv, "\n");
   fclose(csv);
