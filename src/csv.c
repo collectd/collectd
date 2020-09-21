@@ -37,63 +37,62 @@ static char *datadir;
 static int store_rates;
 static int use_stdio;
 
-static int value_list_to_string(char *buffer, int buffer_len,
-                                const data_set_t *ds, const value_list_t *vl) {
+static int metric_family_to_string(char *buffer, int buffer_len, metric_family_t const *fam) {
   int offset;
   int status;
-  gauge_t *rates = NULL;
 
-  assert(0 == strcmp(ds->type, vl->type));
+  if(buffer == NULL || fam == NULL) {
+    return -1;
+  }
 
   memset(buffer, '\0', buffer_len);
 
-  status = snprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(vl->time));
+  if (fam->metric.num == 0) {
+    return -1;
+  }
+
+  status = snprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(fam->metric.ptr[0].time));
   if ((status < 1) || (status >= buffer_len))
     return -1;
   offset = status;
 
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    if ((ds->ds[i].type != DS_TYPE_COUNTER) &&
-        (ds->ds[i].type != DS_TYPE_GAUGE) &&
-        (ds->ds[i].type != DS_TYPE_DERIVE)) {
-      sfree(rates);
-      return -1;
-    }
+  if ((fam->type != METRIC_TYPE_COUNTER) &&
+      (fam->type != METRIC_TYPE_DISTRIBUTION) &&
+      (fam->type != METRIC_TYPE_GAUGE) &&
+      (fam->type != METRIC_TYPE_UNTYPED)) {
+    return -1;
+  }
 
-    if (ds->ds[i].type == DS_TYPE_GAUGE) {
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    if (fam->type == METRIC_TYPE_GAUGE || fam->type == METRIC_TYPE_UNTYPED) {
       status = snprintf(buffer + offset, buffer_len - offset, ",%lf",
-                        vl->values[i].gauge);
-    } else if (store_rates != 0) {
-      if (rates == NULL)
-        rates = uc_get_rate_vl(ds, vl);
-      if (rates == NULL) {
+                        fam->metric.ptr[i].value.gauge);
+    } else if (store_rates != 0 || fam->type == METRIC_TYPE_DISTRIBUTION) {
+      gauge_t rate;
+      status = uc_get_rate(&fam->metric.ptr[i], &rate);
+      if (status != 0) {
         WARNING("csv plugin: "
-                "uc_get_rate_vl failed.");
+                "uc_get_rate failed.");
         return -1;
       }
-      status = snprintf(buffer + offset, buffer_len - offset, ",%lf", rates[i]);
-    } else if (ds->ds[i].type == DS_TYPE_COUNTER) {
+      status = snprintf(buffer + offset, buffer_len - offset, ",%lf", rate);
+    } else if (fam->type == METRIC_TYPE_COUNTER) {
       status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIu64,
-                        (uint64_t)vl->values[i].counter);
-    } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
-      status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIi64,
-                        vl->values[i].derive);
+                        fam->metric.ptr[i].value.counter);
     }
 
     if ((status < 1) || (status >= (buffer_len - offset))) {
-      sfree(rates);
       return -1;
     }
 
     offset += status;
   } /* for ds->ds_num */
 
-  sfree(rates);
   return 0;
-} /* int value_list_to_string */
+} /* int metric_family_to_string */
 
-static int value_list_to_filename(char *buffer, size_t buffer_size,
-                                  value_list_t const *vl) {
+static int metric_family_to_filename(char *buffer, size_t buffer_size,
+                                  metric_family_t const *fam) {
   int status;
 
   char *ptr = buffer;
@@ -147,7 +146,7 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
   }
 
   return 0;
-} /* int value_list_to_filename */
+} /* int metric_family_to_filename */
 
 static int csv_create_file(const char *filename, const data_set_t *ds) {
   FILE *csv;
@@ -207,7 +206,8 @@ static int csv_config(const char *key, const char *value) {
   return 0;
 } /* int csv_config */
 
-static int csv_write(const data_set_t *ds, const value_list_t *vl,
+/*static int csv_write(const data_set_t *ds, const value_list_t *vl,*/
+static int csv_write(metric_family_t const *fam,
                      user_data_t __attribute__((unused)) * user_data) {
   struct stat statbuf;
   char filename[512];
@@ -217,18 +217,22 @@ static int csv_write(const data_set_t *ds, const value_list_t *vl,
   struct flock fl = {0};
   int status;
 
-  if (0 != strcmp(ds->type, vl->type)) {
+  /*if (0 != strcmp(ds->type, vl->type)) {
     ERROR("csv plugin: DS type does not match value list type");
     return -1;
-  }
+  }*/
 
-  status = value_list_to_filename(filename, sizeof(filename), vl);
+  //status = value_list_to_filename(filename, sizeof(filename), vl);
+  status = metric_family_to_filename(filename, sizeof(filename), fam);
   if (status != 0)
     return -1;
 
   DEBUG("csv plugin: csv_write: filename = %s;", filename);
 
-  if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
+  /*if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
+    return -1;*/
+
+  if (metric_family_to_string(values, sizeof(values), fam) != 0)
     return -1;
 
   if (use_stdio) {
