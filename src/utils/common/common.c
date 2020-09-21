@@ -888,7 +888,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
     APPEND(hostname);
     APPEND("/");
   }
-  
+
   APPEND(plugin);
   if ((plugin_instance != NULL) && (plugin_instance[0] != 0)) {
     APPEND("-");
