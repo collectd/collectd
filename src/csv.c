@@ -115,15 +115,11 @@ static int metric_family_to_filename(char *buffer, size_t buffer_size,
 
   // status = FORMAT_VL(ptr, ptr_size, vl);
 
-#define APPEND(str)                                                            \
-  do {                                                                         \
-    size_t len = strlen(str);                                                  \
-    if (len >= ptr_size)                                                       \
-      return ENOBUFS;                                                          \
-    memcpy(ptr, (str), len);                                                   \
-    ptr += len;                                                                \
-    ptr_size -= len;                                                           \
-  } while (0)
+  char *hostname = NULL;
+  char *plugin = "unknown";
+  char *plugin_instance = NULL;
+  char *type = "unknown";
+  char *type_instance = NULL;
 
   for (size_t i = 0; i < fam->metric.num; ++i) {
     metric_t const *m = fam->metric.ptr + i;
@@ -131,15 +127,33 @@ static int metric_family_to_filename(char *buffer, size_t buffer_size,
     for (size_t j = 0; j < m->label.num; ++j) {
       label_pair_t *l = m->label.ptr + j;
 
-      APPEND(l->name);
-      APPEND(" = ");
-      APPEND(l->value);
+      if (hostname == NULL && !strcasecmp("Hostname", l->name)) {
+        hostname = strdup(l->value);
+      } else if (!strcasecmp("Plugin", l->name)) {
+        plugin = strdup(l->value);
+      } else if (plugin_instance == NULL &&
+                 !strcasecmp("plugin_instance", l->name)) {
+        plugin_instance = strdup(l->value);
+      } else if (!strcasecmp("Type", l->name)) {
+        type = strdup(l->name);
+      } else if (type_instance == NULL &&
+                 !strcasecmp("type_instance", l->name)) {
+        type_instance = strdup(l->value);
+      }
     }
   }
-#undef APPEND
 
-  ptr = buffer;
-  ptr_size = buffer_size;
+  status = format_name(ptr, ptr_size, hostname, plugin, plugin_instance, type,
+                       type_instance);
+
+  sfree(hostname);
+  sfree(plugin);
+  sfree(plugin_instance);
+  sfree(type);
+  sfree(type_instance);
+
+  if (status != 0)
+    return status;
 
   /* Skip all the time formatting stuff when printing to STDOUT or
    * STDERR. */
