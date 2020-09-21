@@ -920,6 +920,7 @@ AC_CHECK_FUNCS([host_statistics], [have_host_statistics="yes"], [have_host_stati
 AC_CHECK_FUNCS([processor_info], [have_processor_info="yes"], [have_processor_info="no"])
 AC_CHECK_FUNCS([statfs], [have_statfs="yes"], [have_statfs="no"])
 AC_CHECK_FUNCS([statvfs], [have_statvfs="yes"], [have_statvfs="no"])
+AC_CHECK_FUNCS([strnlen], [have_strnlen="yes"], [have_strnlen="no"])
 AC_CHECK_FUNCS([sysctl], [have_sysctl="yes"], [have_sysctl="no"])
 AC_CHECK_FUNCS([sysctlbyname], [have_sysctlbyname="yes"], [have_sysctlbyname="no"])
 AC_CHECK_FUNCS([syslog], [have_syslog="yes"], [have_syslog="no"])
@@ -6570,6 +6571,7 @@ plugin_virt="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
+plugin_write_log="no"
 plugin_write_prometheus="no"
 plugin_write_stackdriver="no"
 plugin_xencpu="no"
@@ -6750,7 +6752,9 @@ fi
 
 if test "x$with_libyajl" = "xyes"; then
   plugin_ceph="yes"
+  plugin_log_logstash="yes"
   plugin_sysevent="yes"
+  plugin_write_log="yes"
 fi
 
 if test "x$have_processor_info" = "xyes"; then
@@ -6828,10 +6832,6 @@ fi
 
 if test "x$have_getloadavg" = "xyes"; then
   plugin_load="yes"
-fi
-
-if test "x$with_libyajl" = "xyes"; then
-  plugin_log_logstash="yes"
 fi
 
 if test "x$with_libperl" = "xyes" && test "x$c_cv_have_perl_ithreads" = "xyes"; then
@@ -7096,7 +7096,7 @@ AC_PLUGIN([write_graphite],      [yes],                       [Graphite / Carbon
 AC_PLUGIN([write_http],          [$with_libcurl],             [HTTP output plugin])
 AC_PLUGIN([write_influxdb_udp],  [yes],                       [Influxdb udp output plugin])
 AC_PLUGIN([write_kafka],         [$with_librdkafka],          [Kafka output plugin])
-AC_PLUGIN([write_log],           [yes],                       [Log output plugin])
+AC_PLUGIN([write_log],           [$plugin_write_log],         [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$with_libmongoc],           [MongoDB output plugin])
 AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus],  [Prometheus write plugin])
 AC_PLUGIN([write_redis],         [$with_libhiredis],          [Redis output plugin])

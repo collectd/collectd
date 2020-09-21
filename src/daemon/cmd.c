@@ -21,9 +21,9 @@
  * DEALINGS IN THE SOFTWARE.
  **/
 
-#include "cmd.h"
 #include "collectd.h"
 
+#include "cmd.h"
 #include "utils/common/common.h"
 #include <sys/un.h>
 

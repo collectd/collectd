@@ -98,7 +98,7 @@ DEF_TEST(metric_label_set) {
 DEF_TEST(metric_identity) {
   struct {
     char *name;
-    label_t *labels;
+    label_pair_t *labels;
     size_t labels_num;
     char const *want;
   } cases[] = {
@@ -109,7 +109,7 @@ DEF_TEST(metric_identity) {
       {
           .name = "metric_with_labels",
           .labels =
-              (label_t[]){
+              (label_pair_t[]){
                   {"sorted", "yes"},
                   {"alphabetically", "true"},
               },
@@ -119,7 +119,7 @@ DEF_TEST(metric_identity) {
       {
           .name = "escape_sequences",
           .labels =
-              (label_t[]){
+              (label_pair_t[]){
                   {"newline", "\n"},
                   {"quote", "\""},
                   {"tab", "\t"},
@@ -166,7 +166,7 @@ DEF_TEST(metric_family_append) {
     gauge_t v;
     metric_t *templ;
     int want_err;
-    label_t *want_labels;
+    label_pair_t *want_labels;
     size_t want_labels_num;
     gauge_t want_value;
     cdtime_t want_time;
@@ -181,7 +181,7 @@ DEF_TEST(metric_family_append) {
           .lvalue = "test",
           .v = 42,
           .want_labels =
-              (label_t[]){
+              (label_pair_t[]){
                   {"type", "test"},
               },
           .want_labels_num = 1,
@@ -218,7 +218,7 @@ DEF_TEST(metric_family_append) {
                       },
               },
           .want_labels =
-              (label_t[]){
+              (label_pair_t[]){
                   {"common", "label"},
                   {"type", "test"},
               },

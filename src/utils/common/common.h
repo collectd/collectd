@@ -73,7 +73,11 @@ __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
                                                             ...);
 
 char *sstrdup(const char *s);
-size_t sstrnlen(const char *s, size_t n);
+
+#if !HAVE_STRNLEN
+size_t strnlen(const char *s, size_t maxlen);
+#endif
+
 char *sstrndup(const char *s, size_t n);
 void *smalloc(size_t size);
 char *sstrerror(int errnum, char *buf, size_t buflen);

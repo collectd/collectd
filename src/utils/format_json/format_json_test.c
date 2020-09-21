@@ -40,10 +40,10 @@
 #endif
 
 typedef struct {
-  label_t *expected_labels;
+  label_pair_t *expected_labels;
   size_t expected_labels_num;
 
-  label_t *current_label;
+  label_pair_t *current_label;
 } test_case_t;
 
 #if HAVE_YAJL_V2
@@ -58,7 +58,7 @@ static int test_map_key(void *ctx, unsigned char const *key,
 
   c->current_label = NULL;
   for (i = 0; i < c->expected_labels_num; i++) {
-    label_t *l = c->expected_labels + i;
+    label_pair_t *l = c->expected_labels + i;
     if ((strlen(l->name) == key_len) &&
         (strncmp(l->name, (char const *)key, key_len) == 0)) {
       c->current_label = l;
@@ -93,7 +93,7 @@ static int test_string(void *ctx, unsigned char const *value,
   test_case_t *c = ctx;
 
   if (c->current_label != NULL) {
-    label_t *l = c->current_label;
+    label_pair_t *l = c->current_label;
     char *got;
     int status;
 
@@ -112,7 +112,8 @@ static int test_string(void *ctx, unsigned char const *value,
   return 1; /* continue */
 }
 
-static int expect_json_labels(char *json, label_t *labels, size_t labels_num) {
+static int expect_json_labels(char *json, label_pair_t *labels,
+                              size_t labels_num) {
   yajl_callbacks funcs = {
       .yajl_string = test_string,
       .yajl_map_key = test_map_key,
@@ -134,7 +135,7 @@ static int expect_json_labels(char *json, label_t *labels, size_t labels_num) {
 }
 
 DEF_TEST(notification) {
-  label_t labels[] = {
+  label_pair_t labels[] = {
       {"summary", "this is a message"},
       {"alertname", "collectd_unit_test"},
       {"instance", "example.com"},

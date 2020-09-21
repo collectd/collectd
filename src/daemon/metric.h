@@ -64,16 +64,6 @@ typedef struct {
   char *value;
 } label_pair_t;
 
-/* label_t represents a key/value pair. It is similar to label_pair_t, except
- * that is has const fields. label_t is used in function arguments to prevent
- * the called function from modifying its argument. Internally labels are
- * stored as label_pair_t to allow modification, e.g. by targets in the "filter
- * chain". */
-typedef struct {
-  char const *name;
-  char const *value;
-} label_t;
-
 /* label_set_t is a sorted set of labels. */
 typedef struct {
   label_pair_t *ptr;
