@@ -884,10 +884,11 @@ int format_name(char *ret, int ret_len, const char *hostname,
   assert(plugin != NULL);
   assert(type != NULL);
 
-  if (hostname != NULL)
+  if (hostname != NULL) {
     APPEND(hostname);
-
-  APPEND("/");
+    APPEND("/");
+  }
+  
   APPEND(plugin);
   if ((plugin_instance != NULL) && (plugin_instance[0] != 0)) {
     APPEND("-");
