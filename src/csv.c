@@ -147,9 +147,14 @@ static int metric_family_to_filename(char *buffer, size_t buffer_size,
                        type_instance);
 
   sfree(hostname);
-  sfree(plugin);
+  if (strcasecmp("unknown", plugin) != 0) {
+    sfree(plugin);
+  }
+
   sfree(plugin_instance);
-  sfree(type);
+  if (strcasecmp("unknown", type) != 0) {
+    sfree(type);
+  }
   sfree(type_instance);
 
   if (status != 0)
