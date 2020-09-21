@@ -113,9 +113,33 @@ static int metric_family_to_filename(char *buffer, size_t buffer_size,
     ptr += len;
   }
 
-  status = FORMAT_VL(ptr, ptr_size, vl);
-  if (status != 0)
-    return status;
+  // status = FORMAT_VL(ptr, ptr_size, vl);
+
+#define APPEND(str)                                                            \
+  do {                                                                         \
+    size_t len = strlen(str);                                                  \
+    if (len >= ptr_size)                                                       \
+      return ENOBUFS;                                                          \
+    memcpy(ptr, (str), len);                                                   \
+    ptr += len;                                                                \
+    ptr_size -= len;                                                           \
+  } while (0)
+
+  for (size_t i = 0; i < fam->metric.num; ++i) {
+    metric_t const *m = fam->metric.ptr + i;
+
+    for (size_t j = 0; j < m->label.num; ++j) {
+      label_pair_t *l = m->label.ptr + j;
+
+      APPEND(l->name);
+      APPEND(" = ");
+      APPEND(l->value);
+    }
+  }
+#undef APPEND
+
+  ptr = buffer;
+  ptr_size = buffer_size;
 
   /* Skip all the time formatting stuff when printing to STDOUT or
    * STDERR. */
@@ -163,7 +187,7 @@ static int csv_create_file(const char *filename, metric_family_t const *fam) {
 
   fprintf(csv, "epoch");
   // for (size_t i = 0; i < fam->metric.num; i++)
-    fprintf(csv, ",%s", fam->name);
+  fprintf(csv, ",%s", fam->name);
 
   fprintf(csv, "\n");
   fclose(csv);
