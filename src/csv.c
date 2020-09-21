@@ -37,11 +37,12 @@ static char *datadir;
 static int store_rates;
 static int use_stdio;
 
-static int metric_family_to_string(char *buffer, int buffer_len, metric_family_t const *fam) {
+static int metric_family_to_string(char *buffer, int buffer_len,
+                                   metric_family_t const *fam) {
   int offset;
   int status;
 
-  if(buffer == NULL || fam == NULL) {
+  if (buffer == NULL || fam == NULL) {
     return -1;
   }
 
@@ -51,15 +52,15 @@ static int metric_family_to_string(char *buffer, int buffer_len, metric_family_t
     return -1;
   }
 
-  status = snprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(fam->metric.ptr[0].time));
+  status = snprintf(buffer, buffer_len, "%.3f",
+                    CDTIME_T_TO_DOUBLE(fam->metric.ptr[0].time));
   if ((status < 1) || (status >= buffer_len))
     return -1;
   offset = status;
 
   if ((fam->type != METRIC_TYPE_COUNTER) &&
       (fam->type != METRIC_TYPE_DISTRIBUTION) &&
-      (fam->type != METRIC_TYPE_GAUGE) &&
-      (fam->type != METRIC_TYPE_UNTYPED)) {
+      (fam->type != METRIC_TYPE_GAUGE) && (fam->type != METRIC_TYPE_UNTYPED)) {
     return -1;
   }
 
@@ -92,7 +93,7 @@ static int metric_family_to_string(char *buffer, int buffer_len, metric_family_t
 } /* int metric_family_to_string */
 
 static int metric_family_to_filename(char *buffer, size_t buffer_size,
-                                  metric_family_t const *fam) {
+                                     metric_family_t const *fam) {
   int status;
 
   char *ptr = buffer;
@@ -206,7 +207,6 @@ static int csv_config(const char *key, const char *value) {
   return 0;
 } /* int csv_config */
 
-/*static int csv_write(const data_set_t *ds, const value_list_t *vl,*/
 static int csv_write(metric_family_t const *fam,
                      user_data_t __attribute__((unused)) * user_data) {
   struct stat statbuf;
@@ -217,20 +217,14 @@ static int csv_write(metric_family_t const *fam,
   struct flock fl = {0};
   int status;
 
-  /*if (0 != strcmp(ds->type, vl->type)) {
-    ERROR("csv plugin: DS type does not match value list type");
+  if (fam == NULL)
     return -1;
-  }*/
 
-  //status = value_list_to_filename(filename, sizeof(filename), vl);
   status = metric_family_to_filename(filename, sizeof(filename), fam);
   if (status != 0)
     return -1;
 
   DEBUG("csv plugin: csv_write: filename = %s;", filename);
-
-  /*if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
-    return -1;*/
 
   if (metric_family_to_string(values, sizeof(values), fam) != 0)
     return -1;
@@ -246,14 +240,16 @@ static int csv_write(metric_family_t const *fam,
         values[i] = ':';
     }
 
+    /* we know that fam->metric != NULL && fam->metric.ptr[0] != NULL because in
+     * that case metric_family_to_string would return -1 */
     fprintf(use_stdio == 1 ? stdout : stderr, "PUTVAL %s interval=%.3f %s\n",
-            filename, CDTIME_T_TO_DOUBLE(vl->interval), values);
+            filename, CDTIME_T_TO_DOUBLE(fam->metric.ptr[0].interval), values);
     return 0;
   }
 
   if (stat(filename, &statbuf) == -1) {
     if (errno == ENOENT) {
-      if (csv_create_file(filename, ds))
+      if (csv_create_file(filename, fam))
         return -1;
     } else {
       ERROR("stat(%s) failed: %s", filename, STRERRNO);
