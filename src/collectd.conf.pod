@@ -2211,6 +2211,136 @@ Type-instance to use. Defaults to the current map key or current string array el
 
 =back
 
+=head2 Plugin C<curl_jolokia>
+
+The B<curl_jolokia plugin> collects values from MBeanServevr - servlet engines equipped 
+with the jolokia (L<https://jolokia.org>) MBean. It sends a pre-configured
+JSON-Postbody to the servlet via HTTP commanding the jolokia Bean to reply with
+a singe JSON equipped with all JMX counters requested.
+By reducing TCP roundtrips in comparison to conventional JMX clients that
+query one value via tcp at a time, it can return hundrets of values in one roundtrip.
+Moreof - no java binding is required in collectd to do so.
+
+It uses B<libyajl> (L<https://lloyd.github.io/yajl/>) to parse the 
+Jolokia JSON reply retrieved via B<libcurl> (L<http://curl.haxx.se/>)
+
+ <Plugin curl_jolokia>
+   <URL "http://10.10.10.10:7101/jolokia-war-1.2.0/?ignoreErrors=true&canonicalNaming=false";>
+     Host "_APPPERF_JMX"
+     User "webloginname"
+     Password "passvoid"
+     Post <JOLOKIA json post data>
+
+   <BeanName "PS_Scavenge">
+        MBean "java.lang:name=PS Scavenge,type=GarbageCollector"
+        BeanNameSpace "java_lang"
+        <AttributeName "collectiontime" >
+               Attribute "CollectionTime"
+               type "gauge"
+        </AttributeName>
+        <AttributeName "collectioncount" >
+               Attribute "CollectionCount"
+               type "gauge"
+        </AttributeName>
+   </BeanName>
+  </Plugin>
+
+The plugin is intended to be written in a simple manner. Thus it doesn't 
+try to solve the task of generating the jolokia post data, or automatically 
+map the values, but rather leans on a verbose config containing the prepared
+flat JSON post data and a config section per gauge transformed (as one sample shown
+above). However, Jolokia can output all available gauges, and we have a python 
+script to filter them, and generate a configuration for you: 
+
+  jolokia_2_collectcfg.py
+
+it can gather all interesting gauges, write a simple one value per line config 
+for itself and subsequent calls.
+You can remove lines from this file manually, or create filter lists. 
+You then use the script to generate a collectd config. 
+The script can then inspect data files from some testruns, and remove 
+all gauges, that don't contain any movement. 
+
+The base config looks like this:
+
+The following options are valid within B<URL> blocks:
+
+=over 4
+
+=item B<Host> I<Name>
+
+Use I<Name> as the host name when submitting values. Defaults to the global
+host name setting.
+
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to C<curl_jolokia>.
+
+=item B<Instance> I<Instance>
+
+Sets the plugin instance to I<Instance>.
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+URL. By default the global B<Interval> setting will be used.
+
+=item B<User> I<Name>
+
+=item B<Password> I<Password>
+
+=item B<Digest> B<true>|B<false>
+
+=item B<VerifyPeer> B<true>|B<false>
+
+=item B<VerifyHost> B<true>|B<false>
+
+=item B<CACert> I<file>
+
+=item B<Header> I<Header>
+
+=item B<Post> I<Body>
+
+=item B<Timeout> I<Milliseconds>
+
+These options behave exactly equivalent to the appropriate options of the
+I<cURL> plugin. Please see there for a detailed description.
+
+=item B<E<lt>BeanNameE<gt>>
+
+One B<BeanName> block configures the translation of the gauges of one bean
+to their respective collectd names, where BeanName sets the main name.
+
+=item B<MBean> I<MBean>
+
+The name of the Bean on the server
+
+=item B<BeanNameSpace> I<BeanNameSpace>
+
+The name space the Bean resides under
+
+=over 4
+
+=item B<AttributeName> I<AttributeName>
+
+A bean can contain several Attributes with gauges. Each one can be matched by a 
+AttributeName section or be ignored. 
+
+=item B<Attribute> I<Attribute>
+
+How should this attribute be called under the BeanName in the collectd hierarchy?
+
+=item B<Type> I<Type>
+
+Sets the type used to dispatch the values to the daemon. Detailed information
+about types and their configuration can be found in L<types.db(5)>. This
+option is mandatory.
+
+=back
+
+=back
+
 =head2 Plugin C<curl_xml>
 
 The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
@@ -3658,6 +3788,39 @@ Defaults to B<false>.
 
 Whether to report hugepages metrics as percentage.
 Defaults to B<false>.
+
+=back
+
+=head2 Plugin C<infiniband>
+
+The C<infiniband> plugin collects information about IB ports. Metrics are
+gathered from C</sys/class/infiniband/DEVICE/port/PORTNUM/*>, and I<Port> names
+are formatted like C<DEVICE:PORTNUM> (see examples below).
+
+B<Options:>
+
+=over 4
+
+=item B<Port> I<Port>
+
+Select the port I<Port>. Whether it is collected or ignored depends on the
+B<IgnoreSelected> setting, see below. As with other plugins that use the
+daemon's ignorelist functionality, a string that starts and ends with a slash
+is interpreted as a regular expression. Examples:
+
+  Port "mlx5_0:1"
+  Port "/mthca0:[0-9]/"
+
+See F</"IGNORELISTS"> for details.
+
+=item B<IgnoreSelected> I<true>|I<false>
+
+Sets whether selected ports are ignored or if all other ports are ignored. The
+behavior (hopefully) is intuitive: If no B<Port> option is configured, all
+ports are collected. If at least one B<Port> option is given and
+B<IgnoreSelected> is not given or set to I<false>, B<only> matching ports will
+be collected. If B<IgnoreSelected> is set to B<true>, all ports are collected
+B<except> the ones matched.
 
 =back
 
@@ -5266,7 +5429,7 @@ C<Bytes_{received,sent}>, C<Com_*>, C<Handler_*>, C<Qcache_*> and C<Threads_*>
 return values. Please refer to the B<MySQL reference manual>, I<5.1.6. Server
 Status Variables> for an explanation of these values.
 
-Optionally, master and slave statistics may be collected in a MySQL
+Optionally, primary and replica statistics may be collected in a MySQL
 replication setup. In that case, information about the synchronization state
 of the nodes are collected by evaluating the C<Position> return value of the
 C<SHOW MASTER STATUS> command and the C<Seconds_Behind_Master>,
@@ -5368,7 +5531,7 @@ Disabled by default.
 
 =item B<SlaveStats> I<true|false>
 
-Enable the collection of master / slave statistics in a replication setup. In
+Enable the collection of primary / replica statistics in a replication setup. In
 order to be able to get access to these statistics, the user needs special
 privileges. See the B<User> documentation above. Defaults to B<false>.
 
@@ -5979,6 +6142,21 @@ to get an idea of what awaits you:
 
 If I<Interface> is B<All>, all interfaces will be selected.
 
+It is possible to use regular expressions to match interface names, if the
+name is surrounded by I</.../> and collectd was compiled with support for
+regexps. This is useful if there's a need to collect (or ignore) data
+for a group of interfaces that are similarly named, without the need to
+explicitly list all of them (especially useful if the list is dynamic).
+Examples:
+
+ Interface "/^eth/"
+ Interface "/^ens[1-4]$|^enp[0-3]$/"
+ VerboseInterface "/^eno[0-9]+/"
+
+This will match all interfaces with names starting with I<eth>, all interfaces
+in range I<ens1 - ens4> and I<enp0 - enp3>, and for verbose metrics all
+interfaces with names starting with I<eno> followed by at least one digit.
+
 =item B<QDisc> I<Interface> [I<QDisc>]
 
 =item B<Class> I<Interface> [I<Class>]
@@ -6026,6 +6204,13 @@ selected at all, everything is collected. If some things are selected using the
 options described above, only these statistics are collected. If you set
 B<IgnoreSelected> to B<true>, this behavior is inverted, i.E<nbsp>e. the
 specified statistics will not be collected.
+
+=item B<CollectVFStats> B<true|false>
+
+Allow plugin to collect VF's statistics if there are Virtual Functions
+available for interfaces specified in B<Interface> or B<VerboseInterface>.
+All available stats are collected no matter if parent interface is set
+by B<Interface> or B<VerboseInterface>.
 
 =back
 
@@ -8618,7 +8803,9 @@ The C<smart> plugin collects SMART information from physical
 disks. Values collectd include temperature, power cycle count, poweron
 time and bad sectors. Also, all SMART attributes are collected along
 with the normalized current value, the worst value, the threshold and
-a human readable value.
+a human readable value. The plugin can also collect SMART attributes
+for NVMe disks (present in accordance with NVMe 1.4 spec) and Additional
+SMART Attributes from Intel® NVMe disks.
 
 Using the following two options you can ignore some disks or configure the
 collection only of specific disks.
@@ -8634,6 +8821,7 @@ is interpreted as a regular expression. Examples:
 
   Disk "sdd"
   Disk "/hda[34]/"
+  Disk "nvme0n1"
 
 See F</"IGNORELISTS"> for details.
 
@@ -10614,7 +10802,7 @@ The output format to use. Can be one of C<Graphite> or C<JSON>.
 =head2 Plugin C<write_tsdb>
 
 The C<write_tsdb> plugin writes data to I<OpenTSDB>, a scalable open-source
-time series database. The plugin connects to a I<TSD>, a masterless, no shared
+time series database. The plugin connects to a I<TSD>, a leaderless, no shared
 state daemon that ingests metrics and stores them in HBase. The plugin uses
 I<TCP> over the "line based" protocol with a default port 4242. The data will
 be sent in blocks of at most 1428 bytes to minimize the number of network

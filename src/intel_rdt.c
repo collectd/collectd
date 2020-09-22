@@ -129,6 +129,53 @@ static void rdt_submit_gauge(const char *cgroup, const char *type,
   plugin_dispatch_values(&vl);
 }
 
+static void rdt_submit(const struct pqos_mon_data *group) {
+  const struct pqos_event_values *values = &group->values;
+  const char *desc = (const char *)group->context;
+  const enum pqos_mon_event events = group->event;
+
+  if (events & PQOS_MON_EVENT_L3_OCCUP)
+    rdt_submit_gauge(desc, "bytes", "llc", values->llc);
+
+  if (events & PQOS_PERF_EVENT_IPC)
+    rdt_submit_gauge(desc, "ipc", NULL, values->ipc);
+
+  if (events & PQOS_MON_EVENT_LMEM_BW) {
+    const struct pqos_monitor *mon = NULL;
+
+    int retval =
+        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_LMEM_BW, &mon);
+    if (retval == PQOS_RETVAL_OK) {
+      uint64_t value = values->mbm_local;
+
+      if (mon->scale_factor != 0)
+        value = value * mon->scale_factor;
+
+      rdt_submit_derive(desc, "memory_bandwidth", "local", value);
+    }
+  }
+
+  if (events & PQOS_MON_EVENT_RMEM_BW) {
+    const struct pqos_monitor *mon = NULL;
+
+    int retval =
+        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_RMEM_BW, &mon);
+    if (retval == PQOS_RETVAL_OK) {
+      uint64_t value = values->mbm_remote;
+
+#if PQOS_VERSION < 40000
+      if (events & (PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_LMEM_BW))
+        value = values->mbm_total - values->mbm_local;
+#endif
+
+      if (mon->scale_factor != 0)
+        value = value * mon->scale_factor;
+
+      rdt_submit_derive(desc, "memory_bandwidth", "remote", value);
+    }
+  }
+}
+
 #if COLLECT_DEBUG
 static void rdt_dump_cgroups(void) {
   char cores[RDT_MAX_CORES * 4];
@@ -191,23 +238,15 @@ static inline double bytes_to_mb(const double bytes) {
 }
 
 static void rdt_dump_cores_data(void) {
-/*
- * CORE - monitored group of cores
- * RMID - Resource Monitoring ID associated with the monitored group
- *        This is not available for monitoring with resource control
- * LLC - last level cache occupancy
- * MBL - local memory bandwidth
- * MBR - remote memory bandwidth
- */
-#ifdef LIBPQOS2
-  if (g_interface == PQOS_INTER_OS_RESCTRL_MON) {
-    DEBUG(RDT_PLUGIN ":  CORE     LLC[KB]   MBL[MB]    MBR[MB]");
-  } else {
-    DEBUG(RDT_PLUGIN ":  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
-  }
-#else
-  DEBUG(RDT_PLUGIN ":  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
-#endif /* LIBPQOS2 */
+  /*
+   * CORE - monitored group of cores
+   * RMID - Resource Monitoring ID associated with the monitored group
+   *        This is not available for monitoring with resource control
+   * LLC - last level cache occupancy
+   * MBL - local memory bandwidth
+   * MBR - remote memory bandwidth
+   */
+  DEBUG(RDT_PLUGIN ":  CORE     LLC[KB]   MBL[MB]    MBR[MB]");
 
   for (int i = 0; i < g_rdt->cores.num_cgroups; i++) {
     const struct pqos_event_values *pv = &g_rdt->pcgroups[i]->values;
@@ -215,20 +254,9 @@ static void rdt_dump_cores_data(void) {
     double llc = bytes_to_kb(pv->llc);
     double mbr = bytes_to_mb(pv->mbm_remote_delta);
     double mbl = bytes_to_mb(pv->mbm_local_delta);
-#ifdef LIBPQOS2
-    if (g_interface == PQOS_INTER_OS_RESCTRL_MON) {
-      DEBUG(RDT_PLUGIN ": [%s] %10.1f %10.1f %10.1f",
-            g_rdt->cores.cgroups[i].desc, llc, mbl, mbr);
-    } else {
-      DEBUG(RDT_PLUGIN ": [%s] %8u %10.1f %10.1f %10.1f",
-            g_rdt->cores.cgroups[i].desc, g_rdt->pcgroups[i]->poll_ctx[0].rmid,
-            llc, mbl, mbr);
-    }
-#else
-    DEBUG(RDT_PLUGIN ": [%s] %8u %10.1f %10.1f %10.1f",
-          g_rdt->cores.cgroups[i].desc, g_rdt->pcgroups[i]->poll_ctx[0].rmid,
-          llc, mbl, mbr);
-#endif /* LIBPQOS2 */
+
+    DEBUG(RDT_PLUGIN ": [%s] %10.1f %10.1f %10.1f",
+          g_rdt->cores.cgroups[i].desc, llc, mbl, mbr);
   }
 }
 
@@ -769,30 +797,12 @@ static int read_pids_data() {
   }
 
   for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
-    enum pqos_mon_event mbm_events =
-        (PQOS_MON_EVENT_LMEM_BW | PQOS_MON_EVENT_TMEM_BW |
-         PQOS_MON_EVENT_RMEM_BW);
-
     if (g_rdt->pngroups[i] == NULL ||
         g_rdt->ngroups[i].monitored_pids_count == 0)
       continue;
 
-    const struct pqos_event_values *pv = &g_rdt->pngroups[i]->values;
-
-    /* Submit only monitored events data */
-
-    if (g_rdt->ngroups[i].events & PQOS_MON_EVENT_L3_OCCUP)
-      rdt_submit_gauge(g_rdt->ngroups[i].desc, "bytes", "llc", pv->llc);
-
-    if (g_rdt->ngroups[i].events & PQOS_PERF_EVENT_IPC)
-      rdt_submit_gauge(g_rdt->ngroups[i].desc, "ipc", NULL, pv->ipc);
-
-    if (g_rdt->ngroups[i].events & mbm_events) {
-      rdt_submit_derive(g_rdt->ngroups[i].desc, "memory_bandwidth", "local",
-                        pv->mbm_local_delta);
-      rdt_submit_derive(g_rdt->ngroups[i].desc, "memory_bandwidth", "remote",
-                        pv->mbm_remote_delta);
-    }
+    /* Submit monitoring data */
+    rdt_submit(g_rdt->pngroups[i]);
   }
 
 #if COLLECT_DEBUG
@@ -1189,29 +1199,9 @@ static int read_cores_data() {
     return -1;
   }
 
-  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
-    core_group_t *cgroup = g_rdt->cores.cgroups + i;
-    enum pqos_mon_event mbm_events =
-        (PQOS_MON_EVENT_LMEM_BW | PQOS_MON_EVENT_TMEM_BW |
-         PQOS_MON_EVENT_RMEM_BW);
-
-    const struct pqos_event_values *pv = &g_rdt->pcgroups[i]->values;
-
-    /* Submit only monitored events data */
-
-    if (g_rdt->events[i] & PQOS_MON_EVENT_L3_OCCUP)
-      rdt_submit_gauge(cgroup->desc, "bytes", "llc", pv->llc);
-
-    if (g_rdt->events[i] & PQOS_PERF_EVENT_IPC)
-      rdt_submit_gauge(cgroup->desc, "ipc", NULL, pv->ipc);
-
-    if (g_rdt->events[i] & mbm_events) {
-      rdt_submit_derive(cgroup->desc, "memory_bandwidth", "local",
-                        pv->mbm_local_delta);
-      rdt_submit_derive(cgroup->desc, "memory_bandwidth", "remote",
-                        pv->mbm_remote_delta);
-    }
-  }
+  /* Submit monitoring data */
+  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++)
+    rdt_submit(g_rdt->pcgroups[i]);
 
 #if COLLECT_DEBUG
   rdt_dump_cores_data();

@@ -1,3 +1,106 @@
+2020-09-03, Version 5.12.0
+	* varnish plugin: Added varnish 6 support. Thanks to Charly Koza, Ismael
+	  Puerto. #3445
+	* amqp1 plugin: New options to limit send queue length has been added.
+	  Thanks to Ryan McCabe. #3432
+	* mdevents plugin: New plugin to generate notifications about events in
+	  RAID arrays. Thanks to Krzysztof Kazimierczak, Maciej Fijałkowskii,
+	  Michał Kobyliński. #2841
+	* amqp plugin: Updated option to allow multiple hosts to support
+	  failover. Thanks to Märt Bakhoff. #3410
+	* mysql plugin: Reporting of the fields Slave_IO_Running and
+	  Slave_SQL_Running has been added. Thanks to Thomas Mieslinger. #3463
+	* write_http plugin: libcurl default HTTP response has been moved to a
+	  buffer instead of stdout. Thanks to Duane Waddle. #3263
+	* disk plugin: Provided an udev rule with ID_SERIAL based attribute so
+	  disk and partition data don't get mixed incorrectly in udev-based disk
+	  naming. Thanks to Maciej S. Szmigiero. #3441
+	* swap plugin: Implementation for NetBSD has been added. Thanks to
+	  Håvard Eidnes, Edgar Fuß. #3501
+	* netstat_udp plugin: New plugin ((currently NetBSD-only) to report UDP
+	  summary statistics has been aded. Thanks to Håvard Eidnes, Edgar Fuß.
+	  #3502
+	* smart plugin: SMART plugin has been extended with NVMe device
+	  functionality. Thanks to Bartłomiej Kotłowski, Paweł Żak,
+	  Sławomir Strehlau. #3510
+	* infiniband plugin: New plugin to collect metrics about IB ports has
+	  been added. Thanks to Luke Yeager. #3494
+	* snmp plugin: Count option was added allowing to gather the number of
+	  table entries (matching given criteria) rather than their values.
+	  Thanks to Edgar Fuß. #3504
+	* cpu plugin: Implementation for NetBSD has been added. Thanks to
+	  Håvard Eidnes, Edgar Fuß. #3496
+	* irq plugin: Implementation for NetBSD has been added. Thanks to
+	  Håvard Eidnes, Edgar Fuß. #3498
+	* processes plugin: Implementation for NetBSD has been added. Thanks to
+	  Håvard Eidnes, Edgar Fuß. #3500
+	* entropy plugin: Implementation for NetBSD has been added. Thanks to
+	  Håvard Eidnes, Edgar Fuß. #3497
+	* netlink plugin: VFs statistics and link info has been added. Thanks
+	  to Kamil Wiatrowski. #3487
+	* memory plugin: Implementation for NetBSD has been added. Thanks to
+	  Håvard Eidnes, Edgar Fuß. #3499
+	* curl_jolokia plugin: New plugin has been added to integrate jolokia to
+	  fetch jmx counters via HTTP/json. Thanks to Wilfried Goesgens. #2470
+	* write_sensu plugin: IncludeSource option has been added. Thanks to
+	  Märt Bakhoff. #3398
+	* intel_pmu plugin: Check for libjevents version has been improved.
+	  Thanks to Kamil Wiatrowski. #3407
+	* python plugin: Error-handling code of PyType_Ready has been added.
+	  Thanks to Jia Zhouyang. #3402
+	* collectd: Updated specfile for EL8. Thanks to Fabien Wernli. #3346
+	* openvpn plugin: Parsing of empty fields has been fixed. Thanks to
+	  Pavel Rochnyak. #3425
+	* dpdk_telemetry plugin: Build issues has been fixed. Thanks to Fabrice
+	  Fontaine. #3439
+	* mqtt plugin: A problem with stuck after 20 (qos=1) messages has been
+	  fixed. Thanks to Viulian. #2730
+	* varnish plugin: Target in category for varnish 6 has been added.
+	  Thanks to Charly Koza. #3446
+	* mqtt plugin: Resubscribe after a reconnect. Thanks to Maciej
+	  S. Szmigiero. #3452
+	* zookeeper plugin: Missing 3.5 mntr fields has been added. Thanks to
+	  Théophane Charbonnier. #3450
+	* sensors plugin: The documentation has been improved. Thanks to Florian
+	  Forster. #3443
+	* types.db(5): Documentation of metric definitions has been improved.
+	  Thanks to Florian Forster. #3458
+	* intel_pmu plugin: The possible crash on plugin init has been fixed.
+	  Thanks to Kamil Wiatrowski. #3480
+	* processes plugin: Size of reading buffer for /proc/stat has been
+	  increased. Thanks to Mhumpula. #3479
+	* ubi plugin: Data source type has been fixed from counter to gauge.
+	  Thanks to Florian Eckert. #3486
+	* intelrdt plugin: NaN values in csv output has been fixed. Thanks to
+	  Michał Aleksiński, Paweł Tomaszewski. #3503
+	* capabilities plugin: Conditionalized return type for microhttpd
+	  callback functions. Thanks to José M. Guisado. #3512
+	* write_prometheus plugin: fix for libmicrohttpd api change. Thanks to
+	  Bernd Zeimetz. #3514
+	* nfs plugin: NetBSD implementation has been fixed, undefined
+	  suppress_warning variable has been removed. Thanks to Edgar Fuß. #3495
+	* collection3: Some small titles has been improved from {type_instance}
+	  to {instance}. Thanks to Christian Tacke. #3476
+	* slurm plugin: Compatibility with Slurm versions >= 20.02 has been
+	  provided. Thanks to Pablo Llopis. #3518
+	* collectd: Build fix: duplicate switch case has been removed. Thanks to
+	  Sebastian Schmidt. #3536
+	* infiniband plugin: The build has been fixed by linking with
+	  libignorelist. Thanks to Luke Yeager. #3516
+	* curl plugin: Memory leak has been fixed. Thanks to Barbara
+	  Kaczorowska. #3547
+	* network plugin: Initialization of sockent_t has been simplified.
+	  Thanks to Florian Forster, Dagobert Michelsen. #3543
+	* mysql plugin: Compatibility with MariaDB >=10.5 has been fixed. Thanks
+	  to Alexander Meshcheryakov. #3548
+	* zookeeper plugin: Missing mntr fields has been fixed. Thanks to
+	  Théophane Charbonnier. #3449
+	* ceph plugin: An incorrect close on file descriptor 0 has been fixed.
+	  Thanks to Florian Forster. #3459
+	* snmp_agent plugin: A strncat() truncation warning has been fixed.
+	  Thanks to Florian Forster. #3564
+
+
 2020-03-15, Version 5.11.0
 	* collectd: A Code of Conduct has been added. Thanks to Florian Forster.
 	  #3401

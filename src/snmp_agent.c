@@ -940,7 +940,6 @@ static int snmp_agent_parse_oid_index_keys(const table_definition_t *td,
 static int snmp_agent_build_name(char **name, c_avl_tree_t *tokens) {
   int *pos;
   token_t *tok;
-  char str[DATA_MAX_NAME_LEN];
   char out[DATA_MAX_NAME_LEN] = {0};
   c_avl_iterator_t *it = c_avl_get_iterator(tokens);
 
@@ -950,14 +949,15 @@ static int snmp_agent_build_name(char **name, c_avl_tree_t *tokens) {
   }
 
   while (c_avl_iterator_next(it, (void **)&pos, (void **)&tok) == 0) {
-    strncat(out, tok->str, DATA_MAX_NAME_LEN - strlen(out) - 1);
+    strncat(out, tok->str, sizeof(out) - strlen(out) - 1);
     if (tok->key != NULL) {
       if (tok->key->type == ASN_INTEGER) {
-        ssnprintf(str, sizeof(str), "%ld", *tok->key->val.integer);
-        strncat(out, str, DATA_MAX_NAME_LEN - strlen(out) - 1);
+        char *ptr = &out[strlen(out)];
+        size_t sz = sizeof(out) - strlen(out);
+        ssnprintf(ptr, sz, "%ld", *tok->key->val.integer);
       } else /* OCTET_STR */
         strncat(out, (char *)tok->key->val.string,
-                DATA_MAX_NAME_LEN - strlen(out) - 1);
+                sizeof(out) - strlen(out) - 1);
     }
   }
 

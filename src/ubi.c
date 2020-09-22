@@ -69,14 +69,13 @@ static int ubi_config(const char *key, const char *value) {
   return 0;
 } /* int ubi_config */
 
-static void ubi_submit(const char *dev_name, const char *type,
-                       counter_t value) {
+static void ubi_submit(const char *dev_name, const char *type, gauge_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   if (ignorelist_match(ignorelist, dev_name) != 0)
     return;
 
-  vl.values = &(value_t){.counter = value};
+  vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
   sstrncpy(vl.type_instance, dev_name, sizeof(vl.type_instance));
@@ -107,7 +106,7 @@ static int ubi_read_dev_attr(const char *dev_name, const char *attr) {
     return -1;
   }
 
-  ubi_submit(dev_name, attr, (counter_t)val);
+  ubi_submit(dev_name, attr, (gauge_t)val);
 
   return 0;
 } /* int ubi_read_dev_attr */

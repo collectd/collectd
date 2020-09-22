@@ -82,7 +82,11 @@ int pqos_cap_get_type(const struct pqos_cap *cap, const enum pqos_cap_type type,
 int pqos_cap_get(const struct pqos_cap **cap, const struct pqos_cpuinfo **cpu) {
   return 0;
 }
-
+int pqos_cap_get_event(const struct pqos_cap *cap,
+                       const enum pqos_mon_event event,
+                       const struct pqos_monitor **p_mon) {
+  return 0;
+}
 #ifdef LIBPQOS2
 /***************************************************************************
  * helper functions
