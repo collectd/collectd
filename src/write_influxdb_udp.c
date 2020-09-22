@@ -82,8 +82,6 @@ static int send_buffer_fill;
 static cdtime_t send_buffer_last_update;
 static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static int listen_loop;
-
 static int set_ttl(const sockent_t *se, const struct addrinfo *ai) {
 
   if ((wifxudp_config_ttl < 1) || (wifxudp_config_ttl > 255))
@@ -470,32 +468,21 @@ static int write_influxdb_point(char *buffer, int buffer_len,
 static int
 write_influxdb_udp_write(const data_set_t *ds, const value_list_t *vl,
                          user_data_t __attribute__((unused)) * user_data) {
+  char buffer[NET_DEFAULT_PACKET_SIZE];
 
-  /* listen_loop is set to non-zero in the shutdown callback, which is
-   * guaranteed to be called *after* all the write threads have been shut
-   * down. */
-  assert(listen_loop == 0);
+  int status = write_influxdb_point(buffer, NET_DEFAULT_PACKET_SIZE, ds, vl);
 
-  pthread_mutex_lock(&send_buffer_lock);
-
-  int status = write_influxdb_point(
-      send_buffer_ptr, wifxudp_config_packet_size - send_buffer_fill, ds, vl);
-
-  if (status < 0) {
-    flush_buffer();
-    status = write_influxdb_point(
-        send_buffer_ptr, wifxudp_config_packet_size - send_buffer_fill, ds, vl);
-  }
   if (status < 0) {
     ERROR("write_influxdb_udp plugin: write_influxdb_udp_write failed.");
-    pthread_mutex_unlock(&send_buffer_lock);
     return -1;
   }
-  if (status == 0) {
-    /* no real values to send (nan) */
-    pthread_mutex_unlock(&send_buffer_lock);
+  if (status == 0) /* no real values to send (nan) */
     return 0;
-  }
+
+  pthread_mutex_lock(&send_buffer_lock);
+  if (wifxudp_config_packet_size - send_buffer_fill < status)
+    flush_buffer();
+  memcpy(send_buffer_ptr, buffer, status);
 
   send_buffer_fill += status;
   send_buffer_ptr += status;

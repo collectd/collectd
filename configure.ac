@@ -114,6 +114,7 @@ AM_CONDITIONAL([BUILD_DARWIN], [test "x$ac_system" = "xDarwin"])
 AM_CONDITIONAL([BUILD_FREEBSD], [test "x$ac_system" = "xFreeBSD"])
 AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
 AM_CONDITIONAL([BUILD_OPENBSD], [test "x$ac_system" = "xOpenBSD"])
+AM_CONDITIONAL([BUILD_NETBSD], [test "x$ac_system" = "xNetBSD"])
 AM_CONDITIONAL([BUILD_SOLARIS], [test "x$ac_system" = "xSolaris"])
 AM_CONDITIONAL([BUILD_WIN32], [test "x$ac_system" = "xWindows"])
 
@@ -3719,6 +3720,24 @@ if test "x$with_libmnl" = "xyes"; then
     [[#include <linux/if_link.h>]]
   )
 
+  AC_CHECK_DECLS([IFLA_VF_STATS_RX_DROPPED],
+    [AC_DEFINE(HAVE_IFLA_VF_STATS_RX_DROPPED, 1, [Define if IFLA_VF_STATS_RX_DROPPED exists.])],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
+  AC_CHECK_DECLS([IFLA_VF_STATS_TX_DROPPED],
+    [AC_DEFINE(HAVE_IFLA_VF_STATS_TX_DROPPED, 1, [Define if IFLA_VF_STATS_TX_DROPPED exists.])],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
+  AC_CHECK_DECLS([IFLA_VF_STATS],
+    [AC_DEFINE(HAVE_IFLA_VF_STATS, 1, [Define if IFLA_VF_STATS exists.])],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
   AC_CHECK_LIB([mnl], [mnl_nlmsg_get_payload],
     [with_libmnl="yes"],
     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
@@ -6529,6 +6548,7 @@ plugin_gps="no"
 plugin_gpu_nvidia="no"
 plugin_grpc="no"
 plugin_hugepages="no"
+plugin_infiniband="no"
 plugin_intel_pmu="no"
 plugin_intel_rdt="no"
 plugin_interface="no"
@@ -6543,6 +6563,7 @@ plugin_mcelog="no"
 plugin_mdevents="no"
 plugin_memory="no"
 plugin_multimeter="no"
+plugin_netstat_udp="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_ovs_events="no"
@@ -6594,6 +6615,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_fhcount="yes"
   plugin_fscache="yes"
   plugin_hugepages="yes"
+  plugin_infiniband="yes"
   plugin_interface="yes"
   plugin_ipc="yes"
   plugin_irq="yes"
@@ -6658,6 +6680,7 @@ if test "x$ac_system" = "xNetBSD"; then
   plugin_irq="yes"
   plugin_nfs="yes"
   plugin_processes="yes"
+  plugin_netstat_udp="yes"
 fi
 
 # Mac OS X devices
@@ -6985,6 +7008,7 @@ AC_PLUGIN([gpu_nvidia],          [$with_cuda],                [NVIDIA GPU plugin
 AC_PLUGIN([grpc],                [$plugin_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                       [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],         [Hugepages statistics])
+AC_PLUGIN([infiniband],          [$plugin_infiniband],        [Infiniband statistics])
 AC_PLUGIN([intel_pmu],           [$with_libjevents],          [Intel performance monitor plugin])
 AC_PLUGIN([intel_rdt],           [$with_libpqos],             [Intel RDT monitor plugin])
 AC_PLUGIN([interface],           [$plugin_interface],         [Interface traffic statistics])
@@ -7021,6 +7045,7 @@ AC_PLUGIN([multimeter],          [$plugin_multimeter],        [Read multimeter v
 AC_PLUGIN([mysql],               [$with_libmysql],            [MySQL statistics])
 AC_PLUGIN([netapp],              [$with_libnetapp],           [NetApp plugin])
 AC_PLUGIN([netlink],             [$with_libmnl],              [Enhanced Linux network statistics])
+AC_PLUGIN([netstat_udp],         [$plugin_netstat_udp],       [UDP network statistics])
 AC_PLUGIN([network],             [yes],                       [Network communication plugin])
 AC_PLUGIN([nfs],                 [$plugin_nfs],               [NFS statistics])
 AC_PLUGIN([nginx],               [$with_libcurl],             [nginx statistics])
@@ -7427,6 +7452,7 @@ AC_MSG_RESULT([    gpu_nvidia  . . . . . $enable_gpu_nvidia])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
+AC_MSG_RESULT([    infiniband  . . . . . $enable_infiniband])
 AC_MSG_RESULT([    intel_pmu . . . . . . $enable_intel_pmu])
 AC_MSG_RESULT([    intel_rdt . . . . . . $enable_intel_rdt])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])
@@ -7463,6 +7489,7 @@ AC_MSG_RESULT([    multimeter  . . . . . $enable_multimeter])
 AC_MSG_RESULT([    mysql . . . . . . . . $enable_mysql])
 AC_MSG_RESULT([    netapp  . . . . . . . $enable_netapp])
 AC_MSG_RESULT([    netlink . . . . . . . $enable_netlink])
+AC_MSG_RESULT([    netstat_udp . . . . . $enable_netstat_udp])
 AC_MSG_RESULT([    network . . . . . . . $enable_network])
 AC_MSG_RESULT([    nfs . . . . . . . . . $enable_nfs])
 AC_MSG_RESULT([    nginx . . . . . . . . $enable_nginx])

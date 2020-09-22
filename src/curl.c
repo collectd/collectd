@@ -458,6 +458,7 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
                 child->key, page->instance);
         status = -1;
       }
+      free(af);
     } else if (strcasecmp("User", child->key) == 0)
       status = cf_util_get_string(child, &page->user);
     else if (strcasecmp("Password", child->key) == 0)

@@ -6,7 +6,7 @@ apache_scoreboard       value:GAUGE:0:65535
 ath_nodes               value:GAUGE:0:65535
 ath_stat                value:DERIVE:0:U
 backends                value:GAUGE:0:65535
-bad_peb_count           value:COUNTER:0:U
+bad_peb_count           value:GAUGE:0:U
 bitrate                 value:GAUGE:0:4294967295
 blocked_clients         value:GAUGE:0:U
 bool                    value:GAUGE:0:1
@@ -113,6 +113,19 @@ http_request_methods    value:DERIVE:0:U
 http_requests           value:DERIVE:0:U
 http_response_codes     value:DERIVE:0:U
 humidity                value:GAUGE:0:100
+ib_cap_mask             value:GAUGE:0:4294967295
+ib_errors               value:DERIVE:0:U
+ib_lid                  value:GAUGE:0:32767
+ib_lid_mask_count       value:GAUGE:0:7
+ib_link_error_recovery  value:DERIVE:0:U
+ib_octets               rx:DERIVE:0:U tx:DERIVE:0:U
+ib_packets              rx:DERIVE:0:U tx:DERIVE:0:U
+ib_phys_state           value:GAUGE:0:15
+ib_rate                 value:GAUGE:0:U
+ib_sm_lid               value:GAUGE:0:32767
+ib_sm_sl                value:GAUGE:0:15
+ib_state                value:GAUGE:0:15
+ib_xmit_wait            value:DERIVE:0:U
 if_collisions           value:DERIVE:0:U
 if_dropped              rx:DERIVE:0:U, tx:DERIVE:0:U
 if_errors               rx:DERIVE:0:U, tx:DERIVE:0:U
@@ -140,7 +153,7 @@ job_stats               value:DERIVE:0:U
 latency                 value:GAUGE:0:U
 links                   value:GAUGE:0:U
 load                    shortterm:GAUGE:0:5000, midterm:GAUGE:0:5000, longterm:GAUGE:0:5000
-max_ec                  value:COUNTER:0:U
+max_ec                  value:GAUGE:0:U
 media                   value:GAUGE:0:18446744073709551615
 memory_bandwidth        value:DERIVE:0:U
 md_disks                value:GAUGE:0:U
@@ -254,6 +267,42 @@ smart_badsectors        value:GAUGE:0:U
 smart_powercycles       value:GAUGE:0:U
 smart_poweron           value:GAUGE:0:U
 smart_temperature       value:GAUGE:-300:300
+nvme_critical_warning                       value:GAUGE:0:31
+nvme_temperature                            value:GAUGE:-300:300
+nvme_avail_spare                            value:GAUGE:0:100
+nvme_avail_spare_thresh                     value:GAUGE:0:100
+nvme_percent_used                           value:GAUGE:0:255
+nvme_endu_grp_crit_warn_sumry               value:GAUGE:0:15
+nvme_data_units_read                        value:GAUGE:0:U
+nvme_data_units_written                     value:GAUGE:0:U
+nvme_host_commands_read                     value:GAUGE:0:U
+nvme_host_commands_written                  value:GAUGE:0:U
+nvme_ctrl_busy_time                         value:GAUGE:0:U
+nvme_power_cycles                           value:GAUGE:0:U
+nvme_power_on_hours                         value:GAUGE:0:U
+nvme_unsafe_shutdowns                       value:GAUGE:0:U
+nvme_media_errors                           value:GAUGE:0:U
+nvme_num_err_log_entries                    value:GAUGE:0:U
+nvme_warning_temp_time                      value:GAUGE:0:U
+nvme_critical_comp_time                     value:GAUGE:0:U
+nvme_temp_sensor                            value:GAUGE:-300:300
+nvme_thermal_mgmt_temp1_transition_count    value:GAUGE:0:U
+nvme_thermal_mgmt_temp1_total_time          value:GAUGE:0:U
+nvme_thermal_mgmt_temp2_transition_count    value:GAUGE:0:U
+nvme_thermal_mgmt_temp2_total_time          value:GAUGE:0:U
+nvme_program_fail_count                     value:GAUGE:0:U
+nvme_erase_fail_count                       value:GAUGE:0:U
+nvme_wear_leveling                          value:GAUGE:0:U
+nvme_end_to_end_error_detection_count       value:GAUGE:0:U
+nvme_crc_error_count                        value:GAUGE:0:U
+nvme_timed_workload_timer                   value:GAUGE:0:U
+nvme_timed_workload_media_wear              value:GAUGE:0:U
+nvme_timed_workload_host_reads              value:GAUGE:0:100
+nvme_thermal_throttle_status                value:GAUGE:0:U
+nvme_retry_buffer_overflow_count            value:GAUGE:0:U
+nvme_pll_lock_loss_count                    value:GAUGE:0:U
+nvme_nand_bytes_written                     value:GAUGE:0:U
+nvme_host_bytes_written                     value:GAUGE:0:U
 snr                     value:GAUGE:0:U
 spam_check              value:GAUGE:0:U
 spam_score              value:GAUGE:U:U
@@ -289,6 +338,12 @@ uncore_ratio            value:GAUGE:0:U
 users                   value:GAUGE:0:65535
 vcl                     value:GAUGE:0:65535
 vcpu                    value:GAUGE:0:U
+vf_broadcast            vf_value:DERIVE:0:U
+vf_bytes                vf_rx:DERIVE:0:U, vf_tx:DERIVE:0:U
+vf_dropped              vf_rx:DERIVE:0:U, vf_tx:DERIVE:0:U
+vf_link_info            vf_value:GAUGE:0:U
+vf_multicast            vf_value:DERIVE:0:U
+vf_packets              vf_rx:DERIVE:0:U, vf_tx:DERIVE:0:U
 virt_cpu_total          value:DERIVE:0:U
 virt_vcpu               value:DERIVE:0:U
 vmpage_action           value:DERIVE:0:U
