@@ -394,6 +394,17 @@ bool distribution_equal(distribution_t *d1, distribution_t *d2) {
   return ans;
 }
 
+bool distribution_le(distribution_t *d1, distribution_t *d2) {
+  pthread_mutex_lock(&d1->mutex);
+  pthread_mutex_lock(&d2->mutex);
+  int cmp_result;
+  int cmp_status = distribution_cmp(d1, d2, &cmp_result);
+  bool ans = (cmp_status == 0 && cmp_result <= 0);
+  pthread_mutex_unlock(&d2->mutex);
+  pthread_mutex_unlock(&d1->mutex);
+  return ans;
+}
+
 /* TODO(bkjg): add tests for this function */
 int distribution_sub(distribution_t *d1, distribution_t *d2) {
   pthread_mutex_lock(&d1->mutex);
