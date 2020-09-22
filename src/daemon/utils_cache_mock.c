@@ -72,3 +72,15 @@ int uc_meta_data_add_unsigned_int(metric_t const *m, const char *key,
                                   uint64_t value) {
   return 0;
 }
+
+int uc_get_start_value(metric_t const *m, value_t *ret_start_value,
+                       cdtime_t *ret_start_time) {
+  *ret_start_time = 0;
+  if (m->family->type == METRIC_TYPE_COUNTER) {
+    ret_start_value->counter = 0;
+  }
+  if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    ret_start_value->distribution = distribution_clone(m->value.distribution);
+  }
+  return 0;
+}
