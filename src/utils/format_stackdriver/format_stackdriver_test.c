@@ -110,6 +110,6 @@ DEF_TEST(sd_format_metric_descriptor) {
 
 int main(int argc, char **argv) {
   RUN_TEST(sd_format_metric_descriptor);
-
+  /* TODO: add tests for sd_output_add */
   END_TEST;
 }
