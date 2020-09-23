@@ -38,11 +38,12 @@ void uc_set_start_value(value_t start_value, cdtime_t start_time) {
 }
 
 int uc_get_start_value(metric_t const *m, value_t *ret_start_value,
-                        cdtime_t *ret_start_time) {
+                       cdtime_t *ret_start_time) {
   *ret_start_time = _start_time;
   *ret_start_value = _start_value;
   if (m->family->type == METRIC_TYPE_DISTRIBUTION) {
-    ret_start_value->distribution = distribution_clone(_start_value.distribution);
+    ret_start_value->distribution =
+        distribution_clone(_start_value.distribution);
   }
   return 0;
 }
