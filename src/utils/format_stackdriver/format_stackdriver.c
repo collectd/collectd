@@ -148,7 +148,8 @@ static int format_buckets(yajl_gen gen, distribution_t *dist) {
   buckets_array_t buckets_array = distribution_get_buckets(dist);
   yajl_gen_array_open(gen);
   for (size_t i = 0; i < buckets_array.num_buckets - 1; i++) {
-    yajl_gen_status status = yajl_gen_double(gen, buckets_array.buckets[i].maximum);
+    yajl_gen_status status =
+        yajl_gen_double(gen, buckets_array.buckets[i].maximum);
     if (status != yajl_gen_status_ok) {
       return status;
     }
@@ -179,9 +180,13 @@ static int format_distribution(yajl_gen gen, distribution_t *dist) {
     return 1;
   }
   yajl_gen_map_open(gen);
-  int status = json_string(gen, "count") || json_uint64_t(gen, distribution_total_counter(dist)) ||
-               json_string(gen, "mean") || (int)yajl_gen_double(gen, distribution_average(dist)) ||
-               json_string(gen, "sumOfSquaredDeviation") || (int)yajl_gen_double(gen, distribution_squared_deviation_sum(dist));
+  int status =
+      json_string(gen, "count") ||
+      json_uint64_t(gen, distribution_total_counter(dist)) ||
+      json_string(gen, "mean") ||
+      (int)yajl_gen_double(gen, distribution_average(dist)) ||
+      json_string(gen, "sumOfSquaredDeviation") ||
+      (int)yajl_gen_double(gen, distribution_squared_deviation_sum(dist));
   if (status != 0) {
     yajl_gen_free(gen);
     return status;
@@ -381,7 +386,6 @@ static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
 
   return uc_get_start_value(m, ret_start_value, ret_start_time);
 
-
   /* TODO: how to support reset metrics? */
   /*
   *ret_start_value = (int64_t)m->value.counter;
@@ -509,7 +513,6 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
       return EAGAIN;
     }
   }
-
 
   yajl_gen_map_open(gen);
 
@@ -868,4 +871,3 @@ int sd_format_metric_descriptor(strbuf_t *buf, metric_t const *m) {
   yajl_gen_free(gen);
   return status;
 } /* }}} int sd_format_metric_descriptor */
-

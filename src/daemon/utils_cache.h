@@ -41,7 +41,7 @@
 #define STATE_MISSING 15
 
 #ifdef TESTING_H
-  void uc_set_start_value(value_t start_value, cdtime_t start_time);
+void uc_set_start_value(value_t start_value, cdtime_t start_time);
 #endif
 
 int uc_init(void);
