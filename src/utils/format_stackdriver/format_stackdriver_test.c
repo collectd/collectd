@@ -75,6 +75,13 @@ DEF_TEST(sd_format_metric_descriptor) {
                   "stored_aggregation_metric\",\"metricKind\":\"GAUGE\","
                   "\"valueType\":\"DOUBLE\",\"labels\":[]}",
       },
+      {
+        .name = "distribution_metric",
+        .type = METRIC_TYPE_DISTRIBUTION,
+        .want = "{\"type\":\"custom.googleapis.com/collectd/"
+                  "distribution_metric\",\"metricKind\":\"CUMULATIVE\",\"valueType\":"
+                  "\"DISTRIBUTION\",\"labels\":[]}",
+      }
   };
 
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
