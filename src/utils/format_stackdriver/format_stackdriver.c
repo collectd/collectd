@@ -82,11 +82,11 @@ static int json_time(yajl_gen gen, cdtime_t t) {
   return json_string(gen, buffer);
 } /* }}} int json_time */
 
-static int json_longint(yajl_gen gen, uint64_t num) {
+static int json_uint64_t(yajl_gen gen, uint64_t num) {
   char buffer[64];
   sprintf(buffer, "%" PRIu64, num);
   return json_string(gen, buffer);
-} /* }}} int json_longint */
+} /* }}} int json_uint64_t */
 
 /* MonitoredResource
  *
@@ -164,7 +164,7 @@ static int format_buckets(yajl_gen gen, distribution_t *dist) {
 
   yajl_gen_array_open(gen);
   for (size_t i = 0; i < buckets_array.num_buckets; i++) {
-    int status = json_longint(gen, buckets_array.buckets[i].bucket_counter);
+    int status = json_uint64_t(gen, buckets_array.buckets[i].bucket_counter);
     if (status != 0) {
       return status;
     }
@@ -179,7 +179,7 @@ static int format_distribution(yajl_gen gen, distribution_t *dist) {
     return 1;
   }
   yajl_gen_map_open(gen);
-  int status = json_string(gen, "count") || json_longint(gen, distribution_total_counter(dist)) ||
+  int status = json_string(gen, "count") || json_uint64_t(gen, distribution_total_counter(dist)) ||
                json_string(gen, "mean") || (int)yajl_gen_double(gen, distribution_average(dist)) ||
                json_string(gen, "sumOfSquaredDeviation") || (int)yajl_gen_double(gen, distribution_squared_deviation_sum(dist));
   if (status != 0) {
