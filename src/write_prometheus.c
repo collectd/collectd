@@ -146,10 +146,10 @@ static char const *escape_label_value(char *buffer, size_t buffer_size,
  *   key0="value0",key1="value1"
  */
 static char *format_labels(char *buffer, size_t buffer_size,
-                           Io__Prometheus__Client__Metric const *m) {
+                           Io__Prometheus__Client__Metric const *proto) {
   /* our metrics always have at least one and at most three labels. */
-  assert(m->n_label >= 1);
-  assert(m->n_label <= 3);
+  assert(proto->n_label >= 1);
+  assert(proto->n_label <= 3);
 
 #define LABEL_KEY_SIZE DATA_MAX_NAME_LEN
 #define LABEL_VALUE_SIZE (2 * DATA_MAX_NAME_LEN - 1)
@@ -163,16 +163,16 @@ static char *format_labels(char *buffer, size_t buffer_size,
 
   /* N.B.: the label *names* are hard-coded by this plugin and therefore we
    * know that they are sane. */
-  for (size_t i = 0; i < m->n_label; i++) {
+  for (size_t i = 0; i < proto->n_label; i++) {
     char value[LABEL_VALUE_SIZE];
-    ssnprintf(labels[i], LABEL_BUFFER_SIZE, "%s=\"%s\"", m->label[i]->name,
-              escape_label_value(value, sizeof(value), m->label[i]->value));
+    ssnprintf(labels[i], LABEL_BUFFER_SIZE, "%s=\"%s\"", proto->label[i]->name,
+              escape_label_value(value, sizeof(value), proto->label[i]->value));
   }
 
-  strjoin(buffer, buffer_size, labels, m->n_label, ",");
+  strjoin(buffer, buffer_size, labels, proto->n_label, ",");
   return buffer;
 }
-
+/*
 static int histrogram_exposition(strbuf_t buf, distribution_t *dist,
                                  Io__Prometheus__Client__MetricFamily *fam) {
   buckets_array_t buckets = get_buckets(dist);
@@ -198,7 +198,7 @@ static int histrogram_exposition(strbuf_t buf, distribution_t *dist,
   destroy_buckets_array(buckets);
   return 0;
 }
-
+*/
 /* format_protobuf iterates over all metric families in "metrics" and adds them
  * to a buffer in plain text format. */
 static void format_text(ProtobufCBuffer *buffer) {
@@ -209,12 +209,10 @@ static void format_text(ProtobufCBuffer *buffer) {
   c_avl_iterator_t *iter = c_avl_get_iterator(metrics);
   while (c_avl_iterator_next(iter, (void *)&unused_name, (void *)&fam) == 0) {
     char line[1024]; /* 4x DATA_MAX_NAME_LEN? */
-    strbuf_t buf = STRBUF_CREATE;
     ssnprintf(line, sizeof(line), "# HELP %s %s\n", fam->name, fam->help);
     buffer->append(buffer, strlen(line), (uint8_t *)line);
-
-    char family_type[32];
-
+    /*
+    char family_type[16];
     if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__GAUGE) {
       family_type = "gauge";
     } else if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__COUNTER) {
@@ -222,36 +220,37 @@ static void format_text(ProtobufCBuffer *buffer) {
     } else {
       family_type = "histogram";
     }
-    ssnprintf(line, sizeof(line), "# TYPE %s %s\n", fam->name, family_type);
+    */
+    ssnprintf(line, sizeof(line), "# TYPE %s %s\n", fam->name,
+              (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__GAUGE)
+                  ? "gauge"
+                  : "counter");
     buffer->append(buffer, strlen(line), (uint8_t *)line);
 
     for (size_t i = 0; i < fam->n_metric; i++) {
-      Io__Prometheus__Client__Metric *m = fam->metric[i];
+      Io__Prometheus__Client__Metric *proto = fam->metric[i];
 
       char labels[1024];
 
       char timestamp_ms[24] = "";
-      if (m->has_timestamp_ms)
+      if (proto->has_timestamp_ms)
         ssnprintf(timestamp_ms, sizeof(timestamp_ms), " %" PRIi64,
-                  m->timestamp_ms);
+                  proto->timestamp_ms);
 
       if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__GAUGE)
         ssnprintf(line, sizeof(line), "%s{%s} " GAUGE_FORMAT "%s\n", fam->name,
-                  format_labels(labels, sizeof(labels), m), m->gauge->value,
-                  timestamp_ms);
-      else if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__COUNTER)
+                  format_labels(labels, sizeof(labels), proto),
+                  proto->gauge->value, timestamp_ms);
+      else /*fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__COUNTER)*/
         ssnprintf(line, sizeof(line), "%s{%s} %.0f%s\n", fam->name,
-                  format_labels(labels, sizeof(labels), m), m->counter->value,
-                  timestamp_ms);
+                  format_labels(labels, sizeof(labels), proto),
+                  proto->counter->value, timestamp_ms);
+      /*
       else { // fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__HISTOGRAM
-        histogram_exposition(buf, m->value.distribution));
-      }
+        histogram_exposition(buf, fam->metric[i]->value.distribution));
+      }*/
 
-      fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__HISTOGRAM
-          ? buffer->append(buffer, strlen(line), (uint8_t *)buf->ptr)
-          : buffer->append(buffer, strlen(line), (uint8_t *)line);
-
-      STRBUF_DESTROY(buf);
+      buffer->append(buffer, strlen(line), (uint8_t *)line);
     }
   }
   c_avl_iterator_destroy(iter);
@@ -371,21 +370,20 @@ static void metric_destroy(Io__Prometheus__Client__Metric *msg) {
 
   sfree(msg->gauge);
   sfree(msg->counter);
-  distribution_destroy(msg->distribution);
   sfree(msg);
 }
 
 /* metric_cmp compares two metrics. It's prototype makes it easy to use with
  * qsort(3) and bsearch(3). */
 static int metric_cmp(void const *a, void const *b) {
-  Io__Prometheus__Client__Metric const *m_a =
+  Io__Prometheus__Client__Metric const *proto_a =
       *((Io__Prometheus__Client__Metric **)a);
-  Io__Prometheus__Client__Metric const *m_b =
+  Io__Prometheus__Client__Metric const *proto_b =
       *((Io__Prometheus__Client__Metric **)b);
 
-  if (m_a->n_label < m_b->n_label)
+  if (proto_a->n_label < proto_b->n_label)
     return -1;
-  else if (m_a->n_label > m_b->n_label)
+  else if (proto_a->n_label > proto_b->n_label)
     return 1;
 
   /* Prometheus does not care about the order of labels. All labels in this
@@ -412,8 +410,8 @@ static int metric_cmp(void const *a, void const *b) {
    * 1 label:
    * [1] instance="$host"           => "instance" is a static string
    */
-  for (size_t i = 0; i < m_a->n_label; i++) {
-    int status = strcmp(m_a->label[i]->value, m_b->label[i]->value);
+  for (size_t i = 0; i < proto_a->n_label; i++) {
+    int status = strcmp(proto_a->label[i]->value, proto_b->label[i]->value);
     if (status != 0)
       return status;
 
@@ -442,26 +440,13 @@ static int metric_cmp(void const *a, void const *b) {
     .n_label = 0,                                                              \
   }
 
-#define METRIC_ADD_LABELS(m, vl)                                               \
-  do {                                                                         \
-    if (strlen((vl)->plugin_instance) != 0) {                                  \
-      (m)->label[(m)->n_label]->name = (char *)(vl)->plugin;                   \
-      (m)->label[(m)->n_label]->value = (char *)(vl)->plugin_instance;         \
-      (m)->n_label++;                                                          \
-    }                                                                          \
-                                                                               \
-    if (strlen((vl)->type_instance) != 0) {                                    \
-      (m)->label[(m)->n_label]->name = "type";                                 \
-      if (strlen((vl)->plugin_instance) == 0)                                  \
-        (m)->label[(m)->n_label]->name = (char *)(vl)->plugin;                 \
-      (m)->label[(m)->n_label]->value = (char *)(vl)->type_instance;           \
-      (m)->n_label++;                                                          \
-    }                                                                          \
-                                                                               \
-    (m)->label[(m)->n_label]->name = "instance";                               \
-    (m)->label[(m)->n_label]->value = (char *)(vl)->host;                      \
-    (m)->n_label++;                                                            \
-  } while (0)
+static void metric_add_labels(Io__Prometheus__Client__Metric *m, metric_t *mt) {
+  for (size_t i = 0; i < mt->label.num; i++) {
+    m->label[m->n_label]->name = mt->label.ptr[i].name;
+    m->label[m->n_label]->value = mt->label.ptr[i].value;
+    m->n_label++;
+  }
+}
 
 /* metric_clone allocates and initializes a new metric based on orig. */
 static Io__Prometheus__Client__Metric *
@@ -489,51 +474,51 @@ metric_clone(Io__Prometheus__Client__Metric const *orig) {
   return copy;
 }
 
-/* metric_update stores the new value and timestamp in m. */
-static int metric_update(Io__Prometheus__Client__Metric *m, value_t value,
-                         int ds_type, cdtime_t t, cdtime_t interval) {
-  if (ds_type == DS_TYPE_GAUGE) {
-    sfree(m->counter);
-    if (m->gauge == NULL) {
-      m->gauge = calloc(1, sizeof(*m->gauge));
-      if (m->gauge == NULL)
+/* metric_update stores the new value and timestamp in proto. */
+static int metric_update(Io__Prometheus__Client__Metric *proto, metric_t *m) {
+  if (m->family->type == METRIC_TYPE_GAUGE) {
+    sfree(proto->counter);
+    if (proto->gauge == NULL) {
+      proto->gauge = calloc(1, sizeof(*proto->gauge));
+      if (proto->gauge == NULL)
         return ENOMEM;
-      io__prometheus__client__gauge__init(m->gauge);
+      io__prometheus__client__gauge__init(proto->gauge);
     }
 
-    m->gauge->value = (double)value.gauge;
-    m->gauge->has_value = 1;
-  } else if (ds_type == DS_TYPE_COUNTER ||
-             ds_type == DS_TYPE_DERIVE) { /* not gauge */
-    sfree(m->gauge);
-    if (m->counter == NULL) {
-      m->counter = calloc(1, sizeof(*m->counter));
-      if (m->counter == NULL)
+    proto->gauge->value = m->value.gauge;
+    proto->gauge->has_value = 1;
+  } else if (m->family->type == METRIC_TYPE_COUNTER ||
+             m->family->type == METRIC_TYPE_UNTYPED) { /* not gauge */
+    sfree(proto->gauge);
+    if (proto->counter == NULL) {
+      proto->counter = calloc(1, sizeof(*proto->counter));
+      if (proto->counter == NULL)
         return ENOMEM;
-      io__prometheus__client__counter__init(m->counter);
+      io__prometheus__client__counter__init(proto->counter);
     }
 
     else { /*distribution*/
+      // convert to protocol buffer representation
     }
 
-    switch (ds_type) {
+    switch (m->family->type) {
     case DS_TYPE_COUNTER:
-      m->counter->value = (double)value.counter;
+      proto->counter->value = (double)m->value.counter;
       break;
     default:
-      m->counter->value = (double)value.derive;
+      proto->counter->value = (double)m->value.derive;
       break;
     }
-    m->counter->has_value = 1;
+    proto->counter->has_value = 1;
   }
 
   /* Prometheus has a globally configured timeout after which metrics are
    * considered stale. This causes problems when metrics have an interval
    * exceeding that limit. We emulate the behavior of "pushgateway" and *not*
    * send a timestamp value – Prometheus will fill in the current time. */
-  if (interval <= staleness_delta) {
-    m->timestamp_ms = CDTIME_T_TO_MS(t);
-    m->has_timestamp_ms = 1;
+  if (m->interval <= staleness_delta) {
+    proto->timestamp_ms = CDTIME_T_TO_MS(m->time);
+    proto->has_timestamp_ms = 1;
   } else {
     static c_complain_t long_metric = C_COMPLAIN_INIT_STATIC;
     c_complain(
@@ -543,8 +528,8 @@ static int metric_update(Io__Prometheus__Client__Metric *m, value_t value,
         "the collectd.conf(5) manual page to understand what's going on.",
         CDTIME_T_TO_DOUBLE(staleness_delta));
 
-    m->timestamp_ms = 0;
-    m->has_timestamp_ms = 0;
+    proto->timestamp_ms = 0;
+    proto->has_timestamp_ms = 0;
   }
 
   return 0;
@@ -552,14 +537,14 @@ static int metric_update(Io__Prometheus__Client__Metric *m, value_t value,
 
 /* metric_family_add_metric adds m to the metric list of fam. */
 static int metric_family_add_metric(Io__Prometheus__Client__MetricFamily *fam,
-                                    Io__Prometheus__Client__Metric *m) {
+                                    Io__Prometheus__Client__Metric *proto) {
   Io__Prometheus__Client__Metric **tmp =
       realloc(fam->metric, (fam->n_metric + 1) * sizeof(*fam->metric));
   if (tmp == NULL)
     return ENOMEM;
   fam->metric = tmp;
 
-  fam->metric[fam->n_metric] = m;
+  fam->metric[fam->n_metric] = proto;
   fam->n_metric++;
 
   /* Sort the metrics so that lookup is fast. */
@@ -572,9 +557,9 @@ static int metric_family_add_metric(Io__Prometheus__Client__MetricFamily *fam,
  * vl. */
 static int
 metric_family_delete_metric(Io__Prometheus__Client__MetricFamily *fam,
-                            value_list_t const *vl) {
+                            metric_t *mt) {
   Io__Prometheus__Client__Metric *key = METRIC_INIT;
-  METRIC_ADD_LABELS(key, vl);
+  metric_add_labels(key, mt);
 
   size_t i;
   for (i = 0; i < fam->n_metric; i++) {
@@ -608,44 +593,44 @@ metric_family_delete_metric(Io__Prometheus__Client__MetricFamily *fam,
  * allocating it if necessary. */
 static Io__Prometheus__Client__Metric *
 metric_family_get_metric(Io__Prometheus__Client__MetricFamily *fam,
-                         value_list_t const *vl) {
+                         metric_family_t *mf) {
   Io__Prometheus__Client__Metric *key = METRIC_INIT;
-  METRIC_ADD_LABELS(key, vl);
+  for (size_t i = 0; i < mf->metric.num; i++) {
+    metric_add_labels(key, &mf->metric.ptr[i]);
+  }
 
   /* Metrics are sorted in metric_family_add_metric() so that we can do a binary
    * search here. */
-  Io__Prometheus__Client__Metric **m = bsearch(
+  Io__Prometheus__Client__Metric **proto = bsearch(
       &key, fam->metric, fam->n_metric, sizeof(*fam->metric), metric_cmp);
 
-  if (m != NULL) {
-    return *m;
+  if (proto != NULL) {
+    return *proto;
   }
 
-  Io__Prometheus__Client__Metric *new_metric = metric_clone(key);
-  if (new_metric == NULL)
+  Io__Prometheus__Client__Metric *new_proto = metric_clone(key);
+  if (new_proto == NULL)
     return NULL;
 
   DEBUG("write_prometheus plugin: created new metric in family");
-  int status = metric_family_add_metric(fam, new_metric);
+  int status = metric_family_add_metric(fam, new_proto);
   if (status != 0) {
-    metric_destroy(new_metric);
+    metric_destroy(new_proto);
     return NULL;
   }
 
-  return new_metric;
+  return new_proto;
 }
 
 /* metric_family_update looks up the matching metric in a metric family,
  * allocating it if necessary, and updates the metric to the latest value. */
 static int metric_family_update(Io__Prometheus__Client__MetricFamily *fam,
-                                data_set_t const *ds, value_list_t const *vl,
+                                data_set_t const *ds, metric_family_t *mf,
                                 size_t ds_index) {
-  Io__Prometheus__Client__Metric *m = metric_family_get_metric(fam, vl);
-  if (m == NULL)
+  Io__Prometheus__Client__Metric *proto = metric_family_get_metric(fam, mf);
+  if (proto == NULL)
     return -1;
-
-  return metric_update(m, vl->values[ds_index], ds->ds[ds_index].type, vl->time,
-                       vl->interval);
+  return metric_update(proto, &mf->metric.ptr[ds_index]);
 }
 
 /* metric_family_destroy frees the memory used by a metric family. */
@@ -666,8 +651,8 @@ static void metric_family_destroy(Io__Prometheus__Client__MetricFamily *msg) {
 
 /* metric_family_create allocates and initializes a new metric family. */
 static Io__Prometheus__Client__MetricFamily *
-metric_family_create(char *name, data_set_t const *ds, value_list_t const *vl,
-                     size_t ds_index) {
+metric_family_create(char *name, data_set_t const *ds,
+                     metric_family_t const *mf, size_t ds_index) {
   Io__Prometheus__Client__MetricFamily *msg = calloc(1, sizeof(*msg));
   if (msg == NULL)
     return NULL;
@@ -678,9 +663,9 @@ metric_family_create(char *name, data_set_t const *ds, value_list_t const *vl,
   char help[1024];
   ssnprintf(
       help, sizeof(help),
-      "write_prometheus plugin: '%s' Type: '%s', Dstype: '%s', Dsname: '%s'",
+      "write_prometheus plugin: 's' Type: 's', Dstype: 's', Dsname: 's'"/*
       vl->plugin, vl->type, DS_TYPE_TO_STRING(ds->ds[ds_index].type),
-      ds->ds[ds_index].name);
+      ds->ds[ds_index].name*/);
   msg->help = strdup(help);
 
   msg->type = (ds->ds[ds_index].type == DS_TYPE_GAUGE)
@@ -696,16 +681,16 @@ metric_family_create(char *name, data_set_t const *ds, value_list_t const *vl,
  * compatibility. In essence, the plugin, type and data source name go in the
  * metric family name, while hostname, plugin instance and type instance go into
  * the labels of a metric. */
-static char *metric_family_name(data_set_t const *ds, value_list_t const *vl,
+static char *metric_family_name(data_set_t const *ds, metric_family_t const *mf,
                                 size_t ds_index) {
   char const *fields[5] = {"collectd"};
   size_t fields_num = 1;
 
-  if (strcmp(vl->plugin, vl->type) != 0) {
-    fields[fields_num] = vl->plugin;
+  if (strcmp(mf->name, mf->name) != 0) {
+    fields[fields_num] = mf->name;
     fields_num++;
   }
-  fields[fields_num] = vl->type;
+  fields[fields_num] = mf->type;
   fields_num++;
 
   if (strcmp("value", ds->ds[ds_index].name) != 0) {
@@ -729,9 +714,9 @@ static char *metric_family_name(data_set_t const *ds, value_list_t const *vl,
 /* metric_family_get looks up the matching metric family, allocating it if
  * necessary. */
 static Io__Prometheus__Client__MetricFamily *
-metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
-                  bool allocate) {
-  char *name = metric_family_name(ds, vl, ds_index);
+metric_family_get(data_set_t const *ds, metric_family_t const *mf,
+                  size_t ds_index, bool allocate) {
+  char *name = metric_family_name(ds, mf, ds_index);
   if (name == NULL) {
     ERROR("write_prometheus plugin: Allocating metric family name failed.");
     return NULL;
@@ -749,7 +734,7 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
     return NULL;
   }
 
-  fam = metric_family_create(name, ds, vl, ds_index);
+  fam = metric_family_create(name, ds, mf, ds_index);
   if (fam == NULL) {
     ERROR("write_prometheus plugin: Allocating metric family failed.");
     sfree(name);
@@ -947,17 +932,17 @@ static int prom_init() {
   return 0;
 }
 
-static int prom_write(data_set_t const *ds, value_list_t const *vl,
+static int prom_write(data_set_t const *ds, metric_family_t *mf,
                       __attribute__((unused)) user_data_t *ud) {
   pthread_mutex_lock(&metrics_lock);
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     Io__Prometheus__Client__MetricFamily *fam =
-        metric_family_get(ds, vl, i, /* allocate = */ true);
+        metric_family_get(ds, mf, i, /* allocate = */ true);
     if (fam == NULL)
       continue;
 
-    int status = metric_family_update(fam, ds, vl, i);
+    int status = metric_family_update(fam, ds, mf, i);
     if (status != 0) {
       ERROR("write_prometheus plugin: Updating metric \"%s\" failed with "
             "status %d",
@@ -970,9 +955,9 @@ static int prom_write(data_set_t const *ds, value_list_t const *vl,
   return 0;
 }
 
-static int prom_missing(value_list_t const *vl,
+static int prom_missing(metric_family_t *mf,
                         __attribute__((unused)) user_data_t *ud) {
-  data_set_t const *ds = plugin_get_ds(vl->type);
+  data_set_t const *ds = plugin_get_ds(mf->type);
   if (ds == NULL)
     return ENOENT;
 
@@ -980,11 +965,11 @@ static int prom_missing(value_list_t const *vl,
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     Io__Prometheus__Client__MetricFamily *fam =
-        metric_family_get(ds, vl, i, /* allocate = */ false);
+        metric_family_get(ds, mf, i, /* allocate = */ false);
     if (fam == NULL)
       continue;
 
-    int status = metric_family_delete_metric(fam, vl);
+    int status = metric_family_delete_metric(fam, mf);
     if (status != 0) {
       ERROR("write_prometheus plugin: Deleting a metric in family \"%s\" "
             "failed with status %d",
