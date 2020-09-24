@@ -258,8 +258,7 @@ static int csv_write(metric_family_t const *fam,
       }
 
       fprintf(use_stdio == 1 ? stdout : stderr, "PUTVAL %s interval=%.3f %s\n",
-              filename, CDTIME_T_TO_DOUBLE(m->interval),
-              values);
+              filename, CDTIME_T_TO_DOUBLE(m->interval), values);
       return 0;
     }
 
