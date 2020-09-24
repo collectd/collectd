@@ -257,10 +257,8 @@ static int csv_write(metric_family_t const *fam,
           values[i] = ':';
       }
 
-      /* we know that fam->metric != NULL && fam->metric.ptr[0] != NULL because
-       * in that case metric_family_to_string would return -1 */
       fprintf(use_stdio == 1 ? stdout : stderr, "PUTVAL %s interval=%.3f %s\n",
-              filename, CDTIME_T_TO_DOUBLE(fam->metric.ptr[0].interval),
+              filename, CDTIME_T_TO_DOUBLE(m->interval),
               values);
       return 0;
     }
