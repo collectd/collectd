@@ -69,8 +69,7 @@ static int metric_to_string(char *buffer, int buffer_len, metric_t const *m) {
     gauge_t rate;
     status = uc_get_rate(m, &rate);
     if (status != 0) {
-      WARNING("csv plugin: "
-              "uc_get_rate failed.");
+      WARNING("csv plugin: uc_get_rate failed.");
       return -1;
     }
     status = snprintf(buffer + offset, buffer_len - offset, ",%lf", rate);
@@ -88,6 +87,7 @@ static int metric_to_string(char *buffer, int buffer_len, metric_t const *m) {
 
 static int metric_to_filename(char *buffer, size_t buffer_size,
                               metric_t const *m) {
+  int status;
   char *ptr = buffer;
   size_t ptr_size = buffer_size;
   time_t now;
@@ -105,26 +105,14 @@ static int metric_to_filename(char *buffer, size_t buffer_size,
     ptr += len;
   }
 
-  // status = FORMAT_VL(ptr, ptr_size, vl);
-
-  char *hostname = NULL;
   char *plugin = NULL;
   char *plugin_instance = NULL;
   char *type = NULL;
   char *type_instance = NULL;
 
-  strbuf_t buf = STRBUF_CREATE;
-  int status = metric_identity(&buf, m);
-  if (status != 0) {
-    ERROR("uc_update: metric_identity failed with status %d.", status);
-    STRBUF_DESTROY(buf);
-    return status;
-  }
-
   for (size_t j = 0; j < m->label.num; ++j) {
     label_pair_t *l = m->label.ptr + j;
 
-    DEBUG("identity: %s, label: %s, value: %s", buf.ptr, l->name, l->value);
     if (plugin == NULL) {
       plugin = strdup(l->name);
       plugin_instance = strdup(l->value);
@@ -134,20 +122,12 @@ static int metric_to_filename(char *buffer, size_t buffer_size,
     }
   }
 
-  STRBUF_DESTROY(buf);
-
-  status = format_name(ptr, ptr_size, hostname, plugin, plugin_instance, type,
+  status = format_name(ptr, ptr_size, NULL, plugin, plugin_instance, type,
                        type_instance);
 
-  sfree(hostname);
-  if (strcasecmp("unknown", plugin) != 0) {
-    sfree(plugin);
-  }
-
+  sfree(plugin);
   sfree(plugin_instance);
-  if (strcasecmp("unknown", type) != 0) {
-    sfree(type);
-  }
+  sfree(type);
   sfree(type_instance);
 
   if (status != 0)
@@ -198,7 +178,6 @@ static int csv_create_file(const char *filename, metric_family_t const *fam) {
   }
 
   fprintf(csv, "epoch");
-  // for (size_t i = 0; i < fam->metric.num; i++)
   fprintf(csv, ",%s", fam->name);
 
   fprintf(csv, "\n");
