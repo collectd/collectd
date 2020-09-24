@@ -213,6 +213,10 @@ static int read_kstat(const char *mod_name) {
       kn = (kstat_named_t *)ksp_chain->ks_data;
 
       for (int i = 0; (kn != NULL) && (i < ksp_chain->ks_ndata); i++, kn++) {
+        if (strlen(kn->name) == 0) {
+          continue;
+        }
+
         value_t value;
 
         switch (kn->data_type) {
@@ -235,9 +239,7 @@ static int read_kstat(const char *mod_name) {
           continue;
         }
 
-        if (strlen(kn->name) > 0) {
-          submit_value(mod_name, kn->name, &value);
-        }
+        submit_value(mod_name, kn->name, &value);
 
       } /* end for */
     }   /* end if mod_name && KSTAT_TYPE_NAMED */
@@ -249,6 +251,7 @@ static int read_kstat(const char *mod_name) {
 static int protocols_read(void) {
   int status;
   int success = 0;
+
 #if KERNEL_LINUX
   status = read_file(SNMP_FILE);
   if (status == 0)
@@ -257,6 +260,7 @@ static int protocols_read(void) {
   status = read_file(NETSTAT_FILE);
   if (status == 0)
     success++;
+
 #elif KERNEL_SOLARIS
   status = read_kstat("ip");
   if (status == 0)
