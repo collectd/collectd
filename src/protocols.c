@@ -23,6 +23,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Cosmin Ioiart <cioiart at gmail.com>
+ *   Dagobert Michelsen <dam at opencsw.org>
  **/
 
 #include "collectd.h"
