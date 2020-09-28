@@ -1,6 +1,6 @@
 /**
  * collectd - src/memory.c
- * Copyright (C) 2005-2014  Florian octo Forster
+ * Copyright (C) 2005-2020  Florian octo Forster
  * Copyright (C) 2009       Simon Kuhnle
  * Copyright (C) 2009       Manuel Sanmartin
  *
@@ -62,6 +62,41 @@
 #include <sys/protosw.h>
 #endif /* HAVE_PERFSTAT */
 
+typedef enum {
+  COLLECTD_MEMORY_TYPE_USED,
+  COLLECTD_MEMORY_TYPE_FREE,
+  COLLECTD_MEMORY_TYPE_BUFFERS,
+  COLLECTD_MEMORY_TYPE_CACHED,
+  COLLECTD_MEMORY_TYPE_SLAB_TOTAL,
+  COLLECTD_MEMORY_TYPE_SLAB_RECL,
+  COLLECTD_MEMORY_TYPE_SLAB_UNRECL,
+  COLLECTD_MEMORY_TYPE_WIRED,
+  COLLECTD_MEMORY_TYPE_ACTIVE,
+  COLLECTD_MEMORY_TYPE_INACTIVE,
+  COLLECTD_MEMORY_TYPE_KERNEL,
+  COLLECTD_MEMORY_TYPE_LOCKED,
+  COLLECTD_MEMORY_TYPE_ARC,
+  COLLECTD_MEMORY_TYPE_UNUSED,
+  COLLECTD_MEMORY_TYPE_MAX, /* #states */
+} memory_type_t;
+
+static char const *memory_type_names[COLLECTD_MEMORY_TYPE_MAX] = {
+    "used",
+    "free",
+    "buffers",
+    "cached",
+    "slab",
+    "slab_reclaimable",
+    "slab_unreclaimable",
+    "wired",
+    "active",
+    "inactive",
+    "kernel",
+    "locked",
+    "arc",
+    "unusable",
+};
+
 /* vm_statistics_data_t */
 #if HAVE_HOST_STATISTICS
 static mach_port_t port_host;
@@ -118,13 +153,74 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("ValuesPercentage", child->key) == 0)
       cf_util_get_boolean(child, &values_percentage);
     else
-      ERROR("memory plugin: Invalid configuration option: "
-            "\"%s\".",
-            child->key);
+      ERROR("memory plugin: Invalid configuration option: \"%s\".", child->key);
   }
 
   return 0;
 } /* }}} int memory_config */
+
+static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
+  metric_family_t fam_absolute = {
+      .name = "memory_usage",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  gauge_t total = 0;
+
+  for (size_t i = 0; i < COLLECTD_MEMORY_TYPE_MAX; i++) {
+    if (isnan(values[i])) {
+      continue;
+    }
+
+    total += values[i];
+
+    if (values_absolute) {
+      metric_family_append(&fam_absolute, "type", memory_type_names[i],
+                           (value_t){.gauge = values[i]}, NULL);
+    }
+  }
+
+  int ret = 0;
+  if (values_absolute) {
+    int status = plugin_dispatch_metric_family(&fam_absolute);
+    if (status != 0) {
+      ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
+    }
+    ret = status;
+  }
+  metric_family_metric_reset(&fam_absolute);
+
+  if (!values_percentage) {
+    return ret;
+  }
+
+  if (total == 0) {
+    return EINVAL;
+  }
+
+  metric_family_t fam_percent = {
+      .name = "memory_usage_percent",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  for (size_t i = 0; i < COLLECTD_MEMORY_TYPE_MAX; i++) {
+    if (isnan(values[i])) {
+      continue;
+    }
+
+    metric_family_append(&fam_percent, "type", memory_type_names[i],
+                         (value_t){.gauge = 100.0 * values[i] / total}, NULL);
+  }
+
+  int status = plugin_dispatch_metric_family(&fam_percent);
+  if (status != 0) {
+    ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+    ret = ret ? ret : status;
+  }
+  metric_family_metric_reset(&fam_percent);
+
+  return ret;
+}
 
 static int memory_init(void) {
 #if HAVE_HOST_STATISTICS
@@ -177,27 +273,20 @@ static int memory_init(void) {
   return 0;
 } /* int memory_init */
 
-#define MEMORY_SUBMIT(...)                                                     \
-  do {                                                                         \
-    if (values_absolute)                                                       \
-      plugin_dispatch_multivalue(vl, false, DS_TYPE_GAUGE, __VA_ARGS__, NULL); \
-    if (values_percentage)                                                     \
-      plugin_dispatch_multivalue(vl, true, DS_TYPE_GAUGE, __VA_ARGS__, NULL);  \
-  } while (0)
-
-static int memory_read_internal(value_list_t *vl) {
+static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
 #if HAVE_HOST_STATISTICS
-  if (!port_host || !pagesize)
-    return -1;
+  if (!port_host || !pagesize) {
+    return EINVAL;
+  }
 
-  vm_statistics_data_t vm_data;
+  vm_statistics_data_t vm_data = {0};
   mach_msg_type_number_t vm_data_len = sizeof(vm_data) / sizeof(natural_t);
   kern_return_t status = host_statistics(port_host, HOST_VM_INFO,
                                          (host_info_t)&vm_data, &vm_data_len);
   if (status != KERN_SUCCESS) {
     ERROR("memory-plugin: host_statistics failed and returned the value %d",
           (int)status);
-    return -1;
+    return (int)status;
   }
 
   /*
@@ -220,70 +309,43 @@ static int memory_read_internal(value_list_t *vl) {
    *   This memory is not being used.
    */
 
-  struct {
-    char const *label_value;
-    gauge_t v;
-  } metrics[] = {
-      {"wired",
-       (gauge_t)(((uint64_t)vm_data.wire_count) * ((uint64_t)pagesize))},
-      {"active",
-       (gauge_t)(((uint64_t)vm_data.active_count) * ((uint64_t)pagesize))},
-      {"inactive",
-       (gauge_t)(((uint64_t)vm_data.inactive_count) * ((uint64_t)pagesize))},
-      {"free",
-       (gauge_t)(((uint64_t)vm_data.free_count) * ((uint64_t)pagesize))},
-  };
-
-  metric_family_t fam = {
-      .name = "memory_usage",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
-    metric_family_append(&fam, "type", metrics[i].label_value,
-                         (value_t){.gauge = metrics[i].v}, NULL);
-  }
-
-  plugin_dispatch_metric_family(&fam);
-  metric_family_metric_reset(&fam);
+  values[COLLECTD_MEMORY_TYPE_WIRED] = (gauge_t)(vm_data.wire_count * pagesize);
+  values[COLLECTD_MEMORY_TYPE_ACTIVE] =
+      (gauge_t)(vm_data.active_count * pagesize);
+  values[COLLECTD_MEMORY_TYPE_INACTIVE] =
+      (gauge_t)(vm_data.inactive_count * pagesize);
+  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(vm_data.free_count * pagesize);
   /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
 
 #if HAVE_SYSCTL && defined(KERNEL_NETBSD)
-  int mib[] = {CTL_VM, VM_UVMEXP2};
-  struct uvmexp_sysctl uvmexp;
-  gauge_t mem_active;
-  gauge_t mem_inactive;
-  gauge_t mem_free;
-  gauge_t mem_wired;
-  gauge_t mem_kernel;
-  size_t size;
-
-  memset(&uvmexp, 0, sizeof(uvmexp));
-  size = sizeof(uvmexp);
-
-  if (sysctl(mib, 2, &uvmexp, &size, NULL, 0) < 0) {
-    char errbuf[1024];
-    WARNING("memory plugin: sysctl failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+  if (pagesize == 0) {
+    return EINVAL;
   }
 
-  assert(pagesize > 0);
-  mem_active = (gauge_t)(uvmexp.active * pagesize);
-  mem_inactive = (gauge_t)(uvmexp.inactive * pagesize);
-  mem_free = (gauge_t)(uvmexp.free * pagesize);
-  mem_wired = (gauge_t)(uvmexp.wired * pagesize);
-  mem_kernel = (gauge_t)((uvmexp.npages - (uvmexp.active + uvmexp.inactive +
-                                           uvmexp.free + uvmexp.wired)) *
-                         pagesize);
+  int mib[] = {CTL_VM, VM_UVMEXP2};
+  struct uvmexp_sysctl uvmexp = {0};
+  size_t size = sizeof(uvmexp);
+  if (sysctl(mib, STATIC_ARRAY_SIZE(mib), &uvmexp, &size, NULL, 0) < 0) {
+    WARNING("memory plugin: sysctl failed: %s", STRERRNO);
+    return errno;
+  }
 
-  /* TODO(octo): migrate to metric_family_t. */
-  MEMORY_SUBMIT("active", mem_active, "inactive", mem_inactive, "free",
-                mem_free, "wired", mem_wired, "kernel", mem_kernel);
+  values[COLLECTD_MEMORY_TYPE_WIRED] = (gauge_t)(uvmexp.wired * pagesize);
+  values[COLLECTD_MEMORY_TYPE_ACTIVE] = (gauge_t)(uvmexp.active * pagesize);
+  values[COLLECTD_MEMORY_TYPE_INACTIVE] = (gauge_t)(uvmexp.inactive * pagesize);
+  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(uvmexp.free * pagesize);
+
+  int64_t accounted =
+      uvmexp.wired + uvmexp.active + uvmexp.inactive + uvmexp.free;
+  if (uvmexp.npages > accounted) {
+    values[COLLECTD_MEMORY_TYPE_KERNEL] =
+        (gauge_t)((uvmexp.npages - accounted) * pagesize);
+  }
   /* #endif HAVE_SYSCTL && defined(KERNEL_NETBSD) */
 
-#else /* Other HAVE_SYSCTLBYNAME providers */
+#else  /* Other HAVE_SYSCTLBYNAME providers */
   /*
    * vm.stats.vm.v_page_size: 4096
    * vm.stats.vm.v_page_count: 246178
@@ -295,20 +357,19 @@ static int memory_read_internal(value_list_t *vl) {
    */
   struct {
     char const *sysctl_key;
-    char const *label_value;
+    memory_type_t type;
   } metrics[] = {
-      {"vm.stats.vm.v_page_size", NULL},
-      {"vm.stats.vm.v_free_count", "free"},
-      {"vm.stats.vm.v_wire_count", "wired"},
-      {"vm.stats.vm.v_active_count", "active"},
-      {"vm.stats.vm.v_inactive_count", "inactive"},
-      {"vm.stats.vm.v_cache_count", "cache"},
+      {"vm.stats.vm.v_page_size"},
+      {"vm.stats.vm.v_free_count", COLLECTD_MEMORY_TYPE_FREE},
+      {"vm.stats.vm.v_wire_count", COLLECTD_MEMORY_TYPE_WIRED},
+      {"vm.stats.vm.v_active_count", COLLECTD_MEMORY_TYPE_ACTIVE},
+      {"vm.stats.vm.v_inactive_count", COLLECTD_MEMORY_TYPE_INACTIVE},
+      {"vm.stats.vm.v_cache_count", COLLECTD_MEMORY_TYPE_CACHED},
   };
 
-  gauge_t page_size = 0;
-
+  gauge_t pagesize = 0;
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
-    int value = 0;
+    long value = 0;
     size_t value_len = sizeof(value);
 
     int status = sysctlbyname(metrics[i].sysctl_key, (void *)&value, &value_len,
@@ -320,17 +381,12 @@ static int memory_read_internal(value_list_t *vl) {
     }
 
     if (i == 0) {
-      page_size = (gauge_t)value;
+      pagesize = (gauge_t)value;
       continue;
     }
 
-    value_t v = {.gauge = page_size * (gauge_t)value};
-    metric_family_append(&fam, "type", metrics[i].label_value, v, NULL);
+    values[metrics[i].type] = ((gauge_t)value) * pagesize;
   } /* for (sysctl_keys) */
-
-  plugin_dispatch_metric_family(&fam);
-  metric_family_metric_reset(&fam);
-
 #endif /* HAVE_SYSCTL && KERNEL_NETBSD */
   /* #endif HAVE_SYSCTLBYNAME */
 
@@ -342,54 +398,40 @@ static int memory_read_internal(value_list_t *vl) {
     return status;
   }
 
-  metric_family_t fam = {
-      .name = "memory_usage",
-      .type = METRIC_TYPE_GAUGE,
-  };
-
-  bool detailed_slab_info = false;
-  gauge_t mem_total = NAN;
+  gauge_t mem_total = 0;
   gauge_t mem_not_used = 0;
-  value_t mem_slab_total = (value_t){.gauge = NAN};
-  value_t mem_slab_reclaimable = (value_t){.gauge = NAN};
-  value_t mem_slab_unreclaimable = (value_t){.gauge = NAN};
 
   char buffer[256];
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    char *fields[4] = {0};
+    char *fields[4] = {NULL};
     int fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
     if ((fields_num != 3) || (strcmp("kB", fields[2]) != 0)) {
       continue;
     }
 
-    value_t v = (value_t){.gauge = 1024.0 * atof(fields[1])};
+    gauge_t v = 1024.0 * atof(fields[1]);
+    if (!isfinite(v)) {
+      continue;
+    }
 
     if (strcmp(fields[0], "MemTotal:") == 0) {
-      mem_total = v.gauge;
-      continue;
+      mem_total = v;
     } else if (strcmp(fields[0], "MemFree:") == 0) {
-      metric_family_append(&fam, "type", "free", v, NULL);
-      mem_not_used += v.gauge;
+      values[COLLECTD_MEMORY_TYPE_FREE] = v;
+      mem_not_used += v;
     } else if (strcmp(fields[0], "Buffers:") == 0) {
-      metric_family_append(&fam, "type", "buffered", v, NULL);
-      mem_not_used += v.gauge;
+      values[COLLECTD_MEMORY_TYPE_BUFFERS] = v;
+      mem_not_used += v;
     } else if (strcmp(fields[0], "Cached:") == 0) {
-      metric_family_append(&fam, "type", "cached", v, NULL);
-      mem_not_used += v.gauge;
+      values[COLLECTD_MEMORY_TYPE_CACHED] = v;
+      mem_not_used += v;
     } else if (strcmp(fields[0], "Slab:") == 0) {
-      mem_not_used += v.gauge;
-      mem_slab_total = v;
-      continue;
+      values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL] = v;
+      mem_not_used += v;
     } else if (strcmp(fields[0], "SReclaimable:") == 0) {
-      mem_slab_reclaimable = v;
-      detailed_slab_info = true;
-      continue;
+      values[COLLECTD_MEMORY_TYPE_SLAB_RECL] = v;
     } else if (strcmp(fields[0], "SUnreclaim:") == 0) {
-      mem_slab_unreclaimable = v;
-      detailed_slab_info = true;
-      continue;
-    } else {
-      continue;
+      values[COLLECTD_MEMORY_TYPE_SLAB_UNRECL] = v;
     }
   }
 
@@ -397,67 +439,44 @@ static int memory_read_internal(value_list_t *vl) {
     WARNING("memory plugin: fclose failed: %s", STRERRNO);
   }
 
-  if (mem_total < mem_not_used) {
+  if (isnan(mem_total) || (mem_total == 0) || (mem_total < mem_not_used)) {
     return EINVAL;
   }
 
-  metric_family_append(&fam, "type", "used",
-                       (value_t){.gauge = mem_total - mem_not_used}, NULL);
+  /* "used" is not explicitly reported. It is calculated as everything that is
+   * not "not used", e.g. cached, buffers, ... */
+  values[COLLECTD_MEMORY_TYPE_USED] = mem_total - mem_not_used;
 
   /* SReclaimable and SUnreclaim were introduced in kernel 2.6.19
    * They sum up to the value of Slab, which is available on older & newer
    * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
    * if not. */
-  if (detailed_slab_info) {
-    metric_family_append(&fam, "type", "slab_recl", mem_slab_reclaimable, NULL);
-    metric_family_append(&fam, "type", "slab_unrecl", mem_slab_unreclaimable,
-                         NULL);
-  } else {
-    metric_family_append(&fam, "type", "slab", mem_slab_total, NULL);
+  if (!isnan(values[COLLECTD_MEMORY_TYPE_SLAB_RECL]) ||
+      !isnan(values[COLLECTD_MEMORY_TYPE_SLAB_UNRECL])) {
+    values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL] = NAN;
   }
-
-  /* TODO(octo): convert to percentage. */
-  int status = plugin_dispatch_metric_family(&fam);
-  if (status != 0) {
-    ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
-          STRERROR(status));
-  }
-
-  metric_family_metric_reset(&fam);
   /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
   /* Most of the additions here were taken as-is from the k9toolkit from
    * Brendan Gregg and are subject to change I guess */
-  long long mem_used;
-  long long mem_free;
-  long long mem_lock;
-  long long mem_kern;
-  long long mem_unus;
-  long long arcsize;
+  if ((ksp == NULL) || (ksz == NULL)) {
+    return EINVAL;
+  }
 
-  long long pp_kernel;
-  long long physmem;
-  long long availrmem;
+  long long mem_used = get_kstat_value(ksp, "pagestotal");
+  long long mem_free = get_kstat_value(ksp, "pagesfree");
+  long long mem_lock = get_kstat_value(ksp, "pageslocked");
+  long long mem_kern = 0;
+  long long mem_unus = 0;
+  long long arcsize = get_kstat_value(ksz, "size");
 
-  if (ksp == NULL)
-    return -1;
-  if (ksz == NULL)
-    return -1;
-
-  mem_used = get_kstat_value(ksp, "pagestotal");
-  mem_free = get_kstat_value(ksp, "pagesfree");
-  mem_lock = get_kstat_value(ksp, "pageslocked");
-  arcsize = get_kstat_value(ksz, "size");
-  pp_kernel = get_kstat_value(ksp, "pp_kernel");
-  physmem = get_kstat_value(ksp, "physmem");
-  availrmem = get_kstat_value(ksp, "availrmem");
-
-  mem_kern = 0;
-  mem_unus = 0;
+  long long pp_kernel = get_kstat_value(ksp, "pp_kernel");
+  long long physmem = get_kstat_value(ksp, "physmem");
+  long long availrmem = get_kstat_value(ksp, "availrmem");
 
   if ((mem_used < 0LL) || (mem_free < 0LL) || (mem_lock < 0LL)) {
-    WARNING("memory plugin: one of used, free or locked is negative.");
+    ERROR("memory plugin: one of used, free or locked is negative.");
     return -1;
   }
 
@@ -486,64 +505,55 @@ static int memory_read_internal(value_list_t *vl) {
     mem_lock = 0;
   }
 
-  mem_used *= pagesize; /* If this overflows you have some serious */
-  mem_free *= pagesize; /* memory.. Why not call me up and give me */
-  mem_lock *= pagesize; /* some? ;) */
-  mem_kern *= pagesize; /* it's 2011 RAM is cheap */
-  mem_unus *= pagesize;
-  mem_kern -= arcsize;
-
-  MEMORY_SUBMIT("used", (gauge_t)mem_used, "free", (gauge_t)mem_free, "locked",
-                (gauge_t)mem_lock, "kernel", (gauge_t)mem_kern, "arc",
-                (gauge_t)arcsize, "unusable", (gauge_t)mem_unus);
+  values[COLLECTD_MEMORY_TYPE_USED] = (gauge_t)(mem_used * pagesize);
+  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(mem_free * pagesize);
+  values[COLLECTD_MEMORY_TYPE_LOCKED] = (gauge_t)(mem_lock * pagesize);
+  values[COLLECTD_MEMORY_TYPE_KERNEL] =
+      (gauge_t)((mem_kern * pagesize) - arcsize);
+  values[COLLECTD_MEMORY_TYPE_UNUSED] = (gauge_t)(mem_unus * pagesize);
+  values[COLLECTD_MEMORY_TYPE_ARC] = (gauge_t)arcsize;
   /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL && __OpenBSD__
   /* OpenBSD variant does not have HAVE_SYSCTLBYNAME */
-  int mib[] = {CTL_VM, VM_METER};
-  struct vmtotal vmtotal = {0};
-  gauge_t mem_active;
-  gauge_t mem_inactive;
-  gauge_t mem_free;
-  size_t size;
-
-  size = sizeof(vmtotal);
-
-  if (sysctl(mib, 2, &vmtotal, &size, NULL, 0) < 0) {
-    WARNING("memory plugin: sysctl failed: %s", STRERRNO);
-    return -1;
+  if (pagesize == 0) {
+    return EINVAL;
   }
 
-  assert(pagesize > 0);
-  mem_active = (gauge_t)(vmtotal.t_arm * pagesize);
-  mem_inactive = (gauge_t)((vmtotal.t_rm - vmtotal.t_arm) * pagesize);
-  mem_free = (gauge_t)(vmtotal.t_free * pagesize);
+  int mib[] = {CTL_VM, VM_METER};
+  struct vmtotal vmtotal = {0};
+  size_t size = sizeof(vmtotal);
+  if (sysctl(mib, STATIC_ARRAY_SIZE(mib), &vmtotal, &size, NULL, 0) < 0) {
+    ERROR("memory plugin: sysctl failed: %s", STRERRNO);
+    return errno;
+  }
 
-  MEMORY_SUBMIT("active", mem_active, "inactive", mem_inactive, "free",
-                mem_free);
+  values[COLLECTD_MEMORY_TYPE_ACTIVE] = (gauge_t)(vmtotal.t_arm * pagesize);
+  values[COLLECTD_MEMORY_TYPE_INACTIVE] =
+      (gauge_t)((vmtotal.t_rm - vmtotal.t_arm) * pagesize);
+  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(vmtotal.t_free * pagesize);
   /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
-  sg_mem_stats *ios;
-
-  ios = sg_get_mem_stats();
-  if (ios == NULL)
+  sg_mem_stats *ios = sg_get_mem_stats();
+  if (ios == NULL) {
     return -1;
+  }
 
-  MEMORY_SUBMIT("used", (gauge_t)ios->used, "cached", (gauge_t)ios->cache,
-                "free", (gauge_t)ios->free);
+  values[COLLECTD_MEMORY_TYPE_USED] = (gauge_t)ios->used;
+  values[COLLECTD_MEMORY_TYPE_CACHED] = (gauge_t)ios->cache;
+  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)ios->free;
   /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
   perfstat_memory_total_t pmemory = {0};
-
   if (perfstat_memory_total(NULL, &pmemory, sizeof(pmemory), 1) < 0) {
-    WARNING("memory plugin: perfstat_memory_total failed: %s", STRERRNO);
-    return -1;
+    ERROR("memory plugin: perfstat_memory_total failed: %s", STRERRNO);
+    return errno;
   }
 
   /* Unfortunately, the AIX documentation is not very clear on how these
-   * numbers relate to one another. The only thing is states explcitly
+   * numbers relate to one another. The only thing is states explicitly
    * is:
    *   real_total = real_process + real_free + numperm + real_system
    *
@@ -552,10 +562,12 @@ static int memory_read_internal(value_list_t *vl) {
    *   real_total = real_free + real_inuse
    *   real_inuse = "active" + real_pinned + numperm
    */
-  MEMORY_SUBMIT("free", (gauge_t)(pmemory.real_free * pagesize), "cached",
-                (gauge_t)(pmemory.numperm * pagesize), "system",
-                (gauge_t)(pmemory.real_system * pagesize), "user",
-                (gauge_t)(pmemory.real_process * pagesize));
+  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(pmemory.real_free * pagesize);
+  values[COLLECTD_MEMORY_TYPE_CACHED] = (gauge_t)(pmemory.numperm * pagesize);
+  values[COLLECTD_MEMORY_TYPE_KERNEL] =
+      (gauge_t)(pmemory.real_system * pagesize);
+  values[COLLECTD_MEMORY_TYPE_USED] =
+      (gauge_t)(pmemory.real_process * pagesize);
 #endif /* HAVE_PERFSTAT */
 
   return 0;
@@ -563,16 +575,17 @@ static int memory_read_internal(value_list_t *vl) {
 
 static int memory_read(void) /* {{{ */
 {
-  value_t v[1];
-  value_list_t vl = VALUE_LIST_INIT;
+  gauge_t values[COLLECTD_MEMORY_TYPE_MAX] = {0};
+  for (size_t i = 0; i < COLLECTD_MEMORY_TYPE_MAX; i++) {
+    values[i] = NAN;
+  }
 
-  vl.values = v;
-  vl.values_len = STATIC_ARRAY_SIZE(v);
-  sstrncpy(vl.plugin, "memory", sizeof(vl.plugin));
-  sstrncpy(vl.type, "memory", sizeof(vl.type));
-  vl.time = cdtime();
+  int status = memory_read_internal(values);
+  if (status != 0) {
+    return status;
+  }
 
-  return memory_read_internal(&vl);
+  return memory_dispatch(values);
 } /* }}} int memory_read */
 
 void module_register(void) {
