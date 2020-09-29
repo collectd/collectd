@@ -791,6 +791,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
     if (temp == NULL) {
       oconfig_free(root);
+      wordfree(&we);
       return NULL;
     }
 
