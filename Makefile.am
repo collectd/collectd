@@ -996,6 +996,25 @@ disk_la_LIBADD += -lperfstat
 endif
 endif
 
+if BUILD_PLUGIN_DISKSTATS
+pkglib_LTLIBRARIES += diskstats.la
+diskstats_la_SOURCES = src/diskstats.c
+diskstats_la_CFLAGS = $(AM_CFLAGS)
+diskstats_la_CPPFLAGS = $(AM_CPPFLAGS)
+diskstats_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+diskstats_la_LIBADD = libignorelist.la
+
+test_plugin_diskstats_SOURCES = \
+        src/diskstats_test.c \
+        src/daemon/configfile.c \
+        src/daemon/types_list.c
+test_plugin_diskstats_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_diskstats_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_diskstats_LDADD = liboconfig.la libplugin_mock.la
+check_PROGRAMS += test_plugin_diskstats
+TESTS += test_plugin_diskstats
+endif
+
 if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = \

@@ -3023,6 +3023,62 @@ I<contrib/99-storage-collectd.rules> udev rule file instead.
 
 =back
 
+=head2 Plugin C<diskstats>
+
+The C<diskstats> plugin collects information about the usage of physical disks
+and logical disks (partitions). Values collected are the MBs read/write total
+or per second, average I/O latency and average I/O queue lenght.
+
+B<Synopsis:>
+
+  <Plugin diskstats>
+    Disk "/^[hs]d[a-f][0-9]?$/"
+    IgnoreSelected false
+    AvgQueueSize 5
+    AwaitMovingWindowSize 10
+  </Plugin>
+
+B<Options:>
+
+Using the following two options you can ignore some disks or configure the
+collection only of specific disks.
+
+=over 4
+
+=item B<Disk> I<Name>
+
+Select the disk I<Name>. Whether it is collected or ignored depends on the
+B<IgnoreSelected> setting, see below. As with other plugins that use the
+daemon's ignorelist functionality, a string that starts and ends with a slash
+is interpreted as a regular expression. Examples:
+
+  Disk "sdd"
+  Disk "/hda[34]/"
+
+See F</"IGNORELISTS"> for details.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Sets whether selected disks, i.E<nbsp>e. the ones matches by any of the B<Disk>
+statements, are ignored or if all other disks are ignored. The behavior
+(hopefully) is intuitive: If no B<Disk> option is configured, all disks are
+collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
+set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
+is set to B<true>, all disks are collected B<except> the ones matched.
+
+=item B<AvgQueueSize> I<Size>
+
+Configure the lenght for moving average of I/Os currently in progress. The
+average takes sum of I<Size> last measurements of value and divide by I<Size>.
+
+=item B<AwaitMovingWindowSize> I<Size>
+
+Configure the lenght for moving window to calculate average Await for last
+I<Size> number of measurements. The Await is calculated accroding to formula:
+Await = average time spent doing IOs / average number of IOs.
+
+=back
+
 =head2 Plugin C<dns>
 
 =over 4

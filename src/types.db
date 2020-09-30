@@ -55,6 +55,8 @@ df                      used:GAUGE:0:1125899906842623, free:GAUGE:0:112589990684
 df_complex              value:GAUGE:0:U
 df_inodes               value:GAUGE:0:U
 dilution_of_precision   value:GAUGE:0:U
+diskstat_gauge          value:GAUGE:0:U
+diskstat_counter        value:COUNTER:0:U
 disk_allocation         value:GAUGE:0:U
 disk_capacity           value:GAUGE:0:U
 disk_error              value:GAUGE:0:U

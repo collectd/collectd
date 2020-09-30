@@ -120,6 +120,7 @@
 #@BUILD_PLUGIN_DCPMM_TRUE@LoadPlugin dcpmm
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
+#@BUILD_PLUGIN_DISKSTATS_TRUE@LoadPlugin diskstats
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
 #@BUILD_PLUGIN_DPDKEVENTS_TRUE@LoadPlugin dpdkevents
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
@@ -681,6 +682,13 @@
 #	IgnoreSelected false
 #	UseBSDName false
 #	UdevNameAttr "DEVNAME"
+#</Plugin>
+
+#<Plugin diskstats>
+#	Disk "/^[hs]d[a-f][0-9]?$/"
+#	IgnoreSelected false
+#	AvgQueueSize 5
+#	AwaitMovingWindowSize 10
 #</Plugin>
 
 #<Plugin dns>

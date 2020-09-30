@@ -6602,6 +6602,7 @@ plugin_curl_json="no"
 plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
+plugin_diskstats="no"
 plugin_drbd="no"
 plugin_dpdkevents="no"
 plugin_dpdkstat="no"
@@ -6675,6 +6676,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_cpu="yes"
   plugin_cpufreq="yes"
   plugin_disk="yes"
+  plugin_diskstats="yes"
   plugin_drbd="yes"
   plugin_entropy="yes"
   plugin_fhcount="yes"
@@ -7062,6 +7064,7 @@ AC_PLUGIN([dbi],                 [$with_libdbi],              [General database 
 AC_PLUGIN([dcpmm],               [$with_libpmwapi],           [Intel(R) Optane(TM) DC Persistent Memory performance and health statistics])
 AC_PLUGIN([df],                  [$plugin_df],                [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],              [Disk usage statistics])
+AC_PLUGIN([diskstats],           [$plugin_diskstats],         [Disk io statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],             [DNS traffic analysis])
 AC_PLUGIN([dpdkevents],          [$plugin_dpdkevents],        [Events from DPDK])
 AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],          [Stats from DPDK])
@@ -7509,6 +7512,7 @@ AC_MSG_RESULT([    dbi . . . . . . . . . $enable_dbi])
 AC_MSG_RESULT([    dcpmm  . . . . . .  . $enable_dcpmm])
 AC_MSG_RESULT([    df  . . . . . . . . . $enable_df])
 AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
+AC_MSG_RESULT([    diskstats . . . . . . $enable_diskstats])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
 AC_MSG_RESULT([    dpdkevents. . . . . . $enable_dpdkevents])
 AC_MSG_RESULT([    dpdkstat  . . . . . . $enable_dpdkstat])
