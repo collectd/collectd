@@ -17,6 +17,7 @@ using this transition layer.
 =cut
 
 use Sys::Hostname ('hostname');
+use Net::Domain ('hostfqdn');
 use File::Basename ('basename');
 use Config::General ('ParseConfig');
 use Regexp::Common ('number');
@@ -352,7 +353,6 @@ sub handle_performance_data
   my $type = shift;
   my $time = shift;
   my $line = shift;
-  my $ident = "$host/$plugin-$pinst/$type-$tinst";
 
   my $tinst;
   my $value;
@@ -368,6 +368,7 @@ sub handle_performance_data
     return;
   }
 
+  my $ident = "$host/$plugin-$pinst/$type-$tinst";
   $ident =~ s/"/\\"/g;
 
   print qq(PUTVAL "$ident" interval=$Interval ${time}:$value\n);
@@ -380,7 +381,7 @@ sub execute_script
   my $time = time ();
   my $script = shift;
   my @args = ();
-  my $host = $Hostname || hostname () || 'localhost';
+  my $host = $Hostname || hostfqdn () || hostname () || 'localhost';
 
   my $state = 0;
   my $serviceoutput;
@@ -442,7 +443,7 @@ sub execute_script
 
   close ($fh);
   # Save the exit status of the check in $state
-  $state = $? >> 8;
+  my $exit_status = $state = $? >> 8;
 
   if ($state == 0)
   {
@@ -461,7 +462,10 @@ sub execute_script
     my $type = $script->{'type'} || 'nagios_check';
 
     print "PUTNOTIF time=$time severity=$state host=$host plugin=nagios "
-    . "plugin_instance=$pinst type=$type message=$serviceoutput\n";
+    . "plugin_instance=$pinst type=$type message=\"$serviceoutput\"\n";
+
+    print "PUTVAL $host/nagios-$pinst/response_code interval=$Interval "
+    . "${time}:$exit_status\n";
   }
 
   if ($script->{'type'})
