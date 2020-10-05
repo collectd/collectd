@@ -3221,7 +3221,14 @@ else
                                     [
                                       PKG_CHECK_MODULES([LUA], [lua51],
                                         [with_liblua="yes"],
-                                        [with_liblua="no (pkg-config cannot find liblua)"]
+                                        [
+                                          PKG_CHECK_MODULES([LUA], [luajit],
+                                            [
+                                              with_liblua="yes"
+                                            ],
+                                            [with_liblua="no (pkg-config cannot find libluajit)"]
+					  )
+					]
                                       )
                                     ]
                                   )
