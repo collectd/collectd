@@ -89,7 +89,7 @@ static void pmu_dump_events(intel_pmu_entity_t *ent) {
 static void pmu_dump_config(void) {
 
   DEBUG(PMU_PLUGIN ": Config:");
-  DEBUG(PMU_PLUGIN ":   dispatch_cloned_pmus: %d", g_ctx.dispatch_cloned_pmus);
+  DEBUG(PMU_PLUGIN ":   AggregateUncorePMUs : %d", !g_ctx.dispatch_cloned_pmus);
   DEBUG(PMU_PLUGIN ":   event list file     : %s", g_ctx.event_list_fn);
 
   unsigned int i = 0;
@@ -246,8 +246,11 @@ static int pmu_config(oconfig_item_t *ci) {
       } else {
         ret = config_cores_parse(child, &g_ctx.entl->cores);
       }
-    } else if (strcasecmp("DispatchMultiPmu", child->key) == 0) {
-      ret = cf_util_get_boolean(child, &g_ctx.dispatch_cloned_pmus);
+    } else if (strcasecmp("AggregateUncorePMUs", child->key) == 0) {
+      bool aggregate = true;
+      ret = cf_util_get_boolean(child, &aggregate);
+      if (ret == 0)
+        g_ctx.dispatch_cloned_pmus = !aggregate;
     } else {
       ERROR(PMU_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
       ret = -1;
@@ -305,7 +308,7 @@ static char *pmu_get_name(const struct event *e, const uint32_t *type) {
       char type_path[PATH_MAX];
       char buf[16];
       ssize_t len;
-      uint32_t val = 0;
+      unsigned int val = 0;
       ssnprintf(type_path, sizeof(type_path), "%s/type",
                 ce->extra.pmus.gl_pathv[i]);
       int fd = open(type_path, O_RDONLY);
@@ -322,7 +325,7 @@ static char *pmu_get_name(const struct event *e, const uint32_t *type) {
       }
       buf[len] = '\0';
 
-      if (sscanf(buf, "%d", &val) != 1) {
+      if (sscanf(buf, "%u", &val) != 1) {
         WARNING(PMU_PLUGIN ": failed to read number from `%s`.", buf);
         close(fd);
         continue;
@@ -507,7 +510,7 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
     size_t group_events_count = 0;
 
     char *events = strdup(e[i]);
-    if (!events)
+    if (events == NULL)
       return -1;
 
     bool group = strrchr(events, ',') != NULL ? true : false;
@@ -527,7 +530,7 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
         e->efd[j].fd = -1;
 
       if (resolve_event_extra(s, &e->attr, &e->extra) != 0) {
-        WARNING(PMU_PLUGIN ": Cannot resolve %s", s);
+        INFO(PMU_PLUGIN ": Cannot resolve %s", s);
         sfree(e);
         continue;
       }
@@ -559,8 +562,10 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
       el->eventlist_last = e;
       e->event = strdup(s);
 
-      if (e->extra.multi_pmu && pmu_add_cloned_pmus(el, e) != 0)
+      if (e->extra.multi_pmu && pmu_add_cloned_pmus(el, e) != 0) {
+        sfree(events);
         return -1;
+      }
 
       group_events_count++;
     }

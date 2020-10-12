@@ -3891,7 +3891,7 @@ B<Synopsis:>
     Cores "0-3" "4,6" "[12-15]"
     HardwareEvents "L2_RQSTS.PF_MISS"
     Cores "[1,2]"
-    DispatchMultiPmu true
+    AggregateUncorePMUs true
   </Plugin>
 
 B<Options:>
@@ -3930,15 +3930,15 @@ If an empty string is provided as value for this field default cores
 configuration is applied - that is separate group is created for each core.
 This option can be used once for every B<HardwareEvents> set.
 
-=item B<DispatchMultiPmu> B<false>|B<true>
+=item B<AggregateUncorePMUs> B<false>|B<true>
 
 This option toggles the event value reporting from all the uncore PMUs to
 either dispatch as aggregated value in a single metric or dispatch as
-individual values. If DispatchMultiPmu is set to 'false' uncore events are
+individual values. If B<AggregateUncorePMUs> is set to 'true' uncore events are
 reported as single metric, even for multi PMU. The total value is obtained by
-summing all counters across all the units (e.g. CHAs). If DispatchMultiPmu is
-set to 'true' all cloned PMUs are dispatched separately with PMU name added to
-Collectd's I<plugin_instance>.
+summing all counters across all the units (e.g. CHAs). If B<AggregateUncorePMUs>
+is set to 'false' all cloned PMUs are dispatched separately with PMU name added
+to Collectd's I<plugin_instance>.
 
 =back
 
