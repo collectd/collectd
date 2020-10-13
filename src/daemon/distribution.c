@@ -38,6 +38,61 @@ struct distribution_s {
 };
 
 /**
+ * Lock two distribution_t objects in safe way.
+ *
+ * Locks are placed in ascending order of addresses.
+ * On failure the mutex state remains unchanged.
+ *
+ * @return - 0 on success -1 otherwise
+ */
+
+static int distribution_lock(distribution_t *d1, distribution_t *d2) {
+  if (d1 == NULL || d2 == NULL || d1 == d2)
+    return -1;
+
+  if ((uintptr_t)d1 > (uintptr_t)d2) {
+    distribution_t *tmp = d1;
+    d1 = d2;
+    d2 = tmp;
+  }
+
+  if (pthread_mutex_lock(&d1->mutex) != 0)
+    return -1;
+
+  if (pthread_mutex_lock(&d2->mutex) != 0) {
+    pthread_mutex_unlock(&d1->mutex);
+    return -1;
+  }
+
+  return 0;
+}
+
+/**
+ * Unlock two distribution_t objects in safe way.
+ *
+ * @return - 0 on success -1 otherwise
+ */
+
+static int distribution_unlock(distribution_t *d1, distribution_t *d2) {
+  if (d1 == NULL || d2 == NULL || d1 == d2)
+    return -1;
+
+  if ((uintptr_t)d1 > (uintptr_t)d2) {
+    distribution_t *tmp = d1;
+    d1 = d2;
+    d2 = tmp;
+  }
+
+  if (pthread_mutex_unlock(&d2->mutex) != 0)
+    return -1;
+
+  if (pthread_mutex_unlock(&d1->mutex) != 0)
+    return -1;
+
+  return 0;
+}
+
+/**
  * This code uses an Euler path to avoid gaps in the tree-to-array mapping.
  * This way the tree contained N buckets contains 2 * N - 1 nodes
  * Thus, left subtree has 2 * (mid - left + 1) - 1 nodes,
@@ -384,28 +439,24 @@ static int distribution_cmp(distribution_t *d1, distribution_t *d2,
 }
 
 bool distribution_equal(distribution_t *d1, distribution_t *d2) {
-  pthread_mutex_lock(&d1->mutex);
-  pthread_mutex_lock(&d2->mutex);
+  distribution_lock(d1, d2);
   int cmp_result;
   int cmp_status = distribution_cmp(d1, d2, &cmp_result);
   bool ans = (cmp_status == 0 && cmp_result == 0);
-  pthread_mutex_unlock(&d2->mutex);
-  pthread_mutex_unlock(&d1->mutex);
+  distribution_unlock(d1, d2);
   return ans;
 }
 
 /* TODO(bkjg): add tests for this function */
 int distribution_sub(distribution_t *d1, distribution_t *d2) {
-  pthread_mutex_lock(&d1->mutex);
-  pthread_mutex_lock(&d2->mutex);
+  distribution_lock(d1, d2);
 
   int cmp_result = 0;
   int cmp_status = distribution_cmp(d1, d2, &cmp_status);
   if (cmp_status != 0 || cmp_result == -1) { // i.e. d1 < d2 or can't compare
     if (cmp_result == -1)
       cmp_status = ERANGE;
-    pthread_mutex_unlock(&d2->mutex);
-    pthread_mutex_unlock(&d1->mutex);
+    distribution_unlock(d1, d2);
     return cmp_status;
   }
 
@@ -415,7 +466,6 @@ int distribution_sub(distribution_t *d1, distribution_t *d2) {
     d1->tree[i].bucket_counter -= d2->tree[i].bucket_counter;
   }
 
-  pthread_mutex_unlock(&d2->mutex);
-  pthread_mutex_unlock(&d1->mutex);
+  distribution_unlock(d1, d2);
   return 0;
 }
