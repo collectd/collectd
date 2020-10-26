@@ -17,7 +17,7 @@
  *
  * Authors:
  *   Mathijs Mohlmann
- *   Dagobert Michelsen (forward-porting)
+ *   Dagobert Michelsen (forward-porting, collectd 6.0 update)
  **/
 
 #if HAVE_CONFIG_H
@@ -78,18 +78,29 @@ static int zone_read_procfile(char const *pidstr, char const *name, void *buf,
 }
 
 static int zone_submit_value(char *zone, gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[1];
+  metric_family_t fam = {
+    .name = "cpu_usage_percent",
+    .type = METRIC_TYPE_GAUGE,
+  };
 
-  values[0].gauge = value;
+  metric_t m = {0};
 
-  vl.values = values;
-  vl.values_len = 1; /*STATIC_ARRAY_SIZE (values);*/
-  sstrncpy(vl.plugin, "zone", sizeof(vl.plugin));
-  sstrncpy(vl.type, "percent", sizeof(vl.type));
-  sstrncpy(vl.type_instance, zone, sizeof(vl.type_instance));
+  m.value.gauge = value;
+  metric_label_set(&m, "zone", zone);
 
-  return plugin_dispatch_values(&vl);
+  metric_family_metric_append(&fam, m);
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("zone plugin: zone_submit_value failed: %s",
+      STRERROR(status));
+    return status;
+  }
+
+  metric_reset(&m);
+  metric_family_metric_reset(&fam);
+
+  return 0;
 }
 
 static zone_stats_t *zone_find_stats(c_avl_tree_t *tree, zoneid_t zoneid) {
