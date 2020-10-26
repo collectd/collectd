@@ -79,8 +79,8 @@ static int zone_read_procfile(char const *pidstr, char const *name, void *buf,
 
 static int zone_submit_value(char *zone, gauge_t value) {
   metric_family_t fam = {
-    .name = "cpu_usage_percent",
-    .type = METRIC_TYPE_GAUGE,
+      .name = "cpu_usage_percent",
+      .type = METRIC_TYPE_GAUGE,
   };
 
   metric_t m = {0};
@@ -92,8 +92,7 @@ static int zone_submit_value(char *zone, gauge_t value) {
 
   int status = plugin_dispatch_metric_family(&fam);
   if (status != 0) {
-    ERROR("zone plugin: zone_submit_value failed: %s",
-      STRERROR(status));
+    ERROR("zone plugin: zone_submit_value failed: %s", STRERROR(status));
     return status;
   }
 
