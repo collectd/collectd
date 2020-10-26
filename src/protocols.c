@@ -305,4 +305,3 @@ void module_register(void) {
                          config_keys_num);
   plugin_register_read("protocols", protocols_read);
 } /* void module_register */
-
