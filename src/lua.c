@@ -51,12 +51,12 @@ typedef struct lua_script_s {
 typedef struct {
   lua_State *lua_state;
   char *lua_function_name;
-  pthread_mutex_t lock;
   int callback_id;
 } clua_callback_data_t;
 
 static char base_path[PATH_MAX];
 static lua_script_t *scripts;
+static pthread_mutex_t lua_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int clua_store_callback(lua_State *L, int idx) /* {{{ */
 {
@@ -97,7 +97,7 @@ static int clua_read(user_data_t *ud) /* {{{ */
 {
   clua_callback_data_t *cb = ud->data;
 
-  pthread_mutex_lock(&cb->lock);
+  pthread_mutex_lock(&lua_lock);
 
   lua_State *L = cb->lua_state;
 
@@ -105,7 +105,7 @@ static int clua_read(user_data_t *ud) /* {{{ */
   if (status != 0) {
     ERROR("Lua plugin: Unable to load callback \"%s\" (id %i).",
           cb->lua_function_name, cb->callback_id);
-    pthread_mutex_unlock(&cb->lock);
+    pthread_mutex_unlock(&lua_lock);
     return -1;
   }
   /* +1 = 1 */
@@ -119,7 +119,7 @@ static int clua_read(user_data_t *ud) /* {{{ */
     else
       ERROR("Lua plugin: Calling a read callback failed: %s", errmsg);
     lua_pop(L, 1);
-    pthread_mutex_unlock(&cb->lock);
+    pthread_mutex_unlock(&lua_lock);
     return -1;
   }
 
@@ -135,7 +135,7 @@ static int clua_read(user_data_t *ud) /* {{{ */
   /* pop return value and function */
   lua_pop(L, 1); /* -1 = 0 */
 
-  pthread_mutex_unlock(&cb->lock);
+  pthread_mutex_unlock(&lua_lock);
   return status;
 } /* }}} int clua_read */
 
@@ -143,7 +143,7 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
                       user_data_t *ud) {
   clua_callback_data_t *cb = ud->data;
 
-  pthread_mutex_lock(&cb->lock);
+  pthread_mutex_lock(&lua_lock);
 
   lua_State *L = cb->lua_state;
 
@@ -151,7 +151,7 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (status != 0) {
     ERROR("Lua plugin: Unable to load callback \"%s\" (id %i).",
           cb->lua_function_name, cb->callback_id);
-    pthread_mutex_unlock(&cb->lock);
+    pthread_mutex_unlock(&lua_lock);
     return -1;
   }
   /* +1 = 1 */
@@ -159,7 +159,7 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   status = luaC_pushvaluelist(L, ds, vl);
   if (status != 0) {
     lua_pop(L, 1); /* -1 = 0 */
-    pthread_mutex_unlock(&cb->lock);
+    pthread_mutex_unlock(&lua_lock);
     ERROR("Lua plugin: luaC_pushvaluelist failed.");
     return -1;
   }
@@ -174,7 +174,7 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     else
       ERROR("Lua plugin: Calling the write callback failed:\n%s", errmsg);
     lua_pop(L, 1); /* -1 = 0 */
-    pthread_mutex_unlock(&cb->lock);
+    pthread_mutex_unlock(&lua_lock);
     return -1;
   }
 
@@ -188,7 +188,7 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   }
 
   lua_pop(L, 1); /* -1 = 0 */
-  pthread_mutex_unlock(&cb->lock);
+  pthread_mutex_unlock(&lua_lock);
   return status;
 } /* }}} int clua_write */
 
@@ -264,7 +264,6 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
 static void lua_cb_free(void *data) {
   clua_callback_data_t *cb = data;
   free(cb->lua_function_name);
-  pthread_mutex_destroy(&cb->lock);
   free(cb);
 }
 
@@ -319,7 +318,6 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
   cb->lua_state = thread;
   cb->callback_id = callback_id;
   cb->lua_function_name = strdup(function_name);
-  pthread_mutex_init(&cb->lock, NULL);
 
   if (PLUGIN_READ == type) {
     int status = plugin_register_complex_read(/* group = */ "lua",
