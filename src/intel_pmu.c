@@ -718,7 +718,10 @@ static int pmu_init(void) {
   }
 
   /* parse events names from JSON file */
-  ret = read_events(g_ctx.event_list_fn);
+  if (g_ctx.event_list_fn[0] == '\0')
+    ret = read_events(NULL); // Let jevents choose default file
+  else
+    ret = read_events(g_ctx.event_list_fn);
   if (ret != 0) {
     ERROR(PMU_PLUGIN ": Failed to read event list file '%s'.",
           g_ctx.event_list_fn);

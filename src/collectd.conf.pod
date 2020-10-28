@@ -3881,16 +3881,22 @@ Linux perf interface. All events are reported on a per core basis.
 B<Note:> When using intel_pmu plugin number of reading threads in collectd
 should be adjusted accordingly. The value should be more than a half of
 configured cores, so for 60 monitored cores the recommendation is to set
-B<ReadThreads> > 30.
+B<ReadThreads> > 30. The optimal number of B<WriteThreads> depends on volume
+of metrics from read plugins, interval and number of enabled write plugins.
+The above adjustments can help with performance scaling when monitoring a high
+number of events on many cores.
+
 
 B<Synopsis:>
 
   <Plugin intel_pmu>
-    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
+    EventList "/var/cache/pmu/GenuineIntel-6-55-4-core.json"
     HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
     Cores "0-3" "4,6" "[12-15]"
     HardwareEvents "L2_RQSTS.PF_MISS"
     Cores "[1,2]"
+    HardwareEvents "INST_RETIRED.ANY" "CPU_CLK_UNHALTED.THREAD"
+    Cores ""
     AggregateUncorePMUs true
   </Plugin>
 
@@ -3932,13 +3938,14 @@ This option can be used once for every B<HardwareEvents> set.
 
 =item B<AggregateUncorePMUs> B<false>|B<true>
 
-This option toggles the event value reporting from all the uncore PMUs to
-either dispatch as aggregated value in a single metric or dispatch as
-individual values. If B<AggregateUncorePMUs> is set to 'true' uncore events are
-reported as single metric, even for multi PMU. The total value is obtained by
-summing all counters across all the units (e.g. CHAs). If B<AggregateUncorePMUs>
-is set to 'false' all cloned PMUs are dispatched separately with PMU name added
-to Collectd's I<plugin_instance>.
+This option toggles the event value reporting from all the uncore PMUs to either
+dispatch as aggregated value in a single metric or dispatch as individual
+values. If B<AggregateUncorePMUs> is set to 'true', uncore events from the
+various PMU subsystems across uncore are reported as a single metric, usually
+reported as single 'Core0' events. The total value is obtained by summing all
+counters across all the units (e.g. CHAs). If B<AggregateUncorePMUs> is set to
+'false', values from the individual PMU subsystems across uncore are dispatched
+separately with PMU name/number added to Collectd's I<plugin_instance>.
 
 =back
 
