@@ -22,6 +22,7 @@
  *
  * Authors:
  *   Sebastian Harl <sh@tokkee.org>
+ *   Barbara 'bkjg' Kaczorowska <bkjg at google.com>
  **/
 
 #ifndef UTILS_CURL_STATS_H
@@ -47,10 +48,31 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci);
 void curl_stats_destroy(curl_stats_t *s);
 
 /*
- * curl_stats_dispatch dispatches performance values from the the specified
+ * curl_stats_dispatch dispatches performance values from the specified
  * cURL session to the daemon.
  */
 int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
                         const char *plugin, const char *plugin_instance);
+
+/* TODO(bkjg): add descriptions of these functions */
+/* curl_stats_account_data accounts data from the specified cURL session and
+ * save it to the proper metric_t data structure*/
+int curl_stats_account_data(curl_stats_t *s, CURL *curl);
+
+/* curl_stats_send_metric_to_daemon sends data which is saved in metrics to the
+ * daemon*/
+int curl_stats_send_metric_to_daemon(curl_stats_t *s);
+
+/* curl_stats_get_enabled_attributes takes enabled attributes from s data
+ * structure and saves in num_enabled_attr the number of them */
+char **curl_stats_get_enabled_attributes(curl_stats_t *s,
+                                         size_t *num_enabled_attr);
+
+/* curl_stats_get_metric_families_for_attributes takes metric families for given
+ * groups of attributes from s data structure and saves in num_attr the number
+ * of these groups */
+metric_family_t **
+curl_stats_get_metric_families_for_attributes(curl_stats_t *s,
+                                              size_t *num_attr);
 
 #endif /* UTILS_CURL_STATS_H */

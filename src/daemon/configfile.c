@@ -1097,6 +1097,22 @@ int cf_util_get_int(const oconfig_item_t *ci, int *ret_value) /* {{{ */
   return 0;
 } /* }}} int cf_util_get_int */
 
+/* Assures the config option is a number and returns it as an uint64_t. */
+int cf_util_get_uint64(const oconfig_item_t *ci, uint64_t *ret_value) /* {{{ */
+{
+  if ((ci == NULL) || (ret_value == NULL))
+    return EINVAL;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
+    P_ERROR("The `%s' option requires exactly one numeric argument.", ci->key);
+    return -1;
+  }
+
+  *ret_value = (uint64_t)ci->values[0].value.number;
+
+  return 0;
+} /* }}} int cf_util_get_uint64 */
+
 int cf_util_get_double(const oconfig_item_t *ci, double *ret_value) /* {{{ */
 {
   if ((ci == NULL) || (ret_value == NULL))
