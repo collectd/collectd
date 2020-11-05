@@ -39,7 +39,7 @@ void clear_ras_metrics_server() {
   ras_metrics_server.ras_cache_l2_errors = 0;
   ras_metrics_server.ras_upi_errors = 0;
 
-  ras_metrics_server.per_CPU = (struct ras_metrics_per_CPU *) calloc(
+  ras_metrics_server.per_CPU = (struct ras_metrics_per_CPU *)calloc(
       nprocs, sizeof(struct ras_metrics_per_CPU));
 }
 
@@ -225,22 +225,22 @@ DEF_TEST(convert_to_number) {
   EXPECT_EQ_INT(2147483647, number);
 
   switch (sizeof(long int)) {
-    case 4:
-      // convert over max long int
-      ret = convert_to_number("2147483648", &number);
-      EXPECT_EQ_INT(0, ret ? 1 : 0);
-      break;
+  case 4:
+    // convert over max long int
+    ret = convert_to_number("2147483648", &number);
+    EXPECT_EQ_INT(0, ret ? 1 : 0);
+    break;
 
-    case 8:
-      // convert max long int
-      ret = convert_to_number("9223372036854775807", &number);
-      EXPECT_EQ_INT(1, ret ? 1 : 0);
-      EXPECT_EQ_INT(1, (number == LONG_MAX) ? 1 : 0);
-      // convert over max long int
-      ret = convert_to_number("9223372036854775809", &number);
-      EXPECT_EQ_INT(0, ret ? 1 : 0);
+  case 8:
+    // convert max long int
+    ret = convert_to_number("9223372036854775807", &number);
+    EXPECT_EQ_INT(1, ret ? 1 : 0);
+    EXPECT_EQ_INT(1, (number == LONG_MAX) ? 1 : 0);
+    // convert over max long int
+    ret = convert_to_number("9223372036854775809", &number);
+    EXPECT_EQ_INT(0, ret ? 1 : 0);
 
-      break;
+    break;
   }
   // convert max int
   ret = convert_to_number("foo", &number);

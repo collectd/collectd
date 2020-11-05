@@ -145,7 +145,7 @@ static void ras_submit(const char *dev, const char *type, const char *type_inst,
                        unsigned long long value) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t) {.counter = value};
+  vl.values = &(value_t){.counter = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, RAS_PLUGIN, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, dev, sizeof(vl.plugin_instance));
@@ -193,7 +193,7 @@ static void classify_entries(int cpu, char *error_msg, char *mcistatus_msg) {
   if (strstr(error_msg, "SMM Handler Code Access Violation")) {
     safe_incremented_counter(
         &ras_metrics_server.per_CPU[cpu]
-            .ras_smm_handler_code_access_violation_errors);
+             .ras_smm_handler_code_access_violation_errors);
     safe_incremented_counter(
         &ras_metrics_server.per_CPU[cpu].ras_processor_base_errors);
   }
@@ -210,7 +210,7 @@ static void classify_entries(int cpu, char *error_msg, char *mcistatus_msg) {
   if (strstr(error_msg, "Memory read error")) {
     if (strstr(mcistatus_msg, "Uncorrected_error")) {
       safe_incremented_counter(&ras_metrics_server.per_CPU[cpu]
-          .ras_memory_read_uncorrectable_errors);
+                                    .ras_memory_read_uncorrectable_errors);
     } else {
       if (strstr(mcistatus_msg, "Corrected_error")) {
         safe_incremented_counter(
@@ -221,7 +221,7 @@ static void classify_entries(int cpu, char *error_msg, char *mcistatus_msg) {
   if (strstr(error_msg, "Memory write error")) {
     if (strstr(mcistatus_msg, "Uncorrected_error")) {
       safe_incremented_counter(&ras_metrics_server.per_CPU[cpu]
-          .ras_memory_write_uncorrectable_errors);
+                                    .ras_memory_write_uncorrectable_errors);
     } else {
       if (strstr(mcistatus_msg, "Corrected_error")) {
         safe_incremented_counter(
@@ -385,7 +385,7 @@ static int ras_init(void) {
   }
 
   nprocs = get_nprocs_conf();
-  ras_metrics_server.per_CPU = (struct ras_metrics_per_CPU *) calloc(
+  ras_metrics_server.per_CPU = (struct ras_metrics_per_CPU *)calloc(
       nprocs, sizeof(struct ras_metrics_per_CPU));
   if (ras_metrics_server.per_CPU == NULL) {
     ERROR("Fail allocated memory");
