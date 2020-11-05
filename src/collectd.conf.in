@@ -1491,6 +1491,10 @@
 #	</Module>
 #</Plugin>
 
+#<Plugin ras>
+#	DB_Path "/var/lib/rasdaemon/ras-mc_event.db"
+#</Plugin>
+
 #<Plugin redis>
 #   <Node example>
 #      Host "redis.example.com"

@@ -1827,6 +1827,21 @@ protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 protocols_la_LIBADD = libignorelist.la
 endif
 
+if BUILD_PLUGIN_RAS
+pkglib_LTLIBRARIES += ras.la
+ras_la_SOURCES = src/ras.c
+ras_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_SQLITE3_CPPFLAGS)
+ras_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_SQLITE3_LDFLAGS)
+ras_la_LIBADD = $(BUILD_WITH_SQLITE3_LIBS)
+
+test_plugin_ras_SOURCES = src/ras_test.c
+test_plugin_ras_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_SQLITE3_CPPFLAGS)
+test_plugin_ras_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_SQLITE3_LDFLAGS)
+test_plugin_ras_LDADD = libplugin_mock.la $(BUILD_WITH_SQLITE3_LIBS)
+check_PROGRAMS += test_plugin_ras
+
+endif
+
 if BUILD_PLUGIN_REDFISH
 pkglib_LTLIBRARIES += redfish.la
 redfish_la_SOURCES = src/redfish.c

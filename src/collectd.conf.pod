@@ -8165,6 +8165,60 @@ matching values will be ignored.
 This plugin embeds a Python-interpreter into collectd and provides an interface
 to collectd's plugin system. See L<collectd-python(5)> for its documentation.
 
+=head2 Plugin C<ras>
+
+The C<ras> plugin gathers and counts errors provided by [RASDaemon]
+(https://github.com/mchehab/rasdaemon). This plugin requires access to SQLite3
+database from `RASDaemon`.
+
+Metrics:
+  type: ras_errors
+  plugin_instance: CPU_(number CPU) for metrics per CPU Core metric. For metrics per Server metrics this value is empty.
+  type_instance:
+    per CPU Core:
+      - memory_read_corrected_errors
+      - memory_read_uncorrectable_errors
+      - memory_write_corrected_errors
+      - memory_write_uncorrectable_errors
+      - cache_l0_l1_errors
+      - tlb_instruction_errors
+      - processor_base_errors
+      - processor_bus_errors
+      - internal_timer_errors
+      - smm_handler_code_access_violation_errors
+      - internal_parity_errors
+      - frc_errors
+      - external_mce_errors
+      - microcode_rom_parity_errors
+      - unclassified_mce_errors
+    per Server:
+      - cache_l2_errors
+      - upi_errors
+
+Please note that `processor_base_errors` is aggregate counter measuring the following MCE events:
+- internal_timer_errors
+- smm_handler_code_access_violation_errors
+- internal_parity_errors
+- frc_errors
+- external_mce_errors
+- microcode_rom_parity_errors
+- unclassified_mce_errors
+
+
+In addition `RASDaemon` runs, by default, with `--enable-sqlite3` flag. In case of
+problems with SQLite3 database please verify this is still a default option.
+
+=over 4
+
+=item B<DB_Path> I<Path>
+
+Path to the RASDemon database (sqlite3). Please make sure that user has read
+permissions to this database. Example and default setting:
+
+  DB_Path "/var/lib/rasdaemon/ras-mc_event.db"
+
+=back
+
 =head2 Plugin C<redfish>
 
 The C<redfish> plugin collects sensor data using REST protocol called
