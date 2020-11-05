@@ -108,7 +108,7 @@ void distribution_destroy(distribution_t *d);
 size_t distribution_num_buckets(distribution_t *dist);
 
 /** @return - array of buckets in the distribution **/
-buckets_array_t get_buckets(distribution_t *dist);
+buckets_array_t distribution_get_buckets(distribution_t *dist);
 
 double distribution_total_sum(distribution_t *dist);
 
@@ -116,12 +116,17 @@ uint64_t distribution_total_counter(distribution_t *dist);
 
 double distribution_squared_deviation_sum(distribution_t *dist);
 
-void destroy_buckets_array(buckets_array_t buckets_array);
+void distribution_destroy_buckets_array(buckets_array_t buckets_array);
 
 /** @return true if distributions are equal false otherwise
  * This function holds both mutexes for d1 and d2. Be sure that you call the
  * function with the same order of arguments everytime **/
 bool distribution_equals(distribution_t *d1, distribution_t *d2);
+
+/** @return true if d1 <= d2 false otherwise
+ * This function holds both mutexes for d1 and d2. Be sure that you call the
+ * function with the same order of arguments everytime **/
+bool distribution_le(distribution_t *d1, distribution_t *d2);
 
 /** This function subtracts d2 from d1 if arguments are correct
  *  if arguments are NULL pointers or the structure of distributions is

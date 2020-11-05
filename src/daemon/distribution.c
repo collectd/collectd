@@ -349,7 +349,7 @@ static void tree_write_leave_buckets(distribution_t *dist, bucket_t *write_ptr,
   tree_write_leave_buckets(dist, write_ptr, right_child, mid + 1, right);
 }
 
-buckets_array_t get_buckets(distribution_t *dist) {
+buckets_array_t distribution_get_buckets(distribution_t *dist) {
   buckets_array_t bucket_array = {
       .num_buckets = dist == NULL ? 0 : dist->num_buckets,
       .buckets = dist == NULL
@@ -365,7 +365,7 @@ buckets_array_t get_buckets(distribution_t *dist) {
   return bucket_array;
 }
 
-void destroy_buckets_array(buckets_array_t buckets_array) {
+void distribution_destroy_buckets_array(buckets_array_t buckets_array) {
   free(buckets_array.buckets);
 }
 
@@ -378,7 +378,7 @@ double distribution_total_sum(distribution_t *dist) {
 
 uint64_t distribution_total_counter(distribution_t *dist) {
   if (dist == NULL) {
-    return EINVAL;
+    return 0;
   }
   return dist->tree[0].bucket_counter; // should I add mutex here?
 }
@@ -444,6 +444,17 @@ bool distribution_equal(distribution_t *d1, distribution_t *d2) {
   int cmp_status = distribution_cmp(d1, d2, &cmp_result);
   bool ans = (cmp_status == 0 && cmp_result == 0);
   distribution_unlock(d1, d2);
+  return ans;
+}
+
+bool distribution_le(distribution_t *d1, distribution_t *d2) {
+  pthread_mutex_lock(&d1->mutex);
+  pthread_mutex_lock(&d2->mutex);
+  int cmp_result;
+  int cmp_status = distribution_cmp(d1, d2, &cmp_result);
+  bool ans = (cmp_status == 0 && cmp_result <= 0);
+  pthread_mutex_unlock(&d2->mutex);
+  pthread_mutex_unlock(&d1->mutex);
   return ans;
 }
 

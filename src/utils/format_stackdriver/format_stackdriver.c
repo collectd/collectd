@@ -82,6 +82,12 @@ static int json_time(yajl_gen gen, cdtime_t t) {
   return json_string(gen, buffer);
 } /* }}} int json_time */
 
+static int json_uint64_t(yajl_gen gen, uint64_t num) {
+  char buffer[64];
+  sprintf(buffer, "%" PRIu64, num);
+  return json_string(gen, buffer);
+} /* }}} int json_uint64_t */
+
 /* MonitoredResource
  *
  * {
@@ -120,6 +126,80 @@ static int format_gcm_resource(yajl_gen gen, sd_resource_t *res) /* {{{ */
   return 0;
 } /* }}} int format_gcm_resource */
 
+static int format_buckets(yajl_gen gen, distribution_t *dist) {
+  int status = json_string(gen, "bucketOptions");
+  if (status != 0) {
+    return status;
+  }
+
+  yajl_gen_map_open(gen);
+  /* We provide explicit buckets to avoid issues with precision */
+  status = json_string(gen, "explicitBuckets");
+  if (status != 0) {
+    return status;
+  }
+
+  yajl_gen_map_open(gen);
+  status = json_string(gen, "buckets");
+  if (status != 0) {
+    return status;
+  }
+
+  buckets_array_t buckets_array = distribution_get_buckets(dist);
+  yajl_gen_array_open(gen);
+  for (size_t i = 0; i < buckets_array.num_buckets - 1; i++) {
+    yajl_gen_status status =
+        yajl_gen_double(gen, buckets_array.buckets[i].maximum);
+    if (status != yajl_gen_status_ok) {
+      return status;
+    }
+  }
+  yajl_gen_array_close(gen);
+  yajl_gen_map_close(gen);
+  yajl_gen_map_close(gen);
+
+  status = json_string(gen, "bucketCounts");
+  if (status != 0) {
+    return status;
+  }
+
+  yajl_gen_array_open(gen);
+  for (size_t i = 0; i < buckets_array.num_buckets; i++) {
+    int status = json_uint64_t(gen, buckets_array.buckets[i].bucket_counter);
+    if (status != 0) {
+      return status;
+    }
+  }
+  yajl_gen_array_close(gen);
+  distribution_destroy_buckets_array(buckets_array);
+  return 0;
+}
+
+static int format_distribution(yajl_gen gen, distribution_t *dist) {
+  if (dist == NULL) {
+    return 1;
+  }
+  yajl_gen_map_open(gen);
+  int status =
+      json_string(gen, "count") ||
+      json_uint64_t(gen, distribution_total_counter(dist)) ||
+      json_string(gen, "mean") ||
+      (int)yajl_gen_double(gen, distribution_average(dist)) ||
+      json_string(gen, "sumOfSquaredDeviation") ||
+      (int)yajl_gen_double(gen, distribution_squared_deviation_sum(dist));
+  if (status != 0) {
+    yajl_gen_free(gen);
+    return status;
+  }
+
+  status = format_buckets(gen, dist);
+  if (status != 0) {
+    yajl_gen_free(gen);
+    return status;
+  }
+  return 0;
+}
+
 /* TypedValue
  *
  * {
@@ -129,7 +209,7 @@ static int format_gcm_resource(yajl_gen gen, sd_resource_t *res) /* {{{ */
  * }
  */
 static int format_typed_value(yajl_gen gen, metric_t const *m,
-                              int64_t start_value) {
+                              value_t start_value) {
   char integer[32];
 
   yajl_gen_map_open(gen);
@@ -150,9 +230,22 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
   }
   case METRIC_TYPE_COUNTER: {
     /* Counter resets are handled in format_time_series(). */
-    assert(m->value.counter >= (uint64_t)start_value);
-    uint64_t diff = m->value.counter - (uint64_t)start_value;
+    assert(m->value.counter >= (uint64_t)start_value.counter);
+    uint64_t diff = m->value.counter - (uint64_t)start_value.counter;
     ssnprintf(integer, sizeof(integer), "%" PRIu64, diff);
+    break;
+  }
+  case METRIC_TYPE_DISTRIBUTION: {
+    distribution_t *diff = distribution_clone(m->value.distribution);
+    int status = distribution_sub(diff, start_value.distribution);
+    if (status != 0) {
+      distribution_destroy(diff);
+      return status;
+    }
+    status = format_distribution(gen, diff);
+    distribution_destroy(diff);
+    if (status != 0)
+      return status;
     break;
   }
   default: {
@@ -184,6 +277,8 @@ static int format_metric_kind(yajl_gen gen, metric_t const *m) {
     return json_string(gen, "GAUGE");
   case METRIC_TYPE_COUNTER:
     return json_string(gen, "CUMULATIVE");
+  case METRIC_TYPE_DISTRIBUTION:
+    return json_string(gen, "CUMULATIVE");
   default:
     ERROR("format_metric_kind: unknown value type %d.", m->family->type);
     return EINVAL;
@@ -204,6 +299,8 @@ static int format_value_type(yajl_gen gen, metric_t const *m) {
     return json_string(gen, "DOUBLE");
   case METRIC_TYPE_COUNTER:
     return json_string(gen, "INT64");
+  case METRIC_TYPE_DISTRIBUTION:
+    return json_string(gen, "DISTRIBUTION");
   default:
     ERROR("format_value_type: unknown value type %d.", m->family->type);
     return EINVAL;
@@ -280,28 +377,22 @@ static int format_time_interval(yajl_gen gen, metric_t const *m,
  * the first time, or reset (the current value is smaller than the cached
  * value), the start time is (re)set to vl->time. */
 static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
-                                 int64_t *ret_start_value) {
+                                 value_t *ret_start_value) {
   /* TODO(octo): Add back DERIVE here. */
-  if (m->family->type != METRIC_TYPE_COUNTER) {
+  if (m->family->type != METRIC_TYPE_COUNTER &&
+      m->family->type != METRIC_TYPE_DISTRIBUTION) {
     return 0;
   }
 
-  char const *start_value_key = "stackdriver:start_value";
-  char const *start_time_key = "stackdriver:start_time";
+  return uc_get_start_value(m, ret_start_value, ret_start_time);
 
-  int status =
-      uc_meta_data_get_signed_int(m, start_value_key, ret_start_value) ||
-      uc_meta_data_get_unsigned_int(m, start_time_key, ret_start_time);
-  bool is_reset = *ret_start_value > m->value.counter;
-  if ((status == 0) && !is_reset) {
-    return 0;
-  }
-
+  /* TODO: how to support reset metrics? */
+  /*
   *ret_start_value = (int64_t)m->value.counter;
   *ret_start_time = m->time;
 
   return uc_meta_data_add_signed_int(m, start_value_key, *ret_start_value) ||
-         uc_meta_data_add_unsigned_int(m, start_time_key, *ret_start_time);
+         uc_meta_data_add_unsigned_int(m, start_time_key, *ret_start_time);*/
 } /* int read_cumulative_state */
 
 /* Point
@@ -316,7 +407,7 @@ static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
  * }
  */
 static int format_point(yajl_gen gen, metric_t const *m, cdtime_t start_time,
-                        int64_t start_value) {
+                        value_t start_value) {
   /* {{{ */
   yajl_gen_map_open(gen);
 
@@ -396,7 +487,7 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
   metric_type_t type = m->family->type;
 
   cdtime_t start_time = 0;
-  int64_t start_value = 0;
+  value_t start_value;
   int status = read_cumulative_state(m, &start_time, &start_value);
   if (status != 0) {
     return status;
@@ -412,8 +503,13 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
     }
   }
   if (type == METRIC_TYPE_COUNTER) {
-    uint64_t sv = (uint64_t)start_value;
+    uint64_t sv = (uint64_t)start_value.counter;
     if (m->value.counter < sv) {
+      return EAGAIN;
+    }
+  }
+  if (type == METRIC_TYPE_DISTRIBUTION) {
+    if (!distribution_le(start_value.distribution, m->value.distribution)) {
       return EAGAIN;
     }
   }

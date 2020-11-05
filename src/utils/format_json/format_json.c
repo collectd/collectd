@@ -121,7 +121,7 @@ static int format_metric_distribution(strbuf_t buf, yajl_gen g,
   CHECK(json_add_string(g, "buckets"));
   CHECK(yajl_gen_map_open(g)); /*Begin Buckets*/
 
-  buckets_array_t buckets = get_buckets(m->value.distribution);
+  buckets_array_t buckets = distribution_get_buckets(m->value.distribution);
   for (size_t i = 0; i < buckets.num_buckets; i++) {
 
     double max = buckets.buckets[i].maximum;
@@ -149,7 +149,7 @@ static int format_metric_distribution(strbuf_t buf, yajl_gen g,
   CHECK(json_add_string(g, "sum"));
   CHECK(json_add_string(g, buf.ptr));
   STRBUF_DESTROY(buf);
-  destroy_buckets_array(buckets);
+  distribution_destroy_buckets_array(buckets);
   return 0;
 }
 

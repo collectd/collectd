@@ -75,7 +75,14 @@ DEF_TEST(sd_format_metric_descriptor) {
                   "stored_aggregation_metric\",\"metricKind\":\"GAUGE\","
                   "\"valueType\":\"DOUBLE\",\"labels\":[]}",
       },
-  };
+      {
+          .name = "distribution_metric",
+          .type = METRIC_TYPE_DISTRIBUTION,
+          .want = "{\"type\":\"custom.googleapis.com/collectd/"
+                  "distribution_metric\",\"metricKind\":\"CUMULATIVE\","
+                  "\"valueType\":"
+                  "\"DISTRIBUTION\",\"labels\":[]}",
+      }};
 
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
     metric_family_t fam = {
@@ -103,6 +110,6 @@ DEF_TEST(sd_format_metric_descriptor) {
 
 int main(int argc, char **argv) {
   RUN_TEST(sd_format_metric_descriptor);
-
+  /* TODO: add tests for sd_output_add */
   END_TEST;
 }

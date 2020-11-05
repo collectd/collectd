@@ -40,6 +40,10 @@
 #define STATE_ERROR 3
 #define STATE_MISSING 15
 
+#ifdef TESTING_H
+void uc_set_start_value(value_t start_value, cdtime_t start_time);
+#endif
+
 int uc_init(void);
 int uc_check_timeout(void);
 int uc_update(metric_family_t const *fam);
