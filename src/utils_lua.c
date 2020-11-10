@@ -313,3 +313,72 @@ int luaC_pushvaluelist(lua_State *L, const data_set_t *ds,
 
   return 0;
 } /* }}} int luaC_pushvaluelist */
+
+static int luaC_pushoconfigvalue(lua_State *L,
+                                 const oconfig_value_t *cv) /* {{{ */
+{
+  int status = 0;
+
+  switch (cv->type) {
+  case OCONFIG_TYPE_STRING:
+    lua_pushstring(L, cv->value.string);
+    DEBUG("Lua plugin: Push ci->value (OCONFIG_TYPE_STRING) '%s'",
+          cv->value.string);
+    break;
+  case OCONFIG_TYPE_NUMBER:
+    lua_pushnumber(L, cv->value.number);
+    DEBUG("Lua plugin: Push ci->value (OCONFIG_TYPE_NUMBER) => '%f'",
+          cv->value.number);
+    break;
+  case OCONFIG_TYPE_BOOLEAN:
+    lua_pushboolean(L, cv->value.boolean);
+    DEBUG("Lua plugin: Push ci->value (OCONFIG_TYPE_BOOLEAN) '%d'",
+          cv->value.boolean);
+    break;
+  default:
+    WARNING("Lua plugin: Unable to push known lua types.");
+    status = 1;
+    break;
+  }
+
+  return status;
+} /* }}} int luaC_pushoconfigvalue */
+
+int luaC_pushoconfigitem(lua_State *L, const oconfig_item_t *ci) /* {{{ */
+{
+  /*
+    oconfig_item_t will be mapped to the following Lua table:
+
+    <Module ...>
+      Key1 Value1
+      ...
+      KeyN ValueN
+    </Module>
+
+    {
+      Key1 => Value1,
+      ...
+      KeyN => ValueN
+    }
+   */
+  {
+    int i = 0;
+    do {
+      oconfig_value_t *cv = ci->values + i;
+      if (ci->children_num == 0) {
+        /* ci->key => child->value */
+        luaC_pushoconfigvalue(L, cv);
+        lua_setfield(L, -2, ci->key);
+      } else {
+        /* ci->key = { ... } */
+        lua_newtable(L);
+        for (int i = 0; i < ci->children_num; i++) {
+          luaC_pushoconfigitem(L, &ci->children[i]);
+        }
+        lua_setfield(L, -2, ci->key);
+      }
+      i++;
+    } while (i < ci->values_num);
+  }
+  return 0;
+} /* }}} int luaC_pushoconfigitem */
