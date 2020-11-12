@@ -546,8 +546,8 @@ static void ps_list_add(const char *name, const char *cmdline,
         (pse->starttime != entry->starttime)) {
       if (pse != NULL && pse->id == entry->id) {
         WARNING("pid %lu reused between two reads, ignoring existing "
-            "procstat_entry for %s",
-            pse->id, name);
+                "procstat_entry for %s",
+                pse->id, name);
       }
       procstat_entry_t *new;
 
