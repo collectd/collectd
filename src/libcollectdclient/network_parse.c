@@ -410,7 +410,6 @@ static int parse_sign_sha256(void *signature, size_t signature_len,
   if (buffer_next(b, hash, sizeof(hash)))
     return EINVAL;
 
-
   const size_t username_len = (b->len + 1) * sizeof(char);
   char *username = alloca(username_len);
   if (!username)

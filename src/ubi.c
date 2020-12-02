@@ -87,8 +87,8 @@ static void ubi_submit(const char *dev_name, const char *type, gauge_t value) {
 static int ubi_read_dev_attr(const char *dev_name, const char *attr) {
   FILE *f;
   int val;
-  const size_t
-      str_len = sizeof(SYS_PATH) + strlen(dev_name) + sizeof("/") + strlen(attr) + 1;
+  const size_t str_len =
+      sizeof(SYS_PATH) + strlen(dev_name) + sizeof("/") + strlen(attr) + 1;
   char *str = alloca(str_len);
   if (!str)
     return -1;
