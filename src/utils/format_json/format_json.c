@@ -359,9 +359,12 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD_KEYVAL("type_instance", vl->type_instance);
 
   if (vl->meta != NULL) {
-    char meta_buffer[buffer_size];
-    memset(meta_buffer, 0, sizeof(meta_buffer));
-    status = meta_data_to_json(meta_buffer, sizeof(meta_buffer), vl->meta);
+    const size_t meta_buffer_len = buffer_size * sizeof(char);
+    char *meta_buffer = alloca(meta_buffer_len);
+    if (!meta_buffer)
+      return -1;
+    memset(meta_buffer, 0, meta_buffer_len);
+    status = meta_data_to_json(meta_buffer, meta_buffer_len, vl->meta);
     if (status != 0)
       return status;
 
@@ -382,10 +385,14 @@ static int format_json_value_list_nocheck(char *buffer, /* {{{ */
                                           const data_set_t *ds,
                                           const value_list_t *vl,
                                           int store_rates, size_t temp_size) {
-  char temp[temp_size];
+  const size_t temp_len = temp_size * sizeof(char);
+  char *temp = alloca(temp_len);
+  if (!temp)
+    return -1;
+
   int status;
 
-  status = value_list_to_json(temp, sizeof(temp), ds, vl, store_rates);
+  status = value_list_to_json(temp, temp_len, ds, vl, store_rates);
   if (status != 0)
     return status;
   temp_size = strlen(temp);

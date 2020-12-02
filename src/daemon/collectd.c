@@ -76,7 +76,9 @@ static int init_hostname(void) {
     hostname_len = NI_MAXHOST;
   }
 #endif /* WIN32 */
-  char hostname[hostname_len];
+  char *hostname = alloca(hostname_len * sizeof(char));
+  if (!hostname)
+    return -1;
 
   if (gethostname(hostname, hostname_len) != 0) {
     fprintf(stderr, "`gethostname' failed and no "

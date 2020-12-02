@@ -270,13 +270,13 @@ static int nb_add_values(char **ret_buffer, /* {{{ */
   uint16_t pkg_type;
   uint16_t pkg_length;
   uint16_t pkg_num_values;
-  uint8_t pkg_values_types[vl->values_len];
-  value_t pkg_values[vl->values_len];
+  const size_t pkg_values_types_len = vl->values_len * sizeof(uint8_t);
+  const size_t pkg_values_len = vl->values_len * sizeof(value_t);
 
   size_t offset;
 
   packet_len = sizeof(pkg_type) + sizeof(pkg_length) + sizeof(pkg_num_values) +
-               sizeof(pkg_values_types) + sizeof(pkg_values);
+               pkg_values_types_len + pkg_values_len;
 
   if (*ret_buffer_len < packet_len)
     return ENOMEM;
@@ -284,6 +284,14 @@ static int nb_add_values(char **ret_buffer, /* {{{ */
   pkg_type = htons(TYPE_VALUES);
   pkg_length = htons((uint16_t)packet_len);
   pkg_num_values = htons((uint16_t)vl->values_len);
+
+  uint8_t *pkg_values_types = alloca(pkg_values_types_len);
+  if (!pkg_values_types)
+    return ENOMEM;
+
+  value_t *pkg_values = alloca(pkg_values_len);
+  if (!pkg_values)
+    return ENOMEM;
 
   for (size_t i = 0; i < vl->values_len; i++) {
     pkg_values_types[i] = (uint8_t)vl->values_types[i];
@@ -322,10 +330,10 @@ static int nb_add_values(char **ret_buffer, /* {{{ */
   offset += sizeof(pkg_length);
   memcpy(packet_ptr + offset, &pkg_num_values, sizeof(pkg_num_values));
   offset += sizeof(pkg_num_values);
-  memcpy(packet_ptr + offset, pkg_values_types, sizeof(pkg_values_types));
-  offset += sizeof(pkg_values_types);
-  memcpy(packet_ptr + offset, pkg_values, sizeof(pkg_values));
-  offset += sizeof(pkg_values);
+  memcpy(packet_ptr + offset, pkg_values_types, pkg_values_types_len);
+  offset += pkg_values_types_len;
+  memcpy(packet_ptr + offset, pkg_values, pkg_values_len);
+  offset += pkg_values_len;
 
   assert(offset == packet_len);
 

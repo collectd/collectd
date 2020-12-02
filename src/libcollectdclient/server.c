@@ -47,6 +47,7 @@
 #include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <alloca.h>
 // clang-format on
 
 #include <stdio.h>
@@ -211,8 +212,13 @@ int lcc_listen_and_write(lcc_listener_t srv) {
 
   int ret = 0;
   while (42) {
-    char buffer[srv.buffer_size];
-    ssize_t len = recv(srv.conn, buffer, sizeof(buffer), /* flags = */ 0);
+    const size_t buffer_len = srv.buffer_size * sizeof(char);
+    char *buffer = alloca(buffer_len);
+    if (!buffer) {
+      ret = ENOMEM;
+      break;
+    }
+    ssize_t len = recv(srv.conn, buffer, buffer_len, /* flags = */ 0);
     if (len == -1) {
       ret = errno;
       break;
