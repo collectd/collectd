@@ -30,6 +30,7 @@
 
 #include "config.h"
 
+#include <alloca.h>
 #include <arpa/inet.h> /* htons */
 #include <assert.h>
 #include <errno.h>
@@ -37,7 +38,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <alloca.h>
 
 #include <pthread.h>
 
