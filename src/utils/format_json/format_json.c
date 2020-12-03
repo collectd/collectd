@@ -43,6 +43,8 @@
 #endif
 #endif
 
+#include <alloca.h>
+
 static int json_escape_string(char *buffer, size_t buffer_size, /* {{{ */
                               const char *string) {
   size_t dst_pos;

@@ -37,6 +37,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <alloca.h>
 
 #include <pthread.h>
 

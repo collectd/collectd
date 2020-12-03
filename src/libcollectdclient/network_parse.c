@@ -63,6 +63,8 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 #endif
 
+#include <alloca.h>
+
 /* forward declaration because parse_sign_sha256()/parse_encrypt_aes256() and
  * network_parse() need to call each other. */
 static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,

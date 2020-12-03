@@ -59,6 +59,8 @@
 #include <winsock2.h>
 #endif
 
+#include <alloca.h>
+
 static int loop;
 
 static int init_hostname(void) {
