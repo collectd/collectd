@@ -118,10 +118,6 @@ debian_default_toolchain_task:
 #
 redhat_default_toolchain_task:
   matrix:
-    - allow_failures: false
-      skip_notifications: false
-      container:
-        image: collectd/ci:el6_x86_64
     - allow_failures: true
       skip_notifications: true
       container:
