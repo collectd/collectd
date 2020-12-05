@@ -13,8 +13,8 @@ jobs:
           - "Clang"
       include:
         - label: "Clang"
-          CC=clang
-          CXX=clang++
+          CC: clang
+          CXX: clang++
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -74,13 +74,11 @@ jobs:
             libyajl-dev \
             linux-libc-dev \
             openjdk-11-jdk-headless \
-            perl
-            protobuf-c-compiler
+            perl \
+            protobuf-c-compiler \
             python3-dev \
             python-dev \
             xfslibs-dev
-        with:
-          submodules: recursive
       - name: Generate configure
         run: |
           ./build.sh
