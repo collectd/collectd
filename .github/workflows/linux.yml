@@ -1,0 +1,95 @@
+name: Linux
+on:
+  - push
+  - pull_request
+jobs:
+  buildtest::
+    name: Build Check
+    strategy:
+      fail-fast: false
+      matrix:
+        label:
+          - "GCC"
+          - "Clang"
+      include:
+        - label: "Clang"
+          CC=clang
+          CXX=clang++
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Install dependency packages
+        run: |
+          sudo apt update
+          sudo apt install -y -V \
+            autotools-dev \
+            iptables-dev \
+            libatasmart-dev \
+            libcap-dev \
+            libcurl4-gnutls-dev \
+            libdbi0-dev \
+            libesmtp-dev \
+            libganglia1-dev \
+            libgcrypt11-dev \
+            libglib2.0-dev \
+            libgps-dev \
+            libhiredis-dev \
+            libi2c-dev \
+            libldap2-dev \
+            libltdl-dev \
+            liblua50-dev \
+            liblua5.1-0-dev \
+            liblua5.2-dev \
+            libmemcached-dev \
+            libmicrohttpd-dev \
+            libmnl-dev \
+            libmodbus-dev \
+            libmosquitto-dev \
+            libmysqlclient-dev \
+            libnotify-dev \
+            libopenipmi-dev \
+            liboping-dev \
+            libow-dev \
+            libpcap-dev \
+            libperl-dev \
+            libpq-dev \
+            libprotobuf-c0-dev \
+            librabbitmq-dev \
+            librdkafka-dev \
+            libriemann-client-dev \
+            librrd-dev \
+            libsensors4-dev \
+            libsigrok-dev \
+            libsnmp-dev \
+            libtokyocabinet-dev \
+            libtokyotyrant-dev \
+            libudev-dev \
+            libupsclient-dev \
+            libvarnish-dev \
+            libvirt-dev \
+            libxen-dev \
+            libxml2-dev \
+            libyajl-dev \
+            linux-libc-dev \
+            openjdk-11-jdk-headless \
+            perl
+            protobuf-c-compiler
+            python3-dev \
+            python-dev \
+            xfslibs-dev
+        with:
+          submodules: recursive
+      - name: Generate configure
+        run: |
+          ./build.sh
+      - name: Configure
+        run: |
+          type pkg-config
+          pkg-config --list-all | sort -u
+          ./configure
+          cat config.log
+      - name: Build
+        run: |
+          make -j$(nproc) distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
