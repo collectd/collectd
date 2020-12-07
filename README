@@ -102,6 +102,9 @@ Features
     - df
       Mountpoint usage (Basically the values `df(1)' delivers)
 
+    - dhcpleases
+      Collect number of current dhcp leases.
+
     - disk
       Disk utilization: Sectors read/written, number of read/write actions,
       average time an IO-operation took to complete.

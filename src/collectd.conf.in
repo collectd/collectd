@@ -125,6 +125,7 @@
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
 #@BUILD_PLUGIN_DPDK_TELEMETRY_TRUE@LoadPlugin dpdk_telemetry
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
+#@BUILD_PLUGIN_DHCPLEASES_TRUE@LoadPlugin dhcpleases
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
 #@BUILD_PLUGIN_ETHSTAT_TRUE@LoadPlugin ethstat
