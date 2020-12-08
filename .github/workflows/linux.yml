@@ -84,10 +84,13 @@ jobs:
           ./build.sh
       - name: Configure
         run: |
-          type pkg-config
-          pkg-config --list-all | sort -u
-          ./configure
-          cat config.log
-      - name: Build
-        run: |
-          make -j$(nproc) distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+          ./configure \
+            --disable-barometer \
+            --disable-varnish \
+            --disable-xmms
+      - name: make
+        run: make
+      - name: make check
+        run: make check
+      - name: make distcheck
+        run: make distcheck
