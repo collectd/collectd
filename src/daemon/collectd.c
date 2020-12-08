@@ -231,6 +231,7 @@ __attribute__((noreturn)) static void exit_usage(int status) {
 } /* static void exit_usage (int status) */
 
 static int do_init(void) {
+  int ret;
 #if HAVE_SETLOCALE
   if (setlocale(LC_NUMERIC, COLLECTD_LOCALE) == NULL)
     WARNING("setlocale (\"%s\") failed.", COLLECTD_LOCALE);
@@ -255,14 +256,17 @@ static int do_init(void) {
     ERROR("sg_init: %s", sg_str_error(sg_get_error()));
     return -1;
   }
+#endif
+  ret = plugin_init_all();
 
+#if HAVE_LIBSTATGRAB
   if (sg_drop_privileges()) {
     ERROR("sg_drop_privileges: %s", sg_str_error(sg_get_error()));
     return -1;
   }
 #endif
 
-  return plugin_init_all();
+  return ret;
 } /* int do_init () */
 
 static int do_loop(void) {
