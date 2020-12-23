@@ -86,6 +86,7 @@ struct disklist_s {
   rolling_array_t sum_nr_writes;
   size_t prev; // Index of previous stats
   diskstats_t stats[2];
+  cdtime_t last_update;
   struct disklist_s *next;
 };
 typedef struct disklist_s disklist_t;
@@ -364,6 +365,7 @@ static int diskstats_read(__attribute__((unused)) user_data_t *ud) {
   }
 
   while (fgets(buff, sizeof(buff), fh) != NULL) {
+    cdtime_t now = cdtime();
     char *fields[32];
     int numfields = strsplit(buff, fields, STATIC_ARRAY_SIZE(fields));
     /* 7 is for partition without extended statistics */
@@ -424,6 +426,7 @@ static int diskstats_read(__attribute__((unused)) user_data_t *ud) {
     if (disk->prev == DS_NOT_SET) {
       /* On fisrt read just store values */
       disk->prev = 0;
+      disk->last_update = now;
       continue;
     }
 
@@ -436,7 +439,8 @@ static int diskstats_read(__attribute__((unused)) user_data_t *ud) {
     diskstats_submit_counter(name, "mb_read", mb_read);
     diskstats_submit_counter(name, "mb_wrtn", mb_wrtn);
 
-    double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
+    double interval = CDTIME_T_TO_DOUBLE(now - disk->last_update);
+    disk->last_update = now;
 
     unsigned long sectors_r_diff = DISKSTAT_DIFF(ul, sectors_read);
     unsigned long sectors_w_diff = DISKSTAT_DIFF(ul, sectors_written);
