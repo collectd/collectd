@@ -76,6 +76,7 @@ struct mqtt_client_conf {
   char *topic_prefix;
   bool store_rates;
   bool retain;
+  bool ready_to_send;
 
   /* For subscribing */
   pthread_t thread;
@@ -94,6 +95,8 @@ static size_t subscribers_num;
 /*
  * Functions
  */
+static int mqtt_disconnect(mqtt_client_conf_t *conf);
+
 #if LIBMOSQUITTO_MAJOR == 0
 static char const *mosquitto_strerror(int code) {
   switch (code) {
@@ -171,6 +174,31 @@ static char *strip_prefix(char *topic) {
   }
 
   return topic;
+}
+
+#if LIBMOSQUITTO_MAJOR == 0
+static void on_connect(void *arg, int result) {
+#else
+static void on_connect(struct mosquitto *mosq, void *arg, int result) {
+#endif
+  mqtt_client_conf_t *conf = arg;
+
+  if (result == 0) {
+    mqtt_client_conf_t *conf = arg;
+    conf->connected = true;
+    conf->ready_to_send = true;
+  } else {
+    mqtt_disconnect(conf);
+  }
+}
+
+#if LIBMOSQUITTO_MAJOR == 0
+static void on_publish(void *arg, uint16_t message_id) {
+#else
+static void on_publish(struct mosquitto *mosq, void *arg, int message_id) {
+#endif
+  mqtt_client_conf_t *conf = arg;
+  conf->ready_to_send = true;
 }
 
 static void on_message(
@@ -274,14 +302,19 @@ static int mqtt_reconnect(mqtt_client_conf_t *conf) {
           (status == MOSQ_ERR_ERRNO) ? STRERRNO : mosquitto_strerror(status));
     return -1;
   }
+  do {
+    status = mqtt_loop(conf, 0, 1);
+  } while (status == MOSQ_ERR_SUCCESS && !conf->connected);
+  if (status != MOSQ_ERR_SUCCESS || !conf->connected) {
+    mqtt_disconnect(conf);
+    return -1;
+  }
 
   if (!conf->publish) {
     status = mqtt_subscribe(conf);
     if (status != 0)
       return status;
   }
-
-  conf->connected = true;
 
   c_release(LOG_INFO, &conf->complaint_cantpublish,
             "mqtt plugin: successfully reconnected to broker \"%s:%d\"",
@@ -313,6 +346,8 @@ static int mqtt_connect(mqtt_client_conf_t *conf) {
     ERROR("mqtt plugin: mosquitto_new failed");
     return -1;
   }
+  mosquitto_connect_callback_set(conf->mosq, &on_connect);
+  mosquitto_publish_callback_set(conf->mosq, &on_publish);
 
 #if LIBMOSQUITTO_MAJOR != 0
   if (conf->cacertificatefile) {
@@ -377,6 +412,14 @@ static int mqtt_connect(mqtt_client_conf_t *conf) {
     conf->mosq = NULL;
     return -1;
   }
+  do {
+    status = mqtt_loop(conf, 0, 1);
+  } while (status == MOSQ_ERR_SUCCESS && !conf->connected);
+  if (status != MOSQ_ERR_SUCCESS || !conf->connected) {
+    mosquitto_destroy(conf->mosq);
+    conf->mosq = NULL;
+    return -1;
+  }
 
   if (!conf->publish) {
     mosquitto_message_callback_set(conf->mosq, on_message);
@@ -389,13 +432,13 @@ static int mqtt_connect(mqtt_client_conf_t *conf) {
     }
   }
 
-  conf->connected = true;
   return 0;
 } /* mqtt_connect */
 
 static int mqtt_disconnect(mqtt_client_conf_t *conf) {
   int status;
 
+  conf->ready_to_send = false;
   conf->connected = false;
   status = mosquitto_disconnect(conf->mosq);
   return status;
@@ -448,6 +491,7 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
     return status;
   }
 
+  conf->ready_to_send = false;
   status = mosquitto_publish(conf->mosq, /* message_id */ NULL, topic,
 #if LIBMOSQUITTO_MAJOR == 0
                              (uint32_t)payload_len, payload,
@@ -469,10 +513,12 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
     return -1;
   }
 
-  status = mqtt_loop(conf,
-                     /* timeout[ms] = */ 1000,
-                     /* max_packets = */ 1);
-  if (status != MOSQ_ERR_SUCCESS) {
+  do {
+    status = mqtt_loop(conf,
+                       /* timeout[ms] = */ 0,
+                       /* max_packets = */ 1);
+  } while (status == MOSQ_ERR_SUCCESS && !conf->ready_to_send);
+  if (status != MOSQ_ERR_SUCCESS || !conf->ready_to_send) {
     c_complain(LOG_ERR, &conf->complaint_cantpublish,
                "mqtt plugin: mosquitto_loop failed: %s",
                (status == MOSQ_ERR_ERRNO) ? STRERRNO
