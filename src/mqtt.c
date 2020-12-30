@@ -396,8 +396,6 @@ static void *subscribers_thread(void *arg) {
       continue;
     }
 
-/* The documentation says "0" would map to the default (1000ms), but
- * that does not work on some versions. */
 #if LIBMOSQUITTO_MAJOR == 0
     status = mosquitto_loop(conf->mosq, /* timeout = */ 1000 /* ms */);
 #else
