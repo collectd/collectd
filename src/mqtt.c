@@ -383,6 +383,14 @@ static int mqtt_connect(mqtt_client_conf_t *conf) {
   return 0;
 } /* mqtt_connect */
 
+static int mqtt_disconnect(mqtt_client_conf_t *conf) {
+  int status;
+
+  conf->connected = false;
+  status = mosquitto_disconnect(conf->mosq);
+  return status;
+} /* mqtt_disconnect */
+
 static void *subscribers_thread(void *arg) {
   mqtt_client_conf_t *conf = arg;
   int status;
@@ -449,8 +457,7 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
     /* Mark our connection "down" regardless of the error as a safety
      * measure; we will try to reconnect the next time we have to publish a
      * message */
-    conf->connected = false;
-    mosquitto_disconnect(conf->mosq);
+    mqtt_disconnect(conf);
 
     pthread_mutex_unlock(&conf->lock);
     return -1;
@@ -472,8 +479,7 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
     /* Mark our connection "down" regardless of the error as a safety
      * measure; we will try to reconnect the next time we have to publish a
      * message */
-    conf->connected = 0;
-    mosquitto_disconnect(conf->mosq);
+    mqtt_disconnect(conf);
 
     pthread_mutex_unlock(&conf->lock);
     return -1;
