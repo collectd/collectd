@@ -238,6 +238,16 @@ static void on_message(
   sfree(vl.values);
 } /* void on_message */
 
+static int mqtt_loop(mqtt_client_conf_t *conf, int timeout, int max_packets) {
+  int status;
+#if LIBMOSQUITTO_MAJOR == 0
+  status = mosquitto_loop(conf->mosq, timeout);
+#else
+  status = mosquitto_loop(conf->mosq, timeout, max_packets);
+#endif
+  return status;
+}
+
 static int mqtt_subscribe(mqtt_client_conf_t *conf) {
   int status = mosquitto_subscribe(conf->mosq, /* message_id = */ NULL,
                                    conf->topic, conf->qos);
@@ -404,13 +414,9 @@ static void *subscribers_thread(void *arg) {
       continue;
     }
 
-#if LIBMOSQUITTO_MAJOR == 0
-    status = mosquitto_loop(conf->mosq, /* timeout = */ 1000 /* ms */);
-#else
-    status = mosquitto_loop(conf->mosq,
-                            /* timeout[ms] = */ 1000,
-                            /* max_packets = */ 100);
-#endif
+    status = mqtt_loop(conf,
+                       /* timeout[ms] = */ 1000,
+                       /* max_packets = */ 100);
     if (status == MOSQ_ERR_CONN_LOST) {
       conf->connected = false;
       continue;
@@ -463,14 +469,9 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
     return -1;
   }
 
-#if LIBMOSQUITTO_MAJOR == 0
-  status = mosquitto_loop(conf->mosq, /* timeout = */ 1000 /* ms */);
-#else
-  status = mosquitto_loop(conf->mosq,
-                          /* timeout[ms] = */ 1000,
-                          /* max_packets = */ 1);
-#endif
-
+  status = mqtt_loop(conf,
+                     /* timeout[ms] = */ 1000,
+                     /* max_packets = */ 1);
   if (status != MOSQ_ERR_SUCCESS) {
     c_complain(LOG_ERR, &conf->complaint_cantpublish,
                "mqtt plugin: mosquitto_loop failed: %s",
