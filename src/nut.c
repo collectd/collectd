@@ -326,6 +326,8 @@ static int nut_read(user_data_t *user_data) {
         nut_submit(ups, "percent", "load", value);
       else if (strcmp("ups.power", key) == 0)
         nut_submit(ups, "power", "ups", value);
+      else if (strcmp("ups.realpower", key) == 0)
+        nut_submit(ups, "power", "watt-ups", value);
       else if (strcmp("ups.temperature", key) == 0)
         nut_submit(ups, "temperature", "ups", value);
     }
