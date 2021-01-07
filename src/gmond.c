@@ -789,9 +789,8 @@ static int mc_receive_thread_start(void) /* {{{ */
 
   mc_receive_thread_loop = 1;
 
-  status =
-      plugin_thread_create(&mc_receive_thread_id, /* attr = */ NULL,
-                           mc_receive_thread, /* args = */ NULL, "gmond recv");
+  status = plugin_thread_create(&mc_receive_thread_id, mc_receive_thread,
+                                /* args = */ NULL, "gmond recv");
   if (status != 0) {
     ERROR("gmond plugin: Starting receive thread failed.");
     mc_receive_thread_loop = 0;

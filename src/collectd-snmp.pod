@@ -30,6 +30,22 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       #FilterValues "1", "2"
       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
     </Data>
+    <Data "lancom_stations_total">
+        Type "counter"
+        PluginInstance "stations_total"
+        Table true
+        Count true
+        Values "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10" # SNMPv2-SMI::enterprises.lancom-systems.lcos.lcsStatus.lcsStatusWlan.lcsStatusWlanStationTableTable.lcsStatusWlanStationTableEntry.lcsStatusWlanStationTableEntryState
+    </Data>
+    <Data "lancom_stations_connected">
+        Type "counter"
+        PluginInstance "stations_connected"
+        Table true
+        Count true
+        Values "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10" # SNMPv2-SMI::enterprises.lancom-systems.lcos.lcsStatus.lcsStatusWlan.lcsStatusWlanStationTableTable.lcsStatusWlanStationTableEntry.lcsStatusWlanStationTableEntryState
+        FilterOID "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10"
+        FilterValues "3" # eConnected
+    </Data>
 
     <Host "some.switch.mydomain.org">
       Address "192.168.0.2"
@@ -126,13 +142,14 @@ written.
 
 When B<Table> is set to B<true>, the OIDs given to B<Values>, B<TypeInstanceOID>,
 B<PluginInstanceOID>, B<HostOID> and B<FilterOID> (see below) are queried using
-the C<GETNEXT> SNMP command until the subtree is left. After all
-the lists (think: all columns of the table) have been read B<several> values
-sets will be dispatches and, eventually, several files will be written. If you
+the C<GETNEXT> SNMP command until the subtree is left. After all the lists
+(think: all columns of the table) have been read, either (B<Count> set to B<false>)
+B<several> value sets will be dispatched and, eventually, several files will be
+written, or (B<Count> set to B<true>) one single value will be dispatched. If you
 configure a B<Type> (see above) which needs more than one data source (for
 example C<if_octets> which needs C<rx> and C<tx>) you will need to specify more
-than one (two, in the example case) OIDs with the B<Values> option. This has
-nothing to do with the B<Table> setting.
+than one (two, in the example case) OIDs with the B<Values> option and can't use
+the B<Count> option. This has nothing to do with the B<Table> setting.
 
 For example, if you want to query the number of users on a system, you can use
 C<HOST-RESOURCES-MIB::hrSystemNumUsers.0>. This is one value and belongs to one
@@ -191,7 +208,8 @@ as the value.
 Prefix may be set for values with use of appropriate B<TypeInstancePrefix>,
 B<PluginInstancePrefix> and B<HostPrefix> options.
 
-When B<Table> is set to I<false> these options has no effect.
+When B<Table> is set to I<false> or B<Count> is set to I<true>, these options
+have no effect.
 
 Defaults: When no one of these options is configured explicitly,
 B<TypeInstanceOID> defaults to an empty string.
@@ -207,7 +225,8 @@ B<PluginInstanceOID> and B<HostOID> respectively.
 
 If set, I<String> is preprended to values received by querying the agent.
 
-When B<Table> is set to I<false> these options has no effect.
+When B<Table> is set to I<false> or B<Count> is set to I<true>, these options
+have no effect.
 
 The C<UPS-MIB> is an example where you need this setting: It has voltages of
 the inlets, outlets and the battery of an UPS. However, it doesn't provide a
@@ -250,6 +269,16 @@ If B<Table> is set to I<false>, each I<OID> must be the OID of exactly one
 value, e.E<nbsp>g. C<IF-MIB::ifInOctets.3> for the third counter of incoming
 traffic.
 
+=item B<Count> I<true|false>
+
+Instead of dispatching one or multiple values per Table entry containing the
+I<OID>(s) given in the B<Values> option, just dispatch a single count giving the
+number of entries that would have been dispatched. This is especially useful when
+combined with the filtering options (see below) to count the number of entries in
+a Table matching certain criteria.
+
+When B<Table> is set to I<false>, this option has no effect.
+
 =item B<Scale> I<Value>
 
 The gauge-values returned by the SNMP-agent are multiplied by I<Value>.  This
@@ -280,8 +309,8 @@ When B<Table> is set to I<false> then this option has no effect.
 =item B<InvertMatch> I<true|false(default)>
 
 The invertmatch value should be use in combination of the Ignore option.
-It changes the behaviour of the Ignore option, from a blacklist behaviour
-when InvertMatch is set to false, to a whitelist when specified to true.
+It changes the behaviour of the Ignore option, from a blocklist behaviour
+when InvertMatch is set to false, to a allowlist when specified to true.
 
 =item B<FilterOID> I<OID>
 

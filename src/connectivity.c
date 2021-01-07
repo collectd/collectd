@@ -743,7 +743,7 @@ static int start_netlink_thread(void) /* {{{ */
   }
 
   status = plugin_thread_create(&connectivity_netlink_thread_id,
-                                /* attr = */ NULL, connectivity_netlink_thread,
+                                connectivity_netlink_thread,
                                 /* arg = */ (void *)0, "connectivity");
   if (status != 0) {
     connectivity_netlink_thread_loop = 0;
@@ -778,10 +778,9 @@ static int start_dequeue_thread(void) /* {{{ */
 
   connectivity_dequeue_thread_loop = 1;
 
-  int status =
-      plugin_thread_create(&connectivity_dequeue_thread_id,
-                           /* attr = */ NULL, connectivity_dequeue_thread,
-                           /* arg = */ (void *)0, "connectivity");
+  int status = plugin_thread_create(&connectivity_dequeue_thread_id,
+                                    connectivity_dequeue_thread,
+                                    /* arg = */ (void *)0, "connectivity");
   if (status != 0) {
     connectivity_dequeue_thread_loop = 0;
     ERROR("connectivity plugin: Starting dequeue thread failed.");

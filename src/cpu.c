@@ -58,15 +58,14 @@
 #include <sys/sysinfo.h>
 #endif /* HAVE_LIBKSTAT */
 
-#if (defined(HAVE_SYSCTL) && HAVE_SYSCTL) ||                                   \
-    (defined(HAVE_SYSCTLBYNAME) && HAVE_SYSCTLBYNAME)
-#ifdef HAVE_SYS_SYSCTL_H
+#if (defined(HAVE_SYSCTL) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
+/* Implies BSD variant */
 #include <sys/sysctl.h>
 #endif
 
 #ifdef HAVE_SYS_DKSTAT_H
+/* implies BSD variant */
 #include <sys/dkstat.h>
-#endif
 
 #if !defined(CP_USER) || !defined(CP_NICE) || !defined(CP_SYS) ||              \
     !defined(CP_INTR) || !defined(CP_IDLE) || !defined(CPUSTATES)
@@ -77,18 +76,19 @@
 #define CP_IDLE 4
 #define CPUSTATES 5
 #endif
-#endif /* HAVE_SYSCTL || HAVE_SYSCTLBYNAME */
+#endif /* HAVE_SYS_DKSTAT_H */
 
-#if HAVE_SYSCTL
+#if (defined(HAVE_SYSCTL) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
+/* Implies BSD variant */
 #if defined(CTL_HW) && defined(HW_NCPU) && defined(CTL_KERN) &&                \
-    defined(KERN_CPTIME) && defined(CPUSTATES)
+    (defined(KERN_CPTIME) || defined(KERN_CP_TIME)) && defined(CPUSTATES)
 #define CAN_USE_SYSCTL 1
 #else
 #define CAN_USE_SYSCTL 0
 #endif
 #else
 #define CAN_USE_SYSCTL 0
-#endif
+#endif /* HAVE_SYSCTL_H && HAVE_SYSCTLBYNAME || __OpenBSD__ */
 
 #define COLLECTD_CPU_STATE_USER 0
 #define COLLECTD_CPU_STATE_SYSTEM 1
@@ -146,10 +146,12 @@ static int numcpu;
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
+/* Only possible for (Open) BSD variant */
 static int numcpu;
 /* #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME)
+/* Implies BSD variant */
 static int numcpu;
 #ifdef HAVE_SYSCTL_KERN_CP_TIMES
 static int maxcpu;
@@ -270,6 +272,7 @@ static int init(void) {
       /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
+  /* Only on (Open) BSD variant */
   size_t numcpu_size;
   int mib[2] = {CTL_HW, HW_NCPU};
   int status;
@@ -282,9 +285,10 @@ static int init(void) {
     WARNING("cpu plugin: sysctl: %s", STRERRNO);
     return -1;
   }
-    /* #endif CAN_USE_SYSCTL */
+  /* #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME)
+  /* Only on BSD varient */
   size_t numcpu_size;
 
   numcpu_size = sizeof(numcpu);
@@ -307,11 +311,11 @@ static int init(void) {
            "%i)",
            numcpu);
 #endif
-    /* #endif HAVE_SYSCTLBYNAME */
+  /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
-/* nothing to initialize */
-/* #endif HAVE_LIBSTATGRAB */
+  /* nothing to initialize */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
 /* nothing to initialize */
@@ -630,7 +634,7 @@ static int cpu_read(void) {
     cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE,
               (derive_t)cpu_info.cpu_ticks[CPU_STATE_IDLE], now);
   }
-    /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
+  /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX) /* {{{ */
   int cpu;
@@ -729,9 +733,10 @@ static int cpu_read(void) {
     cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_WAIT,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_WAIT], now);
   }
-    /* }}} #endif defined(HAVE_LIBKSTAT) */
+  /* }}} #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL /* {{{ */
+  /* Only on (Open) BSD variant */
   uint64_t cpuinfo[numcpu][CPUSTATES];
   size_t cpuinfo_size;
   int status;
@@ -744,6 +749,24 @@ static int cpu_read(void) {
 
   memset(cpuinfo, 0, sizeof(cpuinfo));
 
+#if defined(KERN_CP_TIME) && defined(KERNEL_NETBSD)
+  {
+    int mib[] = {CTL_KERN, KERN_CP_TIME};
+
+    cpuinfo_size = sizeof(cpuinfo[0]) * numcpu * CPUSTATES;
+    status = sysctl(mib, 2, cpuinfo, &cpuinfo_size, NULL, 0);
+    if (status == -1) {
+      char errbuf[1024];
+
+      ERROR("cpu plugin: sysctl failed: %s.",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      return -1;
+    }
+    if (cpuinfo_size == (sizeof(cpuinfo[0]) * CPUSTATES)) {
+      numcpu = 1;
+    }
+  }
+#else /* defined(KERN_CP_TIME) && defined(KERNEL_NETBSD) */
 #if defined(KERN_CPTIME2)
   if (numcpu > 1) {
     for (int i = 0; i < numcpu; i++) {
@@ -777,6 +800,7 @@ static int cpu_read(void) {
       cpuinfo[0][i] = cpuinfo_tmp[i];
     }
   }
+#endif /* defined(KERN_CP_TIME) && defined(KERNEL_NETBSD) */
 
   for (int i = 0; i < numcpu; i++) {
     cpu_stage(i, COLLECTD_CPU_STATE_USER, (derive_t)cpuinfo[i][CP_USER], now);
@@ -786,10 +810,11 @@ static int cpu_read(void) {
     cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
               now);
   }
-    /* }}} #endif CAN_USE_SYSCTL */
+  /* }}} #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES) /* {{{  \
                                                                         */
+  /* Only on BSD variant */
   long cpuinfo[maxcpu][CPUSTATES];
   size_t cpuinfo_size;
 
@@ -809,9 +834,10 @@ static int cpu_read(void) {
     cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
               now);
   }
-    /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
+  /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
 #elif defined(HAVE_SYSCTLBYNAME) /* {{{ */
+  /* Only on BSD variant */
   long cpuinfo[CPUSTATES];
   size_t cpuinfo_size;
 

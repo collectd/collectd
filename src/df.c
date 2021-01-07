@@ -47,18 +47,21 @@
 #endif
 
 static const char *config_keys[] = {
-    "Device",         "MountPoint",   "FSType",         "IgnoreSelected",
-    "ReportByDevice", "ReportInodes", "ValuesAbsolute", "ValuesPercentage"};
+    "Device",         "MountPoint",       "FSType",
+    "IgnoreSelected", "ReportByDevice",   "ReportInodes",
+    "ValuesAbsolute", "ValuesPercentage", "LogOnce"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *il_device;
 static ignorelist_t *il_mountpoint;
 static ignorelist_t *il_fstype;
+static ignorelist_t *il_errors;
 
 static bool by_device;
 static bool report_inodes;
 static bool values_absolute = true;
 static bool values_percentage;
+static bool log_once;
 
 static int df_init(void) {
   if (il_device == NULL)
@@ -67,6 +70,8 @@ static int df_init(void) {
     il_mountpoint = ignorelist_create(1);
   if (il_fstype == NULL)
     il_fstype = ignorelist_create(1);
+  if (il_errors == NULL)
+    il_errors = ignorelist_create(1);
 
   return 0;
 }
@@ -121,6 +126,13 @@ static int df_config(const char *key, const char *value) {
       values_percentage = true;
     else
       values_percentage = false;
+
+    return 0;
+  } else if (strcasecmp(key, "LogOnce") == 0) {
+    if (IS_TRUE(value))
+      log_once = true;
+    else
+      log_once = false;
 
     return 0;
   }
@@ -203,8 +215,17 @@ static int df_read(void) {
       continue;
 
     if (STATANYFS(mnt_ptr->dir, &statbuf) < 0) {
-      ERROR(STATANYFS_STR "(%s) failed: %s", mnt_ptr->dir, STRERRNO);
+      if (log_once == false || ignorelist_match(il_errors, mnt_ptr->dir) == 0) {
+        if (log_once == true) {
+          ignorelist_add(il_errors, mnt_ptr->dir);
+        }
+        ERROR(STATANYFS_STR "(%s) failed: %s", mnt_ptr->dir, STRERRNO);
+      }
       continue;
+    } else {
+      if (log_once == true) {
+        ignorelist_remove(il_errors, mnt_ptr->dir);
+      }
     }
 
     if (!statbuf.f_blocks)
