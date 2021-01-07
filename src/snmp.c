@@ -94,6 +94,10 @@ struct host_definition_s {
   char *priv_passphrase;
   int security_level;
   char *context;
+  char *local_cert;
+  char *peer_cert;
+  char *peer_hostname;
+  char *trust_cert;
 
   void *sess_handle;
   c_complain_t complaint;
@@ -209,6 +213,10 @@ static void csnmp_host_definition_destroy(void *arg) /* {{{ */
   sfree(hd->username);
   sfree(hd->auth_passphrase);
   sfree(hd->priv_passphrase);
+  sfree(hd->local_cert);
+  sfree(hd->peer_cert);
+  sfree(hd->peer_hostname);
+  sfree(hd->trust_cert);
   sfree(hd->context);
   sfree(hd->data_list);
 
@@ -794,6 +802,14 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       status = cf_util_get_string(option, &hd->priv_passphrase);
     else if (strcasecmp("SecurityLevel", option->key) == 0)
       status = csnmp_config_add_host_security_level(hd, option);
+    else if (strcasecmp("LocalCert", option->key) == 0)
+      status = cf_util_get_string(option, &hd->local_cert);
+    else if (strcasecmp("PeerCert", option->key) == 0)
+      status = cf_util_get_string(option, &hd->peer_cert);
+    else if (strcasecmp("PeerHostname", option->key) == 0)
+      status = cf_util_get_string(option, &hd->peer_hostname);
+    else if (strcasecmp("TrustCert", option->key) == 0)
+      status = cf_util_get_string(option, &hd->trust_cert);
     else if (strcasecmp("Context", option->key) == 0)
       status = cf_util_get_string(option, &hd->context);
     else if (strcasecmp("BulkSize", option->key) == 0)
@@ -826,44 +842,54 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
               hd->name, hd->version);
     }
     if (hd->version == 3) {
-      if (hd->username == NULL) {
-        WARNING("snmp plugin: `Username' not given for host `%s'", hd->name);
-        status = -1;
-        break;
-      }
-      if (hd->security_level == 0) {
-        WARNING("snmp plugin: `SecurityLevel' not given for host `%s'",
-                hd->name);
-        status = -1;
-        break;
-      }
-      if (hd->security_level == SNMP_SEC_LEVEL_AUTHNOPRIV ||
-          hd->security_level == SNMP_SEC_LEVEL_AUTHPRIV) {
-        if (hd->auth_protocol == NULL) {
-          WARNING("snmp plugin: `AuthProtocol' not given for host `%s'",
+      if (hd->local_cert != NULL) {
+        if (hd->peer_cert == NULL && hd->trust_cert == NULL) {
+          WARNING("snmp plugin: `LocalCert' present but neither 'PeerCert'"
+                  " nor 'TrustCert' present for host `%s'",
                   hd->name);
           status = -1;
           break;
         }
-        if (hd->auth_passphrase == NULL) {
-          WARNING("snmp plugin: `AuthPassphrase' not given for host `%s'",
+      } else {
+        if (hd->username == NULL) {
+          WARNING("snmp plugin: `Username' not given for host `%s'", hd->name);
+          status = -1;
+          break;
+        }
+        if (hd->security_level == 0) {
+          WARNING("snmp plugin: `SecurityLevel' not given for host `%s'",
                   hd->name);
           status = -1;
           break;
         }
-      }
-      if (hd->security_level == SNMP_SEC_LEVEL_AUTHPRIV) {
-        if (hd->priv_protocol == NULL) {
-          WARNING("snmp plugin: `PrivacyProtocol' not given for host `%s'",
-                  hd->name);
-          status = -1;
-          break;
+        if (hd->security_level == SNMP_SEC_LEVEL_AUTHNOPRIV ||
+            hd->security_level == SNMP_SEC_LEVEL_AUTHPRIV) {
+          if (hd->auth_protocol == NULL) {
+            WARNING("snmp plugin: `AuthProtocol' not given for host `%s'",
+                    hd->name);
+            status = -1;
+            break;
+          }
+          if (hd->auth_passphrase == NULL) {
+            WARNING("snmp plugin: `AuthPassphrase' not given for host `%s'",
+                    hd->name);
+            status = -1;
+            break;
+          }
         }
-        if (hd->priv_passphrase == NULL) {
-          WARNING("snmp plugin: `PrivacyPassphrase' not given for host `%s'",
-                  hd->name);
-          status = -1;
-          break;
+        if (hd->security_level == SNMP_SEC_LEVEL_AUTHPRIV) {
+          if (hd->priv_protocol == NULL) {
+            WARNING("snmp plugin: `PrivacyProtocol' not given for host `%s'",
+                    hd->name);
+            status = -1;
+            break;
+          }
+          if (hd->priv_passphrase == NULL) {
+            WARNING("snmp plugin: `PrivacyPassphrase' not given for host `%s'",
+                    hd->name);
+            status = -1;
+            break;
+          }
         }
       }
     }
@@ -937,38 +963,80 @@ static void csnmp_host_open_session(host_definition_t *host) {
   }
 
   if (host->version == 3) {
-    sess.securityName = host->username;
-    sess.securityNameLen = strlen(host->username);
-    sess.securityLevel = host->security_level;
 
-    if (sess.securityLevel == SNMP_SEC_LEVEL_AUTHNOPRIV ||
-        sess.securityLevel == SNMP_SEC_LEVEL_AUTHPRIV) {
-      sess.securityAuthProto = host->auth_protocol;
-      sess.securityAuthProtoLen = host->auth_protocol_len;
-      sess.securityAuthKeyLen = USM_AUTH_KU_LEN;
-      error = generate_Ku(sess.securityAuthProto, sess.securityAuthProtoLen,
-                          (u_char *)host->auth_passphrase,
-                          strlen(host->auth_passphrase), sess.securityAuthKey,
-                          &sess.securityAuthKeyLen);
-      if (error != SNMPERR_SUCCESS) {
-        ERROR("snmp plugin: host %s: Error generating Ku from auth_passphrase. "
-              "(Error %d)",
-              host->name, error);
+    /* use TLS/DTLS... */
+    if (host->local_cert != NULL) {
+
+      if (sess.transport_configuration == NULL) {
+        netsnmp_container_init_list();
+        sess.transport_configuration =
+            netsnmp_container_find("transport_configuration:fifo");
+        if (sess.transport_configuration == NULL) {
+          ERROR("snmp plugin: host %s: Failed to initialize the transport "
+                "configuration container.",
+                host->name);
+        }
+        sess.transport_configuration->compare =
+            (netsnmp_container_compare *)netsnmp_transport_config_compare;
       }
-    }
 
-    if (sess.securityLevel == SNMP_SEC_LEVEL_AUTHPRIV) {
-      sess.securityPrivProto = host->priv_protocol;
-      sess.securityPrivProtoLen = host->priv_protocol_len;
-      sess.securityPrivKeyLen = USM_PRIV_KU_LEN;
-      error = generate_Ku(sess.securityAuthProto, sess.securityAuthProtoLen,
-                          (u_char *)host->priv_passphrase,
-                          strlen(host->priv_passphrase), sess.securityPrivKey,
-                          &sess.securityPrivKeyLen);
-      if (error != SNMPERR_SUCCESS) {
-        ERROR("snmp plugin: host %s: Error generating Ku from priv_passphrase. "
+      CONTAINER_INSERT(
+          sess.transport_configuration,
+          netsnmp_transport_create_config("localCert", host->local_cert));
+      if (host->peer_cert != NULL) {
+        CONTAINER_INSERT(
+            sess.transport_configuration,
+            netsnmp_transport_create_config("peerCert", host->peer_cert));
+      }
+      if (host->peer_hostname != NULL) {
+        CONTAINER_INSERT(sess.transport_configuration,
+                         netsnmp_transport_create_config("peerHostname",
+                                                         host->peer_hostname));
+      }
+      if (host->trust_cert != NULL) {
+        CONTAINER_INSERT(
+            sess.transport_configuration,
+            netsnmp_transport_create_config("trustCert", host->trust_cert));
+      }
+
+    } else /* ...otherwise use shared secrets */
+    {
+
+      sess.securityName = host->username;
+      sess.securityNameLen = strlen(host->username);
+      sess.securityLevel = host->security_level;
+
+      if (sess.securityLevel == SNMP_SEC_LEVEL_AUTHNOPRIV ||
+          sess.securityLevel == SNMP_SEC_LEVEL_AUTHPRIV) {
+        sess.securityAuthProto = host->auth_protocol;
+        sess.securityAuthProtoLen = host->auth_protocol_len;
+        sess.securityAuthKeyLen = USM_AUTH_KU_LEN;
+        error = generate_Ku(sess.securityAuthProto, sess.securityAuthProtoLen,
+                            (u_char *)host->auth_passphrase,
+                            strlen(host->auth_passphrase), sess.securityAuthKey,
+                            &sess.securityAuthKeyLen);
+        if (error != SNMPERR_SUCCESS) {
+          ERROR(
+              "snmp plugin: host %s: Error generating Ku from auth_passphrase. "
               "(Error %d)",
               host->name, error);
+        }
+      }
+
+      if (sess.securityLevel == SNMP_SEC_LEVEL_AUTHPRIV) {
+        sess.securityPrivProto = host->priv_protocol;
+        sess.securityPrivProtoLen = host->priv_protocol_len;
+        sess.securityPrivKeyLen = USM_PRIV_KU_LEN;
+        error = generate_Ku(sess.securityAuthProto, sess.securityAuthProtoLen,
+                            (u_char *)host->priv_passphrase,
+                            strlen(host->priv_passphrase), sess.securityPrivKey,
+                            &sess.securityPrivKeyLen);
+        if (error != SNMPERR_SUCCESS) {
+          ERROR(
+              "snmp plugin: host %s: Error generating Ku from priv_passphrase. "
+              "(Error %d)",
+              host->name, error);
+        }
       }
     }
 
