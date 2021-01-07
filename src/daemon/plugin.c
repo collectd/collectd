@@ -1357,7 +1357,8 @@ EXPORT int plugin_register_cache_event(const char *name,
   user_data_t user_data;
   if (ud == NULL) {
     user_data = (user_data_t){
-        .data = NULL, .free_func = NULL,
+        .data = NULL,
+        .free_func = NULL,
     };
   } else {
     user_data = *ud;
@@ -2122,18 +2123,20 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   assert(0 == strcmp(ds->type, vl->type));
 #else
   if (0 != strcmp(ds->type, vl->type))
-    WARNING("plugin_dispatch_values: (ds->type = %s) != (vl->type = %s)",
-            ds->type, vl->type);
+    WARNING(
+        "plugin_dispatch_values: <%s/%s-%s> (ds->type = %s) != (vl->type = %s)",
+        vl->host, vl->plugin, vl->plugin_instance, ds->type, vl->type);
 #endif
 
 #if COLLECT_DEBUG
   assert(ds->ds_num == vl->values_len);
 #else
   if (ds->ds_num != vl->values_len) {
-    ERROR("plugin_dispatch_values: ds->type = %s: "
+    ERROR("plugin_dispatch_values: <%s/%s-%s/%s-%s> ds->type = %s: "
           "(ds->ds_num = %" PRIsz ") != "
           "(vl->values_len = %" PRIsz ")",
-          ds->type, ds->ds_num, vl->values_len);
+          vl->host, vl->plugin, vl->plugin_instance, vl->type,
+          vl->type_instance, ds->type, ds->ds_num, vl->values_len);
     return -1;
   }
 #endif
@@ -2728,9 +2731,8 @@ static void *plugin_thread_start(void *arg) {
   return start_routine(plugin_arg);
 } /* void *plugin_thread_start */
 
-int plugin_thread_create(pthread_t *thread, const pthread_attr_t *attr,
-                         void *(*start_routine)(void *), void *arg,
-                         char const *name) {
+int plugin_thread_create(pthread_t *thread, void *(*start_routine)(void *),
+                         void *arg, char const *name) {
   plugin_thread_t *plugin_thread;
 
   plugin_thread = malloc(sizeof(*plugin_thread));
@@ -2741,7 +2743,7 @@ int plugin_thread_create(pthread_t *thread, const pthread_attr_t *attr,
   plugin_thread->start_routine = start_routine;
   plugin_thread->arg = arg;
 
-  int ret = pthread_create(thread, attr, plugin_thread_start, plugin_thread);
+  int ret = pthread_create(thread, NULL, plugin_thread_start, plugin_thread);
   if (ret != 0) {
     sfree(plugin_thread);
     return ret;

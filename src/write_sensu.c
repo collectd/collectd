@@ -111,6 +111,7 @@ struct sensu_host {
   bool metrics;
   bool store_rates;
   bool always_append_ds;
+  bool include_source;
   char *separator;
   char *node;
   char *service;
@@ -369,6 +370,16 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
       ERROR("write_sensu plugin: Unable to alloc memory");
       return NULL;
     }
+  }
+
+  if (host->include_source) {
+    res = my_asprintf(&temp_str, "%s, \"source\": \"%s\"", ret_str, vl->host);
+    free(ret_str);
+    if (res == -1) {
+      ERROR("write_sensu plugin: Unable to alloc memory");
+      return NULL;
+    }
+    ret_str = temp_str;
   }
 
   // incorporate the plugin name information
@@ -697,6 +708,16 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
   }
   ret_str = temp_str;
 
+  if (host->include_source) {
+    res = my_asprintf(&temp_str, "%s, \"source\": \"%s\"", ret_str, n->host);
+    free(ret_str);
+    if (res == -1) {
+      ERROR("write_sensu plugin: Unable to alloc memory");
+      return NULL;
+    }
+    ret_str = temp_str;
+  }
+
   char *handlers_str =
       build_json_str_list("handlers", &(host->notification_handlers));
   if (handlers_str == NULL) {
@@ -1022,6 +1043,7 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
   host->metrics = false;
   host->store_rates = true;
   host->always_append_ds = false;
+  host->include_source = false;
   host->metric_handlers.nb_strs = 0;
   host->metric_handlers.strs = NULL;
   host->notification_handlers.nb_strs = 0;
@@ -1092,6 +1114,10 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
         break;
     } else if (strcasecmp("AlwaysAppendDS", child->key) == 0) {
       status = cf_util_get_boolean(child, &host->always_append_ds);
+      if (status != 0)
+        break;
+    } else if (strcasecmp("IncludeSource", child->key) == 0) {
+      status = cf_util_get_boolean(child, &host->include_source);
       if (status != 0)
         break;
     } else {

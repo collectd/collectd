@@ -52,6 +52,7 @@
 %define with_bind 0%{!?_without_bind:1}
 %define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
+%define with_check_uptime 0%{!?_without_check_uptime:1}
 %define with_chrony 0%{!?_without_chrony:1}
 %define with_connectivity 0%{!?_without_connectivity:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
@@ -75,6 +76,7 @@
 %define with_fhcount 0%{!?_without_fhcount:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
+%define with_ganglia 0%{!?_without_ganglia:1}
 %define with_gmond 0%{!?_without_gmond:1}
 %define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
@@ -184,6 +186,8 @@
 %define with_dpdkevents 0%{!?_without_dpdkevents:0}
 # plugin dpdkstat disabled, requires libdpdk
 %define with_dpdkstat 0%{!?_without_dpdkstat:0}
+# plugin dpdk_telemetry disabled, requires libdpdk
+%define with_dpdk_telemetry 0%{!?_without_dpdk_telemetry:0}
 # plugin grpc disabled, requires protobuf-compiler >= 3.0
 %define with_grpc 0%{!?_without_grpc:0}
 # plugin lpar disabled, requires AIX
@@ -224,26 +228,16 @@
 %define with_gpu_nvidia 0%{!?_without_gpu_nvidia:0}
 # not sure why this one's failing
 %define with_write_stackdriver 0%{!?_without_write_stackdriver:0}
-
-# Plugins not buildable on RHEL < 6
-%if 0%{?rhel} && 0%{?rhel} < 6
-%define with_ceph 0
-%define with_curl_json 0
-%define with_log_logstash 0
-%define with_dns 0
-%define with_ethstat 0
-%define with_gmond 0
-%define with_iptables 0
-%define with_ipvs 0
-%define with_modbus 0
-%define with_netlink 0
-%define with_redis 0
-%define with_smart 0
-%define with_turbostat 0
-%define with_write_prometheus 0
-%define with_write_redis 0
-%define with_write_riemann 0
-%endif
+# not available in el or epel
+%define with_slurm 0%{!?_without_slurm:0}
+# not available in el or epel
+%define with_redfish 0%{!?_without_redfish:0}
+# not available in el or epel
+%define with_dcpmm 0%{!?_without_dcpmm:0}
+# not available in el or epel
+%define with_capabilities 0%{!?_without_capabilities:0}
+# not available in el or epel
+%define with_ipstats 0%{!?_without_ipstats:0}
 
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
@@ -256,16 +250,30 @@
 %define with_procevent 0
 %define with_redis 0
 %define with_rrdcached 0
+%define with_smart 0
 %define with_sysevent 0
+# missing /usr/include/varnish/vapi/vsc.h
+%define with_varnish 0
 %define with_write_redis 0
 %define with_write_riemann 0
 %define with_xmms 0
 %endif
 
+# Plugins not buildable on RHEL 8
+%if 0%{?rhel} && 0%{?rhel} >= 8
+%define with_smart 0
+%define with_ganglia 0
+%define with_gmond 0
+%define with_gps 0
+%define with_modbus 0
+%define with_ping 0
+%define with_mqtt 0
+%endif
+
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.9.2
-Release:	2%{?dist}
+Version:	5.11.0
+Release:	1%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -742,11 +750,7 @@ Summary:	Perl plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
-	%if 0%{?rhel} && 0%{?rhel} < 6
-BuildRequires:	perl
-	%else
 BuildRequires:	perl-ExtUtils-Embed
-	%endif
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
@@ -810,11 +814,11 @@ Monitors process starts/stops via netlink library.
 Summary:	Python plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-	%if 0%{?rhel} && 0%{?rhel} < 6
-BuildRequires: python26-devel
-	%else
-BuildRequires: python-devel
-	%endif
+%if 0%{?rhel} && 0%{?rhel} >= 8
+BuildRequires: python3-devel
+%else
+BuildRequires: python2-devel
+%endif
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
 application programming interface (API) to Python-scripts.
@@ -997,6 +1001,16 @@ The write_stackdriver collectd plugin writes metrics to the
 Google Stackdriver Monitoring service.
 %endif
 
+%if %{with_write_syslog}
+%package write_syslog
+Summary:	write_syslog plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description write_syslog
+The write_syslog collectd plugin writes metrics to syslog
+using JSON or RFC5424 formatting
+%endif
+
 %if %{with_gpu_nvidia}
 %package gpu_nvidia
 Summary:	stackdriver plugin for collectd
@@ -1147,10 +1161,22 @@ Collectd utilities
 %define _with_bind --disable-bind
 %endif
 
+%if %{with_capabilities}
+%define _with_capabilities --enable-capabilities
+%else
+%define _with_capabilities --disable-capabilities
+%endif
+
 %if %{with_cgroups}
 %define _with_cgroups --enable-cgroups
 %else
 %define _with_cgroups --disable-cgroups
+%endif
+
+%if %{with_check_uptime}
+%define _with_check_uptime --enable-check_uptime
+%else
+%define _with_check_uptime --disable-check_uptime
 %endif
 
 %if %{with_chrony}
@@ -1231,6 +1257,12 @@ Collectd utilities
 %define _with_dbi --disable-dbi
 %endif
 
+%if %{with_dcpmm}
+%define _with_dcpmm --enable-dcpmm
+%else
+%define _with_dcpmm --disable-dcpmm
+%endif
+
 %if %{with_df}
 %define _with_df --enable-df
 %else
@@ -1265,6 +1297,12 @@ Collectd utilities
 %define _with_dpdkstat --enable-dpdkstat
 %else
 %define _with_dpdkstat --disable-dpdkstat
+%endif
+
+%if %{with_dpdk_telemetry}
+%define _with_dpdk_telemetry --enable-dpdk_telemetry
+%else
+%define _with_dpdk_telemetry --disable-dpdk_telemetry
 %endif
 
 %if %{with_email}
@@ -1307,6 +1345,12 @@ Collectd utilities
 %define _with_fscache --enable-fscache
 %else
 %define _with_fscache --disable-fscache
+%endif
+
+%if %{with_ganglia}
+%define _with_ganglia --enable-ganglia
+%else
+%define _with_ganglia --disable-ganglia
 %endif
 
 %if %{with_gmond}
@@ -1367,6 +1411,12 @@ Collectd utilities
 %define _with_ipmi --enable-ipmi
 %else
 %define _with_ipmi --disable-ipmi
+%endif
+
+%if %{with_ipstats}
+%define _with_ipstats --enable-ipstats
+%else
+%define _with_ipstats --disable-ipstats
 %endif
 
 %if %{with_iptables}
@@ -1670,14 +1720,15 @@ Collectd utilities
 %endif
 
 %if %{with_python}
-	%if 0%{?rhel} && 0%{?rhel} < 6
-%define _with_python --enable-python --with-python=%{_bindir}/python2.6
-%define _python_config PYTHON_CONFIG="%{_bindir}/python2.6-config"
-	%else
 %define _with_python --enable-python
-	%endif
 %else
 %define _with_python --disable-python
+%endif
+
+%if %{with_redfish}
+%define _with_redfish --enable-redfish
+%else
+%define _with_redfish --disable-redfish
 %endif
 
 %if %{with_redis}
@@ -1720,6 +1771,12 @@ Collectd utilities
 %define _with_sigrok --enable-sigrok
 %else
 %define _with_sigrok --disable-sigrok
+%endif
+
+%if %{with_slurm}
+%define _with_slurm --enable-slurm
+%else
+%define _with_slurm --disable-slurm
 %endif
 
 %if %{with_smart}
@@ -2024,8 +2081,10 @@ Collectd utilities
 	%{?_with_barometer} \
 	%{?_with_battery} \
 	%{?_with_bind} \
+	%{?_with_capabilities} \
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
+	%{?_with_check_uptime} \
 	%{?_with_chrony} \
 	%{?_with_connectivity} \
 	%{?_with_conntrack} \
@@ -2038,12 +2097,14 @@ Collectd utilities
 	%{?_with_curl_xml} \
 	%{?_with_curl} \
 	%{?_with_dbi} \
+	%{?_with_dcpmm} \
 	%{?_with_df} \
 	%{?_with_disk} \
 	%{?_with_dns} \
 	%{?_with_drbd} \
 	%{?_with_dpdkevents} \
 	%{?_with_dpdkstat} \
+	%{?_with_dpdk_telemetry} \
 	%{?_with_email} \
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
@@ -2061,6 +2122,7 @@ Collectd utilities
 	%{?_with_interface} \
 	%{?_with_ipc} \
 	%{?_with_ipmi} \
+	%{?_with_ipstats} \
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
 	%{?_with_irq} \
@@ -2070,6 +2132,7 @@ Collectd utilities
 	%{?_with_logfile} \
 	%{?_with_lpar} \
 	%{?_with_lua} \
+	--disable-lvm \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
 	%{?_with_mcelog} \
@@ -2111,6 +2174,7 @@ Collectd utilities
 	%{?_with_procevent} \
 	%{?_with_protocols} \
 	%{?_with_python} \
+	%{?_with_redfish} \
 	%{?_with_redis} \
 	%{?_with_routeros} \
 	%{?_with_rrdcached} \
@@ -2118,6 +2182,7 @@ Collectd utilities
 	%{?_with_sensors} \
 	%{?_with_serial} \
 	%{?_with_sigrok} \
+	%{?_with_slurm} \
 	%{?_with_smart} \
 	%{?_with_snmp} \
 	%{?_with_snmp_agent} \
@@ -2309,6 +2374,9 @@ fi
 %endif
 %if %{with_cgroups}
 %{_libdir}/%{name}/cgroups.so
+%endif
+%if %{with_check_uptime}
+%{_libdir}/%{name}/check_uptime.so
 %endif
 %if %{with_conntrack}
 %{_libdir}/%{name}/conntrack.so
@@ -2508,6 +2576,11 @@ fi
 %if %{with_zookeeper}
 %{_libdir}/%{name}/zookeeper.so
 %endif
+#TODO put those in separate packages
+%{_libdir}/%{name}/buddyinfo.so
+%{_libdir}/%{name}/logparser.so
+%{_libdir}/%{name}/ubi.so
+%{_libdir}/%{name}/write_influxdb_udp.so
 
 %files -n libcollectdclient-devel
 %{_includedir}/collectd/client.h
@@ -2877,6 +2950,11 @@ fi
 %{_libdir}/%{name}/write_stackdriver.so
 %endif
 
+%if %{with_write_syslog}
+%files write_syslog
+%{_libdir}/%{name}/write_syslog.so
+%endif
+
 %if %{with_gpu_nvidia}
 %files write_gpu_nvidia
 %{_libdir}/%{name}/write_gpu_nvidia.so
@@ -2904,6 +2982,12 @@ fi
 %doc contrib/
 
 %changelog
+* Mon Mar 16 2020 Matthias Runge <mrunge@redhat.com> - 5.11.0-1
+- update to 5.11.0
+
+* Fri Oct 18 2019 Matthias Runge <mrunge@redhat.com> - 5.10.0-1
+- update to 5.10.0
+
 * Mon Oct 14 2019 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.9.2-2
 - Remove lvm plugin, liblvmapp has been deprecated upstream
 

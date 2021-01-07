@@ -58,17 +58,18 @@ struct mysql_database_s /* {{{ */
   int port;
   int timeout;
 
-  bool master_stats;
-  bool slave_stats;
+  bool primary_stats;
+  bool replica_stats;
   bool innodb_stats;
   bool wsrep_stats;
 
-  bool slave_notif;
-  bool slave_io_running;
-  bool slave_sql_running;
+  bool replica_notif;
+  bool replica_io_running;
+  bool replica_sql_running;
 
   MYSQL *con;
   bool is_connected;
+  unsigned long mysql_version;
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 
@@ -147,8 +148,8 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
   db->timeout = 0;
 
   /* trigger a notification, if it's not running */
-  db->slave_io_running = true;
-  db->slave_sql_running = true;
+  db->replica_io_running = true;
+  db->replica_sql_running = true;
 
   status = cf_util_get_string(ci, &db->instance);
   if (status != 0) {
@@ -192,11 +193,11 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("ConnectTimeout", child->key) == 0)
       status = cf_util_get_int(child, &db->timeout);
     else if (strcasecmp("MasterStats", child->key) == 0)
-      status = cf_util_get_boolean(child, &db->master_stats);
+      status = cf_util_get_boolean(child, &db->primary_stats);
     else if (strcasecmp("SlaveStats", child->key) == 0)
-      status = cf_util_get_boolean(child, &db->slave_stats);
+      status = cf_util_get_boolean(child, &db->replica_stats);
     else if (strcasecmp("SlaveNotifications", child->key) == 0)
-      status = cf_util_get_boolean(child, &db->slave_notif);
+      status = cf_util_get_boolean(child, &db->replica_notif);
     else if (strcasecmp("InnodbStats", child->key) == 0)
       status = cf_util_get_boolean(child, &db->innodb_stats);
     else if (strcasecmp("WsrepStats", child->key) == 0)
@@ -299,6 +300,7 @@ static MYSQL *getconnection(mysql_database_t *db) {
 
   cipher = mysql_get_ssl_cipher(db->con);
 
+  db->mysql_version = mysql_get_server_version(db->con);
   INFO("mysql plugin: Successfully connected to database %s "
        "at server %s with cipher %s "
        "(server version: %s, protocol version: %d) ",
@@ -383,7 +385,7 @@ static MYSQL_RES *exec_query(MYSQL *con, const char *query) {
   return res;
 } /* exec_query */
 
-static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
+static int mysql_read_primary_stats(mysql_database_t *db, MYSQL *con) {
   MYSQL_RES *res;
   MYSQL_ROW row;
 
@@ -399,7 +401,7 @@ static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
 
   row = mysql_fetch_row(res);
   if (row == NULL) {
-    ERROR("mysql plugin: Failed to get master statistics: "
+    ERROR("mysql plugin: Failed to get primary statistics: "
           "`%s' did not return any rows.",
           query);
     mysql_free_result(res);
@@ -408,7 +410,7 @@ static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
 
   field_num = mysql_num_fields(res);
   if (field_num < 2) {
-    ERROR("mysql plugin: Failed to get master statistics: "
+    ERROR("mysql plugin: Failed to get primary statistics: "
           "`%s' returned less than two columns.",
           query);
     mysql_free_result(res);
@@ -427,9 +429,9 @@ static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
   mysql_free_result(res);
 
   return 0;
-} /* mysql_read_master_stats */
+} /* mysql_read_primary_stats */
 
-static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
+static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
   MYSQL_RES *res;
   MYSQL_ROW row;
 
@@ -452,7 +454,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
 
   row = mysql_fetch_row(res);
   if (row == NULL) {
-    ERROR("mysql plugin: Failed to get slave statistics: "
+    ERROR("mysql plugin: Failed to get replica statistics: "
           "`%s' did not return any rows.",
           query);
     mysql_free_result(res);
@@ -461,16 +463,26 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
 
   field_num = mysql_num_fields(res);
   if (field_num < 33) {
-    ERROR("mysql plugin: Failed to get slave statistics: "
+    ERROR("mysql plugin: Failed to get replica statistics: "
           "`%s' returned less than 33 columns.",
           query);
     mysql_free_result(res);
     return -1;
   }
 
-  if (db->slave_stats) {
+  if (db->replica_stats) {
     unsigned long long counter;
     double gauge;
+
+    gauge_submit("bool", "slave-sql-running",
+                 (row[SLAVE_SQL_RUNNING_IDX] != NULL) &&
+                     (strcasecmp(row[SLAVE_SQL_RUNNING_IDX], "yes") == 0),
+                 db);
+
+    gauge_submit("bool", "slave-io-running",
+                 (row[SLAVE_IO_RUNNING_IDX] != NULL) &&
+                     (strcasecmp(row[SLAVE_IO_RUNNING_IDX], "yes") == 0),
+                 db);
 
     counter = atoll(row[READ_MASTER_LOG_POS_IDX]);
     derive_submit("mysql_log_position", "slave-read", counter, db);
@@ -484,7 +496,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     }
   }
 
-  if (db->slave_notif) {
+  if (db->replica_notif) {
     notification_t n = {0,  cdtime(),      "", "",  "mysql",
                         "", "time_offset", "", NULL};
 
@@ -500,33 +512,33 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     sstrncpy(n.plugin_instance, db->instance, sizeof(n.plugin_instance));
 
     if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
-        (db->slave_io_running)) {
+        (db->replica_io_running)) {
       n.severity = NOTIF_WARNING;
       ssnprintf(n.message, sizeof(n.message),
-                "slave I/O thread not started or not connected to master");
+                "replica I/O thread not started or not connected to primary");
       plugin_dispatch_notification(&n);
-      db->slave_io_running = false;
+      db->replica_io_running = false;
     } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
-               (!db->slave_io_running)) {
+               (!db->replica_io_running)) {
       n.severity = NOTIF_OKAY;
       ssnprintf(n.message, sizeof(n.message),
-                "slave I/O thread started and connected to master");
+                "replica I/O thread started and connected to primary");
       plugin_dispatch_notification(&n);
-      db->slave_io_running = true;
+      db->replica_io_running = true;
     }
 
     if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
-        (db->slave_sql_running)) {
+        (db->replica_sql_running)) {
       n.severity = NOTIF_WARNING;
-      ssnprintf(n.message, sizeof(n.message), "slave SQL thread not started");
+      ssnprintf(n.message, sizeof(n.message), "replica SQL thread not started");
       plugin_dispatch_notification(&n);
-      db->slave_sql_running = false;
+      db->replica_sql_running = false;
     } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
-               (!db->slave_sql_running)) {
+               (!db->replica_sql_running)) {
       n.severity = NOTIF_OKAY;
-      ssnprintf(n.message, sizeof(n.message), "slave SQL thread started");
+      ssnprintf(n.message, sizeof(n.message), "replica SQL thread started");
       plugin_dispatch_notification(&n);
-      db->slave_sql_running = true;
+      db->replica_sql_running = true;
     }
   }
 
@@ -539,7 +551,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
   mysql_free_result(res);
 
   return 0;
-} /* mysql_read_slave_stats */
+} /* mysql_read_replica_stats */
 
 static int mysql_read_innodb_stats(mysql_database_t *db, MYSQL *con) {
   MYSQL_RES *res;
@@ -592,8 +604,12 @@ static int mysql_read_innodb_stats(mysql_database_t *db, MYSQL *con) {
 
       {NULL, NULL, 0}};
 
-  query = "SELECT name, count, type FROM information_schema.innodb_metrics "
-          "WHERE status = 'enabled'";
+  if (db->mysql_version >= 100500)
+    query = "SELECT name, count, type FROM information_schema.innodb_metrics "
+            "WHERE enabled";
+  else
+    query = "SELECT name, count, type FROM information_schema.innodb_metrics "
+            "WHERE status = 'enabled'";
 
   res = exec_query(con, query);
   if (res == NULL)
@@ -735,7 +751,6 @@ static int mysql_read(user_data_t *ud) {
 
   unsigned long long traffic_incoming = 0ULL;
   unsigned long long traffic_outgoing = 0ULL;
-  unsigned long mysql_version = 0ULL;
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("mysql plugin: mysql_database_read: Invalid user data.");
@@ -748,10 +763,8 @@ static int mysql_read(user_data_t *ud) {
   if ((con = getconnection(db)) == NULL)
     return -1;
 
-  mysql_version = mysql_get_server_version(con);
-
   query = "SHOW STATUS";
-  if (mysql_version >= 50002)
+  if (db->mysql_version >= 50002)
     query = "SHOW GLOBAL STATUS";
 
   res = exec_query(con, query);
@@ -934,14 +947,14 @@ static int mysql_read(user_data_t *ud) {
 
   traffic_submit(traffic_incoming, traffic_outgoing, db);
 
-  if (mysql_version >= 50600 && db->innodb_stats)
+  if (db->mysql_version >= 50600 && db->innodb_stats)
     mysql_read_innodb_stats(db, con);
 
-  if (db->master_stats)
-    mysql_read_master_stats(db, con);
+  if (db->primary_stats)
+    mysql_read_primary_stats(db, con);
 
-  if ((db->slave_stats) || (db->slave_notif))
-    mysql_read_slave_stats(db, con);
+  if ((db->replica_stats) || (db->replica_notif))
+    mysql_read_replica_stats(db, con);
 
   if (db->wsrep_stats)
     mysql_read_wsrep_stats(db, con);

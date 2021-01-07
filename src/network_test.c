@@ -224,16 +224,7 @@ static int decode_string(char const *in, uint8_t *out, size_t *out_size) {
 }
 
 DEF_TEST(parse_packet) {
-  sockent_t se = {
-      .data.server =
-          (struct sockent_server){
-#if HAVE_GCRYPT_H
-              .cypher = NULL,
-              .userdb = NULL,
-              .security_level = SECURITY_LEVEL_NONE,
-#endif
-          },
-  };
+  sockent_t se = {0};
 
   for (size_t i = 0; i < sizeof(raw_packet_data) / sizeof(raw_packet_data[0]);
        i++) {
@@ -241,7 +232,7 @@ DEF_TEST(parse_packet) {
     size_t buffer_size = sizeof(buffer);
 
     EXPECT_EQ_INT(0, decode_string(raw_packet_data[i], buffer, &buffer_size));
-    EXPECT_EQ_INT(0, parse_packet(&se, buffer, buffer_size, 0, NULL));
+    EXPECT_EQ_INT(0, parse_packet(&se, buffer, buffer_size, 0, NULL, NULL));
   }
   EXPECT_EQ_INT(139, (int)stats_values_dispatched);
 

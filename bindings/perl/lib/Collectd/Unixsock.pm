@@ -57,6 +57,7 @@ use strict;
 use warnings;
 
 use Carp qw(cluck confess carp croak);
+use POSIX;
 use IO::Socket::UNIX;
 use Scalar::Util qw( looks_like_number );
 
@@ -146,6 +147,24 @@ sub _escape_argument
 	return "\"$arg\"";
 }
 
+# Handle socket errors.
+sub _socket_error {
+	my ($self, $where) = @_;
+
+	# If the peer has reset the connection, try to reconnect,
+	# otherwise fail.
+	if ($! == EPIPE) {
+		_debug "^^ error on $where: $!; reconnecting\n";
+		$self->destroy;
+		$self->{sock} = _create_socket ($self->{path}) or return 1;
+		return;
+	} else {
+		carp ("error on $where: $!; aborting action\n");
+		$self->{error} = $!;
+		return 1;
+	}
+}
+
 # Send a command on a socket, including any required argument escaping.
 # Return a single line of result.
 sub _socket_command {
@@ -160,9 +179,16 @@ sub _socket_command {
 		$command .= "\n";
 	}
 	_debug "-> $command";
-	$fh->print($command);
+	while (not $fh->print($command)) {
+		return if $self->_socket_error ('print');
+		$fh = $self->{sock};
+	}
 
-	my $response = $fh->getline;
+	my $response;
+	while (not defined ($response = $fh->getline)) {
+		return if $self->_socket_error ('getline');
+		$fh = $self->{sock};
+	}
 	chomp $response;
 	_debug "<- $response\n";
 	return $response;
@@ -185,7 +211,11 @@ sub _socket_chat
 
 	for (1 .. $nresults)
 	{
-		my $entry = $fh->getline;
+		my $entry;
+		while (not defined($entry = $fh->getline)) {
+			return if $self->_socket_error ('getline');
+			$fh = $self->{sock};
+		}
 		chomp $entry;
 		_debug "<- $entry\n";
 		$callback->($entry, $cbdata);
@@ -207,9 +237,15 @@ sub _send_message
 	warn "Collectd::Unixsock->_send_message(\$msg): message is too long!" if length($msg) > 1024;
 	
 	_debug "-> $msg";
-	$fh->print($msg);
+	while (not $fh->print($msg)) {
+		return if $self->_socket_error ('print');
+		$fh = $self->{sock};
+	}
 
-	$msg = <$fh>;
+	while (not defined ($msg = <$fh>)) {
+		return if $self->_socket_error ('readline');
+		$fh = $self->{sock};
+	}
 	chomp ($msg);
 	_debug "<- $msg\n";
 
@@ -316,7 +352,6 @@ sub putval
 	my %args = @_;
 
 	my ($status, $msg, $identifier, $values);
-	my $fh = $self->{sock} or confess;
 
 	my $interval = defined $args{interval} ?
 	' interval=' . _escape_argument ($args{interval}) : '';
@@ -397,7 +432,10 @@ sub listval_filter
 
 	for (1 .. $nresults)
 	{
-		$msg = <$fh>;
+		while (not defined ($msg = <$fh>)) {
+			return if $self->_socket_error ('readline');
+			$fh = $self->{sock};
+		}
 		chomp $msg;
 		_debug "<- $msg\n";
 		next unless $msg =~ $pattern;
@@ -439,7 +477,10 @@ sub listval
 
 	for (1 .. $nresults)
 	{
-		$msg = <$fh>;
+		while (not defined ($msg = <$fh>)) {
+			return if $self->_socket_error ('readline');
+			$fh = $self->{sock};
+		}
 		chomp $msg;
 		_debug "<- $msg\n";
 
@@ -493,7 +534,6 @@ sub putnotif
 	my %args = @_;
 
 	my $status;
-	my $fh = $self->{sock} or confess;
 
 	my $msg; # message sent to the socket
 	
@@ -551,8 +591,6 @@ sub flush
 {
 	my $self  = shift;
 	my %args = @_;
-
-	my $fh = $self->{sock} or confess;
 
 	my $msg = "FLUSH";
 

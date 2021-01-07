@@ -30,6 +30,7 @@
 #include "utils_cache.h"
 #include "utils_time.h"
 
+#include <math.h>
 #include <yajl/yajl_gen.h>
 #include <yajl/yajl_parse.h>
 #if HAVE_YAJL_YAJL_VERSION_H
@@ -216,12 +217,12 @@ static int metric_type(char *buffer, size_t buffer_size, data_set_t const *ds,
     ssnprintf(buffer, buffer_size, GCM_PREFIX "%s/%s", vl->plugin, vl->type);
   }
 
-  char const *whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  char const *allowlist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                           "abcdefghijklmnopqrstuvwxyz"
                           "0123456789_/";
   char *ptr = buffer + strlen(GCM_PREFIX);
   size_t ok_len;
-  while ((ok_len = strspn(ptr, whitelist)) != strlen(ptr)) {
+  while ((ok_len = strspn(ptr, allowlist)) != strlen(ptr)) {
     ptr[ok_len] = '_';
     ptr += ok_len;
   }
@@ -411,6 +412,12 @@ static int format_time_series(yajl_gen gen, data_set_t const *ds,
     /* for cumulative metrics, the interval must not be zero. */
     return EAGAIN;
   }
+  if (ds_type == DS_TYPE_GAUGE) {
+    double d = (double)vl->values[ds_index].gauge;
+    if (isnan(d) || isinf(d)) {
+      return EAGAIN;
+    }
+  }
 
   yajl_gen_map_open(gen);
 
@@ -564,7 +571,7 @@ int sd_output_add(sd_output_t *out, data_set_t const *ds,
   for (size_t i = 0; i < ds->ds_num; i++) {
     int status = format_time_series(out->gen, ds, vl, i, out->res);
     if (status == EAGAIN) {
-      /* first instance of a cumulative metric */
+      /* first instance of a cumulative metric or NaN value */
       continue;
     }
     if (status != 0) {

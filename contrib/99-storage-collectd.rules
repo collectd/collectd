@@ -1,0 +1,15 @@
+# Using ID_SERIAL attribute for naming disks in collectd results in
+# data about the whole disk and each partition being mixed together
+# incorrectly, see: https://github.com/collectd/collectd/issues/823
+#
+# The rules below provide a ID_COLLECTD attribute instead, which
+# differentiates between the whole disk and its particular partitions.
+
+ACTION=="remove", GOTO="collectd_end"
+
+SUBSYSTEM!="block", GOTO="collectd_end"
+
+ENV{DEVTYPE}=="disk", ENV{ID_SERIAL}=="?*", ENV{ID_COLLECTD}="$env{ID_SERIAL}-disk"
+ENV{DEVTYPE}=="partition", ENV{ID_SERIAL}=="?*", ENV{PARTN}=="?*", ENV{ID_COLLECTD}="$env{ID_SERIAL}-part$env{PARTN}"
+
+LABEL="collectd_end"

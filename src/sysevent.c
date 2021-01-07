@@ -754,9 +754,9 @@ static int start_socket_thread(void) /* {{{ */
 
   DEBUG("sysevent plugin: starting socket thread");
 
-  int status = plugin_thread_create(&sysevent_socket_thread_id,
-                                    /* attr = */ NULL, sysevent_socket_thread,
-                                    /* arg = */ (void *)0, "sysevent");
+  int status =
+      plugin_thread_create(&sysevent_socket_thread_id, sysevent_socket_thread,
+                           /* arg = */ (void *)0, "sysevent");
   if (status != 0) {
     sysevent_socket_thread_loop = 0;
     ERROR("sysevent plugin: starting socket thread failed.");
@@ -780,9 +780,9 @@ static int start_dequeue_thread(void) /* {{{ */
 
   sysevent_dequeue_thread_loop = 1;
 
-  int status = plugin_thread_create(&sysevent_dequeue_thread_id,
-                                    /* attr = */ NULL, sysevent_dequeue_thread,
-                                    /* arg = */ (void *)0, "ssyevent");
+  int status =
+      plugin_thread_create(&sysevent_dequeue_thread_id, sysevent_dequeue_thread,
+                           /* arg = */ (void *)0, "ssyevent");
   if (status != 0) {
     sysevent_dequeue_thread_loop = 0;
     ERROR("sysevent plugin: Starting dequeue thread failed.");
