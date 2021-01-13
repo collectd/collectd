@@ -445,10 +445,6 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
 
   uid = sp.pw_uid;
   gid = sp.pw_gid;
-  if (uid == 0) {
-    ERROR("exec plugin: Cowardly refusing to exec program as root.");
-    goto failed;
-  }
 
   /* The group configured in the configfile is set as effective group, because
    * this way the forked process can (re-)gain the user's primary group. */
