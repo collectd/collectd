@@ -37,65 +37,57 @@ static char *datadir;
 static int store_rates;
 static int use_stdio;
 
-static int value_list_to_string(char *buffer, int buffer_len,
-                                const data_set_t *ds, const value_list_t *vl) {
+static int metric_to_string(char *buffer, int buffer_len, metric_t const *m) {
   int offset;
   int status;
-  gauge_t *rates = NULL;
 
-  assert(0 == strcmp(ds->type, vl->type));
+  if (buffer == NULL || m == NULL) {
+    return -1;
+  }
 
   memset(buffer, '\0', buffer_len);
 
-  status = snprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(vl->time));
+  status = snprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(m->time));
+
   if ((status < 1) || (status >= buffer_len))
     return -1;
+
   offset = status;
 
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    if ((ds->ds[i].type != DS_TYPE_COUNTER) &&
-        (ds->ds[i].type != DS_TYPE_GAUGE) &&
-        (ds->ds[i].type != DS_TYPE_DERIVE)) {
-      sfree(rates);
+  if ((m->family->type != METRIC_TYPE_COUNTER) &&
+      (m->family->type != METRIC_TYPE_DISTRIBUTION) &&
+      (m->family->type != METRIC_TYPE_GAUGE) &&
+      (m->family->type != METRIC_TYPE_UNTYPED)) {
+    return -1;
+  }
+
+  if (m->family->type == METRIC_TYPE_GAUGE ||
+      m->family->type == METRIC_TYPE_UNTYPED) {
+    status =
+        snprintf(buffer + offset, buffer_len - offset, ",%lf", m->value.gauge);
+  } else if (store_rates != 0 || m->family->type == METRIC_TYPE_DISTRIBUTION) {
+    gauge_t rate;
+    status = uc_get_rate(m, &rate);
+    if (status != 0) {
+      WARNING("csv plugin: uc_get_rate failed.");
       return -1;
     }
+    status = snprintf(buffer + offset, buffer_len - offset, ",%lf", rate);
+  } else if (m->family->type == METRIC_TYPE_COUNTER) {
+    status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIu64,
+                      m->value.counter);
+  }
 
-    if (ds->ds[i].type == DS_TYPE_GAUGE) {
-      status = snprintf(buffer + offset, buffer_len - offset, ",%lf",
-                        vl->values[i].gauge);
-    } else if (store_rates != 0) {
-      if (rates == NULL)
-        rates = uc_get_rate_vl(ds, vl);
-      if (rates == NULL) {
-        WARNING("csv plugin: "
-                "uc_get_rate_vl failed.");
-        return -1;
-      }
-      status = snprintf(buffer + offset, buffer_len - offset, ",%lf", rates[i]);
-    } else if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIu64,
-                        (uint64_t)vl->values[i].counter);
-    } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
-      status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIi64,
-                        vl->values[i].derive);
-    }
+  if ((status < 1) || (status >= (buffer_len - offset))) {
+    return -1;
+  }
 
-    if ((status < 1) || (status >= (buffer_len - offset))) {
-      sfree(rates);
-      return -1;
-    }
-
-    offset += status;
-  } /* for ds->ds_num */
-
-  sfree(rates);
   return 0;
-} /* int value_list_to_string */
+} /* int metric_to_string */
 
-static int value_list_to_filename(char *buffer, size_t buffer_size,
-                                  value_list_t const *vl) {
+static int metric_to_filename(char *buffer, size_t buffer_size,
+                              metric_t const *m) {
   int status;
-
   char *ptr = buffer;
   size_t ptr_size = buffer_size;
   time_t now;
@@ -113,7 +105,31 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
     ptr += len;
   }
 
-  status = FORMAT_VL(ptr, ptr_size, vl);
+  char *plugin = NULL;
+  char *plugin_instance = NULL;
+  char *type = NULL;
+  char *type_instance = NULL;
+
+  for (size_t j = 0; j < m->label.num; ++j) {
+    label_pair_t *l = m->label.ptr + j;
+
+    if (plugin == NULL) {
+      plugin = strdup(l->name);
+      plugin_instance = strdup(l->value);
+    } else if (type == NULL) {
+      type = strdup(l->name);
+      type_instance = strdup(l->value);
+    }
+  }
+
+  status = format_name(ptr, ptr_size, NULL, plugin, plugin_instance, type,
+                       type_instance);
+
+  sfree(plugin);
+  sfree(plugin_instance);
+  sfree(type);
+  sfree(type_instance);
+
   if (status != 0)
     return status;
 
@@ -147,9 +163,9 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
   }
 
   return 0;
-} /* int value_list_to_filename */
+} /* int metric_to_filename */
 
-static int csv_create_file(const char *filename, const data_set_t *ds) {
+static int csv_create_file(const char *filename, metric_family_t const *fam) {
   FILE *csv;
 
   if (check_create_dir(filename))
@@ -162,8 +178,7 @@ static int csv_create_file(const char *filename, const data_set_t *ds) {
   }
 
   fprintf(csv, "epoch");
-  for (size_t i = 0; i < ds->ds_num; i++)
-    fprintf(csv, ",%s", ds->ds[i].name);
+  fprintf(csv, ",%s", fam->name);
 
   fprintf(csv, "\n");
   fclose(csv);
@@ -207,7 +222,7 @@ static int csv_config(const char *key, const char *value) {
   return 0;
 } /* int csv_config */
 
-static int csv_write(const data_set_t *ds, const value_list_t *vl,
+static int csv_write(metric_family_t const *fam,
                      user_data_t __attribute__((unused)) * user_data) {
   struct stat statbuf;
   char filename[512];
@@ -217,73 +232,73 @@ static int csv_write(const data_set_t *ds, const value_list_t *vl,
   struct flock fl = {0};
   int status;
 
-  if (0 != strcmp(ds->type, vl->type)) {
-    ERROR("csv plugin: DS type does not match value list type");
-    return -1;
-  }
-
-  status = value_list_to_filename(filename, sizeof(filename), vl);
-  if (status != 0)
+  if (fam == NULL)
     return -1;
 
-  DEBUG("csv plugin: csv_write: filename = %s;", filename);
+  for (size_t i = 0; i < fam->metric.num; ++i) {
+    metric_t const *m = fam->metric.ptr + i;
+    status = metric_to_filename(filename, sizeof(filename), m);
+    if (status != 0)
+      return -1;
 
-  if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
-    return -1;
+    DEBUG("csv plugin: csv_write: filename = %s;", filename);
 
-  if (use_stdio) {
-    escape_string(filename, sizeof(filename));
+    if (metric_to_string(values, sizeof(values), m) != 0)
+      return -1;
 
-    /* Replace commas by colons for PUTVAL compatible output. */
-    for (size_t i = 0; i < sizeof(values); i++) {
-      if (values[i] == 0)
-        break;
-      else if (values[i] == ',')
-        values[i] = ':';
+    if (use_stdio) {
+      escape_string(filename, sizeof(filename));
+
+      /* Replace commas by colons for PUTVAL compatible output. */
+      for (size_t i = 0; i < sizeof(values); i++) {
+        if (values[i] == 0)
+          break;
+        else if (values[i] == ',')
+          values[i] = ':';
+      }
+
+      fprintf(use_stdio == 1 ? stdout : stderr, "PUTVAL %s interval=%.3f %s\n",
+              filename, CDTIME_T_TO_DOUBLE(m->interval), values);
+      return 0;
     }
 
-    fprintf(use_stdio == 1 ? stdout : stderr, "PUTVAL %s interval=%.3f %s\n",
-            filename, CDTIME_T_TO_DOUBLE(vl->interval), values);
-    return 0;
-  }
-
-  if (stat(filename, &statbuf) == -1) {
-    if (errno == ENOENT) {
-      if (csv_create_file(filename, ds))
+    if (stat(filename, &statbuf) == -1) {
+      if (errno == ENOENT) {
+        if (csv_create_file(filename, fam))
+          return -1;
+      } else {
+        ERROR("stat(%s) failed: %s", filename, STRERRNO);
         return -1;
-    } else {
-      ERROR("stat(%s) failed: %s", filename, STRERRNO);
+      }
+    } else if (!S_ISREG(statbuf.st_mode)) {
+      ERROR("stat(%s): Not a regular file!", filename);
       return -1;
     }
-  } else if (!S_ISREG(statbuf.st_mode)) {
-    ERROR("stat(%s): Not a regular file!", filename);
-    return -1;
-  }
 
-  csv = fopen(filename, "a");
-  if (csv == NULL) {
-    ERROR("csv plugin: fopen (%s) failed: %s", filename, STRERRNO);
-    return -1;
-  }
-  csv_fd = fileno(csv);
+    csv = fopen(filename, "a");
+    if (csv == NULL) {
+      ERROR("csv plugin: fopen (%s) failed: %s", filename, STRERRNO);
+      return -1;
+    }
+    csv_fd = fileno(csv);
 
-  fl.l_pid = getpid();
-  fl.l_type = F_WRLCK;
-  fl.l_whence = SEEK_SET;
+    fl.l_pid = getpid();
+    fl.l_type = F_WRLCK;
+    fl.l_whence = SEEK_SET;
 
-  status = fcntl(csv_fd, F_SETLK, &fl);
-  if (status != 0) {
-    ERROR("csv plugin: flock (%s) failed: %s", filename, STRERRNO);
+    status = fcntl(csv_fd, F_SETLK, &fl);
+    if (status != 0) {
+      ERROR("csv plugin: flock (%s) failed: %s", filename, STRERRNO);
+      fclose(csv);
+      return -1;
+    }
+
+    fprintf(csv, "%s\n", values);
+
+    /* The lock is implicitely released. I we don't release it explicitely
+     * because the `FILE *' may need to flush a cache first */
     fclose(csv);
-    return -1;
   }
-
-  fprintf(csv, "%s\n", values);
-
-  /* The lock is implicitely released. I we don't release it explicitely
-   * because the `FILE *' may need to flush a cache first */
-  fclose(csv);
-
   return 0;
 } /* int csv_write */
 
