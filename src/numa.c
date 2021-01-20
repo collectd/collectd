@@ -39,28 +39,23 @@
 
 static int max_node = -1;
 
-static void numa_dispatch_value(int node, /* {{{ */
-                                const char *type_instance, value_t v) {
-  value_list_t vl = VALUE_LIST_INIT;
+enum {
+  FAM_NUMA_HIT = 0,
+  FAM_NUMA_MISS,
+  FAM_NUMA_FOREIGN,
+  FAM_NUMA_LOCAL_NODE,
+  FAM_NUMA_OTHER_NODE,
+  FAM_NUMA_INTERLEAVE_HIT,
+  FAM_NUMA_MAX
+};
 
-  vl.values = &v;
-  vl.values_len = 1;
-
-  sstrncpy(vl.plugin, "numa", sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "node%i", node);
-  sstrncpy(vl.type, "vmpage_action", sizeof(vl.type));
-  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-} /* }}} void numa_dispatch_value */
-
-static int numa_read_node(int node) /* {{{ */
+static int numa_read_node(metric_family_t *fams[], int node) /* {{{ */
 {
   char path[PATH_MAX];
   FILE *fh;
   char buffer[128];
   int status;
-  int success;
+  char node_buffer[21];
 
   snprintf(path, sizeof(path), NUMA_ROOT_DIR "/node%i/numastat", node);
 
@@ -71,7 +66,7 @@ static int numa_read_node(int node) /* {{{ */
     return -1;
   }
 
-  success = 0;
+  int success = 0;
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
     char *fields[4];
     value_t v;
@@ -84,13 +79,37 @@ static int numa_read_node(int node) /* {{{ */
       continue;
     }
 
-    v.derive = 0;
-    status = parse_value(fields[1], &v, DS_TYPE_DERIVE);
+    v.counter = 0;
+    status = parse_value(fields[1], &v, DS_TYPE_COUNTER);
     if (status != 0)
       continue;
 
-    numa_dispatch_value(node, fields[0], v);
-    success++;
+    metric_t m = {0};
+    m.value.counter = v.counter;
+    snprintf(node_buffer, sizeof(node_buffer), "%i", node);
+    metric_label_set(&m, "node", node_buffer);
+
+    if (!strcmp(fields[0], "numa_hit")) {
+      metric_family_metric_append(fams[FAM_NUMA_HIT], m);
+      success++;
+    } else if (!strcmp(fields[0], "numa_miss")) {
+      metric_family_metric_append(fams[FAM_NUMA_MISS], m);
+      success++;
+    } else if (!strcmp(fields[0], "numa_foreign")) {
+      metric_family_metric_append(fams[FAM_NUMA_FOREIGN], m);
+      success++;
+    } else if (!strcmp(fields[0], "local_node")) {
+      metric_family_metric_append(fams[FAM_NUMA_LOCAL_NODE], m);
+      success++;
+    } else if (!strcmp(fields[0], "other_node")) {
+      metric_family_metric_append(fams[FAM_NUMA_OTHER_NODE], m);
+      success++;
+    } else if (!strcmp(fields[0], "interleave_hit")) {
+      metric_family_metric_append(fams[FAM_NUMA_INTERLEAVE_HIT], m);
+      success++;
+    }
+
+    metric_reset(&m);
   }
 
   fclose(fh);
@@ -99,20 +118,62 @@ static int numa_read_node(int node) /* {{{ */
 
 static int numa_read(void) /* {{{ */
 {
-  int i;
-  int status;
-  int success;
+  metric_family_t fam_numa_hit = {
+      .name = "numa_hit_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_numa_miss = {
+      .name = "numa_miss_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_numa_foreign = {
+      .name = "numa_foreign_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_numa_local_node = {
+      .name = "numa_local_node_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_numa_other_node = {
+      .name = "numa_other_node_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_numa_interleave_hit = {
+      .name = "numa_interleave_hit_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t *fams[FAM_NUMA_MAX];
+
+  fams[FAM_NUMA_HIT] = &fam_numa_hit;
+  fams[FAM_NUMA_MISS] = &fam_numa_miss;
+  fams[FAM_NUMA_FOREIGN] = &fam_numa_foreign;
+  fams[FAM_NUMA_LOCAL_NODE] = &fam_numa_local_node;
+  fams[FAM_NUMA_OTHER_NODE] = &fam_numa_other_node;
+  fams[FAM_NUMA_INTERLEAVE_HIT] = &fam_numa_interleave_hit;
 
   if (max_node < 0) {
     WARNING("numa plugin: No NUMA nodes were detected.");
     return -1;
   }
 
-  success = 0;
-  for (i = 0; i <= max_node; i++) {
-    status = numa_read_node(i);
+  int success = 0;
+  for (int i = 0; i <= max_node; i++) {
+    int status = numa_read_node(fams, i);
     if (status == 0)
       success++;
+  }
+
+  if (success != 0) {
+    for (size_t i = 0; i < FAM_NUMA_MAX; i++) {
+      if (fams[i]->metric.num > 0) {
+        int status = plugin_dispatch_metric_family(fams[i]);
+        if (status != 0) {
+          ERROR("numa plugin: plugin_dispatch_metric_family failed: %s",
+                STRERROR(status));
+        }
+        metric_family_metric_reset(fams[i]);
+      }
+    }
   }
 
   return success ? 0 : -1;
