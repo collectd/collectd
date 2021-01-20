@@ -73,6 +73,26 @@ static int load_config(const char *key, const char *value) {
   }
   return -1;
 }
+
+static void load_submit_gauge(char *fam_name, gauge_t value) {
+  metric_family_t fam = {
+      .name = fam_name,
+      .type = METRIC_TYPE_GAUGE,
+  };
+
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = value,
+                                    });
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("load plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
+}
+
 static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {
   int cores = 0;
 
@@ -83,30 +103,20 @@ static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {
     }
   }
 #endif
+
   if (cores > 0) {
     snum /= cores;
     mnum /= cores;
     lnum /= cores;
+
+    load_submit_gauge("load1_relative", snum);
+    load_submit_gauge("load5_relative", mnum);
+    load_submit_gauge("load15_relative", lnum);
+  } else {
+    load_submit_gauge("load1", snum);
+    load_submit_gauge("load5", mnum);
+    load_submit_gauge("load15", lnum);
   }
-
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[] = {
-      {.gauge = snum},
-      {.gauge = mnum},
-      {.gauge = lnum},
-  };
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-
-  sstrncpy(vl.plugin, "load", sizeof(vl.plugin));
-  sstrncpy(vl.type, "load", sizeof(vl.type));
-
-  if (cores > 0) {
-    sstrncpy(vl.type_instance, "relative", sizeof(vl.type_instance));
-  }
-
-  plugin_dispatch_values(&vl);
 }
 
 static int load_read(void) {
@@ -118,7 +128,7 @@ static int load_read(void) {
   else {
     WARNING("load: getloadavg failed: %s", STRERRNO);
   }
-    /* #endif HAVE_GETLOADAVG */
+  /* #endif HAVE_GETLOADAVG */
 
 #elif defined(KERNEL_LINUX)
   gauge_t snum, mnum, lnum;
