@@ -57,6 +57,23 @@ char *fgets(char *s, int size, __attribute__((unused)) FILE *stream) {
 }
 
 int fclose(__attribute__((unused)) FILE *stream) { return 0; }
+
+int fileno(__attribute__((unused)) FILE *stream) { return 0; }
+
+int lstat(__attribute__((unused)) const char *pathname, struct stat *buf) {
+  buf->st_dev = 1;
+  buf->st_ino = 1;
+  buf->st_mode = S_IFREG;
+  buf->st_nlink = 1;
+  return 0;
+}
+
+int fstat(__attribute__((unused)) int fd, struct stat *buf) {
+  buf->st_dev = 1;
+  buf->st_ino = 1;
+  buf->st_nlink = 1;
+  return 0;
+}
 /* end mock functions */
 
 DEF_TEST(plugin_config_fail) {
@@ -359,6 +376,10 @@ DEF_TEST(plugin_read_stats) {
   EXPECT_EQ_UINT64(312, d1->stats[1].weighted_ms_spent_ios);
   EXPECT_EQ_UINT64(1, d1->avg_queue.val_list[0]);
   EXPECT_EQ_UINT64(3, d1->avg_queue.val_list[1]);
+
+  test_stats = "   8       0 sda t3st 35 24889 508 30 8 252 5 3 74 312";
+  ret = diskstats_read(NULL);
+  EXPECT_EQ_INT(-1, ret);
 
   return 0;
 }

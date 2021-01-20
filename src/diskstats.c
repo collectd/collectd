@@ -308,9 +308,20 @@ static disklist_t *diskstats_find_entry(const char *name) {
 #ifdef BLKSSZGET
   char dev_path[PATH_MAX];
   ssnprintf(dev_path, sizeof(dev_path), "/dev/%s", name);
-  int fd = open(dev_path, O_RDONLY | O_CLOEXEC);
+  int fd = open(dev_path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
   if (fd < 0) {
     ERROR(DISKSTATS_PLUGIN ": Failed to open disk device: %s.", name);
+    return NULL;
+  }
+  struct stat file_st;
+  if (fstat(fd, &file_st) != 0) {
+    close(fd);
+    ERROR(DISKSTATS_PLUGIN ": Failed to fstat file for device: %s.", name);
+    return NULL;
+  }
+  if (file_st.st_nlink > 1) {
+    close(fd);
+    ERROR(DISKSTATS_PLUGIN ": Two or more hard links for device: %s.", name);
     return NULL;
   }
   int rc = ioctl(fd, BLKSSZGET, &sector_size);
@@ -340,6 +351,29 @@ static disklist_t *diskstats_find_entry(const char *name) {
   return disk;
 }
 
+static int diskstats_read_ul(unsigned long *val, const char *s) {
+  errno = 0;
+  char *endptr = NULL;
+  *val = strtoul(s, &endptr, 10);
+  if (errno != 0 || (endptr != NULL && *endptr != '\0')) {
+    ERROR(DISKSTATS_PLUGIN ": Value is invalid for unsigned long: %s.", s);
+    return -1;
+  }
+  return 0;
+}
+
+static int diskstats_read_ui(unsigned int *val, const char *s) {
+  errno = 0;
+  char *endptr = NULL;
+  unsigned long ul = strtoul(s, &endptr, 10);
+  if (errno != 0 || (endptr != NULL && *endptr != '\0') || ul > UINT_MAX) {
+    ERROR(DISKSTATS_PLUGIN ": Value is invalid for unsigned int: %s.", s);
+    return -1;
+  }
+  *val = (unsigned int)ul;
+  return 0;
+}
+
 static unsigned int diskstats_diff_ui(unsigned int curr, unsigned int prev) {
   if (curr < prev)
     return 1 + curr + (UINT_MAX - prev);
@@ -354,13 +388,59 @@ static unsigned long diskstats_diff_ul(unsigned long curr, unsigned long prev) {
   return curr - prev;
 }
 
+#define DISKSTATS_READ(type, var_name, str)                                    \
+  do {                                                                         \
+    if (diskstats_read_##type(&ds->var_name, str) < 0) {                       \
+      fclose(fh);                                                              \
+      ERROR(DISKSTATS_PLUGIN ": Failed to read " #var_name " for %s.", name);  \
+      return -1;                                                               \
+    }                                                                          \
+  } while (0)
+
 #define DISKSTAT_DIFF(type, name) diskstats_diff_##type(ds->name, ds_prev->name)
 
 static int diskstats_read(__attribute__((unused)) user_data_t *ud) {
   char buff[1024];
+  struct stat before_open;
+  if (lstat(STATS_PATH, &before_open) != 0) {
+    ERROR(DISKSTATS_PLUGIN ": Failed to lstat file: %s.", STATS_PATH);
+    return -1;
+  }
+  if (!S_ISREG(before_open.st_mode)) {
+    ERROR(DISKSTATS_PLUGIN ": Not a regular file, refusing to open: %s.",
+          STATS_PATH);
+    return -1;
+  }
+  if (before_open.st_nlink > 1) {
+    ERROR(DISKSTATS_PLUGIN ": Two or more hard links for file: %s.",
+          STATS_PATH);
+    return -1;
+  }
   FILE *fh = fopen(STATS_PATH, "r");
   if (fh == NULL) {
     ERROR(DISKSTATS_PLUGIN ": fopen(" STATS_PATH "): %s", STRERRNO);
+    return -1;
+  }
+  /* Get file descriptor for FILE handle */
+  int fd = fileno(fh);
+  if (fd < 0) {
+    fclose(fh);
+    ERROR(DISKSTATS_PLUGIN ": Failed to get file descriptor for: %s.",
+          STATS_PATH);
+    return -1;
+  }
+  struct stat after_open;
+  if (fstat(fd, &after_open) != 0) {
+    fclose(fh);
+    ERROR(DISKSTATS_PLUGIN ": Failed to fstat file: %s.", STATS_PATH);
+    return -1;
+  }
+  if (before_open.st_dev != after_open.st_dev ||
+      before_open.st_ino != after_open.st_ino) {
+    /* File was tampered between check and open */
+    fclose(fh);
+    ERROR(DISKSTATS_PLUGIN ": File `%s` was replaced, refusing to continue.",
+          STATS_PATH);
     return -1;
   }
 
@@ -393,34 +473,34 @@ static int diskstats_read(__attribute__((unused)) user_data_t *ud) {
         disk->prev == DS_NOT_SET ? disk->stats : disk->stats + (disk->prev ^ 1);
 
     if (numfields == 7) {
-      ds->reads_completed = atoll(fields[3]);
-      ds->sectors_read = atoll(fields[4]);
-      ds->writes_completed = atoll(fields[5]);
-      ds->sectors_written = atoll(fields[6]);
+      DISKSTATS_READ(ul, reads_completed, fields[3]);
+      DISKSTATS_READ(ul, sectors_read, fields[4]);
+      DISKSTATS_READ(ul, writes_completed, fields[5]);
+      DISKSTATS_READ(ul, sectors_written, fields[6]);
     } else if (numfields >= 14) {
-      ds->reads_completed = atoll(fields[3]);
-      ds->reads_merged = atoll(fields[4]);
-      ds->sectors_read = atoll(fields[5]);
-      ds->ms_spent_reading = (unsigned int)atoll(fields[6]);
-      ds->writes_completed = atoll(fields[7]);
-      ds->writes_merged = atoll(fields[8]);
-      ds->sectors_written = atoll(fields[9]);
-      ds->ms_spent_writing = (unsigned int)atoll(fields[10]);
-      ds->ios_in_progress = (unsigned int)atoll(fields[11]);
-      ds->ms_spent_ios = (unsigned int)atoll(fields[12]);
-      ds->weighted_ms_spent_ios = (unsigned int)atoll(fields[13]);
+      DISKSTATS_READ(ul, reads_completed, fields[3]);
+      DISKSTATS_READ(ul, reads_merged, fields[4]);
+      DISKSTATS_READ(ul, sectors_read, fields[5]);
+      DISKSTATS_READ(ui, ms_spent_reading, fields[6]);
+      DISKSTATS_READ(ul, writes_completed, fields[7]);
+      DISKSTATS_READ(ul, writes_merged, fields[8]);
+      DISKSTATS_READ(ul, sectors_written, fields[9]);
+      DISKSTATS_READ(ui, ms_spent_writing, fields[10]);
+      DISKSTATS_READ(ui, ios_in_progress, fields[11]);
+      DISKSTATS_READ(ui, ms_spent_ios, fields[12]);
+      DISKSTATS_READ(ui, weighted_ms_spent_ios, fields[13]);
 
       rolling_array_add(&disk->avg_queue, ds->ios_in_progress);
     }
     if (numfields >= 18) {
-      ds->discards_completed = atoll(fields[14]);
-      ds->discards_merged = atoll(fields[15]);
-      ds->sectors_discared = atoll(fields[16]);
-      ds->ms_spent_discarding = (unsigned int)atoll(fields[17]);
+      DISKSTATS_READ(ul, discards_completed, fields[14]);
+      DISKSTATS_READ(ul, discards_merged, fields[15]);
+      DISKSTATS_READ(ul, sectors_discared, fields[16]);
+      DISKSTATS_READ(ui, ms_spent_discarding, fields[17]);
     }
     if (numfields >= 20) {
-      ds->flush_req_completed = atoll(fields[18]);
-      ds->ms_spent_flushing = (unsigned int)atoll(fields[19]);
+      DISKSTATS_READ(ul, flush_req_completed, fields[18]);
+      DISKSTATS_READ(ui, ms_spent_flushing, fields[19]);
     }
 
     if (disk->prev == DS_NOT_SET) {
