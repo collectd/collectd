@@ -29,7 +29,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-static void entropy_submit(value_t);
+static void entropy_submit(gauge_t value);
 static int entropy_read(void);
 
 #if !KERNEL_LINUX && !KERNEL_NETBSD
@@ -46,7 +46,7 @@ static int entropy_read(void) {
     return -1;
   }
 
-  entropy_submit(v);
+  entropy_submit(v.gauge);
   return 0;
 }
 #endif /* KERNEL_LINUX */
@@ -94,22 +94,30 @@ static int entropy_read(void) {
     return (-1);
   }
 
-  entropy_submit(v);
+  entropy_submit(v.gauge);
 
   return 0;
 }
 
 #endif /* KERNEL_NETBSD */
 
-static void entropy_submit(value_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
+static void entropy_submit(gauge_t value) {
+  metric_family_t fam = {
+      .name = "entropy_available_bits",
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  vl.values = &value;
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "entropy", sizeof(vl.plugin));
-  sstrncpy(vl.type, "entropy", sizeof(vl.type));
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = value,
+                                    });
 
-  plugin_dispatch_values(&vl);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("entropy plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 }
 
 void module_register(void) {
