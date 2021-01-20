@@ -203,10 +203,9 @@ static int iptables_config(const char *key, const char *value) {
 
 static int submit6_match(const struct ip6t_entry_match *match,
                          const struct ip6t_entry *entry,
-                         const ip_chain_t *chain, int rule_num) {
-  int status;
-  value_list_t vl = VALUE_LIST_INIT;
-
+                         const ip_chain_t *chain, int rule_num,
+                         metric_family_t *fam_ip6t_bytes,
+                         metric_family_t *fam_ip6t_packets) {
   /* Select the rules to collect */
   if (chain->rule_type == RTYPE_NUM) {
     if (chain->rule.num != rule_num)
@@ -219,42 +218,39 @@ static int submit6_match(const struct ip6t_entry_match *match,
       return 0;
   }
 
-  sstrncpy(vl.plugin, "ip6tables", sizeof(vl.plugin));
-
-  status = ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
-                     chain->table, chain->chain);
-  if ((status < 1) || ((unsigned int)status >= sizeof(vl.plugin_instance)))
-    return 0;
-
+  char *rule;
+  char rule_buffer[21];
   if (chain->name[0] != '\0') {
-    sstrncpy(vl.type_instance, chain->name, sizeof(vl.type_instance));
+    rule = (char *)chain->name;
   } else {
-    if (chain->rule_type == RTYPE_NUM)
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i",
-                chain->rule.num);
-    else
-      sstrncpy(vl.type_instance, (char *)match->data, sizeof(vl.type_instance));
+    if (chain->rule_type == RTYPE_NUM) {
+      ssnprintf(rule_buffer, sizeof(rule_buffer), "%i", chain->rule.num);
+      rule = rule_buffer;
+    } else {
+      rule = (char *)match->data;
+    }
   }
 
-  sstrncpy(vl.type, "ipt_bytes", sizeof(vl.type));
-  vl.values = &(value_t){.derive = (derive_t)entry->counters.bcnt};
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
+  metric_t m = {0};
+  metric_label_set(&m, "table", chain->table);
+  metric_label_set(&m, "chain", chain->chain);
+  metric_label_set(&m, "rule", rule);
 
-  sstrncpy(vl.type, "ipt_packets", sizeof(vl.type));
-  vl.values = &(value_t){.derive = (derive_t)entry->counters.pcnt};
-  plugin_dispatch_values(&vl);
+  m.value.gauge = (counter_t)entry->counters.bcnt;
+  metric_family_metric_append(fam_ip6t_bytes, m);
 
+  m.value.gauge = (counter_t)entry->counters.pcnt;
+  metric_family_metric_append(fam_ip6t_packets, m);
+
+  metric_reset(&m);
   return 0;
 } /* int submit6_match */
 
 /* This needs to return `int' for IPT_MATCH_ITERATE to work. */
 static int submit_match(const struct ipt_entry_match *match,
                         const struct ipt_entry *entry, const ip_chain_t *chain,
-                        int rule_num) {
-  int status;
-  value_list_t vl = VALUE_LIST_INIT;
-
+                        int rule_num, metric_family_t *fam_ipt_bytes,
+                        metric_family_t *fam_ipt_packets) {
   /* Select the rules to collect */
   if (chain->rule_type == RTYPE_NUM) {
     if (chain->rule.num != rule_num)
@@ -267,37 +263,38 @@ static int submit_match(const struct ipt_entry_match *match,
       return 0;
   }
 
-  sstrncpy(vl.plugin, "iptables", sizeof(vl.plugin));
-
-  status = ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
-                     chain->table, chain->chain);
-  if ((status < 1) || ((unsigned int)status >= sizeof(vl.plugin_instance)))
-    return 0;
-
+  char *rule;
+  char rule_buffer[21];
   if (chain->name[0] != '\0') {
-    sstrncpy(vl.type_instance, chain->name, sizeof(vl.type_instance));
+    rule = (char *)chain->name;
   } else {
-    if (chain->rule_type == RTYPE_NUM)
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i",
-                chain->rule.num);
-    else
-      sstrncpy(vl.type_instance, (char *)match->data, sizeof(vl.type_instance));
+    if (chain->rule_type == RTYPE_NUM) {
+      ssnprintf(rule_buffer, sizeof(rule_buffer), "%i", chain->rule.num);
+      rule = rule_buffer;
+    } else {
+      rule = (char *)match->data;
+    }
   }
 
-  sstrncpy(vl.type, "ipt_bytes", sizeof(vl.type));
-  vl.values = &(value_t){.derive = (derive_t)entry->counters.bcnt};
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
+  metric_t m = {0};
+  metric_label_set(&m, "table", chain->table);
+  metric_label_set(&m, "chain", chain->chain);
+  metric_label_set(&m, "rule", rule);
 
-  sstrncpy(vl.type, "ipt_packets", sizeof(vl.type));
-  vl.values = &(value_t){.derive = (derive_t)entry->counters.pcnt};
-  plugin_dispatch_values(&vl);
+  m.value.gauge = (counter_t)entry->counters.bcnt;
+  metric_family_metric_append(fam_ipt_bytes, m);
 
+  m.value.gauge = (counter_t)entry->counters.pcnt;
+  metric_family_metric_append(fam_ipt_packets, m);
+
+  metric_reset(&m);
   return 0;
 } /* int submit_match */
 
 /* ipv6 submit_chain */
-static void submit6_chain(ip6tc_handle_t *handle, ip_chain_t *chain) {
+static void submit6_chain(ip6tc_handle_t *handle, ip_chain_t *chain,
+                          metric_family_t *fam_ip6t_bytes,
+                          metric_family_t *fam_ip6t_packets) {
   const struct ip6t_entry *entry;
   int rule_num;
 
@@ -311,9 +308,11 @@ static void submit6_chain(ip6tc_handle_t *handle, ip_chain_t *chain) {
   rule_num = 1;
   while (entry) {
     if (chain->rule_type == RTYPE_NUM) {
-      submit6_match(NULL, entry, chain, rule_num);
+      submit6_match(NULL, entry, chain, rule_num, fam_ip6t_bytes,
+                    fam_ip6t_packets);
     } else {
-      IP6T_MATCH_ITERATE(entry, submit6_match, entry, chain, rule_num);
+      IP6T_MATCH_ITERATE(entry, submit6_match, entry, chain, rule_num,
+                         fam_ip6t_bytes, fam_ip6t_packets);
     }
 
     entry = ip6tc_next_rule(entry, handle);
@@ -322,7 +321,9 @@ static void submit6_chain(ip6tc_handle_t *handle, ip_chain_t *chain) {
 }
 
 /* ipv4 submit_chain */
-static void submit_chain(iptc_handle_t *handle, ip_chain_t *chain) {
+static void submit_chain(iptc_handle_t *handle, ip_chain_t *chain,
+                         metric_family_t *fam_ipt_bytes,
+                         metric_family_t *fam_ipt_packets) {
   const struct ipt_entry *entry;
   int rule_num;
 
@@ -336,9 +337,11 @@ static void submit_chain(iptc_handle_t *handle, ip_chain_t *chain) {
   rule_num = 1;
   while (entry) {
     if (chain->rule_type == RTYPE_NUM) {
-      submit_match(NULL, entry, chain, rule_num);
+      submit_match(NULL, entry, chain, rule_num, fam_ipt_bytes,
+                   fam_ipt_packets);
     } else {
-      IPT_MATCH_ITERATE(entry, submit_match, entry, chain, rule_num);
+      IPT_MATCH_ITERATE(entry, submit_match, entry, chain, rule_num,
+                        fam_ipt_bytes, fam_ipt_packets);
     }
 
     entry = iptc_next_rule(entry, handle);
@@ -349,6 +352,25 @@ static void submit_chain(iptc_handle_t *handle, ip_chain_t *chain) {
 static int iptables_read(void) {
   int num_failures = 0;
   ip_chain_t *chain;
+  metric_family_t fam_ipt_bytes = {
+      .name = "iptables_bytes_total",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_ipt_packets = {
+      .name = "iptables_packets_total",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_ip6t_bytes = {
+      .name = "ip6tables_bytes_total",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_ip6t_packets = {
+      .name = "ip6tables_packets_total",
+      .type = METRIC_TYPE_GAUGE,
+  };
+
+  metric_family_t *fams[] = {&fam_ipt_bytes, &fam_ipt_packets, &fam_ip6t_bytes,
+                             &fam_ip6t_packets, NULL};
 
   /* Init the iptc handle structure and query the correct table */
   for (int i = 0; i < chain_num; i++) {
@@ -377,7 +399,8 @@ static int iptables_read(void) {
         continue;
       }
 
-      submit_chain(handle, chain);
+      submit_chain(handle, chain, &fam_ipt_bytes, &fam_ipt_packets);
+
       iptc_free(handle);
     } else if (chain->ip_version == IPV6) {
 #ifdef HAVE_IP6TC_HANDLE_T
@@ -396,11 +419,22 @@ static int iptables_read(void) {
         continue;
       }
 
-      submit6_chain(handle, chain);
+      submit6_chain(handle, chain, &fam_ip6t_bytes, &fam_ip6t_packets);
       ip6tc_free(handle);
     } else
       num_failures++;
   } /* for (i = 0 .. chain_num) */
+
+  for (size_t i = 0; fams[i] != NULL; i++) {
+    if (fams[i]->metric.num > 0) {
+      int status = plugin_dispatch_metric_family(fams[i]);
+      if (status != 0) {
+        ERROR("iptables plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(fams[i]);
+    }
+  }
 
   return (num_failures < chain_num) ? 0 : -1;
 } /* int iptables_read */
