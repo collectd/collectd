@@ -2882,12 +2882,6 @@ at all, B<all> partitions are selected.
 
 Only log stat() errors once.
 
-=item B<ReportByDevice> B<true>|B<false>
-
-Report using the device name rather than the mountpoint. i.e. with this I<false>,
-(the default), it will report a disk as "root", but with it I<true>, it will be
-"sda1" (or whichever).
-
 =item B<ReportInodes> B<true>|B<false>
 
 Enables or disables reporting of free, reserved and used inodes. Defaults to
