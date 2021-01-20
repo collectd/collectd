@@ -277,70 +277,58 @@ static uint32_t sequence_number;
 static enum { SRC_DUNNO, SRC_NETLINK, SRC_PROC } linux_source = SRC_DUNNO;
 #endif
 
-static void conn_prepare_vl(value_list_t *vl, value_t *values) {
-  vl->values = values;
-  vl->values_len = 1;
-  sstrncpy(vl->plugin, "tcpconns", sizeof(vl->plugin));
-  sstrncpy(vl->type, "tcp_connections", sizeof(vl->type));
-}
-
-static void conn_submit_port_entry(port_entry_t *pe) {
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
-
-  conn_prepare_vl(&vl, values);
-
-  if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING)) ||
-      (pe->flags & PORT_COLLECT_LOCAL)) {
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
-             "%" PRIu16 "-local", pe->port);
-
-    for (int i = 1; i <= TCP_STATE_MAX; i++) {
-      vl.values[0].gauge = pe->count_local[i];
-
-      sstrncpy(vl.type_instance, tcp_state[i], sizeof(vl.type_instance));
-
-      plugin_dispatch_values(&vl);
-    }
-  }
-
-  if (pe->flags & PORT_COLLECT_REMOTE) {
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
-             "%" PRIu16 "-remote", pe->port);
-
-    for (int i = 1; i <= TCP_STATE_MAX; i++) {
-      vl.values[0].gauge = pe->count_remote[i];
-
-      sstrncpy(vl.type_instance, tcp_state[i], sizeof(vl.type_instance));
-
-      plugin_dispatch_values(&vl);
-    }
-  }
-} /* void conn_submit */
-
-static void conn_submit_port_total(void) {
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
-
-  conn_prepare_vl(&vl, values);
-
-  sstrncpy(vl.plugin_instance, "all", sizeof(vl.plugin_instance));
-
-  for (int i = 1; i <= TCP_STATE_MAX; i++) {
-    vl.values[0].gauge = count_total[i];
-
-    sstrncpy(vl.type_instance, tcp_state[i], sizeof(vl.type_instance));
-
-    plugin_dispatch_values(&vl);
-  }
-}
-
 static void conn_submit_all(void) {
-  if (port_collect_total)
-    conn_submit_port_total();
+  metric_family_t fam = {
+      .name = "tcp_connections",
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  for (port_entry_t *pe = port_list_head; pe != NULL; pe = pe->next)
-    conn_submit_port_entry(pe);
+  if (port_collect_total) {
+    for (int i = 1; i <= TCP_STATE_MAX; i++) {
+      metric_t m = {0};
+      metric_label_set(&m, "port", "all");
+      metric_label_set(&m, "state", tcp_state[i]);
+      m.value.gauge = count_total[i];
+      metric_family_metric_append(&fam, m);
+    }
+  }
+
+  for (port_entry_t *pe = port_list_head; pe != NULL; pe = pe->next) {
+    if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING)) ||
+        (pe->flags & PORT_COLLECT_LOCAL)) {
+      char port[64];
+      snprintf(port, sizeof(port), "%" PRIu16 "-local", pe->port);
+
+      for (int i = 1; i <= TCP_STATE_MAX; i++) {
+        metric_t m = {0};
+        metric_label_set(&m, "port", port);
+        metric_label_set(&m, "state", tcp_state[i]);
+        m.value.gauge = pe->count_local[i];
+        metric_family_metric_append(&fam, m);
+      }
+    }
+
+    if (pe->flags & PORT_COLLECT_REMOTE) {
+      char port[64];
+      snprintf(port, sizeof(port), "%" PRIu16 "-remote", pe->port);
+
+      for (int i = 1; i <= TCP_STATE_MAX; i++) {
+        metric_t m = {0};
+        metric_label_set(&m, "port", port);
+        metric_label_set(&m, "state", tcp_state[i]);
+        m.value.gauge = pe->count_remote[i];
+        metric_family_metric_append(&fam, m);
+      }
+    }
+  }
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("tcpconns plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 } /* void conn_submit_all */
 
 static port_entry_t *conn_get_port_entry(uint16_t port, int create) {
