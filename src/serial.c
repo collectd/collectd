@@ -30,25 +30,18 @@
 #error "No applicable input method."
 #endif
 
-static void serial_submit(const char *type_instance, derive_t rx, derive_t tx) {
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[] = {
-      {.derive = rx},
-      {.derive = tx},
-  };
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-  sstrncpy(vl.plugin, "serial", sizeof(vl.plugin));
-  sstrncpy(vl.type, "serial_octets", sizeof(vl.type));
-  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
-
 static int serial_read(void) {
   FILE *fh;
   char buffer[1024];
+  metric_family_t fam_serial_read = {
+      .name = "serial_read_bytes_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_serial_write = {
+      .name = "serial_write_bytes_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t *fams[] = {&fam_serial_read, &fam_serial_write, NULL};
 
   /* there are a variety of names for the serial device */
   if ((fh = fopen("/proc/tty/driver/serial", "r")) == NULL &&
@@ -96,8 +89,29 @@ static int serial_read(void) {
       }
     }
 
-    if (have_rx && have_tx)
-      serial_submit(fields[0], rx, tx);
+    if (have_rx && have_tx) {
+      metric_t m = {0};
+      metric_label_set(&m, "line", fields[0]);
+
+      m.value.counter = rx;
+      metric_family_metric_append(&fam_serial_read, m);
+
+      m.value.counter = tx;
+      metric_family_metric_append(&fam_serial_write, m);
+
+      metric_reset(&m);
+    }
+  }
+
+  for (size_t i = 0; fams[i] != NULL; i++) {
+    if (fams[i]->metric.num > 0) {
+      int status = plugin_dispatch_metric_family(fams[i]);
+      if (status != 0) {
+        ERROR("serial plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(fams[i]);
+    }
   }
 
   fclose(fh);
