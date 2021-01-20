@@ -50,18 +50,23 @@ static int conntrack_config(const char *key, const char *value) {
   return 0;
 }
 
-static void conntrack_submit(const char *type, const char *type_instance,
-                             value_t conntrack) {
-  value_list_t vl = VALUE_LIST_INIT;
+static void conntrack_submit(char *fam_name, gauge_t value) {
+  metric_family_t fam = {
+      .name = fam_name,
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  vl.values = &conntrack;
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "conntrack", sizeof(vl.plugin));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  if (type_instance != NULL)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = value,
+                                    });
 
-  plugin_dispatch_values(&vl);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("conntrack plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 } /* static void conntrack_submit */
 
 static int conntrack_read(void) {
@@ -81,9 +86,9 @@ static int conntrack_read(void) {
 
   conntrack_pct.gauge = (conntrack.gauge / conntrack_max.gauge) * 100;
 
-  conntrack_submit("conntrack", NULL, conntrack);
-  conntrack_submit("conntrack", "max", conntrack_max);
-  conntrack_submit("percent", "used", conntrack_pct);
+  conntrack_submit("conntrack_used", conntrack.gauge);
+  conntrack_submit("conntrack_max", conntrack_max.gauge);
+  conntrack_submit("conntrack_used_percent", conntrack_pct.gauge);
 
   return 0;
 } /* static int conntrack_read */
