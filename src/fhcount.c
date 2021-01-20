@@ -52,20 +52,23 @@ static int fhcount_config(const char *key, const char *value) {
   return ret;
 }
 
-static void fhcount_submit(const char *type, const char *type_instance,
-                           gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
+static void fhcount_submit(char *fam_name, gauge_t value) {
+  metric_family_t fam = {
+      .name = fam_name,
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = value,
+                                    });
 
-  // Compose the metric
-  sstrncpy(vl.plugin, "fhcount", sizeof(vl.plugin));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("fhcount plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
 
-  // Dispatch the metric
-  plugin_dispatch_values(&vl);
+  metric_family_metric_reset(&fam);
 }
 
 static int fhcount_read(void) {
@@ -107,13 +110,13 @@ static int fhcount_read(void) {
 
   // Submit values
   if (values_absolute) {
-    fhcount_submit("file_handles", "used", (gauge_t)used);
-    fhcount_submit("file_handles", "unused", (gauge_t)unused);
-    fhcount_submit("file_handles", "max", (gauge_t)max);
+    fhcount_submit("file_handles_used", (gauge_t)used);
+    fhcount_submit("file_handles_unused", (gauge_t)unused);
+    fhcount_submit("file_handles_max", (gauge_t)max);
   }
   if (values_percentage) {
-    fhcount_submit("percent", "used", (gauge_t)prc_used);
-    fhcount_submit("percent", "unused", (gauge_t)prc_unused);
+    fhcount_submit("file_handles_used_percent", (gauge_t)prc_used);
+    fhcount_submit("file_handles_unused_percent", (gauge_t)prc_unused);
   }
 
   return 0;
