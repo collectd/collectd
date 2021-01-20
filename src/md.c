@@ -42,6 +42,14 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist;
 
+enum {
+  FAM_MD_ACTIVE = 0,
+  FAM_MD_FAILED,
+  FAM_MD_SPARE,
+  FAM_MD_MISSING,
+  FAM_MD_MAX,
+};
+
 static int md_config(const char *key, const char *value) {
   if (ignorelist == NULL)
     ignorelist = ignorelist_create(/* invert = */ 1);
@@ -59,25 +67,11 @@ static int md_config(const char *key, const char *value) {
   return 0;
 }
 
-static void md_submit(const int minor, const char *type_instance,
-                      gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "md", sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", minor);
-  sstrncpy(vl.type, "md_disks", sizeof(vl.type));
-  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-} /* void md_submit */
-
-static void md_process(const int minor, const char *path) {
+static void md_process(metric_family_t *fams[], const int minor,
+                       const char *path) {
   int fd;
   struct stat st;
   mdu_array_info_t array;
-  gauge_t disks_missing;
 
   fd = open(path, O_RDONLY);
   if (fd < 0) {
@@ -127,19 +121,57 @@ static void md_process(const int minor, const char *path) {
    *          disks are missing and smaller than "nr" when spare disks are
    *          around.
    */
-  md_submit(minor, "active", (gauge_t)array.active_disks);
-  md_submit(minor, "failed", (gauge_t)array.failed_disks);
-  md_submit(minor, "spare", (gauge_t)array.spare_disks);
+  metric_t m = {0};
+  metric_label_set(&m, "device", path);
+  char minor_buffer[21];
+  ssnprintf(minor_buffer, sizeof(minor_buffer), "%i", minor);
+  metric_label_set(&m, "minor", minor_buffer);
 
-  disks_missing = 0.0;
+  m.value.gauge = (gauge_t)array.active_disks;
+  metric_family_metric_append(fams[FAM_MD_ACTIVE], m);
+
+  m.value.gauge = (gauge_t)array.failed_disks;
+  metric_family_metric_append(fams[FAM_MD_FAILED], m);
+
+  m.value.gauge = (gauge_t)array.spare_disks;
+  metric_family_metric_append(fams[FAM_MD_SPARE], m);
+
+  gauge_t disks_missing = 0.0;
   if (array.raid_disks > array.nr_disks)
     disks_missing = (gauge_t)(array.raid_disks - array.nr_disks);
-  md_submit(minor, "missing", disks_missing);
+
+  m.value.gauge = disks_missing;
+  metric_family_metric_append(fams[FAM_MD_MISSING], m);
+
+  metric_reset(&m);
 } /* void md_process */
 
 static int md_read(void) {
   FILE *fh;
   char buffer[1024];
+
+  metric_family_t fam_md_active = {
+      .name = "md_active",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_md_failed = {
+      .name = "md_failed",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_md_spare = {
+      .name = "md_spare",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_md_missing = {
+      .name = "md_missing",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t *fams[FAM_MD_MAX];
+
+  fams[FAM_MD_ACTIVE] = &fam_md_active;
+  fams[FAM_MD_FAILED] = &fam_md_failed;
+  fams[FAM_MD_SPARE] = &fam_md_spare;
+  fams[FAM_MD_MISSING] = &fam_md_missing;
 
   fh = fopen(PROC_DISKSTATS, "r");
   if (fh == NULL) {
@@ -177,10 +209,21 @@ static int md_read(void) {
      */
     snprintf(path, sizeof(path), "%s/%s", DEV_DIR, name);
 
-    md_process(minor, path);
+    md_process(fams, minor, path);
   }
 
   fclose(fh);
+
+  for (size_t i = 0; i < FAM_MD_MAX; i++) {
+    if (fams[i]->metric.num > 0) {
+      int status = plugin_dispatch_metric_family(fams[i]);
+      if (status != 0) {
+        ERROR("serial plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(fams[i]);
+    }
+  }
 
   return 0;
 } /* int md_read */
