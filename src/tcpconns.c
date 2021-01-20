@@ -618,10 +618,10 @@ static int conn_read_file(const char *file) {
 
   return 0;
 } /* int conn_read_file */
-  /* #endif KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
 
 #elif HAVE_SYSCTLBYNAME
-  /* #endif HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTLBYNAME */
 
 #elif HAVE_LIBKVM_NLIST
 #endif /* HAVE_LIBKVM_NLIST */
@@ -717,7 +717,7 @@ static int conn_read(void) {
 
   return 0;
 } /* int conn_read */
-  /* #endif KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
 
 #elif HAVE_SYSCTLBYNAME
 static int conn_read(void) {
@@ -836,8 +836,8 @@ static int conn_read(void) {
 
   return 0;
 }
-  /* int conn_read */
-  /* #endif HAVE_KVM_GETFILES */
+/* int conn_read */
+/* #endif HAVE_KVM_GETFILES */
 
 #elif HAVE_LIBKVM_NLIST
 static int kread(u_long addr, void *buf, int size) {
@@ -954,7 +954,7 @@ static int conn_read(void) {
 
   return 0;
 }
-  /* #endif HAVE_LIBKVM_NLIST */
+/* #endif HAVE_LIBKVM_NLIST */
 
 #elif KERNEL_AIX
 
