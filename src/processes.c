@@ -346,6 +346,58 @@ int getargs(void *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
 static ts_t *taskstats_handle;
 #endif
 
+enum {
+  FAM_PROC_VMEM_SIZE = 0,
+  FAM_PROC_VMEM_RSS,
+  FAM_PROC_VMEM_DATA,
+  FAM_PROC_VMEM_CODE,
+  FAM_PROC_VMEM_STACK,
+  FAM_PROC_CPU_USER,
+  FAM_PROC_CPU_SYSTEM,
+  FAM_PROC_NUM_PROCESSS,
+  FAM_PROC_NUM_THREADS,
+  FAM_PROC_VMEM_MINFLT,
+  FAM_PROC_VMEM_MAJFLT,
+  FAM_PROC_IO_RCHAR,
+  FAM_PROC_IO_WCHAR,
+  FAM_PROC_IO_SYSCR,
+  FAM_PROC_IO_SYSCW,
+  FAM_PROC_IO_DISKR,
+  FAM_PROC_IO_DISKW,
+  FAM_PROC_FILE_HANDLES,
+  FAM_PROC_FILE_HANDLES_MAPPED,
+  FAM_PROC_CTX_VOLUNTARY,
+  FAM_PROC_CTX_INVOLUNTARY,
+  FAM_PROC_DELAY_CPU,
+  FAM_PROC_DELAY_BLKIO,
+  FAM_PROC_DELAY_SWAPIN,
+  FAM_PROC_DELAY_FREEPAGES,
+  FAM_PROC_MAX
+};
+
+enum {
+  PROC_STATE_BLOCKED = 0,
+  PROC_STATE_DAEMON,
+  PROC_STATE_DEAD,
+  PROC_STATE_DETACHED,
+  PROC_STATE_IDLE,
+  PROC_STATE_ONPROC,
+  PROC_STATE_ORPHAN,
+  PROC_STATE_PAGING,
+  PROC_STATE_RUNNING,
+  PROC_STATE_SLEEPING,
+  PROC_STATE_STOPPED,
+  PROC_STATE_SYSTEM,
+  PROC_STATE_WAIT,
+  PROC_STATE_ZOMBIES,
+  PROC_STATE_MAX
+};
+
+static char const *proc_state_name[PROC_STATE_MAX] = {
+    "blocked", "daemon",  "dead",     "detached", "idle",   "onproc", "orphan",
+    "paging",  "running", "sleeping", "stopped",  "system", "wait",   "zombies",
+};
+
 /* put name of process from config to list_head_g tree
  * list_head_g is a list of 'procstat_t' structs with
  * processes names we want to watch */
@@ -807,149 +859,154 @@ static int ps_init(void) {
   return 0;
 } /* int ps_init */
 
+static void ps_submit_forks(counter_t value) {
+  metric_family_t fam = {
+      .name = "processes_forks_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.counter = value,
+                                    });
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("processes plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
+}
+
 /* submit global state (e.g.: qty of zombies, running, etc..) */
-static void ps_submit_state(const char *state, double value) {
-  value_list_t vl = VALUE_LIST_INIT;
+static void ps_submit_state(gauge_t *proc_state) {
+  metric_family_t fam = {
+      .name = "processes_state",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_t m = {0};
 
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "processes", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, "", sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "ps_state", sizeof(vl.type));
-  sstrncpy(vl.type_instance, state, sizeof(vl.type_instance));
+  for (size_t i = 0; i < PROC_STATE_MAX; i++) {
+    if (!isnan(proc_state[i])) {
+      m.value.gauge = proc_state[i];
+      metric_label_set(&m, "state", proc_state_name[i]);
+      metric_family_metric_append(&fam, m);
+      metric_reset(&m);
+    }
+  }
 
-  plugin_dispatch_values(&vl);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("processes plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 }
 
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
-static void ps_submit_proc_list(procstat_t *ps) {
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[2];
+static void ps_metric_append_proc_list(metric_family_t *fams_proc[],
+                                       procstat_t *ps) {
+  metric_t m = {0};
 
-  vl.values = values;
-  sstrncpy(vl.plugin, "processes", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, ps->name, sizeof(vl.plugin_instance));
+  metric_label_set(&m, "name", ps->name);
 
-  sstrncpy(vl.type, "ps_vm", sizeof(vl.type));
-  vl.values[0].gauge = ps->vmem_size;
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
+  m.value.gauge = ps->vmem_size;
+  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_SIZE], m);
 
-  sstrncpy(vl.type, "ps_rss", sizeof(vl.type));
-  vl.values[0].gauge = ps->vmem_rss;
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
+  m.value.gauge = ps->vmem_rss;
+  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_RSS], m);
 
-  sstrncpy(vl.type, "ps_data", sizeof(vl.type));
-  vl.values[0].gauge = ps->vmem_data;
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
+  m.value.gauge = ps->vmem_data;
+  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_DATA], m);
 
-  sstrncpy(vl.type, "ps_code", sizeof(vl.type));
-  vl.values[0].gauge = ps->vmem_code;
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
+  m.value.gauge = ps->vmem_code;
+  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_CODE], m);
 
-  sstrncpy(vl.type, "ps_stacksize", sizeof(vl.type));
-  vl.values[0].gauge = ps->stack_size;
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
+  m.value.gauge = ps->stack_size;
+  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_STACK], m);
 
-  sstrncpy(vl.type, "ps_cputime", sizeof(vl.type));
-  vl.values[0].derive = ps->cpu_user_counter;
-  vl.values[1].derive = ps->cpu_system_counter;
-  vl.values_len = 2;
-  plugin_dispatch_values(&vl);
+  m.value.counter = ps->cpu_user_counter;
+  metric_family_metric_append(fams_proc[FAM_PROC_CPU_USER], m);
 
-  sstrncpy(vl.type, "ps_count", sizeof(vl.type));
-  vl.values[0].gauge = ps->num_proc;
-  vl.values[1].gauge = ps->num_lwp;
-  vl.values_len = 2;
-  plugin_dispatch_values(&vl);
+  m.value.counter = ps->cpu_system_counter;
+  metric_family_metric_append(fams_proc[FAM_PROC_CPU_SYSTEM], m);
 
-  sstrncpy(vl.type, "ps_pagefaults", sizeof(vl.type));
-  vl.values[0].derive = ps->vmem_minflt_counter;
-  vl.values[1].derive = ps->vmem_majflt_counter;
-  vl.values_len = 2;
-  plugin_dispatch_values(&vl);
+  m.value.gauge = ps->num_proc;
+  metric_family_metric_append(fams_proc[FAM_PROC_NUM_PROCESSS], m);
 
-  if ((ps->io_rchar != -1) && (ps->io_wchar != -1)) {
-    sstrncpy(vl.type, "io_octets", sizeof(vl.type));
-    vl.values[0].derive = ps->io_rchar;
-    vl.values[1].derive = ps->io_wchar;
-    vl.values_len = 2;
-    plugin_dispatch_values(&vl);
+  m.value.gauge = ps->num_lwp;
+  metric_family_metric_append(fams_proc[FAM_PROC_NUM_THREADS], m);
+
+  m.value.counter = ps->vmem_minflt_counter;
+  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_MINFLT], m);
+
+  m.value.counter = ps->vmem_majflt_counter;
+  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_MAJFLT], m);
+
+  if (ps->io_rchar != -1) {
+    m.value.counter = ps->io_rchar;
+    metric_family_metric_append(fams_proc[FAM_PROC_IO_RCHAR], m);
   }
-
-  if ((ps->io_syscr != -1) && (ps->io_syscw != -1)) {
-    sstrncpy(vl.type, "io_ops", sizeof(vl.type));
-    vl.values[0].derive = ps->io_syscr;
-    vl.values[1].derive = ps->io_syscw;
-    vl.values_len = 2;
-    plugin_dispatch_values(&vl);
+  if (ps->io_wchar != -1) {
+    m.value.counter = ps->io_wchar;
+    metric_family_metric_append(fams_proc[FAM_PROC_IO_WCHAR], m);
   }
-
-  if ((ps->io_diskr != -1) && (ps->io_diskw != -1)) {
-    sstrncpy(vl.type, "disk_octets", sizeof(vl.type));
-    vl.values[0].derive = ps->io_diskr;
-    vl.values[1].derive = ps->io_diskw;
-    vl.values_len = 2;
-    plugin_dispatch_values(&vl);
+  if (ps->io_syscr != -1) {
+    m.value.counter = ps->io_syscr;
+    metric_family_metric_append(fams_proc[FAM_PROC_IO_SYSCR], m);
   }
-
+  if (ps->io_syscw != -1) {
+    m.value.counter = ps->io_syscw;
+    metric_family_metric_append(fams_proc[FAM_PROC_IO_SYSCW], m);
+  }
+  if (ps->io_diskr != -1) {
+    m.value.counter = ps->io_diskr;
+    metric_family_metric_append(fams_proc[FAM_PROC_IO_DISKR], m);
+  }
+  if (ps->io_diskw != -1) {
+    m.value.counter = ps->io_diskw;
+    metric_family_metric_append(fams_proc[FAM_PROC_IO_DISKW], m);
+  }
   if (ps->num_fd > 0) {
-    sstrncpy(vl.type, "file_handles", sizeof(vl.type));
-    vl.values[0].gauge = ps->num_fd;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
+    m.value.gauge = ps->num_fd;
+    metric_family_metric_append(fams_proc[FAM_PROC_FILE_HANDLES], m);
   }
-
   if (ps->num_maps > 0) {
-    sstrncpy(vl.type, "file_handles", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "mapped", sizeof(vl.type_instance));
-    vl.values[0].gauge = ps->num_maps;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
+    m.value.gauge = ps->num_maps;
+    metric_family_metric_append(fams_proc[FAM_PROC_FILE_HANDLES_MAPPED], m);
   }
-
-  if ((ps->cswitch_vol != -1) && (ps->cswitch_invol != -1)) {
-    sstrncpy(vl.type, "contextswitch", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "voluntary", sizeof(vl.type_instance));
-    vl.values[0].derive = ps->cswitch_vol;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
-
-    sstrncpy(vl.type, "contextswitch", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "involuntary", sizeof(vl.type_instance));
-    vl.values[0].derive = ps->cswitch_invol;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
+  if (ps->cswitch_vol != -1) {
+    m.value.counter = ps->cswitch_vol;
+    metric_family_metric_append(fams_proc[FAM_PROC_CTX_VOLUNTARY], m);
+  }
+  if (ps->cswitch_invol != -1) {
+    m.value.counter = ps->cswitch_invol;
+    metric_family_metric_append(fams_proc[FAM_PROC_CTX_INVOLUNTARY], m);
   }
 
   /* The ps->delay_* metrics are in nanoseconds per second. Convert to seconds
    * per second. */
   gauge_t const delay_factor = 1000000000.0;
 
-  struct {
-    const char *type_instance;
-    gauge_t rate_ns;
-  } delay_metrics[] = {
-      {"delay-cpu", ps->delay_cpu},
-      {"delay-blkio", ps->delay_blkio},
-      {"delay-swapin", ps->delay_swapin},
-      {"delay-freepages", ps->delay_freepages},
-  };
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(delay_metrics); i++) {
-    if (isnan(delay_metrics[i].rate_ns)) {
-      continue;
-    }
-    sstrncpy(vl.type, "delay_rate", sizeof(vl.type));
-    sstrncpy(vl.type_instance, delay_metrics[i].type_instance,
-             sizeof(vl.type_instance));
-    vl.values[0].gauge = delay_metrics[i].rate_ns / delay_factor;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
+  if (!isnan(ps->delay_cpu)) {
+    m.value.gauge = ps->delay_cpu / delay_factor;
+    metric_family_metric_append(fams_proc[FAM_PROC_DELAY_CPU], m);
   }
+  if (!isnan(ps->delay_blkio)) {
+    m.value.gauge = ps->delay_blkio / delay_factor;
+    metric_family_metric_append(fams_proc[FAM_PROC_DELAY_BLKIO], m);
+  }
+  if (!isnan(ps->delay_swapin)) {
+    m.value.gauge = ps->delay_swapin / delay_factor;
+    metric_family_metric_append(fams_proc[FAM_PROC_DELAY_SWAPIN], m);
+  }
+  if (!isnan(ps->delay_freepages)) {
+    m.value.gauge = ps->delay_freepages / delay_factor;
+    metric_family_metric_append(fams_proc[FAM_PROC_DELAY_FREEPAGES], m);
+  }
+
+  metric_reset(&m);
 
   DEBUG(
       "name = %s; num_proc = %lu; num_lwp = %lu; num_fd = %lu; num_maps = %lu; "
@@ -971,22 +1028,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
       ps->cswitch_invol, ps->delay_cpu, ps->delay_blkio, ps->delay_swapin,
       ps->delay_freepages);
 
-} /* void ps_submit_proc_list */
-
-#if KERNEL_LINUX || KERNEL_SOLARIS
-static void ps_submit_fork_rate(derive_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.derive = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "processes", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, "", sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "fork_rate", sizeof(vl.type));
-  sstrncpy(vl.type_instance, "", sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
-#endif /* KERNEL_LINUX || KERNEL_SOLARIS*/
+} /* void ps_metric_append_proc_list */
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
@@ -1598,7 +1640,7 @@ static int read_fork_rate(void) {
     if (strcmp("processes", fields[0]) != 0)
       continue;
 
-    status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+    status = parse_value(fields[1], &value, DS_TYPE_COUNTER);
     if (status == 0)
       value_valid = 1;
 
@@ -1609,7 +1651,7 @@ static int read_fork_rate(void) {
   if (!value_valid)
     return -1;
 
-  ps_submit_fork_rate(value.derive);
+  ps_submit_forks(value.counter);
   return 0;
 }
 #endif /*KERNEL_LINUX */
@@ -1772,7 +1814,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
  */
 static int read_fork_rate(void) {
   extern kstat_ctl_t *kc;
-  derive_t result = 0;
+  counter_t result = 0;
 
   if (kc == NULL)
     return -1;
@@ -1792,7 +1834,7 @@ static int read_fork_rate(void) {
     }
   }
 
-  ps_submit_fork_rate(result);
+  ps_submit_forks(result);
   return 0;
 }
 #endif /* KERNEL_SOLARIS */
@@ -1836,6 +1878,141 @@ static int mach_get_task_name(task_t t, int *pid, char *name,
 
 /* do actual readings from kernel */
 static int ps_read(void) {
+  metric_family_t fam_proc_vmem_size = {
+      .name = "processes_vmem_size_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_vmem_rss = {
+      .name = "processes_vmem_rss_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_vmem_data = {
+      .name = "processes_vmem_data_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_vmem_code = {
+      .name = "processes_vmem_code_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_vmem_stack = {
+      .name = "processes_vmem_stack_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_cpu_user = {
+      .name = "processes_cpu_user_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_cpu_system = {
+      .name = "processes_cpu_system_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_num_processs = {
+      .name = "processes_num_processs",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_num_threads = {
+      .name = "processes_num_threads",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_vmem_minflt = {
+      .name = "processes_vmem_minflt_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_vmem_majflt = {
+      .name = "processes_vmem_majflt_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_io_rchar = {
+      .name = "processes_io_rchar_bytes",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_io_wchar = {
+      .name = "processes_io_wchar_bytes",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_io_syscr = {
+      .name = "processes_io_syscr_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_io_syscw = {
+      .name = "processes_io_syscw_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_io_diskr = {
+      .name = "processes_io_diskr_bytes",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_io_diskw = {
+      .name = "processes_io_diskw_bytes",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_file_handles = {
+      .name = "processes_file_handles",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_file_handles_mapped = {
+      .name = "processes_file_handles_mapped",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_ctx_voluntary = {
+      .name = "processes_contextswitch_voluntary_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_ctx_involuntary = {
+      .name = "processes_contextswitch_involuntary_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_proc_delay_cpu = {
+      .name = "processes_delay_cpu_seconds",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_delay_blkio = {
+      .name = "processes_delay_blkio_seconds",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_delay_swapin = {
+      .name = "processes_delay_swapin_seconds",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_proc_delay_freepages = {
+      .name = "processes_delay_freepages_seconds",
+      .type = METRIC_TYPE_GAUGE,
+  };
+
+  metric_family_t *fams_proc[FAM_PROC_MAX];
+
+  fams_proc[FAM_PROC_VMEM_SIZE] = &fam_proc_vmem_size;
+  fams_proc[FAM_PROC_VMEM_RSS] = &fam_proc_vmem_rss;
+  fams_proc[FAM_PROC_VMEM_DATA] = &fam_proc_vmem_data;
+  fams_proc[FAM_PROC_VMEM_CODE] = &fam_proc_vmem_code;
+  fams_proc[FAM_PROC_VMEM_STACK] = &fam_proc_vmem_stack;
+  fams_proc[FAM_PROC_CPU_USER] = &fam_proc_cpu_user;
+  fams_proc[FAM_PROC_CPU_SYSTEM] = &fam_proc_cpu_system;
+  fams_proc[FAM_PROC_NUM_PROCESSS] = &fam_proc_num_processs;
+  fams_proc[FAM_PROC_NUM_THREADS] = &fam_proc_num_threads;
+  fams_proc[FAM_PROC_VMEM_MINFLT] = &fam_proc_vmem_minflt;
+  fams_proc[FAM_PROC_VMEM_MAJFLT] = &fam_proc_vmem_majflt;
+  fams_proc[FAM_PROC_IO_RCHAR] = &fam_proc_io_rchar;
+  fams_proc[FAM_PROC_IO_WCHAR] = &fam_proc_io_wchar;
+  fams_proc[FAM_PROC_IO_SYSCR] = &fam_proc_io_syscr;
+  fams_proc[FAM_PROC_IO_SYSCW] = &fam_proc_io_syscw;
+  fams_proc[FAM_PROC_IO_DISKR] = &fam_proc_io_diskr;
+  fams_proc[FAM_PROC_IO_DISKW] = &fam_proc_io_diskw;
+  fams_proc[FAM_PROC_FILE_HANDLES] = &fam_proc_file_handles;
+  fams_proc[FAM_PROC_FILE_HANDLES_MAPPED] = &fam_proc_file_handles_mapped;
+  fams_proc[FAM_PROC_CTX_VOLUNTARY] = &fam_proc_ctx_voluntary;
+  fams_proc[FAM_PROC_CTX_INVOLUNTARY] = &fam_proc_ctx_involuntary;
+  fams_proc[FAM_PROC_DELAY_CPU] = &fam_proc_delay_cpu;
+  fams_proc[FAM_PROC_DELAY_BLKIO] = &fam_proc_delay_blkio;
+  fams_proc[FAM_PROC_DELAY_SWAPIN] = &fam_proc_delay_swapin;
+  fams_proc[FAM_PROC_DELAY_FREEPAGES] = &fam_proc_delay_freepages;
+
+  gauge_t proc_state[PROC_STATE_MAX];
+
+  for (size_t i = 0; i < PROC_STATE_MAX; i++) {
+    proc_state[i] = NAN;
+  }
+
 #if HAVE_THREAD_INFO
   kern_return_t status;
 
@@ -2060,14 +2237,15 @@ static int ps_read(void) {
     }
   } /* for (pset_list) */
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("blocked", blocked);
+  proc_state[PROC_STATE_RUNNING] = running;
+  proc_state[PROC_STATE_SLEEPING] = sleeping;
+  proc_state[PROC_STATE_ZOMBIES] = zombies;
+  proc_state[PROC_STATE_STOPPED] = stopped;
+  proc_state[PROC_STATE_BLOCKED] = blocked;
+  ps_submit_state(proc_state);
 
   for (ps = list_head_g; ps != NULL; ps = ps->next)
-    ps_submit_proc_list(ps);
+    ps_metric_append_proc_list(fams_proc, ps);
     /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
@@ -2149,15 +2327,16 @@ static int ps_read(void) {
    * accurate, and can be retrieved in a single 'read' call. */
   running = procs_running();
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("paging", paging);
-  ps_submit_state("blocked", blocked);
+  proc_state[PROC_STATE_RUNNING] = running;
+  proc_state[PROC_STATE_SLEEPING] = sleeping;
+  proc_state[PROC_STATE_ZOMBIES] = zombies;
+  proc_state[PROC_STATE_STOPPED] = stopped;
+  proc_state[PROC_STATE_PAGING] = paging;
+  proc_state[PROC_STATE_BLOCKED] = blocked;
+  ps_submit_state(proc_state);
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+    ps_metric_append_proc_list(fams_proc, ps_ptr);
 
   read_fork_rate();
   /* #endif KERNEL_LINUX */
@@ -2305,16 +2484,17 @@ static int ps_read(void) {
 
   kvm_close(kd);
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("blocked", blocked);
-  ps_submit_state("idle", idle);
-  ps_submit_state("wait", wait);
+  proc_state[PROC_STATE_RUNNING] = running;
+  proc_state[PROC_STATE_SLEEPING] = sleeping;
+  proc_state[PROC_STATE_ZOMBIES] = zombies;
+  proc_state[PROC_STATE_STOPPED] = stopped;
+  proc_state[PROC_STATE_BLOCKED] = blocked;
+  proc_state[PROC_STATE_IDLE] = idle;
+  proc_state[PROC_STATE_WAIT] = wait;
+  ps_submit_state(proc_state);
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+    ps_metric_append_proc_list(fams_proc, ps_ptr);
     /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC2_NETBSD
@@ -2487,16 +2667,17 @@ static int ps_read(void) {
 
   kvm_close(kd);
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("blocked", blocked);
-  ps_submit_state("idle", idle);
-  ps_submit_state("wait", wait);
+  proc_state[PROC_STATE_RUNNING] = running;
+  proc_state[PROC_STATE_SLEEPING] = sleeping;
+  proc_state[PROC_STATE_ZOMBIES] = zombies;
+  proc_state[PROC_STATE_STOPPED] = stopped;
+  proc_state[PROC_STATE_BLOCKED] = blocked;
+  proc_state[PROC_STATE_IDLE] = idle;
+  proc_state[PROC_STATE_WAIT] = wait;
+  ps_submit_state(proc_state);
 
   for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+    ps_metric_append_proc_list(fams_proc, ps_ptr);
     /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC2_NETBSD */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD
@@ -2631,16 +2812,17 @@ static int ps_read(void) {
 
   kvm_close(kd);
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("onproc", onproc);
-  ps_submit_state("idle", idle);
-  ps_submit_state("dead", dead);
+  proc_state[PROC_STATE_RUNNING] = running;
+  proc_state[PROC_STATE_SLEEPING] = sleeping;
+  proc_state[PROC_STATE_ZOMBIES] = zombies;
+  proc_state[PROC_STATE_STOPPED] = stopped;
+  proc_state[PROC_STATE_ONPROC] = onproc;
+  proc_state[PROC_STATE_IDLE] = idle;
+  proc_state[PROC_STATE_DEAD] = dead;
+  ps_submit_state(proc_state);
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+    ps_metric_append_proc_list(fams_proc, ps_ptr);
     /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD */
 
 #elif HAVE_PROCINFO_H
@@ -2771,15 +2953,17 @@ static int ps_read(void) {
     if (nprocs < MAXPROCENTRY)
       break;
   } /* while (getprocs64() > 0) */
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("paging", paging);
-  ps_submit_state("blocked", blocked);
+
+  proc_state[PROC_STATE_RUNNING] = running;
+  proc_state[PROC_STATE_SLEEPING] = sleeping;
+  proc_state[PROC_STATE_ZOMBIES] = zombies;
+  proc_state[PROC_STATE_STOPPED] = stopped;
+  proc_state[PROC_STATE_PAGING] = paging;
+  proc_state[PROC_STATE_BLOCKED] = blocked;
+  ps_submit_state(proc_state);
 
   for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
-    ps_submit_proc_list(ps);
+    ps_metric_append_proc_list(fams_proc, ps);
     /* #endif HAVE_PROCINFO_H */
 
 #elif KERNEL_SOLARIS
@@ -2865,22 +3049,34 @@ static int ps_read(void) {
   } /* while(readdir) */
   closedir(proc);
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("detached", detached);
-  ps_submit_state("daemon", daemon);
-  ps_submit_state("system", system);
-  ps_submit_state("orphan", orphan);
+  proc_state[PROC_STATE_RUNNING] = running;
+  proc_state[PROC_STATE_SLEEPING] = sleeping;
+  proc_state[PROC_STATE_ZOMBIES] = zombies;
+  proc_state[PROC_STATE_STOPPED] = stopped;
+  proc_state[PROC_STATE_DETACHED] = detached;
+  proc_state[PROC_STATE_DAEMON] = daemon;
+  proc_state[PROC_STATE_SYSTEM] = system;
+  proc_state[PROC_STATE_ORPHAN] = orphan;
+  ps_submit_state(proc_state);
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+    ps_metric_append_proc_list(fams_proc, ps_ptr);
 
   read_fork_rate();
 #endif /* KERNEL_SOLARIS */
 
   want_init = false;
+
+  for (size_t i = 0; fams_proc[i] != NULL; i++) {
+    if (fams_proc[i]->metric.num > 0) {
+      int status = plugin_dispatch_metric_family(fams_proc[i]);
+      if (status != 0) {
+        ERROR("processes: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(fams_proc[i]);
+    }
+  }
 
   return 0;
 } /* int ps_read */
