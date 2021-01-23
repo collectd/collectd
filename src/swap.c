@@ -267,7 +267,7 @@ static void swap_submit_io(metric_family_t *fam_in, counter_t in, /* {{{ */
 #endif
 
 #if KERNEL_LINUX
-static int swap_read_separate(metric_family_t *fams[]) /* {{{ */
+static int swap_read_separate(metric_family_t *fams) /* {{{ */
 {
   FILE *fh;
   char buffer[1024];
@@ -308,9 +308,9 @@ static int swap_read_separate(metric_family_t *fams[]) /* {{{ */
     if (total < used)
       continue;
 
-    swap_submit_usage(path, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                      used * 1024.0, fams[FAM_SWAP_FREE],
-                      fams[FAM_SWAP_FREE_PCT], (total - used) * 1024.0, NULL,
+    swap_submit_usage(path, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                      used * 1024.0, &fams[FAM_SWAP_FREE],
+                      &fams[FAM_SWAP_FREE_PCT], (total - used) * 1024.0, NULL,
                       NULL, NAN);
   }
 
@@ -319,7 +319,7 @@ static int swap_read_separate(metric_family_t *fams[]) /* {{{ */
   return 0;
 } /* }}} int swap_read_separate */
 
-static int swap_read_combined(metric_family_t *fams[]) /* {{{ */
+static int swap_read_combined(metric_family_t *fams) /* {{{ */
 {
   FILE *fh;
   char buffer[1024];
@@ -366,16 +366,16 @@ static int swap_read_combined(metric_family_t *fams[]) /* {{{ */
   if (swap_used < 0.0)
     return EINVAL;
 
-  swap_submit_usage(NULL, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                    swap_used * 1024.0, fams[FAM_SWAP_FREE],
-                    fams[FAM_SWAP_FREE_PCT], swap_free * 1024.0,
-                    isnan(swap_cached) ? NULL : fams[FAM_SWAP_CACHED],
-                    isnan(swap_cached) ? NULL : fams[FAM_SWAP_CACHED_PCT],
+  swap_submit_usage(NULL, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                    swap_used * 1024.0, &fams[FAM_SWAP_FREE],
+                    &fams[FAM_SWAP_FREE_PCT], swap_free * 1024.0,
+                    isnan(swap_cached) ? NULL : &fams[FAM_SWAP_CACHED],
+                    isnan(swap_cached) ? NULL : &fams[FAM_SWAP_CACHED_PCT],
                     isnan(swap_cached) ? NAN : swap_cached * 1024.0);
   return 0;
 } /* }}} int swap_read_combined */
 
-static int swap_read_io(metric_family_t *fams[]) /* {{{ */
+static int swap_read_io(metric_family_t *fams) /* {{{ */
 {
   char buffer[1024];
 
@@ -415,12 +415,12 @@ static int swap_read_io(metric_family_t *fams[]) /* {{{ */
     swap_out = swap_out * pagesize;
   }
 
-  swap_submit_io(fams[FAM_SWAP_IN], swap_in, fams[FAM_SWAP_OUT], swap_out);
+  swap_submit_io(&fams[FAM_SWAP_IN], swap_in, &fams[FAM_SWAP_OUT], swap_out);
 
   return 0;
 } /* }}} int swap_read_io */
 
-static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
+static int swap_read_fam(metric_family_t *fams) /* {{{ */
 {
   if (report_by_device)
     swap_read_separate(fams);
@@ -445,7 +445,7 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
  */
 #elif 0 && HAVE_LIBKSTAT
 /* kstat-based read function */
-static int swap_read_kstat(metric_family_t *fams[]) /* {{{ */
+static int swap_read_kstat(metric_family_t *fams) /* {{{ */
 {
   gauge_t swap_alloc;
   gauge_t swap_resv;
@@ -483,17 +483,17 @@ static int swap_read_kstat(metric_family_t *fams[]) /* {{{ */
   swap_resv = (gauge_t)((ai.ani_resv + ai.ani_free - ai.ani_max) * pagesize);
   swap_avail = (gauge_t)((ai.ani_max - ai.ani_resv) * pagesize);
 
-  swap_submit_usage(NULL, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                    swap_alloc, fams[FAM_SWAP_FREE], fams[FAM_SWAP_FREE_PCT],
-                    swap_avail, fams[FAM_SWAP_RESERVED],
-                    fams[FAM_SWAP_RESERVED_PCT], swap_resv);
+  swap_submit_usage(NULL, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                    swap_alloc, &fams[FAM_SWAP_FREE], &fams[FAM_SWAP_FREE_PCT],
+                    swap_avail, &fams[FAM_SWAP_RESERVED],
+                    &fams[FAM_SWAP_RESERVED_PCT], swap_resv);
   return 0;
 } /* }}} int swap_read_kstat */
   /* #endif 0 && HAVE_LIBKSTAT */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 /* swapctl-based read function */
-static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
+static int swap_read_fam(metric_family_t *fams) /* {{{ */
 {
   swaptbl_t *s;
   char *s_paths;
@@ -569,9 +569,9 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
 
     sstrncpy(path, s->swt_ent[i].ste_path, sizeof(path));
 
-    swap_submit_usage(path, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                      this_total - this_avail, fams[FAM_SWAP_FREE],
-                      fams[FAM_SWAP_FREE_PCT], this_avail, NULL, NULL, NAN);
+    swap_submit_usage(path, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                      this_total - this_avail, &fams[FAM_SWAP_FREE],
+                      &fams[FAM_SWAP_FREE_PCT], this_avail, NULL, NULL, NAN);
   } /* for (swap_num) */
 
   if (total < avail) {
@@ -586,9 +586,9 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
   /* If the "separate" option was specified (report_by_device == true) all
    * values have already been dispatched from within the loop. */
   if (!report_by_device) {
-    swap_submit_usage(NULL, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                      total - avail, fams[FAM_SWAP_FREE],
-                      fams[FAM_SWAP_FREE_PCT], avail, NULL, NULL, NAN);
+    swap_submit_usage(NULL, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                      total - avail, &fams[FAM_SWAP_FREE],
+                      &fams[FAM_SWAP_FREE_PCT], avail, NULL, NULL, NAN);
   }
 
   sfree(s_paths);
@@ -601,7 +601,7 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
 #if KERNEL_NETBSD
 #include <uvm/uvm_extern.h>
 
-static int swap_read_io(metric_family_t *fams[]) /* {{{ */
+static int swap_read_io(metric_family_t *fams) /* {{{ */
 {
   static int uvmexp_mib[] = {CTL_VM, VM_UVMEXP2};
   struct uvmexp_sysctl uvmexp;
@@ -626,13 +626,13 @@ static int swap_read_io(metric_family_t *fams[]) /* {{{ */
     swap_out = swap_out * pagesize;
   }
 
-  swap_submit_io(fams[FAM_SWAP_IN], swap_in, fams[FAM_SWAP_OUT], swap_out);
+  swap_submit_io(&fams[FAM_SWAP_IN], swap_in, &fams[FAM_SWAP_OUT], swap_out);
 
   return (0);
 } /* }}} */
 #endif
 
-static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
+static int swap_read_fam(metric_family_t *fams) /* {{{ */
 {
   struct swapent *swap_entries;
   int swap_num;
@@ -689,8 +689,8 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
 
     sstrncpy(path, swap_entries[i].se_path, sizeof(path));
 
-    swap_submit_usage(path, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                      this_used, fams[FAM_SWAP_FREE], fams[FAM_SWAP_FREE_PCT],
+    swap_submit_usage(path, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                      this_used, &fams[FAM_SWAP_FREE], &fams[FAM_SWAP_FREE_PCT],
                       this_total - this_used, NULL, NULL, NAN);
   } /* for (swap_num) */
 
@@ -705,8 +705,8 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
   /* If the "separate" option was specified (report_by_device == 1), all
    * values have already been dispatched from within the loop. */
   if (!report_by_device) {
-    swap_submit_usage(path, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT], used,
-                      fams[FAM_SWAP_FREE], fams[FAM_SWAP_FREE_PCT],
+    swap_submit_usage(path, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                      used, &fams[FAM_SWAP_FREE], &fams[FAM_SWAP_FREE_PCT],
                       total - used, NULL, NULL, NAN);
   }
 
@@ -719,7 +719,7 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
   /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS */
 
 #elif defined(VM_SWAPUSAGE)
-static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
+static int swap_read_fam(metric_family_t *fams) /* {{{ */
 {
   int mib[3];
   size_t mib_len;
@@ -736,9 +736,9 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
     return -1;
 
   /* The returned values are bytes. */
-  swap_submit_usage(NULL, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                    (gauge_t)sw_usage.xsu_used, fams[FAM_SWAP_FREE],
-                    fams[FAM_SWAP_FREE_PCT], (gauge_t)sw_usage.xsu_avail, NULL,
+  swap_submit_usage(NULL, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                    (gauge_t)sw_usage.xsu_used, &fams[FAM_SWAP_FREE],
+                    &fams[FAM_SWAP_FREE_PCT], (gauge_t)sw_usage.xsu_avail, NULL,
                     NULL, NAN);
 
   return 0;
@@ -746,7 +746,7 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
   /* #endif VM_SWAPUSAGE */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
-static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
+static int swap_read_fam(metric_family_t *fams) /* {{{ */
 {
   struct kvm_swap data_s;
   int status;
@@ -765,16 +765,16 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
   total *= (gauge_t)kvm_pagesize;
   used *= (gauge_t)kvm_pagesize;
 
-  swap_submit_usage(NULL, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT], used,
-                    fams[FAM_SWAP_FREE], fams[FAM_SWAP_FREE_PCT], total - used,
-                    NULL, NULL, NAN);
+  swap_submit_usage(NULL, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT], used,
+                    &fams[FAM_SWAP_FREE], &fams[FAM_SWAP_FREE_PCT],
+                    total - used, NULL, NULL, NAN);
 
   return 0;
 } /* }}} int swap_read_fam */
   /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
 #elif HAVE_LIBSTATGRAB
-static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
+static int swap_read_fam(metric_family_t *fams) /* {{{ */
 {
   sg_swap_stats *swap;
 
@@ -782,9 +782,9 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
   if (swap == NULL)
     return -1;
 
-  swap_submit_usage(NULL, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                    (gauge_t)swap->used, fams[FAM_SWAP_FREE],
-                    fams[FAM_SWAP_FREE_PCT], (gauge_t)swap->free, NULL, NULL,
+  swap_submit_usage(NULL, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                    (gauge_t)swap->used, &fams[FAM_SWAP_FREE],
+                    &fams[FAM_SWAP_FREE_PCT], (gauge_t)swap->free, NULL, NULL,
                     NAN);
 
   return 0;
@@ -792,7 +792,7 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
   /* #endif  HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
-static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
+static int swap_read_fam(metric_family_t *fams) /* {{{ */
 {
   perfstat_memory_total_t pmemory = {0};
 
@@ -807,14 +807,14 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
   gauge_t free = (gauge_t)(pmemory.pgsp_free * pagesize);
   gauge_t reserved = (gauge_t)(pmemory.pgsp_rsvd * pagesize);
 
-  swap_submit_usage(NULL, fams[FAM_SWAP_USED], fams[FAM_SWAP_USED_PCT],
-                    total - free, fams[FAM_SWAP_FREE], fams[FAM_SWAP_FREE_PCT],
-                    free, fams[FAM_SWAP_RESERVED], fams[FAM_SWAP_RESERVED_PCT],
-                    reserved);
+  swap_submit_usage(NULL, &fams[FAM_SWAP_USED], &fams[FAM_SWAP_USED_PCT],
+                    total - free, &fams[FAM_SWAP_FREE],
+                    &fams[FAM_SWAP_FREE_PCT], free, &fams[FAM_SWAP_RESERVED],
+                    &fams[FAM_SWAP_RESERVED_PCT], reserved);
 
   if (report_io) {
-    swap_submit_io(fams[FAM_SWAP_IN], (counter_t)(pmemory.pgspins * pagesize),
-                   fams[FAM_SWAP_OUT],
+    swap_submit_io(&fams[FAM_SWAP_IN], (counter_t)(pmemory.pgspins * pagesize),
+                   &fams[FAM_SWAP_OUT],
                    (counter_t)(pmemory.pgspouts * pagesize));
   }
 
@@ -823,70 +823,69 @@ static int swap_read_fam(metric_family_t *fams[]) /* {{{ */
 #endif /* HAVE_PERFSTAT */
 
 static int swap_read(void) {
-  metric_family_t fam_swap_used = {
-      .name = "swap_used_bytes",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_swap_free = {
-      .name = "swap_free_bytes",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_swap_cached = {
-      .name = "swap_cached_bytes",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_swap_reserved = {
-      .name = "swap_reserved_bytes",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_swap_used_pct = {
-      .name = "swap_used_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_swap_free_pct = {
-      .name = "swap_free_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_swap_cached_pct = {
-      .name = "swap_cached_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_swap_reserved_pct = {
-      .name = "swap_reserved_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_swap_in = {
-      .name = "swap_in",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_swap_out = {
-      .name = "swap_out",
-      .type = METRIC_TYPE_COUNTER,
+  metric_family_t fams[FAM_SWAP_MAX] = {
+      [FAM_SWAP_USED] =
+          {
+              .name = "swap_used_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_FREE] =
+          {
+              .name = "swap_free_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_CACHED] =
+          {
+              .name = "swap_cached_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_RESERVED] =
+          {
+              .name = "swap_reserved_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_USED_PCT] =
+          {
+              .name = "swap_used_percent",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_FREE_PCT] =
+          {
+              .name = "swap_free_percent",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_CACHED_PCT] =
+          {
+              .name = "swap_cached_percent",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_RESERVED_PCT] =
+          {
+              .name = "swap_reserved_percent",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_IN] =
+          {
+              .name = "swap_in",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_SWAP_OUT] =
+          {
+              .name = "swap_out",
+              .type = METRIC_TYPE_COUNTER,
+          },
   };
 
-  metric_family_t *fams_swap[FAM_SWAP_MAX];
-
-  fams_swap[FAM_SWAP_USED] = &fam_swap_used;
-  fams_swap[FAM_SWAP_FREE] = &fam_swap_free;
-  fams_swap[FAM_SWAP_CACHED] = &fam_swap_cached;
-  fams_swap[FAM_SWAP_RESERVED] = &fam_swap_reserved;
-  fams_swap[FAM_SWAP_USED_PCT] = &fam_swap_used_pct;
-  fams_swap[FAM_SWAP_FREE_PCT] = &fam_swap_free_pct;
-  fams_swap[FAM_SWAP_CACHED_PCT] = &fam_swap_cached_pct;
-  fams_swap[FAM_SWAP_RESERVED_PCT] = &fam_swap_reserved_pct;
-  fams_swap[FAM_SWAP_IN] = &fam_swap_in;
-  fams_swap[FAM_SWAP_OUT] = &fam_swap_out;
-
-  swap_read_fam(fams_swap);
+  swap_read_fam(fams);
 
   for (size_t i = 0; i < FAM_SWAP_MAX; i++) {
-    if (fams_swap[i]->metric.num > 0) {
-      int status = plugin_dispatch_metric_family(fams_swap[i]);
+    if (fams[i].metric.num > 0) {
+      int status = plugin_dispatch_metric_family(&fams[i]);
       if (status != 0) {
         ERROR("swap plugin: plugin_dispatch_metric_family failed: %s",
               STRERROR(status));
       }
-      metric_family_metric_reset(fams_swap[i]);
+      metric_family_metric_reset(&fams[i]);
     }
   }
 
