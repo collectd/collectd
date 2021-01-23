@@ -883,7 +883,7 @@ static int swap_read(void) {
     if (fams_swap[i]->metric.num > 0) {
       int status = plugin_dispatch_metric_family(fams_swap[i]);
       if (status != 0) {
-        ERROR("serial plugin: plugin_dispatch_metric_family failed: %s",
+        ERROR("swap plugin: plugin_dispatch_metric_family failed: %s",
               STRERROR(status));
       }
       metric_family_metric_reset(fams_swap[i]);
