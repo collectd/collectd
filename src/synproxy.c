@@ -32,26 +32,42 @@
 
 static const char *synproxy_stat_path = "/proc/net/stat/synproxy";
 
-static const char *column_names[SYNPROXY_FIELDS] = {
-    "entries", "syn_received",   "invalid",
-    "valid",   "retransmission", "reopened"};
-static const char *column_types[SYNPROXY_FIELDS] = {
-    "current_connections", "connections", "cookies", "cookies", "cookies",
-    "connections"};
-
 static void synproxy_submit(value_t *results) {
-  value_list_t vl = VALUE_LIST_INIT;
+  metric_family_t fams[SYNPROXY_FIELDS - 1] = {
+      {
+          .name = "synproxy_connections_syn_received_total",
+          .type = METRIC_TYPE_COUNTER,
+      },
+      {
+          .name = "synproxy_cookies_invalid_total",
+          .type = METRIC_TYPE_COUNTER,
+      },
+      {
+          .name = "synproxy_cookies_valid_total",
+          .type = METRIC_TYPE_COUNTER,
+      },
+      {
+          .name = "synproxy_cookies_retransmission_total",
+          .type = METRIC_TYPE_COUNTER,
+      },
+      {
+          .name = "synproxy_connections_reopened_total",
+          .type = METRIC_TYPE_COUNTER,
+      },
+  };
 
-  /* 1st column (entries) is hardcoded to 0 in kernel code */
-  for (size_t n = 1; n < SYNPROXY_FIELDS; n++) {
-    vl.values = &results[n];
-    vl.values_len = 1;
+  metric_t m = {0};
+  for (size_t n = 0; n < (SYNPROXY_FIELDS - 1); n++) {
+    /* 1st column (entries) is hardcoded to 0 in kernel code */
+    m.value.counter = results[n + 1].counter;
+    metric_family_metric_append(&fams[n], m);
 
-    sstrncpy(vl.plugin, "synproxy", sizeof(vl.plugin));
-    sstrncpy(vl.type, column_types[n], sizeof(vl.type));
-    sstrncpy(vl.type_instance, column_names[n], sizeof(vl.type_instance));
-
-    plugin_dispatch_values(&vl);
+    int status = plugin_dispatch_metric_family(&fams[n]);
+    if (status != 0) {
+      ERROR("synproxy plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
+    }
+    metric_family_metric_reset(&fams[n]);
   }
 }
 
@@ -89,7 +105,7 @@ static int synproxy_read(void) {
       char *endptr = NULL;
       errno = 0;
 
-      results[n].derive += strtoull(fields[n], &endprt, 16);
+      results[n].counter += strtoull(fields[n], &endprt, 16);
       if ((endptr == fields[n]) || errno != 0) {
         ERROR("synproxy plugin: unable to parse value: %s", fields[n]);
         fclose(fh);
