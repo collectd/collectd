@@ -49,7 +49,7 @@ enum {
   FAM_NUMA_MAX
 };
 
-static int numa_read_node(metric_family_t *fams[], int node) /* {{{ */
+static int numa_read_node(metric_family_t *fams, int node) /* {{{ */
 {
   char path[PATH_MAX];
   FILE *fh;
@@ -90,22 +90,22 @@ static int numa_read_node(metric_family_t *fams[], int node) /* {{{ */
     metric_label_set(&m, "node", node_buffer);
 
     if (!strcmp(fields[0], "numa_hit")) {
-      metric_family_metric_append(fams[FAM_NUMA_HIT], m);
+      metric_family_metric_append(&fams[FAM_NUMA_HIT], m);
       success++;
     } else if (!strcmp(fields[0], "numa_miss")) {
-      metric_family_metric_append(fams[FAM_NUMA_MISS], m);
+      metric_family_metric_append(&fams[FAM_NUMA_MISS], m);
       success++;
     } else if (!strcmp(fields[0], "numa_foreign")) {
-      metric_family_metric_append(fams[FAM_NUMA_FOREIGN], m);
+      metric_family_metric_append(&fams[FAM_NUMA_FOREIGN], m);
       success++;
     } else if (!strcmp(fields[0], "local_node")) {
-      metric_family_metric_append(fams[FAM_NUMA_LOCAL_NODE], m);
+      metric_family_metric_append(&fams[FAM_NUMA_LOCAL_NODE], m);
       success++;
     } else if (!strcmp(fields[0], "other_node")) {
-      metric_family_metric_append(fams[FAM_NUMA_OTHER_NODE], m);
+      metric_family_metric_append(&fams[FAM_NUMA_OTHER_NODE], m);
       success++;
     } else if (!strcmp(fields[0], "interleave_hit")) {
-      metric_family_metric_append(fams[FAM_NUMA_INTERLEAVE_HIT], m);
+      metric_family_metric_append(&fams[FAM_NUMA_INTERLEAVE_HIT], m);
       success++;
     }
 
@@ -118,38 +118,38 @@ static int numa_read_node(metric_family_t *fams[], int node) /* {{{ */
 
 static int numa_read(void) /* {{{ */
 {
-  metric_family_t fam_numa_hit = {
-      .name = "numa_hit_total",
-      .type = METRIC_TYPE_COUNTER,
+  metric_family_t fams[FAM_NUMA_MAX] = {
+      [FAM_NUMA_HIT] =
+          {
+              .name = "numa_hit_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_NUMA_MISS] =
+          {
+              .name = "numa_miss_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_NUMA_FOREIGN] =
+          {
+              .name = "numa_foreign_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_NUMA_LOCAL_NODE] =
+          {
+              .name = "numa_local_node_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_NUMA_OTHER_NODE] =
+          {
+              .name = "numa_other_node_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_NUMA_INTERLEAVE_HIT] =
+          {
+              .name = "numa_interleave_hit_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
   };
-  metric_family_t fam_numa_miss = {
-      .name = "numa_miss_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_numa_foreign = {
-      .name = "numa_foreign_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_numa_local_node = {
-      .name = "numa_local_node_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_numa_other_node = {
-      .name = "numa_other_node_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_numa_interleave_hit = {
-      .name = "numa_interleave_hit_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t *fams[FAM_NUMA_MAX];
-
-  fams[FAM_NUMA_HIT] = &fam_numa_hit;
-  fams[FAM_NUMA_MISS] = &fam_numa_miss;
-  fams[FAM_NUMA_FOREIGN] = &fam_numa_foreign;
-  fams[FAM_NUMA_LOCAL_NODE] = &fam_numa_local_node;
-  fams[FAM_NUMA_OTHER_NODE] = &fam_numa_other_node;
-  fams[FAM_NUMA_INTERLEAVE_HIT] = &fam_numa_interleave_hit;
 
   if (max_node < 0) {
     WARNING("numa plugin: No NUMA nodes were detected.");
@@ -165,13 +165,13 @@ static int numa_read(void) /* {{{ */
 
   if (success != 0) {
     for (size_t i = 0; i < FAM_NUMA_MAX; i++) {
-      if (fams[i]->metric.num > 0) {
-        int status = plugin_dispatch_metric_family(fams[i]);
+      if (fams[i].metric.num > 0) {
+        int status = plugin_dispatch_metric_family(&fams[i]);
         if (status != 0) {
           ERROR("numa plugin: plugin_dispatch_metric_family failed: %s",
                 STRERROR(status));
         }
-        metric_family_metric_reset(fams[i]);
+        metric_family_metric_reset(&fams[i]);
       }
     }
   }
