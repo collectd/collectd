@@ -905,84 +905,84 @@ static void ps_submit_state(gauge_t *proc_state) {
 }
 
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
-static void ps_metric_append_proc_list(metric_family_t *fams_proc[],
+static void ps_metric_append_proc_list(metric_family_t *fams_proc,
                                        procstat_t *ps) {
   metric_t m = {0};
 
   metric_label_set(&m, "name", ps->name);
 
   m.value.gauge = ps->vmem_size;
-  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_SIZE], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_VMEM_SIZE], m);
 
   m.value.gauge = ps->vmem_rss;
-  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_RSS], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_VMEM_RSS], m);
 
   m.value.gauge = ps->vmem_data;
-  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_DATA], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_VMEM_DATA], m);
 
   m.value.gauge = ps->vmem_code;
-  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_CODE], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_VMEM_CODE], m);
 
   m.value.gauge = ps->stack_size;
-  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_STACK], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_VMEM_STACK], m);
 
   m.value.counter = ps->cpu_user_counter;
-  metric_family_metric_append(fams_proc[FAM_PROC_CPU_USER], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_CPU_USER], m);
 
   m.value.counter = ps->cpu_system_counter;
-  metric_family_metric_append(fams_proc[FAM_PROC_CPU_SYSTEM], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_CPU_SYSTEM], m);
 
   m.value.gauge = ps->num_proc;
-  metric_family_metric_append(fams_proc[FAM_PROC_NUM_PROCESSS], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_NUM_PROCESSS], m);
 
   m.value.gauge = ps->num_lwp;
-  metric_family_metric_append(fams_proc[FAM_PROC_NUM_THREADS], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_NUM_THREADS], m);
 
   m.value.counter = ps->vmem_minflt_counter;
-  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_MINFLT], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_VMEM_MINFLT], m);
 
   m.value.counter = ps->vmem_majflt_counter;
-  metric_family_metric_append(fams_proc[FAM_PROC_VMEM_MAJFLT], m);
+  metric_family_metric_append(&fams_proc[FAM_PROC_VMEM_MAJFLT], m);
 
   if (ps->io_rchar != -1) {
     m.value.counter = ps->io_rchar;
-    metric_family_metric_append(fams_proc[FAM_PROC_IO_RCHAR], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_IO_RCHAR], m);
   }
   if (ps->io_wchar != -1) {
     m.value.counter = ps->io_wchar;
-    metric_family_metric_append(fams_proc[FAM_PROC_IO_WCHAR], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_IO_WCHAR], m);
   }
   if (ps->io_syscr != -1) {
     m.value.counter = ps->io_syscr;
-    metric_family_metric_append(fams_proc[FAM_PROC_IO_SYSCR], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_IO_SYSCR], m);
   }
   if (ps->io_syscw != -1) {
     m.value.counter = ps->io_syscw;
-    metric_family_metric_append(fams_proc[FAM_PROC_IO_SYSCW], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_IO_SYSCW], m);
   }
   if (ps->io_diskr != -1) {
     m.value.counter = ps->io_diskr;
-    metric_family_metric_append(fams_proc[FAM_PROC_IO_DISKR], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_IO_DISKR], m);
   }
   if (ps->io_diskw != -1) {
     m.value.counter = ps->io_diskw;
-    metric_family_metric_append(fams_proc[FAM_PROC_IO_DISKW], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_IO_DISKW], m);
   }
   if (ps->num_fd > 0) {
     m.value.gauge = ps->num_fd;
-    metric_family_metric_append(fams_proc[FAM_PROC_FILE_HANDLES], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_FILE_HANDLES], m);
   }
   if (ps->num_maps > 0) {
     m.value.gauge = ps->num_maps;
-    metric_family_metric_append(fams_proc[FAM_PROC_FILE_HANDLES_MAPPED], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_FILE_HANDLES_MAPPED], m);
   }
   if (ps->cswitch_vol != -1) {
     m.value.counter = ps->cswitch_vol;
-    metric_family_metric_append(fams_proc[FAM_PROC_CTX_VOLUNTARY], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_CTX_VOLUNTARY], m);
   }
   if (ps->cswitch_invol != -1) {
     m.value.counter = ps->cswitch_invol;
-    metric_family_metric_append(fams_proc[FAM_PROC_CTX_INVOLUNTARY], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_CTX_INVOLUNTARY], m);
   }
 
   /* The ps->delay_* metrics are in nanoseconds per second. Convert to seconds
@@ -991,19 +991,19 @@ static void ps_metric_append_proc_list(metric_family_t *fams_proc[],
 
   if (!isnan(ps->delay_cpu)) {
     m.value.gauge = ps->delay_cpu / delay_factor;
-    metric_family_metric_append(fams_proc[FAM_PROC_DELAY_CPU], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_DELAY_CPU], m);
   }
   if (!isnan(ps->delay_blkio)) {
     m.value.gauge = ps->delay_blkio / delay_factor;
-    metric_family_metric_append(fams_proc[FAM_PROC_DELAY_BLKIO], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_DELAY_BLKIO], m);
   }
   if (!isnan(ps->delay_swapin)) {
     m.value.gauge = ps->delay_swapin / delay_factor;
-    metric_family_metric_append(fams_proc[FAM_PROC_DELAY_SWAPIN], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_DELAY_SWAPIN], m);
   }
   if (!isnan(ps->delay_freepages)) {
     m.value.gauge = ps->delay_freepages / delay_factor;
-    metric_family_metric_append(fams_proc[FAM_PROC_DELAY_FREEPAGES], m);
+    metric_family_metric_append(&fams_proc[FAM_PROC_DELAY_FREEPAGES], m);
   }
 
   metric_reset(&m);
@@ -1878,134 +1878,133 @@ static int mach_get_task_name(task_t t, int *pid, char *name,
 
 /* do actual readings from kernel */
 static int ps_read(void) {
-  metric_family_t fam_proc_vmem_size = {
-      .name = "processes_vmem_size_bytes",
-      .type = METRIC_TYPE_GAUGE,
+  metric_family_t fams_proc[FAM_PROC_MAX] = {
+      [FAM_PROC_VMEM_SIZE] =
+          {
+              .name = "processes_vmem_size_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_VMEM_RSS] =
+          {
+              .name = "processes_vmem_rss_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_VMEM_DATA] =
+          {
+              .name = "processes_vmem_data_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_VMEM_CODE] =
+          {
+              .name = "processes_vmem_code_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_VMEM_STACK] =
+          {
+              .name = "processes_vmem_stack_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_CPU_USER] =
+          {
+              .name = "processes_cpu_user_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_CPU_SYSTEM] =
+          {
+              .name = "processes_cpu_system_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_NUM_PROCESSS] =
+          {
+              .name = "processes_num_processs",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_NUM_THREADS] =
+          {
+              .name = "processes_num_threads",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_VMEM_MINFLT] =
+          {
+              .name = "processes_vmem_minflt_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_VMEM_MAJFLT] =
+          {
+              .name = "processes_vmem_majflt_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_IO_RCHAR] =
+          {
+              .name = "processes_io_rchar_bytes",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_IO_WCHAR] =
+          {
+              .name = "processes_io_wchar_bytes",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_IO_SYSCR] =
+          {
+              .name = "processes_io_syscr_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_IO_SYSCW] =
+          {
+              .name = "processes_io_syscw_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_IO_DISKR] =
+          {
+              .name = "processes_io_diskr_bytes",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_IO_DISKW] =
+          {
+              .name = "processes_io_diskw_bytes",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_FILE_HANDLES] =
+          {
+              .name = "processes_file_handles",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_FILE_HANDLES_MAPPED] =
+          {
+              .name = "processes_file_handles_mapped",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_CTX_VOLUNTARY] =
+          {
+              .name = "processes_contextswitch_voluntary_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_CTX_INVOLUNTARY] =
+          {
+              .name = "processes_contextswitch_involuntary_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PROC_DELAY_CPU] =
+          {
+              .name = "processes_delay_cpu_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_DELAY_BLKIO] =
+          {
+              .name = "processes_delay_blkio_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_DELAY_SWAPIN] =
+          {
+              .name = "processes_delay_swapin_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_PROC_DELAY_FREEPAGES] =
+          {
+              .name = "processes_delay_freepages_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
   };
-  metric_family_t fam_proc_vmem_rss = {
-      .name = "processes_vmem_rss_bytes",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_vmem_data = {
-      .name = "processes_vmem_data_bytes",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_vmem_code = {
-      .name = "processes_vmem_code_bytes",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_vmem_stack = {
-      .name = "processes_vmem_stack_bytes",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_cpu_user = {
-      .name = "processes_cpu_user_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_cpu_system = {
-      .name = "processes_cpu_system_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_num_processs = {
-      .name = "processes_num_processs",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_num_threads = {
-      .name = "processes_num_threads",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_vmem_minflt = {
-      .name = "processes_vmem_minflt_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_vmem_majflt = {
-      .name = "processes_vmem_majflt_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_io_rchar = {
-      .name = "processes_io_rchar_bytes",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_io_wchar = {
-      .name = "processes_io_wchar_bytes",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_io_syscr = {
-      .name = "processes_io_syscr_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_io_syscw = {
-      .name = "processes_io_syscw_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_io_diskr = {
-      .name = "processes_io_diskr_bytes",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_io_diskw = {
-      .name = "processes_io_diskw_bytes",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_file_handles = {
-      .name = "processes_file_handles",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_file_handles_mapped = {
-      .name = "processes_file_handles_mapped",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_ctx_voluntary = {
-      .name = "processes_contextswitch_voluntary_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_ctx_involuntary = {
-      .name = "processes_contextswitch_involuntary_total",
-      .type = METRIC_TYPE_COUNTER,
-  };
-  metric_family_t fam_proc_delay_cpu = {
-      .name = "processes_delay_cpu_seconds",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_delay_blkio = {
-      .name = "processes_delay_blkio_seconds",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_delay_swapin = {
-      .name = "processes_delay_swapin_seconds",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_proc_delay_freepages = {
-      .name = "processes_delay_freepages_seconds",
-      .type = METRIC_TYPE_GAUGE,
-  };
-
-  metric_family_t *fams_proc[FAM_PROC_MAX];
-
-  fams_proc[FAM_PROC_VMEM_SIZE] = &fam_proc_vmem_size;
-  fams_proc[FAM_PROC_VMEM_RSS] = &fam_proc_vmem_rss;
-  fams_proc[FAM_PROC_VMEM_DATA] = &fam_proc_vmem_data;
-  fams_proc[FAM_PROC_VMEM_CODE] = &fam_proc_vmem_code;
-  fams_proc[FAM_PROC_VMEM_STACK] = &fam_proc_vmem_stack;
-  fams_proc[FAM_PROC_CPU_USER] = &fam_proc_cpu_user;
-  fams_proc[FAM_PROC_CPU_SYSTEM] = &fam_proc_cpu_system;
-  fams_proc[FAM_PROC_NUM_PROCESSS] = &fam_proc_num_processs;
-  fams_proc[FAM_PROC_NUM_THREADS] = &fam_proc_num_threads;
-  fams_proc[FAM_PROC_VMEM_MINFLT] = &fam_proc_vmem_minflt;
-  fams_proc[FAM_PROC_VMEM_MAJFLT] = &fam_proc_vmem_majflt;
-  fams_proc[FAM_PROC_IO_RCHAR] = &fam_proc_io_rchar;
-  fams_proc[FAM_PROC_IO_WCHAR] = &fam_proc_io_wchar;
-  fams_proc[FAM_PROC_IO_SYSCR] = &fam_proc_io_syscr;
-  fams_proc[FAM_PROC_IO_SYSCW] = &fam_proc_io_syscw;
-  fams_proc[FAM_PROC_IO_DISKR] = &fam_proc_io_diskr;
-  fams_proc[FAM_PROC_IO_DISKW] = &fam_proc_io_diskw;
-  fams_proc[FAM_PROC_FILE_HANDLES] = &fam_proc_file_handles;
-  fams_proc[FAM_PROC_FILE_HANDLES_MAPPED] = &fam_proc_file_handles_mapped;
-  fams_proc[FAM_PROC_CTX_VOLUNTARY] = &fam_proc_ctx_voluntary;
-  fams_proc[FAM_PROC_CTX_INVOLUNTARY] = &fam_proc_ctx_involuntary;
-  fams_proc[FAM_PROC_DELAY_CPU] = &fam_proc_delay_cpu;
-  fams_proc[FAM_PROC_DELAY_BLKIO] = &fam_proc_delay_blkio;
-  fams_proc[FAM_PROC_DELAY_SWAPIN] = &fam_proc_delay_swapin;
-  fams_proc[FAM_PROC_DELAY_FREEPAGES] = &fam_proc_delay_freepages;
 
   gauge_t proc_state[PROC_STATE_MAX];
 
@@ -3067,14 +3066,14 @@ static int ps_read(void) {
 
   want_init = false;
 
-  for (size_t i = 0; fams_proc[i] != NULL; i++) {
-    if (fams_proc[i]->metric.num > 0) {
-      int status = plugin_dispatch_metric_family(fams_proc[i]);
+  for (size_t i = 0; i < FAM_PROC_MAX; i++) {
+    if (fams_proc[i].metric.num > 0) {
+      int status = plugin_dispatch_metric_family(&fams_proc[i]);
       if (status != 0) {
         ERROR("processes: plugin_dispatch_metric_family failed: %s",
               STRERROR(status));
       }
-      metric_family_metric_reset(fams_proc[i]);
+      metric_family_metric_reset(&fams_proc[i]);
     }
   }
 
