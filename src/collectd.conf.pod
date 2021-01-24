@@ -6437,7 +6437,23 @@ isn't compiled by default. Please refer to
 L<http://wiki.codemongers.com/NginxStubStatusModule> for more information on
 how to compile and configure nginx and this module.
 
-The following options are accepted by the C<nginx plugin>:
+The configuration of the I<nginx> plugin consists of one or more
+C<E<lt>InstanceE<nbsp>/E<gt>> blocks. Each block requires one string argument
+as the instance name.  For example:
+
+ <Plugin "nginx">
+   <Instance "www1">
+     URL "http://www1.example.com/nginx_status"
+   </Instance>
+   <Instance "www2">
+     URL "http://www2.example.com/nginx_status"
+   </Instance>
+ </Plugin>
+
+In order for the plugin to work correctly, each instance name must be unique.
+This is not enforced by the plugin and it is your responsibility to ensure it.
+
+The following options are accepted within each I<Instance> block:
 
 =over 4
 
@@ -6471,6 +6487,12 @@ connecting to a SSL enabled server. Enabled by default.
 File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
+
+=item B<SSLCiphers> I<list of ciphers>
+
+Specifies which ciphers to use in the connection. The list of ciphers
+must specify valid ciphers. See
+L<http://www.openssl.org/docs/apps/ciphers.html> for details.
 
 =item B<Timeout> I<Milliseconds>
 

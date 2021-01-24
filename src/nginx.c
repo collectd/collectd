@@ -33,185 +33,208 @@
 
 #include <curl/curl.h>
 
-static char *url;
-static char *user;
-static char *pass;
-static char *verify_peer;
-static char *verify_host;
-static char *cacert;
-static char *timeout;
+typedef struct {
+  char *name;
+  char *host;
+  char *url;
+  char *user;
+  char *pass;
+  bool verify_peer;
+  bool verify_host;
+  char *cacert;
+  char *ssl_ciphers;
+  int timeout;
+  char nginx_buffer[16384];
+  size_t nginx_buffer_len;
+  char nginx_curl_error[CURL_ERROR_SIZE];
+  CURL *curl;
+} nginx_t;
 
-static CURL *curl;
+enum {
+  FAM_NGINX_CONN_ACTIVE,
+  FAM_NGINX_CONN_ACCEPTED,
+  FAM_NGINX_CONN_HANDLED,
+  FAM_NGINX_CONN_FAILED,
+  FAM_NGINX_CONN_READING,
+  FAM_NGINX_CONN_WAITING,
+  FAM_NGINX_CONN_WRITING,
+  FAM_NGINX_HTTP_REQUESTS,
+  FAM_NGINX_MAX
+};
 
-static char nginx_buffer[16384];
-static size_t nginx_buffer_len;
-static char nginx_curl_error[CURL_ERROR_SIZE];
+static void nginx_free(void *arg) {
+  nginx_t *st = arg;
 
-static const char *config_keys[] = {
-    "URL", "User", "Password", "VerifyPeer", "VerifyHost", "CACert", "Timeout"};
-static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+  if (st == NULL)
+    return;
+
+  sfree(st->name);
+  sfree(st->host);
+  sfree(st->url);
+  sfree(st->user);
+  sfree(st->pass);
+  sfree(st->cacert);
+  sfree(st->ssl_ciphers);
+  if (st->curl) {
+    curl_easy_cleanup(st->curl);
+    st->curl = NULL;
+  }
+  sfree(st);
+}
 
 static size_t nginx_curl_callback(void *buf, size_t size, size_t nmemb,
-                                  void __attribute__((unused)) * stream) {
+                                  void *user_data) {
+  nginx_t *st = user_data;
+  if (st == NULL) {
+    ERROR("nginx plugin: nginx_curl_callback: "
+          "user_data pointer is NULL.");
+    return 0;
+  }
+
   size_t len = size * nmemb;
 
   /* Check if the data fits into the memory. If not, truncate it. */
-  if ((nginx_buffer_len + len) >= sizeof(nginx_buffer)) {
-    assert(sizeof(nginx_buffer) > nginx_buffer_len);
-    len = (sizeof(nginx_buffer) - 1) - nginx_buffer_len;
+  if ((st->nginx_buffer_len + len) >= sizeof(st->nginx_buffer)) {
+    assert(sizeof(st->nginx_buffer) > st->nginx_buffer_len);
+    len = (sizeof(st->nginx_buffer) - 1) - st->nginx_buffer_len;
   }
 
   if (len == 0)
     return len;
 
-  memcpy(&nginx_buffer[nginx_buffer_len], buf, len);
-  nginx_buffer_len += len;
-  nginx_buffer[nginx_buffer_len] = 0;
+  memcpy(&st->nginx_buffer[st->nginx_buffer_len], buf, len);
+  st->nginx_buffer_len += len;
+  st->nginx_buffer[st->nginx_buffer_len] = 0;
 
   return len;
 }
 
-static int config_set(char **var, const char *value) {
-  if (*var != NULL) {
-    free(*var);
-    *var = NULL;
-  }
+static int init_host(nginx_t *st) {
+  if (st->curl != NULL)
+    curl_easy_cleanup(st->curl);
 
-  if ((*var = strdup(value)) == NULL)
-    return 1;
-  else
-    return 0;
-}
-
-static int config(const char *key, const char *value) {
-  if (strcasecmp(key, "url") == 0)
-    return config_set(&url, value);
-  else if (strcasecmp(key, "user") == 0)
-    return config_set(&user, value);
-  else if (strcasecmp(key, "password") == 0)
-    return config_set(&pass, value);
-  else if (strcasecmp(key, "verifypeer") == 0)
-    return config_set(&verify_peer, value);
-  else if (strcasecmp(key, "verifyhost") == 0)
-    return config_set(&verify_host, value);
-  else if (strcasecmp(key, "cacert") == 0)
-    return config_set(&cacert, value);
-  else if (strcasecmp(key, "timeout") == 0)
-    return config_set(&timeout, value);
-  else
-    return -1;
-} /* int config */
-
-static int init(void) {
-  if (curl != NULL)
-    curl_easy_cleanup(curl);
-
-  if ((curl = curl_easy_init()) == NULL) {
+  if ((st->curl = curl_easy_init()) == NULL) {
     ERROR("nginx plugin: curl_easy_init failed.");
     return -1;
   }
 
-  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
-  curl_easy_setopt(curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
-  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, nginx_curl_error);
+  curl_easy_setopt(st->curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(st->curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
+  curl_easy_setopt(st->curl, CURLOPT_WRITEDATA, st);
+  curl_easy_setopt(st->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
+  curl_easy_setopt(st->curl, CURLOPT_ERRORBUFFER, st->nginx_curl_error);
 
-  if (user != NULL) {
+  if (st->user != NULL) {
 #ifdef HAVE_CURLOPT_USERNAME
-    curl_easy_setopt(curl, CURLOPT_USERNAME, user);
-    curl_easy_setopt(curl, CURLOPT_PASSWORD, (pass == NULL) ? "" : pass);
+    curl_easy_setopt(st->curl, CURLOPT_USERNAME, st->user);
+    curl_easy_setopt(st->curl, CURLOPT_PASSWORD,
+                     (st->pass == NULL) ? "" : st->pass);
 #else
     static char credentials[1024];
-    int status = ssnprintf(credentials, sizeof(credentials), "%s:%s", user,
-                           pass == NULL ? "" : pass);
+    int status = ssnprintf(credentials, sizeof(credentials), "%s:%s", st->user,
+                           st->pass == NULL ? "" : st->pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("nginx plugin: Credentials would have been truncated.");
+      curl_easy_cleanup(st->curl);
+      st->curl = NULL;
       return -1;
     }
 
-    curl_easy_setopt(curl, CURLOPT_USERPWD, credentials);
+    curl_easy_setopt(st->curl, CURLOPT_USERPWD, credentials);
 #endif
   }
 
-  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-  curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
+  curl_easy_setopt(st->curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt(st->curl, CURLOPT_MAXREDIRS, 50L);
 
-  if ((verify_peer == NULL) || IS_TRUE(verify_peer)) {
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-  } else {
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-  }
-
-  if ((verify_host == NULL) || IS_TRUE(verify_host)) {
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-  } else {
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-  }
-
-  if (cacert != NULL) {
-    curl_easy_setopt(curl, CURLOPT_CAINFO, cacert);
-  }
+  curl_easy_setopt(st->curl, CURLOPT_SSL_VERIFYPEER, (long)st->verify_peer);
+  curl_easy_setopt(st->curl, CURLOPT_SSL_VERIFYHOST, st->verify_host ? 2L : 0L);
+  if (st->cacert != NULL)
+    curl_easy_setopt(st->curl, CURLOPT_CAINFO, st->cacert);
+  if (st->ssl_ciphers != NULL)
+    curl_easy_setopt(st->curl, CURLOPT_SSL_CIPHER_LIST, st->ssl_ciphers);
 
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
-  if (timeout != NULL) {
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, atol(timeout));
-  } else {
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,
+  if (st->timeout >= 0)
+    curl_easy_setopt(st->curl, CURLOPT_TIMEOUT_MS, st->timeout);
+  else
+    curl_easy_setopt(st->curl, CURLOPT_TIMEOUT_MS,
                      (long)CDTIME_T_TO_MS(plugin_get_interval()));
-  }
 #endif
 
   return 0;
 } /* void init */
 
-static void submit(const char *type, const char *inst, long long value) {
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
-
-  if (strcmp(type, "nginx_connections") == 0)
-    values[0].gauge = value;
-  else if (strcmp(type, "nginx_requests") == 0)
-    values[0].derive = value;
-  else if (strcmp(type, "connections") == 0)
-    values[0].derive = value;
-  else
-    return;
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-  sstrncpy(vl.plugin, "nginx", sizeof(vl.plugin));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-
-  if (inst != NULL)
-    sstrncpy(vl.type_instance, inst, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-} /* void submit */
-
-static int nginx_read(void) {
+static int nginx_read_host(user_data_t *user_data) {
   char *ptr;
   char *lines[16];
   int lines_num = 0;
   char *saveptr;
-
   char *fields[16];
   int fields_num;
+  nginx_t *st = user_data->data;
 
-  if (curl == NULL)
+  metric_family_t fams[FAM_NGINX_MAX] = {
+      [FAM_NGINX_CONN_ACTIVE] =
+          {
+              .name = "nginx_connections_active",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_NGINX_CONN_ACCEPTED] =
+          {
+              .name = "nginx_connections_accepted",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_NGINX_CONN_HANDLED] =
+          {
+              .name = "nginx_connections_handled",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_NGINX_CONN_FAILED] =
+          {
+              .name = "nginx_connections_failed",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_NGINX_CONN_READING] =
+          {
+              .name = "nginx_connections_reading",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_NGINX_CONN_WAITING] =
+          {
+              .name = "nginx_connections_waiting",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_NGINX_CONN_WRITING] =
+          {
+              .name = "nginx_connections_writing",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_NGINX_HTTP_REQUESTS] =
+          {
+              .name = "nginx_http_requests_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+  };
+
+  if (st->curl == NULL) {
+    if (init_host(st) != 0)
+      return -1;
+  }
+
+  if (st->url == NULL)
     return -1;
-  if (url == NULL)
-    return -1;
 
-  nginx_buffer_len = 0;
+  st->nginx_buffer_len = 0;
 
-  curl_easy_setopt(curl, CURLOPT_URL, url);
+  curl_easy_setopt(st->curl, CURLOPT_URL, st->url);
 
-  if (curl_easy_perform(curl) != CURLE_OK) {
-    WARNING("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
+  if (curl_easy_perform(st->curl) != CURLE_OK) {
+    WARNING("nginx plugin: curl_easy_perform failed: %s", st->nginx_curl_error);
     return -1;
   }
 
-  ptr = nginx_buffer;
+  ptr = st->nginx_buffer;
   saveptr = NULL;
   while ((lines[lines_num] = strtok_r(ptr, "\n\r", &saveptr)) != NULL) {
     ptr = NULL;
@@ -227,6 +250,12 @@ static int nginx_read(void) {
    *  101059015 100422216 347910649
    * Reading: 6 Writing: 179 Waiting: 106
    */
+  metric_t m = {0};
+  if (st->name != NULL)
+    metric_label_set(&m, "instance", st->name);
+  if (st->host != NULL)
+    metric_label_set(&m, "host", st->host);
+
   for (int i = 0; i < lines_num; i++) {
     fields_num =
         strsplit(lines[i], fields, (sizeof(fields) / sizeof(fields[0])));
@@ -234,35 +263,164 @@ static int nginx_read(void) {
     if (fields_num == 3) {
       if ((strcmp(fields[0], "Active") == 0) &&
           (strcmp(fields[1], "connections:") == 0)) {
-        submit("nginx_connections", "active", atoll(fields[2]));
+        m.value.gauge = atoll(fields[2]);
+        metric_family_metric_append(&fams[FAM_NGINX_CONN_ACTIVE], m);
       } else if ((atoll(fields[0]) != 0) && (atoll(fields[1]) != 0) &&
                  (atoll(fields[2]) != 0)) {
-        submit("connections", "accepted", atoll(fields[0]));
+        m.value.counter = atoll(fields[0]);
+        metric_family_metric_append(&fams[FAM_NGINX_CONN_ACCEPTED], m);
         /* TODO: The legacy metric "handled", which is the sum of "accepted" and
          * "failed", is reported for backwards compatibility only. Remove in the
          * next major version. */
-        submit("connections", "handled", atoll(fields[1]));
-        submit("connections", "failed", (atoll(fields[0]) - atoll(fields[1])));
-        submit("nginx_requests", NULL, atoll(fields[2]));
+        m.value.counter = atoll(fields[1]);
+        metric_family_metric_append(&fams[FAM_NGINX_CONN_HANDLED], m);
+
+        m.value.counter = atoll(fields[0]) - atoll(fields[1]);
+        metric_family_metric_append(&fams[FAM_NGINX_CONN_FAILED], m);
+
+        m.value.counter = atoll(fields[2]);
+        metric_family_metric_append(&fams[FAM_NGINX_HTTP_REQUESTS], m);
       }
     } else if (fields_num == 6) {
       if ((strcmp(fields[0], "Reading:") == 0) &&
           (strcmp(fields[2], "Writing:") == 0) &&
           (strcmp(fields[4], "Waiting:") == 0)) {
-        submit("nginx_connections", "reading", atoll(fields[1]));
-        submit("nginx_connections", "writing", atoll(fields[3]));
-        submit("nginx_connections", "waiting", atoll(fields[5]));
+        m.value.gauge = atoll(fields[1]);
+        metric_family_metric_append(&fams[FAM_NGINX_CONN_READING], m);
+
+        m.value.gauge = atoll(fields[3]);
+        metric_family_metric_append(&fams[FAM_NGINX_CONN_WRITING], m);
+
+        m.value.gauge = atoll(fields[5]);
+        metric_family_metric_append(&fams[FAM_NGINX_CONN_WAITING], m);
       }
     }
   }
 
-  nginx_buffer_len = 0;
+  st->nginx_buffer_len = 0;
+
+  for (size_t i = 0; i < FAM_NGINX_MAX; i++) {
+    if (fams[i].metric.num > 0) {
+      int status = plugin_dispatch_metric_family(&fams[i]);
+      if (status != 0) {
+        ERROR("nginx plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(&fams[i]);
+    }
+  }
 
   return 0;
 } /* int nginx_read */
 
+/* Configuration handling functiions
+ * <Plugin nginx>
+ *   <Instance "instance_name">
+ *     URL ...
+ *   </Instance>
+ *   URL ...
+ * </Plugin>
+ */
+static int config_add(oconfig_item_t *ci) {
+  nginx_t *st = calloc(1, sizeof(*st));
+  if (st == NULL) {
+    ERROR("nginx plugin: calloc failed.");
+    return -1;
+  }
+
+  st->timeout = -1;
+
+  int status = cf_util_get_string(ci, &st->name);
+  if (status != 0) {
+    sfree(st);
+    return status;
+  }
+  assert(st->name != NULL);
+
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp("URL", child->key) == 0)
+      status = cf_util_get_string(child, &st->url);
+    else if (strcasecmp("Host", child->key) == 0)
+      status = cf_util_get_string(child, &st->host);
+    else if (strcasecmp("User", child->key) == 0)
+      status = cf_util_get_string(child, &st->user);
+    else if (strcasecmp("Password", child->key) == 0)
+      status = cf_util_get_string(child, &st->pass);
+    else if (strcasecmp("VerifyPeer", child->key) == 0)
+      status = cf_util_get_boolean(child, &st->verify_peer);
+    else if (strcasecmp("VerifyHost", child->key) == 0)
+      status = cf_util_get_boolean(child, &st->verify_host);
+    else if (strcasecmp("CACert", child->key) == 0)
+      status = cf_util_get_string(child, &st->cacert);
+    else if (strcasecmp("SSLCiphers", child->key) == 0)
+      status = cf_util_get_string(child, &st->ssl_ciphers);
+    else if (strcasecmp("Timeout", child->key) == 0)
+      status = cf_util_get_int(child, &st->timeout);
+    else {
+      WARNING("nginx plugin: Option `%s' not allowed here.", child->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      break;
+  }
+  /* Check if struct is complete.. */
+  if ((status == 0) && (st->url == NULL)) {
+    ERROR("nginx plugin: Instance `%s': "
+          "No URL has been configured.",
+          st->name);
+    status = -1;
+  }
+
+  if (status != 0) {
+    nginx_free(st);
+    return -1;
+  }
+
+  char callback_name[3 * DATA_MAX_NAME_LEN];
+
+  snprintf(callback_name, sizeof(callback_name), "nginx/%s/%s",
+           (st->host != NULL) ? st->host : hostname_g,
+           (st->name != NULL) ? st->name : "default");
+
+  return plugin_register_complex_read(
+      /* group = */ NULL,
+      /* name      = */ callback_name,
+      /* callback  = */ nginx_read_host,
+      /* interval  = */ 0,
+      &(user_data_t){
+          .data = st,
+          .free_func = nginx_free,
+      });
+} /* int config_add */
+
+static int config(oconfig_item_t *ci) {
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp("Instance", child->key) == 0)
+      config_add(child);
+    else
+      WARNING("nginx plugin: The configuration option "
+              "\"%s\" is not allowed here. Did you "
+              "forget to add an <Instance /> block "
+              "around the configuration?",
+              child->key);
+  } /* for (ci->children) */
+
+  return 0;
+} /* int config */
+
+static int init(void) {
+  /* Call this while collectd is still single-threaded to avoid
+   * initialization issues in libgcrypt. */
+  curl_global_init(CURL_GLOBAL_SSL);
+  return 0;
+}
+
 void module_register(void) {
-  plugin_register_config("nginx", config, config_keys, config_keys_num);
+  plugin_register_complex_config("nginx", config);
   plugin_register_init("nginx", init);
-  plugin_register_read("nginx", nginx_read);
 } /* void module_register */
