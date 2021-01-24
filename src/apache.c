@@ -55,6 +55,15 @@ struct apache_s {
 
 typedef struct apache_s apache_t;
 
+enum {
+  FAM_APACHE_REQUESTS,
+  FAM_APACHE_BYTES,
+  FAM_APACHE_CONNECTIONS,
+  FAM_APACHE_IDLE_WORKERS,
+  FAM_APACHE_SCOREBOARD,
+  FAM_APACHE_MAX
+};
+
 /* TODO: Remove this prototype */
 static int apache_read_host(user_data_t *user_data);
 
@@ -334,38 +343,8 @@ static int init_host(apache_t *st) /* {{{ */
   return 0;
 } /* }}} int init_host */
 
-static void submit_value(const char *type, const char *type_instance,
-                         value_t value, apache_t *st) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &value;
-  vl.values_len = 1;
-
-  if (st->host != NULL)
-    sstrncpy(vl.host, st->host, sizeof(vl.host));
-
-  sstrncpy(vl.plugin, "apache", sizeof(vl.plugin));
-  if (st->name != NULL)
-    sstrncpy(vl.plugin_instance, st->name, sizeof(vl.plugin_instance));
-
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  if (type_instance != NULL)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-} /* void submit_value */
-
-static void submit_derive(const char *type, const char *type_instance,
-                          derive_t d, apache_t *st) {
-  submit_value(type, type_instance, (value_t){.derive = d}, st);
-} /* void submit_derive */
-
-static void submit_gauge(const char *type, const char *type_instance, gauge_t g,
-                         apache_t *st) {
-  submit_value(type, type_instance, (value_t){.gauge = g}, st);
-} /* void submit_gauge */
-
-static void submit_scoreboard(char *buf, apache_t *st) {
+static void submit_scoreboard(char *buf, apache_t *st,
+                              metric_family_t *fam_scoreboard, metric_t *tmpl) {
   /*
    * Scoreboard Key:
    * "_" Waiting for Connection, "S" Starting up,
@@ -439,34 +418,85 @@ static void submit_scoreboard(char *buf, apache_t *st) {
   }
 
   if (st->server_type == APACHE) {
-    submit_gauge("apache_scoreboard", "open", open, st);
-    submit_gauge("apache_scoreboard", "waiting", waiting, st);
-    submit_gauge("apache_scoreboard", "starting", starting, st);
-    submit_gauge("apache_scoreboard", "reading", reading, st);
-    submit_gauge("apache_scoreboard", "sending", sending, st);
-    submit_gauge("apache_scoreboard", "keepalive", keepalive, st);
-    submit_gauge("apache_scoreboard", "dnslookup", dnslookup, st);
-    submit_gauge("apache_scoreboard", "closing", closing, st);
-    submit_gauge("apache_scoreboard", "logging", logging, st);
-    submit_gauge("apache_scoreboard", "finishing", finishing, st);
-    submit_gauge("apache_scoreboard", "idle_cleanup", idle_cleanup, st);
+    metric_family_append(fam_scoreboard, "state", "open",
+                         (value_t){.gauge = open}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "waiting",
+                         (value_t){.gauge = waiting}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "starting",
+                         (value_t){.gauge = starting}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "reading",
+                         (value_t){.gauge = reading}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "sending",
+                         (value_t){.gauge = sending}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "keepalive",
+                         (value_t){.gauge = keepalive}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "dnslookup",
+                         (value_t){.gauge = dnslookup}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "closing",
+                         (value_t){.gauge = closing}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "logging",
+                         (value_t){.gauge = logging}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "finishing",
+                         (value_t){.gauge = finishing}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "idle_cleanup",
+                         (value_t){.gauge = idle_cleanup}, tmpl);
   } else {
-    submit_gauge("apache_scoreboard", "connect", open, st);
-    submit_gauge("apache_scoreboard", "close", closing, st);
-    submit_gauge("apache_scoreboard", "hard_error", hard_error, st);
-    submit_gauge("apache_scoreboard", "read", lighttpd_read, st);
-    submit_gauge("apache_scoreboard", "read_post", reading, st);
-    submit_gauge("apache_scoreboard", "write", sending, st);
-    submit_gauge("apache_scoreboard", "handle_request", handle_request, st);
-    submit_gauge("apache_scoreboard", "request_start", request_start, st);
-    submit_gauge("apache_scoreboard", "request_end", request_end, st);
-    submit_gauge("apache_scoreboard", "response_start", response_start, st);
-    submit_gauge("apache_scoreboard", "response_end", response_end, st);
+    metric_family_append(fam_scoreboard, "state", "connect",
+                         (value_t){.gauge = open}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "close",
+                         (value_t){.gauge = closing}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "hard_error",
+                         (value_t){.gauge = hard_error}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "read",
+                         (value_t){.gauge = lighttpd_read}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "read_post",
+                         (value_t){.gauge = reading}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "write",
+                         (value_t){.gauge = sending}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "handle_request",
+                         (value_t){.gauge = handle_request}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "request_start",
+                         (value_t){.gauge = request_start}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "request_end",
+                         (value_t){.gauge = request_end}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "response_start",
+                         (value_t){.gauge = response_start}, tmpl);
+    metric_family_append(fam_scoreboard, "state", "response_end",
+                         (value_t){.gauge = response_end}, tmpl);
   }
 }
 
 static int apache_read_host(user_data_t *user_data) /* {{{ */
 {
+
+  metric_family_t fams[FAM_APACHE_MAX] = {
+      [FAM_APACHE_REQUESTS] =
+          {
+              .name = "apache_requests_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_APACHE_BYTES] =
+          {
+              .name = "apache_bytes_total",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_APACHE_CONNECTIONS] =
+          {
+              .name = "apache_connections",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_APACHE_IDLE_WORKERS] =
+          {
+              .name = "apache_idle_workers",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_APACHE_SCOREBOARD] =
+          {
+              .name = "apache_scoreboard",
+              .type = METRIC_TYPE_GAUGE,
+          },
+  };
+
   apache_t *st = user_data->data;
 
   assert(st->url != NULL);
@@ -515,6 +545,13 @@ static int apache_read_host(user_data_t *user_data) /* {{{ */
    * S.a. https://bz.apache.org/bugzilla/show_bug.cgi?id=63300
    */
   int apache_connections_submitted = 0, apache_idle_workers_submitted = 0;
+
+  metric_t tmpl = {0};
+  if (st->name != NULL)
+    metric_label_set(&tmpl, "instance", st->name);
+  if (st->host != NULL)
+    metric_label_set(&tmpl, "host", st->host);
+
   while ((line = strtok_r(ptr, "\n\r", &saveptr)) != NULL) {
     ptr = NULL;
     char *fields[4];
@@ -523,30 +560,47 @@ static int apache_read_host(user_data_t *user_data) /* {{{ */
 
     if (fields_num == 3) {
       if ((strcmp(fields[0], "Total") == 0) &&
-          (strcmp(fields[1], "Accesses:") == 0))
-        submit_derive("apache_requests", "", atoll(fields[2]), st);
-      else if ((strcmp(fields[0], "Total") == 0) &&
-               (strcmp(fields[1], "kBytes:") == 0))
-        submit_derive("apache_bytes", "", 1024LL * atoll(fields[2]), st);
+          (strcmp(fields[1], "Accesses:") == 0)) {
+        tmpl.value.counter = atoll(fields[2]);
+        metric_family_metric_append(&fams[FAM_APACHE_REQUESTS], tmpl);
+      } else if ((strcmp(fields[0], "Total") == 0) &&
+                 (strcmp(fields[1], "kBytes:") == 0)) {
+        tmpl.value.counter = 1024LL * atoll(fields[2]);
+        metric_family_metric_append(&fams[FAM_APACHE_BYTES], tmpl);
+      }
     } else if (fields_num == 2) {
       if (strcmp(fields[0], "Scoreboard:") == 0)
-        submit_scoreboard(fields[1], st);
+        submit_scoreboard(fields[1], st, &fams[FAM_APACHE_SCOREBOARD], &tmpl);
       else if (!apache_connections_submitted &&
                ((strcmp(fields[0], "BusyServers:") == 0) /* Apache 1.* */
                 || (strcmp(fields[0], "BusyWorkers:") == 0)) /* Apache 2.* */) {
-        submit_gauge("apache_connections", NULL, atol(fields[1]), st);
+        tmpl.value.gauge = atol(fields[1]);
+        metric_family_metric_append(&fams[FAM_APACHE_CONNECTIONS], tmpl);
         apache_connections_submitted++;
       } else if (!apache_idle_workers_submitted &&
                  ((strcmp(fields[0], "IdleServers:") == 0) /* Apache 1.x */
                   ||
                   (strcmp(fields[0], "IdleWorkers:") == 0)) /* Apache 2.x */) {
-        submit_gauge("apache_idle_workers", NULL, atol(fields[1]), st);
+        tmpl.value.gauge = atol(fields[1]);
+        metric_family_metric_append(&fams[FAM_APACHE_IDLE_WORKERS], tmpl);
         apache_idle_workers_submitted++;
       }
     }
   }
+  metric_reset(&tmpl);
 
   st->apache_buffer_fill = 0;
+
+  for (size_t i = 0; i < FAM_APACHE_MAX; i++) {
+    if (fams[i].metric.num > 0) {
+      int status = plugin_dispatch_metric_family(&fams[i]);
+      if (status != 0) {
+        ERROR("apache plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(&fams[i]);
+    }
+  }
 
   return 0;
 } /* }}} int apache_read_host */
