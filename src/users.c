@@ -44,15 +44,23 @@
 #endif
 
 static void users_submit(gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
+  metric_family_t fam = {
+      .name = "users",
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "users", sizeof(vl.plugin));
-  sstrncpy(vl.type, "users", sizeof(vl.plugin));
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = value,
+                                    });
 
-  plugin_dispatch_values(&vl);
-} /* void users_submit */
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("users plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
+}
 
 static int users_read(void) {
 #if HAVE_GETUTXENT
