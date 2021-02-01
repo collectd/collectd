@@ -62,15 +62,22 @@ extern kstat_ctl_t *kc;
 #endif /* #endif HAVE_LIBKSTAT */
 
 static void uptime_submit(gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
+  metric_family_t fam = {
+      .name = "uptime_seconds",
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = value,
+                                    });
 
-  sstrncpy(vl.plugin, "uptime", sizeof(vl.plugin));
-  sstrncpy(vl.type, "uptime", sizeof(vl.type));
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("uptime plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
 
-  plugin_dispatch_values(&vl);
+  metric_family_metric_reset(&fam);
 }
 
 /*
