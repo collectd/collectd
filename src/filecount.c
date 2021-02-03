@@ -38,11 +38,10 @@
 
 struct fc_directory_conf_s {
   char *path;
-  char *plugin_name;
-  char *instance;
-  char *files_size_type;
-  char *files_num_type;
-  char *type_instance;
+
+  char *metric_files_size;
+  char *metric_files_num;
+  label_set_t labels;
 
   int options;
 
@@ -65,54 +64,43 @@ static size_t directories_num;
 
 static void fc_free_dir(fc_directory_conf_t *dir) {
   sfree(dir->path);
-  sfree(dir->plugin_name);
-  sfree(dir->instance);
-  sfree(dir->files_size_type);
-  sfree(dir->files_num_type);
-  sfree(dir->type_instance);
+  sfree(dir->metric_files_size);
+  sfree(dir->metric_files_num);
   sfree(dir->name);
+
+  label_set_reset(&dir->labels);
 
   sfree(dir);
 } /* void fc_free_dir */
 
-static void fc_submit_dir(const fc_directory_conf_t *dir) {
-  value_list_t vl = VALUE_LIST_INIT;
+static void fc_submit_dir(char *name, metric_t *tmpl, gauge_t value) {
+  metric_family_t fam = {
+      .name = name,
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  sstrncpy(vl.plugin, dir->plugin_name, sizeof(vl.plugin));
-  if (dir->instance != NULL)
-    sstrncpy(vl.plugin_instance, dir->instance, sizeof(vl.plugin_instance));
-  if (dir->type_instance != NULL)
-    sstrncpy(vl.type_instance, dir->type_instance, sizeof(vl.type_instance));
+  metric_family_append(&fam, NULL, NULL, (value_t){.gauge = value}, tmpl);
 
-  vl.values_len = 1;
-
-  if (dir->files_num_type != NULL) {
-    vl.values = &(value_t){.gauge = (gauge_t)dir->files_num};
-    sstrncpy(vl.type, dir->files_num_type, sizeof(vl.type));
-    plugin_dispatch_values(&vl);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("filecount plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
   }
 
-  if (dir->files_size_type != NULL) {
-    vl.values = &(value_t){.gauge = (gauge_t)dir->files_size};
-    sstrncpy(vl.type, dir->files_size_type, sizeof(vl.type));
-    plugin_dispatch_values(&vl);
-  }
+  metric_family_metric_reset(&fam);
 } /* void fc_submit_dir */
 
 /*
  * Config:
  * <Plugin filecount>
  *   <Directory /path/to/dir>
- *     Plugin "foo"
- *     Instance "foobar"
+ *     MetricFilesSize "foo_bytes"
+ *     MetricFilesNum "foo_files"
  *     Name "*.conf"
  *     MTime -3600
  *     Size "+10M"
  *     Recursive true
  *     IncludeHidden false
- *     FilesSizeType "bytes"
- *     FilesCountType "files"
- *     TypeInstance "instance"
  *   </Directory>
  * </Plugin>
  *
@@ -120,39 +108,6 @@ static void fc_submit_dir(const fc_directory_conf_t *dir) {
  * - Number of files
  * - Total size
  */
-
-static int fc_config_set_instance(fc_directory_conf_t *dir, const char *str) {
-  char buffer[1024];
-  char *ptr;
-
-  sstrncpy(buffer, str, sizeof(buffer));
-  for (ptr = buffer; *ptr != 0; ptr++)
-    if (*ptr == '/')
-      *ptr = '_';
-
-  for (ptr = buffer; *ptr == '_'; ptr++)
-    /* do nothing */;
-
-  char *copy = strdup(ptr);
-  if (copy == NULL)
-    return -1;
-
-  sfree(dir->instance);
-  dir->instance = copy;
-
-  return 0;
-} /* int fc_config_set_instance */
-
-static int fc_config_add_dir_instance(fc_directory_conf_t *dir,
-                                      oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    WARNING("filecount plugin: The `Instance' config option needs exactly "
-            "one string argument.");
-    return -1;
-  }
-
-  return fc_config_set_instance(dir, ci->values[0].value.string);
-} /* int fc_config_add_dir_instance */
 
 static int fc_config_add_dir_mtime(fc_directory_conf_t *dir,
                                    oconfig_item_t *ci) {
@@ -323,31 +278,16 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
 
   dir->options = FC_RECURSIVE | FC_REGULAR;
 
-  dir->name = NULL;
-  dir->plugin_name = strdup("filecount");
-  dir->instance = NULL;
-  dir->type_instance = NULL;
-  dir->mtime = 0;
-  dir->size = 0;
-
-  dir->files_size_type = strdup("bytes");
-  dir->files_num_type = strdup("files");
-
-  if (dir->plugin_name == NULL || dir->files_size_type == NULL ||
-      dir->files_num_type == NULL) {
-    ERROR("filecount plugin: strdup failed.");
-    fc_free_dir(dir);
-    return -1;
-  }
-
   int status = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
-    if (strcasecmp("Plugin", option->key) == 0)
-      status = cf_util_get_string(option, &dir->plugin_name);
-    else if (strcasecmp("Instance", option->key) == 0)
-      status = fc_config_add_dir_instance(dir, option);
+    if (strcasecmp("MetricFilesSize", option->key) == 0)
+      status = cf_util_get_string(option, &dir->metric_files_size);
+    else if (strcasecmp("MetricFilesCount", option->key) == 0)
+      status = cf_util_get_string(option, &dir->metric_files_num);
+    else if (strcasecmp("Label", option->key) == 0)
+      status = cf_util_get_label(option, &dir->labels);
     else if (strcasecmp("Name", option->key) == 0)
       status = cf_util_get_string(option, &dir->name);
     else if (strcasecmp("MTime", option->key) == 0)
@@ -360,12 +300,6 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
       status = fc_config_add_dir_option(dir, option, FC_HIDDEN);
     else if (strcasecmp("RegularOnly", option->key) == 0)
       status = fc_config_add_dir_option(dir, option, FC_REGULAR);
-    else if (strcasecmp("FilesSizeType", option->key) == 0)
-      status = cf_util_get_string(option, &dir->files_size_type);
-    else if (strcasecmp("FilesCountType", option->key) == 0)
-      status = cf_util_get_string(option, &dir->files_num_type);
-    else if (strcasecmp("TypeInstance", option->key) == 0)
-      status = cf_util_get_string(option, &dir->type_instance);
     else {
       WARNING("filecount plugin: fc_config_add_dir: "
               "Option `%s' not allowed here.",
@@ -382,29 +316,9 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
     return -1;
   }
 
-  /* Set default plugin instance */
-  if (dir->instance == NULL) {
-    fc_config_set_instance(dir, dir->path);
-    if (dir->instance == NULL || strlen(dir->instance) == 0) {
-      ERROR("filecount plugin: failed to build plugin instance name.");
-      fc_free_dir(dir);
-      return -1;
-    }
-  }
-
-  /* Handle disabled types */
-  if (strlen(dir->instance) == 0)
-    sfree(dir->instance);
-
-  if (strlen(dir->files_size_type) == 0)
-    sfree(dir->files_size_type);
-
-  if (strlen(dir->files_num_type) == 0)
-    sfree(dir->files_num_type);
-
-  if (dir->files_size_type == NULL && dir->files_num_type == NULL) {
-    WARNING("filecount plugin: Both `FilesSizeType' and `FilesCountType ' "
-            "are disabled for '%s'. There's no types to report.",
+  if (dir->metric_files_size == NULL && dir->metric_files_num == NULL) {
+    WARNING("filecount plugin: Both `MetricFilesSize' and `MetricFilesCount' "
+            "are disabled for '%s'. There's no metric to report.",
             dir->path);
     fc_free_dir(dir);
     return -1;
@@ -536,7 +450,20 @@ static int fc_read_dir(fc_directory_conf_t *dir) {
     return -1;
   }
 
-  fc_submit_dir(dir);
+  metric_t m = {0};
+
+  for (size_t i = 0; i < dir->labels.num; i++) {
+    metric_label_set(&m, dir->labels.ptr[i].name, dir->labels.ptr[i].value);
+  }
+
+  if (dir->metric_files_num != NULL) {
+    fc_submit_dir(dir->metric_files_num, &m, (gauge_t)dir->files_num);
+  }
+  if (dir->metric_files_size != NULL) {
+    fc_submit_dir(dir->metric_files_size, &m, (gauge_t)dir->files_size);
+  }
+
+  metric_reset(&m);
 
   return 0;
 } /* int fc_read_dir */

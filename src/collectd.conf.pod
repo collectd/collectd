@@ -3361,13 +3361,13 @@ forward:
 
   <Plugin "filecount">
     <Directory "/var/qmail/queue/mess">
-      Instance "qmail-message"
+      MetricFilesCount "qmail_messages"
     </Directory>
     <Directory "/var/qmail/queue/todo">
-      Instance "qmail-todo"
+      MetricFilesCount "qmail_todo"
     </Directory>
     <Directory "/var/lib/php5">
-      Instance "php5-sessions"
+      MetricFilesCount "php5_sessions"
       Name "sess_*"
     </Directory>
   </Plugin>
@@ -3383,16 +3383,19 @@ blocks, the following options are recognized:
 
 =over 4
 
-=item B<Plugin> I<Plugin>
+=item B<MetricFilesSize> I<Metric>
 
-Use I<Plugin> as the plugin name when submitting values.
-Defaults to B<filecount>.
+Use I<Metric> as the metric name to dispatch files combined size, the type of
+the metric is B<gauge>.
 
-=item B<Instance> I<Instance>
+=item B<MetricFilesCount> I<Metric>
 
-Sets the plugin instance to I<Instance>. If not given, the instance is set to
-the directory name with all slashes replaced by underscores and all leading
-underscores removed. Empty value is allowed.
+Use I<Metric> as the metric name to dispatch number of files, the type of the
+metric is B<gauge>.
+
+=item B<Label> I<Key> I<Value>
+
+Append the label I<Key>=I<Value> to the submitting metrics.
 
 =item B<Name> I<Pattern>
 
@@ -3442,21 +3445,6 @@ Defaults to I<false>, i.e. by default hidden files and directories are ignored.
 
 Controls whether or not to include only regular files in the count.
 Defaults to I<true>, i.e. by default non regular files are ignored.
-
-=item B<FilesSizeType> I<Type>
-
-Sets the type used to dispatch files combined size. Empty value ("") disables
-reporting. Defaults to B<bytes>.
-
-=item B<FilesCountType> I<Type>
-
-Sets the type used to dispatch number of files. Empty value ("") disables
-reporting. Defaults to B<files>.
-
-=item B<TypeInstance> I<Instance>
-
-Sets the I<type instance> used to dispatch values. Defaults to an empty string
-(no plugin instance).
 
 =back
 
