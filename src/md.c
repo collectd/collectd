@@ -67,7 +67,7 @@ static int md_config(const char *key, const char *value) {
   return 0;
 }
 
-static void md_process(metric_family_t *fams[], const int minor,
+static void md_process(metric_family_t *fams, const int minor,
                        const char *path) {
   int fd;
   struct stat st;
@@ -128,20 +128,20 @@ static void md_process(metric_family_t *fams[], const int minor,
   metric_label_set(&m, "minor", minor_buffer);
 
   m.value.gauge = (gauge_t)array.active_disks;
-  metric_family_metric_append(fams[FAM_MD_ACTIVE], m);
+  metric_family_metric_append(&fams[FAM_MD_ACTIVE], m);
 
   m.value.gauge = (gauge_t)array.failed_disks;
-  metric_family_metric_append(fams[FAM_MD_FAILED], m);
+  metric_family_metric_append(&fams[FAM_MD_FAILED], m);
 
   m.value.gauge = (gauge_t)array.spare_disks;
-  metric_family_metric_append(fams[FAM_MD_SPARE], m);
+  metric_family_metric_append(&fams[FAM_MD_SPARE], m);
 
   gauge_t disks_missing = 0.0;
   if (array.raid_disks > array.nr_disks)
     disks_missing = (gauge_t)(array.raid_disks - array.nr_disks);
 
   m.value.gauge = disks_missing;
-  metric_family_metric_append(fams[FAM_MD_MISSING], m);
+  metric_family_metric_append(&fams[FAM_MD_MISSING], m);
 
   metric_reset(&m);
 } /* void md_process */
@@ -149,29 +149,28 @@ static void md_process(metric_family_t *fams[], const int minor,
 static int md_read(void) {
   FILE *fh;
   char buffer[1024];
-
-  metric_family_t fam_md_active = {
-      .name = "md_active",
-      .type = METRIC_TYPE_GAUGE,
+  metric_family_t fams[FAM_MD_MAX] = {
+      [FAM_MD_ACTIVE] =
+          {
+              .name = "md_active",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_MD_FAILED] =
+          {
+              .name = "md_failed",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_MD_SPARE] =
+          {
+              .name = "md_spare",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_MD_MISSING] =
+          {
+              .name = "md_missing",
+              .type = METRIC_TYPE_GAUGE,
+          },
   };
-  metric_family_t fam_md_failed = {
-      .name = "md_failed",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_md_spare = {
-      .name = "md_spare",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_md_missing = {
-      .name = "md_missing",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t *fams[FAM_MD_MAX];
-
-  fams[FAM_MD_ACTIVE] = &fam_md_active;
-  fams[FAM_MD_FAILED] = &fam_md_failed;
-  fams[FAM_MD_SPARE] = &fam_md_spare;
-  fams[FAM_MD_MISSING] = &fam_md_missing;
 
   fh = fopen(PROC_DISKSTATS, "r");
   if (fh == NULL) {
@@ -215,13 +214,13 @@ static int md_read(void) {
   fclose(fh);
 
   for (size_t i = 0; i < FAM_MD_MAX; i++) {
-    if (fams[i]->metric.num > 0) {
-      int status = plugin_dispatch_metric_family(fams[i]);
+    if (fams[i].metric.num > 0) {
+      int status = plugin_dispatch_metric_family(&fams[i]);
       if (status != 0) {
         ERROR("serial plugin: plugin_dispatch_metric_family failed: %s",
               STRERROR(status));
       }
-      metric_family_metric_reset(fams[i]);
+      metric_family_metric_reset(&fams[i]);
     }
   }
 
