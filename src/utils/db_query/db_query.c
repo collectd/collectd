@@ -291,11 +291,15 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
     return -EINVAL;
 
 #if COLLECT_DEBUG
-  assert(prep_area->ds == NULL);
-  assert(prep_area->instances_pos == NULL);
-  assert(prep_area->values_pos == NULL);
-  assert(prep_area->instances_buffer == NULL);
-  assert(prep_area->values_buffer == NULL);
+  assert(prep_area->type_str == NULL);
+  assert(prep_area->metric_pos == 0);
+  assert(prep_area->metric_str == NULL);
+  assert(prep_area->help_pos == 0);
+  assert(prep_area->help_str == NULL);
+  assert(prep_area->labels_pos == NULL);
+  assert(prep_area->labels_buffer == NULL);
+  assert(prep_area->value_pos == 0);
+  assert(prep_area->value_str == NULL);
 #endif
 
 #define BAIL_OUT(status)                                                       \
