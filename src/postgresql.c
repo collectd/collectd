@@ -32,9 +32,9 @@
 
 #include "collectd.h"
 
-#include "utils/common/common.h"
-
 #include "plugin.h"
+#include "utils/common/common.h"
+#include "utils/strbuf/strbuf.h"
 
 #include "utils/db_query/db_query.h"
 #include "utils_cache.h"
@@ -137,7 +137,9 @@ typedef struct {
   char *password;
 
   char *instance;
-  char *plugin_name;
+
+  char *metric_prefix;
+  label_set_t labels;
 
   char *sslmode;
 
@@ -200,7 +202,7 @@ static c_psql_database_t *c_psql_database_new(const char *name) {
   c_psql_database_t **tmp;
   c_psql_database_t *db;
 
-  db = malloc(sizeof(*db));
+  db = calloc(1, sizeof(*db));
   if (NULL == db) {
     log_err("Out of memory.");
     return NULL;
@@ -221,41 +223,11 @@ static c_psql_database_t *c_psql_database_new(const char *name) {
 
   C_COMPLAIN_INIT(&db->conn_complaint);
 
-  db->proto_version = 0;
-  db->server_version = 0;
-
-  db->max_params_num = 0;
-
-  db->q_prep_areas = NULL;
-  db->queries = NULL;
-  db->queries_num = 0;
-
-  db->writers = NULL;
-  db->writers_num = 0;
-
   pthread_mutex_init(&db->db_lock, /* attrs = */ NULL);
 
-  db->commit_interval = 0;
-  db->next_commit = 0;
-  db->expire_delay = 0;
-
   db->database = sstrdup(name);
-  db->host = NULL;
-  db->port = NULL;
-  db->user = NULL;
-  db->password = NULL;
-
   db->instance = sstrdup(name);
 
-  db->plugin_name = NULL;
-
-  db->sslmode = NULL;
-
-  db->krbsrvname = NULL;
-
-  db->service = NULL;
-
-  db->ref_cnt = 0;
   return db;
 } /* c_psql_database_new */
 
@@ -299,13 +271,14 @@ static void c_psql_database_delete(void *data) {
 
   sfree(db->instance);
 
-  sfree(db->plugin_name);
-
   sfree(db->sslmode);
 
   sfree(db->krbsrvname);
 
   sfree(db->service);
+
+  sfree(db->metric_prefix);
+  label_set_reset(&db->labels);
 
   /* don't care about freeing or reordering the 'databases' array
    * this is done in 'shutdown'; also, don't free the database instance
@@ -449,8 +422,6 @@ static int c_psql_exec_query(c_psql_database_t *db, udb_query_t *q,
 
   c_psql_user_data_t *data;
 
-  const char *host;
-
   char **column_names;
   char **column_values;
   int column_num;
@@ -533,17 +504,9 @@ static int c_psql_exec_query(c_psql_database_t *db, udb_query_t *q,
     }
   }
 
-  if (C_PSQL_IS_UNIX_DOMAIN_SOCKET(db->host) ||
-      (0 == strcmp(db->host, "127.0.0.1")) ||
-      (0 == strcmp(db->host, "localhost")))
-    host = hostname_g;
-  else
-    host = db->host;
-
-  status = udb_query_prepare_result(
-      q, prep_area, host,
-      (db->plugin_name != NULL) ? db->plugin_name : "postgresql", db->instance,
-      column_names, (size_t)column_num);
+  status =
+      udb_query_prepare_result(q, prep_area, db->metric_prefix, &db->labels,
+                               db->instance, column_names, (size_t)column_num);
 
   if (0 != status) {
     log_err("udb_query_prepare_result failed with status %i.", status);
@@ -611,7 +574,6 @@ static int c_psql_read(user_data_t *ud) {
     if ((0 != db->server_version) &&
         (udb_query_check_version(q, db->server_version) <= 0))
       continue;
-
     if (0 == c_psql_exec_query(db, q, prep_area))
       success = 1;
   }
@@ -623,162 +585,49 @@ static int c_psql_read(user_data_t *ud) {
   return 0;
 } /* c_psql_read */
 
-static char *values_name_to_sqlarray(const data_set_t *ds, char *string,
-                                     size_t string_len) {
-  char *str_ptr;
-  size_t str_len;
+static int label_set_to_sqlarray(strbuf_t *buf, label_set_t *labels) {
+  int status = strbuf_print(buf, "{");
 
-  str_ptr = string;
-  str_len = string_len;
+  for (size_t i = 0; i < labels->num; ++i) {
+    label_pair_t *label = &labels->ptr[i];
 
-  for (size_t i = 0; i < ds->ds_num; ++i) {
-    int status = ssnprintf(str_ptr, str_len, ",'%s'", ds->ds[i].name);
-
-    if (status < 1)
-      return NULL;
-    else if ((size_t)status >= str_len) {
-      str_len = 0;
-      break;
-    } else {
-      str_ptr += status;
-      str_len -= (size_t)status;
-    }
-  }
-
-  if (str_len <= 2) {
-    log_err("c_psql_write: Failed to stringify value names");
-    return NULL;
-  }
-
-  /* overwrite the first comma */
-  string[0] = '{';
-  str_ptr[0] = '}';
-  str_ptr[1] = '\0';
-
-  return string;
-} /* values_name_to_sqlarray */
-
-static char *values_type_to_sqlarray(const data_set_t *ds, char *string,
-                                     size_t string_len, bool store_rates) {
-  char *str_ptr;
-  size_t str_len;
-
-  str_ptr = string;
-  str_len = string_len;
-
-  for (size_t i = 0; i < ds->ds_num; ++i) {
-    int status;
-
-    if (store_rates)
-      status = ssnprintf(str_ptr, str_len, ",'gauge'");
+    if (i == 0)
+      status = status || strbuf_print(buf, "{\"");
     else
-      status = ssnprintf(str_ptr, str_len, ",'%s'",
-                         DS_TYPE_TO_STRING(ds->ds[i].type));
+      status = status || strbuf_print(buf, ",{\"");
 
-    if (status < 1) {
-      str_len = 0;
-      break;
-    } else if ((size_t)status >= str_len) {
-      str_len = 0;
-      break;
-    } else {
-      str_ptr += status;
-      str_len -= (size_t)status;
-    }
+    status = status || strbuf_print_escaped(buf, label->name, "\"", '\\');
+    status = status || strbuf_print(buf, "\",\"");
+    status = status || strbuf_print_escaped(buf, label->value, "\"", '\\');
+    status = status || strbuf_print(buf, "\"}");
   }
 
-  if (str_len <= 2) {
-    log_err("c_psql_write: Failed to stringify value types");
-    return NULL;
-  }
+  status = status || strbuf_print(buf, "}");
 
-  /* overwrite the first comma */
-  string[0] = '{';
-  str_ptr[0] = '}';
-  str_ptr[1] = '\0';
+  return status;
+}
 
-  return string;
-} /* values_type_to_sqlarray */
-
-static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
-                                char *string, size_t string_len,
-                                bool store_rates) {
-  char *str_ptr;
-  size_t str_len;
-
-  gauge_t *rates = NULL;
-
-  str_ptr = string;
-  str_len = string_len;
-
-  for (size_t i = 0; i < vl->values_len; ++i) {
-    int status = 0;
-
-    if ((ds->ds[i].type != DS_TYPE_GAUGE) &&
-        (ds->ds[i].type != DS_TYPE_COUNTER) &&
-        (ds->ds[i].type != DS_TYPE_DERIVE)) {
-      log_err("c_psql_write: Unknown data source type: %i", ds->ds[i].type);
-      sfree(rates);
-      return NULL;
-    }
-
-    if (ds->ds[i].type == DS_TYPE_GAUGE)
-      status =
-          ssnprintf(str_ptr, str_len, "," GAUGE_FORMAT, vl->values[i].gauge);
-    else if (store_rates) {
-      if (rates == NULL)
-        rates = uc_get_rate_vl(ds, vl);
-      if (rates == NULL) {
-        log_err("c_psql_write: Failed to determine rate");
-        return NULL;
-      }
-
-      status = ssnprintf(str_ptr, str_len, ",%lf", rates[i]);
-    } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      status = ssnprintf(str_ptr, str_len, ",%" PRIu64,
-                         (uint64_t)vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      status = ssnprintf(str_ptr, str_len, ",%" PRIi64, vl->values[i].derive);
-
-    if (status < 1) {
-      str_len = 0;
-      break;
-    } else if ((size_t)status >= str_len) {
-      str_len = 0;
-      break;
-    } else {
-      str_ptr += status;
-      str_len -= (size_t)status;
-    }
-  }
-
-  sfree(rates);
-
-  if (str_len <= 2) {
-    log_err("c_psql_write: Failed to stringify value list");
-    return NULL;
-  }
-
-  /* overwrite the first comma */
-  string[0] = '{';
-  str_ptr[0] = '}';
-  str_ptr[1] = '\0';
-
-  return string;
-} /* values_to_sqlarray */
-
-static int c_psql_write(const data_set_t *ds, const value_list_t *vl,
-                        user_data_t *ud) {
+/*
+  $1 The timestamp of the queried value as an RFC 3339-formatted local time
+  $2 Metric name of queried value
+  $3 An array of labels of key, value pairs
+  $4 Types for the submitted value
+  $5 Submitted value
+ */
+static int c_psql_write(metric_family_t const *fam, user_data_t *ud) {
   c_psql_database_t *db;
-
   char time_str[RFC3339NANO_SIZE];
-  char values_name_str[1024];
-  char values_type_str[1024];
-  char values_str[1024];
+  strbuf_t labels_buf = STRBUF_CREATE;
+  char value_str[64];
+  char *type_str;
 
-  const char *params[9];
+  const char *params[5];
 
   int success = 0;
+
+  if (fam == NULL) {
+    return -1;
+  }
 
   if ((ud == NULL) || (ud->data == NULL)) {
     log_err("c_psql_write: Invalid user data.");
@@ -789,111 +638,126 @@ static int c_psql_write(const data_set_t *ds, const value_list_t *vl,
   assert(db->database != NULL);
   assert(db->writers != NULL);
 
-  if (rfc3339nano_local(time_str, sizeof(time_str), vl->time) != 0) {
-    log_err("c_psql_write: Failed to convert time to RFC 3339 format");
-    return -1;
-  }
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t *m = &fam->metric.ptr[i];
 
-  if (values_name_to_sqlarray(ds, values_name_str, sizeof(values_name_str)) ==
-      NULL)
-    return -1;
-
-#define VALUE_OR_NULL(v) ((((v) == NULL) || (*(v) == '\0')) ? NULL : (v))
-
-  params[0] = time_str;
-  params[1] = vl->host;
-  params[2] = vl->plugin;
-  params[3] = VALUE_OR_NULL(vl->plugin_instance);
-  params[4] = vl->type;
-  params[5] = VALUE_OR_NULL(vl->type_instance);
-  params[6] = values_name_str;
-
-#undef VALUE_OR_NULL
-
-  if (db->expire_delay > 0 &&
-      vl->time < (cdtime() - vl->interval - db->expire_delay)) {
-    log_info("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s",
-             params[0], params[1], params[2], params[3], params[4], params[5],
-             params[6]);
-    return 0;
-  }
-
-  pthread_mutex_lock(&db->db_lock);
-
-  if (0 != c_psql_check_connection(db)) {
-    pthread_mutex_unlock(&db->db_lock);
-    return -1;
-  }
-
-  if ((db->commit_interval > 0) && (db->next_commit == 0))
-    c_psql_begin(db);
-
-  for (size_t i = 0; i < db->writers_num; ++i) {
-    c_psql_writer_t *writer;
-    PGresult *res;
-
-    writer = db->writers[i];
-
-    if (values_type_to_sqlarray(ds, values_type_str, sizeof(values_type_str),
-                                writer->store_rates) == NULL) {
-      pthread_mutex_unlock(&db->db_lock);
+    if (rfc3339nano_local(time_str, sizeof(time_str), m->time) != 0) {
+      log_err("c_psql_write: Failed to convert time to RFC 3339 format");
       return -1;
     }
 
-    if (values_to_sqlarray(ds, vl, values_str, sizeof(values_str),
-                           writer->store_rates) == NULL) {
-      pthread_mutex_unlock(&db->db_lock);
+    strbuf_reset(&labels_buf);
+    if (label_set_to_sqlarray(&labels_buf, &m->label) != 0) {
+      log_err("c_psql_write: Failed to stringify labels");
+      STRBUF_DESTROY(labels_buf);
       return -1;
     }
 
-    params[7] = values_type_str;
-    params[8] = values_str;
+    switch (fam->type) {
+    case METRIC_TYPE_COUNTER:
+      type_str = "COUNTER";
+      break;
+    case METRIC_TYPE_GAUGE:
+      type_str = "GAUGE";
+      break;
+    case METRIC_TYPE_UNTYPED:
+      type_str = "UNTYPED";
+      break;
+    }
 
-    res = PQexecParams(db->conn, writer->statement, STATIC_ARRAY_SIZE(params),
-                       NULL, (const char *const *)params, NULL, NULL,
-                       /* return text data */ 0);
+    switch (fam->type) {
+    case METRIC_TYPE_GAUGE:
+    case METRIC_TYPE_UNTYPED:
+      ssnprintf(value_str, sizeof(value_str), GAUGE_FORMAT, m->value.gauge);
+      break;
+    case METRIC_TYPE_COUNTER:
+      ssnprintf(value_str, sizeof(value_str), "%" PRIu64, m->value.counter);
+      break;
+    default:
+      ERROR("c_psql_write: Unknown metric value type: %d", (int)fam->type);
+      STRBUF_DESTROY(labels_buf);
+      return -1;
+    }
 
-    if ((PGRES_COMMAND_OK != PQresultStatus(res)) &&
-        (PGRES_TUPLES_OK != PQresultStatus(res))) {
-      PQclear(res);
+    params[0] = time_str;
+    params[1] = fam->name;
+    params[2] = labels_buf.ptr;
+    params[3] = type_str;
+    params[4] = value_str;
 
-      if ((CONNECTION_OK != PQstatus(db->conn)) &&
-          (0 == c_psql_check_connection(db))) {
-        /* try again */
-        res = PQexecParams(
-            db->conn, writer->statement, STATIC_ARRAY_SIZE(params), NULL,
-            (const char *const *)params, NULL, NULL, /* return text data */ 0);
+    if (db->expire_delay > 0 &&
+        m->time < (cdtime() - m->interval - db->expire_delay)) {
+      log_info("c_psql_write: Skipped expired value @ %s - %s - %s - %s - %s",
+               params[0], params[1], params[2], params[3], params[4]);
+      STRBUF_DESTROY(labels_buf);
+      return 0;
+    }
 
-        if ((PGRES_COMMAND_OK == PQresultStatus(res)) ||
-            (PGRES_TUPLES_OK == PQresultStatus(res))) {
-          PQclear(res);
-          success = 1;
-          continue;
+    pthread_mutex_lock(&db->db_lock);
+
+    if (0 != c_psql_check_connection(db)) {
+      pthread_mutex_unlock(&db->db_lock);
+      STRBUF_DESTROY(labels_buf);
+      return -1;
+    }
+
+    if ((db->commit_interval > 0) && (db->next_commit == 0))
+      c_psql_begin(db);
+
+    for (size_t i = 0; i < db->writers_num; ++i) {
+      c_psql_writer_t *writer;
+      PGresult *res;
+
+      writer = db->writers[i];
+
+      res = PQexecParams(db->conn, writer->statement, STATIC_ARRAY_SIZE(params),
+                         NULL, (const char *const *)params, NULL, NULL,
+                         /* return text data */ 0);
+
+      if ((PGRES_COMMAND_OK != PQresultStatus(res)) &&
+          (PGRES_TUPLES_OK != PQresultStatus(res))) {
+        PQclear(res);
+
+        if ((CONNECTION_OK != PQstatus(db->conn)) &&
+            (0 == c_psql_check_connection(db))) {
+          /* try again */
+          res = PQexecParams(db->conn, writer->statement,
+                             STATIC_ARRAY_SIZE(params), NULL,
+                             (const char *const *)params, NULL, NULL,
+                             /* return text data */ 0);
+
+          if ((PGRES_COMMAND_OK == PQresultStatus(res)) ||
+              (PGRES_TUPLES_OK == PQresultStatus(res))) {
+            PQclear(res);
+            success = 1;
+            continue;
+          }
         }
+
+        log_err("Failed to execute SQL query: %s", PQerrorMessage(db->conn));
+        log_info("SQL query was: '%s', "
+                 "params: %s, %s, %s, %s, %s",
+                 writer->statement, params[0], params[1], params[2], params[3],
+                 params[4]);
+
+        /* this will abort any current transaction -> restart */
+        if (db->next_commit > 0)
+          c_psql_commit(db);
+
+        pthread_mutex_unlock(&db->db_lock);
+        STRBUF_DESTROY(labels_buf);
+        return -1;
       }
 
-      log_err("Failed to execute SQL query: %s", PQerrorMessage(db->conn));
-      log_info("SQL query was: '%s', "
-               "params: %s, %s, %s, %s, %s, %s, %s, %s",
-               writer->statement, params[0], params[1], params[2], params[3],
-               params[4], params[5], params[6], params[7]);
-
-      /* this will abort any current transaction -> restart */
-      if (db->next_commit > 0)
-        c_psql_commit(db);
-
-      pthread_mutex_unlock(&db->db_lock);
-      return -1;
+      PQclear(res);
     }
-
-    PQclear(res);
-    success = 1;
   }
 
   if ((db->next_commit > 0) && (cdtime() > db->next_commit))
     c_psql_commit(db);
 
   pthread_mutex_unlock(&db->db_lock);
+  STRBUF_DESTROY(labels_buf);
 
   if (!success)
     return -1;
@@ -1127,41 +991,54 @@ static int c_psql_config_database(oconfig_item_t *ci) {
   if (db == NULL)
     return -1;
 
+  int status = 0;
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
 
     if (0 == strcasecmp(c->key, "Host"))
-      cf_util_get_string(c, &db->host);
+      status = cf_util_get_string(c, &db->host);
     else if (0 == strcasecmp(c->key, "Port"))
-      cf_util_get_service(c, &db->port);
+      status = cf_util_get_service(c, &db->port);
     else if (0 == strcasecmp(c->key, "User"))
-      cf_util_get_string(c, &db->user);
+      status = cf_util_get_string(c, &db->user);
     else if (0 == strcasecmp(c->key, "Password"))
-      cf_util_get_string(c, &db->password);
+      status = cf_util_get_string(c, &db->password);
     else if (0 == strcasecmp(c->key, "Instance"))
-      cf_util_get_string(c, &db->instance);
-    else if (0 == strcasecmp(c->key, "Plugin"))
-      cf_util_get_string(c, &db->plugin_name);
+      status = cf_util_get_string(c, &db->instance);
+    else if (0 == strcasecmp(c->key, "MetricPrefix"))
+      status = cf_util_get_string(c, &db->metric_prefix);
+    else if (0 == strcasecmp(c->key, "Label"))
+      status = cf_util_get_label(c, &db->labels);
     else if (0 == strcasecmp(c->key, "SSLMode"))
-      cf_util_get_string(c, &db->sslmode);
+      status = cf_util_get_string(c, &db->sslmode);
     else if (0 == strcasecmp(c->key, "KRBSrvName"))
-      cf_util_get_string(c, &db->krbsrvname);
+      status = cf_util_get_string(c, &db->krbsrvname);
     else if (0 == strcasecmp(c->key, "Service"))
-      cf_util_get_string(c, &db->service);
+      status = cf_util_get_string(c, &db->service);
     else if (0 == strcasecmp(c->key, "Query"))
-      udb_query_pick_from_list(c, queries, queries_num, &db->queries,
-                               &db->queries_num);
+      status = udb_query_pick_from_list(c, queries, queries_num, &db->queries,
+                                        &db->queries_num);
     else if (0 == strcasecmp(c->key, "Writer"))
-      config_add_writer(c, writers, writers_num, &db->writers,
-                        &db->writers_num);
+      status = config_add_writer(c, writers, writers_num, &db->writers,
+                                 &db->writers_num);
     else if (0 == strcasecmp(c->key, "Interval"))
-      cf_util_get_cdtime(c, &interval);
+      status = cf_util_get_cdtime(c, &interval);
     else if (strcasecmp("CommitInterval", c->key) == 0)
-      cf_util_get_cdtime(c, &db->commit_interval);
+      status = cf_util_get_cdtime(c, &db->commit_interval);
     else if (strcasecmp("ExpireDelay", c->key) == 0)
-      cf_util_get_cdtime(c, &db->expire_delay);
-    else
+      status = cf_util_get_cdtime(c, &db->expire_delay);
+    else {
       log_warn("Ignoring unknown config key \"%s\".", c->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      break;
+  }
+
+  if (status != 0) {
+    c_psql_database_delete(db);
+    return -1;
   }
 
   /* If no `Query' options were given, add the default queries.. */

@@ -29,6 +29,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 #include "utils/db_query/db_query.h"
+#include "utils/strbuf/strbuf.h"
 
 /*
  * Data types
@@ -36,14 +37,17 @@
 struct udb_result_s; /* {{{ */
 typedef struct udb_result_s udb_result_t;
 struct udb_result_s {
-  char *type;
-  char *instance_prefix;
-  char **instances;
-  size_t instances_num;
-  char **values;
-  size_t values_num;
-  char **metadata;
-  size_t metadata_num;
+  metric_type_t type;
+  char *type_from;
+  char *metric;
+  char *metric_from;
+  char *metric_prefix;
+  char *help;
+  char *help_from;
+  label_set_t labels;
+  char **labels_from;
+  size_t labels_from_num;
+  char *value_from;
 
   udb_result_t *next;
 }; /* }}} */
@@ -53,8 +57,8 @@ struct udb_query_s /* {{{ */
   char *name;
   char *statement;
   void *user_data;
-  char *plugin_instance_from;
-
+  char *metric_prefix;
+  label_set_t labels;
   unsigned int min_version;
   unsigned int max_version;
 
@@ -63,14 +67,16 @@ struct udb_query_s /* {{{ */
 
 struct udb_result_preparation_area_s /* {{{ */
 {
-  const data_set_t *ds;
-  size_t *instances_pos;
-  size_t *values_pos;
-  size_t *metadata_pos;
-  char **instances_buffer;
-  char **values_buffer;
-  char **metadata_buffer;
-  char *plugin_instance;
+  size_t type_pos;
+  char *type_str;
+  size_t metric_pos;
+  char *metric_str;
+  size_t help_pos;
+  char *help_str;
+  size_t *labels_pos;
+  char **labels_buffer;
+  size_t value_pos;
+  char *value_str;
 
   struct udb_result_preparation_area_s *next;
 }; /* }}} */
@@ -79,9 +85,8 @@ typedef struct udb_result_preparation_area_s udb_result_preparation_area_t;
 struct udb_query_preparation_area_s /* {{{ */
 {
   size_t column_num;
-  size_t plugin_instance_pos;
-  char *host;
-  char *plugin;
+  char *metric_prefix;
+  label_set_t labels;
   char *db_name;
 
   udb_result_preparation_area_t *result_prep_areas;
@@ -160,112 +165,90 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
                              udb_result_preparation_area_t *r_area,
                              udb_query_t const *q,
                              udb_query_preparation_area_t *q_area) {
-  value_list_t vl = VALUE_LIST_INIT;
-
   assert(r != NULL);
-  assert(r_area->ds != NULL);
-  assert(((size_t)r_area->ds->ds_num) == r->values_num);
-  assert(r->values_num > 0);
 
-  vl.values = calloc(r->values_num, sizeof(*vl.values));
-  if (vl.values == NULL) {
-    P_ERROR("udb_result_submit: calloc failed.");
-    return -1;
-  }
-  vl.values_len = r_area->ds->ds_num;
+  metric_family_t fam = {0};
 
-  for (size_t i = 0; i < r->values_num; i++) {
-    char *value_str = r_area->values_buffer[i];
-
-    if (0 != parse_value(value_str, &vl.values[i], r_area->ds->ds[i].type)) {
-      P_ERROR("udb_result_submit: Parsing `%s' as %s failed.", value_str,
-              DS_TYPE_TO_STRING(r_area->ds->ds[i].type));
-      errno = EINVAL;
-      free(vl.values);
+  if (r->type_from != NULL) {
+    if (!strcasecmp(r_area->type_str, "gauge"))
+      fam.type = METRIC_TYPE_GAUGE;
+    else if (!strcasecmp(r_area->type_str, "counter"))
+      fam.type = METRIC_TYPE_COUNTER;
+    else if (!strcasecmp(r_area->type_str, "untyped"))
+      fam.type = METRIC_TYPE_UNTYPED;
+    else {
+      P_ERROR("udb_result_submit: Parse type `%s' as `gauge', `counter' "
+              "or `untyped' failed",
+              r_area->type_str);
       return -1;
     }
-  }
-
-  sstrncpy(vl.host, q_area->host, sizeof(vl.host));
-  sstrncpy(vl.plugin, q_area->plugin, sizeof(vl.plugin));
-  sstrncpy(vl.type, r->type, sizeof(vl.type));
-
-  /* Set vl.plugin_instance */
-  if (q->plugin_instance_from != NULL) {
-    sstrncpy(vl.plugin_instance, r_area->plugin_instance,
-             sizeof(vl.plugin_instance));
   } else {
-    sstrncpy(vl.plugin_instance, q_area->db_name, sizeof(vl.plugin_instance));
+    fam.type = r->type;
   }
 
-  /* Set vl.type_instance {{{ */
-  if (r->instances_num == 0) {
-    if (r->instance_prefix == NULL)
-      vl.type_instance[0] = 0;
-    else
-      sstrncpy(vl.type_instance, r->instance_prefix, sizeof(vl.type_instance));
-  } else /* if ((r->instances_num > 0) */
-  {
-    if (r->instance_prefix == NULL) {
-      int status = strjoin(vl.type_instance, sizeof(vl.type_instance),
-                           r_area->instances_buffer, r->instances_num, "-");
-      if (status < 0) {
-        P_ERROR(
-            "udb_result_submit: creating type_instance failed with status %d.",
-            status);
-        return status;
-      }
-    } else {
-      char tmp[DATA_MAX_NAME_LEN];
+  strbuf_t buf = STRBUF_CREATE;
+  if (r->metric_from != NULL) {
+    if (q_area->metric_prefix != NULL)
+      strbuf_print(&buf, q_area->metric_prefix);
+    if (q->metric_prefix != NULL)
+      strbuf_print(&buf, q->metric_prefix);
+    if (r->metric_prefix != NULL)
+      strbuf_print(&buf, r->metric_prefix);
+    strbuf_print(&buf, r_area->metric_str);
+    fam.name = buf.ptr;
+  } else {
+    fam.name = r->metric;
+  }
 
-      int status = strjoin(tmp, sizeof(tmp), r_area->instances_buffer,
-                           r->instances_num, "-");
-      if (status < 0) {
-        P_ERROR(
-            "udb_result_submit: creating type_instance failed with status %d.",
-            status);
-        return status;
-      }
-      tmp[sizeof(tmp) - 1] = '\0';
+  if (r->help_from != NULL) {
+    fam.help = r_area->help_str;
+  } else if (r->help != NULL) {
+    fam.help = r->help;
+  }
 
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s",
-                r->instance_prefix, tmp);
+  metric_t m = {0};
+
+  for (size_t i = 0; i < q_area->labels.num; i++) {
+    metric_label_set(&m, q_area->labels.ptr[i].name,
+                     q_area->labels.ptr[i].value);
+  }
+
+  for (size_t i = 0; i < q->labels.num; i++) {
+    metric_label_set(&m, q->labels.ptr[i].name, q->labels.ptr[i].value);
+  }
+
+  for (size_t i = 0; i < r->labels.num; i++) {
+    metric_label_set(&m, r->labels.ptr[i].name, r->labels.ptr[i].value);
+  }
+
+  for (size_t i = 0; i < r->labels_from_num; i++) {
+    metric_label_set(&m, r->labels_from[i], r_area->labels_buffer[i]);
+  }
+
+  int ret = 0;
+  char *value_str = r_area->value_str;
+  value_t value;
+  if (0 != parse_value(value_str, &value, fam.type)) {
+    P_ERROR("udb_result_submit: Parsing `%s' as %s failed.", value_str,
+            DS_TYPE_TO_STRING(r->type));
+    errno = EINVAL;
+    ret = -1;
+  } else {
+    m.value = value;
+
+    metric_family_metric_append(&fam, m);
+
+    int status = plugin_dispatch_metric_family(&fam);
+    if (status != 0) {
+      ERROR("udb_result_submit: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
     }
   }
-  vl.type_instance[sizeof(vl.type_instance) - 1] = '\0';
-  /* }}} */
 
-  /* Annotate meta data. {{{ */
-  if (r->metadata_num > 0) {
-    vl.meta = meta_data_create();
-    if (vl.meta == NULL) {
-      P_ERROR("udb_result_submit: meta_data_create failed.");
-      free(vl.values);
-      return -ENOMEM;
-    }
-
-    for (size_t i = 0; i < r->metadata_num; i++) {
-      int status = meta_data_add_string(vl.meta, r->metadata[i],
-                                        r_area->metadata_buffer[i]);
-      if (status != 0) {
-        P_ERROR("udb_result_submit: meta_data_add_string failed.");
-        meta_data_destroy(vl.meta);
-        vl.meta = NULL;
-        free(vl.values);
-        return status;
-      }
-    }
-  }
-  /* }}} */
-
-  plugin_dispatch_values(&vl);
-
-  if (r->metadata_num > 0) {
-    meta_data_destroy(vl.meta);
-    vl.meta = NULL;
-  }
-  sfree(vl.values);
-  return 0;
+  metric_reset(&m);
+  metric_family_metric_reset(&fam);
+  STRBUF_DESTROY(buf);
+  return ret;
 } /* }}} void udb_result_submit */
 
 static void udb_result_finish_result(udb_result_t const *r, /* {{{ */
@@ -273,13 +256,8 @@ static void udb_result_finish_result(udb_result_t const *r, /* {{{ */
   if ((r == NULL) || (prep_area == NULL))
     return;
 
-  prep_area->ds = NULL;
-  sfree(prep_area->instances_pos);
-  sfree(prep_area->values_pos);
-  sfree(prep_area->metadata_pos);
-  sfree(prep_area->instances_buffer);
-  sfree(prep_area->values_buffer);
-  sfree(prep_area->metadata_buffer);
+  sfree(prep_area->labels_pos);
+  sfree(prep_area->labels_buffer);
 } /* }}} void udb_result_finish_result */
 
 static int udb_result_handle_result(udb_result_t *r, /* {{{ */
@@ -289,17 +267,19 @@ static int udb_result_handle_result(udb_result_t *r, /* {{{ */
                                     char **column_values) {
   assert(r && q_area && r_area);
 
-  for (size_t i = 0; i < r->instances_num; i++)
-    r_area->instances_buffer[i] = column_values[r_area->instances_pos[i]];
+  if (r->type_from != NULL)
+    r_area->type_str = column_values[r_area->type_pos];
 
-  for (size_t i = 0; i < r->values_num; i++)
-    r_area->values_buffer[i] = column_values[r_area->values_pos[i]];
+  if (r->metric_from != NULL)
+    r_area->metric_str = column_values[r_area->metric_pos];
 
-  for (size_t i = 0; i < r->metadata_num; i++)
-    r_area->metadata_buffer[i] = column_values[r_area->metadata_pos[i]];
+  if (r->help_from != NULL)
+    r_area->help_str = column_values[r_area->help_pos];
 
-  if (q->plugin_instance_from)
-    r_area->plugin_instance = column_values[q_area->plugin_instance_pos];
+  for (size_t i = 0; i < r->labels_from_num; i++)
+    r_area->labels_buffer[i] = column_values[r_area->labels_pos[i]];
+
+  r_area->value_str = column_values[r_area->value_pos];
 
   return udb_result_submit(r, r_area, q, q_area);
 } /* }}} int udb_result_handle_result */
@@ -314,89 +294,88 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
   assert(prep_area->ds == NULL);
   assert(prep_area->instances_pos == NULL);
   assert(prep_area->values_pos == NULL);
-  assert(prep_area->metadata_pos == NULL);
   assert(prep_area->instances_buffer == NULL);
   assert(prep_area->values_buffer == NULL);
-  assert(prep_area->metadata_buffer == NULL);
 #endif
 
 #define BAIL_OUT(status)                                                       \
   udb_result_finish_result(r, prep_area);                                      \
   return (status)
 
-  /* Read `ds' and check number of values {{{ */
-  prep_area->ds = plugin_get_ds(r->type);
-  if (prep_area->ds == NULL) {
-    P_ERROR("udb_result_prepare_result: Type `%s' is not "
-            "known by the daemon. See types.db(5) for details.",
-            r->type);
-    BAIL_OUT(-1);
-  }
-
-  if (prep_area->ds->ds_num != r->values_num) {
-    P_ERROR("udb_result_prepare_result: The type `%s' "
-            "requires exactly %" PRIsz
-            " value%s, but the configuration specifies %" PRIsz ".",
-            r->type, prep_area->ds->ds_num,
-            (prep_area->ds->ds_num == 1) ? "" : "s", r->values_num);
-    BAIL_OUT(-1);
-  }
-  /* }}} */
-
-  /* Allocate r->instances_pos, r->values_pos, r->metadata_post,
-   * r->instances_buffer, r->values_buffer, and r->metadata_buffer {{{ */
-  if (r->instances_num > 0) {
-    prep_area->instances_pos =
-        calloc(r->instances_num, sizeof(*prep_area->instances_pos));
-    if (prep_area->instances_pos == NULL) {
+  if (r->labels_from_num > 0) {
+    prep_area->labels_pos =
+        calloc(r->labels_from_num, sizeof(*prep_area->labels_pos));
+    if (prep_area->labels_pos == NULL) {
       P_ERROR("udb_result_prepare_result: calloc failed.");
       BAIL_OUT(-ENOMEM);
     }
 
-    prep_area->instances_buffer =
-        calloc(r->instances_num, sizeof(*prep_area->instances_buffer));
-    if (prep_area->instances_buffer == NULL) {
+    prep_area->labels_buffer =
+        calloc(r->labels_from_num, sizeof(*prep_area->labels_buffer));
+    if (prep_area->labels_buffer == NULL) {
       P_ERROR("udb_result_prepare_result: calloc failed.");
       BAIL_OUT(-ENOMEM);
     }
-  } /* if (r->instances_num > 0) */
-
-  prep_area->values_pos = calloc(r->values_num, sizeof(*prep_area->values_pos));
-  if (prep_area->values_pos == NULL) {
-    P_ERROR("udb_result_prepare_result: calloc failed.");
-    BAIL_OUT(-ENOMEM);
   }
 
-  prep_area->values_buffer =
-      calloc(r->values_num, sizeof(*prep_area->values_buffer));
-  if (prep_area->values_buffer == NULL) {
-    P_ERROR("udb_result_prepare_result: calloc failed.");
-    BAIL_OUT(-ENOMEM);
-  }
+  /* Determine the position of the type column {{{ */
+  if (r->type_from != NULL) {
+    size_t i;
+    for (i = 0; i < column_num; i++) {
+      if (strcasecmp(r->type_from, column_names[i]) == 0) {
+        prep_area->type_pos = i;
+        break;
+      }
+    }
+    if (i >= column_num) {
+      P_ERROR("udb_result_prepare_result: "
+              "Column `%s' could not be found.",
+              r->type_from);
+      BAIL_OUT(-ENOENT);
+    }
+  } /* }}} */
 
-  prep_area->metadata_pos =
-      calloc(r->metadata_num, sizeof(*prep_area->metadata_pos));
-  if (prep_area->metadata_pos == NULL) {
-    P_ERROR("udb_result_prepare_result: calloc failed.");
-    BAIL_OUT(-ENOMEM);
-  }
+  /* Determine the position of the metric column {{{ */
+  if (r->metric_from != NULL) {
+    size_t i;
+    for (i = 0; i < column_num; i++) {
+      if (strcasecmp(r->metric_from, column_names[i]) == 0) {
+        prep_area->metric_pos = i;
+        break;
+      }
+    }
+    if (i >= column_num) {
+      P_ERROR("udb_result_prepare_result: "
+              "Column `%s' could not be found.",
+              r->type_from);
+      BAIL_OUT(-ENOENT);
+    }
+  } /* }}} */
 
-  prep_area->metadata_buffer =
-      calloc(r->metadata_num, sizeof(*prep_area->metadata_buffer));
-  if (prep_area->metadata_buffer == NULL) {
-    P_ERROR("udb_result_prepare_result: calloc failed.");
-    BAIL_OUT(-ENOMEM);
-  }
+  /* Determine the position of the metric column {{{ */
+  if (r->help_from != NULL) {
+    size_t i;
+    for (i = 0; i < column_num; i++) {
+      if (strcasecmp(r->help_from, column_names[i]) == 0) {
+        prep_area->help_pos = i;
+        break;
+      }
+    }
+    if (i >= column_num) {
+      P_ERROR("udb_result_prepare_result: "
+              "Column `%s' could not be found.",
+              r->type_from);
+      BAIL_OUT(-ENOENT);
+    }
+  } /* }}} */
 
-  /* }}} */
-
-  /* Determine the position of the plugin instance column {{{ */
-  for (size_t i = 0; i < r->instances_num; i++) {
+  /* Determine the position of the labels column {{{ */
+  for (size_t i = 0; i < r->labels_from_num; i++) {
     size_t j;
 
     for (j = 0; j < column_num; j++) {
-      if (strcasecmp(r->instances[i], column_names[j]) == 0) {
-        prep_area->instances_pos[i] = j;
+      if (strcasecmp(r->labels_from[i], column_names[j]) == 0) {
+        prep_area->labels_pos[i] = j;
         break;
       }
     }
@@ -404,48 +383,25 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
     if (j >= column_num) {
       P_ERROR("udb_result_prepare_result: "
               "Column `%s' could not be found.",
-              r->instances[i]);
+              r->labels_from[i]);
       BAIL_OUT(-ENOENT);
     }
-  } /* }}} for (i = 0; i < r->instances_num; i++) */
+  } /* }}} for (i = 0; i < r->labels_from_num; i++) */
 
-  /* Determine the position of the value columns {{{ */
-  for (size_t i = 0; i < r->values_num; i++) {
-    size_t j;
-
-    for (j = 0; j < column_num; j++) {
-      if (strcasecmp(r->values[i], column_names[j]) == 0) {
-        prep_area->values_pos[i] = j;
-        break;
-      }
+  /* Determine the position of the value column {{{ */
+  size_t i;
+  for (i = 0; i < column_num; i++) {
+    if (strcasecmp(r->value_from, column_names[i]) == 0) {
+      prep_area->value_pos = i;
+      break;
     }
-
-    if (j >= column_num) {
-      P_ERROR("udb_result_prepare_result: "
-              "Column `%s' could not be found.",
-              r->values[i]);
-      BAIL_OUT(-ENOENT);
-    }
-  } /* }}} for (i = 0; i < r->values_num; i++) */
-
-  /* Determine the position of the metadata columns {{{ */
-  for (size_t i = 0; i < r->metadata_num; i++) {
-    size_t j;
-
-    for (j = 0; j < column_num; j++) {
-      if (strcasecmp(r->metadata[i], column_names[j]) == 0) {
-        prep_area->metadata_pos[i] = j;
-        break;
-      }
-    }
-
-    if (j >= column_num) {
-      P_ERROR("udb_result_prepare_result: "
-              "Metadata column `%s' could not be found.",
-              r->values[i]);
-      BAIL_OUT(-ENOENT);
-    }
-  } /* }}} for (i = 0; i < r->metadata_num; i++) */
+  }
+  if (i >= column_num) {
+    P_ERROR("udb_result_prepare_result: "
+            "Column `%s' could not be found.",
+            r->value_from);
+    BAIL_OUT(-ENOENT);
+  } /* }}} */
 
 #undef BAIL_OUT
   return 0;
@@ -456,20 +412,19 @@ static void udb_result_free(udb_result_t *r) /* {{{ */
   if (r == NULL)
     return;
 
-  sfree(r->type);
-  sfree(r->instance_prefix);
+  sfree(r->type_from);
+  sfree(r->metric);
+  sfree(r->metric_from);
+  sfree(r->metric_prefix);
+  sfree(r->help);
+  sfree(r->help_from);
+  label_set_reset(&r->labels);
 
-  for (size_t i = 0; i < r->instances_num; i++)
-    sfree(r->instances[i]);
-  sfree(r->instances);
+  for (size_t i = 0; i < r->labels_from_num; i++)
+    sfree(r->labels_from[i]);
+  sfree(r->labels_from);
 
-  for (size_t i = 0; i < r->values_num; i++)
-    sfree(r->values[i]);
-  sfree(r->values);
-
-  for (size_t i = 0; i < r->metadata_num; i++)
-    sfree(r->metadata[i]);
-  sfree(r->metadata);
+  sfree(r->value_from);
 
   udb_result_free(r->next);
 
@@ -478,42 +433,47 @@ static void udb_result_free(udb_result_t *r) /* {{{ */
 
 static int udb_result_create(const char *query_name, /* {{{ */
                              udb_result_t **r_head, oconfig_item_t *ci) {
-  udb_result_t *r;
-  int status;
-
   if (ci->values_num != 0) {
     P_WARNING("The `Result' block doesn't accept "
               "any arguments. Ignoring %i argument%s.",
               ci->values_num, (ci->values_num == 1) ? "" : "s");
   }
 
-  r = calloc(1, sizeof(*r));
+  udb_result_t *r = calloc(1, sizeof(*r));
   if (r == NULL) {
     P_ERROR("udb_result_create: calloc failed.");
     return -1;
   }
-  r->type = NULL;
-  r->instance_prefix = NULL;
-  r->instances = NULL;
-  r->values = NULL;
-  r->metadata = NULL;
-  r->next = NULL;
 
+  r->type = METRIC_TYPE_UNTYPED;
+  bool type_setted = false;
   /* Fill the `udb_result_t' structure.. */
-  status = 0;
+  int status = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("Type", child->key) == 0)
-      status = cf_util_get_string(child, &r->type);
-    else if (strcasecmp("InstancePrefix", child->key) == 0)
-      status = cf_util_get_string(child, &r->instance_prefix);
-    else if (strcasecmp("InstancesFrom", child->key) == 0)
-      status = udb_config_add_string(&r->instances, &r->instances_num, child);
-    else if (strcasecmp("ValuesFrom", child->key) == 0)
-      status = udb_config_add_string(&r->values, &r->values_num, child);
-    else if (strcasecmp("MetadataFrom", child->key) == 0)
-      status = udb_config_add_string(&r->metadata, &r->metadata_num, child);
+    if (strcasecmp("Type", child->key) == 0) {
+      type_setted = true;
+      status = cf_util_get_metric_type(child, &r->type);
+    } else if (strcasecmp("TypeFrom", child->key) == 0)
+      status = cf_util_get_string(child, &r->type_from);
+    else if (strcasecmp("Help", child->key) == 0)
+      status = cf_util_get_string(child, &r->help);
+    else if (strcasecmp("HelpFrom", child->key) == 0)
+      status = cf_util_get_string(child, &r->help_from);
+    else if (strcasecmp("Metric", child->key) == 0)
+      status = cf_util_get_string(child, &r->metric);
+    else if (strcasecmp("MetricFrom", child->key) == 0)
+      status = cf_util_get_string(child, &r->metric_from);
+    else if (strcasecmp("MetricPrefix", child->key) == 0)
+      status = cf_util_get_string(child, &r->metric_prefix);
+    else if (strcasecmp("Label", child->key) == 0)
+      status = cf_util_get_label(child, &r->labels);
+    else if (strcasecmp("LabelsFrom", child->key) == 0)
+      status =
+          udb_config_add_string(&r->labels_from, &r->labels_from_num, child);
+    else if (strcasecmp("ValueFrom", child->key) == 0)
+      status = cf_util_get_string(child, &r->value_from);
     else {
       P_WARNING("Query `%s': Option `%s' not allowed here.", query_name,
                 child->key);
@@ -525,22 +485,45 @@ static int udb_result_create(const char *query_name, /* {{{ */
   }
 
   /* Check that all necessary options have been given. */
-  while (status == 0) {
-    if (r->type == NULL) {
-      P_WARNING("udb_result_create: `Type' not given for "
-                "result in query `%s'",
+  if (status == 0) {
+    if (r->metric != NULL && r->metric_from != NULL) {
+      P_WARNING("udb_result_create: only one of `Metric' or `MetricFrom' "
+                "can be used in query `%s'",
                 query_name);
       status = -1;
     }
-    if (r->values == NULL) {
-      P_WARNING("udb_result_create: `ValuesFrom' not given for "
-                "result in query `%s'",
+    if (r->metric == NULL && r->metric_from == NULL) {
+      P_WARNING("udb_result_create: `Metric' or `MetricFrom' not given "
+                "in query `%s'",
+                query_name);
+      status = -1;
+    }
+    if (r->metric_prefix != NULL && r->metric_from == NULL) {
+      P_WARNING("udb_result_create: `MetricFrom' not given "
+                "in query `%s'",
                 query_name);
       status = -1;
     }
 
-    break;
-  } /* while (status == 0) */
+    if (r->help != NULL && r->help_from != NULL) {
+      P_WARNING("udb_result_create: only one of `Help' or `HelpFrom' "
+                "can be used in query `%s'",
+                query_name);
+      status = -1;
+    }
+    if (r->type_from != NULL && type_setted) {
+      P_WARNING("udb_result_create: only one of `Type' or `TypeFrom' "
+                "can be used in query `%s'",
+                query_name);
+      status = -1;
+    }
+    if (r->value_from == NULL) {
+      P_WARNING("udb_result_create: `ValueFrom' not given for "
+                "result in query `%s'",
+                query_name);
+      status = -1;
+    }
+  }
 
   if (status != 0) {
     udb_result_free(r);
@@ -573,7 +556,8 @@ static void udb_query_free_one(udb_query_t *q) /* {{{ */
 
   sfree(q->name);
   sfree(q->statement);
-  sfree(q->plugin_instance_from);
+  sfree(q->metric_prefix);
+  label_set_reset(&q->labels);
 
   udb_result_free(q->results);
 
@@ -610,9 +594,6 @@ int udb_query_create(udb_query_t ***ret_query_list, /* {{{ */
   }
   q->min_version = 0;
   q->max_version = UINT_MAX;
-  q->statement = NULL;
-  q->results = NULL;
-  q->plugin_instance_from = NULL;
 
   status = cf_util_get_string(ci, &q->name);
   if (status != 0) {
@@ -632,8 +613,10 @@ int udb_query_create(udb_query_t ***ret_query_list, /* {{{ */
       status = udb_config_set_uint(&q->min_version, child);
     else if (strcasecmp("MaxVersion", child->key) == 0)
       status = udb_config_set_uint(&q->max_version, child);
-    else if (strcasecmp("PluginInstanceFrom", child->key) == 0)
-      status = cf_util_get_string(child, &q->plugin_instance_from);
+    else if (strcasecmp("MetricPrefix", child->key) == 0)
+      status = cf_util_get_string(child, &q->metric_prefix);
+    else if (strcasecmp("Label", child->key) == 0)
+      status = cf_util_get_label(child, &q->labels);
 
     /* Call custom callbacks */
     else if (cb != NULL) {
@@ -721,7 +704,10 @@ int udb_query_pick_from_list_by_name(const char *name, /* {{{ */
   for (size_t i = 0; i < src_list_len; i++) {
     udb_query_t **tmp_list;
     size_t tmp_list_len;
-
+    fprintf(
+        stderr,
+        "udb_query_pick_from_list_by_name: name: %s src_list[%d]->name: %s\n",
+        name, (int)i, src_list[i]->name);
     if (strcasecmp(name, src_list[i]->name) != 0)
       continue;
 
@@ -829,8 +815,7 @@ void udb_query_finish_result(udb_query_t const *q, /* {{{ */
     return;
 
   prep_area->column_num = 0;
-  sfree(prep_area->host);
-  sfree(prep_area->plugin);
+  sfree(prep_area->metric_prefix);
   sfree(prep_area->db_name);
 
   for (r = q->results, r_area = prep_area->result_prep_areas; r != NULL;
@@ -853,8 +838,7 @@ int udb_query_handle_result(udb_query_t const *q, /* {{{ */
   if ((q == NULL) || (prep_area == NULL))
     return -EINVAL;
 
-  if ((prep_area->column_num < 1) || (prep_area->host == NULL) ||
-      (prep_area->plugin == NULL) || (prep_area->db_name == NULL)) {
+  if ((prep_area->column_num < 1) || (prep_area->db_name == NULL)) {
     P_ERROR("Query `%s': Query is not prepared; "
             "can't handle result.",
             q->name);
@@ -891,7 +875,7 @@ int udb_query_handle_result(udb_query_t const *q, /* {{{ */
 
 int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
                              udb_query_preparation_area_t *prep_area,
-                             const char *host, const char *plugin,
+                             char *metric_prefix, label_set_t *labels,
                              const char *db_name, char **column_names,
                              size_t column_num) {
   udb_result_preparation_area_t *r_area;
@@ -903,21 +887,28 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
 
 #if COLLECT_DEBUG
   assert(prep_area->column_num == 0);
-  assert(prep_area->host == NULL);
-  assert(prep_area->plugin == NULL);
   assert(prep_area->db_name == NULL);
 #endif
 
   prep_area->column_num = column_num;
-  prep_area->host = strdup(host);
-  prep_area->plugin = strdup(plugin);
-  prep_area->db_name = strdup(db_name);
+  if (labels != NULL) {
+    label_set_clone(&prep_area->labels, *labels);
+  }
 
-  if ((prep_area->host == NULL) || (prep_area->plugin == NULL) ||
-      (prep_area->db_name == NULL)) {
+  prep_area->db_name = strdup(db_name);
+  if (prep_area->db_name == NULL) {
     P_ERROR("Query `%s': Prepare failed: Out of memory.", q->name);
     udb_query_finish_result(q, prep_area);
     return -ENOMEM;
+  }
+
+  if (metric_prefix != NULL) {
+    prep_area->metric_prefix = strdup(metric_prefix);
+    if (prep_area->metric_prefix == NULL) {
+      P_ERROR("Query `%s': Prepare failed: Out of memory.", q->name);
+      udb_query_finish_result(q, prep_area);
+      return -ENOMEM;
+    }
   }
 
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG
@@ -929,27 +920,6 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
     }
   } while (0);
 #endif
-
-  /* Determine the position of the PluginInstance column {{{ */
-  if (q->plugin_instance_from != NULL) {
-    size_t i;
-
-    for (i = 0; i < column_num; i++) {
-      if (strcasecmp(q->plugin_instance_from, column_names[i]) == 0) {
-        prep_area->plugin_instance_pos = i;
-        break;
-      }
-    }
-
-    if (i >= column_num) {
-      P_ERROR("udb_query_prepare_result: "
-              "Column `%s' from `PluginInstanceFrom' could not be found.",
-              q->plugin_instance_from);
-      udb_query_finish_result(q, prep_area);
-      return -ENOENT;
-    }
-  }
-  /* }}} */
 
   for (r = q->results, r_area = prep_area->result_prep_areas; r != NULL;
        r = r->next, r_area = r_area->next) {
@@ -1021,16 +991,14 @@ void udb_query_delete_preparation_area(
 
     r_area = r_area->next;
 
-    sfree(area->instances_pos);
-    sfree(area->values_pos);
-    sfree(area->instances_buffer);
-    sfree(area->values_buffer);
+    sfree(area->labels_pos);
+    sfree(area->labels_buffer);
     free(area);
   }
 
-  sfree(q_area->host);
-  sfree(q_area->plugin);
   sfree(q_area->db_name);
+  sfree(q_area->metric_prefix);
+  label_set_reset(&q_area->labels);
 
   free(q_area);
 } /* }}} void udb_query_delete_preparation_area */

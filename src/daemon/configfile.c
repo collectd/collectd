@@ -1260,3 +1260,40 @@ int cf_util_get_cdtime(const oconfig_item_t *ci, cdtime_t *ret_value) /* {{{ */
 
   return 0;
 } /* }}} int cf_util_get_cdtime */
+
+int cf_util_get_label(const oconfig_item_t *ci, label_set_t *labels) /* {{{ */
+{
+  if ((ci->values_num != 2) ||
+      ((ci->values_num == 2) &&
+       ((ci->values[0].type != OCONFIG_TYPE_STRING) ||
+        (ci->values[1].type != OCONFIG_TYPE_STRING)))) {
+    P_ERROR("The `%s' option requires exactly two string arguments.", ci->key);
+    return -1;
+  }
+
+  return label_set_create(labels, ci->values[0].value.string,
+                          ci->values[1].value.string);
+} /* }}} int cf_util_get_label */
+
+int cf_util_get_metric_type(const oconfig_item_t *ci,
+                            metric_type_t *ret_metric) /* {{{ */
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    P_ERROR("The `%s' option requires exactly one string argument.", ci->key);
+    return -1;
+  }
+
+  if (!strcasecmp(ci->values[0].value.string, "gauge"))
+    *ret_metric = METRIC_TYPE_GAUGE;
+  else if (!strcasecmp(ci->values[0].value.string, "untyped"))
+    *ret_metric = METRIC_TYPE_UNTYPED;
+  else if (!strcasecmp(ci->values[0].value.string, "counter"))
+    *ret_metric = METRIC_TYPE_COUNTER;
+  else {
+    P_ERROR("The `%s' option must be: `gauge', `untyped' or `counter' ",
+            ci->key);
+    return -1;
+  }
+
+  return 0;
+} /* }}} int cf_util_get_metric_type */

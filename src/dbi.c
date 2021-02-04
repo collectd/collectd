@@ -62,10 +62,10 @@ struct cdbi_database_s /* {{{ */
 {
   char *name;
   char *select_db;
-  char *plugin_name;
+  char *metric_prefix;
+  label_set_t labels;
 
   char *driver;
-  char *host;
   cdbi_driver_option_t *driver_options;
   size_t driver_options_num;
 
@@ -172,9 +172,10 @@ static void cdbi_database_free(cdbi_database_t *db) /* {{{ */
 
   sfree(db->name);
   sfree(db->select_db);
-  sfree(db->plugin_name);
   sfree(db->driver);
-  sfree(db->host);
+  sfree(db->metric_prefix);
+
+  label_set_reset(&db->labels);
 
   for (size_t i = 0; i < db->driver_options_num; i++) {
     sfree(db->driver_options[i].key);
@@ -201,8 +202,9 @@ static void cdbi_database_free(cdbi_database_t *db) /* {{{ */
  *     Statement "SELECT name, value FROM table"
  *     <Result>
  *       Type "gauge"
- *       InstancesFrom "name"
- *       ValuesFrom "value"
+ *       Metric "name"
+ *       LabelsFrom "name"
+ *       ValueFrom "value"
  *     </Result>
  *     ...
  *   </Query>
@@ -300,12 +302,12 @@ static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Query", child->key) == 0)
       status = udb_query_pick_from_list(child, queries, queries_num,
                                         &db->queries, &db->queries_num);
-    else if (strcasecmp("Host", child->key) == 0)
-      status = cf_util_get_string(child, &db->host);
+    else if (strcasecmp("Label", child->key) == 0)
+      status = cf_util_get_label(child, &db->labels);
     else if (strcasecmp("Interval", child->key) == 0)
       status = cf_util_get_cdtime(child, &interval);
-    else if (strcasecmp("Plugin", child->key) == 0)
-      status = cf_util_get_string(child, &db->plugin_name);
+    else if (strcasecmp("MetricPrefix", child->key) == 0)
+      status = cf_util_get_string(child, &db->metric_prefix);
     else {
       WARNING("dbi plugin: Option `%s' not allowed here.", child->key);
       status = -1;
@@ -546,10 +548,9 @@ static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
     sstrncpy(column_names[i], column_name, DATA_MAX_NAME_LEN);
   } /* }}} for (i = 0; i < column_num; i++) */
 
-  status = udb_query_prepare_result(
-      q, prep_area, (db->host ? db->host : hostname_g),
-      /* plugin = */ (db->plugin_name != NULL) ? db->plugin_name : "dbi",
-      db->name, column_names, column_num);
+  status =
+      udb_query_prepare_result(q, prep_area, db->metric_prefix, &db->labels,
+                               db->name, column_names, column_num);
 
   if (status != 0) {
     ERROR("dbi plugin: udb_query_prepare_result failed with status %i.",

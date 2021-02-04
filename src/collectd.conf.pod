@@ -2533,9 +2533,9 @@ than those of other plugins. It usually looks something like this:
       MinVersion 50000
       <Result>
         Type "gauge"
-        InstancePrefix "out_of_stock"
-        InstancesFrom "category"
-        ValuesFrom "value"
+        Metric "out_of_stock"
+        LabelsFrom "category"
+        ValueFrom "value"
       </Result>
     </Query>
     <Database "product_information">
@@ -2579,15 +2579,16 @@ Example:
   <Query "environment">
     Statement "select station, temperature, humidity from environment"
     <Result>
-      Type "temperature"
-      # InstancePrefix "foo"
-      InstancesFrom "station"
-      ValuesFrom "temperature"
+      Type "gauge"
+      Metric "temperature"
+      LabelsFrom "station"
+      ValueFrom "temperature"
     </Result>
     <Result>
-      Type "humidity"
-      InstancesFrom "station"
-      ValuesFrom "humidity"
+      Type "gauge"
+      Metric "humidity"
+      LabelsFrom "station"
+      ValueFrom "humidity"
     </Result>
   </Query>
 
@@ -2647,64 +2648,65 @@ In the above example, there are three ranges that don't overlap. The last one
 goes from version "5.1.0" to infinity, meaning "all later versions". Versions
 before "4.0.0" are not specified.
 
-=item B<Type> I<Type>
+=item B<MetricPrefix> I<prefix>
 
-The B<type> that's used for each line returned. See L<types.db(5)> for more
-details on how types are defined. In short: A type is a predefined layout of
-data and the number of values and type of values has to match the type
-definition.
+Prepends I<prefix> to the metric name in the B<Result>.
 
-If you specify "temperature" here, you need exactly one gauge column. If you
-specify "if_octets", you will need two counter columns. See the B<ValuesFrom>
-setting below.
+=item B<Label> I<key> I<value>
 
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple time in the B<Query> block.
+
+Inside the B<Result> block, the following options are recognized:
+
+=item B<Type> I<gauge>|I<counter>|I<untyped>
+
+The B<type> that's used for each line returned. Must be I<gauge>, I<counter> or I<untyped>.
+If not set is I<untyped>.
 There must be exactly one B<Type> option inside each B<Result> block.
 
-=item B<InstancePrefix> I<prefix>
+=item B<TypeFrom> I<column>
 
-Prepends I<prefix> to the type instance. If B<InstancesFrom> (see below) is not
-given, the string is simply copied. If B<InstancesFrom> is given, I<prefix> and
-all strings returned in the appropriate columns are concatenated together,
-separated by dashes I<("-")>.
+Read the type from B<column>. It must be B<gauge>, B<counter> or B<untyped>.
 
-=item B<InstancesFrom> I<column0> [I<column1> ...]
+=item B<Help> I<help>
 
-Specifies the columns whose values will be used to create the "type-instance"
-for each row. If you specify more than one column, the value of all columns
-will be joined together with dashes I<("-")> as separation characters.
+Set the B<help> text for the metric.
 
-The plugin itself does not check whether or not all built instances are
-different. It's your responsibility to assure that each is unique. This is
-especially true, if you do not specify B<InstancesFrom>: B<You> have to make
-sure that only one row is returned in this case.
+=item B<HelpFrom> I<column>
 
-If neither B<InstancePrefix> nor B<InstancesFrom> is given, the type-instance
-will be empty.
+Read the B<help> text for the the metric from the named column.
 
-=item B<ValuesFrom> I<column0> [I<column1> ...]
+=item B<Metric> I<metric>
 
-Names the columns whose content is used as the actual data for the data sets
-that are dispatched to the daemon. How many such columns you need is determined
-by the B<Type> setting above. If you specify too many or not enough columns,
-the plugin will complain about that and no data will be submitted to the
-daemon.
+Set the metric name.
 
-The actual data type in the columns is not that important. The plugin will
-automatically cast the values to the right type if it know how to do that. So
-it should be able to handle integer an floating point types, as well as strings
-(if they include a number at the beginning).
+=item B<MetricFrom> I<column>
 
-There must be at least one B<ValuesFrom> option inside each B<Result> block.
+Read the metric name from the named column.
 
-=item B<MetadataFrom> [I<column0> I<column1> ...]
+There must be at least one B<Metric> or B<MetricFrom> option inside each B<Result> block.
 
-Names the columns whose content is used as metadata for the data sets
+=item B<MetricPrefix> I<prefix>
+
+Prepends I<prefix> to the metric name in the B<Result>.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Result> block.
+
+=item B<LabelsFrom> I<column0> [I<column1> ...]
+
+Specifies the columns whose names and values will be used to create the labels.
+You can specify more than one column.
+
+=item B<ValueFrom> I<column>
+
+Name of the column whose content is used as the actual data for the metric
 that are dispatched to the daemon.
 
-The actual data type in the columns is not that important. The plugin will
-automatically cast the values to the right type if it know how to do that. So
-it should be able to handle integer an floating point types, as well as strings
-(if they include a number at the beginning).
+There must be only one B<ValueFrom> option inside each B<Result> block.
 
 =back
 
@@ -2721,10 +2723,14 @@ the daemon. Other than that, that name is not used.
 
 =over 4
 
-=item B<Plugin> I<Plugin>
+=item B<MetricPrefix> I<prefix>
 
-Use I<Plugin> as the plugin name when submitting query results from
-this B<Database>. Defaults to C<dbi>.
+Prepends I<prefix> to the metric name in the  B<Result>.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Database> block.
 
 =item B<Interval> I<Interval>
 
@@ -2782,11 +2788,6 @@ Associates the query named I<QueryName> with this database connection. The
 query needs to be defined I<before> this statement, i.E<nbsp>e. all query
 blocks you want to refer to must be placed above the database block you want to
 refer to them from.
-
-=item B<Host> I<Hostname>
-
-Sets the B<host> field of I<value lists> to I<Hostname> when dispatching
-values. Defaults to the global hostname setting.
 
 =back
 
@@ -6952,9 +6953,9 @@ plugin's documentation above for details.
       Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
       <Result>
         Type "gauge"
-        # InstancePrefix "foo"
-        InstancesFrom "category"
-        ValuesFrom "value"
+        Metric "out_of_stock"
+        LabelsFrom "category"
+        ValueFrom "value"
       </Result>
     </Query>
     <Database "product_information">
@@ -6981,10 +6982,14 @@ values submitted to the daemon. Other than that, that name is not used.
 
 =over 4
 
-=item B<Plugin> I<Plugin>
+=item B<MetricPrefix> I<prefix>
 
-Use I<Plugin> as the plugin name when submitting query results from
-this B<Database>. Defaults to C<oracle>.
+Prepends I<prefix> to the metric name in the B<Result>
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple time in the B<Database> block.
 
 =item B<ConnectID> I<ID>
 
@@ -7372,8 +7377,8 @@ L<http://www.postgresql.org/docs/manuals/>.
       Param hostname
       <Result>
         Type gauge
-        InstancePrefix "magic"
-        ValuesFrom magic
+        Metric "magic"
+        ValueFrom magic
       </Result>
     </Query>
 
@@ -7386,14 +7391,14 @@ L<http://www.postgresql.org/docs/manuals/>.
                         GROUP BY type;"
       <Result>
         Type counter
-        InstancePrefix "rt36_tickets"
-        InstancesFrom "type"
-        ValuesFrom "count"
+        Metric "rt36_tickets"
+        LabelsFrom "type"
+        ValueFrom "count"
       </Result>
     </Query>
 
     <Writer sqlstore>
-      Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+      Statement "SELECT collectd_insert($1, $2, $3, $4, $5);"
       StoreRates true
     </Writer>
 
@@ -7486,11 +7491,14 @@ specific or global B<Interval> options).
 Please note that parameters are only supported by PostgreSQL's protocol
 version 3 and above which was introduced in version 7.4 of PostgreSQL.
 
-=item B<PluginInstanceFrom> I<column>
+=item B<MetricPrefix> I<prefix>
 
-Specify how to create the "PluginInstance" for reporting this query results.
-Only one column is supported. You may concatenate fields and string values in
-the query statement to get the required results.
+Prepends I<prefix> to the metric name in the B<Result>.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple time in the B<Statement> block.
 
 =item B<MinVersion> I<version>
 
@@ -7514,38 +7522,52 @@ the daemon.
 
 =over 4
 
-=item B<Type> I<type>
+=item B<Type> I<gauge>|I<counter>|I<untyped>
 
-The I<type> name to be used when dispatching the values. The type describes
-how to handle the data and where to store it. See L<types.db(5)> for more
-details on types and their configuration. The number and type of values (as
-selected by the B<ValuesFrom> option) has to match the type of the given name.
+The B<type> that's used for each line returned. Must be I<gauge>, I<counter> or I<untyped>.
+If not set is I<untyped>.
+There must be exactly one B<Type> option inside each B<Result> block.
 
-This option is mandatory.
+=item B<TypeFrom> I<column>
 
-=item B<InstancePrefix> I<prefix>
+Read the type from B<column>. It must be B<gauge>, B<counter> or B<untyped>.
 
-=item B<InstancesFrom> I<column0> [I<column1> ...]
+=item B<Help> I<help>
 
-Specify how to create the "TypeInstance" for each data set (i.E<nbsp>e. line).
-B<InstancePrefix> defines a static prefix that will be prepended to all type
-instances. B<InstancesFrom> defines the column names whose values will be used
-to create the type instance. Multiple values will be joined together using the
-hyphen (C<->) as separation character.
+Set the B<help> text for the metric.
 
-The plugin itself does not check whether or not all built instances are
-different. It is your responsibility to assure that each is unique.
+=item B<HelpFrom> I<column>
 
-Both options are optional. If none is specified, the type instance will be
-empty.
+Read the B<help> text for the the metric from the named column.
 
-=item B<ValuesFrom> I<column0> [I<column1> ...]
+=item B<Metric> I<metric>
 
-Names the columns whose content is used as the actual data for the data sets
-that are dispatched to the daemon. How many such columns you need is
-determined by the B<Type> setting as explained above. If you specify too many
-or not enough columns, the plugin will complain about that and no data will be
-submitted to the daemon.
+Set the metric name.
+
+=item B<MetricFrom> I<column>
+
+Read the metric name from the named column.
+
+There must be at least one B<Metric> or B<MetricFrom> option inside each B<Result> block.
+
+=item B<MetricPrefix> I<prefix>
+
+Prepends I<prefix> to the metric name in the B<Result>.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Result> block.
+
+=item B<LabelsFrom> I<column0> [I<column1> ...]
+
+Specifies the columns whose names and values will be used to create the labels.
+You can specify more than one column.
+
+=item B<ValueFrom> I<column>
+
+Name of the column whose content is used as the actual data for the metric
+that are dispatched to the daemon.
 
 The actual data type, as seen by PostgreSQL, is not that important as long as
 it represents numbers. The plugin will automatically cast the values to the
@@ -7553,9 +7575,8 @@ right type if it know how to do that. For that, it uses the L<strtoll(3)> and
 L<strtod(3)> functions, so anything supported by those functions is supported
 by the plugin as well.
 
-This option is required inside a B<Result> block and may be specified multiple
-times. If multiple B<ValuesFrom> options are specified, the columns are read
-in the given order.
+This option is required inside a B<Result> block and must be specified only
+once.
 
 =back
 
@@ -7642,42 +7663,19 @@ The timestamp of the queried value as an RFC 3339-formatted local time.
 
 =item B<$2>
 
-The hostname of the queried value.
+The metric name of the queried value.
 
 =item B<$3>
 
-The plugin name of the queried value.
+The labels of the queried value as an array of pairs of key, value.
 
 =item B<$4>
 
-The plugin instance of the queried value. This value may be B<NULL> if there
-is no plugin instance.
+The type of the queried metric: I<GAUGE>, I<COUNTER> or I<UNTYPED>
 
 =item B<$5>
 
-The type of the queried value (cf. L<types.db(5)>).
-
-=item B<$6>
-
-The type instance of the queried value. This value may be B<NULL> if there is
-no type instance.
-
-=item B<$7>
-
-An array of names for the submitted values (i.E<nbsp>e., the name of the data
-sources of the submitted value-list).
-
-=item B<$8>
-
-An array of types for the submitted values (i.E<nbsp>e., the type of the data
-sources of the submitted value-list; C<counter>, C<gauge>, ...). Note, that if
-B<StoreRates> is enabled (which is the default, see below), all types will be
-C<gauge>.
-
-=item B<$9>
-
-An array of the submitted values. The dimensions of the value name and value
-arrays match.
+The submitted value.
 
 =back
 
@@ -7720,19 +7718,14 @@ activating this option. The draw-back is, that data covering the specified
 amount of time will be lost, for example, if a single statement within the
 transaction fails or if the database server crashes.
 
-=item B<Plugin> I<Plugin>
+=item B<MetricPrefix> I<prefix>
 
-Use I<Plugin> as the plugin name when submitting query results from
-this B<Database>. Defaults to C<postgresql>.
+Prepends I<prefix> to the metric name in the B<Result>.
 
-=item B<Instance> I<name>
+=item B<Label> I<key> I<value>
 
-Specify the plugin instance name that should be used instead of the database
-name (which is the default, if this option has not been specified). This
-allows one to query multiple databases of the same name on the same host (e.g.
-when running multiple database server versions in parallel).
-The plugin instance name can also be set from the query result using
-the B<PluginInstanceFrom> option in B<Query> block.
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple time in the B<Database> block.
 
 =item B<Host> I<hostname>
 
@@ -7787,13 +7780,6 @@ First, try to connect using SSL. If that fails, try without using SSL.
 Use SSL only.
 
 =back
-
-=item B<Instance> I<name>
-
-Specify the plugin instance name that should be used instead of the database
-name (which is the default, if this option has not been specified). This
-allows one to query multiple databases of the same name on the same host (e.g.
-when running multiple database server versions in parallel).
 
 =item B<KRBSrvName> I<kerberos_service_name>
 

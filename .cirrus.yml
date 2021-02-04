@@ -23,7 +23,6 @@ env:
           --disable-network
           --disable-openldap
           --disable-perl
-          --disable-postgresql
           --disable-python
           --disable-redis
           --disable-rrdcached
