@@ -653,24 +653,16 @@ static int c_psql_write(metric_family_t const *fam, user_data_t *ud) {
       return -1;
     }
 
-    switch (fam->type) {
-    case METRIC_TYPE_COUNTER:
-      type_str = "COUNTER";
-      break;
-    case METRIC_TYPE_GAUGE:
-      type_str = "GAUGE";
-      break;
-    case METRIC_TYPE_UNTYPED:
-      type_str = "UNTYPED";
-      break;
-    }
-
+    type_str = "UNTYPED";
     switch (fam->type) {
     case METRIC_TYPE_GAUGE:
     case METRIC_TYPE_UNTYPED:
+      if (fam->type == METRIC_TYPE_GAUGE)
+        type_str = "GAUGE";
       ssnprintf(value_str, sizeof(value_str), GAUGE_FORMAT, m->value.gauge);
       break;
     case METRIC_TYPE_COUNTER:
+      type_str = "UNTYPED";
       ssnprintf(value_str, sizeof(value_str), "%" PRIu64, m->value.counter);
       break;
     default:
