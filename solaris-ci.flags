@@ -10,7 +10,6 @@
 --disable-match_value
 --disable-network
 --disable-perl
---disable-postgresql
 --disable-target_notification
 --disable-target_replace
 --disable-target_scale
