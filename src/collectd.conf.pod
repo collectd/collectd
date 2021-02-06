@@ -6665,6 +6665,96 @@ By default, the configured B<Interval> is used to set the timeout.
 
 =back
 
+=head2 Plugin C<odbc>
+
+This plugin uses the B<unixodbc> library (L<http://www.unixodbc.org>) to
+connect to various databases, execute I<SQL> statements and read back the
+results. You can configure how each column is to be interpreted and the
+plugin will generate one or more data sets from each row returned according
+to these rules.
+
+Because the plugin is very generic, the configuration is a little more complex
+than those of other plugins. It usually looks something like this:
+
+  <Plugin odbc>
+    <Query "out_of_stock">
+      Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
+      <Result>
+        Type "gauge"
+        Metric "out_of_stock"
+        LabelsFrom "category"
+        ValueFrom "value"
+      </Result>
+    </Query>
+    <Database "product_information">
+      Interval 120
+      Connection "Driver=PostgreSQL;Server=localhost;Port=1234;Database=prod_info;Uid=collectd;Pwd=aZo6daiw;"
+      PingQuery "SELECT 1"
+      Query "out_of_stock"
+    </Database>
+  </Plugin>
+
+=head3 B<Query> blocks
+
+The Query blocks are handled identically to the Query blocks of the "dbi"
+plugin. Please see its documentation above for details on how to specify
+queries.
+
+=head3 B<Database> blocks
+
+Database blocks define a connection to a database and which queries should be
+sent to that database. Since the used "unixODBC" library can handle a wide variety
+of databases, the configuration is very generic. If in doubt, refer to unixODBC's
+documentation.
+
+Each database needs a "name" as string argument in the starting tag of the
+block. This name will be used as "PluginInstance" in the values submitted to
+the daemon. Other than that, that name is not used.
+
+=over 4
+
+=item B<MetricPrefix> I<prefix>
+
+Prepends I<prefix> to the metric name in the B<Result>
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple time in the B<Database> block.
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+database. By default the global B<Interval> setting will be used.
+
+=item B<DSN> I<dsn>
+Specifies the  I<dsn> (Data Source Name) that you configure in unixODBC.
+
+=item B<User> I<User>
+User to connecto to database
+
+=item B<Password> I<Password>
+User password to connecto to database
+
+=item B<Connection> I<Connection>
+
+Specifies the connection string to use to connect to the database. A connection
+string consists of a series of keyword value pairs separated by semicolons (;).
+The equal sign (=) connects each keyword and its value.
+
+=item B<PingQuery> I<PingQuery>
+
+Specifies a query to test the connection to the databbase.
+
+=item B<Query> I<QueryName>
+
+Associates the query named I<QueryName> with this database connection. The
+query needs to be defined I<before> this statement, i.E<nbsp>e. all query
+blocks you want to refer to must be placed above the database block you want to
+refer to them from.
+
+=back
+
 =head2 Plugin C<olsrd>
 
 The I<olsrd> plugin connects to the TCP port opened by the I<txtinfo> plugin of

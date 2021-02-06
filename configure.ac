@@ -6144,6 +6144,58 @@ AC_SUBST([BUILD_WITH_LIBXML2_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBXML2_LIBS])
 # }}}
 
+# --with-unixodbc {{{
+AC_ARG_WITH([unixodbc],
+  [AS_HELP_STRING([--with-unixodbc@<:@=PREFIX@:>@], [Path to unixodbc.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_unixodbc_cppflags="-I$withval/include"
+      with_unixodbc_ldflags="-L$withval/lib"
+      with_unixodbc="yes"
+    else
+      with_unixodbc="$withval"
+    fi
+  ],
+  [with_unixodbc="yes"]
+)
+
+if test "x$with_unixodbc" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_unixodbc_cppflags"
+
+  AC_CHECK_HEADERS([sql.h],
+    [with_unixodbc="yes"],
+    [with_unixodbc="no (sql.h not found)"]
+  )
+
+  AC_CHECK_HEADERS([sqlext.h],
+    [with_unixodbc="yes"],
+    [with_unixodbc="no (sqlext.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_unixodbc" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_unixodbc_ldflags"
+
+  AC_CHECK_LIB([odbc], [SQLAllocHandle],
+    [with_unixodbc="yes"],
+    [with_unixodbc="no (Symbol 'SQLAllocHandle' not found)"]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+BUILD_WITH_UNIXODBC_CPPFLAGS="$with_unixodbc_cppflags"
+BUILD_WITH_UNIXODBC_LDFLAGS="$with_unixodbc_ldflags"
+BUILD_WITH_UNIXODBC_LIBS="-lodbc"
+AC_SUBST(BUILD_WITH_UNIXODBC_CPPFLAGS)
+AC_SUBST(BUILD_WITH_UNIXODBC_LDFLAGS)
+AC_SUBST(BUILD_WITH_UNIXODBC_LIBS)
+# }}}
+
 # pkg-config --exists libvirt {{{
 $PKG_CONFIG --exists libvirt 2>/dev/null
 if test $? = 0; then
@@ -7055,6 +7107,7 @@ AC_PLUGIN([notify_nagios],       [yes],                       [Nagios notificati
 AC_PLUGIN([ntpd],                [yes],                       [NTPd statistics])
 AC_PLUGIN([numa],                [$plugin_numa],              [NUMA virtual memory statistics])
 AC_PLUGIN([nut],                 [$with_libupsclient],        [Network UPS tools statistics])
+AC_PLUGIN([odbc],                [$with_unixodbc],            [ODBC database statistics])
 AC_PLUGIN([olsrd],               [yes],                       [olsrd statistics])
 AC_PLUGIN([onewire],             [$with_libowcapi],           [OneWire sensor statistics])
 AC_PLUGIN([openldap],            [$with_libldap],             [OpenLDAP statistics])
@@ -7395,6 +7448,7 @@ AC_MSG_RESULT([    libyajl . . . . . . . $with_libyajl])
 AC_MSG_RESULT([    oracle  . . . . . . . $with_oracle])
 AC_MSG_RESULT([    protobuf-c  . . . . . $have_protoc_c])
 AC_MSG_RESULT([    protoc 3  . . . . . . $have_protoc3])
+AC_MSG_RESULT([    unixodbc .. . . . . . $with_unixodbc])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Features:])
 AC_MSG_RESULT([    daemon mode . . . . . $enable_daemon])
@@ -7499,6 +7553,7 @@ AC_MSG_RESULT([    notify_nagios . . . . $enable_notify_nagios])
 AC_MSG_RESULT([    ntpd  . . . . . . . . $enable_ntpd])
 AC_MSG_RESULT([    numa  . . . . . . . . $enable_numa])
 AC_MSG_RESULT([    nut . . . . . . . . . $enable_nut])
+AC_MSG_RESULT([    odbc  . . . . . . . . $enable_odbc])
 AC_MSG_RESULT([    olsrd . . . . . . . . $enable_olsrd])
 AC_MSG_RESULT([    onewire . . . . . . . $enable_onewire])
 AC_MSG_RESULT([    openldap  . . . . . . $enable_openldap])
