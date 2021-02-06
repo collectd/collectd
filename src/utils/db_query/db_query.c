@@ -187,18 +187,21 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
   }
 
   strbuf_t buf = STRBUF_CREATE;
+
+  if (q_area->metric_prefix != NULL)
+    strbuf_print(&buf, q_area->metric_prefix);
+  if (q->metric_prefix != NULL)
+    strbuf_print(&buf, q->metric_prefix);
+  if (r->metric_prefix != NULL)
+    strbuf_print(&buf, r->metric_prefix);
+
   if (r->metric_from != NULL) {
-    if (q_area->metric_prefix != NULL)
-      strbuf_print(&buf, q_area->metric_prefix);
-    if (q->metric_prefix != NULL)
-      strbuf_print(&buf, q->metric_prefix);
-    if (r->metric_prefix != NULL)
-      strbuf_print(&buf, r->metric_prefix);
     strbuf_print(&buf, r_area->metric_str);
-    fam.name = buf.ptr;
   } else {
-    fam.name = r->metric;
+    strbuf_print(&buf, r->metric);
   }
+
+  fam.name = buf.ptr;
 
   if (r->help_from != NULL) {
     fam.help = r_area->help_str;
