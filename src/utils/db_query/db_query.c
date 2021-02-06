@@ -708,10 +708,7 @@ int udb_query_pick_from_list_by_name(const char *name, /* {{{ */
   for (size_t i = 0; i < src_list_len; i++) {
     udb_query_t **tmp_list;
     size_t tmp_list_len;
-    fprintf(
-        stderr,
-        "udb_query_pick_from_list_by_name: name: %s src_list[%d]->name: %s\n",
-        name, (int)i, src_list[i]->name);
+
     if (strcasecmp(name, src_list[i]->name) != 0)
       continue;
 
