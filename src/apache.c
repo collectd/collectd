@@ -36,7 +36,6 @@ enum server_enum { APACHE = 0, LIGHTTPD };
 struct apache_s {
   int server_type;
   char *name;
-  char *host;
   char *url;
   char *user;
   char *pass;
@@ -45,6 +44,7 @@ struct apache_s {
   char *cacert;
   char *ssl_ciphers;
   char *server; /* user specific server type */
+  label_set_t labels;
   char *apache_buffer;
   char apache_curl_error[CURL_ERROR_SIZE];
   size_t apache_buffer_size;
@@ -74,7 +74,6 @@ static void apache_free(void *arg) {
     return;
 
   sfree(st->name);
-  sfree(st->host);
   sfree(st->url);
   sfree(st->user);
   sfree(st->pass);
@@ -82,6 +81,7 @@ static void apache_free(void *arg) {
   sfree(st->ssl_ciphers);
   sfree(st->server);
   sfree(st->apache_buffer);
+  label_set_reset(&st->labels);
   if (st->curl) {
     curl_easy_cleanup(st->curl);
     st->curl = NULL;
@@ -181,8 +181,6 @@ static int config_add(oconfig_item_t *ci) {
 
     if (strcasecmp("URL", child->key) == 0)
       status = cf_util_get_string(child, &st->url);
-    else if (strcasecmp("Host", child->key) == 0)
-      status = cf_util_get_string(child, &st->host);
     else if (strcasecmp("User", child->key) == 0)
       status = cf_util_get_string(child, &st->user);
     else if (strcasecmp("Password", child->key) == 0)
@@ -199,6 +197,8 @@ static int config_add(oconfig_item_t *ci) {
       status = cf_util_get_string(child, &st->server);
     else if (strcasecmp("Timeout", child->key) == 0)
       status = cf_util_get_int(child, &st->timeout);
+    else if (strcasecmp("Label", child->key) == 0)
+      status = cf_util_get_label(child, &st->labels);
     else {
       WARNING("apache plugin: Option `%s' not allowed here.", child->key);
       status = -1;
@@ -223,8 +223,7 @@ static int config_add(oconfig_item_t *ci) {
 
   char callback_name[3 * DATA_MAX_NAME_LEN];
 
-  snprintf(callback_name, sizeof(callback_name), "apache/%s/%s",
-           (st->host != NULL) ? st->host : hostname_g,
+  snprintf(callback_name, sizeof(callback_name), "apache/%s",
            (st->name != NULL) ? st->name : "default");
 
   return plugin_register_complex_read(
@@ -549,8 +548,10 @@ static int apache_read_host(user_data_t *user_data) /* {{{ */
   metric_t tmpl = {0};
   if (st->name != NULL)
     metric_label_set(&tmpl, "instance", st->name);
-  if (st->host != NULL)
-    metric_label_set(&tmpl, "host", st->host);
+
+  for (size_t i = 0; i < st->labels.num; i++) {
+    metric_label_set(&tmpl, st->labels.ptr[i].name, st->labels.ptr[i].value);
+  }
 
   while ((line = strtok_r(ptr, "\n\r", &saveptr)) != NULL) {
     ptr = NULL;
