@@ -35,7 +35,6 @@
 
 typedef struct {
   char *name;
-  char *host;
   char *url;
   char *user;
   char *pass;
@@ -44,6 +43,7 @@ typedef struct {
   char *cacert;
   char *ssl_ciphers;
   int timeout;
+  label_set_t labels;
   char nginx_buffer[16384];
   size_t nginx_buffer_len;
   char nginx_curl_error[CURL_ERROR_SIZE];
@@ -69,12 +69,12 @@ static void nginx_free(void *arg) {
     return;
 
   sfree(st->name);
-  sfree(st->host);
   sfree(st->url);
   sfree(st->user);
   sfree(st->pass);
   sfree(st->cacert);
   sfree(st->ssl_ciphers);
+  label_set_reset(&st->labels);
   if (st->curl) {
     curl_easy_cleanup(st->curl);
     st->curl = NULL;
@@ -253,10 +253,12 @@ static int nginx_read_host(user_data_t *user_data) {
   metric_t m = {0};
   if (st->name != NULL)
     metric_label_set(&m, "instance", st->name);
-  if (st->host != NULL)
-    metric_label_set(&m, "host", st->host);
 
-  for (int i = 0; i < lines_num; i++) {
+  for (size_t i = 0; i < st->labels.num; i++) {
+    metric_label_set(&m, st->labels.ptr[i].name, st->labels.ptr[i].value);
+  }
+
+  for (size_t i = 0; i < lines_num; i++) {
     fields_num =
         strsplit(lines[i], fields, (sizeof(fields) / sizeof(fields[0])));
 
@@ -342,8 +344,6 @@ static int config_add(oconfig_item_t *ci) {
 
     if (strcasecmp("URL", child->key) == 0)
       status = cf_util_get_string(child, &st->url);
-    else if (strcasecmp("Host", child->key) == 0)
-      status = cf_util_get_string(child, &st->host);
     else if (strcasecmp("User", child->key) == 0)
       status = cf_util_get_string(child, &st->user);
     else if (strcasecmp("Password", child->key) == 0)
@@ -358,6 +358,8 @@ static int config_add(oconfig_item_t *ci) {
       status = cf_util_get_string(child, &st->ssl_ciphers);
     else if (strcasecmp("Timeout", child->key) == 0)
       status = cf_util_get_int(child, &st->timeout);
+    else if (strcasecmp("Label", child->key) == 0)
+      status = cf_util_get_label(child, &st->labels);
     else {
       WARNING("nginx plugin: Option `%s' not allowed here.", child->key);
       status = -1;
@@ -381,8 +383,7 @@ static int config_add(oconfig_item_t *ci) {
 
   char callback_name[3 * DATA_MAX_NAME_LEN];
 
-  snprintf(callback_name, sizeof(callback_name), "nginx/%s/%s",
-           (st->host != NULL) ? st->host : hostname_g,
+  snprintf(callback_name, sizeof(callback_name), "nginx/%s",
            (st->name != NULL) ? st->name : "default");
 
   return plugin_register_complex_read(

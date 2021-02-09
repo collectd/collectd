@@ -6500,6 +6500,10 @@ The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
 milliseconds. By default, the configured B<Interval> is used to set the
 timeout.
 
+=item B<Label> I<Key> I<Value>
+
+Append the label I<Key>=I<Value> to the submitting metrics.
+
 =back
 
 =head2 Plugin C<notify_desktop>
