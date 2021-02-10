@@ -7976,6 +7976,12 @@ C<I<prefix>/var/run/collectd-powerdns>.
 
 =back
 
+=head2 Plugin C<pressure>
+
+The I<pressure> plugin monitors the pressure stall information (PSI) for cpu,
+io and memory. Avaliable for Linux since kernel 4.20. This provides visibility
+into how resource-constrained the system is.
+
 =head2 Plugin C<processes>
 
 Collects information about processes of local system.

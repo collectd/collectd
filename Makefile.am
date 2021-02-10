@@ -1794,6 +1794,13 @@ libtaskstats_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
 libtaskstats_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
 endif
 
+if BUILD_PLUGIN_PRESSURE
+pkglib_LTLIBRARIES += pressure.la
+pressure_la_SOURCES = src/pressure.c
+pressure_la_CPPFLAGS = $(AM_CPPFLAGS)
+pressure_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_PROCESSES
 pkglib_LTLIBRARIES += processes.la
 processes_la_SOURCES = src/processes.c

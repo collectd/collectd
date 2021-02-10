@@ -6571,6 +6571,7 @@ plugin_ovs_stats="no"
 plugin_pcie_errors="no"
 plugin_perl="no"
 plugin_pinba="no"
+plugin_pressure="no"
 plugin_processes="no"
 plugin_procevent="no"
 plugin_protocols="no"
@@ -6625,6 +6626,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_memory="yes"
   plugin_nfs="yes"
   plugin_numa="yes"
+  plugin_pressure="yes"
   plugin_processes="yes"
   plugin_protocols="yes"
   plugin_serial="yes"
@@ -7070,6 +7072,7 @@ AC_PLUGIN([pinba],               [$plugin_pinba],             [Pinba statistics]
 AC_PLUGIN([ping],                [$with_liboping],            [Network latency statistics])
 AC_PLUGIN([postgresql],          [$with_libpq],               [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],            [yes],                       [PowerDNS statistics])
+AC_PLUGIN([pressure],            [$plugin_pressure],          [Pressure stall statistics])
 AC_PLUGIN([processes],           [$plugin_processes],         [Process statistics])
 AC_PLUGIN([procevent],           [$plugin_procevent],         [Process event (start, stop) statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],         [Protocol (IP, TCP, ...) statistics])
@@ -7513,6 +7516,7 @@ AC_MSG_RESULT([    pinba . . . . . . . . $enable_pinba])
 AC_MSG_RESULT([    ping  . . . . . . . . $enable_ping])
 AC_MSG_RESULT([    postgresql  . . . . . $enable_postgresql])
 AC_MSG_RESULT([    powerdns  . . . . . . $enable_powerdns])
+AC_MSG_RESULT([    pressure  . . . . . . $enable_pressure])
 AC_MSG_RESULT([    processes . . . . . . $enable_processes])
 AC_MSG_RESULT([    procevent . . . . . . $enable_procevent])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
