@@ -95,6 +95,9 @@ static int buddyinfo_read(void) {
     node_num = atoi(fields[1]);
     zone = fields[3];
 
+    if (ignorelist_match(ignorelist, zone) != 0)
+      continue;
+
     ssnprintf(node_name, sizeof(node_name), "%d", node_num);
     metric_label_set(&m, "node", node_name);
     metric_label_set(&m, "zone", zone);
