@@ -9242,21 +9242,21 @@ filesystem or CSV (comma separated values) files.
 
   <Plugin table>
     <Table "/proc/slabinfo">
-        MetricPrefix "slabinfo_"
-        SkipLines 2
-        Separator " "
-        <Result>
-            Type gauge
-            MetricPrefix "activeobjs_"
-            MetricFrom 0
-            ValueFrom 1
-         </Result>
-         <Result>
-            Type gauge
-            MetricPrefix "objperslab_"
-            MetricFrom 0
-            ValueFrom 4
-         </Result>
+      MetricPrefix "slabinfo_"
+      SkipLines 2
+      Separator " "
+      <Result>
+        Type gauge
+        MetricPrefix "activeobjs_"
+        MetricFrom 0
+        ValueFrom 1
+      </Result>
+      <Result>
+        Type gauge
+        MetricPrefix "objperslab_"
+        MetricFrom 0
+        ValueFrom 4
+      </Result>
     </Table>
   </Plugin>
 

@@ -208,9 +208,10 @@ static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
   }
 
   if (res->metric != NULL && res->metric_from > 0) {
-    ERROR("table plugin: Only one of \"Metric\" or \"MetricFrom\" can be set in "
-          "<Result> in table \"%s\".",
-          tbl->file);
+    ERROR(
+        "table plugin: Only one of \"Metric\" or \"MetricFrom\" can be set in "
+        "<Result> in table \"%s\".",
+        tbl->file);
     status = -1;
   }
 
@@ -460,7 +461,7 @@ static int tbl_read_table(user_data_t *user_data) {
       WARNING("table plugin: Table %s: Truncated line: %s", tbl->file, buf);
     }
     line++;
-    if (line  <= tbl->skip_lines)
+    if (line <= tbl->skip_lines)
       continue;
 
     if (tbl_parse_line(tbl, buf, sizeof(buf)) != 0) {
