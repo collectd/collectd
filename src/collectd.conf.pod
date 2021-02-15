@@ -9242,21 +9242,21 @@ filesystem or CSV (comma separated values) files.
 
   <Plugin table>
     <Table "/proc/slabinfo">
-      #Plugin "slab"
-      Instance "slabinfo"
-      Separator " "
-      <Result>
-        Type gauge
-        InstancePrefix "active_objs"
-        InstancesFrom 0
-        ValuesFrom 1
-      </Result>
-      <Result>
-        Type gauge
-        InstancePrefix "objperslab"
-        InstancesFrom 0
-        ValuesFrom 4
-      </Result>
+        MetricPrefix "slabinfo_"
+        SkipLines 2
+        Separator " "
+        <Result>
+            Type gauge
+            MetricPrefix "activeobjs_"
+            MetricFrom 0
+            ValueFrom 1
+         </Result>
+         <Result>
+            Type gauge
+            MetricPrefix "objperslab_"
+            MetricFrom 0
+            ValueFrom 4
+         </Result>
     </Table>
   </Plugin>
 
@@ -9269,16 +9269,14 @@ The following options are available inside a B<Table> block:
 
 =over 4
 
-=item B<Plugin> I<Plugin>
+=item B<MetricPrefix> I<prefix>
 
-If specified, I<Plugin> is used as the plugin name when submitting values.
-Defaults to B<table>.
+Prepends I<prefix> to the metric name in the B<Result> block.
 
-=item B<Instance> I<instance>
+=item B<Label> I<key> I<value>
 
-If specified, I<instance> is used as the plugin instance. If omitted, the
-filename of the table is used instead, with all special characters replaced
-with an underscore (C<_>).
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple time in the B<Table> block.
 
 =item B<Separator> I<string>
 
@@ -9292,49 +9290,62 @@ A horizontal tab, newline and carriage return may be specified by C<\\t>,
 C<\\n> and C<\\r> respectively. Please note that the double backslashes are
 required because of collectd's config parsing.
 
+=item B<SkipLines> I<lines>
+
+Skip the number of I<lines> at the beginning of the file.
+
+=item B<Interval> I<seconds>
+
+The B<Interval> option allows you to define the length of time between reads. If
+this is not set, the default Interval will be used.
+
 =back
 
 The following options are available inside a B<Result> block:
 
 =over 4
 
-=item B<Type> I<type>
+=item B<Type> I<gauge>|I<counter>|I<untyped>
 
-Sets the type used to dispatch the values to the daemon. Detailed information
-about types and their configuration can be found in L<types.db(5)>. This
-option is mandatory.
+The B<type> that's used for each line returned. Must be I<gauge>, I<counter> or I<untyped>.
+If not set is I<untyped>.
+There must be exactly one B<Type> option inside each B<Result> block.
 
-=item B<InstancePrefix> I<prefix>
+=item B<Help> I<help>
 
-If specified, prepend I<prefix> to the type instance. If omitted, only the
-B<InstancesFrom> option is considered for the type instance.
+Set the B<help> text for the metric.
 
-=item B<InstancesFrom> I<column0> [I<column1> ...]
+=item B<Metric> I<metric>
 
-If specified, the content of the given columns (identified by the column
-number starting at zero) will be used to create the type instance for each
-row. Multiple values (and the instance prefix) will be joined together with
-dashes (I<->) as separation character. If omitted, only the B<InstancePrefix>
-option is considered for the type instance.
+Set the metric name.
 
-The plugin itself does not check whether or not all built instances are
-different. It’s your responsibility to assure that each is unique. This is
-especially true, if you do not specify B<InstancesFrom>: B<You> have to make
-sure that the table only contains one row.
+=item B<MetricFrom> I<column>
 
-If neither B<InstancePrefix> nor B<InstancesFrom> is given, the type instance
-will be empty.
+Read the metric name from the numbered column (identified by the column numbers starting at zero).
 
-=item B<ValuesFrom> I<column0> [I<column1> ...]
+There must be at least one B<Metric> or B<MetricFrom> option inside each B<Result> block.
 
-Specifies the columns (identified by the column numbers starting at zero)
-whose content is used as the actual data for the data sets that are dispatched
-to the daemon. How many such columns you need is determined by the B<Type>
-setting above. If you specify too many or not enough columns, the plugin will
-complain about that and no data will be submitted to the daemon. The plugin
-uses L<strtoll(3)> and L<strtod(3)> to parse counter and gauge values
-respectively, so anything supported by those functions is supported by the
-plugin as well. This option is mandatory.
+=item B<MetricPrefix> I<prefix>
+
+Prepends I<prefix> to the metric name in the B<Result>.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Result> block.
+
+=item B<LabelFrom> I<key> I<column>
+
+Specifies the column number whose value will be used to create a label.
+Can appear multiple times in the B<Result> block.
+
+=item B<ValueFrom> I<column>
+
+Specifies the column (identified by the column numbers starting at zero)
+whose content is used as the actual data for the metric are dispatched
+to the daemon.  The plugin uses L<strtoll(3)> and L<strtod(3)> to parse
+counter and gauge values respectively, so anything supported by those 
+functions is supported by the plugin as well. This option is mandatory.
 
 =back
 
