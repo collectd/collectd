@@ -9575,13 +9575,13 @@ B<Synopsis:>
 
  <Plugin "tail_csv">
    <Metric "snort-dropped">
-       Type "percent"
-       Instance "dropped"
+       Type "gauge"
+       Metric "dropped_precent"
        ValueFrom 1
    </Metric>
    <File "/var/log/snort/snort.stats">
-       Plugin "snortstats"
-       Instance "eth0"
+       MetricPrefix "snort_"
+       Label "interface" "eth0"
        Interval 600
        Collect "snort-dropped"
        FieldSeparator ","
@@ -9606,25 +9606,44 @@ one B<Metric> block for multiple CSV files.
 
 =over 4
 
-=item B<Type> I<Type>
+=item B<Type> I<gauge>|I<counter>|I<untyped>
 
-Configures which I<Type> to use when dispatching this metric. Types are defined
-in the L<types.db(5)> file, see the appropriate manual page for more
-information on specifying types. Only types with a single I<data source> are
-supported by the I<tail_csv plugin>. The information whether the value is an
-absolute value (i.e. a C<GAUGE>) or a rate (i.e. a C<DERIVE>) is taken from the
-I<Type's> definition.
+Configures which I<Type> to use when dispatching this metric. Must be
+I<gauge>, I<counter> or I<untyped>.  If not set is I<untyped>.
+There must be exactly one B<Type> option inside each B<Metric> block.
 
-=item B<Instance> I<TypeInstance>
+=item B<Help> I<help>
 
-If set, I<TypeInstance> is used to populate the type instance field of the
-created value lists. Otherwise, no type instance is used.
+Set the B<help> text for the metric.
+
+=item B<Metric> I<metric>
+
+Set the metric name.
+
+=item B<MetricFrom> I<Index>
+
+Read the metric name from the field with the zero-based index I<Index> .
+
+There must be at least one B<Metric> or B<MetricFrom> option inside each B<Metric> block.
+
+=item B<MetricPrefix> I<prefix>
+
+Prepends I<prefix> to the metric name in the B<Metric> block.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Result> block.
+
+=item B<LabelFrom> I<key> I<Index>
+
+Specifies the column number whose value will be used to create a label.
 
 =item B<ValueFrom> I<Index>
 
 Configure to read the value from the field with the zero-based index I<Index>.
-If the value is parsed as signed integer, unsigned integer or double depends on
-the B<Type> setting, see above.
+If the value is parsed as unsigned integer or double depends on the B<Type>
+ setting, see above.
 
 =back
 
@@ -9635,14 +9654,14 @@ I<File> block but there can be multiple if you have multiple CSV files.
 
 =over 4
 
-=item B<Plugin> I<Plugin>
+=item B<MetricPrefix> I<prefix>
 
-Use I<Plugin> as the plugin name when submitting values.
-Defaults to C<tail_csv>.
+Prepends I<prefix> to the metric name in the B<Metric> block.
 
-=item B<Instance> I<PluginInstance>
+=item B<Label> I<key> I<value>
 
-Sets the I<plugin instance> used when dispatching the values.
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple time in the B<File> block.
 
 =item B<Collect> I<Metric>
 

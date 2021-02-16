@@ -33,53 +33,43 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+typedef struct {
+  char *key;
+  int value_from;
+} metric_label_from_t;
+
 struct metric_definition_s {
   char *name;
-  char *type;
-  char *instance;
-  int data_source_type;
+  char *metric_prefix;
+  char *metric;
+  ssize_t metric_from;
+  metric_type_t type;
+  char *help;
+  label_set_t labels;
+  metric_label_from_t *labels_from;
+  size_t labels_from_num;
   ssize_t value_from;
+
   struct metric_definition_s *next;
 };
 typedef struct metric_definition_s metric_definition_t;
 
 struct instance_definition_s {
-  char *plugin_name;
-  char *instance;
+  char *metric_prefix;
+  label_set_t labels;
   char *path;
   char field_separator;
   cu_tail_t *tail;
   metric_definition_t **metric_list;
   size_t metric_list_len;
   ssize_t time_from;
+
   struct instance_definition_s *next;
 };
 typedef struct instance_definition_s instance_definition_t;
 
 /* Private */
 static metric_definition_t *metric_head;
-
-static int tcsv_submit(instance_definition_t *id, metric_definition_t *md,
-                       value_t v, cdtime_t t) {
-  /* Registration variables */
-  value_list_t vl = VALUE_LIST_INIT;
-
-  /* Register */
-  vl.values_len = 1;
-  vl.values = &v;
-
-  sstrncpy(vl.plugin, (id->plugin_name != NULL) ? id->plugin_name : "tail_csv",
-           sizeof(vl.plugin));
-  if (id->instance != NULL)
-    sstrncpy(vl.plugin_instance, id->instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, md->type, sizeof(vl.type));
-  if (md->instance != NULL)
-    sstrncpy(vl.type_instance, md->instance, sizeof(vl.type_instance));
-
-  vl.time = t;
-
-  return plugin_dispatch_values(&vl);
-}
 
 static cdtime_t parse_time(char const *tbuf) {
   double t;
@@ -95,28 +85,77 @@ static cdtime_t parse_time(char const *tbuf) {
 
 static int tcsv_read_metric(instance_definition_t *id, metric_definition_t *md,
                             char **fields, size_t fields_num) {
-  value_t v;
-  cdtime_t t = 0;
-  int status;
-
-  if (md->data_source_type == -1)
-    return EINVAL;
-
   assert(md->value_from >= 0);
   if (((size_t)md->value_from) >= fields_num)
     return EINVAL;
 
-  status = parse_value(fields[md->value_from], &v, md->data_source_type);
+  value_t v;
+  int status = parse_value(fields[md->value_from], &v, md->type);
   if (status != 0)
     return status;
 
+  cdtime_t t = 0;
   if (id->time_from >= 0) {
     if (((size_t)id->time_from) >= fields_num)
       return EINVAL;
     t = parse_time(fields[id->time_from]);
   }
 
-  return tcsv_submit(id, md, v, t);
+  metric_family_t fam = {0};
+
+  fam.type = md->type;
+  fam.help = md->help;
+
+  strbuf_t buf = STRBUF_CREATE;
+
+  if (id->metric_prefix != NULL)
+    strbuf_print(&buf, id->metric_prefix);
+  if (md->metric_prefix != NULL)
+    strbuf_print(&buf, md->metric_prefix);
+
+  if (md->metric_from >= 0) {
+    assert(md->metric_from < fields_num);
+    strbuf_print(&buf, fields[md->metric_from]);
+  } else {
+    strbuf_print(&buf, md->metric);
+  }
+
+  fam.name = buf.ptr;
+
+  metric_t m = {0};
+
+  for (size_t i = 0; i < id->labels.num; i++) {
+    metric_label_set(&m, id->labels.ptr[i].name, id->labels.ptr[i].value);
+  }
+
+  for (size_t i = 0; i < md->labels.num; i++) {
+    metric_label_set(&m, md->labels.ptr[i].name, md->labels.ptr[i].value);
+  }
+
+  if (md->labels_from_num >= 0) {
+    for (size_t i = 0; i < md->labels_from_num; ++i) {
+      assert(md->labels_from[i].value_from < fields_num);
+      metric_label_set(&m, md->labels_from[i].key,
+                       fields[md->labels_from[i].value_from]);
+    }
+  }
+
+  m.value = v;
+  m.time = t;
+
+  metric_family_metric_append(&fam, m);
+
+  status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("table plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  STRBUF_DESTROY(buf);
+  metric_reset(&m);
+  metric_family_metric_reset(&fam);
+
+  return 0;
 }
 
 static bool tcsv_check_index(ssize_t index, size_t fields_num,
@@ -252,8 +291,14 @@ static void tcsv_metric_definition_destroy(void *arg) {
   md->next = NULL;
 
   sfree(md->name);
-  sfree(md->type);
-  sfree(md->instance);
+  sfree(md->metric_prefix);
+  sfree(md->metric);
+  sfree(md->help);
+  label_set_reset(&md->labels);
+
+  for (size_t i = 0; i < md->labels_from_num; i++)
+    sfree(md->labels_from[i].key);
+
   sfree(md);
 
   tcsv_metric_definition_destroy(next);
@@ -300,6 +345,38 @@ static int tcsv_config_get_separator(oconfig_item_t *ci, char *ret_char) {
   return 0;
 }
 
+static int tcsv_config_append_label(metric_label_from_t **var, size_t *len,
+                                    oconfig_item_t *ci) {
+  if (ci->values_num != 2) {
+    ERROR("tail_csv plugin: \"%s\" expects two arguments.", ci->key);
+    return -1;
+  }
+  if ((OCONFIG_TYPE_STRING != ci->values[0].type) ||
+      (OCONFIG_TYPE_NUMBER != ci->values[1].type)) {
+    ERROR("tail_csv plugin: \"%s\" expects a string and a numerical argument.",
+          ci->key);
+    return -1;
+  }
+
+  metric_label_from_t *tmp = realloc(*var, ((*len) + 1) * sizeof(**var));
+  if (tmp == NULL) {
+    ERROR("tail_csv plugin: realloc failed: %s.", STRERRNO);
+    return -1;
+  }
+  *var = tmp;
+
+  tmp[*len].key = strdup(ci->values[0].value.string);
+  if (tmp[*len].key == NULL) {
+    ERROR("tail_csv plugin: strdup failed.");
+    return -1;
+  }
+
+  tmp[*len].value_from = ci->values[1].value.number;
+
+  *len = (*len) + 1;
+  return 0;
+}
+
 /* Parse metric  */
 static int tcsv_config_add_metric(oconfig_item_t *ci) {
   metric_definition_t *md;
@@ -308,12 +385,10 @@ static int tcsv_config_add_metric(oconfig_item_t *ci) {
   md = calloc(1, sizeof(*md));
   if (md == NULL)
     return -1;
-  md->name = NULL;
-  md->type = NULL;
-  md->instance = NULL;
-  md->data_source_type = -1;
+
+  md->metric_from = -1;
   md->value_from = -1;
-  md->next = NULL;
+  md->type = METRIC_TYPE_UNTYPED;
 
   status = cf_util_get_string(ci, &md->name);
   if (status != 0) {
@@ -325,9 +400,20 @@ static int tcsv_config_add_metric(oconfig_item_t *ci) {
     oconfig_item_t *option = ci->children + i;
 
     if (strcasecmp("Type", option->key) == 0)
-      status = cf_util_get_string(option, &md->type);
-    else if (strcasecmp("Instance", option->key) == 0)
-      status = cf_util_get_string(option, &md->instance);
+      status = cf_util_get_metric_type(option, &md->type);
+    else if (strcasecmp("Help", option->key) == 0)
+      status = cf_util_get_string(option, &md->help);
+    else if (strcasecmp("Metric", option->key) == 0)
+      status = cf_util_get_string(option, &md->metric);
+    else if (strcasecmp("MetricFrom", option->key) == 0)
+      status = tcsv_config_get_index(option, &md->metric_from);
+    else if (strcasecmp("MetricPrefix", option->key) == 0)
+      status = cf_util_get_string(option, &md->metric_prefix);
+    else if (strcasecmp("Label", option->key) == 0)
+      status = cf_util_get_label(option, &md->labels);
+    else if (strcasecmp("LabelFrom", option->key) == 0)
+      status = tcsv_config_append_label(&md->labels_from, &md->labels_from_num,
+                                        option);
     else if (strcasecmp("ValueFrom", option->key) == 0)
       status = tcsv_config_get_index(option, &md->value_from);
     else {
@@ -345,10 +431,20 @@ static int tcsv_config_add_metric(oconfig_item_t *ci) {
   }
 
   /* Verify all necessary options have been set. */
-  if (md->type == NULL) {
-    WARNING("tail_csv plugin: Option `Type' must be set.");
+
+  if (md->metric == NULL && md->metric_from < 0) {
+    WARNING(
+        "tail_csv plugin: No \"Metric\" or \"MetricFrom\" option specified ");
     status = -1;
-  } else if (md->value_from < 0) {
+  }
+
+  if (md->metric != NULL && md->metric_from > 0) {
+    WARNING("tail_csv plugin: Only one of \"Metric\" or \"MetricFrom\" can be "
+            "set ");
+    status = -1;
+  }
+
+  if (md->value_from < 0) {
     WARNING("tail_csv plugin: Option `ValueFrom' must be set.");
     status = -1;
   }
@@ -381,8 +477,8 @@ static void tcsv_instance_definition_destroy(void *arg) {
     cu_tail_destroy(id->tail);
   id->tail = NULL;
 
-  sfree(id->plugin_name);
-  sfree(id->instance);
+  sfree(id->metric_prefix);
+  label_set_reset(&id->labels);
   sfree(id->path);
   sfree(id->metric_list);
   sfree(id);
@@ -445,13 +541,9 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
   id = calloc(1, sizeof(*id));
   if (id == NULL)
     return -1;
-  id->plugin_name = NULL;
-  id->instance = NULL;
-  id->path = NULL;
-  id->metric_list = NULL;
+
   id->time_from = -1;
   id->field_separator = ',';
-  id->next = NULL;
 
   status = cf_util_get_string(ci, &id->path);
   if (status != 0) {
@@ -463,16 +555,16 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
     oconfig_item_t *option = ci->children + i;
     status = 0;
 
-    if (strcasecmp("Instance", option->key) == 0)
-      status = cf_util_get_string(option, &id->instance);
+    if (strcasecmp("MetricPrefix", option->key) == 0)
+      status = cf_util_get_string(option, &id->metric_prefix);
+    else if (strcasecmp("Label", option->key) == 0)
+      status = cf_util_get_label(option, &id->labels);
     else if (strcasecmp("Collect", option->key) == 0)
       status = tcsv_config_add_instance_collect(id, option);
     else if (strcasecmp("Interval", option->key) == 0)
       cf_util_get_cdtime(option, &interval);
     else if (strcasecmp("TimeFrom", option->key) == 0)
       status = tcsv_config_get_index(option, &id->time_from);
-    else if (strcasecmp("Plugin", option->key) == 0)
-      status = cf_util_get_string(option, &id->plugin_name);
     else if (strcasecmp("FieldSeparator", option->key) == 0)
       status = tcsv_config_get_separator(option, &id->field_separator);
     else {
@@ -535,38 +627,6 @@ static int tcsv_config(oconfig_item_t *ci) {
   return 0;
 } /* int tcsv_config */
 
-static int tcsv_init(void) { /* {{{ */
-  static bool have_init;
-  metric_definition_t *md;
-
-  if (have_init)
-    return 0;
-
-  for (md = metric_head; md != NULL; md = md->next) {
-    data_set_t const *ds;
-
-    /* Retrieve the data source type from the types db. */
-    ds = plugin_get_ds(md->type);
-    if (ds == NULL) {
-      ERROR("tail_csv plugin: Failed to look up type \"%s\" for "
-            "metric \"%s\". It may not be defined in the types.db "
-            "file. Please read the types.db(5) manual page for more "
-            "details.",
-            md->type, md->name);
-      continue;
-    } else if (ds->ds_num != 1) {
-      ERROR("tail_csv plugin: The type \"%s\" has %" PRIsz " data sources. "
-            "Only types with a single data source are supported.",
-            ds->type, ds->ds_num);
-      continue;
-    }
-
-    md->data_source_type = ds->ds->type;
-  }
-
-  return 0;
-} /* }}} int tcsv_init */
-
 static int tcsv_shutdown(void) {
   tcsv_metric_definition_destroy(metric_head);
   metric_head = NULL;
@@ -576,6 +636,5 @@ static int tcsv_shutdown(void) {
 
 void module_register(void) {
   plugin_register_complex_config("tail_csv", tcsv_config);
-  plugin_register_init("tail_csv", tcsv_init);
   plugin_register_shutdown("tail_csv", tcsv_shutdown);
 }

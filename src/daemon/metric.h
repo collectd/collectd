@@ -165,4 +165,18 @@ void metric_family_free(metric_family_t *fam);
  * metric_family_free(). */
 metric_family_t *metric_family_clone(metric_family_t const *fam);
 
+/*
+ * Label set
+ */
+
+label_pair_t *label_set_read(label_set_t labels, char const *name);
+
+int label_set_create(label_set_t *labels, char const *name, char const *value);
+
+int label_set_delete(label_set_t *labels, label_pair_t *elem);
+
+void label_set_reset(label_set_t *labels);
+
+int label_set_clone(label_set_t *dest, label_set_t src);
+
 #endif
