@@ -572,17 +572,17 @@ static int disk_read(void) {
     metric_label_set(&m, "device", disk_name);
     if ((read_byt != -1LL) || (write_byt != -1LL)) {
       m.value.counter = read_byt;
-      metric_family_metric_append(&fam_isk_read_bytes, m);
+      metric_family_metric_append(&fam_disk_read_bytes, m);
 
       m.value.counter = write_byt;
       metric_family_metric_append(&fam_disk_write_bytes, m);
     }
     if ((read_ops != -1LL) || (write_ops != -1LL)) {
-      m.value.counter =
-          read_ops metric_family_metric_append(&fam_disk_read_ops, m);
+      m.value.counter = read_ops;
+      metric_family_metric_append(&fam_disk_read_ops, m);
 
-      m.value.counter =
-          write_ops metric_family_metric_append(&fam_disk_write_ops, m);
+      m.value.counter = write_ops;
+      metric_family_metric_append(&fam_disk_write_ops, m);
     }
     if ((read_tme != -1LL) || (write_tme != -1LL)) {
       m.value.counter = read_tme / 1000;
@@ -723,10 +723,10 @@ static int disk_read(void) {
                                    &queue_length, DSM_NONE) != 0) {
       WARNING("%s", devstat_errbuf);
     } else {
-      m.value.counter = busy_time;
+      m.value.counter = (counter_t)busy_time;
       metric_family_metric_append(&fam_disk_io_time, m);
 
-      m.value.counter = total_duration;
+      m.value.counter = (counter_t)total_duration;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
 
       m.value.gauge = (gauge_t)queue_length;
@@ -930,35 +930,35 @@ static int disk_read(void) {
     metric_label_set(&m, "device", output_name);
 
     if ((ds->read_bytes != 0) || (ds->write_bytes != 0)) {
-      m.value.counter = ds->read_bytes;
+      m.value.counter = (counter_t)ds->read_bytes;
       metric_family_metric_append(&fam_disk_read_bytes, m);
 
-      m.value.counter = ds->write_bytes;
+      m.value.counter = (counter_t)ds->write_bytes;
       metric_family_metric_append(&fam_disk_write_bytes, m);
     }
 
     if ((ds->read_ops != 0) || (ds->write_ops != 0)) {
-      m.value.counter = read_ops;
+      m.value.counter = (counter_t)read_ops;
       metric_family_metric_append(&fam_disk_read_ops, m);
 
-      m.value.counter = write_ops;
+      m.value.counter = (counter_t)write_ops;
       metric_family_metric_append(&fam_disk_write_ops, m);
     }
 
     if ((ds->avg_read_time != 0) || (ds->avg_write_time != 0)) {
-      m.value.counter = ds->avg_read_time;
+      m.value.counter = (counter_t)ds->avg_read_time;
       metric_family_metric_append(&fam_disk_read_time, m);
 
-      m.value.counter = ds->avg_write_time;
+      m.value.counter = (counter_t)ds->avg_write_time;
       metric_family_metric_append(&fam_disk_write_time, m);
     }
 
     if (is_disk) {
       if (ds->has_merged) {
-        m.value.counter = read_merged;
+        m.value.counter = (counter_t)read_merged;
         metric_family_metric_append(&fam_disk_read_merged, m);
 
-        m.value.counter = write_merged;
+        m.value.counter = (counter_t)write_merged;
         metric_family_metric_append(&fam_disk_write_merged, m);
       }
       if (ds->has_in_progress) {
@@ -966,10 +966,10 @@ static int disk_read(void) {
         metric_family_metric_append(&fam_disk_pending_operations, m);
       }
       if (ds->has_io_time) {
-        m.value.counter = io_time;
+        m.value.counter = (counter_t)io_time;
         metric_family_metric_append(&fam_disk_io_time, m);
       }
-      m.value.counter = weighted_time;
+      m.value.counter = (counter_t)weighted_time;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
     } /* if (is_disk) */
 
@@ -1109,8 +1109,8 @@ static int disk_read(void) {
     metric_t m = {0};
     metric_label_set(&m, "device", name);
 
-    m.value.counter =
-        ds->read_bytes metric_family_metric_append(&fam_disk_read_bytes, m);
+    m.value.counter = ds->read_bytes;
+    metric_family_metric_append(&fam_disk_read_bytes, m);
 
     m.value.counter = ds->write_bytes;
     metric_family_metric_append(&fam_disk_write_bytes, m);
@@ -1155,33 +1155,33 @@ static int disk_read(void) {
     metric_label_set(&m, "device", stat_disk[i].name);
 
     read_sectors = stat_disk[i].rblks * stat_disk[i].bsize;
-    m.value.counter = read_sectors;
+    m.value.counter = (counter_t)read_sectors;
     metric_family_metric_append(&fam_disk_read_bytes, m);
 
     write_sectors = stat_disk[i].wblks * stat_disk[i].bsize;
-    m.value.counter = write_sectors;
+    m.value.counter = (counter_t)write_sectors;
     metric_family_metric_append(&fam_disk_write_bytes, m);
 
     read_ops = stat_disk[i].xrate;
-    m.value.counter = read_ops;
+    m.value.counter = (counter_t)read_ops;
     metric_family_metric_append(&fam_disk_read_ops, m);
 
     write_ops = stat_disk[i].xfers - stat_disk[i].xrate;
-    m.value.counter = write_ops;
+    m.value.counter = (counter_t)write_ops;
     metric_family_metric_append(&fam_disk_write_ops, m);
 
     read_time = stat_disk[i].rserv;
     read_time *= ((double)(_system_configuration.Xint) /
                   (double)(_system_configuration.Xfrac)) /
                  1000000.0;
-    m.value.counter = read_time;
+    m.value.counter = (counter_t)read_time;
     metric_family_metric_append(&fam_disk_read_time, m);
 
     write_time = stat_disk[i].wserv;
     write_time *= ((double)(_system_configuration.Xint) /
                    (double)(_system_configuration.Xfrac)) /
                   1000000.0;
-    m.value.counter = write_time;
+    m.value.counter = (counter_t)write_time;
     metric_family_metric_append(&fam_disk_write_time, m);
 
     metric_reset(&m);
