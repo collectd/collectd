@@ -8752,7 +8752,7 @@ their level, are always submitted to I<collectd> at its INFO log level.
 =item E<lt>B<Device> I<Name>E<gt>
 
 A sigrok-supported device, uniquely identified by this section's options. The
-I<Name> is passed to I<collectd> as the I<plugin instance>.
+I<Name> is passed to I<collectd> as the I<device> label.
 
 =item B<Driver> I<DriverName>
 
@@ -8784,6 +8784,15 @@ I<RRD plugin> cannot process writes more than once per second.
 The default B<MinimumInterval> is B<0>, meaning measurements received from the
 device are always dispatched to I<collectd>. When throttled, unused
 measurements are discarded.
+
+=item B<MetricPrefix> I<prefix>
+
+Prepends I<prefix> to the metric name.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Device> block.
 
 =back
 

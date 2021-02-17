@@ -45,6 +45,8 @@ static struct sr_context *sr_ctx;
 
 struct config_device {
   char *name;
+  char *metric_prefix;
+  label_set_t labels;
   char *driver;
   char *conn;
   char *serialcomm;
@@ -80,18 +82,28 @@ static int sigrok_config_device(oconfig_item_t *ci) {
   }
   cfdev->min_dispatch_interval = DEFAULT_MIN_DISPATCH_INTERVAL;
 
+  int status = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *item = ci->children + i;
     if (!strcasecmp(item->key, "driver"))
-      cf_util_get_string(item, &cfdev->driver);
+      status = cf_util_get_string(item, &cfdev->driver);
     else if (!strcasecmp(item->key, "conn"))
-      cf_util_get_string(item, &cfdev->conn);
+      status = cf_util_get_string(item, &cfdev->conn);
     else if (!strcasecmp(item->key, "serialcomm"))
-      cf_util_get_string(item, &cfdev->serialcomm);
+      status = cf_util_get_string(item, &cfdev->serialcomm);
     else if (!strcasecmp(item->key, "minimuminterval"))
-      cf_util_get_cdtime(item, &cfdev->min_dispatch_interval);
-    else
+      status = cf_util_get_cdtime(item, &cfdev->min_dispatch_interval);
+    else if (strcasecmp(item->key, "MetricPrefix") == 0)
+      status = cf_util_get_string(item, &cfdev->metric_prefix);
+    else if (strcasecmp(item->key, "Label") == 0)
+      status = cf_util_get_label(item, &cfdev->labels);
+    else {
       WARNING("sigrok plugin: Invalid keyword \"%s\".", item->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      return -1;
   }
 
   config_devices = g_slist_append(config_devices, cfdev);
@@ -127,27 +139,158 @@ static int sigrok_config(oconfig_item_t *ci) {
   return 0;
 }
 
-static const char *sigrok_value_type(const struct sr_datafeed_analog *analog) {
-  const char *s;
+static const char *sigrok_type(const struct sr_datafeed_analog *analog) {
+  switch (analog->meaning->mq) {
+  case SR_MQ_VOLTAGE:
+    return "voltage";
+  case SR_MQ_CURRENT:
+    return "current";
+  case SR_MQ_RESISTANCE:
+    return "resistance";
+  case SR_MQ_CAPACITANCE:
+    return "capacitance";
+  case SR_MQ_TEMPERATURE:
+    return "temperature";
+  case SR_MQ_FREQUENCY:
+    return "frequency";
+  case SR_MQ_DUTY_CYCLE:
+    return "duty_cycle";
+  case SR_MQ_CONTINUITY:
+    return "continuity";
+  case SR_MQ_PULSE_WIDTH:
+    return "pulse_witdh";
+  case SR_MQ_CONDUCTANCE:
+    return "conductance";
+  case SR_MQ_POWER:
+    return "power";
+  case SR_MQ_GAIN:
+    return "gain";
+  case SR_MQ_SOUND_PRESSURE_LEVEL:
+    return "sound_pressure_level";
+  case SR_MQ_CARBON_MONOXIDE:
+    return "carbon_monoxide";
+  case SR_MQ_RELATIVE_HUMIDITY:
+    return "relative_humidity";
+  case SR_MQ_TIME:
+    return "time";
+  case SR_MQ_WIND_SPEED:
+    return "wind_speed";
+  case SR_MQ_PRESSURE:
+    return "pressure";
+  case SR_MQ_PARALLEL_INDUCTANCE:
+    return "parallel_inductance";
+  case SR_MQ_PARALLEL_CAPACITANCE:
+    return "parallel_capacitance";
+  case SR_MQ_PARALLEL_RESISTANCE:
+    return "parallel_resistance";
+  case SR_MQ_SERIES_INDUCTANCE:
+    return "series_inductance";
+  case SR_MQ_SERIES_CAPACITANCE:
+    return "series_capacitance";
+  case SR_MQ_SERIES_RESISTANCE:
+    return "series_resistance";
+  case SR_MQ_DISSIPATION_FACTOR:
+    return "dissipation_factor";
+  case SR_MQ_QUALITY_FACTOR:
+    return "quality_factor";
+  case SR_MQ_PHASE_ANGLE:
+    return "phase_angle";
+  case SR_MQ_DIFFERENCE:
+    return "difference";
+  case SR_MQ_COUNT:
+    return "count";
+  case SR_MQ_POWER_FACTOR:
+    return "power_factor";
+  case SR_MQ_APPARENT_POWER:
+    return "apparent_power";
+  case SR_MQ_MASS:
+    return "mass";
+  case SR_MQ_HARMONIC_RATIO:
+    return "harmonic_ratio";
+  default:
+    return NULL;
+  }
+}
 
-  if (analog->mq == SR_MQ_VOLTAGE)
-    s = "voltage";
-  else if (analog->mq == SR_MQ_CURRENT)
-    s = "current";
-  else if (analog->mq == SR_MQ_FREQUENCY)
-    s = "frequency";
-  else if (analog->mq == SR_MQ_POWER)
-    s = "power";
-  else if (analog->mq == SR_MQ_TEMPERATURE)
-    s = "temperature";
-  else if (analog->mq == SR_MQ_RELATIVE_HUMIDITY)
-    s = "humidity";
-  else if (analog->mq == SR_MQ_SOUND_PRESSURE_LEVEL)
-    s = "spl";
-  else
-    s = "gauge";
-
-  return s;
+static const char *sigrok_units(const struct sr_datafeed_analog *analog) {
+  switch (analog->meaning->unit) {
+  case SR_UNIT_VOLT:
+    return "_volts";
+  case SR_UNIT_AMPERE:
+    return "_amps";
+  case SR_UNIT_OHM:
+    return "_ohms";
+  case SR_UNIT_FARAD:
+    return "_farads";
+  case SR_UNIT_KELVIN:
+    return "_kelvin";
+  case SR_UNIT_CELSIUS:
+    return "_celsius";
+  case SR_UNIT_FAHRENHEIT:
+    return "_fahrenheit";
+  case SR_UNIT_HERTZ:
+    return "_hertz";
+  case SR_UNIT_PERCENTAGE:
+    return "_percentage";
+  case SR_UNIT_BOOLEAN:
+    return "_boolean";
+  case SR_UNIT_SECOND:
+    return "_seconds";
+  case SR_UNIT_SIEMENS:
+    return "_siemens";
+  case SR_UNIT_DECIBEL_MW:
+    return "_decibels_milliwatts";
+  case SR_UNIT_DECIBEL_VOLT:
+    return "_decibels_volts";
+  case SR_UNIT_UNITLESS:
+    return NULL;
+  case SR_UNIT_DECIBEL_SPL:
+    return "_sound_presure_level";
+  case SR_UNIT_CONCENTRATION:
+    return "_concentration";
+  case SR_UNIT_REVOLUTIONS_PER_MINUTE:
+    return "_revolutions_per_minute";
+  case SR_UNIT_VOLT_AMPERE:
+    return "_volts_amps";
+  case SR_UNIT_WATT:
+    return "_watts";
+  case SR_UNIT_WATT_HOUR:
+    return "_watts_per_hour";
+  case SR_UNIT_METER_SECOND:
+    return "_meters_per_second";
+  case SR_UNIT_HECTOPASCAL:
+    return "_hectopascals";
+  case SR_UNIT_HUMIDITY_293K:
+    return "_relative_humidity_293K";
+  case SR_UNIT_DEGREE:
+    return "_degrees";
+  case SR_UNIT_HENRY:
+    return "_henries";
+  case SR_UNIT_GRAM:
+    return "_grams";
+  case SR_UNIT_CARAT:
+    return "_carats";
+  case SR_UNIT_OUNCE:
+    return "_ounces";
+  case SR_UNIT_TROY_OUNCE:
+    return "_troy_ounces";
+  case SR_UNIT_POUND:
+    return "_pounds";
+  case SR_UNIT_PENNYWEIGHT:
+    return "_pennyweights";
+  case SR_UNIT_GRAIN:
+    return "_grains";
+  case SR_UNIT_TAEL:
+    return "_taels";
+  case SR_UNIT_MOMME:
+    return "_mommes";
+  case SR_UNIT_TOLA:
+    return "_tolas";
+  case SR_UNIT_PIECE:
+    return "_pieces";
+  default:
+    return NULL;
+  }
 }
 
 static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
@@ -155,7 +298,6 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
                                  void *cb_data) {
   const struct sr_datafeed_analog *analog;
   struct config_device *cfdev;
-  value_list_t vl = VALUE_LIST_INIT;
 
   /* Find this device's configuration. */
   cfdev = NULL;
@@ -169,10 +311,12 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
   }
 
   if (!cfdev) {
+    struct sr_dev_driver *driver = sr_dev_inst_driver_get(sdi);
+    const char *name = driver == NULL ? "" : driver->name;
     ERROR("sigrok plugin: Received data from driver \"%s\" but "
           "can't find a configuration / device matching "
           "it.",
-          sdi->driver->name);
+          name);
     return;
   }
 
@@ -189,16 +333,108 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
       ((cdtime() - cfdev->last_dispatch) < cfdev->min_dispatch_interval))
     return;
 
+  metric_t m = {0};
+
   /* Ignore all but the first sample on the first probe. */
   analog = packet->payload;
-  vl.values = &(value_t){.gauge = analog->data[0]};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "sigrok", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, cfdev->name, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, sigrok_value_type(analog), sizeof(vl.type));
+  if (analog == NULL)
+    return;
+  if (analog->meaning == NULL)
+    return;
 
-  plugin_dispatch_values(&vl);
+  if (analog->num_samples > 1) {
+    float *data = malloc(analog->num_samples * sizeof(float));
+    if (data == NULL) {
+      ERROR("sigrok plugin: malloc failed.");
+      return;
+    }
+    if (sr_analog_to_float(analog, data) != SR_OK) {
+      ERROR("sigrok plugin: sr_analog_to_float failed.");
+      return;
+    }
+    m.value.gauge = data[0];
+    sfree(data);
+  } else {
+    float data;
+    if (sr_analog_to_float(analog, &data) != SR_OK) {
+      ERROR("sigrok plugin: sr_analog_to_float failed.");
+      return;
+    }
+    m.value.gauge = data;
+  }
+
+  strbuf_t buf = STRBUF_CREATE;
+
+  metric_family_t fam = {0};
+  fam.type = METRIC_TYPE_GAUGE;
+
+  if (cfdev->metric_prefix != NULL)
+    strbuf_print(&buf, cfdev->metric_prefix);
+  else
+    strbuf_print(&buf, "sigrok_");
+
+  const char *type = sigrok_type(analog);
+  if (type != NULL)
+    strbuf_print(&buf, type);
+
+  const char *units = sigrok_units(analog);
+  if (units != NULL)
+    strbuf_print(&buf, units);
+
+  fam.name = buf.ptr;
+
+  metric_label_set(&m, "device", cfdev->name);
+
+  if ((analog->meaning->channels != NULL) &&
+      (g_slist_length(analog->meaning->channels) > 0)) {
+    struct sr_channel *channel = g_slist_nth_data(analog->meaning->channels, 0);
+    if (channel != NULL)
+      metric_label_set(&m, "channel", channel->name);
+  }
+
+  if (analog->meaning->mqflags & SR_MQFLAG_AC)
+    metric_label_set(&m, "voltage", "AC");
+  if (analog->meaning->mqflags & SR_MQFLAG_DC)
+    metric_label_set(&m, "voltage", "DC");
+  if (analog->meaning->mqflags & SR_MQFLAG_RMS)
+    metric_label_set(&m, "RMS", "true");
+  if (analog->meaning->mqflags & SR_MQFLAG_DIODE)
+    metric_label_set(&m, "diode", "on");
+  if (analog->meaning->mqflags & SR_MQFLAG_HOLD)
+    metric_label_set(&m, "hold", "on");
+  if (analog->meaning->mqflags & SR_MQFLAG_MAX)
+    metric_label_set(&m, "mode", "MAX");
+  if (analog->meaning->mqflags & SR_MQFLAG_MIN)
+    metric_label_set(&m, "mode", "MIN");
+  if (analog->meaning->mqflags & SR_MQFLAG_AUTORANGE)
+    metric_label_set(&m, "autorange", "on");
+  if (analog->meaning->mqflags & SR_MQFLAG_RELATIVE)
+    metric_label_set(&m, "relative", "on");
+  if (analog->meaning->mqflags & SR_MQFLAG_AVG)
+    metric_label_set(&m, "mode", "AVG");
+  if (analog->meaning->mqflags & SR_MQFLAG_REFERENCE)
+    metric_label_set(&m, "reference", "on");
+  if (analog->meaning->mqflags & SR_MQFLAG_FOUR_WIRE)
+    metric_label_set(&m, "four_wires", "true");
+  if (analog->meaning->mqflags & SR_MQFLAG_UNSTABLE)
+    metric_label_set(&m, "unstable", "true");
+
+  for (size_t i = 0; i < cfdev->labels.num; i++) {
+    metric_label_set(&m, cfdev->labels.ptr[i].name, cfdev->labels.ptr[i].value);
+  }
+
+  metric_family_metric_append(&fam, m);
+  metric_reset(&m);
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("sigrok plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
   cfdev->last_dispatch = cdtime();
+  metric_family_metric_reset(&fam);
+
+  STRBUF_DESTROY(buf);
 }
 
 static void sigrok_free_drvopts(struct sr_config *src) {
@@ -206,7 +442,8 @@ static void sigrok_free_drvopts(struct sr_config *src) {
   g_free(src);
 }
 
-static int sigrok_init_driver(struct config_device *cfdev,
+static int sigrok_init_driver(struct sr_session *sr_sess,
+                              struct config_device *cfdev,
                               struct sr_dev_driver *drv) {
   struct sr_config *src;
   GSList *devlist, *drvopts;
@@ -247,16 +484,19 @@ static int sigrok_init_driver(struct config_device *cfdev,
   }
   cfdev->sdi = devlist->data;
   g_slist_free(devlist);
-  ssnprintf(hwident, sizeof(hwident), "%s %s %s",
-            cfdev->sdi->vendor ? cfdev->sdi->vendor : "",
-            cfdev->sdi->model ? cfdev->sdi->model : "",
-            cfdev->sdi->version ? cfdev->sdi->version : "");
+
+  const char *vendor = sr_dev_inst_vendor_get(cfdev->sdi);
+  const char *model = sr_dev_inst_model_get(cfdev->sdi);
+  const char *version = sr_dev_inst_version_get(cfdev->sdi);
+
+  ssnprintf(hwident, sizeof(hwident), "%s %s %s", vendor ? vendor : "",
+            model ? model : "", version ? version : "");
   INFO("sigrok plugin: Device \"%s\" is a %s", cfdev->name, hwident);
 
   if (sr_dev_open(cfdev->sdi) != SR_OK)
     return -1;
 
-  if (sr_session_dev_add(cfdev->sdi) != SR_OK)
+  if (sr_session_dev_add(sr_sess, cfdev->sdi) != SR_OK)
     return -1;
 
   return 1;
@@ -264,6 +504,7 @@ static int sigrok_init_driver(struct config_device *cfdev,
 
 static void *sigrok_read_thread(void *arg __attribute__((unused))) {
   struct sr_dev_driver *drv, **drvlist;
+  struct sr_session *sr_sess = NULL;
   GSList *l;
   struct config_device *cfdev;
   int ret, i;
@@ -277,11 +518,13 @@ static void *sigrok_read_thread(void *arg __attribute__((unused))) {
     return NULL;
   }
 
-  if (!sr_session_new())
+  if ((ret = sr_session_new(sr_ctx, &sr_sess)) != SR_OK) {
+    ERROR("sigrok plugin: Failed to create session: %s.", sr_strerror(ret));
     return NULL;
+  }
 
   num_devices = 0;
-  drvlist = sr_driver_list();
+  drvlist = sr_driver_list(sr_ctx);
   for (l = config_devices; l; l = l->next) {
     cfdev = l->data;
     drv = NULL;
@@ -291,12 +534,13 @@ static void *sigrok_read_thread(void *arg __attribute__((unused))) {
         break;
       }
     }
+
     if (!drv) {
       ERROR("sigrok plugin: Unknown driver \"%s\".", cfdev->driver);
       return NULL;
     }
 
-    if ((ret = sigrok_init_driver(cfdev, drv)) < 0)
+    if ((ret = sigrok_init_driver(sr_sess, cfdev, drv)) < 0)
       /* Error was already logged. */
       return NULL;
 
@@ -305,21 +549,22 @@ static void *sigrok_read_thread(void *arg __attribute__((unused))) {
 
   if (num_devices > 0) {
     /* Do this only when we're sure there's hardware to talk to. */
-    if (sr_session_datafeed_callback_add(sigrok_feed_callback, NULL) != SR_OK)
+    if (sr_session_datafeed_callback_add(sr_sess, sigrok_feed_callback, NULL) !=
+        SR_OK)
       return NULL;
 
     /* Start acquisition on all devices. */
-    if (sr_session_start() != SR_OK)
+    if (sr_session_start(sr_sess) != SR_OK)
       return NULL;
 
     /* Main loop, runs forever. */
-    sr_session_run();
+    sr_session_run(sr_sess);
 
-    sr_session_stop();
-    sr_session_dev_remove_all();
+    sr_session_stop(sr_sess);
+    sr_session_dev_remove_all(sr_sess);
   }
 
-  sr_session_destroy();
+  sr_session_destroy(sr_sess);
 
   sr_exit(sr_ctx);
 
@@ -360,6 +605,8 @@ static int sigrok_shutdown(void) {
   for (l = config_devices; l; l = l->next) {
     cfdev = l->data;
     free(cfdev->name);
+    free(cfdev->metric_prefix);
+    label_set_reset(&cfdev->labels);
     free(cfdev->driver);
     free(cfdev->conn);
     free(cfdev->serialcomm);
