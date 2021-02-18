@@ -68,28 +68,8 @@ static int irq_config(const char *key, const char *value) {
   return 0;
 }
 
-static void irq_submit(const char *irq_name, derive_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  if (ignorelist_match(ignorelist, irq_name) != 0)
-    return;
-
-  vl.values = &(value_t){.derive = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "irq", sizeof(vl.plugin));
-  sstrncpy(vl.type, "irq", sizeof(vl.type));
-  sstrncpy(vl.type_instance, irq_name, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-} /* void irq_submit */
-
 #if KERNEL_LINUX
-static int irq_read(void) {
-  FILE *fh;
-  char buffer[1024];
-  int cpu_count;
-  char *fields[256];
-
+static int irq_read_data(metric_family_t *fam) {
   /*
    * Example content:
    *         CPU0       CPU1       CPU2       CPU3
@@ -97,15 +77,23 @@ static int irq_read(void) {
    * 1:     102553     158669     218062      70587   IO-APIC-edge      i8042
    * 8:          0          0          0          1   IO-APIC-edge      rtc0
    */
-  fh = fopen("/proc/interrupts", "r");
+  FILE *fh = fopen("/proc/interrupts", "r");
   if (fh == NULL) {
     ERROR("irq plugin: fopen (/proc/interrupts): %s", STRERRNO);
     return -1;
   }
 
   /* Get CPU count from the first line */
-  if (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    cpu_count = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+  char cpu_buffer[1024];
+  char *cpu_fields[256];
+  int cpu_count;
+
+  if (fgets(cpu_buffer, sizeof(cpu_buffer), fh) != NULL) {
+    cpu_count = strsplit(cpu_buffer, cpu_fields, STATIC_ARRAY_SIZE(cpu_fields));
+    for (int i = 0; i < cpu_count; i++) {
+      if (strncmp(cpu_fields[i], "CPU", 3) == 0)
+        cpu_fields[i] += 3;
+    }
   } else {
     ERROR("irq plugin: unable to get CPU count from first line "
           "of /proc/interrupts");
@@ -113,28 +101,26 @@ static int irq_read(void) {
     return -1;
   }
 
-  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    char *irq_name;
-    size_t irq_name_len;
-    derive_t irq_value;
-    int i;
-    int fields_num;
-    int irq_values_to_parse;
+  metric_t m = {0};
+  char buffer[1024];
+  char *fields[256];
 
-    fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    int fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
     if (fields_num < 2)
       continue;
 
     /* Parse this many numeric fields, skip the rest
      * (+1 because first there is a name of irq in each line) */
+    int irq_values_to_parse;
     if (fields_num >= cpu_count + 1)
       irq_values_to_parse = cpu_count;
     else
       irq_values_to_parse = fields_num - 1;
 
     /* First field is irq name and colon */
-    irq_name = fields[0];
-    irq_name_len = strlen(irq_name);
+    char *irq_name = fields[0];
+    size_t irq_name_len = strlen(irq_name);
     if (irq_name_len < 2)
       continue;
 
@@ -150,25 +136,23 @@ static int irq_read(void) {
     irq_name[irq_name_len - 1] = '\0';
     irq_name_len--;
 
-    irq_value = 0;
-    for (i = 1; i <= irq_values_to_parse; i++) {
-      /* Per-CPU value */
-      value_t v;
-      int status;
-
-      status = parse_value(fields[i], &v, DS_TYPE_DERIVE);
-      if (status != 0)
-        break;
-
-      irq_value += v.derive;
-    } /* for (i) */
-
-    /* No valid fields -> do not submit anything. */
-    if (i <= 1)
+    if (ignorelist_match(ignorelist, irq_name) != 0)
       continue;
 
-    irq_submit(irq_name, irq_value);
+    metric_label_set(&m, "irq", irq_name);
+
+    for (int i = 1; i <= irq_values_to_parse; i++) {
+      /* Per-CPU value */
+      value_t v;
+      int status = parse_value(fields[i], &v, DS_TYPE_COUNTER);
+      if (status != 0)
+        break;
+      metric_label_set(&m, "cpu", cpu_fields[i - 1]);
+      m.value.counter = v.counter;
+      metric_family_metric_append(fam, m);
+    } /* for (i) */
   }
+  metric_reset(&m);
 
   fclose(fh);
 
@@ -177,7 +161,7 @@ static int irq_read(void) {
 #endif /* KERNEL_LINUX */
 
 #if KERNEL_NETBSD
-static int irq_read(void) {
+static int irq_read_data(metric_family_t *fam) {
   const int mib[4] = {CTL_KERN, KERN_EVCNT, EVCNT_TYPE_INTR,
                       KERN_EVCNT_COUNT_NONZERO};
   size_t buflen = 0;
@@ -207,6 +191,7 @@ static int irq_read(void) {
   evs = buf;
   last_evs = (void *)((char *)buf + buflen);
   buflen /= sizeof(uint64_t);
+  metric_t m = {0};
   while (evs < last_evs && buflen > sizeof(*evs) / sizeof(uint64_t) &&
          buflen >= evs->ev_len) {
     char irqname[80];
@@ -214,15 +199,41 @@ static int irq_read(void) {
     snprintf(irqname, 80, "%s-%s", evs->ev_strings,
              evs->ev_strings + evs->ev_grouplen + 1);
 
-    irq_submit(irqname, evs->ev_count);
+    if (ignorelist_match(ignorelist, irqname) == 0) {
+      metric_label_set(&m, "irq", irqname);
+      m.value.counter = evs->ev_count;
+      metric_family_metric_append(fam, m);
+    }
 
     buflen -= evs->ev_len;
     evs = (const void *)((const uint64_t *)evs + evs->ev_len);
   }
   free(buf);
+  metric_reset(&m);
   return 0;
 }
 #endif /* KERNEL_NETBSD */
+
+static int irq_read(void) {
+  metric_family_t fam = {
+      .name = "interrupts_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+
+  int ret = irq_read_data(&fam);
+
+  if (fam.metric.num > 0) {
+    int status = plugin_dispatch_metric_family(&fam);
+    if (status != 0) {
+      ERROR("irq plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
+      ret = -1;
+    }
+    metric_family_metric_reset(&fam);
+  }
+
+  return ret;
+}
 
 void module_register(void) {
   plugin_register_config("irq", irq_config, config_keys, config_keys_num);
