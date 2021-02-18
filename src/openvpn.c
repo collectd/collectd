@@ -86,6 +86,7 @@ static bool new_naming_schema;
 static bool collect_compression = true;
 static bool collect_user_count;
 static bool collect_individual_users = true;
+ 
 
 static const char *config_keys[] = {
     "StatusFile",           "Compression", /* old, deprecated name */
@@ -117,6 +118,95 @@ static void openvpn_free(void *arg) {
   sfree(st->file);
   sfree(st);
 } /* void openvpn_free */
+
+static int get_month(char* token) {
+  int imonth = 0;
+
+  if (strcmp(token, "Jan") == 0) {
+    imonth = 0;
+  } else if (strcmp(token, "Feb") == 0) {
+    imonth = 1;
+  } else if (strcmp(token, "Mar") == 0) {
+    imonth = 2;
+  } else if (strcmp(token, "Apr") == 0) {
+    imonth = 3;
+  } else if (strcmp(token, "May") == 0) {
+    imonth = 4;
+  } else if (strcmp(token, "Jun") == 0) {
+    imonth = 5;
+  } else if (strcmp(token, "Jul") == 0) {
+    imonth = 6;
+  } else if (strcmp(token, "Aug") == 0) {
+    imonth = 7;
+  } else if (strcmp(token, "Sep") == 0) {
+    imonth = 8;
+  } else if (strcmp(token, "Oct") == 0) {
+    imonth = 9;
+  } else if (strcmp(token, "Nov") == 0) {
+    imonth = 10;
+  } else if (strcmp(token, "Dec") == 0) {
+    imonth = 11;
+  }
+ 
+  return imonth;
+} /* int get_month*/
+
+/* "Connected Since" field parsing*/
+static time_t parse_date(char *date) {
+  struct tm t;
+  enum {
+    DAY, MONTH, NUM_DAY, TIME, YEAR
+  } date_string = DAY; // Wed Feb 17 11:24:24 2021 
+
+  char* token = strtok(date, " ");
+
+  t.tm_isdst = -1; 
+  while (token) {
+    switch (date_string) {
+      case DAY:
+        date_string = MONTH;
+        break;
+      case MONTH:
+        t.tm_mon = get_month(token);
+        date_string = NUM_DAY;
+        break;
+      case NUM_DAY:
+        t.tm_mday = atoi(token);
+        date_string = TIME;
+        break;
+      case TIME:
+        sscanf(token, "%u:%u:%u", &t.tm_hour, &t.tm_min, &t.tm_sec);
+        date_string = YEAR;
+        break;
+      case YEAR:
+        t.tm_year = atoi(token) - 1900;
+        break;
+    } 
+    token = strtok(NULL, " ");
+
+  }
+    
+  return mktime(&t);
+} /*  time_t parse_date */
+
+/* dispatches connection time */
+static void connected_since_submit(const char *pinst, const char *tinst,
+                                   gauge_t connected_since) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.gauge = connected_since};
+  vl.values_len = 1;
+
+  sstrncpy(vl.plugin, "openvpn", sizeof(vl.plugin));
+  if (pinst != NULL)
+    sstrncpy(vl.plugin_instance, pinst, sizeof(vl.plugin_instance));
+
+  sstrncpy(vl.type, "connected_since", sizeof(vl.type));
+  if (tinst != NULL)
+    sstrncpy(vl.type_instance, tinst, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+} /* void connected_since_submit */ 
 
 /* dispatches number of users */
 static void numusers_submit(const char *pinst, const char *tinst,
@@ -278,18 +368,22 @@ static int multi1_read(const char *name, FILE *fh) {
     {
       sum_users += 1;
     }
+
     if (collect_individual_users) {
       if (new_naming_schema) {
         iostats_submit(name,              /* vpn instance */
                        fields[0],         /* "Common Name" */
                        atoll(fields[2]),  /* "Bytes Received" */
-                       atoll(fields[3])); /* "Bytes Sent" */
+                       atoll(fields[3]));  /* "Bytes Sent" */
       } else {
         iostats_submit(fields[0],         /* "Common Name" */
                        NULL,              /* unused when in multimode */
                        atoll(fields[2]),  /* "Bytes Received" */
-                       atoll(fields[3])); /* "Bytes Sent" */
+                       atoll(fields[3]));  /* "Bytes Sent" */
       }
+
+      connected_since_submit(fields[0], NULL, 
+                             (gauge_t) parse_date(fields[4]));
     }
   }
 
@@ -304,6 +398,7 @@ static int multi1_read(const char *name, FILE *fh) {
            name);
     return -1;
   }
+
 
   if (collect_user_count)
     numusers_submit(name, name, sum_users);
@@ -411,6 +506,9 @@ static int multi2_read(const char *name, FILE *fh, const char *delim) {
                        atoll(fields[idx_bytes_recv]),  /* "Bytes Received" */
                        atoll(fields[idx_bytes_sent])); /* "Bytes Sent"     */
       }
+
+      connected_since_submit(fields[0], NULL, 
+                             (gauge_t) parse_date(fields[idx_bytes_sent + 1]));
     }
   }
 
