@@ -57,7 +57,7 @@ static void submit(const char *protocol_name, const char *str_key,
   ssnprintf(fam_name, sizeof(fam_name), "protocols_%s_%s_total", protocol_name,
             str_key);
 
-  metric_family_t fam;
+  metric_family_t fam = {0};
   fam.type = METRIC_TYPE_COUNTER;
   fam.name = fam_name;
 
