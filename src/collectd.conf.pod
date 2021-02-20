@@ -8785,6 +8785,11 @@ The default B<MinimumInterval> is B<0>, meaning measurements received from the
 device are always dispatched to I<collectd>. When throttled, unused
 measurements are discarded.
 
+=item B<Channel> I<channel>
+
+Send only metrics for this I<channel> name. It can appear multiple times.
+By default, it shows all channels if not set.
+
 =item B<MetricPrefix> I<prefix>
 
 Prepends I<prefix> to the metric name.

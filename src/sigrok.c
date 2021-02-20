@@ -50,6 +50,8 @@ struct config_device {
   char *driver;
   char *conn;
   char *serialcomm;
+  size_t channel_num;
+  char **channel;
   struct sr_dev_inst *sdi;
   cdtime_t min_dispatch_interval;
   cdtime_t last_dispatch;
@@ -64,6 +66,29 @@ static int sigrok_log_callback(void *cb_data __attribute__((unused)),
     vsnprintf(s, 512, format, args);
     plugin_log(LOG_INFO, "sigrok plugin: %s", s);
   }
+
+  return 0;
+}
+
+static int sigrok_config_channel(oconfig_item_t *ci,
+                                 struct config_device *cfdev) {
+  char *channel = NULL;
+
+  int status = cf_util_get_string(ci, &channel);
+  if (status != 0)
+    return -1;
+
+  char **tmp =
+      realloc(cfdev->channel, sizeof(char *) * (cfdev->channel_num + 1));
+  if (tmp == NULL) {
+    ERROR("sigrok plugin: recalloc failed.");
+    sfree(channel);
+    return -1;
+  }
+
+  cfdev->channel = tmp;
+  cfdev->channel[cfdev->channel_num] = channel;
+  cfdev->channel_num++;
 
   return 0;
 }
@@ -95,6 +120,8 @@ static int sigrok_config_device(oconfig_item_t *ci) {
       status = cf_util_get_cdtime(item, &cfdev->min_dispatch_interval);
     else if (strcasecmp(item->key, "MetricPrefix") == 0)
       status = cf_util_get_string(item, &cfdev->metric_prefix);
+    else if (strcasecmp(item->key, "Channel") == 0)
+      status = sigrok_config_channel(item, cfdev);
     else if (strcasecmp(item->key, "Label") == 0)
       status = cf_util_get_label(item, &cfdev->labels);
     else {
@@ -342,6 +369,25 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
   if (analog->meaning == NULL)
     return;
 
+  if ((analog->meaning->channels != NULL) &&
+      (g_slist_length(analog->meaning->channels) > 0)) {
+    struct sr_channel *channel = g_slist_nth_data(analog->meaning->channels, 0);
+    if (channel != NULL) {
+      if (cfdev->channel_num > 0) {
+        bool channel_found = false;
+        for (int i = 0; i < cfdev->channel_num; i++) {
+          if (!strcasecmp(cfdev->channel[i], channel->name) != 0) {
+            channel_found = true;
+            break;
+          }
+        }
+        if (!channel_found)
+          return;
+      }
+      metric_label_set(&m, "channel", channel->name);
+    }
+  }
+
   if (analog->num_samples > 1) {
     float *data = malloc(analog->num_samples * sizeof(float));
     if (data == NULL) {
@@ -385,33 +431,32 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 
   metric_label_set(&m, "device", cfdev->name);
 
-  if ((analog->meaning->channels != NULL) &&
-      (g_slist_length(analog->meaning->channels) > 0)) {
-    struct sr_channel *channel = g_slist_nth_data(analog->meaning->channels, 0);
-    if (channel != NULL)
-      metric_label_set(&m, "channel", channel->name);
-  }
-
-  if (analog->meaning->mqflags & SR_MQFLAG_AC)
+  if ((analog->meaning->mqflags & SR_MQFLAG_AC) &&
+      (analog->meaning->mqflags & SR_MQFLAG_DC))
+    metric_label_set(&m, "voltage", "DC+AC");
+  if ((analog->meaning->mqflags & SR_MQFLAG_AC) &&
+      !(analog->meaning->mqflags & SR_MQFLAG_DC))
     metric_label_set(&m, "voltage", "AC");
-  if (analog->meaning->mqflags & SR_MQFLAG_DC)
+  if ((analog->meaning->mqflags & SR_MQFLAG_DC) &&
+      !(analog->meaning->mqflags & SR_MQFLAG_AC))
     metric_label_set(&m, "voltage", "DC");
+
   if (analog->meaning->mqflags & SR_MQFLAG_RMS)
-    metric_label_set(&m, "RMS", "true");
+    metric_label_set(&m, "rms", "true");
   if (analog->meaning->mqflags & SR_MQFLAG_DIODE)
     metric_label_set(&m, "diode", "on");
   if (analog->meaning->mqflags & SR_MQFLAG_HOLD)
     metric_label_set(&m, "hold", "on");
   if (analog->meaning->mqflags & SR_MQFLAG_MAX)
-    metric_label_set(&m, "mode", "MAX");
+    metric_label_set(&m, "max", "on");
   if (analog->meaning->mqflags & SR_MQFLAG_MIN)
-    metric_label_set(&m, "mode", "MIN");
+    metric_label_set(&m, "min", "on");
   if (analog->meaning->mqflags & SR_MQFLAG_AUTORANGE)
     metric_label_set(&m, "autorange", "on");
   if (analog->meaning->mqflags & SR_MQFLAG_RELATIVE)
     metric_label_set(&m, "relative", "on");
   if (analog->meaning->mqflags & SR_MQFLAG_AVG)
-    metric_label_set(&m, "mode", "AVG");
+    metric_label_set(&m, "avg", "on");
   if (analog->meaning->mqflags & SR_MQFLAG_REFERENCE)
     metric_label_set(&m, "reference", "on");
   if (analog->meaning->mqflags & SR_MQFLAG_FOUR_WIRE)
@@ -594,22 +639,24 @@ static int sigrok_init(void) {
 }
 
 static int sigrok_shutdown(void) {
-  struct config_device *cfdev;
-  GSList *l;
-
   if (sr_thread_running) {
     pthread_cancel(sr_thread);
     pthread_join(sr_thread, NULL);
   }
 
-  for (l = config_devices; l; l = l->next) {
-    cfdev = l->data;
-    free(cfdev->name);
-    free(cfdev->metric_prefix);
+  for (GSList *l = config_devices; l; l = l->next) {
+    struct config_device *cfdev = l->data;
+    sfree(cfdev->name);
+    sfree(cfdev->metric_prefix);
     label_set_reset(&cfdev->labels);
-    free(cfdev->driver);
-    free(cfdev->conn);
-    free(cfdev->serialcomm);
+    sfree(cfdev->driver);
+    sfree(cfdev->conn);
+    sfree(cfdev->serialcomm);
+    for (int i = 0; i < cfdev->channel_num; i++) {
+      sfree(cfdev->channel[i]);
+    }
+    sfree(cfdev->channel);
+
     free(cfdev);
   }
   g_slist_free(config_devices);
