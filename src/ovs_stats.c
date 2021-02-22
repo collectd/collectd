@@ -200,6 +200,9 @@ static ovs_stats_config_t ovs_stats_cfg = {
     .ovs_db_serv = "6640",      /* use default OVS DB service */
 };
 
+/* plugin interval */
+static cdtime_t interval = 0;
+
 /* flag indicating whether or not to publish individual interface statistics */
 static bool interface_stats = false;
 
@@ -1343,6 +1346,11 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
         ERROR("%s: parse '%s' option failed", plugin_name, child->key);
         return -1;
       }
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      if (cf_util_get_cdtime(child, &interval) != 0) {
+        ERROR("%s: parse '%s' option failed", plugin_name, child->key);
+        return -1;
+      }
     } else {
       WARNING("%s: option '%s' not allowed here", plugin_name, child->key);
       goto cleanup_fail;
@@ -1419,7 +1427,7 @@ static int ovs_stats_plugin_shutdown(void) {
 void module_register(void) {
   plugin_register_complex_config(plugin_name, ovs_stats_plugin_config);
   plugin_register_init(plugin_name, ovs_stats_plugin_init);
-  plugin_register_complex_read(NULL, plugin_name, ovs_stats_plugin_read, 0,
-                               NULL);
+  plugin_register_complex_read(NULL, plugin_name, ovs_stats_plugin_read,
+                               interval, NULL);
   plugin_register_shutdown(plugin_name, ovs_stats_plugin_shutdown);
 }

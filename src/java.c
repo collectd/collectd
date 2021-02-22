@@ -77,6 +77,7 @@ typedef struct cjni_callback_info_s cjni_callback_info_t;
 /*
  * Global variables
  */
+static cdtime_t interval = 0;
 static JavaVM *jvm;
 static pthread_key_t jvm_env_key;
 
@@ -1304,7 +1305,7 @@ static jint JNICALL cjni_api_register_read(JNIEnv *jvm_env, /* {{{ */
 
   plugin_register_complex_read(
       /* group = */ NULL, cbi->name, cjni_read,
-      /* interval = */ 0,
+      /* interval = */ interval,
       &(user_data_t){
           .data = cbi,
           .free_func = cjni_callback_info_destroy,
@@ -2166,6 +2167,12 @@ static int cjni_config_perform(oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp("JVMArg", child->key) == 0) {
       status = cjni_config_add_jvm_arg(child);
+      if (status == 0)
+        success++;
+      else
+        errors++;
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      status = cf_util_get_cdtime(child, &interval);
       if (status == 0)
         success++;
       else

@@ -55,6 +55,7 @@ typedef struct {
   int callback_id;
 } clua_callback_data_t;
 
+static cdtime_t interval = 0;
 static char base_path[PATH_MAX];
 static lua_script_t *scripts;
 
@@ -325,7 +326,7 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
     int status = plugin_register_complex_read(/* group = */ "lua",
                                               /* name      = */ function_name,
                                               /* callback  = */ clua_read,
-                                              /* interval  = */ 0,
+                                              /* interval  = */ interval,
                                               &(user_data_t){
                                                   .data = cb,
                                                   .free_func = lua_cb_free,
@@ -561,6 +562,8 @@ static int lua_config(oconfig_item_t *ci) /* {{{ */
       status = lua_config_base_path(child);
     } else if (strcasecmp("Script", child->key) == 0) {
       status = lua_config_script(child);
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      status = cf_util_get_cdtime(child, &interval);
     } else {
       ERROR("Lua plugin: Option `%s' is not allowed here.", child->key);
       status = 1;

@@ -467,7 +467,7 @@ static c_complain_t conn_complain = C_COMPLAIN_INIT_STATIC;
 static virNodeInfo nodeinfo;
 
 /* Seconds between list refreshes, 0 disables completely. */
-static int interval = 60;
+static int refresh_interval = 60;
 
 /* List of domains, if specified. */
 static ignorelist_t *il_domains;
@@ -1217,7 +1217,7 @@ static int lv_config(oconfig_item_t *ci) {
 
       continue;
     } else if (strcasecmp(c->key, "RefreshInterval") == 0) {
-      if (cf_util_get_int(c, &interval) != 0)
+      if (cf_util_get_int(c, &refresh_interval) != 0)
         return -1;
 
       continue;
@@ -1449,6 +1449,11 @@ static int lv_config(oconfig_item_t *ci) {
       continue;
     } else if (strcasecmp(c->key, "ReportNetworkInterfaces") == 0) {
       if (cf_util_get_boolean(c, &report_network_interfaces) != 0)
+        return -1;
+
+      continue;
+    } else if (strcasecmp(c->key, "Interval") == 0) {
+      if (cf_util_get_cdtime(c, &interval) != 0)
         return -1;
 
       continue;
@@ -2440,7 +2445,7 @@ static int lv_read(user_data_t *ud) {
 
   /* Need to refresh domain or device lists? */
   if ((last_refresh == (time_t)0) ||
-      ((interval > 0) && ((last_refresh + interval) <= t))) {
+      ((refresh_interval > 0) && ((last_refresh + refresh_interval) <= t))) {
     if (refresh_lists(inst) != 0) {
       if (inst->id == 0) {
         if (!persistent_notification)
@@ -2530,7 +2535,7 @@ static int lv_init_instance(size_t i, plugin_read_cb callback) {
 
   INFO(PLUGIN_NAME " plugin: reader %s initialized", inst->tag);
 
-  return plugin_register_complex_read(NULL, inst->tag, callback, 0, ud);
+  return plugin_register_complex_read(NULL, inst->tag, callback, interval, ud);
 }
 
 static void lv_clean_read_state(struct lv_read_state *state) {

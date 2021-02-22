@@ -51,13 +51,14 @@ struct nut_ups_s {
 };
 
 static const char *config_keys[] = {"UPS", "FORCESSL", "VERIFYPEER", "CAPATH",
-                                    "CONNECTTIMEOUT"};
+                                    "CONNECTTIMEOUT", "INTERVAL"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static int force_ssl;   // Initialized to default of 0 (false)
 static int verify_peer; // Initialized to default of 0 (false)
 static int ssl_flags = UPSCLI_CONN_TRYSSL;
 static int connect_timeout = -1;
 static char *ca_path;
+static cdtime_t interval = 0;
 
 static int nut_read(user_data_t *user_data);
 
@@ -99,7 +100,7 @@ static int nut_add_ups(const char *name) {
       /* group     = */ "nut",
       /* name      = */ cb_name,
       /* callback  = */ nut_read,
-      /* interval  = */ 0,
+      /* interval  = */ interval,
       /* user_data = */
       &(user_data_t){
           .data = ups,
@@ -171,6 +172,20 @@ static int nut_set_connect_timeout(const char *value) {
   return 0;
 } /* int nut_set_connect_timeout */
 
+
+static int nut_set_interval(const char *value) {
+  double d;
+
+  errno = 0;
+  d = strtod(value, NULL);
+  if (ernno == 0)
+    interval = DOUBLE_TO_CDTIME_T(d);
+  else
+    WARNING("nut plugin: The Interval option requires numeric argument. "
+            "Setting ignored.");
+  return 0;
+} /* int nut_set_interval(value) */
+
 static int nut_config(const char *key, const char *value) {
   if (strcasecmp(key, "UPS") == 0)
     return nut_add_ups(value);
@@ -182,6 +197,8 @@ static int nut_config(const char *key, const char *value) {
     return nut_ca_path(value);
   else if (strcasecmp(key, "CONNECTTIMEOUT") == 0)
     return nut_set_connect_timeout(value);
+  else if (strcasecmp(key, "INTERVAL") == 0)
+    return nut_set_interval(value);
   else
     return -1;
 } /* int nut_config */

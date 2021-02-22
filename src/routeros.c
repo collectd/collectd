@@ -31,6 +31,8 @@
 
 #include <routeros_api.h>
 
+static cdtime_t interval = 0;
+
 struct cr_data_s {
   ros_connection_t *connection;
 
@@ -441,7 +443,7 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
 
   ssnprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
   return plugin_register_complex_read(
-      /* group = */ NULL, read_name, cr_read, /* interval = */ 0,
+      /* group = */ NULL, read_name, cr_read, /* interval = */ interval,
       &(user_data_t){
           .data = router_data,
           .free_func = (void *)cr_free_data,
@@ -454,6 +456,8 @@ static int cr_config(oconfig_item_t *ci) {
 
     if (strcasecmp("Router", child->key) == 0)
       cr_config_router(child);
+    else if (strcasecmp("Interval", child->key) == 0)
+      cf_util_get_cdtime(child, &interval);
     else {
       WARNING("routeros plugin: Unknown config option `%s'.", child->key);
     }

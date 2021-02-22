@@ -91,6 +91,8 @@ struct rdt_ctx_s {
 };
 typedef struct rdt_ctx_s rdt_ctx_t;
 
+static cdtime_t interval = 0;
+
 static rdt_ctx_t *g_rdt;
 
 static rdt_config_status g_state = UNKNOWN;
@@ -1174,6 +1176,10 @@ static int rdt_config(oconfig_item_t *ci) {
                        "recompile collectd with libpqos version 2.0 or newer.",
             child->key);
 #endif /* LIBPQOS2 */
+    } else if (strncasecmp("Interval", child->key,
+                           (size_t)strlen("Interval")) == 0) {
+      if (cf_util_get_cdtime(child, &interval) != 0)
+        ERROR(RDT_PLUGIN ": illegal interval \"%s\".", child->value);
     } else {
       ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
     }
@@ -1309,6 +1315,6 @@ static int rdt_shutdown(void) {
 void module_register(void) {
   plugin_register_init(RDT_PLUGIN, rdt_init);
   plugin_register_complex_config(RDT_PLUGIN, rdt_config);
-  plugin_register_complex_read(NULL, RDT_PLUGIN, rdt_read, 0, NULL);
+  plugin_register_complex_read(NULL, RDT_PLUGIN, rdt_read, interval, NULL);
   plugin_register_shutdown(RDT_PLUGIN, rdt_shutdown);
 }

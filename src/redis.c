@@ -84,6 +84,7 @@ struct redis_node_s {
 };
 
 static bool redis_have_instances;
+static cdtime_t interval = 0;
 static int redis_read(user_data_t *user_data);
 
 static void redis_node_free(void *arg) {
@@ -121,7 +122,7 @@ static int redis_node_add(redis_node_t *rn) /* {{{ */
       /* group = */ "redis",
       /* name      = */ cb_name,
       /* callback  = */ redis_read,
-      /* interval  = */ 0,
+      /* interval  = */ interval,
       &(user_data_t){
           .data = rn,
           .free_func = redis_node_free,
@@ -264,6 +265,8 @@ static int redis_config(oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp("Node", option->key) == 0)
       redis_config_node(option);
+    else if (strcasecmp("Interval", option->key) == 0)
+      cf_util_get_cdtime(option, &interval);
     else
       WARNING("redis plugin: Option `%s' not allowed in redis"
               " configuration. It will be ignored.",

@@ -90,6 +90,8 @@ typedef struct logparser_ctx_s {
   size_t parsers_len;
 } logparser_ctx_t;
 
+static cdtime_t interval = 0;
+
 static logparser_ctx_t logparser_ctx;
 
 static int logparser_shutdown(void);
@@ -203,6 +205,8 @@ static int logparser_config_match(oconfig_item_t *ci, log_parser_t *parser) {
       ret = cf_util_get_string(child, &pattern->excluderegex);
     else if (strcasecmp("IsMandatory", child->key) == 0)
       ret = cf_util_get_boolean(child, &pattern->is_mandatory);
+    else if (strcasecmp("Interval", child->key) == 0)
+      ret = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp(LOGPARSER_PLUGIN_INST_STR, child->key) == 0)
       ret = logparser_config_msg_item_type(child, &user_data,
                                            MSG_ITEM_PLUGIN_INST);
@@ -695,6 +699,6 @@ static int logparser_shutdown(void) {
 void module_register(void) {
   plugin_register_complex_config(PLUGIN_NAME, logparser_config);
   plugin_register_init(PLUGIN_NAME, logparser_init);
-  plugin_register_complex_read(NULL, PLUGIN_NAME, logparser_read, 0, NULL);
+  plugin_register_complex_read(NULL, PLUGIN_NAME, logparser_read, interval, NULL);
   plugin_register_shutdown(PLUGIN_NAME, logparser_shutdown);
 }

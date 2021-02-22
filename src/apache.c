@@ -33,6 +33,8 @@
 
 enum server_enum { APACHE = 0, LIGHTTPD };
 
+static cdtime_t interval = 0;
+
 struct apache_s {
   int server_type;
   char *name;
@@ -145,6 +147,7 @@ static size_t apache_header_callback(void *buf, size_t size, size_t nmemb,
 
 /* Configuration handling functiions
  * <Plugin apache>
+ *   <Interval interval>
  *   <Instance "instance_name">
  *     URL ...
  *   </Instance>
@@ -222,7 +225,7 @@ static int config_add(oconfig_item_t *ci) {
       /* group = */ NULL,
       /* name      = */ callback_name,
       /* callback  = */ apache_read_host,
-      /* interval  = */ 0,
+      /* interval  = */ interval,
       &(user_data_t){
           .data = st,
           .free_func = apache_free,
@@ -235,6 +238,8 @@ static int config(oconfig_item_t *ci) {
 
     if (strcasecmp("Instance", child->key) == 0)
       config_add(child);
+    else if (strcasecmp("Interval", child->key) == 0)
+      cf_util_get_cdtime(child, &interval);
     else
       WARNING("apache plugin: The configuration option "
               "\"%s\" is not allowed here. Did you "

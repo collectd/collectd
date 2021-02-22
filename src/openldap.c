@@ -57,6 +57,8 @@ struct cldap_s /* {{{ */
 };
 typedef struct cldap_s cldap_t; /* }}} */
 
+static cdtime_t interval = 0;
+
 static void cldap_free(void *arg) /* {{{ */
 {
   cldap_t *st = arg;
@@ -470,7 +472,7 @@ static int cldap_config_add(oconfig_item_t *ci) /* {{{ */
   return plugin_register_complex_read(/* group = */ NULL,
                                       /* name      = */ callback_name,
                                       /* callback  = */ cldap_read_host,
-                                      /* interval  = */ 0,
+                                      /* interval  = */ interval,
                                       &(user_data_t){
                                           .data = st,
                                           .free_func = cldap_free,
@@ -486,6 +488,8 @@ static int cldap_config(oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp("Instance", child->key) == 0)
       cldap_config_add(child);
+    else if (strcasecmp("Interval", child->key) == 0)
+      cf_util_get_cdtime(child, &interval);
     else
       WARNING("openldap plugin: The configuration option "
               "\"%s\" is not allowed here. Did you "

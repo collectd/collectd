@@ -82,6 +82,7 @@ struct vpn_status_s {
 };
 typedef struct vpn_status_s vpn_status_t;
 
+static cdtime_t interval = 0;
 static bool new_naming_schema;
 static bool collect_compression = true;
 static bool collect_user_count;
@@ -90,7 +91,8 @@ static bool collect_individual_users = true;
 static const char *config_keys[] = {
     "StatusFile",           "Compression", /* old, deprecated name */
     "ImprovedNamingSchema", "CollectCompression",
-    "CollectUserCount",     "CollectIndividualUsers"};
+    "CollectUserCount",     "CollectIndividualUsers",
+    "Interval"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /* Helper function
@@ -516,7 +518,7 @@ static int openvpn_config(const char *key, const char *value) {
         /* group = */ "openvpn",
         /* name      = */ callback_name,
         /* callback  = */ openvpn_read,
-        /* interval  = */ 0,
+        /* interval  = */ interval,
         &(user_data_t){
             .data = instance,
             .free_func = openvpn_free,
@@ -560,6 +562,21 @@ static int openvpn_config(const char *key, const char *value) {
     else
       collect_individual_users = true;
   } /* if (strcasecmp("CollectIndividualUsers", key) == 0) */
+  else if (strcasecmp("Interval", key) == 0) {
+    double d;
+    char *p;
+
+    if (*value == '\0') {
+      ERROR("openvpn plugin: Interval option needs a value");
+      return 1;
+    }
+    d = strtod(value, &p);
+    if (*p != '\0') {
+      ERROR("openvpn plugin: invalid Interval value %s", value);
+      return 1;
+    }
+    interval = DOUBLE_TO_CDTIME_T(d);
+  } /* if (strcasecmp("Interval", key) == 0) */
   else {
     return -1;
   }

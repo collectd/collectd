@@ -75,6 +75,8 @@ typedef struct mysql_database_s mysql_database_t; /* }}} */
 
 static int mysql_read(user_data_t *ud);
 
+static cdtime_t interval = 0;
+
 static void mysql_database_free(void *arg) /* {{{ */
 {
   mysql_database_t *db;
@@ -107,6 +109,7 @@ static void mysql_database_free(void *arg) /* {{{ */
 /* Configuration handling functions {{{
  *
  * <Plugin mysql>
+ *   <Interval 60>
  *   <Database "plugin_instance1">
  *     Host "localhost"
  *     Port 22000
@@ -224,7 +227,7 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
       sstrncpy(cb_name, "mysql", sizeof(cb_name));
 
     plugin_register_complex_read(
-        /* group = */ NULL, cb_name, mysql_read, /* interval = */ 0,
+        /* group = */ NULL, cb_name, mysql_read, interval,
         &(user_data_t){
             .data = db,
             .free_func = mysql_database_free,
@@ -248,6 +251,8 @@ static int mysql_config(oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp("Database", child->key) == 0)
       mysql_config_database(child);
+    else if (strcasecmp("Interval", child->key) == 0)
+      cf_util_get_cdtime(child, &interval);
     else
       WARNING("mysql plugin: Option \"%s\" not allowed here.", child->key);
   }

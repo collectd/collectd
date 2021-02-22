@@ -49,6 +49,7 @@
 #define PCIE_ECAP_OFFSET 0x100 /* ECAP always begin at offset 0x100 */
 
 typedef struct pcie_config_s {
+  cdtime_t interval;
   bool use_sysfs;
   bool notif_masked;
   bool persistent;
@@ -81,7 +82,7 @@ typedef struct pcie_error_s {
 } pcie_error_t;
 
 static llist_t *pcie_dev_list;
-static pcie_config_t pcie_config = {.access_dir = "", .use_sysfs = true};
+static pcie_config_t pcie_config = {.interval = 0, .access_dir = "", .use_sysfs = true};
 static pcie_fops_t pcie_fops;
 
 /* Device Error Status */
@@ -741,6 +742,8 @@ static int pcie_plugin_config(oconfig_item_t *ci) {
       status = cf_util_get_boolean(child, &pcie_config.notif_masked);
     } else if (strcasecmp("PersistentNotifications", child->key) == 0) {
       status = cf_util_get_boolean(child, &pcie_config.persistent);
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      status = cf_util_get_cdtime(child, &pcie_config.interval);
     } else {
       ERROR(PCIE_ERRORS_PLUGIN ": Invalid configuration option \"%s\".",
             child->key);
@@ -789,7 +792,7 @@ static int pcie_init(void) {
 void module_register(void) {
   plugin_register_init(PCIE_ERRORS_PLUGIN, pcie_init);
   plugin_register_complex_config(PCIE_ERRORS_PLUGIN, pcie_plugin_config);
-  plugin_register_complex_read(NULL, PCIE_ERRORS_PLUGIN, pcie_plugin_read, 0,
-                               NULL);
+  plugin_register_complex_read(NULL, PCIE_ERRORS_PLUGIN, pcie_plugin_read,
+                               pcie_config.interval, NULL);
   plugin_register_shutdown(PCIE_ERRORS_PLUGIN, pcie_shutdown);
 }

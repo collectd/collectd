@@ -19,6 +19,7 @@ collectd-lua - Documentation of collectd's C<Lua plugin>
   LoadPlugin lua
   # ...
   <Plugin lua>
+    Interval 20
     BasePath "/path/to/your/lua/scripts"
     Script "script1.lua"
     Script "script2.lua"
@@ -41,6 +42,11 @@ The minimum required Lua version is I<5.1>.
 =item B<LoadPlugin> I<Lua>
 
 Loads the Lua plugin.
+
+=item B<Interval> I<Interval>
+
+The interval (in seconds) in which scripts will be called.
+By default the global B<Interval> setting will be used.
 
 =item B<BasePath> I<Name>
 

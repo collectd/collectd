@@ -100,6 +100,8 @@ typedef struct user_config_s user_config_t; /* }}} */
 
 static bool have_instance;
 
+static cdtime_t interval = 0;
+
 static int varnish_submit(const char *plugin_instance, /* {{{ */
                           const char *category, const char *target,
                           const char *type, const char *type_instance,
@@ -1724,7 +1726,7 @@ static int varnish_init(void) /* {{{ */
       /* group = */ "varnish",
       /* name      = */ "varnish/localhost",
       /* callback  = */ varnish_read,
-      /* interval  = */ 0,
+      /* interval  = */ interval,
       &(user_data_t){
           .data = conf,
           .free_func = varnish_config_free,
@@ -1959,7 +1961,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
       /* group = */ "varnish",
       /* name      = */ callback_name,
       /* callback  = */ varnish_read,
-      /* interval  = */ 0,
+      /* interval  = */ interval,
       &(user_data_t){
           .data = conf,
           .free_func = varnish_config_free,
@@ -1977,6 +1979,8 @@ static int varnish_config(oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp("Instance", child->key) == 0)
       varnish_config_instance(child);
+    else if (strcasecmp("Interval", child->key) == 0)
+      cf_util_get_cdtime(child, &interval);
     else {
       WARNING("Varnish plugin: Ignoring unknown "
               "configuration option: \"%s\"",

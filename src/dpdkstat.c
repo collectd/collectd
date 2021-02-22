@@ -98,6 +98,8 @@ typedef enum {
 
 #define DPDK_STATS_CTX_GET(a) ((dpdk_stats_ctx_t *)dpdk_helper_priv_get(a))
 
+static cdtime_t interval = 0;
+
 dpdk_helper_ctx_t *g_hc = NULL;
 static char g_shm_name[DATA_MAX_NAME_LEN] = DPDK_STATS_NAME;
 static dpdk_stat_cfg_status g_state = DPDK_STAT_STATE_OKAY;
@@ -156,6 +158,8 @@ static int dpdk_stats_config(oconfig_item_t *ci) {
         ret = dpdk_stats_reinit_helper();
     } else if (strcasecmp("EAL", child->key) == 0)
       ret = dpdk_helper_eal_config_parse(g_hc, child);
+    else if (strcasecmp("Interval", child->key) == 0) 
+      ret = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp("PortName", child->key) != 0) {
       ERROR(DPDK_STATS_PLUGIN ": unrecognized configuration option %s",
             child->key);
@@ -517,7 +521,7 @@ static int dpdk_stats_init(void) {
 void module_register(void) {
   plugin_register_init(DPDK_STATS_PLUGIN, dpdk_stats_init);
   plugin_register_complex_config(DPDK_STATS_PLUGIN, dpdk_stats_config);
-  plugin_register_complex_read(NULL, DPDK_STATS_PLUGIN, dpdk_stats_read, 0,
-                               NULL);
+  plugin_register_complex_read(NULL, DPDK_STATS_PLUGIN, dpdk_stats_read,
+                               interval, NULL);
   plugin_register_shutdown(DPDK_STATS_PLUGIN, dpdk_stats_shutdown);
 }

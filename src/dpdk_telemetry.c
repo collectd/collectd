@@ -60,6 +60,7 @@ struct client_info {
 
 typedef struct client_info client_info_t;
 
+static cdtime_t interval = 0;
 static client_info_t client;
 static char g_client_path[BUF_SIZE];
 static char g_dpdk_path[BUF_SIZE];
@@ -77,6 +78,8 @@ static int dpdk_telemetry_config(oconfig_item_t *ci) {
                                       sizeof(g_client_path));
     } else if (strcasecmp("DpdkSocketPath", child->key) == 0) {
       ret = cf_util_get_string_buffer(child, g_dpdk_path, sizeof(g_dpdk_path));
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      ret = cf_util_get_cdtime(child, &interval);
     } else {
       ERROR(PLUGIN_NAME ": Unknown configuration parameter"
                         "\"%s\"",
@@ -392,6 +395,6 @@ static int dpdk_telemetry_init(void) {
 void module_register(void) {
   plugin_register_init(PLUGIN_NAME, dpdk_telemetry_init);
   plugin_register_complex_config(PLUGIN_NAME, dpdk_telemetry_config);
-  plugin_register_complex_read(NULL, PLUGIN_NAME, dpdk_telemetry_read, 0, NULL);
+  plugin_register_complex_read(NULL, PLUGIN_NAME, dpdk_telemetry_read, interval, NULL);
   plugin_register_shutdown(PLUGIN_NAME, dpdk_telemetry_shutdown);
 }

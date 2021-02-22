@@ -96,6 +96,8 @@ typedef struct c_ipmi_db_type_map_s c_ipmi_db_type_map_t;
 /*
  * Module global variables
  */
+
+static cdtime_t interval = 0;
 static os_handler_t *os_handler;
 static c_ipmi_instance_t *instances;
 
@@ -1174,6 +1176,10 @@ static int c_ipmi_config(oconfig_item_t *ci) {
         return status;
 
       have_instance_block = 1;
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      int status = cf_util_get_cdtime(child, &interval);
+      if (status != 0)
+        return status;
     } else if (!have_instance_block) {
       /* Non-instance option: Assume legacy configuration (without <Instance />
        * blocks) and call c_ipmi_config_add_instance with the <Plugin /> block.
@@ -1264,7 +1270,7 @@ static int c_ipmi_init(void) {
         /* group     = */ "ipmi",
         /* name      = */ callback_name,
         /* callback  = */ c_ipmi_read,
-        /* interval  = */ 0,
+        /* interval  = */ interval,
         /* user_data = */ &ud);
 
     if (status != 0) {

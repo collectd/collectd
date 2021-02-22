@@ -170,6 +170,8 @@ event_info_t g_sw_events[] = {
     {.name = "emulation-faults", .config = PERF_COUNT_SW_EMULATION_FAULTS},
 };
 
+static cdtime_t interval = 0;
+
 static intel_pmu_ctx_t g_ctx;
 
 #if COLLECT_DEBUG
@@ -329,6 +331,8 @@ static int pmu_config(oconfig_item_t *ci) {
       ret = config_cores_parse(child, &g_ctx.cores);
     } else if (strcasecmp("DispatchMultiPmu", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.dispatch_cloned_pmus);
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      ret = cf_util_get_cdtime(child, &interval);
     } else {
       ERROR(PMU_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
       ret = -1;
@@ -801,6 +805,6 @@ static int pmu_shutdown(void) {
 void module_register(void) {
   plugin_register_init(PMU_PLUGIN, pmu_init);
   plugin_register_complex_config(PMU_PLUGIN, pmu_config);
-  plugin_register_complex_read(NULL, PMU_PLUGIN, pmu_read, 0, NULL);
+  plugin_register_complex_read(NULL, PMU_PLUGIN, pmu_read, interval, NULL);
   plugin_register_shutdown(PMU_PLUGIN, pmu_shutdown);
 }
