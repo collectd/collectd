@@ -1229,6 +1229,10 @@
 #	ReportV2 false
 #	#ReportV3 false
 #	#ReportV4 false
+#	#ReportProcs "write,commit"
+#	#ReportV2Procs "write,wrcache"
+#	#ReportV3Procs "write,commit"
+#	#ReportV4Procs "write,commit"
 #</Plugin>
 
 #<Plugin nginx>
