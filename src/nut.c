@@ -178,7 +178,7 @@ static int nut_set_interval(const char *value) {
 
   errno = 0;
   d = strtod(value, NULL);
-  if (ernno == 0)
+  if (errno == 0)
     interval = DOUBLE_TO_CDTIME_T(d);
   else
     WARNING("nut plugin: The Interval option requires numeric argument. "
