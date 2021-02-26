@@ -25,9 +25,7 @@
 #include "collectd.h"
 
 #include "plugin.h"
-#include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
-#include "utils_complain.h"
 
 #if HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -42,18 +40,8 @@
 #include <linux/ethtool.h>
 #endif
 
-struct value_map_s {
-  char type[DATA_MAX_NAME_LEN];
-  char type_instance[DATA_MAX_NAME_LEN];
-};
-typedef struct value_map_s value_map_t;
-
 static char **interfaces;
 static size_t interfaces_num;
-
-static c_avl_tree_t *value_map;
-
-static bool collect_mapped_only;
 
 static int ethstat_add_interface(const oconfig_item_t *ci) /* {{{ */
 {
@@ -77,67 +65,6 @@ static int ethstat_add_interface(const oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* }}} int ethstat_add_interface */
 
-static int ethstat_add_map(const oconfig_item_t *ci) /* {{{ */
-{
-  value_map_t *map;
-  int status;
-  char *key;
-
-  if ((ci->values_num < 2) || (ci->values_num > 3) ||
-      (ci->values[0].type != OCONFIG_TYPE_STRING) ||
-      (ci->values[1].type != OCONFIG_TYPE_STRING) ||
-      ((ci->values_num == 3) && (ci->values[2].type != OCONFIG_TYPE_STRING))) {
-    ERROR("ethstat plugin: The %s option requires "
-          "two or three string arguments.",
-          ci->key);
-    return -1;
-  }
-
-  key = strdup(ci->values[0].value.string);
-  if (key == NULL) {
-    ERROR("ethstat plugin: strdup(3) failed.");
-    return ENOMEM;
-  }
-
-  map = calloc(1, sizeof(*map));
-  if (map == NULL) {
-    sfree(key);
-    ERROR("ethstat plugin: calloc failed.");
-    return ENOMEM;
-  }
-
-  sstrncpy(map->type, ci->values[1].value.string, sizeof(map->type));
-  if (ci->values_num == 3)
-    sstrncpy(map->type_instance, ci->values[2].value.string,
-             sizeof(map->type_instance));
-
-  if (value_map == NULL) {
-    value_map = c_avl_create((int (*)(const void *, const void *))strcmp);
-    if (value_map == NULL) {
-      sfree(map);
-      sfree(key);
-      ERROR("ethstat plugin: c_avl_create() failed.");
-      return -1;
-    }
-  }
-
-  status = c_avl_insert(value_map,
-                        /* key = */ key,
-                        /* value = */ map);
-  if (status != 0) {
-    if (status > 0)
-      ERROR("ethstat plugin: Multiple mappings for \"%s\".", key);
-    else
-      ERROR("ethstat plugin: c_avl_insert(\"%s\") failed.", key);
-
-    sfree(map);
-    sfree(key);
-    return -1;
-  }
-
-  return 0;
-} /* }}} int ethstat_add_map */
-
 static int ethstat_config(oconfig_item_t *ci) /* {{{ */
 {
   for (int i = 0; i < ci->children_num; i++) {
@@ -145,10 +72,6 @@ static int ethstat_config(oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp("Interface", child->key) == 0)
       ethstat_add_interface(child);
-    else if (strcasecmp("Map", child->key) == 0)
-      ethstat_add_map(child);
-    else if (strcasecmp("MappedOnly", child->key) == 0)
-      (void)cf_util_get_boolean(child, &collect_mapped_only);
     else
       WARNING("ethstat plugin: The config option \"%s\" is unknown.",
               child->key);
@@ -157,40 +80,27 @@ static int ethstat_config(oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* }}} */
 
-static void ethstat_submit_value(const char *device, const char *type_instance,
-                                 derive_t value) {
-  static c_complain_t complain_no_map = C_COMPLAIN_INIT_STATIC;
+static void ethstat_submit_value(const char *device, const char *name,
+                                 counter_t value) {
 
-  value_list_t vl = VALUE_LIST_INIT;
-  value_map_t *map = NULL;
+  char fam_name[256];
+  ssnprintf(fam_name, sizeof(fam_name), "ethstat_%s_total", name);
 
-  if (value_map != NULL)
-    c_avl_get(value_map, type_instance, (void *)&map);
+  metric_family_t fam = {
+      .name = fam_name,
+      .type = METRIC_TYPE_COUNTER,
+  };
 
-  /* If the "MappedOnly" option is specified, ignore unmapped values. */
-  if (collect_mapped_only && (map == NULL)) {
-    if (value_map == NULL)
-      c_complain(
-          LOG_WARNING, &complain_no_map,
-          "ethstat plugin: The \"MappedOnly\" option has been set to true, "
-          "but no mapping has been configured. All values will be ignored!");
-    return;
+  metric_family_append(&fam, "device", device, (value_t){.counter = value},
+                       NULL);
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("ethstat plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
   }
 
-  vl.values = &(value_t){.derive = value};
-  vl.values_len = 1;
-
-  sstrncpy(vl.plugin, "ethstat", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, device, sizeof(vl.plugin_instance));
-  if (map != NULL) {
-    sstrncpy(vl.type, map->type, sizeof(vl.type));
-    sstrncpy(vl.type_instance, map->type_instance, sizeof(vl.type_instance));
-  } else {
-    sstrncpy(vl.type, "derive", sizeof(vl.type));
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-  }
-
-  plugin_dispatch_values(&vl);
+  metric_family_metric_reset(&fam);
 }
 
 static int ethstat_read_interface(char *device) {
@@ -279,7 +189,7 @@ static int ethstat_read_interface(char *device) {
 
     DEBUG("ethstat plugin: device = \"%s\": %s = %" PRIu64, device, stat_name,
           (uint64_t)stats->data[i]);
-    ethstat_submit_value(device, stat_name, (derive_t)stats->data[i]);
+    ethstat_submit_value(device, stat_name, (counter_t)stats->data[i]);
   }
 
   close(fd);
@@ -297,20 +207,13 @@ static int ethstat_read(void) {
 }
 
 static int ethstat_shutdown(void) {
-  void *key = NULL;
-  void *value = NULL;
-
-  if (value_map == NULL)
+  if (interfaces == NULL)
     return 0;
 
-  while (c_avl_pick(value_map, &key, &value) == 0) {
-    sfree(key);
-    sfree(value);
-  }
+  for (size_t i = 0; i < interfaces_num; i++)
+    sfree(interfaces[i]);
 
-  c_avl_destroy(value_map);
-  value_map = NULL;
-
+  sfree(interfaces);
   return 0;
 }
 
