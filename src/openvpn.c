@@ -380,18 +380,19 @@ static int multi1_read(const char *name, FILE *fh) {
 
       if (new_naming_schema) {
         iostats_submit(name,              /* vpn instance */
-                       client_instance,         /* "Common Name" */
+                       client_instance,   /* "Common Name" */
                        atoll(fields[2]),  /* "Bytes Received" */
                        atoll(fields[3])); /* "Bytes Sent" */
-        connected_since_submit(name, client_instance, (gauge_t)parse_date(fields[4]));
+        connected_since_submit(name, client_instance,
+                               (gauge_t)parse_date(fields[4]));
       } else {
-        iostats_submit(client_instance,         /* "Common Name" */
+        iostats_submit(client_instance,   /* "Common Name" */
                        NULL,              /* unused when in multimode */
                        atoll(fields[2]),  /* "Bytes Received" */
                        atoll(fields[3])); /* "Bytes Sent" */
-        connected_since_submit(client_instance, NULL, (gauge_t)parse_date(fields[4]));
+        connected_since_submit(client_instance, NULL,
+                               (gauge_t)parse_date(fields[4]));
       }
-
     }
   }
 
@@ -508,7 +509,7 @@ static int multi2_read(const char *name, FILE *fh, const char *delim) {
                        atoll(fields[idx_bytes_sent])); /* "Bytes Sent"     */
 
         connected_since_submit(name, fields[idx_cname],
-                             (gauge_t)parse_date(fields[idx_bytes_sent + 1]));
+                               (gauge_t)parse_date(fields[idx_bytes_sent + 1]));
       } else {
         /* plugin inst = fields[idx_cname], type inst = "" */
         iostats_submit(fields[idx_cname], /*              "Common Name"    */
@@ -517,9 +518,8 @@ static int multi2_read(const char *name, FILE *fh, const char *delim) {
                        atoll(fields[idx_bytes_sent])); /* "Bytes Sent"     */
 
         connected_since_submit(fields[idx_cname], NULL,
-                             (gauge_t)parse_date(fields[idx_bytes_sent + 1]));
+                               (gauge_t)parse_date(fields[idx_bytes_sent + 1]));
       }
-
     }
   }
 
