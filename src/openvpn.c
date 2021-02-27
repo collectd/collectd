@@ -344,6 +344,7 @@ static int multi1_read(const char *name, FILE *fh) {
   const int max_fields = STATIC_ARRAY_SIZE(fields);
   long long sum_users = 0;
   bool found_header = false;
+  unsigned int client_count = 0;
 
   /* read the file until the "ROUTING TABLE" line is found (no more info after)
    */
@@ -372,19 +373,25 @@ static int multi1_read(const char *name, FILE *fh) {
     }
 
     if (collect_individual_users) {
+
+      char client_instance[64];
+      sprintf(client_instance, "%s-%u", fields[0], client_count);
+      client_count++;
+
       if (new_naming_schema) {
         iostats_submit(name,              /* vpn instance */
-                       fields[0],         /* "Common Name" */
+                       client_instance,         /* "Common Name" */
                        atoll(fields[2]),  /* "Bytes Received" */
                        atoll(fields[3])); /* "Bytes Sent" */
+        connected_since_submit(name, client_instance, (gauge_t)parse_date(fields[4]));
       } else {
-        iostats_submit(fields[0],         /* "Common Name" */
+        iostats_submit(client_instance,         /* "Common Name" */
                        NULL,              /* unused when in multimode */
                        atoll(fields[2]),  /* "Bytes Received" */
                        atoll(fields[3])); /* "Bytes Sent" */
+        connected_since_submit(client_instance, NULL, (gauge_t)parse_date(fields[4]));
       }
 
-      connected_since_submit(fields[0], NULL, (gauge_t)parse_date(fields[4]));
     }
   }
 
@@ -499,16 +506,20 @@ static int multi2_read(const char *name, FILE *fh, const char *delim) {
                        fields[idx_cname],              /* "Common Name"    */
                        atoll(fields[idx_bytes_recv]),  /* "Bytes Received" */
                        atoll(fields[idx_bytes_sent])); /* "Bytes Sent"     */
+
+        connected_since_submit(name, fields[idx_cname],
+                             (gauge_t)parse_date(fields[idx_bytes_sent + 1]));
       } else {
         /* plugin inst = fields[idx_cname], type inst = "" */
         iostats_submit(fields[idx_cname], /*              "Common Name"    */
                        NULL,              /* unused when in multimode      */
                        atoll(fields[idx_bytes_recv]),  /* "Bytes Received" */
                        atoll(fields[idx_bytes_sent])); /* "Bytes Sent"     */
+
+        connected_since_submit(fields[idx_cname], NULL,
+                             (gauge_t)parse_date(fields[idx_bytes_sent + 1]));
       }
 
-      connected_since_submit(fields[0], NULL,
-                             (gauge_t)parse_date(fields[idx_bytes_sent + 1]));
     }
   }
 
