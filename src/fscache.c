@@ -27,6 +27,9 @@
 #include <stdlib.h> /* used for atoi */
 #include <string.h> /* a header needed for scanf function */
 
+/* generated form fscache.gperf */
+#include "fscache.h"
+
 #if !KERNEL_LINUX
 #error "This module only supports the Linux implementation of fscache"
 #endif
@@ -36,121 +39,65 @@
 /*
 see /proc/fs/fscache/stats
 see Documentation/filesystems/caching/fscache.txt in linux kernel >= 2.6.30
-
-This shows counts of a number of events that can happen in FS-Cache:
-
-CLASS   EVENT   MEANING
-======= ======= =======================================================
-Cookies idx=N   Number of index cookies allocated
-        dat=N   Number of data storage cookies allocated
-        spc=N   Number of special cookies allocated
-Objects alc=N   Number of objects allocated
-        nal=N   Number of object allocation failures
-        avl=N   Number of objects that reached the available state
-        ded=N   Number of objects that reached the dead state
-ChkAux  non=N   Number of objects that didn't have a coherency check
-        ok=N    Number of objects that passed a coherency check
-        upd=N   Number of objects that needed a coherency data update
-        obs=N   Number of objects that were declared obsolete
-Pages   mrk=N   Number of pages marked as being cached
-        unc=N   Number of uncache page requests seen
-Acquire n=N Number of acquire cookie requests seen
-        nul=N   Number of acq reqs given a NULL parent
-        noc=N   Number of acq reqs rejected due to no cache available
-        ok=N    Number of acq reqs succeeded
-        nbf=N   Number of acq reqs rejected due to error
-        oom=N   Number of acq reqs failed on ENOMEM
-Lookups n=N Number of lookup calls made on cache backends
-        neg=N   Number of negative lookups made
-        pos=N   Number of positive lookups made
-        crt=N   Number of objects created by lookup
-Updates n=N Number of update cookie requests seen
-        nul=N   Number of upd reqs given a NULL parent
-        run=N   Number of upd reqs granted CPU time
-Relinqs n=N Number of relinquish cookie requests seen
-        nul=N   Number of rlq reqs given a NULL parent
-        wcr=N   Number of rlq reqs waited on completion of creation
-AttrChg n=N Number of attribute changed requests seen
-        ok=N    Number of attr changed requests queued
-        nbf=N   Number of attr changed rejected -ENOBUFS
-        oom=N   Number of attr changed failed -ENOMEM
-        run=N   Number of attr changed ops given CPU time
-Allocs  n=N Number of allocation requests seen
-        ok=N    Number of successful alloc reqs
-        wt=N    Number of alloc reqs that waited on lookup completion
-        nbf=N   Number of alloc reqs rejected -ENOBUFS
-        ops=N   Number of alloc reqs submitted
-        owt=N   Number of alloc reqs waited for CPU time
-Retrvls n=N Number of retrieval (read) requests seen
-        ok=N    Number of successful retr reqs
-        wt=N    Number of retr reqs that waited on lookup completion
-        nod=N   Number of retr reqs returned -ENODATA
-        nbf=N   Number of retr reqs rejected -ENOBUFS
-        int=N   Number of retr reqs aborted -ERESTARTSYS
-        oom=N   Number of retr reqs failed -ENOMEM
-        ops=N   Number of retr reqs submitted
-        owt=N   Number of retr reqs waited for CPU time
-Stores  n=N Number of storage (write) requests seen
-        ok=N    Number of successful store reqs
-        agn=N   Number of store reqs on a page already pending storage
-        nbf=N   Number of store reqs rejected -ENOBUFS
-        oom=N   Number of store reqs failed -ENOMEM
-        ops=N   Number of store reqs submitted
-        run=N   Number of store reqs granted CPU time
-Ops pend=N  Number of times async ops added to pending queues
-        run=N   Number of times async ops given CPU time
-        enq=N   Number of times async ops queued for processing
-        dfr=N   Number of async ops queued for deferred release
-        rel=N   Number of async ops released
-        gc=N    Number of deferred-release async ops garbage collected
-
-63 events to collect in 13 groups
 */
-static void fscache_submit(const char *section, const char *name,
-                           value_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
+static void fscache_submit(const struct fscache_metric *m, counter_t value) {
+  metric_family_t fam = {
+      .name = m->name,
+      .type = m->type,
+      .help = m->help,
+  };
 
-  vl.values = &value;
-  vl.values_len = 1;
+  metric_t metric = {0};
 
-  sstrncpy(vl.plugin, "fscache", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, section, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "fscache_stat", sizeof(vl.type));
-  sstrncpy(vl.type_instance, name, sizeof(vl.type_instance));
+  if (fam.type == METRIC_TYPE_COUNTER)
+    metric.value.counter = value;
+  else
+    metric.value.gauge = value;
 
-  plugin_dispatch_values(&vl);
+  metric_family_metric_append(&fam, metric);
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("fscache plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 }
 
 static void fscache_read_stats_file(FILE *fh) {
-  char section[DATA_MAX_NAME_LEN];
-  size_t section_len;
-
   char linebuffer[BUFSIZE];
-
   /*
    *  cat /proc/fs/fscache/stats
    *      FS-Cache statistics
-   *      Cookies: idx=2 dat=0 spc=0
+   *      Cookies: idx=0 dat=0 spc=0
    *      Objects: alc=0 nal=0 avl=0 ded=0
    *      ChkAux : non=0 ok=0 upd=0 obs=0
    *      Pages  : mrk=0 unc=0
-   *      Acquire: n=2 nul=0 noc=0 ok=2 nbf=0 oom=0
-   *      Lookups: n=0 neg=0 pos=0 crt=0
+   *      Acquire: n=0 nul=0 noc=0 ok=0 nbf=0 oom=0
+   *      Lookups: n=0 neg=0 pos=0 crt=0 tmo=0
+   *      Invals : n=0 run=0
    *      Updates: n=0 nul=0 run=0
-   *      Relinqs: n=0 nul=0 wcr=0
+   *      Relinqs: n=0 nul=0 wcr=0 rtr=0
    *      AttrChg: n=0 ok=0 nbf=0 oom=0 run=0
-   *      Allocs : n=0 ok=0 wt=0 nbf=0
-   *      Allocs : ops=0 owt=0
+   *      Allocs : n=0 ok=0 wt=0 nbf=0 int=0
+   *      Allocs : ops=0 owt=0 abt=0
    *      Retrvls: n=0 ok=0 wt=0 nod=0 nbf=0 int=0 oom=0
-   *      Retrvls: ops=0 owt=0
+   *      Retrvls: ops=0 owt=0 abt=0
    *      Stores : n=0 ok=0 agn=0 nbf=0 oom=0
-   *      Stores : ops=0 run=0
-   *      Ops    : pend=0 run=0 enq=0
-   *      Ops    : dfr=0 rel=0 gc=0
+   *      Stores : ops=0 run=0 pgs=0 rxd=0 olm=0
+   *      VmScan : nos=0 gon=0 bsy=0 can=0 wt=0
+   *      Ops    : pend=0 run=0 enq=0 can=0 rej=0
+   *      Ops    : ini=0 dfr=0 rel=0 gc=0
+   *      CacheOp: alo=0 luo=0 luc=0 gro=0
+   *      CacheOp: inv=0 upo=0 dro=0 pto=0 atc=0 syn=0
+   *      CacheOp: rap=0 ras=0 alp=0 als=0 wrp=0 ucp=0 dsp=0
+   *      CacheEv: nsp=0 stl=0 rtr=0 cul=0
    */
 
   /* Read file line by line */
   while (fgets(linebuffer, sizeof(linebuffer), fh) != NULL) {
+    char section[DATA_MAX_NAME_LEN];
     char *lineptr;
     char *fields[32];
     int fields_num;
@@ -164,7 +111,7 @@ static void fscache_read_stats_file(FILE *fh) {
 
     /* Copy and clean up the section name */
     sstrncpy(section, linebuffer, sizeof(section));
-    section_len = strlen(section);
+    size_t section_len = strlen(section);
     while ((section_len > 0) && isspace((int)section[section_len - 1])) {
       section_len--;
       section[section_len] = 0;
@@ -189,13 +136,25 @@ static void fscache_read_stats_file(FILE *fh) {
       if (field_value_str == NULL)
         continue;
       *field_value_str = 0;
+      size_t field_name_len = field_value_str - field_name;
       field_value_str++;
 
-      status = parse_value(field_value_str, &field_value_cnt, DS_TYPE_DERIVE);
-      if (status != 0)
-        continue;
+      sstrncpy(section + section_len, field_name,
+               sizeof(section) - section_len);
+      const struct fscache_metric *m =
+          fscache_get_key(section, section_len + field_name_len);
+      if (m != NULL) {
 
-      fscache_submit(section, field_name, field_value_cnt);
+        status =
+            parse_value(field_value_str, &field_value_cnt, DS_TYPE_COUNTER);
+        if (status != 0)
+          continue;
+
+        fscache_submit(m, field_value_cnt.counter);
+      } else {
+        DEBUG("fscache plugin: metric not found for: %.*s %s", (int)section_len,
+              section, field_name);
+      }
     }
   } /* while (fgets) */
 } /* void fscache_read_stats_file */
@@ -206,9 +165,8 @@ static int fscache_read(void) {
   if (fh != NULL) {
     fscache_read_stats_file(fh);
     fclose(fh);
-
   } else {
-    printf("cant open file\n");
+    ERROR("fscache plugin: cant open file /proc/fs/fscache/stats");
     return -1;
   }
   return 0;
