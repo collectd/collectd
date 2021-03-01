@@ -3,18 +3,10 @@ on:
   - push
   - pull_request
 jobs:
-  buildtest::
+  buildtest:
     name: Build Check
     strategy:
       fail-fast: false
-      matrix:
-        label:
-          - "GCC"
-          - "Clang"
-      include:
-        - label: "Clang"
-          CC: clang
-          CXX: clang++
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
