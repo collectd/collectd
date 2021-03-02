@@ -147,7 +147,7 @@ static size_t apache_header_callback(void *buf, size_t size, size_t nmemb,
 
 /* Configuration handling functiions
  * <Plugin apache>
- *   <Interval interval>
+ *   Interval 60
  *   <Instance "instance_name">
  *     URL ...
  *   </Instance>

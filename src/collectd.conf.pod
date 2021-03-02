@@ -984,7 +984,7 @@ C<E<lt>InstanceE<nbsp>/E<gt>> block requires one string argument
 as the instance name. For example:
 
  <Plugin "apache">
-   <Interval 60>
+   Interval 60
    <Instance "www1">
      URL "http://www1.example.com/mod_status?auto"
    </Instance>

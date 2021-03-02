@@ -109,7 +109,7 @@ static void mysql_database_free(void *arg) /* {{{ */
 /* Configuration handling functions {{{
  *
  * <Plugin mysql>
- *   <Interval 60>
+ *   Interval 60
  *   <Database "plugin_instance1">
  *     Host "localhost"
  *     Port 22000
