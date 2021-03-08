@@ -108,11 +108,15 @@ typedef struct mb_data_s mb_data_t;
 struct mb_data_s /* {{{ */
 {
   char *name;
+
+  char *metric;
+  char *help;
+  metric_type_t type;
+  label_set_t labels;
+
   int register_base;
   mb_register_type_t register_type;
   mb_mreg_type_t modbus_register_type;
-  char type[DATA_MAX_NAME_LEN];
-  char instance[DATA_MAX_NAME_LEN];
   double scale;
   double shift;
 
@@ -122,8 +126,11 @@ struct mb_data_s /* {{{ */
 struct mb_slave_s /* {{{ */
 {
   int id;
-  char instance[DATA_MAX_NAME_LEN];
-  mb_data_t *collect;
+  char *metric_prefix;
+  label_set_t labels;
+  mb_data_t **collect;
+  size_t collect_num;
+
 }; /* }}} */
 typedef struct mb_slave_s mb_slave_t;
 
@@ -139,6 +146,9 @@ struct mb_host_s /* {{{ */
 
   mb_slave_t *slaves;
   size_t slaves_num;
+
+  char *metric_prefix;
+  label_set_t labels;
 
 #if LEGACY_LIBMODBUS
   modbus_param_t connection;
@@ -201,75 +211,80 @@ static int data_append(mb_data_t **dst, mb_data_t *src) /* {{{ */
   return 0;
 } /* }}} int data_append */
 
-/* Copy a single mb_data_t and append it to another list. */
-static int data_copy(mb_data_t **dst, const mb_data_t *src) /* {{{ */
-{
-  mb_data_t *tmp;
-  int status;
-
-  if ((dst == NULL) || (src == NULL))
-    return EINVAL;
-
-  tmp = malloc(sizeof(*tmp));
-  if (tmp == NULL)
-    return ENOMEM;
-  memcpy(tmp, src, sizeof(*tmp));
-  tmp->name = NULL;
-  tmp->next = NULL;
-
-  tmp->name = strdup(src->name);
-  if (tmp->name == NULL) {
-    sfree(tmp);
-    return ENOMEM;
-  }
-
-  status = data_append(dst, tmp);
-  if (status != 0) {
-    sfree(tmp->name);
-    sfree(tmp);
-    return status;
-  }
-
-  return 0;
-} /* }}} int data_copy */
-
 /* Lookup a single mb_data_t instance, copy it and append the copy to another
  * list. */
-static int data_copy_by_name(mb_data_t **dst, mb_data_t *src, /* {{{ */
+static int slave_append_data(mb_slave_t *slave, mb_data_t *src, /* {{{ */
                              const char *name) {
-  mb_data_t *ptr;
-
-  if ((dst == NULL) || (src == NULL) || (name == NULL))
+  if ((slave == NULL) || (src == NULL) || (name == NULL))
     return EINVAL;
 
-  ptr = data_get_by_name(src, name);
+  mb_data_t *ptr = data_get_by_name(src, name);
   if (ptr == NULL)
     return ENOENT;
 
-  return data_copy(dst, ptr);
-} /* }}} int data_copy_by_name */
+  mb_data_t **tmp = realloc(slave->collect, (slave->collect_num+1)*(sizeof(**tmp)));
+  if (tmp == NULL)
+    return ENOMEM;
+
+  slave->collect = tmp;
+  slave->collect[slave->collect_num] = ptr;
+  slave->collect_num++;
+
+  return 0;
+} /* }}} int slave_append_data */
 
 /* Read functions */
 
 static int mb_submit(mb_host_t *host, mb_slave_t *slave, /* {{{ */
                      mb_data_t *data, value_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
   if ((host == NULL) || (slave == NULL) || (data == NULL))
     return EINVAL;
 
-  if (slave->instance[0] == 0)
-    ssnprintf(slave->instance, sizeof(slave->instance), "slave_%i", slave->id);
+  strbuf_t buf = STRBUF_CREATE;
 
-  vl.values = &value;
-  vl.values_len = 1;
-  sstrncpy(vl.host, host->host, sizeof(vl.host));
-  sstrncpy(vl.plugin, "modbus", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, slave->instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, data->type, sizeof(vl.type));
-  sstrncpy(vl.type_instance, data->instance, sizeof(vl.type_instance));
+  metric_family_t fam = {0};
+  fam.type = data->type;
+  fam.help = data->help;
 
-  return plugin_dispatch_values(&vl);
+  if (host->metric_prefix != NULL)
+    strbuf_print(&buf, host->metric_prefix);
+
+  if (slave->metric_prefix != NULL)
+    strbuf_print(&buf, slave->metric_prefix);
+
+  strbuf_print(&buf, data->metric);
+
+  fam.name = buf.ptr;
+  metric_t m = {0};
+
+  for (size_t i = 0; i < host->labels.num; i++) {
+    metric_label_set(&m, host->labels.ptr[i].name, host->labels.ptr[i].value);
+  }
+  for (size_t i = 0; i < slave->labels.num; i++) {
+    metric_label_set(&m, slave->labels.ptr[i].name, slave->labels.ptr[i].value);
+  }
+  for (size_t i = 0; i < data->labels.num; i++) {
+    metric_label_set(&m, data->labels.ptr[i].name, data->labels.ptr[i].value);
+  }
+
+  char buffer[24];
+  ssnprintf(buffer, sizeof(buffer), "%i", slave->id);
+  metric_label_set(&m, "slave", buffer);
+
+  metric_label_set(&m, "host", host->host);
+  m.value = value;
+  metric_family_metric_append(&fam, m);
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("modbus plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_reset(&m);
+  metric_family_metric_reset(&fam);
+  STRBUF_DESTROY(buf);
+  return 0;
 } /* }}} int mb_submit */
 
 static float mb_register_to_float(uint16_t hi, uint16_t lo) /* {{{ */
@@ -414,52 +429,22 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
 } /* }}} int mb_init_connection */
 #endif /* !LEGACY_LIBMODBUS */
 
-#define CAST_TO_VALUE_T(ds, vt, raw, scale, shift)                             \
+#define CAST_TO_VALUE_T(d, vt, raw, scale, shift)                              \
   do {                                                                         \
-    if ((ds)->ds[0].type == DS_TYPE_COUNTER)                                   \
+    if ((d)->type == METRIC_TYPE_COUNTER)                                      \
       (vt).counter = (((counter_t)(raw)*scale) + shift);                       \
-    else if ((ds)->ds[0].type == DS_TYPE_GAUGE)                                \
+    else                                                                       \
       (vt).gauge = (((gauge_t)(raw)*scale) + shift);                           \
-    else if ((ds)->ds[0].type == DS_TYPE_DERIVE)                               \
-      (vt).derive = (((derive_t)(raw)*scale) + shift);                         \
   } while (0)
 
 static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
                         mb_data_t *data) {
   uint16_t values[4] = {0};
   int values_num;
-  const data_set_t *ds;
   int status = 0;
 
   if ((host == NULL) || (slave == NULL) || (data == NULL))
     return EINVAL;
-
-  ds = plugin_get_ds(data->type);
-  if (ds == NULL) {
-    ERROR("Modbus plugin: Type \"%s\" is not defined.", data->type);
-    return -1;
-  }
-
-  if (ds->ds_num != 1) {
-    ERROR("Modbus plugin: The type \"%s\" has %" PRIsz " data sources. "
-          "I can only handle data sets with only one data source.",
-          data->type, ds->ds_num);
-    return -1;
-  }
-
-  if ((ds->ds[0].type != DS_TYPE_GAUGE) &&
-      (data->register_type != REG_TYPE_INT32) &&
-      (data->register_type != REG_TYPE_INT32_CDAB) &&
-      (data->register_type != REG_TYPE_UINT32) &&
-      (data->register_type != REG_TYPE_UINT32_CDAB) &&
-      (data->register_type != REG_TYPE_INT64) &&
-      (data->register_type != REG_TYPE_UINT64)) {
-    NOTICE(
-        "Modbus plugin: The data source of type \"%s\" is %s, not gauge. "
-        "This will most likely result in problems, because the register type "
-        "is not UINT32 or UINT64.",
-        data->type, DS_TYPE_TO_STRING(ds->ds[0].type));
-  }
 
   if ((data->register_type == REG_TYPE_INT32) ||
       (data->register_type == REG_TYPE_INT32_CDAB) ||
@@ -555,7 +540,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned float value is %g",
           (double)float_value);
 
-    CAST_TO_VALUE_T(ds, vt, float_value, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, float_value, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_FLOAT_CDAB) {
     float float_value;
@@ -566,7 +551,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned float value is %g",
           (double)float_value);
 
-    CAST_TO_VALUE_T(ds, vt, float_value, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, float_value, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT32) {
     union {
@@ -580,7 +565,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned int32 value is %" PRIi32,
           v.i32);
 
-    CAST_TO_VALUE_T(ds, vt, v.i32, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, v.i32, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT32_CDAB) {
     union {
@@ -594,7 +579,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned int32 value is %" PRIi32,
           v.i32);
 
-    CAST_TO_VALUE_T(ds, vt, v.i32, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, v.i32, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT16) {
     union {
@@ -609,7 +594,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned int16 value is %" PRIi16,
           v.i16);
 
-    CAST_TO_VALUE_T(ds, vt, v.i16, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, v.i16, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_UINT32) {
     uint32_t v32;
@@ -620,7 +605,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned uint32 value is %" PRIu32,
           v32);
 
-    CAST_TO_VALUE_T(ds, vt, v32, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, v32, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_UINT32_CDAB) {
     uint32_t v32;
@@ -631,7 +616,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned uint32 value is %" PRIu32,
           v32);
 
-    CAST_TO_VALUE_T(ds, vt, v32, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, v32, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_UINT64) {
     uint64_t v64;
@@ -643,7 +628,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned uint64 value is %" PRIu64,
           v64);
 
-    CAST_TO_VALUE_T(ds, vt, v64, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, v64, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT64) {
     union {
@@ -658,7 +643,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned uint64 value is %" PRIi64,
           v.i64);
 
-    CAST_TO_VALUE_T(ds, vt, v.i64, data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, v.i64, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else /* if (data->register_type == REG_TYPE_UINT16) */
   {
@@ -668,7 +653,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned uint16 value is %" PRIu16,
           values[0]);
 
-    CAST_TO_VALUE_T(ds, vt, values[0], data->scale, data->shift);
+    CAST_TO_VALUE_T(data, vt, values[0], data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   }
 
@@ -684,7 +669,8 @@ static int mb_read_slave(mb_host_t *host, mb_slave_t *slave) /* {{{ */
     return EINVAL;
 
   success = 0;
-  for (mb_data_t *data = slave->collect; data != NULL; data = data->next) {
+  for (size_t i=0; i < slave->collect_num; i++) {
+    mb_data_t *data = slave->collect[i];
     status = mb_read_data(host, slave, data);
     if (status == 0)
       success++;
@@ -728,6 +714,9 @@ static void data_free_one(mb_data_t *data) /* {{{ */
     return;
 
   sfree(data->name);
+  sfree(data->metric);
+  sfree(data->help);
+  label_set_reset(&data->labels);
   sfree(data);
 } /* }}} void data_free_one */
 
@@ -740,19 +729,18 @@ static void data_free_all(mb_data_t *data) /* {{{ */
 
   next = data->next;
   data_free_one(data);
-
   data_free_all(next);
 } /* }}} void data_free_all */
 
-static void slaves_free_all(mb_slave_t *slaves, size_t slaves_num) /* {{{ */
+static void slave_free(mb_slave_t *slave) /* {{{ */
 {
-  if (slaves == NULL)
+  if (slave == NULL)
     return;
 
-  for (size_t i = 0; i < slaves_num; i++)
-    data_free_all(slaves[i].collect);
-  sfree(slaves);
-} /* }}} void slaves_free_all */
+  sfree(slave->metric_prefix);
+  label_set_reset(&slave->labels);
+  sfree(slave->collect);
+} /* }}} void slave_free */
 
 static void host_free(void *void_host) /* {{{ */
 {
@@ -761,7 +749,21 @@ static void host_free(void *void_host) /* {{{ */
   if (host == NULL)
     return;
 
-  slaves_free_all(host->slaves, host->slaves_num);
+  sfree(host->metric_prefix);
+  label_set_reset(&host->labels);
+  for (size_t i=0; i < host->slaves_num; i++) {
+    slave_free(&host->slaves[i]);
+  }
+  sfree(host->slaves);
+  if (host->connection != NULL) {
+#if LEGACY_LIBMODBUS
+    modbus_close(&host->connection);
+#else
+    modbus_close(host->connection);
+    modbus_free(host->connection);
+#endif
+  }
+
   sfree(host);
 } /* }}} void host_free */
 
@@ -769,58 +771,67 @@ static void host_free(void *void_host) /* {{{ */
 
 static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
 {
-  mb_data_t data = {0};
   int status;
 
-  data.name = NULL;
-  data.register_type = REG_TYPE_UINT16;
-  data.next = NULL;
-  data.scale = 1;
-  data.shift = 0;
+  mb_data_t *data = calloc(1, sizeof(*data));
+  if (data == NULL) {
+    ERROR("Modbus plugin: mb_config_add_data calloc failed");
+    return -1;
+  }
+  data->register_type = REG_TYPE_UINT16;
+  data->scale = 1;
+  data->shift = 0;
+  data->type = METRIC_TYPE_UNTYPED;
 
-  status = cf_util_get_string(ci, &data.name);
-  if (status != 0)
+  status = cf_util_get_string(ci, &data->name);
+  if (status != 0) {
+    data_free_one(data);
     return status;
+  }
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("Type", child->key) == 0)
-      status = cf_util_get_string_buffer(child, data.type, sizeof(data.type));
-    else if (strcasecmp("Instance", child->key) == 0)
-      status = cf_util_get_string_buffer(child, data.instance,
-                                         sizeof(data.instance));
+
+    if (strcasecmp("Metric", child->key) == 0)
+      status = cf_util_get_string(child, &data->metric);
+    else if (strcasecmp("Label", child->key) == 0)
+      status = cf_util_get_label(child, &data->labels);
+    else if (strcasecmp("Type", child->key) == 0)
+      status = cf_util_get_metric_type(child, &data->type);
+    else if (strcasecmp("Help", child->key) == 0)
+      status = cf_util_get_string(child, &data->help);
     else if (strcasecmp("Scale", child->key) == 0)
-      status = cf_util_get_double(child, &data.scale);
+      status = cf_util_get_double(child, &data->scale);
     else if (strcasecmp("Shift", child->key) == 0)
-      status = cf_util_get_double(child, &data.shift);
+      status = cf_util_get_double(child, &data->shift);
     else if (strcasecmp("RegisterBase", child->key) == 0)
-      status = cf_util_get_int(child, &data.register_base);
+      status = cf_util_get_int(child, &data->register_base);
     else if (strcasecmp("RegisterType", child->key) == 0) {
       char tmp[16];
       status = cf_util_get_string_buffer(child, tmp, sizeof(tmp));
       if (status != 0)
         /* do nothing */;
       else if (strcasecmp("Int16", tmp) == 0)
-        data.register_type = REG_TYPE_INT16;
+        data->register_type = REG_TYPE_INT16;
       else if (strcasecmp("Int32", tmp) == 0)
-        data.register_type = REG_TYPE_INT32;
+        data->register_type = REG_TYPE_INT32;
       else if (strcasecmp("Int32LE", tmp) == 0)
-        data.register_type = REG_TYPE_INT32_CDAB;
+        data->register_type = REG_TYPE_INT32_CDAB;
       else if (strcasecmp("Uint16", tmp) == 0)
-        data.register_type = REG_TYPE_UINT16;
+        data->register_type = REG_TYPE_UINT16;
       else if (strcasecmp("Uint32", tmp) == 0)
-        data.register_type = REG_TYPE_UINT32;
+        data->register_type = REG_TYPE_UINT32;
       else if (strcasecmp("Uint32LE", tmp) == 0)
-        data.register_type = REG_TYPE_UINT32_CDAB;
+        data->register_type = REG_TYPE_UINT32_CDAB;
       else if (strcasecmp("Float", tmp) == 0)
-        data.register_type = REG_TYPE_FLOAT;
+        data->register_type = REG_TYPE_FLOAT;
       else if (strcasecmp("FloatLE", tmp) == 0)
-        data.register_type = REG_TYPE_FLOAT_CDAB;
+        data->register_type = REG_TYPE_FLOAT_CDAB;
       else if (strcasecmp("Uint64", tmp) == 0)
-        data.register_type = REG_TYPE_UINT64;
+        data->register_type = REG_TYPE_UINT64;
       else if (strcasecmp("Int64", tmp) == 0)
-        data.register_type = REG_TYPE_INT64;
+        data->register_type = REG_TYPE_INT64;
       else {
         ERROR("Modbus plugin: The register type \"%s\" is unknown.", tmp);
         status = -1;
@@ -835,9 +846,9 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
       if (status != 0)
         /* do nothing */;
       else if (strcasecmp("ReadHolding", tmp) == 0)
-        data.modbus_register_type = MREG_HOLDING;
+        data->modbus_register_type = MREG_HOLDING;
       else if (strcasecmp("ReadInput", tmp) == 0)
-        data.modbus_register_type = MREG_INPUT;
+        data->modbus_register_type = MREG_INPUT;
       else {
         ERROR("Modbus plugin: The modbus_register_type \"%s\" is unknown.",
               tmp);
@@ -853,17 +864,15 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  assert(data.name != NULL);
-  if (data.type[0] == 0) {
-    ERROR("Modbus plugin: Data block \"%s\": No type has been specified.",
-          data.name);
+  assert(data->name != NULL);
+  if (data->metric[0] == 0) {
+    ERROR("Modbus plugin: Data block \"%s\": No Metric name has been specified.",
+          data->name);
     status = -1;
   }
 
   if (status == 0)
-    data_copy(&data_definitions, &data);
-
-  sfree(data.name);
+    data_append(&data_definitions, data);
 
   return status;
 } /* }}} int mb_config_add_data */
@@ -934,14 +943,15 @@ static int mb_config_add_slave(mb_host_t *host, oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("Instance", child->key) == 0)
-      status = cf_util_get_string_buffer(child, slave->instance,
-                                         sizeof(slave->instance));
+    if (strcasecmp("MetricPrefix", child->key) == 0)
+      status = cf_util_get_string(child, &slave->metric_prefix);
+    else if (strcasecmp("Label", child->key) == 0)
+      status = cf_util_get_label(child, &slave->labels);
     else if (strcasecmp("Collect", child->key) == 0) {
       char buffer[1024];
       status = cf_util_get_string_buffer(child, buffer, sizeof(buffer));
       if (status == 0)
-        data_copy_by_name(&slave->collect, data_definitions, buffer);
+        slave_append_data(slave, data_definitions, buffer);
       status = 0; /* continue after failure. */
     } else {
       ERROR("Modbus plugin: Unknown configuration option: %s", child->key);
@@ -961,7 +971,7 @@ static int mb_config_add_slave(mb_host_t *host, oconfig_item_t *ci) /* {{{ */
   if (status == 0)
     host->slaves_num++;
   else /* if (status != 0) */
-    data_free_all(slave->collect);
+    slave_free(slave);
 
   return status;
 } /* }}} int mb_config_add_slave */
@@ -991,7 +1001,11 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
     status = 0;
 
-    if (strcasecmp("Address", child->key) == 0) {
+    if (strcasecmp("MetricPrefix", child->key) == 0)
+      status = cf_util_get_string(child, &host->metric_prefix);
+    else if (strcasecmp("Label", child->key) == 0)
+      status = cf_util_get_label(child, &host->labels);
+    else if (strcasecmp("Address", child->key) == 0) {
       char buffer[NI_MAXHOST];
       status = cf_util_get_string_buffer(child, buffer, sizeof(buffer));
       if (status == 0)

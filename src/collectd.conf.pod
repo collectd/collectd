@@ -5096,8 +5096,8 @@ B<Synopsis:>
    RegisterBase 0
    RegisterType float
    RegisterCmd ReadHolding
-   Type voltage
-   Instance "input-1"
+   Metric voltage
+   Label "input" "1"
    #Scale 1.0
    #Shift 0.0
  </Data>
@@ -5106,16 +5106,16 @@ B<Synopsis:>
    RegisterBase 2
    RegisterType float
    RegisterCmd ReadHolding
-   Type voltage
-   Instance "input-2"
+   Metric voltage
+   Label "input" "2"
  </Data>
 
  <Data "supply-temperature-1">
    RegisterBase 0
    RegisterType Int16
    RegisterCmd ReadHolding
-   Type temperature
-   Instance "temp-1"
+   Metric temperature
+   Label "temp" "1"
  </Data>
 
  <Host "modbus.example.com">
@@ -5124,7 +5124,7 @@ B<Synopsis:>
    Interval 60
 
    <Slave 1>
-     Instance "power-supply"
+     MetricPrefix "power_supply_"
      Collect  "voltage-input-1"
      Collect  "voltage-input-2"
    </Slave>
@@ -5136,7 +5136,6 @@ B<Synopsis:>
    Interval 20
 
    <Slave 1>
-     Instance "temperature"
      Collect  "supply-temperature-1"
    </Slave>
  </Host>
@@ -5180,16 +5179,24 @@ B<RegisterBase+3> will be read and the data combined into one
 Specifies register type to be collected from device. Works only with libmodbus
 2.9.2 or higher. Defaults to B<ReadHolding>.
 
-=item B<Type> I<Type>
+=item B<Metric> I<metric>
 
-Specifies the "type" (data set) to use when dispatching the value to
-I<collectd>. Currently, only data sets with exactly one data source are
-supported.
+Set the metric name.
 
-=item B<Instance> I<Instance>
+=item B<Help> I<help>
 
-Sets the type instance to use when dispatching the value to I<Instance>. If
-unset, an empty string (no type instance) is used.
+Set the B<help> text for the metric.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Data> block.
+
+=item B<Type> I<gauge>|I<counter>|I<untyped>
+
+The B<type> for the metric. Must be I<gauge>, I<counter> or I<untyped>.
+If not set is I<untyped>.
+There must be exactly one B<Type> option inside each B<Data> block.
 
 =item B<Scale> I<Value>
 
@@ -5246,6 +5253,15 @@ Available only on Linux systems with libmodbus>=2.9.4.
 Sets the interval (in seconds) in which the values will be collected from this
 host. By default the global B<Interval> setting will be used.
 
+=item B<MetricPrefix> I<prefix>
+
+Prepends I<prefix> to the metric name in the  B<Data>.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Host> block.
+
 =item E<lt>B<Slave> I<ID>E<gt>
 
 Over each connection, multiple Modbus devices may be reached. The slave ID
@@ -5256,10 +5272,14 @@ Within E<lt>SlaveE<nbsp>/E<gt> blocks, the following options are allowed:
 
 =over 4
 
-=item B<Instance> I<Instance>
+=item B<MetricPrefix> I<prefix>
 
-Specify the plugin instance to use when dispatching the values to I<collectd>.
-By default "slave_I<ID>" is used.
+Prepends I<prefix> to the metric name in the  B<Data>.
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics. Can appear
+multiple times in the B<Slave> block.
 
 =item B<Collect> I<DataName>
 

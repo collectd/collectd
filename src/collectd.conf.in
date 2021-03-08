@@ -1041,7 +1041,7 @@
 #		RegisterCmd ReadHolding
 #		RegisterType float
 #		Type gauge
-#		Instance "..."
+#		Matric "..."
 #		#Scale 1.0
 #		#Shift 0.0
 #	</Data>
@@ -1052,7 +1052,7 @@
 #		Interval 60
 #
 #		<Slave 1>
-#			Instance "foobar" # optional
+#			Label "foo" "bar" # optional
 #			Collect "data_name"
 #		</Slave>
 #	</Host>
