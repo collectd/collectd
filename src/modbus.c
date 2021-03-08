@@ -222,7 +222,8 @@ static int slave_append_data(mb_slave_t *slave, mb_data_t *src, /* {{{ */
   if (ptr == NULL)
     return ENOENT;
 
-  mb_data_t **tmp = realloc(slave->collect, (slave->collect_num+1)*(sizeof(**tmp)));
+  mb_data_t **tmp =
+      realloc(slave->collect, (slave->collect_num + 1) * (sizeof(**tmp)));
   if (tmp == NULL)
     return ENOMEM;
 
@@ -669,7 +670,7 @@ static int mb_read_slave(mb_host_t *host, mb_slave_t *slave) /* {{{ */
     return EINVAL;
 
   success = 0;
-  for (size_t i=0; i < slave->collect_num; i++) {
+  for (size_t i = 0; i < slave->collect_num; i++) {
     mb_data_t *data = slave->collect[i];
     status = mb_read_data(host, slave, data);
     if (status == 0)
@@ -751,7 +752,7 @@ static void host_free(void *void_host) /* {{{ */
 
   sfree(host->metric_prefix);
   label_set_reset(&host->labels);
-  for (size_t i=0; i < host->slaves_num; i++) {
+  for (size_t i = 0; i < host->slaves_num; i++) {
     slave_free(&host->slaves[i]);
   }
   sfree(host->slaves);
@@ -791,7 +792,6 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
-
 
     if (strcasecmp("Metric", child->key) == 0)
       status = cf_util_get_string(child, &data->metric);
@@ -866,8 +866,9 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
 
   assert(data->name != NULL);
   if (data->metric[0] == 0) {
-    ERROR("Modbus plugin: Data block \"%s\": No Metric name has been specified.",
-          data->name);
+    ERROR(
+        "Modbus plugin: Data block \"%s\": No Metric name has been specified.",
+        data->name);
     status = -1;
   }
 
