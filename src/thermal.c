@@ -225,7 +225,6 @@ static int thermal_init(void) {
   } else if (access(dirname_procfs, R_OK | X_OK) == 0) {
     thermal_fs = THERMAL_PROCFS;
     ret = plugin_register_read("thermal", thermal_read);
-  } else {
   }
 
   return ret;
