@@ -38,26 +38,25 @@ static const char *const dirname_procfs = "/proc/acpi/thermal_zone";
 static bool force_procfs;
 static ignorelist_t *device_list;
 
+enum thermal_fs_e {
+  THERMAL_NONE = 0,
+  THERMAL_PROCFS,
+  THERMAL_SYSFS,
+};
+
+static enum thermal_fs_e thermal_fs;
+
 enum dev_type { TEMP = 0, COOLING_DEV };
 
-static void thermal_submit(const char *plugin_instance, enum dev_type dt,
-                           value_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &value;
-  vl.values_len = 1;
-
-  sstrncpy(vl.plugin, "thermal", sizeof(vl.plugin));
-  if (plugin_instance != NULL)
-    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, (dt == TEMP) ? "temperature" : "gauge", sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
-}
+enum {
+  FAM_COOLING_DEVICE_MAX_STATE = 0,
+  FAM_COOLING_DEVICE_CUR_STATE,
+  FAM_THERMAL_ZONE_CELSIUS,
+  FAM_THERMAL_MAX,
+};
 
 static int thermal_sysfs_device_read(const char __attribute__((unused)) * dir,
-                                     const char *name,
-                                     void __attribute__((unused)) * user_data) {
+                                     const char *name, void *user_data) {
   char filename[PATH_MAX];
   bool success = false;
   value_t value;
@@ -65,16 +64,27 @@ static int thermal_sysfs_device_read(const char __attribute__((unused)) * dir,
   if (device_list && ignorelist_match(device_list, name))
     return -1;
 
+  metric_family_t *fams = user_data;
+
   snprintf(filename, sizeof(filename), "%s/%s/temp", dirname_sysfs, name);
   if (parse_value_file(filename, &value, DS_TYPE_GAUGE) == 0) {
     value.gauge /= 1000.0;
-    thermal_submit(name, TEMP, value);
+    metric_family_append(&fams[FAM_THERMAL_ZONE_CELSIUS], "zone", name, value,
+                         NULL);
     success = true;
   }
 
   snprintf(filename, sizeof(filename), "%s/%s/cur_state", dirname_sysfs, name);
   if (parse_value_file(filename, &value, DS_TYPE_GAUGE) == 0) {
-    thermal_submit(name, COOLING_DEV, value);
+    metric_family_append(&fams[FAM_COOLING_DEVICE_CUR_STATE], "device", name,
+                         value, NULL);
+    success = true;
+  }
+
+  snprintf(filename, sizeof(filename), "%s/%s/max_state", dirname_sysfs, name);
+  if (parse_value_file(filename, &value, DS_TYPE_GAUGE) == 0) {
+    metric_family_append(&fams[FAM_COOLING_DEVICE_MAX_STATE], "device", name,
+                         value, NULL);
     success = true;
   }
 
@@ -82,9 +92,7 @@ static int thermal_sysfs_device_read(const char __attribute__((unused)) * dir,
 }
 
 static int thermal_procfs_device_read(const char __attribute__((unused)) * dir,
-                                      const char *name,
-                                      void __attribute__((unused)) *
-                                          user_data) {
+                                      const char *name, void *user_data) {
   const char str_temp[] = "temperature:";
   char filename[256];
   char data[1024];
@@ -93,6 +101,7 @@ static int thermal_procfs_device_read(const char __attribute__((unused)) * dir,
   if (device_list && ignorelist_match(device_list, name))
     return -1;
 
+  metric_family_t *fams = user_data;
   /**
    * rechot ~ # cat /proc/acpi/thermal_zone/THRM/temperature
    * temperature:             55 C
@@ -134,7 +143,8 @@ static int thermal_procfs_device_read(const char __attribute__((unused)) * dir,
     temp = (strtod(data + len, &endptr) + add) * factor;
 
     if (endptr != data + len && errno == 0) {
-      thermal_submit(name, TEMP, (value_t){.gauge = temp});
+      metric_family_append(&fams[FAM_THERMAL_ZONE_CELSIUS], "zone", name,
+                           (value_t){.gauge = temp}, NULL);
       return 0;
     }
   }
@@ -167,21 +177,55 @@ static int thermal_config(const char *key, const char *value) {
   return 0;
 }
 
-static int thermal_sysfs_read(void) {
-  return walk_directory(dirname_sysfs, thermal_sysfs_device_read, NULL, 0);
-}
+static int thermal_read(void) {
+  metric_family_t fams[FAM_THERMAL_MAX] = {
+      [FAM_COOLING_DEVICE_MAX_STATE] =
+          {
+              .name = "cooling_device_max_state",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_COOLING_DEVICE_CUR_STATE] =
+          {
+              .name = "cooling_device_cur_state",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_THERMAL_ZONE_CELSIUS] =
+          {
+              .name = "thermal_zone_celsius",
+              .type = METRIC_TYPE_GAUGE,
+          },
+  };
 
-static int thermal_procfs_read(void) {
-  return walk_directory(dirname_procfs, thermal_procfs_device_read, NULL, 0);
+  if (thermal_fs == THERMAL_PROCFS) {
+    walk_directory(dirname_procfs, thermal_procfs_device_read, fams, 0);
+  } else {
+    walk_directory(dirname_sysfs, thermal_sysfs_device_read, fams, 0);
+  }
+
+  for (size_t i = 0; i < FAM_THERMAL_MAX; i++) {
+    if (fams[i].metric.num > 0) {
+      int status = plugin_dispatch_metric_family(&fams[i]);
+      if (status != 0) {
+        ERROR("thremal plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(&fams[i]);
+    }
+  }
+
+  return 0;
 }
 
 static int thermal_init(void) {
   int ret = -1;
 
   if (!force_procfs && access(dirname_sysfs, R_OK | X_OK) == 0) {
-    ret = plugin_register_read("thermal", thermal_sysfs_read);
+    thermal_fs = THERMAL_SYSFS;
+    ret = plugin_register_read("thermal", thermal_read);
   } else if (access(dirname_procfs, R_OK | X_OK) == 0) {
-    ret = plugin_register_read("thermal", thermal_procfs_read);
+    thermal_fs = THERMAL_PROCFS;
+    ret = plugin_register_read("thermal", thermal_read);
+  } else {
   }
 
   return ret;
