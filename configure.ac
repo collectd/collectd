@@ -6863,9 +6863,10 @@ fi
 
 if test "x$have_protoc_c" = "xyes" && test "x$with_libprotobuf_c" = "xyes"; then
   plugin_pinba="yes"
-  if test "x$with_libmicrohttpd" = "xyes"; then
-    plugin_write_prometheus="yes"
-  fi
+fi
+
+if test "x$with_libmicrohttpd" = "xyes"; then
+  plugin_write_prometheus="yes"
 fi
 
 # Mac OS X memory interface

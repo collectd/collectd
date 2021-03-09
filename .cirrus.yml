@@ -40,7 +40,6 @@ env:
           --disable-write_graphite
           --disable-write_kafka
           --disable-write_mongodb
-          --disable-write_prometheus
           --disable-write_redis
           --disable-write_riemann
           --disable-write_sensu
