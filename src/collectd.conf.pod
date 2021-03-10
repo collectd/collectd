@@ -3824,6 +3824,47 @@ B<except> the ones matched.
 
 =back
 
+=head2 Plugin C<info>
+
+The C<info> plugin allow to define static metrics. By default sends the metric
+B<collectd_info> with the collectd version.
+
+B<Synopsis:>
+
+  <Plugin info>
+    <Metric "host_info">
+      Label "role" "web"
+    </Metric>
+  </Plugin>
+
+=over 4
+
+=item B<Metric> I<Metric>
+
+Set the metric name.
+
+The B<Metric> block can contain the following options:
+
+=item B<Label> I<key> I<value>
+
+Append the label I<Key>=I<Value> to the submitting metrics.
+Can appear multiple times.
+
+=item B<Type> I<gauge>|I<counter>|I<untyped>
+
+Defines the metric type, must be I<gauge>, I<counter> or I<untyped>. 
+If not set is I<untyped>.
+
+=item B<Help> I<help>
+
+Set the B<help> text for the metric.
+
+=item B<Value> I<value>
+
+Set the value of the metric. If not set is 1.
+
+=back
+
 =head2 Plugin C<intel_pmu>
 
 The I<intel_pmu> plugin collects performance counters data on Intel CPUs using

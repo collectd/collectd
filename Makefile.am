@@ -1152,6 +1152,12 @@ infiniband_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 infiniband_la_LIBADD = libignorelist.la
 endif
 
+if BUILD_PLUGIN_INFO
+pkglib_LTLIBRARIES += info.la
+info_la_SOURCES = src/info.c
+info_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_INTEL_PMU
 pkglib_LTLIBRARIES += intel_pmu.la
 intel_pmu_la_SOURCES = \
