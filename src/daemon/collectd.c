@@ -25,8 +25,8 @@
  *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
-#include "cmd.h"
 #include "collectd.h"
+#include "cmd.h"
 
 #include "configfile.h"
 #include "plugin.h"
@@ -47,6 +47,13 @@
 #include <kstat.h>
 #endif
 
+#if HAVE_KEEPALIVE_GLIB
+#include <dbus/dbus-glib-lowlevel.h>
+#include <dbus/dbus.h>
+#include <glib.h>
+#include <keepalive-glib/keepalive-backgroundactivity.h>
+#endif
+
 #ifndef COLLECTD_LOCALE
 #define COLLECTD_LOCALE "C"
 #endif
@@ -59,7 +66,16 @@
 #include <winsock2.h>
 #endif
 
-static int loop;
+#if HAVE_KEEPALIVE_GLIB
+static DBusConnection *glib_system_bus = 0;
+static GMainLoop *glib_mainloop_handle = 0;
+static background_activity_t *glib_background_activity = 0;
+
+#else
+
+static int loop = 0;
+
+#endif /* HAVE_KEEPALIVE_GLIB */
 
 static int init_hostname(void) {
   const char *str = global_option_get("Hostname");
@@ -265,6 +281,7 @@ static int do_init(void) {
   return plugin_init_all();
 } /* int do_init () */
 
+#if !HAVE_KEEPALIVE_GLIB
 static int do_loop(void) {
   cdtime_t interval = cf_get_default_interval();
   cdtime_t wait_until = cdtime() + interval;
@@ -299,6 +316,70 @@ static int do_loop(void) {
 
   return 0;
 } /* int do_loop */
+#endif /* !HAVE_KEEPALIVE_GLIB */
+
+#if HAVE_KEEPALIVE_GLIB
+
+/* GLib Keepalive implementation has a separate main loop that is run
+ *   by GLib. An example code illustrating this approach is at
+ *   https://git.merproject.org/mer-core/nemo-keepalive/blob/master/examples-glib/periodic-wakeup.c
+ */
+
+static void disconnect_from_systembus(void) {
+  if (glib_system_bus)
+    dbus_connection_unref(glib_system_bus), glib_system_bus = 0;
+}
+
+static int connect_to_system_bus(void) {
+  DBusError err = DBUS_ERROR_INIT;
+  glib_system_bus = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+  if (!glib_system_bus) {
+    ERROR("dbus_bus_get failed: %s: %s", err.name, err.message);
+    return -1;
+  }
+  dbus_connection_setup_with_g_main(glib_system_bus, 0);
+  dbus_error_free(&err);
+  return 0; /* success */
+}
+
+static void glib_stop(void) {
+  if (glib_background_activity)
+    background_activity_stop(glib_background_activity);
+
+  if (glib_mainloop_handle)
+    g_main_loop_quit(glib_mainloop_handle);
+}
+
+/* This function performs a single cycle from do_loop. Its called by
+   glib main loop when keepalive messages arrive */
+static void do_shot() {
+  static cdtime_t last_call;
+  cdtime_t now = cdtime();
+
+  DEBUG("do_shot called.");
+
+  /* check whether keepalive called multiple times in quick succession */
+  if (now <= last_call || CDTIME_T_TO_DOUBLE(now - last_call) < 1.0) {
+    INFO("do_shot skipped due to recent call");
+    /* Instruct to continue with the background activity */
+    background_activity_wait(glib_background_activity);
+    return;
+  }
+
+#if HAVE_LIBKSTAT
+  update_kstat();
+#endif
+
+  /* Issue all plugins */
+  plugin_read_all();
+
+  /* Instruct to continue with the background activity */
+  background_activity_wait(glib_background_activity);
+
+  last_call = now;
+}
+
+#endif /* HAVE_KEEPALIVE_GLIB */
 
 static int do_shutdown(void) {
   return plugin_shutdown_all();
@@ -384,7 +465,11 @@ static int configure_collectd(struct cmdline_config *config) {
   return 0;
 }
 
+#if !HAVE_KEEPALIVE_GLIB
 void stop_collectd(void) { loop++; }
+#else
+void stop_collectd(void) { glib_stop(); }
+#endif /* !HAVE_KEEPALIVE_GLIB */
 
 struct cmdline_config init_config(int argc, char **argv) {
   struct cmdline_config config = {
@@ -424,7 +509,68 @@ int run_loop(bool test_readall) {
     }
   } else {
     INFO("Initialization complete, entering read-loop.");
+#if !HAVE_KEEPALIVE_GLIB
     do_loop();
+#else
+    /* GLib Keepalive implementation */
+
+    glib_mainloop_handle = g_main_loop_new(0, 0);
+    if (glib_mainloop_handle == NULL) {
+      ERROR("background_activity_new failed");
+      return (1);
+    }
+
+    if (connect_to_system_bus()) {
+      ERROR("connect_to_system_bus failed");
+      return (1);
+    }
+
+    glib_background_activity = background_activity_new();
+    if (glib_background_activity == NULL) {
+      ERROR("background_activity_new failed");
+      return (1);
+    }
+
+    background_activity_set_running_callback(glib_background_activity, do_shot);
+
+    /* Schedule wakeups to occur in accordance to the default interval */
+    background_activity_frequency_t
+        slot; // = BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_SECONDS;
+
+    /* Time resolution of the interval is rather low in
+    keepalive calls. To simplify comparison, 1s is
+    subtracted allowing us to just use < operator in the
+    followup code */
+    double default_interval = CDTIME_T_TO_DOUBLE(cf_get_default_interval()) - 1;
+    if (default_interval < 30)
+      slot = BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_SECONDS;
+    else if (default_interval < 2 * 60 + 30)
+      slot = BACKGROUND_ACTIVITY_FREQUENCY_TWO_AND_HALF_MINUTES;
+    else if (default_interval < 5 * 60)
+      slot = BACKGROUND_ACTIVITY_FREQUENCY_FIVE_MINUTES;
+    else if (default_interval < 10 * 60)
+      slot = BACKGROUND_ACTIVITY_FREQUENCY_TEN_MINUTES;
+    else if (default_interval < 15 * 60)
+      slot = BACKGROUND_ACTIVITY_FREQUENCY_FIFTEEN_MINUTES;
+    else if (default_interval < 30 * 60)
+      slot = BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_MINUTES;
+    else
+      slot = BACKGROUND_ACTIVITY_FREQUENCY_ONE_HOUR;
+
+    INFO("Selected Keepalive interval: %u", slot);
+
+    background_activity_set_wakeup_slot(glib_background_activity, slot);
+
+    background_activity_wait(glib_background_activity);
+
+    /* Run main loop */
+    g_main_loop_run(glib_mainloop_handle);
+
+    /* Main loop finished, cleanup */
+    background_activity_unref(glib_background_activity);
+    disconnect_from_systembus();
+    g_main_loop_unref(glib_mainloop_handle);
+#endif /* !HAVE_KEEPALIVE_GLIB */
   }
 
   /* close syslog */
