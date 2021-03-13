@@ -489,6 +489,12 @@ static int read_sysfs_callback(char const *dir, /* {{{ */
   if (sysfs_file_to_gauge(dir, power_supply, "voltage_now", &v) == 0)
     battery_submit(plugin_instance, "voltage", v * SYSFS_FACTOR);
 
+  if (sysfs_file_to_gauge(dir, power_supply, "capacity", &v) == 0)
+    battery_submit(plugin_instance, "charge", v);
+
+  if (sysfs_file_to_gauge(dir, power_supply, "temp", &v) == 0)
+    battery_submit(plugin_instance, "temperature", v * 0.1); // from 10xC to C
+
   return 0;
 } /* }}} int read_sysfs_callback */
 
