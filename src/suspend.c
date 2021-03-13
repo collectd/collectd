@@ -33,105 +33,95 @@ SOFTWARE.
  failed type
 
  Info at https://www.kernel.org/doc/Documentation/power/basic-pm-debugging.txt
- 
+
  **/
 
 #include "collectd.h"
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define SUSPEND_STATS "/sys/kernel/debug/suspend_stats"
 #define BFSZ 1024
 
-static int suspend_init (void)
-{
-  if ( access(SUSPEND_STATS, R_OK) == 0 ) // everything is fine, continue
+static int suspend_init(void) {
+  if (access(SUSPEND_STATS, R_OK) == 0) // everything is fine, continue
     return (0);
 
   // either debugFS is not mounted or permissions are not allowing to
   // see suspend stats
-  INFO ("suspend plugin: cannot read %s, unregistered plugin", SUSPEND_STATS);
-  plugin_unregister_read ("suspend");
-  
+  INFO("suspend plugin: cannot read %s, unregistered plugin", SUSPEND_STATS);
+  plugin_unregister_read("suspend");
+
   return (0);
 }
 
-static void suspend_submit (const char *type, const char *type_instance, derive_t value)
-{
+static void suspend_submit(const char *type, const char *type_instance,
+                           derive_t value) {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
-  
+
   values[0].derive = value;
-  
+
   vl.values = values;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "suspend", sizeof (vl.plugin));
-  sstrncpy (vl.type, type, sizeof (vl.type));
-  sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-  
-  plugin_dispatch_values (&vl);
+  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+  sstrncpy(vl.plugin, "suspend", sizeof(vl.plugin));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
 }
 
-
-static int suspend_read (void)
-{
+static int suspend_read(void) {
   FILE *fh;
-  
+
   char buffer[BFSZ];
   derive_t value;
   char *dummy;
   char *fields[2];
   int numfields;
   size_t count = 0;
-  
-  if ( (fh = fopen(SUSPEND_STATS, "r")) == NULL )
-    {
-      ERROR ("suspend plugin: %s unavailable or inaccessible", SUSPEND_STATS);
-      return (-1);
+
+  if ((fh = fopen(SUSPEND_STATS, "r")) == NULL) {
+    ERROR("suspend plugin: %s unavailable or inaccessible", SUSPEND_STATS);
+    return (-1);
+  }
+
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    if (!(dummy = strchr(buffer, ':')))
+      continue;
+    dummy[0] = ' ';
+
+    numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+
+    if (numfields != 2) // unsupported line, move on
+      continue;
+
+    if (strcmp("success", fields[0]) == 0 || strcmp("fail", fields[0]) == 0 ||
+        strncmp("failed_", fields[0], 7) == 0) {
+      value = atoll(fields[1]);
+      suspend_submit("attempts", fields[0], value);
+      ++count;
     }
+  }
 
-  while ( fgets(buffer, sizeof(buffer), fh) != NULL )
-	{
-      if (!(dummy = strchr(buffer, ':')))
-        continue;
-      dummy[0] = ' ';
-      
-      numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
-
-      if ( numfields != 2 ) // unsupported line, move on
-        continue;
-
-      if ( strcmp("success", fields[0])==0 ||
-           strcmp("fail", fields[0])==0 ||
-           strncmp("failed_", fields[0], 7)==0 )
-        {
-          value = atoll(fields[1]);
-          suspend_submit( "attempts", fields[0], value );
-          ++count;
-        }
-    }
-  
   fclose(fh);
 
-  if ( count == 0 )
-    {
-      ERROR ("suspend plugin: statistics is unavailable.");
-      return (-1);
-    }
-  
+  if (count == 0) {
+    ERROR("suspend plugin: statistics is unavailable.");
+    return (-1);
+  }
+
   return (0);
 }
 
-void module_register (void)
-{
-  plugin_register_init ("suspend", suspend_init);
-  plugin_register_read ("suspend", suspend_read);
+void module_register(void) {
+  plugin_register_init("suspend", suspend_init);
+  plugin_register_read("suspend", suspend_read);
 } /* void module_register */
-
 
 /*
  * Local variables:

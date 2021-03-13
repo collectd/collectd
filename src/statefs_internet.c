@@ -29,120 +29,107 @@ SOFTWARE.
 
  Internet stats are collected from statefs Internet namespace. Reported data
  units are as follows:
- 
+
  signal_quality %
 
- Type instance is used to indicate the used network technology 
+ Type instance is used to indicate the used network technology
 
  Provider at
  https://git.merproject.org/mer-core/statefs-providers/blob/master/src/ofono/provider_ofono.cpp
- 
+
  **/
 
 #include "collectd.h"
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <string.h>
 
 #define STATEFS_ROOT "/run/state/namespaces/Internet/"
 #define BFSZ 512
 
-static void internet_submit (const char *type, const char *type_instance, gauge_t value)
-{
+static void internet_submit(const char *type, const char *type_instance,
+                            gauge_t value) {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
-  
+
   values[0].gauge = value;
-  
+
   vl.values = values;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "statefs_internet", sizeof (vl.plugin));
-  sstrncpy (vl.type, type, sizeof (vl.type));
-  sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-  
-  plugin_dispatch_values (&vl);
+  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+  sstrncpy(vl.plugin, "statefs_internet", sizeof(vl.plugin));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
 }
 
-
-static _Bool getvalue(const char *fname, gauge_t *value, char *buffer, size_t buffer_size)
-{
+static _Bool getvalue(const char *fname, gauge_t *value, char *buffer,
+                      size_t buffer_size) {
   FILE *fh;
-  if ((fh = fopen (fname, "r")) == NULL)
+  if ((fh = fopen(fname, "r")) == NULL)
     return (0);
 
-  if ( fgets(buffer, buffer_size, fh) == NULL )
-    {
-      fclose(fh);
-      return (0); // empty file
-    }
+  if (fgets(buffer, buffer_size, fh) == NULL) {
+    fclose(fh);
+    return (0); // empty file
+  }
 
-  (*value) = atof( buffer );
+  (*value) = atof(buffer);
 
   fclose(fh);
 
   return (1);
 }
 
-
-static int internet_read (void)
-{
+static int internet_read(void) {
   FILE *fh;
-  
+
   char buffer[BFSZ];
   char nettype[BFSZ];
   char state[BFSZ];
   gauge_t value = NAN;
 
   // getting whether we are connected
-  if ((fh = fopen (STATEFS_ROOT "NetworkState", "r")) == NULL)
-    {
-      ERROR ("statefs_internet plugin: state file unavailable.");
-      return (-1);
-    }
+  if ((fh = fopen(STATEFS_ROOT "NetworkState", "r")) == NULL) {
+    ERROR("statefs_internet plugin: state file unavailable.");
+    return (-1);
+  }
 
-  if ( fgets(state, BFSZ, fh) == NULL ||
-       strncmp("connected", state, BFSZ) != 0 )
-    {
-      fclose(fh);
-      return (0); // empty file or not connected
-    }
+  if (fgets(state, BFSZ, fh) == NULL ||
+      strncmp("connected", state, BFSZ) != 0) {
+    fclose(fh);
+    return (0); // empty file or not connected
+  }
   fclose(fh);
 
   // get network type
-  if ((fh = fopen (STATEFS_ROOT "NetworkType", "r")) == NULL)
-    {
-      ERROR ("statefs_internet plugin: network type file unavailable.");
-      return (-1);
-    }
+  if ((fh = fopen(STATEFS_ROOT "NetworkType", "r")) == NULL) {
+    ERROR("statefs_internet plugin: network type file unavailable.");
+    return (-1);
+  }
 
-  if ( fgets(nettype, BFSZ, fh) == NULL )
-    {
-      fclose(fh);
-      return (0); // empty file
-    }
+  if (fgets(nettype, BFSZ, fh) == NULL) {
+    fclose(fh);
+    return (0); // empty file
+  }
   fclose(fh);
-  
+
   // Submit signal strength
-  if ( getvalue(STATEFS_ROOT "SignalStrength", &value, buffer, BFSZ) )
-    {
-      internet_submit( "signal_strength", nettype, value );
-    }
-  else
-    {
-      ERROR ("statefs_internet plugin: statistics is unavailable.");
-      return (-1);
-    }
-  
+  if (getvalue(STATEFS_ROOT "SignalStrength", &value, buffer, BFSZ)) {
+    internet_submit("signal_strength", nettype, value);
+  } else {
+    ERROR("statefs_internet plugin: statistics is unavailable.");
+    return (-1);
+  }
+
   return (0);
 }
 
-void module_register (void)
-{
-  plugin_register_read ("statefs_internet", internet_read);
+void module_register(void) {
+  plugin_register_read("statefs_internet", internet_read);
 } /* void module_register */
-
 
 /*
  * Local variables:
