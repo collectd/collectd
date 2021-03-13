@@ -2,7 +2,7 @@
 Description=Collectd statistics daemon
 Documentation=man:collectd(1) man:collectd.conf(5)
 After=lipstick.service
-Requires=dbus.socket tmp.mount statefs.service lipstick.service
+Requires=dbus.socket tmp.mount lipstick.service
 
 [Service]
 
