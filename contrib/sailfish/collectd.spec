@@ -8,14 +8,14 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.0.git.2020.04.29
+Version:	5.12.0.sfos
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, libxml2-devel, python-devel, perl-devel, perl-ExtUtils-MakeMaker
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, libxml2-devel, python3-devel, perl-devel, perl-ExtUtils-MakeMaker
 BuildRequires:	rrdtool-devel, autoconf, automake, libtool, bison, flex
 BuildRequires:  libkeepalive-glib, libkeepalive-glib-devel, dbus-glib-devel
 
@@ -39,14 +39,14 @@ BuildRequires:	perl-ExtUtils-Embed
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
 
-# %package python
-# Summary:	Python plugin for collectd
-# Group:		System/Daemons
-# Requires:	%{name}%{?_isa} = %{version}-%{release}
-# BuildRequires: python-devel
-# %description python
-# The Python plugin embeds a Python interpreter into collectd and exposes the
-# application programming interface (API) to Python-scripts.
+%package python
+Summary:	Python plugin for collectd
+Group:		System/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires: python3-devel
+%description python
+The Python plugin embeds a Python interpreter into collectd and exposes the
+application programming interface (API) to Python-scripts.
 
 %package -n libcollectdclient
 Summary:	Collectd client library
@@ -250,6 +250,7 @@ Collectd utilities
 	   --enable-network \
 	   --enable-processes \
 	   --enable-protocols \
+	   --enable-python \
 	   --enable-radio \
 	   --enable-rrdtool \
 	   --enable-statefs_bluetooth \
@@ -361,10 +362,7 @@ su nemo -c "systemctl --user daemon-reload" || systemctl-user daemon-reload || t
 %{_bindir}/collectd2tmpfs
 
 %files -n libcollectdclient-devel
-%{_includedir}/collectd/client.h
-%{_includedir}/collectd/network.h
-%{_includedir}/collectd/network_buffer.h
-%{_includedir}/collectd/lcc_features.h
+%{_includedir}/collectd
 %{_libdir}/pkgconfig/libcollectdclient.pc
 
 %files -n libcollectdclient
@@ -380,8 +378,8 @@ su nemo -c "systemctl --user daemon-reload" || systemctl-user daemon-reload || t
 %{perl_vendorlib}/Collectd.pm
 %{perl_vendorlib}/Collectd/
 
-# %files python
-# %{_libdir}/%{name}/python.so
+%files python
+%{_libdir}/%{name}/python.so
 
 %changelog
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
