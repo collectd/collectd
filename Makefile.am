@@ -290,6 +290,10 @@ if BUILD_WITH_LIBSTATGRAB
 collectd_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
+if BUILD_WITH_KEEPALIVE
+collectd_CFLAGS += $(KEEPALIVE_CFLAGS)
+collectd_LDADD += $(KEEPALIVE_LIBS)
+endif
 
 if BUILD_WIN32
 collectd_LDFLAGS += -Wl,--out-implib,libcollectd.a
@@ -877,6 +881,12 @@ if BUILD_PLUGIN_CPUFREQ
 pkglib_LTLIBRARIES += cpufreq.la
 cpufreq_la_SOURCES = src/cpufreq.c
 cpufreq_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_CPUIDLE
+pkglib_LTLIBRARIES += cpuidle.la
+cpuidle_la_SOURCES = src/cpuidle.c
+cpuidle_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_CPUSLEEP
@@ -1809,6 +1819,12 @@ protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 protocols_la_LIBADD = libignorelist.la
 endif
 
+if BUILD_PLUGIN_RADIO
+pkglib_LTLIBRARIES += radio.la
+radio_la_SOURCES = src/radio.c
+radio_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_REDFISH
 pkglib_LTLIBRARIES += redfish.la
 redfish_la_SOURCES = src/redfish.c
@@ -1950,11 +1966,41 @@ TESTS += test_plugin_snmp_agent
 
 endif
 
+if BUILD_PLUGIN_STATEFS_BATTERY
+pkglib_LTLIBRARIES += statefs_battery.la
+statefs_battery_la_SOURCES = src/statefs_battery.c
+statefs_battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_STATEFS_BLUETOOTH
+pkglib_LTLIBRARIES += statefs_bluetooth.la
+statefs_bluetooth_la_SOURCES = src/statefs_bluetooth.c
+statefs_bluetooth_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_STATEFS_CELLULAR
+pkglib_LTLIBRARIES += statefs_cellular.la
+statefs_cellular_la_SOURCES = src/statefs_cellular.c
+statefs_cellular_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_STATEFS_INTERNET
+pkglib_LTLIBRARIES += statefs_internet.la
+statefs_internet_la_SOURCES = src/statefs_internet.c
+statefs_internet_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = src/statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 statsd_la_LIBADD = liblatency.la
+endif
+
+if BUILD_PLUGIN_SUSPEND
+pkglib_LTLIBRARIES += suspend.la
+suspend_la_SOURCES = src/suspend.c
+suspend_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_SWAP

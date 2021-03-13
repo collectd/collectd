@@ -6580,6 +6580,7 @@ AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 AC_COLLECTD([werror],    [disable], [feature], [building with -Werror])
+AC_COLLECTD([keepalive],    [enable], [feature], [build with keepalive support for mobile])
 
 dependency_warning="no"
 dependency_error="no"
@@ -6597,6 +6598,7 @@ plugin_conntrack="no"
 plugin_contextswitch="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
+plugin_cpuidle="no"
 plugin_cpusleep="no"
 plugin_curl_json="no"
 plugin_curl_xml="no"
@@ -6641,8 +6643,14 @@ plugin_processes="no"
 plugin_procevent="no"
 plugin_protocols="no"
 plugin_python="no"
+plugin_radio="no"
 plugin_serial="no"
 plugin_smart="no"
+plugin_statefs_battery="no"
+plugin_statefs_bluetooth="no"
+plugin_statefs_cellular="no"
+plugin_statefs_internet="no"
+plugin_suspend="no"
 plugin_swap="no"
 plugin_synproxy="no"
 plugin_sysevent="no"
@@ -6673,6 +6681,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_conntrack="yes"
   plugin_contextswitch="yes"
   plugin_cpu="yes"
+  plugin_cpuidle="yes"
   plugin_cpufreq="yes"
   plugin_disk="yes"
   plugin_drbd="yes"
@@ -6692,7 +6701,9 @@ if test "x$ac_system" = "xLinux"; then
   plugin_numa="yes"
   plugin_processes="yes"
   plugin_protocols="yes"
+  plugin_radio="yes"
   plugin_serial="yes"
+  plugin_suspend="yes"
   plugin_swap="yes"
   plugin_synproxy="yes"
   plugin_tcpconns="yes"
@@ -6732,6 +6743,26 @@ if test "x$ac_system" = "xLinux"; then
 
   if test "x$with_libmicrohttpd" = "xyes" && test "x$with_libjansson" = "xyes"; then
     plugin_capabilities="yes"
+  fi
+
+  if test "x$enable_statefs_battery" = "xyes"
+  then
+    plugin_statefs_battery="yes"
+  fi
+
+  if test "x$enable_statefs_bluetooth" = "xyes"
+  then
+    plugin_statefs_bluetooth="yes"
+  fi
+
+  if test "x$enable_statefs_cellular" = "xyes"
+  then
+    plugin_statefs_cellular="yes"
+  fi
+
+  if test "x$enable_statefs_internet" = "xyes"
+  then
+    plugin_statefs_internet="yes"
   fi
 fi
 
@@ -7053,6 +7084,7 @@ AC_PLUGIN([conntrack],           [$plugin_conntrack],         [nf_conntrack stat
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],     [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],               [CPU usage statistics])
 AC_PLUGIN([cpufreq],             [$plugin_cpufreq],           [CPU frequency statistics])
+AC_PLUGIN([cpuidle],             [$plugin_cpuidle],           [CPU idle states statistics])
 AC_PLUGIN([cpusleep],            [$plugin_cpusleep],          [CPU sleep statistics])
 AC_PLUGIN([csv],                 [yes],                       [CSV output plugin])
 AC_PLUGIN([curl],                [$with_libcurl],             [CURL generic web statistics])
@@ -7146,6 +7178,7 @@ AC_PLUGIN([processes],           [$plugin_processes],         [Process statistic
 AC_PLUGIN([procevent],           [$plugin_procevent],         [Process event (start, stop) statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],         [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],            [Embed a Python interpreter])
+AC_PLUGIN([radio],               [$plugin_radio],             [Radios enabled/disabled])
 AC_PLUGIN([redfish],             [$with_libredfish],          [Redfish plugin])
 AC_PLUGIN([redis],               [$with_libhiredis],          [Redis plugin])
 AC_PLUGIN([routeros],            [$with_librouteros],         [RouterOS plugin])
@@ -7158,7 +7191,12 @@ AC_PLUGIN([slurm],               [$with_libslurm],            [SLURM jobs and no
 AC_PLUGIN([smart],               [$plugin_smart],             [SMART statistics])
 AC_PLUGIN([snmp],                [$with_libnetsnmp],          [SNMP querying plugin])
 AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],     [SNMP agent plugin])
+AC_PLUGIN([statefs_battery],     [$plugin_statefs_battery],   [Battery statistics exposed via StateFS])
+AC_PLUGIN([statefs_bluetooth],   [$plugin_statefs_bluetooth], [Bluetooth statistics exposed via StateFS])
+AC_PLUGIN([statefs_cellular],    [$plugin_statefs_cellular],  [Cellular network statistics exposed via StateFS])
+AC_PLUGIN([statefs_internet],    [$plugin_statefs_internet],  [Internet statistics exposed via StateFS])
 AC_PLUGIN([statsd],              [yes],                       [StatsD plugin])
+AC_PLUGIN([suspend],             [$plugin_suspend],           [Suspend attempts])
 AC_PLUGIN([swap],                [$plugin_swap],              [Swap usage statistics])
 AC_PLUGIN([synproxy],            [$plugin_synproxy],          [Synproxy stats plugin])
 AC_PLUGIN([sysevent],            [$plugin_sysevent],          [rsyslog events])
@@ -7250,6 +7288,15 @@ else
   DEFAULT_LOG_LEVEL="info"
 fi
 AC_SUBST([DEFAULT_LOG_LEVEL])
+
+# --enable-keepalive
+if test "x$enable_keepalive" = "xyes"
+then
+	PKG_CHECK_MODULES([KEEPALIVE], [glib-2.0 keepalive-glib dbus-1 dbus-glib-1])
+	AC_DEFINE(HAVE_KEEPALIVE_GLIB, 1,
+		  [Define to 1 if you use keepalive from mer-core])
+fi
+AM_CONDITIONAL(BUILD_WITH_KEEPALIVE, test "x$enable_keepalive" = "xyes")
 
 # Load only one of rrdtool, network, csv in the default config.
 LOAD_PLUGIN_RRDTOOL=""
@@ -7473,6 +7520,7 @@ AC_MSG_RESULT()
 AC_MSG_RESULT([  Features:])
 AC_MSG_RESULT([    daemon mode . . . . . $enable_daemon])
 AC_MSG_RESULT([    debug . . . . . . . . $enable_debug])
+AC_MSG_RESULT([    keepalive . . . . . . $enable_keepalive])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Bindings:])
 AC_MSG_RESULT([    perl  . . . . . . . . $with_perl_bindings])
@@ -7500,6 +7548,7 @@ AC_MSG_RESULT([    conntrack . . . . . . $enable_conntrack])
 AC_MSG_RESULT([    contextswitch . . . . $enable_contextswitch])
 AC_MSG_RESULT([    cpu . . . . . . . . . $enable_cpu])
 AC_MSG_RESULT([    cpufreq . . . . . . . $enable_cpufreq])
+AC_MSG_RESULT([    cpuidle . . . . . . . $enable_cpuidle])
 AC_MSG_RESULT([    cpusleep  . . . . . . $enable_cpusleep])
 AC_MSG_RESULT([    csv . . . . . . . . . $enable_csv])
 AC_MSG_RESULT([    curl  . . . . . . . . $enable_curl])
@@ -7593,6 +7642,7 @@ AC_MSG_RESULT([    procevent . . . . . . $enable_procevent])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
 AC_MSG_RESULT([    redfish . . . . . . . $enable_redfish])
+AC_MSG_RESULT([    radio . . . . . . . . $enable_radio])
 AC_MSG_RESULT([    redis . . . . . . . . $enable_redis])
 AC_MSG_RESULT([    routeros  . . . . . . $enable_routeros])
 AC_MSG_RESULT([    rrdcached . . . . . . $enable_rrdcached])
@@ -7604,7 +7654,12 @@ AC_MSG_RESULT([    slurm . . . . . . . . $enable_slurm])
 AC_MSG_RESULT([    smart . . . . . . . . $enable_smart])
 AC_MSG_RESULT([    snmp  . . . . . . . . $enable_snmp])
 AC_MSG_RESULT([    snmp_agent  . . . . . $enable_snmp_agent])
+AC_MSG_RESULT([    statefs_battery . . . $enable_statefs_battery])
+AC_MSG_RESULT([    statefs_bluetooth . . $enable_statefs_bluetooth])
+AC_MSG_RESULT([    statefs_cellular  . . $enable_statefs_cellular])
+AC_MSG_RESULT([    statefs_internet  . . $enable_statefs_internet])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
+AC_MSG_RESULT([    suspend . . . . . . . $enable_suspend])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
 AC_MSG_RESULT([    synproxy  . . . . . . $enable_synproxy])
 AC_MSG_RESULT([    sysevent. . . . . . . $enable_sysevent])

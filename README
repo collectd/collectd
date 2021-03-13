@@ -78,6 +78,9 @@ Features
     - cpufreq
       CPU frequency (For laptops with speed step or a similar technology)
 
+    - cpuidle
+      CPU idle states (For laptops and mobile devices with speed step or a similar technology)
+
     - cpusleep
       CPU sleep: Time spent in suspend (For mobile devices which enter suspend automatically)
 
@@ -384,6 +387,11 @@ Features
       collectd without the need to start a heavy interpreter every interval.
       See collectd-python(5) for details.
 
+    - radio
+      The radio plugin records whether WiFi, Bluetooth and other radios are
+      switched on or off. For that, it uses the rfkill interface exposed
+      by the Linux kernel.
+
     - redis
       The redis plugin gathers information from a Redis server, including:
       uptime, used memory, total connections etc.
@@ -419,12 +427,27 @@ Features
       network devices such as switches, routers, thermometers, rack monitoring
       servers, etc. See collectd-snmp(5).
 
+    - statefs_battery
+      Battery statistics exposed via StateFS, as in Mer
+
+    - statefs_bluetooth
+      Bluetooth statistics exposed via StateFS, as in Mer
+
+    - statefs_cellular
+      Cellular network statistics exposed via StateFS, as in Mer
+
+    - statefs_internet
+      Internet statistics exposed via StateFS, as in Mer
+
     - statsd
       Acts as a StatsD server, reading values sent over the network from StatsD
       clients and calculating rates and other aggregates out of these values.
 
     - sysevent
       Listens to rsyslog events and submits matched values.
+
+    - suspend
+      Suspend attempts.
 
     - swap
       Pages swapped out onto hard disk or whatever is called `swap' by the OS..

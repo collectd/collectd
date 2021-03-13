@@ -1,0 +1,28 @@
+[Unit]
+Description=Collectd statistics daemon
+Documentation=man:collectd(1) man:collectd.conf(5)
+After=lipstick.service
+Requires=dbus.socket tmp.mount statefs.service lipstick.service
+
+[Service]
+
+ExecStartPre=/usr/bin/collectd2tmpfs --init
+ExecStart=/usr/sbin/collectd
+ExecStopPost=/usr/bin/collectd2tmpfs --stop
+
+TimeoutStopSec=180
+TimeoutStopUSec=180
+
+EnvironmentFile=-/etc/sysconfig/collectd
+EnvironmentFile=-/etc/default/collectd
+
+# Tell systemd it will receive a notification from collectd over it's control
+# socket once the daemon is ready. See systemd.service(5) for more details.
+Type=notify
+
+#Restart=on-failure
+Restart=no
+RestartSec=60
+
+[Install]
+WantedBy=user-session.target

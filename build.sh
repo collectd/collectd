@@ -52,7 +52,7 @@ build()
     set -x
     autoheader \
     && aclocal -I m4 \
-    && $libtoolize --copy --force \
+    && ($libtoolize --copy --force || echo Ignore error) \
     && automake --add-missing --copy \
     && autoconf
 }

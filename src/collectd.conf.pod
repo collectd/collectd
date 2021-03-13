@@ -1827,12 +1827,77 @@ Defaults to B<true>.
 
 =head2 Plugin C<cpufreq>
 
-This plugin is available on Linux and FreeBSD only.  It doesn't have any
-options.  On Linux it reads
-F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for the first CPU
-installed) to get the current CPU frequency. If this file does not exist make
-sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
-installed and an "cpu governor" (that's a kernel module) is loaded.
+This plugin reads CPU frequency and reports it either as a current
+value or as changes in used CPU frequency distribution. By default,
+CPU frequency is reported as a current value for all CPUs separately.
+
+When reporting the current frequency, the data is read from
+F</sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq>. If this file
+does not exist make sure B<cpufreqd>
+(L<http://cpufreqd.sourceforge.net/>) or a similar tool is installed
+and an "cpu governor" (that's a kernel module) is loaded.
+
+When reporting the CPU frequency distribution,
+F</sys/devices/system/cpu/cpu*/cpufreq/stats/time_in_state> is
+used. For that, you have to enable cpufreq-stats driver as described
+at L<https://www.kernel.org/doc/Documentation/cpu-freq/cpufreq-stats.txt>.
+
+=over 4
+
+=item B<ReportDistribution> B<false>|B<true>
+
+If set to B<true>, report fraction of time spent at each CPU frequency
+between readouts by collectd.
+
+=item B<ReportByCpu> B<false>|B<true>
+
+This option is effective only if B<ReportDistribution> is set to
+B<true>. Report CPU frequency distributions either by CPU (B<true>) or
+by finding an average among all CPUs (B<false>). 
+
+=back
+
+Note that on the setups with hot-plugged CPUs, the frequencies will be
+reported only for CPUs running at the time of a readout.
+
+When using the system with hot-plugged CPUs, there are possible
+limitations that can be caused by the implementation of the
+hot-plugging. If, at the time when CPU is switched off, the frequency
+statistics is reset then the readout by this plugin could lead to
+wrong calculated distributions if CPU was plugged on and off between
+two collectd readouts. An example of a system where it is a problem
+for some of the CPUs is Sailfish OS running on ARM processor with hot
+plugging implemented using mpdecision executable (such as Nexus 4). 
+
+When overall CPU frequency distribution is computed
+(B<ReportDistribution> is set to B<true> and B<ReportByCpu> is set to
+B<false>), there are several aspects that have to be taken into
+account in hot-plugged CPU setups. First, when finding the average,
+the time spent at each frequency is divided by the number of all
+CPUs. For example, if you have 4 CPUs and only one of them is working,
+the total CPU frequency distribution would account only for 25% of
+time. Second, as mentioned above, if the CPU is switched on and off
+between two readouts and the kernel resets the statistics, the timing
+information would be somewhat contaminated by the incomplete frequency
+distributions. Note, however, that the data would still reflect the
+cases when suddenly larger number of CPUs is used in the system for
+longer period of time.
+
+=head2 Plugin C<cpuidle>
+
+This plugin reads CPU idle state usage reports it either per CPU or an
+average usage of the states by all CPUs. For that, data provided by
+Linux kernel cpuidle driver is used
+(L<https://www.kernel.org/doc/Documentation/cpuidle/sysfs.txt>).
+
+=over 4
+
+=item B<ReportByCpu> B<false>|B<true>
+
+Report CPU frequency distributions either by CPU (B<true>) or by
+finding an average among all CPUs (B<false>). 
+
+=back
 
 On Linux, if the system has the I<cpufreq-stats> kernel module loaded, this
 plugin reports the rate of p-state (cpu frequency) transitions and the
@@ -8379,6 +8444,11 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<radio>
+
+This plugin doesn't have any options. It determines whether radios in computer
+are switched on or off using the rfkill interface.
+
 =head2 Plugin C<redis>
 
 The I<Redis plugin> connects to one or more Redis servers, gathers
@@ -9080,6 +9150,24 @@ the table. The field is optional.
 
 =back
 
+=head2 Plugin C<statefs_bluetooth>
+
+This plugin doesn't have any options. It reads statistics related to
+bluetooth performance exposed by StateFS at /run/state. StateFS is used
+in Mer-based Sailfish OS, for example.
+
+=head2 Plugin C<statefs_cellular>
+
+This plugin doesn't have any options. It reads statistics related to
+cellular network performance exposed by StateFS at /run/state. StateFS
+is used in Mer-based Sailfish OS, for example.
+
+=head2 Plugin C<statefs_internet>
+
+This plugin doesn't have any options. It reads statistics related to
+internet performance exposed by StateFS at /run/state. StateFS
+is used in Mer-based Sailfish OS, for example.
+
 =head2 Plugin C<statsd>
 
 The I<statsd plugin> listens to a UDP socket, reads "events" in the statsd
@@ -9149,6 +9237,12 @@ dispatched.
 Please note what reported timer values less than 0.001 are ignored in all B<Timer*> reports.
 
 =back
+
+=head2 Plugin C<suspend>
+
+This plugin doesn't have any options. It reads statistics related to
+suspend attempts (successful, failed) and records them as attempts per
+second. Statistics is provided by Linux kernel using debugFS.
 
 =head2 Plugin C<swap>
 
