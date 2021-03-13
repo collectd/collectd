@@ -11,7 +11,6 @@ ExecStart=/usr/sbin/collectd
 ExecStopPost=/usr/bin/collectd2tmpfs --stop
 
 TimeoutStopSec=180
-TimeoutStopUSec=180
 
 EnvironmentFile=-/etc/sysconfig/collectd
 EnvironmentFile=-/etc/default/collectd
