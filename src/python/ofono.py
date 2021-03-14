@@ -17,7 +17,7 @@ ofono_main_iface = None
 def init():
     global bus, ofono_main, ofono_main_iface
     
-    collectd.debug('ofono init called')
+    #collectd.debug('ofono init called')
     bus = dbus.SystemBus()
     ofono_main = bus.get_object('org.ofono', '/')
     ofono_main_iface = dbus.Interface(ofono_main,
@@ -26,8 +26,7 @@ def init():
 def read():
     global bus, ofono_main_iface
 
-    collectd.debug('ofono read')
-    
+    #collectd.debug('ofono read')    
     modems = ofono_main_iface.GetModems()
     for m in modems:
         if len(m) == 2:
@@ -45,7 +44,7 @@ def read():
                 vl.plugin='ofono'
                 vl.dispatch(values=[strength])
 
-                collectd.debug('ofono readout result: ' + tech + ('=%d' % strength))
+                #collectd.debug('ofono readout result: ' + tech + ('=%d' % strength))
                 return # using data from the first connected modem only
 
 # register with collectd
