@@ -290,7 +290,7 @@ rm -rf %{buildroot}
 %{__install} -Dp -m0755 contrib/sailfish/collectd2tmpfs.sh %{buildroot}%{_bindir}/collectd2tmpfs
 
 # python plugins
-%{__install} -Dp -m0644 src/python/ofono.py %{buildroot}%{_datadir}/collectd/python/connman.py
+%{__install} -Dp -m0644 src/python/connman.py %{buildroot}%{_datadir}/collectd/python/connman.py
 %{__install} -Dp -m0644 src/python/ofono.py %{buildroot}%{_datadir}/collectd/python/ofono.py
 
 #%{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
