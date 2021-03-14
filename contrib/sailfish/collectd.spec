@@ -289,6 +289,10 @@ rm -rf %{buildroot}
 %{__install} -Dp -m0644 contrib/sailfish/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
 %{__install} -Dp -m0755 contrib/sailfish/collectd2tmpfs.sh %{buildroot}%{_bindir}/collectd2tmpfs
 
+# python plugins
+%{__install} -Dp -m0644 src/python/ofono.py %{buildroot}%{_datadir}/collectd/python/connman.py
+%{__install} -Dp -m0644 src/python/ofono.py %{buildroot}%{_datadir}/collectd/python/ofono.py
+
 #%{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 #%{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
 
@@ -380,6 +384,7 @@ su nemo -c "systemctl --user daemon-reload" || systemctl-user daemon-reload || t
 
 %files python
 %{_libdir}/%{name}/python.so
+%{_datadir}/collectd/python
 
 %changelog
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
