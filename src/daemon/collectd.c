@@ -516,7 +516,7 @@ int run_loop(bool test_readall) {
 
     glib_mainloop_handle = g_main_loop_new(0, 0);
     if (glib_mainloop_handle == NULL) {
-      ERROR("background_activity_new failed");
+      ERROR("glib_mainloop_handle_new failed");
       return (1);
     }
 
