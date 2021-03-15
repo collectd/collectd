@@ -157,6 +157,11 @@ typedef struct {
   SV *user_data;
 } pfc_user_data_t;
 
+typedef struct {
+  char *pluginname;
+  char *subname;
+} pcb_user_data_t; /* perl callback userdata */
+
 #define PFC_USER_DATA_FREE(data)                                               \
   do {                                                                         \
     sfree((data)->name);                                                       \
@@ -1017,6 +1022,10 @@ static int pplugin_call(pTHX_ int type, ...) {
 
   if (PLUGIN_READ == type) {
     subname = va_arg(ap, char *);
+    /*
+     * $_[1] = $pluginname;
+     */
+    XPUSHs(sv_2mortal(newSVpv(va_arg(ap, char *), 0)));
   } else if (PLUGIN_WRITE == type) {
     data_set_t *ds;
     value_list_t *vl;
@@ -1049,6 +1058,8 @@ static int pplugin_call(pTHX_ int type, ...) {
      *   plugin_instance => $instance,
      *   type_instance   => $type_instance
      * };
+     *
+     * $_[3] = $pluginname;
      */
     ds = va_arg(ap, data_set_t *);
     vl = va_arg(ap, value_list_t *);
@@ -1070,14 +1081,18 @@ static int pplugin_call(pTHX_ int type, ...) {
     XPUSHs(sv_2mortal(newSVpv(ds->type, 0)));
     XPUSHs(sv_2mortal(newRV_noinc((SV *)pds)));
     XPUSHs(sv_2mortal(newRV_noinc((SV *)pvl)));
+    XPUSHs(sv_2mortal(newSVpv(va_arg(ap, char *), 0)));
   } else if (PLUGIN_LOG == type) {
     subname = va_arg(ap, char *);
     /*
      * $_[0] = $level;
      *
      * $_[1] = $message;
+     *
+     * $_[2] = $pluginname;
      */
     XPUSHs(sv_2mortal(newSViv(va_arg(ap, int))));
+    XPUSHs(sv_2mortal(newSVpv(va_arg(ap, char *), 0)));
     XPUSHs(sv_2mortal(newSVpv(va_arg(ap, char *), 0)));
   } else if (PLUGIN_NOTIF == type) {
     notification_t *n;
@@ -1096,6 +1111,8 @@ static int pplugin_call(pTHX_ int type, ...) {
      *   plugin_instance => $instance,
      *   type_instance   => $type_instance
      * };
+     *
+     * $_[1] = $pluginname;
      */
     n = va_arg(ap, notification_t *);
 
@@ -1107,16 +1124,19 @@ static int pplugin_call(pTHX_ int type, ...) {
     }
 
     XPUSHs(sv_2mortal(newRV_noinc((SV *)notif)));
+    XPUSHs(sv_2mortal(newSVpv(va_arg(ap, char *), 0)));
   } else if (PLUGIN_FLUSH == type) {
     cdtime_t timeout;
     subname = va_arg(ap, char *);
     /*
      * $_[0] = $timeout;
      * $_[1] = $identifier;
+     * $_[2] = $pluginname;
      */
     timeout = va_arg(ap, cdtime_t);
 
     XPUSHs(sv_2mortal(newSVnv(CDTIME_T_TO_DOUBLE(timeout))));
+    XPUSHs(sv_2mortal(newSVpv(va_arg(ap, char *), 0)));
     XPUSHs(sv_2mortal(newSVpv(va_arg(ap, char *), 0)));
   } else if (PLUGIN_FLUSH_ALL == type) {
     cdtime_t timeout;
@@ -1549,6 +1569,17 @@ static int ptarget_invoke(const data_set_t *ds, value_list_t *vl,
 static target_proc_t ptarget = {ptarget_create, ptarget_destroy,
                                 ptarget_invoke};
 
+static void free_pcb(void *userdata) {
+  pcb_user_data_t *pcb = userdata;
+
+  if (pcb == NULL)
+    return;
+
+  sfree(pcb->pluginname);
+  sfree(pcb->subname);
+  sfree(pcb);
+} /* static void free_pcb(void *userdata) */
+
 /*
  * Exported Perl API.
  */
@@ -1557,7 +1588,6 @@ static void _plugin_register_generic_userdata(pTHX, int type,
                                               const char *desc) {
   int ret = 0;
   user_data_t userdata;
-  char *pluginname;
 
   dXSARGS;
 
@@ -1579,28 +1609,37 @@ static void _plugin_register_generic_userdata(pTHX, int type,
     XSRETURN_EMPTY;
   }
 
+  pcb_user_data_t *pcb = calloc(sizeof(*pcb), 1);
+  if (pcb == NULL) {
+    log_err("Collectd::plugin_register_%s(pluginname, subname): "
+            "Not enough memory.",
+            desc);
+    XSRETURN_EMPTY;
+  }
+
   /* Use pluginname as-is to allow flush a single perl plugin */
-  pluginname = SvPV_nolen(ST(0));
+  pcb->pluginname = strdup(SvPV_nolen(ST(0)));
+  pcb->subname = strdup(SvPV_nolen(ST(1)));
 
   log_debug("Collectd::plugin_register_%s: "
             "plugin = \"%s\", sub = \"%s\"",
-            desc, pluginname, SvPV_nolen(ST(1)));
+            desc, pcb->pluginname, pcb->subname);
 
   memset(&userdata, 0, sizeof(userdata));
-  userdata.data = strdup(SvPV_nolen(ST(1)));
-  userdata.free_func = free;
+  userdata.data = pcb;
+  userdata.free_func = free_pcb;
 
   if (PLUGIN_READ == type) {
     ret = plugin_register_complex_read(
         "perl",                                       /* group */
-        pluginname, perl_read, plugin_get_interval(), /* Default interval */
+        pcb->pluginname, perl_read, plugin_get_interval(), /* Default interval */
         &userdata);
   } else if (PLUGIN_WRITE == type) {
-    ret = plugin_register_write(pluginname, perl_write, &userdata);
+    ret = plugin_register_write(pcb->pluginname, perl_write, &userdata);
   } else if (PLUGIN_LOG == type) {
-    ret = plugin_register_log(pluginname, perl_log, &userdata);
+    ret = plugin_register_log(pcb->pluginname, perl_log, &userdata);
   } else if (PLUGIN_NOTIF == type) {
-    ret = plugin_register_notification(pluginname, perl_notify, &userdata);
+    ret = plugin_register_notification(pcb->pluginname, perl_notify, &userdata);
   } else if (PLUGIN_FLUSH == type) {
     if (1 == register_legacy_flush) { /* For collectd-5.7 only, #1731 */
       register_legacy_flush = 0;
@@ -1608,7 +1647,7 @@ static void _plugin_register_generic_userdata(pTHX, int type,
     }
 
     if (0 == ret) {
-      ret = plugin_register_flush(pluginname, perl_flush, &userdata);
+      ret = plugin_register_flush(pcb->pluginname, perl_flush, &userdata);
     } else {
       free(userdata.data);
     }
@@ -2115,7 +2154,9 @@ static int perl_read(user_data_t *user_data) {
   log_debug("perl_read: c_ithread: interp = %p (active threads: %i)", aTHX,
             perl_threads->number_of_threads);
 
-  return pplugin_call(aTHX_ PLUGIN_READ, user_data->data);
+  pcb_user_data_t *pcb = user_data->data;
+
+  return pplugin_call(aTHX_ PLUGIN_READ, pcb->subname, pcb->pluginname);
 } /* static int perl_read (user_data_t *user_data) */
 
 static int perl_write(const data_set_t *ds, const value_list_t *vl,
@@ -2144,7 +2185,11 @@ static int perl_write(const data_set_t *ds, const value_list_t *vl,
 
   log_debug("perl_write: c_ithread: interp = %p (active threads: %i)", aTHX,
             perl_threads->number_of_threads);
-  status = pplugin_call(aTHX_ PLUGIN_WRITE, user_data->data, ds, vl);
+
+  pcb_user_data_t *pcb = user_data->data;
+
+  status = pplugin_call(aTHX_ PLUGIN_WRITE, pcb->subname, ds, vl,
+                        pcb->pluginname);
 
   if (aTHX == perl_threads->head->interp)
     pthread_mutex_unlock(&perl_threads->mutex);
@@ -2176,7 +2221,9 @@ static void perl_log(int level, const char *msg, user_data_t *user_data) {
   if (aTHX == perl_threads->head->interp)
     pthread_mutex_lock(&perl_threads->mutex);
 
-  pplugin_call(aTHX_ PLUGIN_LOG, user_data->data, level, msg);
+  pcb_user_data_t *pcb = user_data->data;
+
+  pplugin_call(aTHX_ PLUGIN_LOG, pcb->subname, level, msg, pcb->pluginname);
 
   if (aTHX == perl_threads->head->interp)
     pthread_mutex_unlock(&perl_threads->mutex);
@@ -2199,7 +2246,10 @@ static int perl_notify(const notification_t *notif, user_data_t *user_data) {
 
     aTHX = t->interp;
   }
-  return pplugin_call(aTHX_ PLUGIN_NOTIF, user_data->data, notif);
+
+  pcb_user_data_t *pcb = user_data->data;
+
+  return pplugin_call(aTHX_ PLUGIN_NOTIF, pcb->subname, notif, pcb->pluginname);
 } /* static int perl_notify (const notification_t *) */
 
 static int perl_flush(cdtime_t timeout, const char *identifier,
@@ -2223,7 +2273,10 @@ static int perl_flush(cdtime_t timeout, const char *identifier,
   if (user_data == NULL || user_data->data == NULL)
     return pplugin_call(aTHX_ PLUGIN_FLUSH_ALL, timeout, identifier);
 
-  return pplugin_call(aTHX_ PLUGIN_FLUSH, user_data->data, timeout, identifier);
+  pcb_user_data_t *pcb = user_data->data;
+
+  return pplugin_call(aTHX_ PLUGIN_FLUSH, pcb->subname, timeout, identifier,
+                      pcb->pluginname);
 } /* static int perl_flush (const int) */
 
 static int perl_shutdown(void) {
@@ -2622,7 +2675,7 @@ static int perl_config_plugin(pTHX_ oconfig_item_t *ci) {
   dSP;
 
   if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-    log_err("LoadPlugin expects a single string argument.");
+    log_err("The `Plugin' block expects a single string argument.");
     return 1;
   }
 

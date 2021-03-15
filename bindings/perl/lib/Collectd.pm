@@ -197,7 +197,7 @@ sub plugin_call_all {
 
 	foreach my $plugin (keys %plugins) {
 		$cb_name = $plugins{$plugin};
-		my $status = call_by_name (@_);
+		my $status = call_by_name (@_, $plugin);
 
 		if (! $status) {
 			my $err = undef;
@@ -622,7 +622,7 @@ sub _plugin_dispatch_config {
 		lock %cf_callbacks;
 		$cb_name = $cf_callbacks{$plugin};
 	}
-	call_by_name ($config);
+	call_by_name ($config, $plugin);
 }
 
 1;
