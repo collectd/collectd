@@ -62,6 +62,7 @@ struct o_database_s {
   char *connect_id;
   char *username;
   char *password;
+  char *password_cmd;
   char *plugin_name;
 
   udb_query_preparation_area_t **q_prep_areas;
@@ -141,6 +142,7 @@ static void o_database_free(o_database_t *db) /* {{{ */
   sfree(db->connect_id);
   sfree(db->username);
   sfree(db->password);
+  sfree(db->password_cmd);
   sfree(db->queries);
   sfree(db->plugin_name);
 
@@ -194,6 +196,7 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
   db->connect_id = NULL;
   db->username = NULL;
   db->password = NULL;
+  db->password_cmd = NULL;
   db->plugin_name = NULL;
 
   status = cf_util_get_string(ci, &db->name);
@@ -214,6 +217,8 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &db->username);
     else if (strcasecmp("Password", child->key) == 0)
       status = cf_util_get_string(child, &db->password);
+    else if (strcasecmp("PasswordCommand", child->key) == 0)
+      status = cf_util_get_string(child, &db->password_cmd);
     else if (strcasecmp("Plugin", child->key) == 0)
       status = cf_util_get_string(child, &db->plugin_name);
     else if (strcasecmp("Query", child->key) == 0)
@@ -238,8 +243,10 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
       WARNING("oracle plugin: `Username' not given for query `%s'", db->name);
       status = -1;
     }
-    if (db->password == NULL) {
-      WARNING("oracle plugin: `Password' not given for query `%s'", db->name);
+    if (db->password == NULL && db->password_cmd == NULL) {
+      WARNING(
+          "oracle plugin: no `Password' or `PasswordCommand' for query `%s'",
+          db->name);
       status = -1;
     }
 
@@ -591,6 +598,80 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
 #undef ALLOC_OR_FAIL
 } /* }}} int o_read_database_query */
 
+static int o_read_password_command(o_database_t *db) /* {{{ */
+{
+  const size_t pw_increment = 128;
+  char cmdbuf[4096], *sp, *bp, *ep = cmdbuf + sizeof cmdbuf, *fmtval;
+  char *pass, *nl;
+  size_t remain, w, r, px;
+  FILE *out;
+
+  for (sp = db->password_cmd, bp = cmdbuf; bp < ep;) {
+    switch (*sp) {
+    case '\0':
+      *bp++ = '\0';
+      goto success;
+    case '%':
+      switch (sp[1]) {
+      case 'u':
+        fmtval = db->username;
+        break;
+      case 'n':
+        fmtval = db->connect_id;
+        break;
+      case '%':
+        fmtval = "%";
+        break;
+      default:
+        ERROR("o_read_password_command '%s': invalid specifier %%'%c'",
+              db->password_cmd, sp[1]);
+        return -1;
+      }
+      remain = ep - bp;
+      w = snprintf(bp, remain, "%s", fmtval);
+      if (w < 0 || w >= remain)
+        goto fail_bufsiz;
+      bp += w;
+      sp += 2;
+      break;
+    default:
+      *bp++ = *sp++;
+    }
+  }
+fail_bufsiz:
+  ERROR("o_read_password_command '%s': command too long", db->password_cmd);
+  return -1;
+success:
+  out = popen(cmdbuf, "r");
+  if (!out) {
+    ERROR("o_read_password_command: popen '%s': %s", cmdbuf, strerror(errno));
+    return -1;
+  }
+
+  // read up to the first newline into pass.
+  pass = smalloc(pw_increment + 1);
+  for (px = 0;;) {
+    r = fread(pass + px, 1, pw_increment, out);
+    pass[px + r] = '\0';
+    if ((nl = strchr(pass + px, '\n')) != NULL) {
+      *nl = '\0';
+      break;
+    }
+    if (r < pw_increment)
+      break;
+    px += r;
+    pass = realloc(pass, px + pw_increment);
+    if (!pass) {
+      ERROR("o_read_password_command: realloc: %s", strerror(errno));
+      fclose(out);
+      return -1;
+    }
+  }
+  db->password = pass;
+  fclose(out);
+  return 0;
+} /* }}} int o_read_password_command /*/
+
 static int o_read_database(o_database_t *db) /* {{{ */
 {
   int status;
@@ -631,6 +712,11 @@ static int o_read_database(o_database_t *db) /* {{{ */
       db->oci_service_context = NULL;
     }
   } /* if (db->oci_service_context != NULL) */
+
+  if (db->password == NULL && db->password_cmd != NULL) {
+    if ((status = o_read_password_command(db)) != 0)
+      return status;
+  }
 
   if (db->oci_service_context == NULL) {
     status = OCILogon(oci_env, oci_error, &db->oci_service_context,
