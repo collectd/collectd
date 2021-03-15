@@ -36,7 +36,7 @@ def read():
 
             if online:
                 modem = bus.get_object('org.ofono', mname)
-                modem_prop = modem.GetServingCellInformation(dbus_interface = 'org.ofono.NetworkMonitor')
+                modem_prop = modem.GetProperties(dbus_interface = 'org.ofono.NetworkRegistration')
                 tech = modem_prop.get('Technology', 'unknown')
                 strength = int(modem_prop.get('Strength', 0))
 
