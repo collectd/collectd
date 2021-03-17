@@ -476,13 +476,9 @@ static int read_sysfs_callback(char const *dir, /* {{{ */
     read_sysfs_capacity_from_charge(dir, power_supply, plugin_instance);
 
   if (sysfs_file_to_gauge(dir, power_supply, "power_now", &v) == 0) {
-    if (discharging)
-      v *= -1.0;
     battery_submit(plugin_instance, "power", v * SYSFS_FACTOR);
   }
   if (sysfs_file_to_gauge(dir, power_supply, "current_now", &v) == 0) {
-    if (discharging)
-      v *= -1.0;
     battery_submit(plugin_instance, "current", v * SYSFS_FACTOR);
   }
 
