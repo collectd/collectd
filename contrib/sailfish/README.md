@@ -90,6 +90,11 @@ Here, a larger package with all selected modules included is made. If
 needed, additional packages can be generated with modules missing from
 the main package. For that, RPM spec file has to be modified.
 
+To simplify the builds, `src/liboconfig/parser.c`
+`src/liboconfig/parser.h` were added to sources. Thus, on updates,
+those files may have to be regenerated. Addition was imposed due to
+build errors using SDK on PC.
+
 The build required preparation of the source in full Linux PC (I used
 Gentoo) and building later in MER SDK. When building directly from git
 sources on MER SDK, I had problems with bison (google pointed to some

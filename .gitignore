@@ -55,8 +55,8 @@ src/libcollectdclient/collectd/lcc_features.h
 
 # lex / yacc stuff:
 ylwrap
-src/liboconfig/parser.c
-src/liboconfig/parser.h
+#src/liboconfig/parser.c
+#src/liboconfig/parser.h
 src/liboconfig/scanner.c
 
 # protobuf stuff:
