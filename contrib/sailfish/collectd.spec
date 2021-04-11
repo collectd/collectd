@@ -12,6 +12,12 @@ Version:	5.12.0.sfos
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
+Source1:        collectd.service
+Source2:        collectd.conf
+Source3:        collectd2tmpfs.sh
+Source10:       python/connman.py
+Source11:       python/ofono.py
+
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
@@ -75,7 +81,7 @@ Collectd utilities
 
 %build
 
-./build.sh
+./build.sh || true
 
 # %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 # 	--disable-static \
@@ -283,22 +289,22 @@ Collectd utilities
 rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
 
-%{__install} -Dp -m0644 contrib/sailfish/collectd.service %{buildroot}%{_userunitdir}/collectd.service
-#%{__install} -Dp -m0644 contrib/sailfish/collectd2tmpfs.service %{buildroot}%{_userunitdir}/collectd2tmpfs.service
-#%{__install} -Dp -m0644 contrib/sailfish/collectd2tmpfs.timer %{buildroot}%{_userunitdir}/collectd2tmpfs.timer
-%{__install} -Dp -m0644 contrib/sailfish/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
-%{__install} -Dp -m0755 contrib/sailfish/collectd2tmpfs.sh %{buildroot}%{_bindir}/collectd2tmpfs
+%{__install} -Dp -m0644 %{_sourcedir}/collectd.service %{buildroot}%{_userunitdir}/collectd.service
+#%{__install} -Dp -m0644 %{_sourcedir}/collectd2tmpfs.service %{buildroot}%{_userunitdir}/collectd2tmpfs.service
+#%{__install} -Dp -m0644 %{_sourcedir}/collectd2tmpfs.timer %{buildroot}%{_userunitdir}/collectd2tmpfs.timer
+%{__install} -Dp -m0644 %{_sourcedir}/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
+%{__install} -Dp -m0755 %{_sourcedir}/collectd2tmpfs.sh %{buildroot}%{_bindir}/collectd2tmpfs
 
 # python plugins
-%{__install} -Dp -m0644 src/python/connman.py %{buildroot}%{_datadir}/collectd/python/connman.py
-%{__install} -Dp -m0644 src/python/ofono.py %{buildroot}%{_datadir}/collectd/python/ofono.py
+%{__install} -Dp -m0644 %{_sourcedir}/python/connman.py %{buildroot}%{_datadir}/collectd/python/connman.py
+%{__install} -Dp -m0644 %{_sourcedir}/python/ofono.py %{buildroot}%{_datadir}/collectd/python/ofono.py
 
 #%{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 #%{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
 
 
 ### Clean up docs
-find contrib/ -type f -exec %{__chmod} a-x {} \;
+#find contrib/ -type f -exec %{__chmod} a-x {} \;
 # *.la files shouldn't be distributed.
 rm -f %{buildroot}/%{_libdir}/{collectd/,}*.la
 rm -f %{buildroot}/%{_libdir}/{collectd/,}*.a
@@ -353,7 +359,7 @@ su nemo -c "systemctl --user daemon-reload" || systemctl-user daemon-reload || t
 
 
 %files
-%doc AUTHORS COPYING ChangeLog README
+#%doc AUTHORS COPYING ChangeLog README
 %config(noreplace) %{_sysconfdir}/collectd.conf
 %{_userunitdir}/collectd.service
 #%{_userunitdir}/collectd2tmpfs.service
