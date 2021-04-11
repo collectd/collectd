@@ -15,8 +15,8 @@ Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 Source1:        collectd.service
 Source2:        collectd.conf
 Source3:        collectd2tmpfs.sh
-Source10:       python/connman.py
-Source11:       python/ofono.py
+Source10:       connman.py
+Source11:       ofono.py
 
 License:	GPLv2
 Group:		System Environment/Daemons
@@ -289,15 +289,16 @@ Collectd utilities
 rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
 
-%{__install} -Dp -m0644 %{_sourcedir}/collectd.service %{buildroot}%{_userunitdir}/collectd.service
+%{__install} -Dp -m0644 %{SOURCE1} %{buildroot}%{_userunitdir}/collectd.service
+%{__install} -Dp -m0644 %{SOURCE2} %{buildroot}%{_sysconfdir}/collectd.conf
+%{__install} -Dp -m0755 %{SOURCE3} %{buildroot}%{_bindir}/collectd2tmpfs
 #%{__install} -Dp -m0644 %{_sourcedir}/collectd2tmpfs.service %{buildroot}%{_userunitdir}/collectd2tmpfs.service
 #%{__install} -Dp -m0644 %{_sourcedir}/collectd2tmpfs.timer %{buildroot}%{_userunitdir}/collectd2tmpfs.timer
-%{__install} -Dp -m0644 %{_sourcedir}/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
-%{__install} -Dp -m0755 %{_sourcedir}/collectd2tmpfs.sh %{buildroot}%{_bindir}/collectd2tmpfs
 
 # python plugins
-%{__install} -Dp -m0644 %{_sourcedir}/python/connman.py %{buildroot}%{_datadir}/collectd/python/connman.py
-%{__install} -Dp -m0644 %{_sourcedir}/python/ofono.py %{buildroot}%{_datadir}/collectd/python/ofono.py
+mkdir -p %{buildroot}%{_datadir}/collectd/python
+%{__install} -p -m0644 %{SOURCE10} %{buildroot}%{_datadir}/collectd/python
+%{__install} -p -m0644 %{SOURCE11} %{buildroot}%{_datadir}/collectd/python
 
 #%{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 #%{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
