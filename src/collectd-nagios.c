@@ -98,6 +98,8 @@ static char *socket_file_g;
 static char *value_string_g;
 static char *hostname_g;
 
+static char range_warning_s[512] = "";
+static char range_critical_s[512] = "";
 static range_t range_critical_g;
 static range_t range_warning_g;
 static int consolitation_g = CON_NONE;
@@ -367,7 +369,8 @@ static int do_check_con_none(size_t values_num, double *values,
   if (values_num > 0) {
     printf(" |");
     for (size_t i = 0; i < values_num; i++)
-      printf(" %s=%f;;;;", values_names[i], values[i]);
+      printf(" %s=%f;%s;%s;;", values_names[i], values[i], range_warning_s,
+             range_critical_s);
   }
   printf("\n");
 
@@ -593,9 +596,11 @@ int main(int argc, char **argv) {
 
     switch (c) {
     case 'c':
+      strcpy(range_critical_s, optarg);
       parse_range(optarg, &range_critical_g);
       break;
     case 'w':
+      strcpy(range_warning_s, optarg);
       parse_range(optarg, &range_warning_g);
       break;
     case 's':
