@@ -11,68 +11,32 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-20.04
+    container: collectd/ci:${{ matrix.container_tag }}
+    continue-on-error: ${{ matrix.allow_failures }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
+        allow_failures: [ false ]
+        container_tag:
+          # debian family
+          - buster_amd64
+          - stretch_amd64
+          - stretch_i386
+          - trusty_amd64
+          - xenial_amd64
+          # RedHat family
+          - el7_x86_64
+          - fedora28_x86_64
+        include:
+          - container_tag: sid_amd64
+            allow_failures: true
+          - container_tag: fedora_rawhide_x86_64
+            allow_failures: true
     env:
       MAKEFLAGS: "-j 2"
     steps:
     - uses: actions/checkout@v2
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y \
-          autotools-dev \
-          libiptc-dev \
-          libatasmart-dev \
-          libcap-dev \
-          libcurl4-gnutls-dev \
-          libdbi0-dev \
-          libesmtp-dev \
-          libganglia1-dev \
-          libgcrypt20-dev \
-          libglib2.0-dev \
-          libgps-dev \
-          libhiredis-dev \
-          libi2c-dev \
-          libldap2-dev \
-          libltdl-dev \
-          liblua50-dev \
-          liblua5.1-0-dev \
-          liblua5.2-dev \
-          libmemcached-dev \
-          libmicrohttpd-dev \
-          libmnl-dev \
-          libmodbus-dev \
-          libmosquitto-dev \
-          libmysqlclient-dev \
-          libnotify-dev \
-          libopenipmi-dev \
-          liboping-dev \
-          libow-dev \
-          libpcap-dev \
-          libperl-dev \
-          libpq-dev \
-          libprotobuf-c-dev \
-          librabbitmq-dev \
-          librdkafka-dev \
-          libriemann-client-dev \
-          librrd-dev \
-          libsensors4-dev \
-          libsigrok-dev \
-          libsnmp-dev \
-          libtokyocabinet-dev \
-          libtokyotyrant-dev \
-          libudev-dev \
-          libupsclient-dev \
-          libvarnish-dev \
-          libvirt-dev \
-          libxen-dev \
-          libxml2-dev \
-          libyajl-dev \
-          linux-libc-dev \
-          perl \
-          protobuf-c-compiler \
-          python3-dev \
-          python-dev \
-          xfslibs-dev
     - run: type pkg-config
     - run: pkg-config --list-all | sort -u
     - name: Generate configure script
@@ -80,6 +44,15 @@ jobs:
         ./build.sh
     - name: configure
       run: ./configure
+    - name: Make
+      run: make
+    - name: make check
+      run: make check
+    - name: install bzip2
+      continue-on-error: true
+      run: |
+        yum install -y bzip2 || apt install -y bzip2
     - name: make
+      continue-on-error: true
       run: |
         make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
