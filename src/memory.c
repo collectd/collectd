@@ -429,7 +429,6 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
       mem_not_used += v;
     } else if (strcmp(fields[0], "Slab:") == 0) {
       values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL] = v;
-      mem_not_used += v;
     } else if (strcmp(fields[0], "SReclaimable:") == 0) {
       values[COLLECTD_MEMORY_TYPE_SLAB_RECL] = v;
     } else if (strcmp(fields[0], "SUnreclaim:") == 0) {
@@ -441,6 +440,15 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
 
   if (fclose(fh)) {
     WARNING("memory plugin: fclose failed: %s", STRERRNO);
+  }
+
+  /* If SReclaimable (introduced in kernel 2.6.19) is available count it
+   * (but not SUnreclaim) towards the unused memory.
+   * If we do not have detailed slab info count the total as unused. */
+  if (!isnan(values[COLLECTD_MEMORY_TYPE_SLAB_RECL])) {
+    mem_not_used += values[COLLECTD_MEMORY_TYPE_SLAB_RECL];
+  } else if (!isnan(values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL])) {
+    mem_not_used += values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL];
   }
 
   if (isnan(mem_total) || (mem_total == 0) || (mem_total < mem_not_used)) {
