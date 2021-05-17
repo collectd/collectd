@@ -374,8 +374,12 @@ static int memory_read_internal(value_list_t *vl) {
   if (mem_total < (mem_free + mem_buffered + mem_cached + mem_slab_total))
     return -1;
 
-  mem_used =
-      mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_total);
+  if (detailed_slab_info)
+    mem_used = mem_total -
+               (mem_free + mem_buffered + mem_cached + mem_slab_reclaimable);
+  else
+    mem_used =
+        mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_total);
 
   /* SReclaimable and SUnreclaim were introduced in kernel 2.6.19
    * They sum up to the value of Slab, which is available on older & newer
