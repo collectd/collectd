@@ -29,6 +29,41 @@ jobs:
           - el7_x86_64
           - fedora28_x86_64
         config_flags: ['']
+    env:
+      MAKEFLAGS: "-j 2"
+      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+    steps:
+    - uses: actions/checkout@v2
+    - run: type pkg-config
+    - run: pkg-config --list-all | sort -u
+    - name: Generate configure script
+      run:
+        ./build.sh
+    - name: configure
+      run: ./configure $CONFIGURE_FLAGS
+    - name: Make
+      run: make
+    - name: make check
+      run: make check
+    - name: install bzip2
+      continue-on-error: true
+      run: |
+        yum install -y bzip2 || apt install -y bzip2
+    - name: make
+      continue-on-error: true
+      run: |
+        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+
+  experimental-distros:
+    runs-on: ubuntu-20.04
+    container: collectd/ci:${{ matrix.container_tag }}
+    continue-on-error: ${{ matrix.allow_failures }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
+        allow_failures: [ true ]
+        config_flags: ['']
         include:
           - container_tag: sid_amd64
             allow_failures: true
