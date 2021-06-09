@@ -31,18 +31,163 @@ jobs:
           - el7_x86_64
           - fedora28_x86_64
         config_flags: ['']
-        include:
-          - container_tag: sid_amd64
-            allow_failures: true
-            config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt"
-          - container_tag: fedora_rawhide_x86_64
-            allow_failures: true
-            config_flags: ""
     env:
       MAKEFLAGS: "-j 2"
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
     steps:
     - uses: actions/checkout@v2
+    - run: type pkg-config
+    - run: pkg-config --list-all | sort -u
+    - name: Generate configure script
+      run:
+        ./build.sh
+    - name: configure
+      run: ./configure $CONFIGURE_FLAGS
+    - name: Make
+      run: make
+    - name: make check
+      run: make check
+    - name: install bzip2
+      continue-on-error: true
+      run: |
+        yum install -y bzip2 || apt install -y bzip2
+    - name: make
+      continue-on-error: true
+      run: |
+        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+
+  experimental-debian:
+    runs-on: ubuntu-20.04
+    container: collectd/ci:${{ matrix.container_tag }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
+        container_tag:
+          - sid_amd64
+        config_flags: ["--disable-dpdkstat --disable-dpdkevents --disable-virt"]
+    env:
+      MAKEFLAGS: "-j 2"
+      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+    steps:
+    - uses: actions/checkout@v2
+    - run: type pkg-config
+    - run: pkg-config --list-all | sort -u
+    - name: Generate configure script
+      run:
+        ./build.sh
+    - name: configure
+      run: ./configure $CONFIGURE_FLAGS
+    - name: Make
+      run: make
+    - name: make check
+      run: make check
+    - name: install bzip2
+      continue-on-error: true
+      run: |
+        yum install -y bzip2 || apt install -y bzip2
+    - name: make
+      continue-on-error: true
+      run: |
+        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+
+  experimental-fedora:
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.container_image }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
+        container_image:
+          - fedora:34
+          - fedora:rawhide
+        experimental: [ true ]
+        install_packages: [ true ]
+        config_flags: [ "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"]
+    env:
+      MAKEFLAGS: "-j 2"
+      CFLAGS: "-fPIE -Wno-deprecated-declarations"
+      CPPFLAGS: "-fPIE -Wno-deprecated-declarations"
+      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install build requirements
+      run: |
+        dnf install -y \
+        autoconf \
+        automake \
+        bison \
+        clang \
+        cpp \
+        curl \
+        flex \
+        gcc \
+        gcc-c++ \
+        gdb \
+        git \
+        glibc-devel \
+        libgcrypt-devel \
+        libtool \
+        libtool-ltdl-devel \
+        m4 \
+        make \
+        nc \
+        pkgconfig \
+        which
+    - name: Install dependencies
+      run: |
+        dnf install -y \
+        OpenIPMI-devel \
+        dpdk-devel \
+        ganglia-devel \
+        gpsd-devel \
+        gtk2-devel \
+        hiredis-devel \
+        intel-cmt-cat-devel \
+        iproute-devel \
+        iptables-devel \
+        java-11-openjdk-devel \
+        java-devel \
+        jpackage-utils \
+        libatasmart-devel \
+        libcap-devel \
+        libcurl-devel \
+        libdbi-devel \
+        libesmtp-devel \
+        libmemcached-devel \
+        libmicrohttpd-devel \
+        libmnl-devel \
+        libmodbus-devel \
+        libnotify-devel \
+        liboping-devel \
+        libpcap-devel \
+        librabbitmq-devel \
+        librdkafka-devel \
+        libsigrok-devel \
+        libudev-devel \
+        libvirt-devel \
+        libxml2-devel \
+        lm_sensors-devel \
+        lua-devel \
+        lvm2-devel \
+        mosquitto-devel \
+        mariadb-devel \
+        net-snmp-devel \
+        nut-devel \
+        openldap-devel \
+        owfs-devel \
+        perl-ExtUtils-Embed \
+        postgresql-devel \
+        protobuf-c-devel \
+        python3-devel \
+        riemann-c-client-devel \
+        rrdtool-devel \
+        varnish-libs-devel \
+        xen-devel \
+        xfsprogs-devel \
+        yajl-devel
     - run: type pkg-config
     - run: pkg-config --list-all | sort -u
     - name: Generate configure script
