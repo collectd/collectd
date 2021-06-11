@@ -3690,6 +3690,83 @@ default is 'GPU ID'-'GPU name'
 
 =back
 
+=head2 Plugin C<gpu_sysman>
+
+This plugin is available on Linux only. It uses level-Zero Sysman API
+to read GPU information.
+
+Options below give overview of what information it could provide, but
+the information actually available through it depends on what is
+supported by the underlying GPU HW, its kernel driver, and Sysman
+backend user-space (compute) driver implementation.
+
+=over 4
+
+=item B<Samples>
+
+How many values to collect (at specified plugin Interval) for sampled
+metrics, before submitting their (potentially aggregate) metric
+values.
+
+This means that the actual GPU metrics submit interval is B<Interval>
+* B<Samples>.
+
+Currently GPU frequency and GPU memory values are sampled (like this),
+because their values can have very large fluctuations multiple times
+per second. When Samples is larger than 1, min + max are calculated
+for the sampled values and submitted instead of the read values
+themselves.
+
+Other metrics values are either counters, or change much slower, and
+are read only at submit intervals.  If collecting of the sampled
+values is disabled, it is better to set Samples to 1 (default).
+
+=item B<LogGpuInfo>
+
+If enabled, plugin logs at start some information about all the GPUs
+detected through Sysman API.
+
+=item B<DisableMemory>
+
+Disable memory usage metrics collection.
+
+=item B<DisableMemoryBandwidth>
+
+Disable memory bandwidth metrics collection.
+
+=item B<DisableFrequency>
+
+Disable actual / requested frequency metrics collection.
+
+=item B<DisableThrottleTime>
+
+Disable frequency throttling time metric collection.
+
+=item B<DisablePower>
+
+Disable power usage metrics collection.
+
+=item B<DisableTemperature>
+
+Disable temperature metrics collection.
+
+=item B<DisableEngine>
+
+Disable engine utilization metrics collection.
+
+=item B<DisableErrors>
+
+Disable RAS (Reliability, Availability, and Serviceability) error
+metrics collection.
+
+=item B<DisableSeparateErrors>
+
+Disable each error sub-category being reported separately, and just
+report total error counters for higher level "correctable" and
+"uncorrectable" errors.
+
+=back
+
 =head2 Plugin C<grpc>
 
 The I<grpc> plugin provides an RPC interface to submit values to or query
