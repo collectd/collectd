@@ -6527,6 +6527,12 @@ The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
 milliseconds. By default, the configured B<Interval> is used to set the
 timeout.
 
+=item B<Socket> I<Path>
+
+The B<Socket> option sets the UNIX domain socket to use, if the NGINX listens
+on a UNIX domain socket instead. Note that you still need to provide the
+B<URL> option.
+
 =back
 
 =head2 Plugin C<notify_desktop>
