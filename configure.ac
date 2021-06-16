@@ -2322,6 +2322,12 @@ if test "x$with_libcurl" = "xyes"; then
       [have_curlopt_timeout="no"],
       [[#include <curl/curl.h>]]
     )
+
+    AC_CHECK_DECL(CURLOPT_UNIX_SOCKET_PATH,
+      [have_curlopt_unix_socket_path="yes"],
+      [have_curlopt_unix_socket_path="no"],
+      [[#include <curl/curl.h>]]
+    )
   fi
 fi
 
@@ -2371,6 +2377,12 @@ if test "x$with_libcurl" = "xyes"; then
   if test "x$have_curlopt_timeout" = "xyes"; then
     AC_DEFINE([HAVE_CURLOPT_TIMEOUT_MS], [1],
       [Define if libcurl supports CURLOPT_TIMEOUT_MS option.]
+    )
+  fi
+
+  if test "x$have_curlopt_unix_socket_path" = "xyes"; then
+    AC_DEFINE([HAVE_CURLOPT_UNIX_SOCKET_PATH], [1],
+      [Define if libcurl supports CURLOPT_UNIX_SOCKET_PATH option.]
     )
   fi
 fi
