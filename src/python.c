@@ -1141,7 +1141,13 @@ static void *cpy_interactive(void *pipefd) {
 #else
   PyOS_AfterFork_Child();
 #endif
+#if PY_VERSION_HEX < 0x03090000
+  // deprecated. Called by Py_Initialize(). Removed in Py3.11
+  // https://docs.python.org/3/c-api/init.html#c.PyEval_InitThreads
   PyEval_InitThreads();
+#else
+  Py_Initialize();
+#endif
   close(*(int *)pipefd);
   PyRun_InteractiveLoop(stdin, "<stdin>");
   PyOS_setsig(SIGINT, cur_sig);
@@ -1178,7 +1184,13 @@ static int cpy_init(void) {
       ;
     (void)close(pipefd[0]);
   } else {
+#if PY_VERSION_HEX < 0x03090000
+    // deprecated. Called by Py_Initialize(). Removed in Py3.11
+    // https://docs.python.org/3/c-api/init.html#c.PyEval_InitThreads
     PyEval_InitThreads();
+#else
+    Py_Initialize();
+#endif
     state = PyEval_SaveThread();
   }
   CPY_LOCK_THREADS
