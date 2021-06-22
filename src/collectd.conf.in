@@ -1044,6 +1044,11 @@
 #	ValuesPercentage false
 #</Plugin>
 
+#<Plugin mmc>
+#	Device "mmc0"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin modbus>
 #	<Data "data_name">
 #		RegisterBase 1234

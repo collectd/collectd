@@ -183,6 +183,9 @@ Flavio Stanchina <flavio at stanchina.net>
 Franck Lombardi
  - UNIX socket code for the memcached plugin.
 
+Florian Eckert
+ - MMC plugin
+
 Gergely Nagy <algernon at madhouse-project.org>
  - Write-Riemann plugin.
 
