@@ -310,6 +310,10 @@ static int nut_read(user_data_t *user_data) {
         nut_submit(ups, "frequency", "input", value);
       else if (strcmp("input.voltage", key) == 0)
         nut_submit(ups, "voltage", "input", value);
+      else if (strcmp("input.realpower", key) == 0)
+        nut_submit(ups, "power", "watt-input", value);
+      else if (strcmp("input.power", key) == 0)
+        nut_submit(ups, "power", "voltampere-input", value);
     } else if (strncmp("output.", key, 7) == 0) {
       if (strcmp("output.current", key) == 0)
         nut_submit(ups, "current", "output", value);
@@ -324,6 +328,8 @@ static int nut_read(user_data_t *user_data) {
     } else if (strncmp("ups.", key, 4) == 0) {
       if (strcmp("ups.load", key) == 0)
         nut_submit(ups, "percent", "load", value);
+      else if (strcmp("ups.realpower", key) == 0)
+        nut_submit(ups, "power", "watt-ups", value);
       else if (strcmp("ups.power", key) == 0)
         nut_submit(ups, "power", "ups", value);
       else if (strcmp("ups.temperature", key) == 0)
