@@ -106,6 +106,8 @@ jobs:
         config_flags: [ "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"]
     env:
       MAKEFLAGS: "-j 2"
+      CFLAGS: "-fPIE -Wno-deprecated-declarations"
+      CPPFLAGS: "-fPIE -Wno-deprecated-declarations"
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
     steps:
     - uses: actions/checkout@v2
