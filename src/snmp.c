@@ -782,12 +782,8 @@ static int csnmp_config_add_host_priv_protocol(host_definition_t *hd,
   if (strcasecmp("AES", buffer) == 0) {
     hd->priv_protocol = usmAESPrivProtocol;
     hd->priv_protocol_len = sizeof(usmAESPrivProtocol) / sizeof(oid);
-  } else if (strcasecmp("DES", buffer) == 0) {
-    hd->priv_protocol = usmDESPrivProtocol;
-    hd->priv_protocol_len = sizeof(usmDESPrivProtocol) / sizeof(oid);
   } else {
-    WARNING("snmp plugin: The `PrivProtocol' config option must be `AES' or "
-            "`DES'.");
+    WARNING("snmp plugin: The `PrivProtocol' config option must be `AES'.");
     return -1;
   }
 
