@@ -2191,3 +2191,23 @@
 #    </Type>
 #  </Host>
 #</Plugin>
+
+#@BUILD_PLUGIN_WMI_TRUE@LoadPlugin "wmi"
+#<Plugin wmi>
+#  <Query>
+#    Statement "select * from Win32_PerfFormattedData_PerfOS_Processor where Name != '_Total'"
+#    InstancePrefix "cpu"
+#    InstancesFrom "Name"
+#    <Metric>
+#      Type "percent"
+#      ValuesFrom "PercentUserTime"
+#      # If unset, Instance defaults to the value from ValuesFrom.
+#      Instance "user"
+#    </Metric>
+#    <Metric>
+#      Type "percent"
+#      ValuesFrom "PercentIdleTime"
+#      Instance "idle"
+#    </Metric>
+#  </Query>
+#</Plugin>

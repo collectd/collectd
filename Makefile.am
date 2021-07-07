@@ -127,7 +127,7 @@ bin_PROGRAMS = \
 endif # BUILD_WIN32
 
 
-noinst_LTLIBRARIES = \
+nonreq_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
@@ -595,7 +595,7 @@ liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 if BUILD_WITH_LIBCURL
 if BUILD_WITH_LIBSSL
 if BUILD_WITH_LIBYAJL2
-noinst_LTLIBRARIES += liboauth.la
+nonreq_LTLIBRARIES += liboauth.la
 liboauth_la_SOURCES = \
 	src/utils/oauth/oauth.c \
 	src/utils/oauth/oauth.h
@@ -618,7 +618,7 @@ test_utils_oauth_LDADD = \
 	libcommon.la \
 	libplugin_mock.la
 
-noinst_LTLIBRARIES += libgce.la
+nonreq_LTLIBRARIES += libgce.la
 libgce_la_SOURCES = \
 	src/utils/gce/gce.c \
 	src/utils/gce/gce.h
@@ -632,7 +632,7 @@ endif
 endif
 
 if BUILD_WITH_LIBYAJL2
-noinst_LTLIBRARIES += libformat_stackdriver.la
+nonreq_LTLIBRARIES += libformat_stackdriver.la
 libformat_stackdriver_la_SOURCES = \
 	src/utils/format_stackdriver/format_stackdriver.c \
 	src/utils/format_stackdriver/format_stackdriver.h
@@ -992,6 +992,18 @@ endif
 if BUILD_WITH_PERFSTAT
 disk_la_LIBADD += -lperfstat
 endif
+endif
+
+if BUILD_PLUGIN_WMI
+pkglib_LTLIBRARIES += wmi.la
+wmi_la_SOURCES = \
+	src/wmi.c \
+	src/utils_wmi.c \
+	src/utils_wmi.h
+wmi_la_CFLAGS = $(AM_CFLAGS)
+wmi_la_LDFLAGS = $(PLUGIN_LDFLAGS) -L.
+wmi_la_DEPENDENCIES = $(COMMON_DEPS)
+wmi_la_LIBADD = -loleaut32 -lole32 -luuid
 endif
 
 if BUILD_PLUGIN_DNS
@@ -1749,7 +1761,7 @@ python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
 if HAVE_LIBMNL
-noinst_LTLIBRARIES += libtaskstats.la
+nonreq_LTLIBRARIES += libtaskstats.la
 libtaskstats_la_SOURCES = \
 	src/utils/taskstats/taskstats.c \
 	src/utils/taskstats/taskstats.h
@@ -2490,3 +2502,8 @@ generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 jar_DATA = collectd-api.jar generic-jmx.jar
 endif
 
+if BUILD_WIN32
+	EXTRA_LTLIBRARIES = nonreq_LTLIBRARIES
+else
+	noinst_LTLIBRARIES = nonreq_LTLIBRARIES
+endif

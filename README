@@ -566,6 +566,9 @@ Features
       needed. Please read collectd-unixsock(5) for a description on how that's
       done.
 
+    - wmi
+      Reads data from Windows Management Instrumentation.
+
     - write_graphite
       Sends data to Carbon, the storage layer of Graphite using TCP or UDP. It
       can be configured to avoid logging send errors (especially useful when

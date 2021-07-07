@@ -10614,6 +10614,92 @@ traffic (e.E<nbsp>g. due to headers and retransmission). If you want to
 collect on-wire traffic you could, for example, use the logging facilities of
 iptables to feed data for the guest IPs into the iptables plugin.
 
+=head2 Plugin C<wmi>
+
+The C<wmi> plugin reads Windows system data through Windows Management Instrumentation.
+
+Synopsis:
+
+ <Plugin wmi>
+   <Query>
+     Statement "select * from Win32_PerfFormattedData_PerfOS_Processor where Name = '_Total'"
+     InstancePrefix "cpu"
+     InstancesFrom "Name"
+     <Metric>
+       Type "percent"
+       ValuesFrom "PercentUserTime"
+       Instance "user"
+     </Metric>
+   </Query>
+ </Plugin>
+
+The configuration consists of one or more B<Query> blocks.
+
+Each B<Query> block contains the following:
+
+=over 4
+
+=item B<Statement> I<Statement>
+
+The WMI query to execute. It must return columns with name corresponding to what is set
+in B<ValuesFrom> and B<InstancesFrom> (if set).
+
+Mandatory
+
+Type: string
+
+=item B<InstancePrefix> I<Prefix>
+
+A string to prepend to the plugin instance of each dispatched data point.
+
+Optional
+
+Type: string
+
+=item B<InstancesFrom> I<Field>
+
+A field from the result of the WMI query to use to set the plugin instance of the data point.
+
+Optional
+
+Type: string
+
+Default: Empty string
+
+=back
+
+=head3 B<Metric> blocks
+
+=over 4
+
+=item B<Type> I<Type>
+
+A type from the TypesDB file.
+
+Mandatory
+
+Type: string
+
+=item B<ValuesFrom> I<Field>
+
+A field from the result of the WMI query to use to set the values of the data points.
+
+Mandatory
+
+Type: string
+
+=item B<Instance> I<Instance>
+
+Type instance for the metric.
+
+Optional
+
+Type: string
+
+Default: The field name specified in "ValuesFrom".
+
+=back
+
 =head2 Plugin C<write_graphite>
 
 The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
