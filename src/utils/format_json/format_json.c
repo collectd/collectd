@@ -708,8 +708,10 @@ int format_json_notification(char *buffer, size_t buffer_size, /* {{{ */
   return 0;
 } /* }}} format_json_notification */
 #else
-int format_json_notification(char *buffer, size_t buffer_size, /* {{{ */
-                             notification_t const *n) {
+int format_json_notification(__attribute__((unused)) char *buffer,
+                             __attribute__((unused))
+                             size_t buffer_size, /* {{{ */
+                             __attribute__((unused)) notification_t const *n) {
   ERROR("format_json_notification: Not available (requires libyajl).");
   return ENOTSUP;
 } /* }}} int format_json_notification */
