@@ -141,10 +141,11 @@ cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
 
       if (cmd.cmd.flush.identifiers_num != 0) {
         identifier_t *id = cmd.cmd.flush.identifiers + j;
-        if (snprintf(buf, sizeof(buf), "%s/%s/%s",
-                     (id->host == NULL) ? "" : id->host,
-                     (id->plugin == NULL) ? "" : id->plugin,
-                     (id->type == NULL) ? "" : id->type) > sizeof(buf)) {
+        if ((unsigned)snprintf(buf, sizeof(buf), "%s/%s/%s",
+                               (id->host == NULL) ? "" : id->host,
+                               (id->plugin == NULL) ? "" : id->plugin,
+                               (id->type == NULL) ? "" : id->type) >
+            sizeof(buf)) {
           error++;
           continue;
         }

@@ -101,7 +101,7 @@ static void parse_line(char *buf) {
   if (fields[0][0] == '#')
     return;
 
-  data_set_t ds = {{0}};
+  data_set_t ds = {{0}, 0, NULL};
 
   sstrncpy(ds.type, fields[0], sizeof(ds.type));
 

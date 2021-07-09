@@ -36,7 +36,7 @@
  */
 
 static int set_option(value_list_t *vl, char const *key, char const *value,
-                      cmd_error_handler_t *errhndl) {
+                      __attribute__((unused)) cmd_error_handler_t *errhndl) {
   if ((vl == NULL) || (key == NULL) || (value == NULL)) {
     return EINVAL;
   }
