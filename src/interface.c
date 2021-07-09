@@ -1,6 +1,6 @@
 /**
  * collectd - src/interface.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2020  Florian octo Forster
  * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -67,12 +67,6 @@
 #endif /* !COLLECT_GETIFADDRS */
 #endif /* KERNEL_LINUX */
 
-#if HAVE_PERFSTAT
-static perfstat_netinterface_t *ifstat;
-static int nif;
-static int pnif;
-#endif /* HAVE_PERFSTAT */
-
 #if !HAVE_GETIFADDRS && !KERNEL_LINUX && !HAVE_LIBKSTAT &&                     \
     !HAVE_LIBSTATGRAB && !HAVE_PERFSTAT
 #error "No applicable input method."
@@ -99,9 +93,51 @@ static bool report_inactive = true;
 #define MAX_NUMIF 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];
-static int numif;
+static size_t numif;
 static bool unique_name;
 #endif /* HAVE_LIBKSTAT */
+
+metric_family_t receive_bytes = {
+    .name = "node_network_receive_bytes_total",
+    .help = "Network device statistic receive_bytes.",
+    .type = METRIC_TYPE_COUNTER,
+};
+metric_family_t receive_drop = {
+    .name = "node_network_receive_drop_total",
+    .help = "Network device statistic receive_drop.",
+    .type = METRIC_TYPE_COUNTER,
+};
+metric_family_t receive_errs = {
+    .name = "node_network_receive_errs_total",
+    .help = "Network device statistic receive_errs.",
+    .type = METRIC_TYPE_COUNTER,
+};
+metric_family_t receive_packets = {
+    .name = "node_network_receive_packets_total",
+    .help = "Network device statistic receive_packets.",
+    .type = METRIC_TYPE_COUNTER,
+};
+
+metric_family_t transmit_bytes = {
+    .name = "node_network_transmit_bytes_total",
+    .help = "Network device statistic transmit_bytes.",
+    .type = METRIC_TYPE_COUNTER,
+};
+metric_family_t transmit_drop = {
+    .name = "node_network_transmit_drop_total",
+    .help = "Network device statistic transmit_drop.",
+    .type = METRIC_TYPE_COUNTER,
+};
+metric_family_t transmit_errs = {
+    .name = "node_network_transmit_errs_total",
+    .help = "Network device statistic transmit_errs.",
+    .type = METRIC_TYPE_COUNTER,
+};
+metric_family_t transmit_packets = {
+    .name = "node_network_transmit_packets_total",
+    .help = "Network device statistic transmit_packets.",
+    .type = METRIC_TYPE_COUNTER,
+};
 
 static int interface_config(const char *key, const char *value) {
   if (ignorelist == NULL)
@@ -158,86 +194,70 @@ static int interface_init(void) {
 } /* int interface_init */
 #endif /* HAVE_LIBKSTAT */
 
-static void if_submit(const char *dev, const char *type, derive_t rx,
-                      derive_t tx) {
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[] = {
-      {.derive = rx},
-      {.derive = tx},
-  };
-
-  if (ignorelist_match(ignorelist, dev) != 0)
-    return;
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-  sstrncpy(vl.plugin, "interface", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, dev, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
-} /* void if_submit */
-
-static int interface_read(void) {
+static int if_read_internal(void) {
 #if KERNEL_LINUX
-  FILE *fh;
-  char buffer[1024];
-  derive_t incoming, outgoing;
-  char *device;
-
-  char *dummy;
-  char *fields[16];
-  int numfields;
-
-  if ((fh = fopen("/proc/net/dev", "r")) == NULL) {
-    WARNING("interface plugin: fopen: %s", STRERRNO);
-    return -1;
+  FILE *fh = fopen("/proc/net/dev", "r");
+  if (fh == NULL) {
+    WARNING("interface plugin: fopen(\"/proc/net/dev\"): %s", STRERRNO);
+    return errno;
   }
 
-  while (fgets(buffer, 1024, fh) != NULL) {
-    if (!(dummy = strchr(buffer, ':')))
+  char buffer[1024];
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    char *dummy = strchr(buffer, ':');
+    if (dummy == NULL) {
       continue;
-    dummy[0] = '\0';
+    }
+    dummy[0] = 0;
     dummy++;
 
-    device = buffer;
+    char *device = buffer;
     while (device[0] == ' ')
       device++;
 
-    if (device[0] == '\0')
+    if ((strlen(device) == 0) || ignorelist_match(ignorelist, device)) {
       continue;
+    }
 
-    numfields = strsplit(dummy, fields, 16);
+    char *fields[16];
+    int numfields = strsplit(dummy, fields, STATIC_ARRAY_SIZE(fields));
 
-    if (numfields < 11)
+    if (numfields < 11) {
       continue;
+    }
 
-    incoming = atoll(fields[1]);
-    outgoing = atoll(fields[9]);
-    if (!report_inactive && incoming == 0 && outgoing == 0)
+    counter_t rx = (counter_t)atoll(fields[1]);
+    counter_t tx = (counter_t)atoll(fields[9]);
+    if (!report_inactive && (rx == 0) && (tx == 0)) {
       continue;
+    }
 
-    if_submit(device, "if_packets", incoming, outgoing);
+    struct {
+      metric_family_t *fam;
+      char const *value;
+    } metrics[] = {
+        {&receive_bytes, fields[0]},  {&receive_packets, fields[1]},
+        {&receive_errs, fields[2]},   {&receive_drop, fields[3]},
+        {&transmit_bytes, fields[8]}, {&transmit_packets, fields[9]},
+        {&transmit_errs, fields[10]}, {&transmit_drop, fields[11]},
+    };
 
-    incoming = atoll(fields[0]);
-    outgoing = atoll(fields[8]);
-    if_submit(device, "if_octets", incoming, outgoing);
+    for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
+      errno = 0;
+      counter_t v = (counter_t)strtoull(metrics[i].value, NULL, 0);
+      if (errno != 0) {
+        continue;
+      }
 
-    incoming = atoll(fields[2]);
-    outgoing = atoll(fields[10]);
-    if_submit(device, "if_errors", incoming, outgoing);
-
-    incoming = atoll(fields[3]);
-    outgoing = atoll(fields[11]);
-    if_submit(device, "if_dropped", incoming, outgoing);
+      metric_family_append(metrics[i].fam, "device", device,
+                           (value_t){.counter = v}, NULL);
+    }
   }
 
   fclose(fh);
   /* #endif KERNEL_LINUX */
 
 #elif HAVE_GETIFADDRS
-  struct ifaddrs *if_list;
-
 /* Darwin/Mac OS X and possible other *BSDs */
 #if HAVE_STRUCT_IF_DATA
 #define IFA_DATA if_data
@@ -261,26 +281,41 @@ static int interface_read(void) {
 #error "No suitable type for `struct ifaddrs->ifa_data' found."
 #endif
 
-  struct IFA_DATA *if_data;
-
+  struct ifaddrs *if_list = NULL;
   if (getifaddrs(&if_list) != 0)
     return -1;
 
   for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL;
        if_ptr = if_ptr->ifa_next) {
-    if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
-      if_data = (struct IFA_DATA *)if_ptr->ifa_data;
+    if ((if_ptr->ifa_addr == NULL) ||
+        (if_ptr->ifa_addr->sa_family != AF_LINK)) {
+      continue;
+    }
+    if (ignorelist_match(ignorelist, if_ptr->ifa_name)) {
+      continue;
+    }
 
-      if (!report_inactive && if_data->IFA_RX_PACKT == 0 &&
-          if_data->IFA_TX_PACKT == 0)
-        continue;
+    struct IFA_DATA *if_data = (struct IFA_DATA *)if_ptr->ifa_data;
+    if (!report_inactive && if_data->IFA_RX_PACKT == 0 &&
+        if_data->IFA_TX_PACKT == 0) {
+      continue;
+    }
 
-      if_submit(if_ptr->ifa_name, "if_octets", if_data->IFA_RX_BYTES,
-                if_data->IFA_TX_BYTES);
-      if_submit(if_ptr->ifa_name, "if_packets", if_data->IFA_RX_PACKT,
-                if_data->IFA_TX_PACKT);
-      if_submit(if_ptr->ifa_name, "if_errors", if_data->IFA_RX_ERROR,
-                if_data->IFA_TX_ERROR);
+    struct {
+      metric_family_t *fam;
+      counter_t value;
+    } metrics[] = {
+        {&receive_bytes, (counter_t)if_data->IFA_RX_BYTES},
+        {&receive_packets, (counter_t)if_data->IFA_RX_PACKT},
+        {&receive_errs, (counter_t)if_data->IFA_RX_ERROR},
+        {&transmit_bytes, (counter_t)if_data->IFA_TX_BYTES},
+        {&transmit_packets, (counter_t)if_data->IFA_TX_PACKT},
+        {&transmit_errs, (counter_t)if_data->IFA_TX_ERROR},
+    };
+
+    for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
+      metric_family_append(metrics[i].fam, "device", if_ptr->ifa_name,
+                           (value_t){.counter = metrics[i].value}, NULL);
     }
   }
 
@@ -288,106 +323,143 @@ static int interface_read(void) {
   /* #endif HAVE_GETIFADDRS */
 
 #elif HAVE_LIBKSTAT
-  derive_t rx;
-  derive_t tx;
-  char iname[DATA_MAX_NAME_LEN];
-
-  if (kc == NULL)
+  if (kc == NULL) {
     return -1;
+  }
 
-  for (int i = 0; i < numif; i++) {
-    if (kstat_read(kc, ksp[i], NULL) == -1)
+  for (size_t i = 0; i < numif; i++) {
+    if (kstat_read(kc, ksp[i], NULL) == -1) {
       continue;
+    }
 
-    if (unique_name)
+    char iname[128];
+    if (unique_name) {
       ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
                 ksp[i]->ks_instance, ksp[i]->ks_name);
-    else
+    } else {
       sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
+    }
 
-    /* try to get 64bit counters */
-    rx = get_kstat_value(ksp[i], "ipackets64");
-    tx = get_kstat_value(ksp[i], "opackets64");
-    /* or fallback to 32bit */
-    if (rx == -1LL)
-      rx = get_kstat_value(ksp[i], "ipackets");
-    if (tx == -1LL)
-      tx = get_kstat_value(ksp[i], "opackets");
-    if (!report_inactive && rx == 0 && tx == 0)
-      continue;
-    if ((rx != -1LL) || (tx != -1LL))
-      if_submit(iname, "if_packets", rx, tx);
+    struct {
+      metric_family_t *fam;
+      char const *name;
+      char const *fallback_name;
+    } metrics[] = {
+        {&receive_bytes, "rbytes64", "rbytes"},
+        {&receive_packets, "ipackets64", "ipackets"},
+        {&receive_errs, "ierrors"},
+        {&transmit_bytes, "obytes64", "obytes"},
+        {&transmit_packets, "opackets64", "opackets"},
+        {&transmit_errs, "oerrors"},
+    };
 
-    /* try to get 64bit counters */
-    rx = get_kstat_value(ksp[i], "rbytes64");
-    tx = get_kstat_value(ksp[i], "obytes64");
-    /* or fallback to 32bit */
-    if (rx == -1LL)
-      rx = get_kstat_value(ksp[i], "rbytes");
-    if (tx == -1LL)
-      tx = get_kstat_value(ksp[i], "obytes");
-    if ((rx != -1LL) || (tx != -1LL))
-      if_submit(iname, "if_octets", rx, tx);
-
-    /* no 64bit error counters yet */
-    rx = get_kstat_value(ksp[i], "ierrors");
-    tx = get_kstat_value(ksp[i], "oerrors");
-    if ((rx != -1LL) || (tx != -1LL))
-      if_submit(iname, "if_errors", rx, tx);
+    for (size_t j = 0; j < STATIC_ARRAY_SIZE(metrics); j++) {
+      long long value = get_kstat_value(ksp[i], metrics[j].name);
+      if ((value == -1) && (metrics[j].fallback_name != NULL)) {
+        value = get_kstat_value(ksp[i], metrics[j].fallback_name);
+      }
+      if (value == -1) {
+        continue;
+      }
+      metric_family_append(metrics[i].fam, "device", iname,
+                           (value_t){.counter = (counter_t)value}, NULL);
+    }
   }
-    /* #endif HAVE_LIBKSTAT */
+  /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
-  sg_network_io_stats *ios;
-  int num;
-
-  ios = sg_get_network_io_stats(&num);
+  int num = 0;
+  sg_network_io_stats *ios = sg_get_network_io_stats(&num);
 
   for (int i = 0; i < num; i++) {
-    if (!report_inactive && ios[i].rx == 0 && ios[i].tx == 0)
+    if (!report_inactive && ios[i].rx == 0 && ios[i].tx == 0) {
       continue;
-    if_submit(ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
+    }
+
+    metric_family_append(&receive_bytes, "device", ios[i].interface_name,
+                         (value_t){.counter = (counter_t)ios[i].rx}, NULL);
+    metric_family_append(&transmit_bytes, "device", ios[i].interface_name,
+                         (value_t){.counter = (counter_t)ios[i].tx}, NULL);
   }
-    /* #endif HAVE_LIBSTATGRAB */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
-  perfstat_id_t id;
-  int ifs;
-
-  if ((nif = perfstat_netinterface(NULL, NULL, sizeof(perfstat_netinterface_t),
-                                   0)) < 0) {
+  int num =
+      perfstat_netinterface(NULL, NULL, sizeof(perfstat_netinterface_t), 0);
+  if (num < 0) {
     WARNING("interface plugin: perfstat_netinterface: %s", STRERRNO);
     return -1;
   }
-
-  if (pnif != nif || ifstat == NULL) {
-    free(ifstat);
-    ifstat = malloc(nif * sizeof(*ifstat));
+  if (num == 0) {
+    return 0;
   }
-  pnif = nif;
 
-  id.name[0] = '\0';
-  if ((ifs = perfstat_netinterface(&id, ifstat, sizeof(perfstat_netinterface_t),
-                                   nif)) < 0) {
-    WARNING("interface plugin: perfstat_netinterface (interfaces=%d): %s", nif,
-            STRERRNO);
+  perfstat_netinterface_t *ifstat =
+      calloc(num, sizeof(perfstat_netinterface_t));
+  if (ifstat == NULL) {
+    return errno;
+  }
+
+  perfstat_id_t id = {
+      .name = {0},
+  };
+  int status =
+      perfstat_netinterface(&id, ifstat, sizeof(perfstat_netinterface_t), num);
+  if (status < 0) {
+    ERROR("interface plugin: perfstat_netinterface (interfaces=%d): %s", num,
+          STRERRNO);
+    sfree(ifstat);
     return -1;
   }
 
-  for (int i = 0; i < ifs; i++) {
-    if (!report_inactive && ifstat[i].ipackets == 0 && ifstat[i].opackets == 0)
+  for (int i = 0; i < num; i++) {
+    if (!report_inactive && ifstat[i].ipackets == 0 &&
+        ifstat[i].opackets == 0) {
       continue;
+    }
 
-    if_submit(ifstat[i].name, "if_octets", ifstat[i].ibytes, ifstat[i].obytes);
-    if_submit(ifstat[i].name, "if_packets", ifstat[i].ipackets,
-              ifstat[i].opackets);
-    if_submit(ifstat[i].name, "if_errors", ifstat[i].ierrors,
-              ifstat[i].oerrors);
+    struct {
+      metric_family_t *fam;
+      counter_t value;
+    } metrics[] = {
+        {&receive_bytes, (counter_t)ifstat[i].ibytes},
+        {&receive_packets, (counter_t)ifstat[i].ipackets},
+        {&receive_errs, (counter_t)ifstat[i].ierrors},
+        {&transmit_bytes, (counter_t)ifstat[i].obytes},
+        {&transmit_packets, (counter_t)ifstat[i].opackets},
+        {&transmit_errs, (counter_t)ifstat[i].oerrors},
+    };
+
+    for (size_t j = 0; j < STATIC_ARRAY_SIZE(metrics); j++) {
+      metric_family_append(metrics[j].fam, "device", ifstat[i].name,
+                           (value_t){.counter = metrics[j].value}, NULL);
+    }
   }
+
+  sfree(ifstat);
 #endif /* HAVE_PERFSTAT */
 
   return 0;
-} /* int interface_read */
+} /* int if_read_internal */
+
+static int if_read(void) {
+  metric_family_t *families[] = {
+      &receive_bytes,  &receive_drop,  &receive_errs,  &receive_packets,
+      &transmit_bytes, &transmit_drop, &transmit_errs, &transmit_packets,
+  };
+
+  int status = if_read_internal();
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(families); i++) {
+    if (status == 0) {
+      plugin_dispatch_metric_family(families[i]);
+    }
+
+    metric_family_metric_reset(families[i]);
+  }
+
+  return status;
+}
 
 void module_register(void) {
   plugin_register_config("interface", interface_config, config_keys,
@@ -395,5 +467,5 @@ void module_register(void) {
 #if HAVE_LIBKSTAT
   plugin_register_init("interface", interface_init);
 #endif
-  plugin_register_read("interface", interface_read);
+  plugin_register_read("interface", if_read);
 } /* void module_register */
