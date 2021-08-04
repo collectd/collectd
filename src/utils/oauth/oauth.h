@@ -30,6 +30,10 @@
 #define GOOGLE_OAUTH_URL "https://www.googleapis.com/oauth2/v3/token"
 #endif
 
+#ifndef GOOGLE_OAUTH_ACCESS_TOKEN_SIZE
+#define GOOGLE_OAUTH_ACCESS_TOKEN_SIZE 2048
+#endif
+
 struct oauth_s;
 typedef struct oauth_s oauth_t;
 
