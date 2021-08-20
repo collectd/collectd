@@ -2223,7 +2223,7 @@ LDFLAGS="$LDFLAGS $LIBREDFISH_LDFLAGS"
 
 if test "x$with_libredfish" = "xyes"; then
   if test "x$LIBREDFISH_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libredfish CPPFLAGS: $LIBHIREDFISH_CPPFLAGS])
+    AC_MSG_NOTICE([libredfish CPPFLAGS: $LIBREDFISH_CPPFLAGS])
   fi
   AC_CHECK_HEADERS([redfish.h],
     [with_libredfish="yes"],
