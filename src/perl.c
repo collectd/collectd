@@ -2444,6 +2444,7 @@ static int init_pi(int argc, char **argv) {
 
   if (NULL == (perl_threads->head->interp = perl_alloc())) {
     log_err("init_pi: Not enough memory.");
+    pthread_mutex_unlock(&perl_threads->mutex);
     exit(3);
   }
 
