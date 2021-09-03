@@ -565,21 +565,23 @@ static int ping_config(const char *key, const char *value) /* {{{ */
   return 0;
 } /* }}} int ping_config */
 
-static void submit(const char *host, const char *type, /* {{{ */
-                   gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "ping", sizeof(vl.plugin));
-  sstrncpy(vl.type_instance, host, sizeof(vl.type_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
-} /* }}} void ping_submit */
-
 static int ping_read(void) /* {{{ */
 {
+  metric_family_t fam_ping_latency = {
+      .name = "ping_latency_seconds",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_ping_latency_stddev = {
+      .name = "ping_latency_stddev_seconds",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_ping_droprate = {
+      .name = "ping_droprate",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t *fams[] = {&fam_ping_latency, &fam_ping_latency_stddev,
+                             &fam_ping_droprate, NULL};
+
   if (ping_thread_error != 0) {
     ERROR("ping plugin: The ping thread had a problem. Restarting it.");
 
@@ -650,10 +652,31 @@ static int ping_read(void) /* {{{ */
     /* Calculate drop rate. */
     droprate = ((double)(pkg_sent - pkg_recv)) / ((double)pkg_sent);
 
-    submit(hl->host, "ping", latency_average);
-    submit(hl->host, "ping_stddev", latency_stddev);
-    submit(hl->host, "ping_droprate", droprate);
+    metric_t m = {0};
+    metric_label_set(&m, "destination", hl->host);
+
+    m.value.gauge = latency_average / 1000.0;
+    metric_family_metric_append(&fam_ping_latency, m);
+
+    m.value.gauge = latency_stddev / 1000.0;
+    metric_family_metric_append(&fam_ping_latency_stddev, m);
+
+    m.value.gauge = droprate;
+    metric_family_metric_append(&fam_ping_droprate, m);
+
+    metric_reset(&m);
   } /* }}} for (hl = hostlist_head; hl != NULL; hl = hl->next) */
+
+  for (size_t i = 0; fams[i] != NULL; i++) {
+    if (fams[i]->metric.num > 0) {
+      int status = plugin_dispatch_metric_family(fams[i]);
+      if (status != 0) {
+        ERROR("ping plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(fams[i]);
+    }
+  }
 
   return 0;
 } /* }}} int ping_read */

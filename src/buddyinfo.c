@@ -63,35 +63,23 @@ static int buddyinfo_config(const char *key, const char *value) {
   return 0;
 }
 
-static void buddyinfo_submit(const char *zone_fullname, const char *zone,
-                             const char *size, const int freepages) {
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t value = {.gauge = freepages};
-
-  if (ignorelist_match(ignorelist, zone) != 0)
-    return;
-
-  vl.values = &value;
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "buddyinfo", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, zone_fullname, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "freepages", sizeof(vl.type));
-  sstrncpy(vl.type_instance, size, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
-
 static int buddyinfo_read(void) {
   FILE *fh;
-  char buffer[1024], pagesize_kb[8], zone_fullname[16];
+  char buffer[1024], pagesize_kb[8], node_name[16];
   char *dummy, *zone;
   char *fields[BUDDYINFO_FIELDS];
   int node_num, numfields, pagesize = getpagesize();
+  metric_family_t fam = {
+      .name = "buddyinfo_freepages",
+      .type = METRIC_TYPE_GAUGE,
+  };
 
   if ((fh = fopen("/proc/buddyinfo", "r")) == NULL) {
     WARNING("buddyinfo plugin: fopen: %s", STRERRNO);
     return -1;
   }
+
+  metric_t m = {0};
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
     if (!(dummy = strstr(buffer, "Node")))
@@ -106,14 +94,33 @@ static int buddyinfo_read(void) {
 
     node_num = atoi(fields[1]);
     zone = fields[3];
-    ssnprintf(zone_fullname, sizeof(zone_fullname), "Node%d/%s", node_num,
-              zone);
+
+    if (ignorelist_match(ignorelist, zone) != 0)
+      continue;
+
+    ssnprintf(node_name, sizeof(node_name), "%d", node_num);
+    metric_label_set(&m, "node", node_name);
+    metric_label_set(&m, "zone", zone);
+
     for (int i = 1; i <= MAX_ORDER; i++) {
-      ssnprintf(pagesize_kb, sizeof(pagesize_kb), "%dKB",
+      ssnprintf(pagesize_kb, sizeof(pagesize_kb), "%d",
                 NUM_OF_KB(pagesize, i - 1));
-      buddyinfo_submit(zone_fullname, zone, pagesize_kb, atoi(fields[i + 3]));
+      metric_label_set(&m, "pagesize_kb", pagesize_kb);
+
+      m.value.gauge = atoi(fields[i + 3]);
+      metric_family_metric_append(&fam, m);
     }
   }
+
+  metric_reset(&m);
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("buddyinfo plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 
   fclose(fh);
   return 0;
