@@ -65,6 +65,12 @@ typedef struct sockent {
 #define NET_DEFAULT_PACKET_SIZE 1452
 #define NET_DEFAULT_PORT "8089"
 
+typedef enum {
+  NS,
+  US,
+  MS,
+} wifxudp_time_precision_t;
+
 /*
  * Private variables
  */
@@ -72,6 +78,7 @@ typedef struct sockent {
 static int wifxudp_config_ttl;
 static size_t wifxudp_config_packet_size = NET_DEFAULT_PACKET_SIZE;
 static bool wifxudp_config_store_rates;
+static wifxudp_time_precision_t wifxudp_config_time_precision = MS;
 
 static sockent_t *sending_socket;
 
@@ -463,7 +470,20 @@ static int write_influxdb_point(char *buffer, int buffer_len,
   if (!have_values)
     return 0;
 
-  BUFFER_ADD(" %" PRIu64 "\n", CDTIME_T_TO_MS(vl->time));
+  uint64_t influxdb_time = 0;
+  switch (wifxudp_config_time_precision) {
+  case NS:
+    influxdb_time = CDTIME_T_TO_NS(vl->time);
+    break;
+  case US:
+    influxdb_time = CDTIME_T_TO_US(vl->time);
+    break;
+  case MS:
+    influxdb_time = CDTIME_T_TO_MS(vl->time);
+    break;
+  }
+
+  BUFFER_ADD(" %" PRIu64 "\n", influxdb_time);
 
 #undef BUFFER_ADD_ESCAPE
 #undef BUFFER_ADD
@@ -559,16 +579,41 @@ static int wifxudp_config_set_server(const oconfig_item_t *ci) {
   return 0;
 } /* int wifxudp_config_set_server */
 
+static int wifxudp_config_set_time_precision(const oconfig_item_t *ci) {
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    ERROR("write_influxdb_udp plugin: The `%s' config option needs "
+          "one string arguments.",
+          ci->key);
+    return -1;
+  }
+  if (strcasecmp("ns", ci->values[0].value.string) == 0)
+    wifxudp_config_time_precision = NS;
+  else if (strcasecmp("us", ci->values[0].value.string) == 0)
+    wifxudp_config_time_precision = US;
+  else if (strcasecmp("ms", ci->values[0].value.string) == 0)
+    wifxudp_config_time_precision = MS;
+  else {
+    WARNING("write_influxdb_udp plugin: "
+            "The `TimePrecision' option must be `ns', `us' or `ms`.");
+    return -1;
+  }
+
+  return 0;
+} /* int wifxudp_config_set_time_precision */
+
 static int write_influxdb_udp_config(oconfig_item_t *ci) {
+
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Server", child->key) == 0)
       wifxudp_config_set_server(child);
-    else if (strcasecmp("TimeToLive", child->key) == 0) {
+    else if (strcasecmp("TimeToLive", child->key) == 0)
       wifxudp_config_set_ttl(child);
-    } else if (strcasecmp("MaxPacketSize", child->key) == 0)
+    else if (strcasecmp("MaxPacketSize", child->key) == 0)
       wifxudp_config_set_buffer_size(child);
+    else if (strcasecmp("TimePrecision", child->key) == 0)
+      wifxudp_config_set_time_precision(child);
     else if (strcasecmp("StoreRates", child->key) == 0)
       cf_util_get_boolean(child, &wifxudp_config_store_rates);
     else {

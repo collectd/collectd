@@ -11215,6 +11215,7 @@ miliseconds while plugin instance, type and type instance are sent as tags.
 
  <Plugin "write_influxdb_udp">
    Server "influxdb.internal.tld"
+   TimePrecision "ms"
    StoreRates "yes"
  </Plugin>
 
@@ -11227,6 +11228,14 @@ The B<Server> statement sets the server to send datagrams to.
 The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. The
 optional second argument specifies a port number or a service name. If not
 given, the default, B<8089>, is used.
+
+=item B<TimePrecision> I<ms>|I<us>|I<ns>
+
+The B<TimePrecision> option sets the precision of the timestamps sent to 
+InfluxDB. It must match the precision set in InfluxDB line protocol 
+configuration.
+
+The defaut value is I<ms>. Note that InfluxDB default may differ.
 
 =item B<TimeToLive> I<1-255>
 

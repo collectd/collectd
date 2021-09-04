@@ -2019,6 +2019,7 @@
 
 #<Plugin write_influxdb_udp>
 #  Server "localhost"
+#  TimePrecision "ms"
 #  StoreRates true
 #  MaxPacketSize 32768
 #  TimeToLive 128
