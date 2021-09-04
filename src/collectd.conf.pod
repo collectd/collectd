@@ -11209,12 +11209,13 @@ traffic between collectd and the HTTP server.
 
 =head2 Plugin C<write_influxdb_udp>
 
-The write_influxdb_udp plugin sends data to a instance of InfluxDB using the
+The write_influxdb_udp plugin sends data to instances of InfluxDB using the
 "Line Protocol". Each plugin is sent as a measurement with a time precision of
 miliseconds while plugin instance, type and type instance are sent as tags.
 
  <Plugin "write_influxdb_udp">
-   Server "influxdb.internal.tld"
+   Server "influxdb.fqdn"
+   Server "influxdb2.fqdn"
    TimePrecision "ms"
    StoreRates "yes"
  </Plugin>
@@ -11223,11 +11224,13 @@ miliseconds while plugin instance, type and type instance are sent as tags.
 
 =item B<E<lt>Server> I<Host> [I<Port>]B<E<gt>>
 
-The B<Server> statement sets the server to send datagrams to.
+The B<Server> statement sets a server to send datagrams to. This statement can
+appear multiple times, once for each unique destination to send to.
 
 The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. The
 optional second argument specifies a port number or a service name. If not
-given, the default, B<8089>, is used.
+given, the default, B<8089>, is used. The arguments I<Host> and I<Port> should
+be enclosed in "quotes".
 
 =item B<TimePrecision> I<ms>|I<us>|I<ns>
 
