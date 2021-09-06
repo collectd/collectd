@@ -2071,7 +2071,7 @@ AC_ARG_WITH([cuda],
   [
     if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
       with_cuda_cppflags="-I$withval/include"
-      with_cuda_ldflags="-I$withval/lib"
+      with_cuda_ldflags="-L$withval/lib"
       with_cuda="yes"
     else
       with_cuda="$withval"
@@ -3827,7 +3827,7 @@ AC_ARG_WITH([libnetsnmp],
      with_libnetsnmp="yes"
     else
       with_libnetsnmp_cppflags="-I$withval/include"
-      with_libnetsnmp_ldflags="-I$withval/lib"
+      with_libnetsnmp_ldflags="-L$withval/lib"
       with_libnetsnmp="yes"
     fi; fi
   ],
@@ -3948,7 +3948,7 @@ AC_ARG_WITH([libnetsnmpagent],
       with_libnetsnmpagent="yes"
     else
       with_libnetsnmpagent_cppflags="-I$withval/include"
-      with_libnetsnmpagent_ldflags="-I$withval/lib"
+      with_libnetsnmpagent_ldflags="-L$withval/lib"
       with_libnetsnmpagent="yes"
     fi; fi
   ],
