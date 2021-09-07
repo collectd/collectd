@@ -229,16 +229,19 @@ static int cgroups_config(const char *key, const char *value) {
 } /* int cgroups_config */
 
 static void cgroups_walk_mountpoint(cu_mount_t *mnt_ptr,
-                                    struct controller_settings *settings) {
+                                    struct controller_settings *settings,
+                                    bool check_mountoption) {
   if (1 == settings->found)
     return;
 
-  if (cu_mount_checkoption(mnt_ptr->options, settings->controller, 1)) {
-    walk_directory(mnt_ptr->dir, settings->callback,
-                   /* user_data = */ NULL,
-                   /* include_hidden = */ 0);
-    settings->found = 1;
-  }
+  if (check_mountoption &&
+      !cu_mount_checkoption(mnt_ptr->options, settings->controller, 1))
+    return;
+
+  walk_directory(mnt_ptr->dir, settings->callback,
+                 /* user_data = */ NULL,
+                 /* include_hidden = */ 0);
+  settings->found = 1;
 } /* void cgroups_walk_mountpoint */
 
 static int cgroups_read(void) {
@@ -258,11 +261,13 @@ static int cgroups_read(void) {
   }
 
   for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next) {
-    if (strcmp(mnt_ptr->type, "cgroup") != 0)
+    if (strcmp(mnt_ptr->type, "cgroup") != 0 &&
+        strcmp(mnt_ptr->type, "cgroup2"))
       continue;
 
     for (i = 0; i < STATIC_ARRAY_SIZE(settings); i++)
-      cgroups_walk_mountpoint(mnt_ptr, &settings[i]);
+      cgroups_walk_mountpoint(mnt_ptr, &settings[i],
+                              strcmp(mnt_ptr->type, "cgroup2"));
   }
 
   cu_mount_freelist(mnt_list);
@@ -271,7 +276,7 @@ static int cgroups_read(void) {
     found_any |= settings[i].found;
     if (0 == settings[i].found)
       WARNING("cgroups plugin: Unable to find cgroup "
-              "mount-point with the \"%s\" option.",
+              "mount-point with the \"%s\" option or cgroup2 mount-point.",
               settings[i].controller);
   }
 

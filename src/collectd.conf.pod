@@ -1630,6 +1630,8 @@ This plugin collects the CPU user/system time and memory statistics for each
 I<cgroup> by reading the F<cpuacct.stat> and F<memory.stat> files in the first
 cpuacct-mountpoint, memory-mountpoint (typically
 F</sys/fs/cgroup/cpu,cpuacct/>, F</sys/fs/cgroup/memory/> on machines using systemd).
+Can also read the unified cgroups v2 hierarchy where all controllers are
+mounted with a single mountpoint.
 
 =over 4
 
