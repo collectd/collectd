@@ -56,6 +56,43 @@ cgroups_submit_one(char const *type, char const *plugin_instance,
   plugin_dispatch_values(&vl);
 } /* void cgroups_submit_one */
 
+static bool strip_suffix(char *str, size_t str_len, const char *suffix) {
+  size_t suffix_len = strlen(suffix);
+
+  if (str_len < suffix_len)
+    return false;
+
+  if (strcmp(str + str_len - suffix_len, suffix) == 0) {
+    str[str_len - suffix_len] = '\0';
+    return true;
+  }
+
+  return false;
+}
+
+static value_t multiply_value(int ds_type, value_t value, unsigned int factor) {
+  value_t ret_value = value;
+
+  switch (ds_type) {
+  case DS_TYPE_COUNTER:
+    ret_value.counter = value.counter * factor;
+    break;
+
+  case DS_TYPE_GAUGE:
+    ret_value.gauge = value.gauge * factor;
+    break;
+
+  case DS_TYPE_DERIVE:
+    ret_value.derive = value.derive * factor;
+    break;
+
+  case DS_TYPE_ABSOLUTE:
+    ret_value.absolute = value.absolute * factor;
+  }
+
+  return ret_value;
+}
+
 __attribute__((nonnull(1, 2, 3, 4))) static int
 read_cgroups_table(const char *type, const char *dirname,
                    const char *cgroup_name, const char *table_name, int ds_type,
@@ -121,9 +158,17 @@ read_cgroups_table(const char *type, const char *dirname,
     if (key[key_len - 1] == ':')
       key[key_len - 1] = '\0';
 
+    /* Strip _usec suffix, if found */
+    bool is_usec = strip_suffix(key, key_len, "_usec");
+
     status = parse_value(fields[1], &value, ds_type);
     if (status != 0)
       continue;
+
+    /* cgroup v1 reports nanoseconds, cgroup v2 microseconds. Normalize to nano
+     */
+    if (is_usec)
+      value = multiply_value(ds_type, value, 1000);
 
     cgroups_submit_one(type, cgroup_name, key, value);
   }
