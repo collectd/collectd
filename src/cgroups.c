@@ -142,6 +142,15 @@ read_cpuacct_procs(const char *dirname, char const *cgroup_name,
                             DS_TYPE_DERIVE, user_data);
 } /* int read_cpuacct_procs */
 
+/*
+ * This callback reads the user/system CPU time for each cgroup.
+ */
+__attribute__((nonnull(1, 2))) static int
+read_cpu_procs(const char *dirname, char const *cgroup_name, void *user_data) {
+  return read_cgroups_table("cpu", dirname, cgroup_name, "cpu.stat",
+                            DS_TYPE_DERIVE, user_data);
+} /* int read_cpu_procs */
+
 __attribute__((nonnull(1, 2))) static int
 read_memory_procs(const char *dirname, char const *cgroup_name,
                   void *user_data) {
@@ -197,6 +206,16 @@ read_memory_root(const char *dirname, const char *filename, void *user_data) {
   return read_cgroups_root(dirname, filename, read_memory_procs, user_data);
 } /* int read_memory_root */
 
+/*
+ * Gets called for every file/folder in /sys/fs/cgroup (or
+ * wherever cgroup2 is mounted on the system). Calls walk_directory with the
+ * read_cpu_procs callback on every folder it finds, such as "system".
+ */
+__attribute__((nonnull(1, 2))) static int
+read_cpu_root(const char *dirname, const char *filename, void *user_data) {
+  return read_cgroups_root(dirname, filename, read_cpu_procs, user_data);
+} /* int read_cpu_root */
+
 static int cgroups_init(void) {
   if (il_cgroup == NULL)
     il_cgroup = ignorelist_create(1);
@@ -249,6 +268,7 @@ static int cgroups_read(void) {
   cu_mount_t *mnt_ptr;
   struct controller_settings settings[] = {
       {0, "cpuacct", read_cpuacct_root},
+      {0, "cpu", read_cpu_root},
       {0, "memory", read_memory_root},
   };
   unsigned int i;
