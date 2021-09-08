@@ -91,25 +91,21 @@ static long pagesize_g;
 #error "No applicable input method."
 #endif
 
-__attribute__((nonnull(1))) static void
-ipc_submit_g(const char *plugin_instance, const char *type,
-             const char *type_instance, gauge_t value) /* {{{ */
-{
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "ipc", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  if (type_instance != NULL)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-} /* }}} */
+enum {
+  FAM_IPC_SEM_ARRAYS = 0,
+  FAM_IPC_SEM_SEMAPHORES,
+  FAM_IPC_SHM_SEGMENTS,
+  FAM_IPC_SHM_TOTAL,
+  FAM_IPC_SHM_RSS,
+  FAM_IPC_SHM_SWAPPED,
+  FAM_IPC_MSG_QUEUES,
+  FAM_IPC_MSG_MESSAGES,
+  FAM_IPC_MSG_BYTES,
+  FAM_IPC_MAX,
+};
 
 #if KERNEL_LINUX
-static int ipc_read_sem(void) /* {{{ */
+static int ipc_read_sem(metric_family_t *fams) /* {{{ */
 {
   struct seminfo seminfo;
   union semun arg;
@@ -125,13 +121,19 @@ static int ipc_read_sem(void) /* {{{ */
     return -1;
   }
 
-  ipc_submit_g("sem", "count", "arrays", seminfo.semusz);
-  ipc_submit_g("sem", "count", "total", seminfo.semaem);
+  metric_family_metric_append(&fams[FAM_IPC_SEM_ARRAYS],
+                              (metric_t){
+                                  .value.gauge = seminfo.semusz,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_SEM_SEMAPHORES],
+                              (metric_t){
+                                  .value.gauge = seminfo.semaem,
+                              });
 
   return 0;
 } /* }}} int ipc_read_sem */
 
-static int ipc_read_shm(void) /* {{{ */
+static int ipc_read_shm(metric_family_t *fams) /* {{{ */
 {
   struct shm_info shm_info;
   int status;
@@ -144,15 +146,28 @@ static int ipc_read_shm(void) /* {{{ */
     return -1;
   }
 
-  ipc_submit_g("shm", "segments", NULL, shm_info.used_ids);
-  ipc_submit_g("shm", "bytes", "total", shm_info.shm_tot * pagesize_g);
-  ipc_submit_g("shm", "bytes", "rss", shm_info.shm_rss * pagesize_g);
-  ipc_submit_g("shm", "bytes", "swapped", shm_info.shm_swp * pagesize_g);
+  metric_family_metric_append(&fams[FAM_IPC_SHM_SEGMENTS],
+                              (metric_t){
+                                  .value.gauge = shm_info.used_ids,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_SHM_TOTAL],
+                              (metric_t){
+                                  .value.gauge = shm_info.shm_tot * pagesize_g,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_SHM_RSS],
+                              (metric_t){
+                                  .value.gauge = shm_info.shm_rss * pagesize_g,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_SHM_SWAPPED],
+                              (metric_t){
+                                  .value.gauge = shm_info.shm_swp * pagesize_g,
+                              });
+
   return 0;
 }
 /* }}} int ipc_read_shm */
 
-static int ipc_read_msg(void) /* {{{ */
+static int ipc_read_msg(metric_family_t *fams) /* {{{ */
 {
   struct msginfo msginfo;
 
@@ -160,9 +175,19 @@ static int ipc_read_msg(void) /* {{{ */
     ERROR("Kernel is not configured for message queues");
     return -1;
   }
-  ipc_submit_g("msg", "count", "queues", msginfo.msgmni);
-  ipc_submit_g("msg", "count", "headers", msginfo.msgmap);
-  ipc_submit_g("msg", "count", "space", msginfo.msgtql);
+
+  metric_family_metric_append(&fams[FAM_IPC_MSG_QUEUES],
+                              (metric_t){
+                                  .value.gauge = msginfo.msgpool,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_MSG_MESSAGES],
+                              (metric_t){
+                                  .value.gauge = msginfo.msgmap,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_MSG_BYTES],
+                              (metric_t){
+                                  .value.gauge = msginfo.msgtql,
+                              });
 
   return 0;
 }
@@ -173,8 +198,8 @@ static int ipc_init(void) /* {{{ */
   pagesize_g = sysconf(_SC_PAGESIZE);
   return 0;
 }
-  /* }}} */
-  /* #endif KERNEL_LINUX */
+/* }}} */
+/* #endif KERNEL_LINUX */
 
 #elif KERNEL_AIX
 static caddr_t ipc_get_info(cid_t cid, int cmd, int version, int stsize,
@@ -215,7 +240,7 @@ static caddr_t ipc_get_info(cid_t cid, int cmd, int version, int stsize,
   return buff;
 } /* }}} */
 
-static int ipc_read_sem(void) /* {{{ */
+static int ipc_read_sem(metric_family_t *fams) /* {{{ */
 {
   ipcinfo_sem_t *ipcinfo_sem;
   unsigned short sem_nsems = 0;
@@ -233,13 +258,19 @@ static int ipc_read_sem(void) /* {{{ */
   }
   free(ipcinfo_sem);
 
-  ipc_submit_g("sem", "count", "arrays", sem_nsems);
-  ipc_submit_g("sem", "count", "total", sems);
+  metric_family_metric_append(&fams[FAM_IPC_SEM_ARRAYS],
+                              (metric_t){
+                                  .value.gauge = sem_nsems,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_SEM_SEMAPHORES],
+                              (metric_t){
+                                  .value.gauge = sems,
+                              });
 
   return 0;
 } /* }}} int ipc_read_sem */
 
-static int ipc_read_shm(void) /* {{{ */
+static int ipc_read_shm(metric_family_t *fams) /* {{{ */
 {
   ipcinfo_shm_t *ipcinfo_shm;
   ipcinfo_shm_t *pshm;
@@ -258,14 +289,20 @@ static int ipc_read_shm(void) /* {{{ */
   }
   free(ipcinfo_shm);
 
-  ipc_submit_g("shm", "segments", NULL, shm_segments);
-  ipc_submit_g("shm", "bytes", "total", shm_bytes);
+  metric_family_metric_append(&fams[FAM_IPC_SHM_SEGMENTS],
+                              (metric_t){
+                                  .value.gauge = shm_segments,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_SHM_TOTAL],
+                              (metric_t){
+                                  .value.gauge = shm_bytes,
+                              });
 
   return 0;
 }
 /* }}} int ipc_read_shm */
 
-static int ipc_read_msg(void) /* {{{ */
+static int ipc_read_msg(metric_family_t *fams) /* {{{ */
 {
   ipcinfo_msg_t *ipcinfo_msg;
   uint32_t msg_used_space = 0;
@@ -285,9 +322,18 @@ static int ipc_read_msg(void) /* {{{ */
   }
   free(ipcinfo_msg);
 
-  ipc_submit_g("msg", "count", "queues", msg_alloc_queues);
-  ipc_submit_g("msg", "count", "headers", msg_qnum);
-  ipc_submit_g("msg", "count", "space", msg_used_space);
+  metric_family_metric_append(&fams[FAM_IPC_MSG_QUEUES],
+                              (metric_t){
+                                  .value.gauge = msg_alloc_queues,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_MSG_MESSAGES],
+                              (metric_t){
+                                  .value.gauge = msg_qnum,
+                              });
+  metric_family_metric_append(&fams[FAM_IPC_MSG_BYTES],
+                              (metric_t){
+                                  .value.gauge = msg_used_space,
+                              });
 
   return 0;
 }
@@ -296,12 +342,71 @@ static int ipc_read_msg(void) /* {{{ */
 
 static int ipc_read(void) /* {{{ */
 {
-  int x = 0;
-  x |= ipc_read_shm();
-  x |= ipc_read_sem();
-  x |= ipc_read_msg();
+  int status = 0;
+  metric_family_t fams[FAM_IPC_MAX] = {
+      [FAM_IPC_SEM_ARRAYS] =
+          {
+              .name = "ipc_sem_arrays",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_IPC_SEM_SEMAPHORES] =
+          {
+              .name = "ipc_sem_semaphores",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_IPC_SHM_SEGMENTS] =
+          {
+              .name = "ipc_shm_segments",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_IPC_SHM_TOTAL] =
+          {
+              .name = "ipc_shm_total_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_IPC_SHM_RSS] =
+          {
+              .name = "ipc_shm_rss_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_IPC_SHM_SWAPPED] =
+          {
+              .name = "ipc_shm_swapped_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_IPC_MSG_QUEUES] =
+          {
+              .name = "ipc_msg_queues",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_IPC_MSG_MESSAGES] =
+          {
+              .name = "ipc_msg_messages",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_IPC_MSG_BYTES] =
+          {
+              .name = "ipc_msg_bytes",
+              .type = METRIC_TYPE_GAUGE,
+          },
+  };
 
-  return x;
+  status |= ipc_read_shm(fams);
+  status |= ipc_read_sem(fams);
+  status |= ipc_read_msg(fams);
+
+  for (size_t i = 0; i < FAM_IPC_MAX; i++) {
+    if (fams[i].metric.num > 0) {
+      int status = plugin_dispatch_metric_family(&fams[i]);
+      if (status != 0) {
+        ERROR("ipc plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(&fams[i]);
+    }
+  }
+
+  return status;
 }
 /* }}} */
 
