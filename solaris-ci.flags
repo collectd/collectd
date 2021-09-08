@@ -18,7 +18,6 @@
 --disable-target_v5upgrade
 --disable-threshold
 --disable-write_graphite
---disable-write_influxdb_udp
 --disable-write_kafka
 --disable-write_mongodb
 --disable-write_prometheus
