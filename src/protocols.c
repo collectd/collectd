@@ -53,23 +53,32 @@ static ignorelist_t *values_list;
  */
 static void submit(const char *protocol_name, const char *str_key,
                    const char *str_value) {
-  value_t value;
-  value_list_t vl = VALUE_LIST_INIT;
-  int status;
+  char fam_name[128];
+  ssnprintf(fam_name, sizeof(fam_name), "protocols_%s_%s_total", protocol_name,
+            str_key);
 
-  status = parse_value(str_value, &value, DS_TYPE_DERIVE);
+  metric_family_t fam = {
+      .name = fam_name,
+      .type = METRIC_TYPE_COUNTER,
+  };
+
+  value_t value;
+  int status = parse_value(str_value, &value, DS_TYPE_COUNTER);
   if (status != 0) {
     return;
   }
 
-  vl.values = &value;
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "protocols", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, protocol_name, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "protocol_counter", sizeof(vl.type));
-  sstrncpy(vl.type_instance, str_key, sizeof(vl.type_instance));
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.counter = value.counter,
+                                    });
 
-  plugin_dispatch_values(&vl);
+  status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("protocols plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 } /* void submit */
 
 static int read_file(const char *path) {

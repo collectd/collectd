@@ -326,22 +326,32 @@ static void flush_buffer(void) {
   write_influxdb_udp_init_buffer();
 }
 
+static void fill_send_buffer(char const *buffer, size_t len) {
+  assert(len <= wifxudp_config_packet_size);
+
+  pthread_mutex_lock(&send_buffer_lock);
+  if (wifxudp_config_packet_size - send_buffer_fill < len)
+    flush_buffer();
+  memcpy(send_buffer_ptr, buffer, len);
+  send_buffer_fill += len;
+  send_buffer_ptr += len;
+  send_buffer_last_update = cdtime();
+  pthread_mutex_unlock(&send_buffer_lock);
+}
+
 static int wifxudp_escape_string(char *buffer, size_t buffer_size,
                                  const char *string) {
 
   if ((buffer == NULL) || (string == NULL))
     return -EINVAL;
 
-  if (buffer_size < 3)
-    return -ENOMEM;
-
   int dst_pos = 0;
 
 #define BUFFER_ADD(c)                                                          \
   do {                                                                         \
     if (dst_pos >= (buffer_size - 1)) {                                        \
-      buffer[buffer_size - 1] = '\0';                                          \
-      return -ENOMEM;                                                          \
+      buffer[buffer_size - 1] = 0;                                             \
+      return dst_pos++;                                                        \
     }                                                                          \
     buffer[dst_pos] = (c);                                                     \
     dst_pos++;                                                                 \
@@ -364,100 +374,79 @@ static int wifxudp_escape_string(char *buffer, size_t buffer_size,
   return dst_pos;
 } /* int wifxudp_escape_string */
 
-static int write_influxdb_point(char *buffer, int buffer_len,
-                                const data_set_t *ds, const value_list_t *vl) {
-  int status;
+static int write_influxdb_point(char *buffer, int buffer_len, metric_t metric) {
   int offset = 0;
-  gauge_t *rates = NULL;
   bool have_values = false;
-
-  assert(0 == strcmp(ds->type, vl->type));
 
 #define BUFFER_ADD_ESCAPE(...)                                                 \
   do {                                                                         \
-    status = wifxudp_escape_string(buffer + offset, buffer_len - offset,       \
-                                   __VA_ARGS__);                               \
+    int status = wifxudp_escape_string(buffer + offset, buffer_len - offset,   \
+                                       __VA_ARGS__);                           \
     if (status < 0)                                                            \
-      return -1;                                                               \
+      return status;                                                           \
     offset += status;                                                          \
+    if (status >= (buffer_len - offset))                                       \
+      return offset;                                                           \
   } while (0)
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = snprintf(buffer + offset, buffer_len - offset, __VA_ARGS__);      \
-    if ((status < 0) || (status >= (buffer_len - offset))) {                   \
-      sfree(rates);                                                            \
-      return -1;                                                               \
-    }                                                                          \
+    int status = snprintf(buffer + offset, buffer_len - offset, __VA_ARGS__);  \
+    if (status < 0)                                                            \
+      return status;                                                           \
     offset += status;                                                          \
+    if (status >= (buffer_len - offset))                                       \
+      return offset;                                                           \
   } while (0)
 
-  BUFFER_ADD_ESCAPE(vl->plugin);
-  BUFFER_ADD(",host=");
-  BUFFER_ADD_ESCAPE(vl->host);
-  if (strcmp(vl->plugin_instance, "") != 0) {
-    BUFFER_ADD(",instance=");
-    BUFFER_ADD_ESCAPE(vl->plugin_instance);
+  have_values = false;
+  BUFFER_ADD_ESCAPE(metric.family->name);
+  for (size_t j = 0; j < metric.label.num; j++) {
+    label_pair_t label = metric.label.ptr[j];
+    BUFFER_ADD(",");
+    BUFFER_ADD_ESCAPE(label.name);
+    BUFFER_ADD("=");
+    BUFFER_ADD_ESCAPE(label.value);
   }
-  if (strcmp(vl->type, "") != 0) {
-    BUFFER_ADD(",type=");
-    BUFFER_ADD_ESCAPE(vl->type);
-  }
-  if (strcmp(vl->type_instance, "") != 0) {
-    BUFFER_ADD(",type_instance=");
-    BUFFER_ADD_ESCAPE(vl->type_instance);
-  }
-
   BUFFER_ADD(" ");
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    if ((ds->ds[i].type != DS_TYPE_COUNTER) &&
-        (ds->ds[i].type != DS_TYPE_GAUGE) &&
-        (ds->ds[i].type != DS_TYPE_DERIVE)) {
-      sfree(rates);
+
+  if (wifxudp_config_store_rates &&
+      (metric.family->type == METRIC_TYPE_COUNTER)) {
+    gauge_t rate;
+    if (uc_get_rate(&metric, &rate) != 0) {
+      WARNING("write_influxdb_udp plugin: "
+              "uc_get_rate failed.");
       return -1;
     }
-
-    if (ds->ds[i].type == DS_TYPE_GAUGE) {
-      if (isnan(vl->values[i].gauge))
-        continue;
-      if (have_values)
-        BUFFER_ADD(",");
-      BUFFER_ADD("%s=%lf", ds->ds[i].name, vl->values[i].gauge);
-      have_values = true;
-    } else if (wifxudp_config_store_rates) {
-      if (rates == NULL)
-        rates = uc_get_rate_vl(ds, vl);
-      if (rates == NULL) {
-        WARNING("write_influxdb_udp plugin: "
-                "uc_get_rate_vl failed.");
-        return -1;
-      }
-      if (isnan(rates[i]))
-        continue;
-      if (have_values)
-        BUFFER_ADD(",");
-      BUFFER_ADD("%s=%lf", ds->ds[i].name, rates[i]);
-      have_values = true;
-    } else if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      if (have_values)
-        BUFFER_ADD(",");
-      BUFFER_ADD("%s=%" PRIu64 "i", ds->ds[i].name,
-                 (uint64_t)vl->values[i].counter);
-      have_values = true;
-    } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
-      if (have_values)
-        BUFFER_ADD(",");
-      BUFFER_ADD("%s=%" PRIi64 "i", ds->ds[i].name, vl->values[i].derive);
+    if (!isnan(rate)) {
+      BUFFER_ADD("value=" GAUGE_FORMAT, rate);
       have_values = true;
     }
-
-  } /* for ds->ds_num */
-  sfree(rates);
+  } else {
+    switch (metric.family->type) {
+    case METRIC_TYPE_GAUGE:
+    case METRIC_TYPE_UNTYPED:
+      if (!isnan(metric.value.gauge)) {
+        BUFFER_ADD("value=" GAUGE_FORMAT, metric.value.gauge);
+        have_values = true;
+      }
+      break;
+    case METRIC_TYPE_COUNTER:
+      BUFFER_ADD("value=%" PRIi64 "i", metric.value.counter);
+      have_values = true;
+      break;
+    default:
+      WARNING("write_influxdb_udp plugin: "
+              "unknown family type.");
+      return -1;
+      break;
+    }
+  }
 
   if (!have_values)
     return 0;
 
-  BUFFER_ADD(" %" PRIu64 "\n", CDTIME_T_TO_MS(vl->time));
+  BUFFER_ADD(" %" PRIu64 "\n", CDTIME_T_TO_MS(metric.time));
 
 #undef BUFFER_ADD_ESCAPE
 #undef BUFFER_ADD
@@ -465,36 +454,35 @@ static int write_influxdb_point(char *buffer, int buffer_len,
   return offset;
 } /* int write_influxdb_point */
 
-static int
-write_influxdb_udp_write(const data_set_t *ds, const value_list_t *vl,
-                         user_data_t __attribute__((unused)) * user_data) {
+static int write_influxdb_udp_write(metric_family_t const *fam,
+                                    user_data_t __attribute__((unused)) *
+                                        user_data) {
+  if (fam == NULL)
+    return EINVAL;
+
   char buffer[NET_DEFAULT_PACKET_SIZE];
+  int buffer_len = NET_DEFAULT_PACKET_SIZE;
+  int offset = 0;
 
-  int status = write_influxdb_point(buffer, NET_DEFAULT_PACKET_SIZE, ds, vl);
+  if (wifxudp_config_packet_size < buffer_len)
+    buffer_len = wifxudp_config_packet_size;
 
-  if (status < 0) {
-    ERROR("write_influxdb_udp plugin: write_influxdb_udp_write failed.");
-    return -1;
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t metric = fam->metric.ptr[i];
+    int status =
+        write_influxdb_point(buffer + offset, buffer_len - offset, metric);
+    if (status < 0) { // error
+      ERROR("write_influxdb_udp plugin: write_influxdb_udp_write failed.");
+      return -1;
+    } else if (status >= buffer_len - offset) { // full
+      fill_send_buffer(buffer, offset);
+      offset = 0;
+      buffer[0] = 0;
+    } else {
+      offset += status;
+    }
   }
-  if (status == 0) /* no real values to send (nan) */
-    return 0;
-
-  pthread_mutex_lock(&send_buffer_lock);
-  if (wifxudp_config_packet_size - send_buffer_fill < status)
-    flush_buffer();
-  memcpy(send_buffer_ptr, buffer, status);
-
-  send_buffer_fill += status;
-  send_buffer_ptr += status;
-  send_buffer_last_update = cdtime();
-
-  if (wifxudp_config_packet_size - send_buffer_fill < 120)
-    /* No room for a new point of average size in buffer,
-       the probability of fail for the new point is bigger than
-       the probability of success */
-    flush_buffer();
-
-  pthread_mutex_unlock(&send_buffer_lock);
+  fill_send_buffer(buffer, offset);
   return 0;
 } /* int write_influxdb_udp_write */
 
