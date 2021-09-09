@@ -8221,94 +8221,400 @@ permissions to this database. Example and default setting:
 
 =head2 Plugin C<redfish>
 
-The C<redfish> plugin collects sensor data using REST protocol called
-Redfish.
+The C<redfish> plugin was designed to collect data and metrics exposed by a
+Redfish interface, which implements a structured REST API specified by the
+L<DMTF|https://www.dmtf.org/standards/redfish>.
 
-B<Sample configuration:>
+B<Example of a Redfish resource>
+
+The following example of a resource exposed by a Redfish interface stems from
+a mockup of a simple rack-mounted server, provided by DMTF (available
+L<here|https://redfish.dmtf.org/redfish/mockups/v1/1100>). The latter can be
+emulated on any host system capable of running C<Python-3.5+> thanks to 
+C<Redfish-Interface-Emulator>, which is available on 
+L<GitHub|https://github.com/DMTF/Redfish-Interface-Emulator>.
+
+  {
+    "@odata.type": "#ThermalMetrics.v1_0_0.ThermalMetrics",
+    "Id": "ThermalMetrics",
+    "Name": "Chassis Thermal Metrics",
+    "TemperatureSummaryCelsius": {
+      "Internal": {
+        "Reading": 39,
+        "DataSourceUri": "/redfish/v1/Chassis/1U/Sensors/CPU1Temp"
+      },
+      "Intake": {
+        "Reading": 24.8,
+        "DataSourceUri": "/redfish/v1/Chassis/1U/Sensors/IntakeTemp"
+      },
+      "Ambient": {
+        "Reading": 22.5,
+        "DataSourceUri": "/redfish/v1/Chassis/1U/Sensors/AmbientTemp"
+      },
+      "Exhaust": {
+        "Reading": 40.5,
+        "DataSourceUri": "/redfish/v1/Chassis/1U/Sensors/ExhaustTemp"
+      }
+    },
+    "TemperatureReadingsCelsius": [
+      {
+        "Reading": 24.8,
+        "DeviceName": "Intake",
+        "DataSourceUri": "/redfish/v1/Chassis/1U/Sensors/IntakeTemp"
+      },
+      {
+        "Reading": 40.5,
+        "DeviceName": "Exhaust",
+        "DataSourceUri": "/redfish/v1/Chassis/1U/Sensors/ExhaustTemp"
+      }
+    ],
+    "Oem": {},
+    "@odata.id": "/redfish/v1/Chassis/1U/ThermalSubsystem/ThermalMetrics",
+    "@Redfish.Copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright."
+  }
+
+B<Sample plugin configuration>
+
+The following sample configuration was designed to collect several metrics
+through the hereinabove Redfish interface mockup of a simple rack-mounted
+server.
 
   <Plugin redfish>
-    <Query "fans">
-      Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
+    <Service "mock1U">
+      Host "localhost:10000"
+      User ""
+      Passwd ""
+      Queries "thermal" "voltages" "temperatures" "ps1_voltage" "storage"
+    </Service>
+    <Query "thermal">
+      Endpoint "/Chassis[0]/Thermal"
       <Resource "Fans">
-        <Property "ReadingRPM">
-          PluginInstance "chassis-1"
-          Type "rpm"
+        <Property "Reading">
+          PluginInstance "Fans"
+          Type "fanspeed"
+          TypeInstanceAttr "Name"
+          SelectIDs 1
         </Property>
       </Resource>
-    </Query>
-    <Query "temperatures">
-      Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
       <Resource "Temperatures">
         <Property "ReadingCelsius">
-          PluginInstance "chassis-1"
-          Type "degrees"
+          PluginInstance "Temperatures"
+          Type "temperature"
+          SelectAttrValue "PhysicalContext" "Intake"
         </Property>
       </Resource>
     </Query>
     <Query "voltages">
-      Endpoint "/redfish/v1/Chassis/Chassis-1/Power"
+      Endpoint "/Chassis[0]/Power"
       <Resource "Voltages">
         <Property "ReadingVolts">
-          PluginInstance "chassis-1"
-          Type "volts"
+          PluginInstance "Voltages"
+          Type "voltage"
+          TypeInstance "VRM"
+          TypeInstancePrefixID true
         </Property>
       </Resource>
     </Query>
-    <Service "local">
-      Host "127.0.0.1:5000"
-      User "user"
-      Passwd "passwd"
-      Queries "fans" "voltages" "temperatures"
-    </Service>
+    <Query "temperatures">
+      Endpoint "/Chassis[0]/ThermalSubsystem/ThermalMetrics"
+      <Resource "TemperatureReadingsCelsius">
+        <Property "Reading">
+          PluginInstance "Temperatures"
+          Type "temperature"
+          TypeInstanceAttr "DeviceName"
+        </Property>
+      </Resource>
+    </Query>
+    <Query "ps1_voltage">
+      Endpoint "/Chassis[0]/Sensors[15]"
+      <Attribute "Reading">
+        PluginInstance "Voltages"
+        Type "voltage"
+        TypeInstance "PS1 Voltage"
+      </Attribute>
+    </Query>
+    <Query "storage">
+      Endpoint "/Systems[0]/SimpleStorage[0]"
+        <Resource "Devices">
+          <Property "CapacityBytes">
+            PluginInstance "Storage"
+            Type "capacity"
+            SelectAttrs "Model" "Name"
+          </Property>
+      </Resource>
+    </Query>
   </Plugin>
+
+=over 2
+
+=item B<Service> <string>
+
+A B<Service> groups the information associated with a host exhibiting a Redfish
+interface to query. Each declared B<Service> should be identified by a unique
+key (here C<"mock1U">).
+
+If a B<User> field is specified, a B<Passwd> field must be specified too.
+
+Either a B<User> field or a B<Token> field must be specified.
+
+Several services can be specified. If there is none, nothing will be collected.
 
 =over 4
 
-=item B<Query>
+=item B<Host> <string> [REQUIRED]
 
-Section defining a query performed on Redfish interface
+B<Host> is the FQDN of the node exhibiting a Redfish interface to query.
 
-=item B<Endpoint>
+=item B<User> <string> [REQUIRED/OPTIONAL]
 
-URI of the REST API Endpoint for accessing the BMC
+B<User> is the username of an account with appropriate privileges to submit the
+intended queries to the concerned Redfish interface. If there is no need for
+credentials to submit the intended queries, C<""> can be used.
 
-=item B<Resource>
+=item B<Passwd> <string> [REQUIRED/OPTIONAL]
 
-Selects single resource or array to collect data.
+B<Passwd> is the password of an account with appropriate privileges to submit
+the intended queries to the concerned Redfish interface. If there is no need for
+credentials to submit the intended queries, C<""> can be used.
 
-=item B<Property>
+=item B<Token> <string> [REQUIRED/OPTIONAL]
 
-Selects property from which data is gathered
+B<Token> is the C<X-Auth> token associated with a session opened on the target
+Redfish interface.
 
-=item B<PluginInstance>
+=item B<Queries> <list of strings> [REQUIRED]
 
-Plugin instance of dispatched collectd metric
-
-=item B<Type>
-
-Type of dispatched collectd metric
-
-=item B<TypeInstance>
-
-Type instance of collectd metric
-
-=item B<Service>
-
-Section defining service to be sent requests
-
-=item B<Username>
-
-BMC username
-
-=item B<Password>
-
-BMC password
-
-=item B<Queries>
-
-Queries to run
+B<Queries> should contain the space-separated list of unique keys associated
+with the queries to be submitted to the concerned Redfish interface.
 
 =back
+
+=item B<Query> <string>
+
+A B<Query> is identified by a unique key (e.g. C<"thermal"> for the first query
+of the sample configuration), and groups B<Resource> and B<Attribute> objects
+associated with a given endpoint.
+
+A B<Query> is shared by all the services.
+
+For each query specified in the B<Queries> field of a B<Service>, there must be
+a matching B<Query>.
+
+=over 4
+
+=item B<Endpoint> <string>
+
+An B<Endpoint> is a partial URI designated one specific resource exposed by the
+Redfish interface to query.
+
+This URI is qualified as "partial" since the root path of every resource exposed
+by a Redfish interface (namely C</redfish/v1> for the first version of the
+protocol) should be omitted.
+
+On top of that, this URI must be formatted according to the
+L<C<XPath>|https://www.w3.org/TR/xpath-31/> specifications.
+
+As a result, for instance, to access the first member of the named collection
+C<Chassis> exposed by the root of the Redfish service, the proper URI is
+C</Chassis[0]>.
+
+=item B<Attribute> <string>
+
+An B<Attribute> represents one attribute of a resource exposed by a Redfish
+interface. For instance, in the initial example, C<Name> and
+C<@Redfish.Copyright> are attributes.
+
+The complete path to the collection in which the collected metric is inserted is
+C<ServiceKey/PluginName-PluginInstance/Type-TypeInstance>.
+
+=over 6
+
+=item B<PluginInstance> <string> [REQUIRED]
+
+Name of the instance of the plugin C<redfish> in which the collected metric
+represented by the considered B<Attribute> should be stored.
+
+=item B<Type> <string> [REQUIRED]
+
+A valid C<collectd> type to use as when submitting the result of the query
+See L<types.db(5)> for additional details on types.
+
+=item B<TypeInstance> <string> [REQUIRED]
+
+Name of the instance of the type in which the collected metric represented by
+the considered B<Attribute> should be stored.
+
+=back
+
+=item B<Resource> <string>
+
+A B<Resource> represents one composite object or an anonymous collection of a
+resource exposed by a Redfish interface. For instance, in the initial example,
+C<TemperatureSummaryCelsius> is a composite object, and
+C<TemperatureReadingsCelsius> is an anonymous collection.
+
+A B<Resource> should contain at least one B<Property>, but possibly more than
+one, just as the C<thermal> query of the sample configuration files shows it.
+
+=over 6
+
+=item B<Property> <string>
+
+A B<Property> represents one property of a composite object or of a member of an
+anonymous collection which should value should be collected as a metric. For
+instance, in the initial example, C<Reading> is a property of the members of
+the anonymous collection C<TemperatureReadingsCelsius>.
+
+Among the below possible fields of a B<Property>, those marked as belonging to
+[GROUP 1] are related to the definition of the type instance associated with the
+generated metric. If the B<Property> contains a B<TypeInstance> field, the value
+of the latter is used as type instance. Otherwise, if it contains a
+B<TypeInstanceAttr> field, the value of the property it designates is used as 
+type instance (e.g. in the sample configuration file, for the query
+C<temperature>, the type instance of the metric associated to a member of the
+anonymous collection C<TemperatureReadingsCelsius> is the value of its
+C<DeviceName> property, hence "Intake" for the first member). Lastly, if a
+B<Property> does not have neither a B<TypeInstance> field nor a
+B<TypeInstanceAttr> field, its default behaviour is to "add" a
+B<TypeInstanceAttr> field which value is "Name". Consequently, if the considered
+composite object or the members of the considered anonymous collection do not
+exhibit a property named "Name", the associated B<Property> must contain at
+least one of the two fields B<TypeInstance> and B<TypeInstanceAttr>.
+
+The complete path to the collection in which the collected metric is inserted is
+C<ServiceKey/PluginName-PluginInstance/Type-(ID-)TypeInstance>.
+
+=over 8
+
+=item B<PluginInstance> <string> [REQUIRED]
+
+Name of the instance of the plugin C<redfish> in which the collected metric
+represented by the considered B<Property> should be stored.
+
+=item B<Type> <string> [REQUIRED]
+
+A valid C<collectd> type to use as when submitting the result of the query. See
+L<types.db(5)> for additional details on types.
+
+=item B<TypeInstance> <string> [GROUP 1]
+
+Name of the instance of the type in which the collected metric represented by
+the considered B<Property> should be stored.
+
+=item B<TypeInstanceAttr> <string> [GROUP 1]
+
+Name of the property of the considered composite object or anonymous collection
+which value should be used as type instance.
+
+=item B<TypeInstancePrefixID> <boolean> [OPTIONAL]
+
+If the "item" associated with the B<Property> is an anonymous collection,
+setting this field to C<true> means that the type instance of each member of the
+aforementioned anonymous collection should be prefixed by the ID of the
+considered member in the collection. Note that the IDs start at 0.
+
+If the "item" associated with the B<Property> is a composite object, this field
+is ignored.
+
+=item B<SelectIDs> <list of unsigned integers> [OPTIONAL]
+
+If the "item" associated with the B<Property> is an anonymous collection,
+only the members which IDs belong to the specified list are selected. Note that
+the IDs start at 0, and are the same as those inserted by
+B<TypeInstancePrefixID> in the type instance.
+
+If the "item" associated with the B<Property> is a composite object, this field
+is ignored.
+
+=item B<SelectAttrs> <list of strings> [OPTIONAL]
+
+If the "item" associated with the B<Property> is an anonymous collection,
+only the members which exhibit attributes which names belong to the specified
+list are selected. In other words, this field makes it possible to select
+members of anonymous collections based on a set of attributes they must have.
+
+If the "item" associated with the B<Property> is a composite object, this field
+is ignored.
+
+=item B<SelectAttrValue> <two strings: key value> [OPTIONAL]
+
+If the "item" associated with the B<Property> is an anonymous collection, only
+the members which exhibit an attribute which name is C<key> and value is
+C<value>. In other words, this field makes it possible to select members of
+anonymous collections based on the fact that they have a specific attribute,
+which is equal to a specific value. Note that it is possible to specify several
+B<SelectAttrValue> fields so as to base the member selection on several
+attributes.
+
+If the "item" associated with the B<Property> is a composite object, this field
+is ignored.
+
+=back
+
+=back
+
+=back
+
+=back
+
+B<How to compile and test the C<redfish> plugin>
+
+Hereinbelow, the dependency tree associated with the C<redfish> plugin, and its
+tests:
+
+=encoding utf-8
+
+  plugin_redfish
+  |-> (collectd internals)
+  |-> libredfish
+      |-> libcurl
+      |-> libczmq
+      |   |-> libzmq
+      |-> libjansson
+      |-> libreadline
+
+  test_plugin_redfish
+  |-> (collectd internals)
+  |-> libjansson
+  |-> libredfish
+      |-> libcurl
+      |-> libczmq
+      |   |-> libzmq
+      |-> libjansson
+      |-> libreadline
+
+In order to enable the build of the C<redfish> plugin, the C<--enable-redfish>
+switch has to be specified to the C<configure> script. Note that the optional
+switch C<--with-redfish> makes it possible to specify the installation path of
+the C<libredfish> library, and that the optional switch C<--enable-debug> makes
+it possible to enable the debug mode, which is "forwarded" to the C<libredfish>.
+
+The tests associated with the C<redfish> plugin can be compiled thanks to the
+C<Makefile>, and then executed:
+
+  make test_plugin_redfish
+  ./test_plugin_redfish
+
+If C<collectd> was compiled in debug mode, it is possible to enable the printing
+of the configuration file used by the tests by defining the preprocessing
+variable C<REDFISH_TEST_PRINT_CONFIG>:
+
+  make CPPFLAGS="-DREDFISH_TEST_PRINT_CONFIG" test_plugin_redfish
+
+B<Limitations>
+
+Currently, the C<redfish> plugin suffers from two main limitations.
+
+Firstly, the Redfish resources pointed at by B<Resource> and B<Property> objects
+must be terminal. As a result, it is for instance impossible to collect a metric
+which is an attribute of a composite object encapsulated in another composite
+object.
+
+Secondly, the Redfish requests are inserted in the job queue of a B<sole> worker
+thread, which is spawned at the initialisation of the plugin. By doing so, it is
+possible to execute the Redfish requests asynchronously. However, this might act
+as a bottleneck on performance when lots of equipments should be monitored
+concurrently.
 
 =head2 Plugin C<routeros>
 

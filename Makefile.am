@@ -586,6 +586,7 @@ test_libcollectd_network_parse_LDADD = $(GCRYPT_LIBS)
 endif
 
 liboconfig_la_SOURCES = \
+	src/daemon/utils_llist.c \
 	src/liboconfig/oconfig.c \
 	src/liboconfig/oconfig.h \
 	src/liboconfig/aux_types.h \
