@@ -92,8 +92,9 @@ bindings/perl/pm_to_blib
 # lint stuff
 *.ln
 
-#ide stuff
+# IDE stuff:
 .vscode
+.ycm_extra_conf.py
 
 # cscope stuff
 cscope.*

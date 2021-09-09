@@ -1495,6 +1495,72 @@
 #	DB_Path "/var/lib/rasdaemon/ras-mc_event.db"
 #</Plugin>
 
+#<Plugin redfish>
+#  <Service "mock1U">
+#    Host "localhost:10000"
+#    User ""
+#    Passwd ""
+#    Queries "thermal" "voltages" "temperatures" "ps1_voltage" "storage"
+#  </Service>
+#  <Query "thermal">
+#    Endpoint "/Chassis[0]/Thermal"
+#    <Resource "Fans">
+#      <Property "Reading">
+#        PluginInstance "Fans"
+#        Type "fanspeed"
+#        TypeInstanceAttr "Name"
+#        SelectIDs 1
+#      </Property>
+#    </Resource>
+#    <Resource "Temperatures">
+#      <Property "ReadingCelsius">
+#        PluginInstance "Temperatures"
+#        Type "temperature"
+#        SelectAttrValue "PhysicalContext" "Intake"
+#      </Property>
+#    </Resource>
+#  </Query>
+#  <Query "voltages">
+#    Endpoint "/Chassis[0]/Power"
+#    <Resource "Voltages">
+#      <Property "ReadingVolts">
+#        PluginInstance "Voltages"
+#        Type "voltage"
+#        TypeInstance "VRM"
+#        TypeInstancePrefixID true
+#      </Property>
+#    </Resource>
+#  </Query>
+#  <Query "temperatures">
+#    Endpoint "/Chassis[0]/ThermalSubsystem/ThermalMetrics"
+#    <Resource "TemperatureReadingsCelsius">
+#      <Property "Reading">
+#        PluginInstance "Temperatures"
+#        Type "temperature"
+#        TypeInstanceAttr "DeviceName"
+#      </Property>
+#    </Resource>
+#  </Query>
+#  <Query "ps1_voltage">
+#    Endpoint "/Chassis[0]/Sensors[15]"
+#    <Attribute "Reading">
+#      PluginInstance "Voltages"
+#      Type "voltage"
+#      TypeInstance "PS1 Voltage"
+#    </Attribute>
+#  </Query>
+#  <Query "storage">
+#    Endpoint "/Systems[0]/SimpleStorage[0]"
+#      <Resource "Devices">
+#        <Property "CapacityBytes">
+#          PluginInstance "Storage"
+#          Type "capacity"
+#          SelectAttrs "Model" "Name"
+#        </Property>
+#    </Resource>
+#  </Query>
+#</Plugin>
+
 #<Plugin redis>
 #   <Node example>
 #      Host "redis.example.com"
@@ -1509,42 +1575,6 @@
 #   </Node>
 #</Plugin>
 
-#<Plugin redfish>
-#  <Query "fans">
-#    Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
-#    <Resource "Fans">
-#      <Property "ReadingRPM">
-#        PluginInstance "chassis-1"
-#        Type "rpm"
-#      </Property>
-#    </Resource>
-#  </Query>
-#  <Query "temperatures">
-#    Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
-#    <Resource "Temperatures">
-#      <Property "ReadingCelsius">
-#        PluginInstance "chassis-1"
-#        Type "degrees"
-#      </Property>
-#    </Resource>
-#  </Query>
-#  <Query "voltages">
-#    Endpoint "/redfish/v1/Chassis/Chassis-1/Power"
-#    <Resource "Voltages">
-#      <Property "ReadingVolts">
-#        PluginInstance "chassis-1"
-#        Type "volts"
-#      </Property>
-#    </Resource>
-#  </Query>
-#  <Service "local">
-#    Host "127.0.0.1:5000"
-#    User "user"
-#    Passwd "passwd"
-#    Queries "fans" "voltages" "temperatures"
-#  </Service>
-#</Plugin>
-#
 
 #<Plugin routeros>
 #	<Router>
