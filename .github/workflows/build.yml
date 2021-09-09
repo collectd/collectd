@@ -13,6 +13,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Generate configure script
+      run:
+        ./build.sh
     - name: configure
       run: ./configure
     - name: make
