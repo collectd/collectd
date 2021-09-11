@@ -9130,6 +9130,13 @@ When enabled, creates a C<count> metric which reports the change since the last
 read. This option primarily exists for compatibility with the I<statsd>
 implementation by Etsy.
 
+=item B<CounterSum> B<false>|B<true>
+
+When enabled, creates a C<gauge> metric which reports counters as a "gauge"
+of the differential, resetting the counter between flush intervals.  This
+option primarily exists for compatibility with the I<statsd> implementation
+in GitHub Enterprise Server.
+
 =item B<TimerPercentile> I<Percent>
 
 Calculate and dispatch the configured percentile, i.e. compute the latency, so
