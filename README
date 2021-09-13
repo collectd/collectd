@@ -265,6 +265,11 @@ Features
       Collects CPU usage, memory usage, temperatures and power consumption from
       Intel Many Integrated Core (MIC) CPUs.
 
+    - mmc
+      Reads the percentage of bad blocks on mmc device. The additional values
+      for block erases and power cycles are also read. This Plugin in does only
+      work for the swissbit mmc Cards. MANFID=0x5D OEMID=0x5342
+
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.
