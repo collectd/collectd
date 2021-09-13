@@ -1508,6 +1508,13 @@ mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMOSQUITTO_LDFLAGS)
 mqtt_la_LIBADD = $(BUILD_WITH_LIBMOSQUITTO_LIBS)
 endif
 
+if BUILD_PLUGIN_MMC
+pkglib_LTLIBRARIES += mmc.la
+mmc_la_SOURCES = src/mmc.c
+mmc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+mmc_la_LIBADD = libignorelist.la
+endif
+
 if BUILD_PLUGIN_MULTIMETER
 pkglib_LTLIBRARIES += multimeter.la
 multimeter_la_SOURCES = src/multimeter.c

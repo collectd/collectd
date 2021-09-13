@@ -165,6 +165,9 @@ memcached_ops           value:DERIVE:0:U
 memory                  value:GAUGE:0:281474976710656
 memory_lua              value:GAUGE:0:281474976710656
 memory_throttle_count   value:DERIVE:0:U
+mmc_power_cycles        value:GAUGE:0:U
+mmc_block_erases        value:GAUGE:0:U
+mmc_bad_blocks          value:GAUGE:0:255
 multimeter              value:GAUGE:U:U
 mutex_operations        value:DERIVE:0:U
 mysql_bpool_bytes       value:GAUGE:0:U
