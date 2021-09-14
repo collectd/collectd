@@ -45,8 +45,9 @@
 #include <kstat.h>
 #endif
 
-static const char *config_keys[] = {"ReportV2", "ReportV3", "ReportV4",
-	"ReportProcs", "ReportV2Procs", "ReportV3Procs", "ReportV4Procs" };
+static const char *config_keys[] = {
+    "ReportV2",      "ReportV3",      "ReportV4",     "ReportProcs",
+    "ReportV2Procs", "ReportV3Procs", "ReportV4Procs"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static bool report_v2 = true;
 static bool report_v3 = true;
@@ -212,7 +213,8 @@ static const char *nfs4_server40_procedures_names[] = {"null",
 
 static size_t nfs4_server40_procedures_names_num =
     STATIC_ARRAY_SIZE(nfs4_server40_procedures_names);
-static bool nfs4_server40_procedures_report[STATIC_ARRAY_SIZE(nfs4_server40_procedures_names)];
+static bool nfs4_server40_procedures_report[STATIC_ARRAY_SIZE(
+    nfs4_server40_procedures_names)];
 
 static bool nfs40_procedures_report_all = true;
 
@@ -240,7 +242,8 @@ static const char *nfs4_server4x_procedures_names[] = {
 };
 static size_t nfs4_server4x_procedures_names_num =
     STATIC_ARRAY_SIZE(nfs4_server4x_procedures_names);
-static bool nfs4_server4x_procedures_report[STATIC_ARRAY_SIZE(nfs4_server4x_procedures_names)];
+static bool nfs4_server4x_procedures_report[STATIC_ARRAY_SIZE(
+    nfs4_server4x_procedures_names)];
 
 #define NFS4_SERVER40_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_server40_procedures_names))
@@ -293,7 +296,8 @@ static const char *nfs4_client40_procedures_names[] = {
 };
 static size_t nfs4_client40_procedures_names_num =
     STATIC_ARRAY_SIZE(nfs4_client40_procedures_names);
-static bool nfs4_client40_procedures_report[STATIC_ARRAY_SIZE(nfs4_client40_procedures_names)];
+static bool nfs4_client40_procedures_report[STATIC_ARRAY_SIZE(
+    nfs4_client40_procedures_names)];
 
 static const char *nfs4_client4x_procedures_names[] = {
     /* NFS 4.1 */
@@ -323,7 +327,8 @@ static const char *nfs4_client4x_procedures_names[] = {
 };
 static size_t nfs4_client4x_procedures_names_num =
     STATIC_ARRAY_SIZE(nfs4_client4x_procedures_names);
-static bool nfs4_client4x_procedures_report[STATIC_ARRAY_SIZE(nfs4_client4x_procedures_names)];
+static bool nfs4_client4x_procedures_report[STATIC_ARRAY_SIZE(
+    nfs4_client4x_procedures_names)];
 
 #define NFS4_CLIENT40_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_client40_procedures_names))
@@ -346,24 +351,43 @@ static kstat_t *nfs4_ksp_client;
 static kstat_t *nfs4_ksp_server;
 #endif
 
-static int match_proc(const char *proc, const char *proc_names[], const int proc_num, bool proc_report[]) {
-	size_t i;
+static int match_proc(const char *proc, const char *proc_names[],
+                      const int proc_num, bool proc_report[]) {
+  size_t i;
 
-	for (i = 0; i < proc_num; i++) {
-		if (strcasecmp(proc, proc_names[i]) == 0) {
-			proc_report[i] = true;
-			return 1;
-		}
-	}
-	return 0;
+  for (i = 0; i < proc_num; i++) {
+    if (strcasecmp(proc, proc_names[i]) == 0) {
+      proc_report[i] = true;
+      return 1;
+    }
+  }
+  return 0;
 }
-#define MATCH_PROC_V2(w) match_proc(w, nfs2_procedures_names, nfs2_procedures_names_num, nfs2_procedures_report)
-#define MATCH_PROC_V3(w) match_proc(w, nfs3_procedures_names, nfs3_procedures_names_num, nfs3_procedures_report)
-#define MATCH_PROC_V4(w) match_proc(w, nfs4_procedures_names, nfs4_procedures_names_num, nfs4_procedures_report)
-#define MATCH_PROC_V4_SERVER40(w) match_proc(w, nfs4_server40_procedures_names, nfs4_server40_procedures_names_num, nfs4_server40_procedures_report)
-#define MATCH_PROC_V4_SERVER4X(w) match_proc(w, nfs4_server4x_procedures_names, nfs4_server4x_procedures_names_num, nfs4_server4x_procedures_report)
-#define MATCH_PROC_V4_CLIENT40(w) match_proc(w, nfs4_client40_procedures_names, nfs4_client40_procedures_names_num, nfs4_client40_procedures_report)
-#define MATCH_PROC_V4_CLIENT4X(w) match_proc(w, nfs4_client4x_procedures_names, nfs4_client4x_procedures_names_num, nfs4_client4x_procedures_report)
+#define MATCH_PROC_V2(w)                                                       \
+  match_proc(w, nfs2_procedures_names, nfs2_procedures_names_num,              \
+             nfs2_procedures_report)
+#define MATCH_PROC_V3(w)                                                       \
+  match_proc(w, nfs3_procedures_names, nfs3_procedures_names_num,              \
+             nfs3_procedures_report)
+#define MATCH_PROC_V4(w)                                                       \
+  match_proc(w, nfs4_procedures_names, nfs4_procedures_names_num,              \
+             nfs4_procedures_report)
+#define MATCH_PROC_V4_SERVER40(w)                                              \
+  match_proc(w, nfs4_server40_procedures_names,                                \
+             nfs4_server40_procedures_names_num,                               \
+             nfs4_server40_procedures_report)
+#define MATCH_PROC_V4_SERVER4X(w)                                              \
+  match_proc(w, nfs4_server4x_procedures_names,                                \
+             nfs4_server4x_procedures_names_num,                               \
+             nfs4_server4x_procedures_report)
+#define MATCH_PROC_V4_CLIENT40(w)                                              \
+  match_proc(w, nfs4_client40_procedures_names,                                \
+             nfs4_client40_procedures_names_num,                               \
+             nfs4_client40_procedures_report)
+#define MATCH_PROC_V4_CLIENT4X(w)                                              \
+  match_proc(w, nfs4_client4x_procedures_names,                                \
+             nfs4_client4x_procedures_names_num,                               \
+             nfs4_client4x_procedures_report)
 
 static int nfs_config(const char *key, const char *value) {
   char sep[] = " ,";
@@ -401,14 +425,16 @@ static int nfs_config(const char *key, const char *value) {
       found |= MATCH_PROC_V4(w);
 #endif
 #ifdef SUPPORT_V40
-/* don't merge the |= assignements!
-   That would only process the first match (e.g. server "null", missing client "null") */
+      /* don't merge the |= assignements!
+         That would only process the first match (e.g. server "null", missing
+         client "null") */
       found |= MATCH_PROC_V4_SERVER40(w);
       found |= MATCH_PROC_V4_SERVER4X(w);
       found |= MATCH_PROC_V4_CLIENT40(w);
       found |= MATCH_PROC_V4_CLIENT4X(w);
 #endif
-      if (!found) WARNING("nfs plugin: no procedure \"%s\"", w);
+      if (!found)
+        WARNING("nfs plugin: no procedure \"%s\"", w);
     }
     free(val);
   } else if (strcasecmp(key, "ReportV2Procs") == 0) {
@@ -454,7 +480,8 @@ static int nfs_config(const char *key, const char *value) {
       found |= MATCH_PROC_V4_CLIENT40(w);
       found |= MATCH_PROC_V4_CLIENT4X(w);
 #endif
-      if (!found) WARNING("nfs plugin: no V4 procedure \"%s\"", w);
+      if (!found)
+        WARNING("nfs plugin: no V4 procedure \"%s\"", w);
     }
     free(val);
 #else
@@ -506,8 +533,8 @@ static int nfs_init(void) {
 
 static void nfs_procedures_submit(const char *plugin_instance,
                                   const char **type_instances, value_t *values,
-                                  size_t values_num,
-                                  const bool report[], const bool report_all) {
+                                  size_t values_num, const bool report[],
+                                  const bool report_all) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values_len = 1;
@@ -516,7 +543,8 @@ static void nfs_procedures_submit(const char *plugin_instance,
   sstrncpy(vl.type, "nfs_procedure", sizeof(vl.type));
 
   for (size_t i = 0; i < values_num; i++) {
-    if (!(report_all || report[i])) continue;
+    if (!(report_all || report[i]))
+      continue;
     vl.values = values + i;
     sstrncpy(vl.type_instance, type_instances[i], sizeof(vl.type_instance));
     plugin_dispatch_values(&vl);
@@ -526,8 +554,8 @@ static void nfs_procedures_submit(const char *plugin_instance,
 #if KERNEL_LINUX
 static void nfs_submit_fields(int nfs_version, const char *instance,
                               char **fields, size_t fields_num,
-                              const char **proc_names,
-                              const bool report[], const bool report_all) {
+                              const char **proc_names, const bool report[],
+                              const bool report_all) {
   char plugin_instance[DATA_MAX_NAME_LEN];
   value_t values[fields_num];
 
@@ -535,18 +563,20 @@ static void nfs_submit_fields(int nfs_version, const char *instance,
            instance);
 
   for (size_t i = 0; i < fields_num; i++) {
-    if (!(report_all || report[i])) continue;
+    if (!(report_all || report[i]))
+      continue;
     (void)parse_value(fields[i], &values[i], DS_TYPE_DERIVE);
   }
 
-  nfs_procedures_submit(plugin_instance, proc_names, values, fields_num, report, report_all);
+  nfs_procedures_submit(plugin_instance, proc_names, values, fields_num, report,
+                        report_all);
 }
 
 static int nfs_submit_fields_safe(int nfs_version, const char *instance,
                                   char **fields, size_t fields_num,
                                   const char **proc_names,
-                                  size_t proc_names_num,
-                                  const bool report[], const bool report_all) {
+                                  size_t proc_names_num, const bool report[],
+                                  const bool report_all) {
   if (fields_num != proc_names_num) {
     WARNING("nfs plugin: Wrong number of fields for "
             "NFSv%i %s statistics. Expected %" PRIsz ", got %" PRIsz ".",
@@ -554,7 +584,8 @@ static int nfs_submit_fields_safe(int nfs_version, const char *instance,
     return EINVAL;
   }
 
-  nfs_submit_fields(nfs_version, instance, fields, fields_num, proc_names, report, report_all);
+  nfs_submit_fields(nfs_version, instance, fields, fields_num, proc_names,
+                    report, report_all);
 
   return 0;
 }
@@ -587,15 +618,16 @@ static int nfs_submit_nfs4_server(const char *instance, char **fields,
 
   nfs_submit_fields(4, instance, fields, nfs4_server40_procedures_names_num,
                     nfs4_server40_procedures_names,
-                    nfs4_server40_procedures_report, nfs40_procedures_report_all);
+                    nfs4_server40_procedures_report,
+                    nfs40_procedures_report_all);
 
   if (fields_num > nfs4_server40_procedures_names_num) {
     proc4x_names_num = fields_num - nfs4_server40_procedures_names_num;
     fields += nfs4_server40_procedures_names_num;
 
-    nfs_submit_fields(4, instance, fields, proc4x_names_num,
-                      nfs4_server4x_procedures_names,
-                      nfs4_server4x_procedures_report, nfs40_procedures_report_all);
+    nfs_submit_fields(
+        4, instance, fields, proc4x_names_num, nfs4_server4x_procedures_names,
+        nfs4_server4x_procedures_report, nfs40_procedures_report_all);
   }
 
   return 0;
@@ -656,17 +688,17 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
     }
   }
 
-  nfs_submit_fields(4, instance, fields, proc40_names_num,
-                    nfs4_client40_procedures_names,
-                    nfs4_client40_procedures_report, nfs40_procedures_report_all);
+  nfs_submit_fields(
+      4, instance, fields, proc40_names_num, nfs4_client40_procedures_names,
+      nfs4_client40_procedures_report, nfs40_procedures_report_all);
 
   if (fields_num > proc40_names_num) {
     proc4x_names_num = fields_num - proc40_names_num;
     fields += proc40_names_num;
 
-    nfs_submit_fields(4, instance, fields, proc4x_names_num,
-                      nfs4_client4x_procedures_names,
-                      nfs4_client4x_procedures_report, nfs40_procedures_report_all);
+    nfs_submit_fields(
+        4, instance, fields, proc4x_names_num, nfs4_client4x_procedures_names,
+        nfs4_client4x_procedures_report, nfs40_procedures_report_all);
   }
 
   return 0;
@@ -691,13 +723,13 @@ static void nfs_read_linux(FILE *fh, const char *inst) {
     if (strcmp(fields[0], "proc2") == 0 && report_v2) {
       nfs_submit_fields_safe(/* version = */ 2, inst, fields + 2,
                              (size_t)(fields_num - 2), nfs2_procedures_names,
-                             nfs2_procedures_names_num,
-                             nfs2_procedures_report, nfs2_procedures_report_all);
+                             nfs2_procedures_names_num, nfs2_procedures_report,
+                             nfs2_procedures_report_all);
     } else if (strncmp(fields[0], "proc3", 5) == 0 && report_v3) {
       nfs_submit_fields_safe(/* version = */ 3, inst, fields + 2,
                              (size_t)(fields_num - 2), nfs3_procedures_names,
-                             nfs3_procedures_names_num,
-                             nfs3_procedures_report, nfs3_procedures_report_all);
+                             nfs3_procedures_names_num, nfs3_procedures_report,
+                             nfs3_procedures_report_all);
     } else if (strcmp(fields[0], "proc4ops") == 0 && report_v4) {
       if (inst[0] == 's')
         nfs_submit_nfs4_server(inst, fields + 2, (size_t)(fields_num - 2));
@@ -724,7 +756,8 @@ static int nfs_read_kstat(kstat_t *ksp, int nfs_version, const char *inst,
 
   kstat_read(kc, ksp, NULL);
   for (size_t i = 0; i < proc_names_num; i++) {
-    if (!(report_all || report[i])) continue;
+    if (!(report_all || report[i]))
+      continue;
     /* The name passed to kstat_data_lookup() doesn't have the
      * "const" modifier, so we need to copy the name here. */
     char name[32];
@@ -733,7 +766,8 @@ static int nfs_read_kstat(kstat_t *ksp, int nfs_version, const char *inst,
     values[i].counter = (derive_t)get_kstat_value(ksp, name);
   }
 
-  nfs_procedures_submit(plugin_instance, proc_names, values, proc_names_num, report, report_all);
+  nfs_procedures_submit(plugin_instance, proc_names, values, proc_names_num,
+                        report, report_all);
   return 0;
 }
 #endif
@@ -780,19 +814,20 @@ static int nfs_read(void) {
   if (sysctl(mib, STATIC_ARRAY_SIZE(mib), &ns, &size, NULL, 0) != 0)
     return 1;
 
-  /* skipping the unneeded values is probably more expensive than copying them all */
+  /* skipping the unneeded values is probably more expensive than copying them
+   * all */
 
   for (i = 0; i < nfs3_procedures_names_num; i++)
     values[i].counter = (derive_t)ns.rpccnt[i];
   nfs_procedures_submit("v3client", nfs3_procedures_names, values,
-                        nfs3_procedures_names_num,
-                        nfs3_procedures_report, nfs3_procedures_report_all);
+                        nfs3_procedures_names_num, nfs3_procedures_report,
+                        nfs3_procedures_report_all);
 
   for (i = 0; i < nfs3_procedures_names_num; i++)
     values[i].counter = (derive_t)ns.srvrpccnt[i];
   nfs_procedures_submit("v3server", nfs3_procedures_names, values,
-                        nfs3_procedures_names_num,
-                        nfs3_procedures_report, nfs3_procedures_report_all);
+                        nfs3_procedures_names_num, nfs3_procedures_report,
+                        nfs3_procedures_report_all);
 
   return 0;
 }
