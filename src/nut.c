@@ -50,8 +50,8 @@ struct nut_ups_s {
   nut_ups_t *next;
 };
 
-static const char *config_keys[] = {"UPS", "FORCESSL", "VERIFYPEER", "CAPATH",
-                                    "CONNECTTIMEOUT", "INTERVAL"};
+static const char *config_keys[] = {"UPS",    "FORCESSL",       "VERIFYPEER",
+                                    "CAPATH", "CONNECTTIMEOUT", "INTERVAL"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static int force_ssl;   // Initialized to default of 0 (false)
 static int verify_peer; // Initialized to default of 0 (false)
@@ -171,7 +171,6 @@ static int nut_set_connect_timeout(const char *value) {
 #endif
   return 0;
 } /* int nut_set_connect_timeout */
-
 
 static int nut_set_interval(const char *value) {
   double d;

@@ -27,10 +27,10 @@
  *
  */
 
-#include "collectd.h"
 #include "plugin.h"
 #include "utils/common/common.h"
 #include "utils_time.h"
+#include "collectd.h"
 
 #include <errno.h>
 #include <jansson.h>
@@ -395,6 +395,7 @@ static int dpdk_telemetry_init(void) {
 void module_register(void) {
   plugin_register_init(PLUGIN_NAME, dpdk_telemetry_init);
   plugin_register_complex_config(PLUGIN_NAME, dpdk_telemetry_config);
-  plugin_register_complex_read(NULL, PLUGIN_NAME, dpdk_telemetry_read, interval, NULL);
+  plugin_register_complex_read(NULL, PLUGIN_NAME, dpdk_telemetry_read, interval,
+                               NULL);
   plugin_register_shutdown(PLUGIN_NAME, dpdk_telemetry_shutdown);
 }

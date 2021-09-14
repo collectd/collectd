@@ -82,7 +82,8 @@ typedef struct pcie_error_s {
 } pcie_error_t;
 
 static llist_t *pcie_dev_list;
-static pcie_config_t pcie_config = {.interval = 0, .access_dir = "", .use_sysfs = true};
+static pcie_config_t pcie_config = {
+    .interval = 0, .access_dir = "", .use_sysfs = true};
 static pcie_fops_t pcie_fops;
 
 /* Device Error Status */
@@ -557,11 +558,10 @@ static void pcie_check_dev_status(pcie_device_t *dev, int pos) {
   /* Report errors found in Device Status register */
   for (int i = 0; i < pcie_base_errors_num; i++) {
     const pcie_error_t *err = pcie_base_errors + i;
-    const char *type_instance = (err->mask == PCI_EXP_DEVSTA_FED)
-                                    ? PCIE_SEV_FATAL
-                                    : (err->mask == PCI_EXP_DEVSTA_CED)
-                                          ? PCIE_SEV_CE
-                                          : PCIE_SEV_NOFATAL;
+    const char *type_instance =
+        (err->mask == PCI_EXP_DEVSTA_FED)   ? PCIE_SEV_FATAL
+        : (err->mask == PCI_EXP_DEVSTA_CED) ? PCIE_SEV_CE
+                                            : PCIE_SEV_NOFATAL;
     int severity =
         (err->mask == PCI_EXP_DEVSTA_FED) ? NOTIF_FAILURE : NOTIF_WARNING;
     notification_t n = {.severity = severity,

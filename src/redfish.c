@@ -555,7 +555,7 @@ static int redfish_config(oconfig_item_t *cfg_item) {
     else if (strcasecmp("Service", child->key) == 0)
       ret = redfish_config_service(child);
     else if (strcasecmp("Interval", child->key) == 0)
-      ret = cf_util_get_cdtime(child, &interval); 
+      ret = cf_util_get_cdtime(child, &interval);
     else {
       ERROR(PLUGIN_NAME ": Invalid configuration option \"%s\".", child->key);
     }

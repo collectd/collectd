@@ -158,7 +158,7 @@ static int dpdk_stats_config(oconfig_item_t *ci) {
         ret = dpdk_stats_reinit_helper();
     } else if (strcasecmp("EAL", child->key) == 0)
       ret = dpdk_helper_eal_config_parse(g_hc, child);
-    else if (strcasecmp("Interval", child->key) == 0) 
+    else if (strcasecmp("Interval", child->key) == 0)
       ret = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp("PortName", child->key) != 0) {
       ERROR(DPDK_STATS_PLUGIN ": unrecognized configuration option %s",

@@ -699,6 +699,7 @@ static int logparser_shutdown(void) {
 void module_register(void) {
   plugin_register_complex_config(PLUGIN_NAME, logparser_config);
   plugin_register_init(PLUGIN_NAME, logparser_init);
-  plugin_register_complex_read(NULL, PLUGIN_NAME, logparser_read, interval, NULL);
+  plugin_register_complex_read(NULL, PLUGIN_NAME, logparser_read, interval,
+                               NULL);
   plugin_register_shutdown(PLUGIN_NAME, logparser_shutdown);
 }

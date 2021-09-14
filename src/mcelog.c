@@ -226,8 +226,7 @@ static int mcelog_config(oconfig_item_t *ci) {
       memset(g_mcelog_config.logfile, 0, sizeof(g_mcelog_config.logfile));
     } else if (strcasecmp("Interval", child->key) == 0) {
       if (cf_util_get_cdtime(child, &g_mcelog_config.interval) < 0)
-          ERROR(MCELOG_PLUGIN ": Invalid interval: \"%s\".",
-                mem_child->key);
+        ERROR(MCELOG_PLUGIN ": Invalid interval: \"%s\".", mem_child->key);
     } else {
       ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
             child->key);
@@ -693,6 +692,7 @@ static int mcelog_shutdown(void) {
 void module_register(void) {
   plugin_register_complex_config(MCELOG_PLUGIN, mcelog_config);
   plugin_register_init(MCELOG_PLUGIN, mcelog_init);
-  plugin_register_complex_read(NULL, MCELOG_PLUGIN, mcelog_read, g_mcelog_config.interval, NULL);
+  plugin_register_complex_read(NULL, MCELOG_PLUGIN, mcelog_read,
+                               g_mcelog_config.interval, NULL);
   plugin_register_shutdown(MCELOG_PLUGIN, mcelog_shutdown);
 }

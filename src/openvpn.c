@@ -88,11 +88,13 @@ static bool collect_compression = true;
 static bool collect_user_count;
 static bool collect_individual_users = true;
 
-static const char *config_keys[] = {
-    "StatusFile",           "Compression", /* old, deprecated name */
-    "ImprovedNamingSchema", "CollectCompression",
-    "CollectUserCount",     "CollectIndividualUsers",
-    "Interval"};
+static const char *config_keys[] = {"StatusFile",
+                                    "Compression", /* old, deprecated name */
+                                    "ImprovedNamingSchema",
+                                    "CollectCompression",
+                                    "CollectUserCount",
+                                    "CollectIndividualUsers",
+                                    "Interval"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /* Helper function

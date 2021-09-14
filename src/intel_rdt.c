@@ -28,11 +28,11 @@
  *   Michał Aleksiński <michalx.aleksinski@intel.com>
  **/
 
-#include "collectd.h"
+#include <pqos.h>
 #include "utils/common/common.h"
 #include "utils/config_cores/config_cores.h"
 #include "utils/proc_pids/proc_pids.h"
-#include <pqos.h>
+#include "collectd.h"
 
 #define RDT_PLUGIN "intel_rdt"
 
