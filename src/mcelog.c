@@ -226,7 +226,7 @@ static int mcelog_config(oconfig_item_t *ci) {
       memset(g_mcelog_config.logfile, 0, sizeof(g_mcelog_config.logfile));
     } else if (strcasecmp("Interval", child->key) == 0) {
       if (cf_util_get_cdtime(child, &g_mcelog_config.interval) < 0)
-        ERROR(MCELOG_PLUGIN ": Invalid interval: \"%s\".", mem_child->key);
+        ERROR(MCELOG_PLUGIN ": Invalid interval: \"%s\".", child->key);
     } else {
       ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
             child->key);
