@@ -77,6 +77,7 @@ typedef enum {
   COLLECTD_MEMORY_TYPE_LOCKED,
   COLLECTD_MEMORY_TYPE_ARC,
   COLLECTD_MEMORY_TYPE_UNUSED,
+  COLLECTD_MEMORY_TYPE_AVAILABLE,
   COLLECTD_MEMORY_TYPE_MAX, /* #states */
 } memory_type_t;
 
@@ -95,6 +96,7 @@ static char const *memory_type_names[COLLECTD_MEMORY_TYPE_MAX] = {
     "locked",
     "arc",
     "unusable",
+    "available",
 };
 
 /* vm_statistics_data_t */
@@ -432,6 +434,8 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
       values[COLLECTD_MEMORY_TYPE_SLAB_RECL] = v;
     } else if (strcmp(fields[0], "SUnreclaim:") == 0) {
       values[COLLECTD_MEMORY_TYPE_SLAB_UNRECL] = v;
+    } else if (strcmp(fields[0], "MemAvailable:") == 0) {
+      values[COLLECTD_MEMORY_TYPE_AVAILABLE] = v;
     }
   }
 
