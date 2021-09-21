@@ -204,7 +204,7 @@ match_create_callback(const char *regex, const char *excluderegex,
   int status;
 
   DEBUG("utils_match: match_create_callback: regex = %s, excluderegex = %s",
-        regex, excluderegex);
+        regex, excluderegex != NULL ? excluderegex : "");
 
   obj = calloc(1, sizeof(*obj));
   if (obj == NULL)
