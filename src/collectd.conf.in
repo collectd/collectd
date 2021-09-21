@@ -1719,6 +1719,7 @@
 #  DeleteGauges   false
 #  DeleteSets     false
 #  CounterSum     false
+#  CounterGauge   false
 #  TimerPercentile 90.0
 #  TimerPercentile 95.0
 #  TimerPercentile 99.0
