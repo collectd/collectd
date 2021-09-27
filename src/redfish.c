@@ -113,6 +113,10 @@ static int redfish_validate_config(void);
 static void *redfish_worker_thread(void __attribute__((unused)) * args);
 
 #if COLLECT_DEBUG
+/* Hook exposed by the libredfish library to define a printing function
+ * dedicated to logging purposes: */
+extern libRedfishDebugFunc gDebugFunc;
+
 static void redfish_print_config(void) {
   DEBUG(PLUGIN_NAME ": ====================CONFIGURATION====================");
   DEBUG(PLUGIN_NAME ": SERVICES: %d", llist_size(ctx.services));
@@ -193,6 +197,10 @@ static void redfish_job_destroy(redfish_job_t *job) {
 
 static int redfish_init(void) {
 #if COLLECT_DEBUG
+  /* Registering plugin_log as the printing function dedicated to logging
+   * purposes within libredfish: */
+  gDebugFunc = plugin_log;
+
   redfish_print_config();
 #endif
   int ret = redfish_validate_config();
