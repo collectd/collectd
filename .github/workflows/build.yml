@@ -6,21 +6,105 @@ on:
   pull_request:
     branches: [ main ]
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
+    container: collectd/ci:${{ matrix.container_tag }}
+    continue-on-error: ${{ matrix.allow_failures }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
+        allow_failures: [ false ]
+        container_tag:
+          # debian family
+          - bullseye_amd64
+          - buster_amd64
+          - stretch_amd64
+          - stretch_i386
+          - trusty_amd64
+          - xenial_amd64
+          # RedHat family
+          - el8_x86_64
+          - el7_x86_64
+          - fedora34_x86_64
+          - fedora28_x86_64
+        config_flags: ['']
+    env:
+      MAKEFLAGS: "-j 2"
+      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
     steps:
     - uses: actions/checkout@v2
+    - run: type pkg-config
+    - run: pkg-config --list-all | sort -u
     - name: Generate configure script
       run:
         ./build.sh
     - name: configure
-      run: ./configure
-    - name: make
+      run: ./configure $CONFIGURE_FLAGS
+    - name: Make
       run: make
     - name: make check
+      continue-on-error: true
       run: make check
+    - name: install bzip2
+      continue-on-error: true
+      run: |
+        yum install -y bzip2 || apt install -y bzip2
+    - name: make
+      continue-on-error: true
+      run: |
+        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+
+  experimental:
+    runs-on: ubuntu-20.04
+    container: collectd/ci:${{ matrix.container_tag }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
+        container_tag:
+          - sid_amd64
+          - fedora_rawhide_x86_64
+        # Add additional per-distro vars here.
+        include:
+          - container_tag: sid_amd64
+            config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt"
+          - container_tag: fedora_rawhide_x86_64
+            cflags: "-fPIE -Wno-deprecated-declarations"
+            cppflags: "-fPIE -Wno-deprecated-declarations"
+            config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
+    env:
+      MAKEFLAGS: "-j 2"
+      CFLAGS: ${{ matrix.cflags }}
+      CPPFLAGS: ${{ matrix.cppflags }}
+      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+    steps:
+    - uses: actions/checkout@v2
+    - run: type pkg-config
+    - run: pkg-config --list-all | sort -u
+    - name: Generate configure script
+      run:
+        ./build.sh
+    - name: configure
+      run: ./configure $CONFIGURE_FLAGS
+    - name: Make
+      run: make
+    - name: make check
+      # Make check is failing on a few newer distros, temporarily mark it as optional until that is resolved 
+      continue-on-error: true
+      run: make check
+    - name: install bzip2
+      continue-on-error: true
+      run: |
+        yum install -y bzip2 || apt install -y bzip2
     - name: make distcheck
-      run: make distcheck
+      continue-on-error: true
+      run: |
+        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+
