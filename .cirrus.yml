@@ -99,7 +99,7 @@ redhat_default_toolchain_task:
 # Some are expected to fail, others should always pass
 non_standard_toolchains_task:
   container:
-    image: collectd/ci:stretch_amd64
+    image: collectd/ci:bullseye_amd64
   only_if: $CIRRUS_PR == ''
 
   matrix:
