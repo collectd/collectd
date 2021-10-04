@@ -52,6 +52,7 @@
 #define MCELOG_UNCORRECTED_ERR_TYPE_INS "uncorrected_memory_errors"
 
 typedef struct mcelog_config_s {
+  cdtime_t interval;          /* plugin read interval */
   char logfile[PATH_MAX];     /* mcelog logfile */
   pthread_t tid;              /* poll thread id */
   llist_t *dimms_list;        /* DIMMs list */
@@ -92,6 +93,7 @@ static int socket_receive(socket_adapter_t *self, FILE **p_file);
 static mcelog_config_t g_mcelog_config = {
     .logfile = "/var/log/mcelog",
     .persist = false,
+    .interval = 0,
 };
 
 static socket_adapter_t socket_adapter = {
@@ -222,6 +224,9 @@ static int mcelog_config(oconfig_item_t *ci) {
         }
       }
       memset(g_mcelog_config.logfile, 0, sizeof(g_mcelog_config.logfile));
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      if (cf_util_get_cdtime(child, &g_mcelog_config.interval) < 0)
+        ERROR(MCELOG_PLUGIN ": Invalid interval: \"%s\".", child->key);
     } else {
       ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
             child->key);
@@ -687,6 +692,7 @@ static int mcelog_shutdown(void) {
 void module_register(void) {
   plugin_register_complex_config(MCELOG_PLUGIN, mcelog_config);
   plugin_register_init(MCELOG_PLUGIN, mcelog_init);
-  plugin_register_complex_read(NULL, MCELOG_PLUGIN, mcelog_read, 0, NULL);
+  plugin_register_complex_read(NULL, MCELOG_PLUGIN, mcelog_read,
+                               g_mcelog_config.interval, NULL);
   plugin_register_shutdown(MCELOG_PLUGIN, mcelog_shutdown);
 }

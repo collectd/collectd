@@ -113,6 +113,8 @@ typedef enum {
 #define DPDK_EVENTS_TRACE()                                                    \
   DEBUG("%s:%s:%d pid=%u", DPDK_EVENTS_PLUGIN, __FUNCTION__, __LINE__, getpid())
 
+static cdtime_t interval = 0;
+
 static dpdk_helper_ctx_t *g_hc;
 static dpdk_events_cfg_status g_state;
 
@@ -382,6 +384,8 @@ static int dpdk_events_config(oconfig_item_t *ci) {
               event_type);
         ret = -1;
       }
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      ret = cf_util_get_cdtime(child, &interval);
     } else {
       ERROR(DPDK_EVENTS_PLUGIN ": unrecognized configuration option %s.",
             child->key);
@@ -698,7 +702,7 @@ static int dpdk_events_init(void) {
 void module_register(void) {
   plugin_register_init(DPDK_EVENTS_PLUGIN, dpdk_events_init);
   plugin_register_complex_config(DPDK_EVENTS_PLUGIN, dpdk_events_config);
-  plugin_register_complex_read(NULL, DPDK_EVENTS_PLUGIN, dpdk_events_read, 0,
-                               NULL);
+  plugin_register_complex_read(NULL, DPDK_EVENTS_PLUGIN, dpdk_events_read,
+                               interval, NULL);
   plugin_register_shutdown(DPDK_EVENTS_PLUGIN, dpdk_events_shutdown);
 }

@@ -318,6 +318,7 @@
 #</Plugin>
 
 #<Plugin apache>
+#  Interval 60
 #  <Instance "local">
 #    URL "http://localhost/status?auto"
 #    User "www-user"
@@ -690,6 +691,7 @@
 #</Plugin>
 
 #<Plugin "dpdkevents">
+#  Interval 30
 #  <EAL>
 #    Coremask "0x1"
 #    MemoryChannels "4"
@@ -711,6 +713,7 @@
 #</Plugin>
 
 #<Plugin dpdkstat>
+#  Interval 30
 #  <EAL>
 #    Coremask "0x2"
 #    MemoryChannels "4"
@@ -725,6 +728,7 @@
 #</Plugin>
 
 #<Plugin dpdk_telemetry>
+#	Interval 30
 #	ClientSocketPath "/var/run/.client"
 #	DpdkSocketPath "/var/run/dpdk/rte/telemetry"
 #</Plugin>
@@ -828,6 +832,7 @@
 #</Plugin>
 
 #<Plugin intel_pmu>
+#    Interval 30
 #    ReportHardwareCacheEvents true
 #    ReportKernelPMUEvents true
 #    ReportSoftwareEvents true
@@ -898,6 +903,7 @@
 #</Plugin>
 
 #<Plugin java>
+#	Interval 20
 #	JVMArg "-verbose:jni"
 #	JVMArg "-Djava.class.path=@prefix@/share/collectd/java/collectd-api.jar"
 #
@@ -917,6 +923,7 @@
 #</Plugin>
 
 #<Plugin logparser>
+#  Interval 60
 #  <Logfile "/var/log/syslog">
 #    FirstFullRead false
 #    <Message "pcie_errors">
@@ -1018,6 +1025,7 @@
 #</Plugin>
 
 #<Plugin memcachec>
+#	Interval 20
 #	<Page "plugin_instance">
 #		Server "localhost"
 #		Key "page_key"
@@ -1107,6 +1115,7 @@
 #</Plugin>
 
 #<Plugin mysql>
+#	Interval 60
 #	<Database db_name>
 #		Host "database.serv.er"
 #		User "db_user"
@@ -1273,6 +1282,7 @@
 #</Plugin>
 
 #<Plugin nut>
+#	Interval 31
 #	UPS "upsname@hostname:port"
 #	ForceSSL true
 #	VerifyPeer true
@@ -1295,6 +1305,7 @@
 #</Plugin>
 
 #<Plugin openldap>
+#  Interval 30
 #  <Instance "localhost">
 #    URL "ldap://localhost:389"
 #    StartTLS false
@@ -1332,6 +1343,7 @@
 #</Plugin>
 
 #<Plugin ovs_events>
+#  Interval 30
 #  Port "6640"
 #  Address "127.0.0.1"
 #  Socket "/var/run/openvswitch/db.sock"
@@ -1341,6 +1353,7 @@
 #</Plugin>
 
 #<Plugin ovs_stats>
+#  Interval 30
 #  Port "6640"
 #  Address "127.0.0.1"
 #  Socket "/var/run/openvswitch/db.sock"
@@ -1348,6 +1361,7 @@
 #</Plugin>
 
 #<Plugin pcie_errors>
+#  Interval 20
 #  Source "sysfs"
 #  ReportMasked false
 #  PersistentNotifications false
@@ -1495,6 +1509,7 @@
 #</Plugin>
 
 #<Plugin redis>
+#   Interval 60
 #   <Node example>
 #      Host "redis.example.com"
 #      Port "6379"
@@ -1509,6 +1524,7 @@
 #</Plugin>
 
 #<Plugin redfish>
+#  Interval 60
 #  <Query "fans">
 #    Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
 #    <Resource "Fans">
@@ -1546,6 +1562,7 @@
 #
 
 #<Plugin routeros>
+#	Interval 30
 #	<Router>
 #		Host "router.example.com"
 #		Port "8728"
@@ -1916,6 +1933,7 @@
 #</Plugin>
 
 #<Plugin varnish>
+#   Interval 30
 #   This tag support an argument if you want to
 #   monitor the local instance just use </Instance>
 #   If you prefer defining another instance you can do
@@ -1953,6 +1971,7 @@
 #</Plugin>
 
 #<Plugin virt>
+#	Interval 20
 #	Connection "xen:///"
 #	RefreshInterval 60
 #	Domain "name"

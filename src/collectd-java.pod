@@ -8,6 +8,8 @@ collectd-java - Documentation of collectd's "java plugin"
 
  LoadPlugin "java"
  <Plugin "java">
+   Interval 30
+
    JVMArg "-verbose:jni"
    JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
    

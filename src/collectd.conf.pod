@@ -978,11 +978,13 @@ Since its C<mod_status> module is very similar to Apache's, B<lighttpd> is
 also supported. It introduces a new field, called C<BusyServers>, to count the
 number of currently connected clients. This field is also supported.
 
-The configuration of the I<Apache> plugin consists of one or more
-C<E<lt>InstanceE<nbsp>/E<gt>> blocks. Each block requires one string argument
+The configuration of the I<Apache> plugin consists of an optional C<Interval>
+specification and one or more C<E<lt>InstanceE<nbsp>/E<gt>> blocks. Each
+C<E<lt>InstanceE<nbsp>/E<gt>> block requires one string argument
 as the instance name. For example:
 
  <Plugin "apache">
+   Interval 60
    <Instance "www1">
      URL "http://www1.example.com/mod_status?auto"
    </Instance>
@@ -3056,6 +3058,7 @@ be found here: http://dpdk.org/doc/guides/sample_app_ug/keep_alive.html
 B<Synopsis:>
 
  <Plugin "dpdkevents">
+   Interval 30
    <EAL>
      Coremask "0x1"
      MemoryChannels "4"
@@ -3078,6 +3081,14 @@ B<Synopsis:>
 
 B<Options:>
 
+=over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which values will be collected.
+By default the global B<Interval> setting will be used.
+
+=back
 
 =head3 The EAL block
 
@@ -3169,6 +3180,7 @@ extended NIC stats API in DPDK.
 B<Synopsis:>
 
  <Plugin "dpdkstat">
+   Interval 30
    <EAL>
      Coremask "0x4"
      MemoryChannels "4"
@@ -3184,6 +3196,15 @@ B<Synopsis:>
  </Plugin>
 
 B<Options:>
+
+=over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which values will be collected.
+By default the global B<Interval> setting will be used.
+
+=back
 
 =head3 The EAL block
 
@@ -3264,6 +3285,7 @@ and publishes the metric values to collectd for further use.
 B<Synopsis:>
 
   <Plugin dpdk_telemetry>
+    Interval 30
     ClientSocketPath "/var/run/.client"
     DpdkSocketPath "/var/run/dpdk/rte/telemetry"
   </Plugin>
@@ -3271,6 +3293,11 @@ B<Synopsis:>
 B<Options:>
 
 =over 2
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which values will be collected.
+By default the global B<Interval> setting will be used.
 
 =item B<ClientSocketPath> I<Client_Path>
 
@@ -3881,6 +3908,7 @@ Linux perf interface. All events are reported on a per core basis.
 B<Synopsis:>
 
   <Plugin intel_pmu>
+    Interval 30
     ReportHardwareCacheEvents true
     ReportKernelPMUEvents true
     ReportSoftwareEvents true
@@ -3893,6 +3921,11 @@ B<Synopsis:>
 B<Options:>
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which values will be collected.
+By default the global B<Interval> setting will be used.
 
 =item B<ReportHardwareCacheEvents> B<false>|B<true>
 
@@ -4120,7 +4153,8 @@ This option is only available on Solaris.
 The B<ipmi plugin> allows to monitor server platform status using the Intelligent
 Platform Management Interface (IPMI). Local and remote interfaces are supported.
 
-The plugin configuration consists of one or more B<Instance> blocks which
+The plugin configuration consists of an optional B<Interval> specification and
+one or more B<Instance> blocks which
 specify one I<ipmi> connection each. Each block requires one unique string
 argument as the instance name. If instances are not configured, an instance with
 the default option values will be created.
@@ -4353,6 +4387,7 @@ L<collectd-java(5)>.
 Synopsis:
 
  <Plugin "java">
+   Interval 20
    JVMArg "-verbose:jni"
    JVMArg "-Djava.class.path=/opt/collectd/lib/collectd/bindings/java"
    LoadPlugin "org.collectd.java.Foobar"
@@ -4364,6 +4399,11 @@ Synopsis:
 Available configuration options:
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) at which plugins are called.
+By default the global B<Interval> setting will be used.
 
 =item B<JVMArg> I<Argument>
 
@@ -4462,6 +4502,7 @@ are found then it sends proper notification containing all fetched values.
 B<Synopsis:>
 
   <Plugin logparser>
+    Interval 60
     <Logfile "/var/log/syslog">
       FirstFullRead false
       <Message "pcie_errors">
@@ -4523,6 +4564,11 @@ B<Synopsis:>
 B<Options:>
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) at which log files are searched
+By default the global B<Interval> setting will be used.
 
 =item B<Logfile> I<File>
 
@@ -4863,6 +4909,7 @@ libmemcache (notice the missing `d'), which is not applicable.
 Synopsis of the configuration:
 
  <Plugin "memcachec">
+   Interval 20
    <Page "plugin_instance">
      Server "localhost"
      Key "page_key"
@@ -4879,6 +4926,11 @@ Synopsis of the configuration:
 The configuration options are:
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) at which pages are queried.
+By default the global B<Interval> setting will be used.
 
 =item E<lt>B<Page> I<Name>E<gt>
 
@@ -5490,6 +5542,8 @@ I<12.5.5.31 SHOW SLAVE STATUS Syntax> for details.
 Synopsis:
 
   <Plugin mysql>
+    Interval 60
+
     <Database foo>
       Host "hostname"
       User "username"
@@ -5519,6 +5573,9 @@ Synopsis:
       WsrepStats true
    </Database>
   </Plugin>
+
+The B<Interval> option sets the interval (in seconds) at which databases
+are queried. By default the global B<Interval> setting will be used.
 
 A B<Database> block defines one connection to a MySQL database. It accepts a
 single argument which specifies the name of the database. None of the other
@@ -6679,6 +6736,13 @@ making it through.
 
 =over 4
 
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which upsd will be queried. 
+This should be at least the polling interval your UPS driver uses
+(e.g., B<pollfreq> for I<nutdrv_qx>).
+By default the global B<Interval> setting will be used.
+
 =item B<UPS> I<upsname>B<@>I<hostname>[B<:>I<port>]
 
 Add a UPS to collect data from. The format is identical to the one accepted by
@@ -6883,6 +6947,7 @@ blocks. Each block requires one string argument as the instance name. For
 example:
 
  <Plugin "openldap">
+   Interval 30
    <Instance "foo">
      URL "ldap://localhost/"
    </Instance>
@@ -6895,6 +6960,8 @@ The instance name will be used as the I<plugin instance>. To emulate the old
 (versionE<nbsp>4) behavior, you can use an empty string (""). In order for the
 plugin to work correctly, each instance name must be unique. This is not
 enforced by the plugin and it is your responsibility to ensure it is.
+
+The B<Interval> option may be used to override the global B<Interval> setting.
 
 The following options are accepted within each B<Instance> block:
 
@@ -6963,6 +7030,11 @@ So, in a nutshell you need:
 Available options:
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected.
+By default the global B<Interval> setting will be used.
 
 =item B<StatusFile> I<File>
 
@@ -7078,6 +7150,7 @@ database to get a link state change notification.
 B<Synopsis:>
 
  <Plugin "ovs_events">
+   Interval 30
    Port 6640
    Address "127.0.0.1"
    Socket "/var/run/openvswitch/db.sock"
@@ -7089,6 +7162,11 @@ B<Synopsis:>
 The plugin provides the following configuration options:
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which link status will be monitored.
+By default the global B<Interval> setting will be used.
 
 =item B<Address> I<node>
 
@@ -7146,6 +7224,7 @@ statistics from OVSDB
 B<Synopsis:>
 
  <Plugin "ovs_stats">
+   Interval 30
    Port 6640
    Address "127.0.0.1"
    Socket "/var/run/openvswitch/db.sock"
@@ -7156,6 +7235,11 @@ B<Synopsis:>
 The plugin provides the following configuration options:
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which statistics will be collected.
+By default the global B<Interval> setting will be used.
 
 =item B<Address> I<node>
 
@@ -7207,6 +7291,7 @@ Fatal errors are reported as I<NOTIF_FAILURE> and all others as I<NOTIF_WARNING>
 B<Synopsis:>
 
   <Plugin "pcie_errors">
+    Interval 20
     Source "sysfs"
     AccessDir "/sys/bus/pci"
     ReportMasked false
@@ -7216,6 +7301,11 @@ B<Synopsis:>
 B<Options:>
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which values will be collected.
+By default the global B<Interval> setting will be used.
 
 =item B<Source> B<sysfs>|B<proc>
 
@@ -8208,6 +8298,7 @@ Redfish.
 B<Sample configuration:>
 
   <Plugin redfish>
+    Interval 60
     <Query "fans">
       Endpoint "/redfish/v1/Chassis/Chassis-1/Thermal"
       <Resource "Fans">
@@ -8244,6 +8335,11 @@ B<Sample configuration:>
   </Plugin>
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which data will be collected.
+By default the global B<Interval> setting will be used.
 
 =item B<Query>
 
@@ -8300,6 +8396,7 @@ wireless connections of the device. The configuration supports querying
 multiple routers:
 
   <Plugin "routeros">
+    Interval 30
     <Router>
       Host "router0.example.com"
       User "collectd"
@@ -8325,6 +8422,11 @@ one or more B<E<lt>RouterE<gt>> blocks. Within each block, the following
 options are understood:
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which to query routers.
+By default the global B<Interval> setting will be used.
 
 =item B<Host> I<Host>
 
@@ -8393,6 +8495,7 @@ For each server there is a I<Node> block which configures the connection
 parameters and set of user-defined queries for this node.
 
   <Plugin redis>
+    Interval 60
     <Node "example">
         Host "localhost"
         Port "6379"
@@ -8409,6 +8512,11 @@ parameters and set of user-defined queries for this node.
   </Plugin>
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which queries will be executed.
+By default the global B<Interval> setting will be used.
 
 =item B<Node> I<Nodename>
 
@@ -10115,6 +10223,7 @@ meaning of each metric can be found in L<varnish-counters(7)>.
 Synopsis:
 
  <Plugin "varnish">
+   Interval 30
    <Instance "example">
      CollectBackend     true
      CollectBan         false
@@ -10146,8 +10255,9 @@ Synopsis:
    </Instance>
  </Plugin>
 
-The configuration consists of one or more E<lt>B<Instance>E<nbsp>I<Name>E<gt>
-blocks. I<Name> is the parameter passed to "varnishd -n". If left empty, it
+The configuration consists of an optional B<Interval> specification and
+one or more E<lt>B<Instance>E<nbsp>I<Name>E<gt> blocks.
+I<Name> is the parameter passed to "varnishd -n". If left empty, it
 will collectd statistics from the default "varnishd" instance (this should work
 fine in most cases).
 
@@ -10310,6 +10420,7 @@ Only I<Connection> is required.
 Consider the following example config:
 
  <Plugin "virt">
+   Interval 20
    Connection "qemu:///system"
    HostnameFormat "hostname"
    InterfaceFormat "address"
@@ -10342,6 +10453,11 @@ You can get information on the metric's units from the online libvirt documentat
 For instance, I<virt_cpu_total> is in nanoseconds.
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which metrics will be collected.
+By default the global B<Interval> setting will be used.
 
 =item B<Connection> I<uri>
 

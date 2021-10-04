@@ -69,6 +69,8 @@ struct memcached_s {
 };
 typedef struct memcached_s memcached_t;
 
+static cdtime_t interval = 0;
+
 static bool memcached_have_instances;
 
 static void memcached_free(void *arg) {
@@ -694,7 +696,7 @@ static int memcached_add_read_callback(memcached_t *st) {
       /* group = */ "memcached",
       /* name      = */ callback_name,
       /* callback  = */ memcached_read,
-      /* interval  = */ 0,
+      /* interval  = */ interval,
       &(user_data_t){
           .data = st,
           .free_func = memcached_free,
@@ -775,6 +777,8 @@ static int memcached_config(oconfig_item_t *ci) {
     if (strcasecmp("Instance", child->key) == 0) {
       config_add_instance(child);
       have_instance_block = 1;
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      cf_util_get_cdtime(child, &interval);
     } else if (!have_instance_block) {
       /* Non-instance option: Assume legacy configuration (without <Instance />
        * blocks) and call config_add_instance() with the <Plugin /> block. */

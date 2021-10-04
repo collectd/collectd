@@ -107,6 +107,7 @@ typedef struct redfish_ctx_s redfish_ctx_t;
 
 /* Globals */
 static redfish_ctx_t ctx;
+static cdtime_t interval = 0;
 
 static int redfish_cleanup(void);
 static int redfish_validate_config(void);
@@ -561,6 +562,8 @@ static int redfish_config(oconfig_item_t *cfg_item) {
       ret = redfish_config_query(child, ctx.queries);
     else if (strcasecmp("Service", child->key) == 0)
       ret = redfish_config_service(child);
+    else if (strcasecmp("Interval", child->key) == 0)
+      ret = cf_util_get_cdtime(child, &interval);
     else {
       ERROR(PLUGIN_NAME ": Invalid configuration option \"%s\".", child->key);
     }
@@ -982,6 +985,6 @@ static int redfish_cleanup(void) {
 void module_register(void) {
   plugin_register_init(PLUGIN_NAME, redfish_init);
   plugin_register_complex_config(PLUGIN_NAME, redfish_config);
-  plugin_register_complex_read(NULL, PLUGIN_NAME, redfish_read, 0, NULL);
+  plugin_register_complex_read(NULL, PLUGIN_NAME, redfish_read, interval, NULL);
   plugin_register_shutdown(PLUGIN_NAME, redfish_cleanup);
 }

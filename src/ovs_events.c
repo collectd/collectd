@@ -232,6 +232,7 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
  */
 static int ovs_events_plugin_config(oconfig_item_t *ci) {
   bool dispatch_values = false;
+  cdtime_t interval = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
@@ -273,6 +274,11 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
         ovs_events_config_free();
         return -1;
       }
+    } else if (strcasecmp("Interval", child->key) == 0) {
+      if (cf_util_get_cdtime(child, &interval) != 0) {
+        ovs_events_config_free();
+        return -1;
+      }
     } else {
       ERROR(OVS_EVENTS_PLUGIN ": option '%s' is not allowed here", child->key);
       ovs_events_config_free();
@@ -289,7 +295,7 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
   /* Dispatch link status values if configured */
   if (dispatch_values)
     return plugin_register_complex_read(NULL, OVS_EVENTS_PLUGIN,
-                                        ovs_events_plugin_read, 0, NULL);
+                                        ovs_events_plugin_read, interval, NULL);
 
   return 0;
 }
