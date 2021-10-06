@@ -93,12 +93,14 @@ typedef enum iface_counter {
 #define IFACE_COUNTER_COUNT (__iface_counter_max)
 #define PORT_NAME_SIZE_MAX 255
 #define UUID_SIZE 64
+#define MAC_SIZE 22
 
 typedef struct interface_s {
   char name[PORT_NAME_SIZE_MAX];      /* Interface name */
   char iface_uuid[UUID_SIZE];         /* Interface table uuid */
   char ex_iface_id[UUID_SIZE];        /* External iface id */
   char ex_vm_id[UUID_SIZE];           /* External vm id */
+  char ex_mac[MAC_SIZE];              /* Mac address */
   int64_t stats[IFACE_COUNTER_COUNT]; /* Statistics for interface */
   struct interface_s *next;           /* Next interface for associated port */
 } interface_list_t;
@@ -203,6 +205,9 @@ static ovs_stats_config_t ovs_stats_cfg = {
 /* flag indicating whether or not to publish individual interface statistics */
 static bool interface_stats = false;
 
+/*whether to publish external is stats in response data*/
+static bool enable_ex_ids = false;
+
 static iface_counter ovs_stats_counter_name_to_type(const char *counter) {
   iface_counter index = not_supported;
 
@@ -263,10 +268,37 @@ static void ovs_stats_submit_two(const char *dev, const char *type,
 
   plugin_dispatch_values(&vl);
 }
+char * add_new_str(char sub_str[], char val[], char *add_str) {
+  int i = 0;
+  int j = 0;
+  char *final_val;
+  char *original_val;
+  bzero(add_str, UUID_SIZE);
+  final_val=add_str;
+  original_val=val;
+  strcpy(add_str,sub_str);
+  while(add_str[i] != '\0'){
+    ++final_val;
+    i++;
+  }
+  while(val[j] != '\0'){
+    *final_val = *original_val;
+    final_val++;
+    original_val++;
+    j++;
+  }
+  return add_str;
+
+}
 
 static void ovs_stats_submit_interfaces(port_list_t *port) {
   char devname[PORT_NAME_SIZE_MAX * 2];
-
+  char add_str[UUID_SIZE] = {0};
+  char vm_id[UUID_SIZE]= {0};
+  char iface_id[UUID_SIZE];
+  char mac[MAC_SIZE];
+  char *items[3];
+  int itemCount = 0;
   bridge_list_t *bridge = port->br;
   for (interface_list_t *iface = port->iface; iface != NULL;
        iface = iface->next) {
@@ -280,13 +312,36 @@ static void ovs_stats_submit_interfaces(port_list_t *port) {
       if (strlen(iface->ex_iface_id))
         meta_data_add_string(meta, "iface-id", iface->ex_iface_id);
     }
-    strjoin(devname, sizeof(devname),
-            (char *[]){
-                bridge->name,
-                port->name,
-                iface->name,
-            },
-            3, ".");
+    /*Modify  metric data as per the configuration*/
+    if (enable_ex_ids
+               && (strlen(iface->ex_vm_id))){
+        /*store the vm id  */
+      strncpy(vm_id, add_new_str("vmId=", iface->ex_vm_id, add_str),
+         strlen(iface->ex_vm_id) + 10);
+      items[itemCount] = vm_id;
+      itemCount++;
+      /*store the iface id  */
+      strncpy(iface_id, add_new_str("ifaceId=", iface->ex_iface_id, add_str),
+        strlen(iface->ex_iface_id) + 7);
+      items[itemCount] = iface_id;
+      itemCount++;
+      /*store the mac */
+      strncpy(mac, add_new_str("mac=", iface->ex_mac, add_str),
+        strlen(iface->ex_mac) + 5);
+      items[itemCount] = mac;
+      itemCount++;
+      /*create data*/
+      strjoin(devname, sizeof(devname), items, itemCount, ",");
+    }else{
+    /*Default data*/
+      strjoin(devname, sizeof(devname),
+        (char *[]){
+          bridge->name,
+          port->name,
+          iface->name,
+          },
+          3, ".");
+    }
     ovs_stats_submit_one(devname, "if_collisions", NULL,
                          iface->stats[collisions], meta);
     ovs_stats_submit_two(devname, "if_dropped", NULL, iface->stats[rx_dropped],
@@ -621,7 +676,6 @@ static port_list_t *ovs_stats_new_port(bridge_list_t *bridge,
   }
   return port;
 }
-
 /* Get bridge by name*/
 static bridge_list_t *ovs_stats_get_bridge(bridge_list_t *head,
                                            const char *name) {
@@ -1007,7 +1061,10 @@ static int ovs_stats_update_iface_ext_ids(interface_list_t *iface,
         sstrncpy(iface->ex_iface_id, value, sizeof(iface->ex_iface_id));
       } else if (strncmp(key, "vm-uuid", strlen(key)) == 0) {
         sstrncpy(iface->ex_vm_id, value, sizeof(iface->ex_vm_id));
+      } else if (strncmp(key, "attached-mac", strlen(key)) == 0) {
+        sstrncpy(iface->ex_mac, value, sizeof(iface->ex_mac));
       }
+
     }
   }
 
@@ -1343,7 +1400,12 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
         ERROR("%s: parse '%s' option failed", plugin_name, child->key);
         return -1;
       }
-    } else {
+    }else if (strcasecmp("ExternalIds", child->key) == 0) {
+      if (cf_util_get_boolean(child, &enable_ex_ids) != 0) {
+        ERROR("%s: parse '%s' option failed", plugin_name, child->key);
+        return -1;
+      }
+    }else {
       WARNING("%s: option '%s' not allowed here", plugin_name, child->key);
       goto cleanup_fail;
     }
