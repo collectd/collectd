@@ -50,14 +50,12 @@
 #include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
 
-#include "collectd.h"
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "collectd.h"
 
 #define PLUGIN_NAME "gpu_sysman"
 #define METRIC_PREFIX "collectd_" PLUGIN_NAME "_"
-#define MAX_GPU_NAME 32 /* PREFIX + PCI-BNF */
-#define NAME_PREFIX "GPU-"
 
 /* collectd plugin API callback finished OK */
 #define RET_OK 0
@@ -87,7 +85,7 @@ typedef struct {
 
 /* handles for the GPU devices discovered by Sysman library */
 typedef struct {
-  char *name;
+  char *pci_bdf;
   /* number of types for metrics without allocs */
   uint32_t ras_count;
   uint32_t temp_count;
@@ -206,8 +204,8 @@ static int gpu_config_free(void) {
     /* zero rest of counters & free name */
     gpus[i].ras_count = 0;
     gpus[i].temp_count = 0;
-    free(gpus[i].name);
-    gpus[i].name = NULL;
+    free(gpus[i].pci_bdf);
+    gpus[i].pci_bdf = NULL;
   }
 #undef FREE_GPU_SAMPLING_ARRAYS
 #undef FREE_GPU_ARRAY
@@ -298,26 +296,27 @@ static void log_uuid(const char *prefix, const uint8_t *byte, int len) {
 }
 
 /* Log Sysman API provided info for given GPU if logging is enabled
- * and return name for it: "GPU-<idx> <PCI BDF>"
+ * and on success, return GPU PCI ID as string in BDF notation:
+ *   https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
  */
 static char *gpu_info(int idx, zes_device_handle_t dev) {
-  char *name = malloc(MAX_GPU_NAME);
-  assert(name);
+  char *pci_bdf, buf[32];
 
   zes_pci_properties_t pci;
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
     const zes_pci_address_t *addr = &pci.address;
-    snprintf(name, MAX_GPU_NAME, NAME_PREFIX "%04x:%02x:%02x.%x", addr->domain,
-             addr->bus, addr->device, addr->function);
+    snprintf(buf, sizeof(buf), "%04x:%02x:%02x.%x", addr->domain, addr->bus,
+             addr->device, addr->function);
   } else {
     ERROR(PLUGIN_NAME ": failed to get GPU %d PCI device properties => 0x%x",
           idx, ret);
-    free(name);
     return NULL;
   }
+  pci_bdf = strdup(buf);
+  assert(pci_bdf);
   if (!config.gpuinfo) {
-    return name;
+    return pci_bdf;
   }
 
   INFO("Level-Zero Sysman API GPU %d info", idx);
@@ -325,8 +324,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
 
   INFO("PCI info:");
   if (ret == ZE_RESULT_SUCCESS) {
-    /* https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation */
-    INFO("- PCI B/D/F:  %s", name + sizeof(NAME_PREFIX));
+    INFO("- PCI B/D/F:  %s", pci_bdf);
     const zes_pci_speed_t *speed = &pci.maxSpeed;
     INFO("- PCI gen:    %d", speed->gen);
     INFO("- PCI width:  %d", speed->width);
@@ -394,7 +392,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
   if (zeDeviceGetMemoryProperties(mdev, &mem_count, NULL) !=
       ZE_RESULT_SUCCESS) {
     WARNING(PLUGIN_NAME ": failed to get memory properties count");
-    return name;
+    return pci_bdf;
   }
   ze_device_memory_properties_t *mems;
   mems = calloc(mem_count, sizeof(*mems));
@@ -403,7 +401,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
       ZE_RESULT_SUCCESS) {
     WARNING(PLUGIN_NAME ": failed to get %d memory properties", mem_count);
     free(mems);
-    return name;
+    return pci_bdf;
   }
   for (i = 0; i < mem_count; i++) {
     const char *memname = mems[i].name;
@@ -416,7 +414,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
     INFO("- max clock:  %u", mems[i].maxClockRate);
   }
   free(mems);
-  return name;
+  return pci_bdf;
 }
 
 /* Scan how many GPU devices Sysman reports in total, and set 'scan_count'
@@ -470,7 +468,7 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
 
   uint32_t ignored = 0, count = 0;
   int retval = RET_NO_GPUS;
-  char *name;
+  char *pci_bdf;
 
   for (uint32_t drv_idx = 0; drv_idx < driver_count; drv_idx++) {
     uint32_t dev_count = 0;
@@ -505,12 +503,12 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
         continue;
       }
       gpus[count].handle = (zes_device_handle_t)devs[dev_idx];
-      name = gpu_info(count, devs[dev_idx]);
-      if (!name) {
+      pci_bdf = gpu_info(count, devs[dev_idx]);
+      if (!pci_bdf) {
         ignored++;
         continue;
       }
-      gpus[count].name = name;
+      gpus[count].pci_bdf = pci_bdf;
       count++;
     }
     free(devs);
@@ -594,19 +592,23 @@ static int gpu_init(void) {
 }
 
 /* Dispatch given value to collectd.  Resets metric family after dispatch */
-static void gpu_submit(metric_family_t *fam) {
-  // TODO: pass GPU info & add GPU ID label(s) to metrics
+static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
+  metric_t *m = fam->metric.ptr;
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_label_set(m + i, "pci_bdf", gpu->pci_bdf);
+  }
   int status = plugin_dispatch_metric_family(fam);
   if (status != 0) {
-    ERROR(PLUGIN_NAME ": gpu_submit() failed: %s", strerror(status));
+    ERROR(PLUGIN_NAME ": gpu_submit(%s, %s) failed: %s", gpu->pci_bdf,
+          fam->name, strerror(status));
   }
   metric_family_metric_reset(fam);
 }
 
 /* because of family name change, each RAS metric needs to be submitted +
  * reseted separately */
-static void ras_submit(const char *name, const char *type, const char *subdev,
-                       double value) {
+static void ras_submit(gpu_device_t *gpu, const char *name, const char *type,
+                       const char *subdev, double value) {
   metric_family_t fam = {
       .type = METRIC_TYPE_COUNTER,
   };
@@ -618,7 +620,7 @@ static void ras_submit(const char *name, const char *type, const char *subdev,
   metric_label_set(&m, "sub_dev", subdev);
   metric_family_metric_append(&fam, m);
   metric_reset(&m);
-  gpu_submit(&fam);
+  gpu_submit(gpu, &fam);
 }
 
 /* Report error set types, return true for success */
@@ -720,9 +722,9 @@ static bool gpu_ras(gpu_device_t *gpu) {
       if (!correctable && props.type == ZES_RAS_ERROR_TYPE_CORRECTABLE) {
         continue;
       }
-      ras_submit(catname, type, subdev, value);
+      ras_submit(gpu, catname, type, subdev, value);
     }
-    ras_submit(METRIC_PREFIX "all_errors_total", type, subdev, total);
+    ras_submit(gpu, METRIC_PREFIX "all_errors_total", type, subdev, total);
     ok = true;
   }
   free(ras);
@@ -908,7 +910,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   }
   if (mem_count > 0) {
     metric_reset(&metric);
-    gpu_submit(&fam);
+    gpu_submit(gpu, &fam);
   }
   free(mems);
   return ok;
@@ -985,7 +987,7 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
   }
   if (mem_count > 0) {
     metric_reset(&metric);
-    gpu_submit(&fam);
+    gpu_submit(gpu, &fam);
   }
   free(mems);
   return ok;
@@ -1134,7 +1136,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     }
     if (freq_ok) {
       metric_reset(&metric);
-      gpu_submit(&fam);
+      gpu_submit(gpu, &fam);
     } else {
       ERROR(PLUGIN_NAME ": neither requests nor actual frequencies supported "
                         "for domain %d",
@@ -1213,7 +1215,7 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
   }
   if (freq_count > 0) {
     metric_reset(&metric);
-    gpu_submit(&fam);
+    gpu_submit(gpu, &fam);
   }
   free(freqs);
   return ok;
@@ -1299,7 +1301,7 @@ static bool gpu_temps(gpu_device_t *gpu) {
   }
   if (temp_count > 0) {
     metric_reset(&metric);
-    gpu_submit(&fam);
+    gpu_submit(gpu, &fam);
   }
   free(temps);
   return ok;
@@ -1366,7 +1368,7 @@ static bool gpu_powers(gpu_device_t *gpu) {
   }
   if (power_count > 0) {
     metric_reset(&metric);
-    gpu_submit(&fam);
+    gpu_submit(gpu, &fam);
   }
   free(powers);
   return ok;
@@ -1508,7 +1510,7 @@ static bool gpu_engines(gpu_device_t *gpu) {
   }
   if (engine_count > 0) {
     metric_reset(&metric);
-    gpu_submit(&fam);
+    gpu_submit(gpu, &fam);
   }
   free(engines);
   return ok;
