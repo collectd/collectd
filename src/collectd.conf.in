@@ -828,13 +828,10 @@
 #</Plugin>
 
 #<Plugin intel_pmu>
-#    ReportHardwareCacheEvents true
-#    ReportKernelPMUEvents true
-#    ReportSoftwareEvents true
-#    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
+#    EventList "/var/cache/pmu/GenuineIntel-6-55-4-core.json"
 #    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
 #    Cores "[0-3]"
-#    DispatchMultiPmu false
+#    AggregateUncorePMUs true
 #</Plugin>
 
 #<Plugin "intel_rdt">
