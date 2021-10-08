@@ -3266,12 +3266,16 @@ at most B<16384> to prevent typos and dumb mistakes.
 =head2 Plugin C<ethstat>
 
 The I<ethstat plugin> collects information about network interface cards (NICs)
-by talking directly with the underlying kernel driver using L<ioctl(2)>.
+by talking directly with the underlying kernel driver using L<ioctl(2)> and
+optional read metrics from sysfs.
 
 B<Synopsis:>
 
  <Plugin "ethstat">
    Interface "eth0"
+   EthtoolExcludeMetrics "tx_packets"
+   UseSysClassNet true
+   SysClassNetExcludeMetrics "rx_packets"
    Map "rx_csum_offload_errors" "if_rx_errors" "checksum_offload"
    Map "multicast" "if_multicast"
  </Plugin>
@@ -3282,7 +3286,40 @@ B<Options:>
 
 =item B<Interface> I<Name>
 
-Collect statistical information about interface I<Name>.
+Collect statistical information about interfaces I<Name>. All configuration
+options below, up to the next interface tag, will apply to all interfaces
+mentioned in this tag outside of mapping
+
+=item B<EthtoolExcludeMetrics> I<Name>
+
+List of metrics passed by ethtool that will not be collected by the plugin
+for the interface.
+
+=item B<UseSysClassNet> B<true>|B<false>
+
+When set to B<true>, metrics will also be collect from sysfs. For metrics from
+two sources (ethtool and sysfs) with the same name, the metric from sysfs
+will be collected. Defaults to B<false>.
+
+metrics collection table:
+
+                     |                                     metric available in                                       |
+metric listed on     | ethtool and sysfs      | only in ethtool        | only in sysfs        | metric not available |
+---------------------+------------------------+------------------------+----------------------|----------------------+
+not listed on any    |                        |                        |                      |                      |
+exclude list         | collected from sysfs   | collected from ethtool | collected from sysfs | metric not collected |
+---------------------+------------------------+------------------------+----------------------+----------------------+
+ethtool exclude list | collected from sysfs   | metric not collected   | collected from sysfs | metric not collected |
+---------------------+------------------------+------------------------+----------------------+----------------------+
+systfs exclude list  | collected from ethtool | collected from ethtool | metric not collected | metric not collected |
+---------------------+------------------------+------------------------+----------------------+----------------------+
+both exclude lsits   | not collected          | metric not collected   | metric not collected | metric not collected |
+---------------------+------------------------+------------------------+----------------------+----------------------+
+
+=item B<SysClassNetExcludeMetrics> I<Name>
+
+List of metrics passed by sysfs that will not be collected by the plugin
+for the interface.
 
 =item B<Map> I<Name> I<Type> [I<TypeInstance>]
 
