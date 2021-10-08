@@ -1073,6 +1073,13 @@ if BUILD_PLUGIN_ETHSTAT
 pkglib_LTLIBRARIES += ethstat.la
 ethstat_la_SOURCES = src/ethstat.c
 ethstat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+ethstat_la_LIBADD = libignorelist.la
+
+test_plugin_ethstat_SOURCES = src/ethstat_test.c src/daemon/configfile.c src/daemon/types_list.c
+test_plugin_ethstat_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_ethstat_LDADD = libplugin_mock.la libignorelist.la libavltree.la liboconfig.la
+check_PROGRAMS += test_plugin_ethstat
+
 endif
 
 if BUILD_PLUGIN_FHCOUNT
