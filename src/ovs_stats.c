@@ -1144,8 +1144,8 @@ static int ovs_stats_del_interface(const char *uuid) {
   interface_list_t *prev_iface = NULL;
 
   for (interface_list_t *iface = port->iface; iface != NULL;
-       iface = iface->next) {
-    if (!strncmp(iface->iface_uuid, uuid, strlen(iface->iface_uuid))) {
+       iface = port->iface) {
+    if (strncmp(iface->iface_uuid, uuid, strlen(iface->iface_uuid))) {
 
       interface_list_t *del = iface;
 
