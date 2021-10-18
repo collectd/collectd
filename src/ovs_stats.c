@@ -292,6 +292,7 @@ char *add_new_str(char sub_str[], char val[], char *add_str) {
 
 static void ovs_stats_submit_interfaces(port_list_t *port) {
   char devname[PORT_NAME_SIZE_MAX * 2];
+
   char add_str[UUID_SIZE] = {0};
   char vm_id[UUID_SIZE] = {0};
   char iface_id[UUID_SIZE];
@@ -674,6 +675,7 @@ static port_list_t *ovs_stats_new_port(bridge_list_t *bridge,
   }
   return port;
 }
+
 /* Get bridge by name*/
 static bridge_list_t *ovs_stats_get_bridge(bridge_list_t *head,
                                            const char *name) {
