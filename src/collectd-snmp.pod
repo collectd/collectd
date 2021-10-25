@@ -360,11 +360,11 @@ Pass I<Community> to the host. (Ignored for SNMPv3).
 
 =item B<Username> I<Username>
 
-Sets the I<Username> to use for SNMPv3 USM security.
+Sets the I<Username> to use for SNMPv3 User-based Security Model (USM) security.
 
 =item B<SecurityLevel> I<authPriv>|I<authNoPriv>|I<noAuthNoPriv>
 
-Selects the security level for SNMPv3 USM security.
+Selects the security level for SNMPv3 User-based Security Model (USM) security.
 
 =item B<Context> I<Context>
 
@@ -372,35 +372,37 @@ Sets the I<Context> for SNMPv3 security.
 
 =item B<AuthProtocol> I<MD5>|I<SHA>
 
-Selects the authentication protocol for SNMPv3 USM security.
+Selects the authentication protocol for SNMPv3 User-based Security Model (USM) security.
 
 =item B<AuthPassphrase> I<Passphrase>
 
-Sets the authentication passphrase for SNMPv3 USM security.
+Sets the authentication passphrase for SNMPv3 User-based Security Model (USM) security.
 
 =item B<PrivacyProtocol> I<AES>|I<DES>
 
-Selects the privacy (encryption) protocol for SNMPv3 USM security.
+Selects the privacy (encryption) protocol for SNMPv3 User-based Security Model (USM) security.
 
 =item B<PrivacyPassphrase> I<Passphrase>
 
-Sets the privacy (encryption) passphrase for SNMPv3 USM security.
+Sets the privacy (encryption) passphrase for SNMPv3 User-based Security Model (USM) security.
 
 =item B<LocalCert> I<fingerprint>|I<fileprefix>
 
 Sets the fingerprint or the filename prefix of the local certificate,
-key, and (if supported) intermediate certificates for SNMPv3 TSM security.
+key, and (if supported) intermediate certificates for SNMPv3 Transport
+Security Model (TSM) security.
 
 =item B<PeerCert> I<fingerprint>|I<fileprefix>
 
 Sets the fingerprint or the filename prefix of the self signed remote peer
 certificate to be accepted as presented by the SNMPv3 server for SNMPv3
-TSM security.
+Transport Security Model (TSM) security.
 
 =item B<TrustCert> I<fingerprint>|I<fileprefix>
 
 Sets the fingerprint or the filename prefix of the certificate authority
-certificates to be trusted by collectd-snmp for SNMPv3 TSM security.
+certificates to be trusted by collectd-snmp for SNMPv3 Transport Security
+Model (TSM) security.
 
 This option can only be specified once. From C<Net-SNMP> v5.10 onwards,
 all certificates in files matching the given filename prefix are trusted.
@@ -442,7 +444,8 @@ Configures the size of SNMP bulk transfers. The default is 0, which disables bul
 =head1 SECURITY
 
 SNMP provides various security levels, ranging from open SNMPv1 and SNMPv2c,
-to the secure SNMPv3 USM and TSM options.
+to the secure SNMPv3 User-based Security Model (USM) and Transport Security
+Model (TSM) options.
 
 =head2 SNMPv1 / SNMPv2c Security
 
@@ -451,7 +454,7 @@ string can connect to the SNMP server.
 
 No authentication or privacy is supported in these modes.
 
-=head2 SNMPv3 USM Security
+=head2 SNMPv3 User-based Security Model (USM) Security
 
 When B<Address> prefixes such as I<udp:> or I<udp6:> are used along with
 B<Version> 3 and the I<Username> option, USM security is enabled.
@@ -465,7 +468,7 @@ B<PrivacyProtocol> must match those on the SNMPv3 server.
 The user credentials used by the SNMPv3 server are specified by the
 B<Username> option.
 
-=head2 SNMPv3 TSM Security
+=head2 SNMPv3 Transport Security Model (TSM) Security
 
 When TLS/DTLS B<Address> prefixes such as I<dtlsudp:> or I<dtlsudp6:> are
 used along with the B<LocalCert> option, TSM security is enabled.
