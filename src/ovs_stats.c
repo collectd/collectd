@@ -269,33 +269,32 @@ static void ovs_stats_submit_two(const char *dev, const char *type,
   plugin_dispatch_values(&vl);
 }
 
-char * add_new_str(char sub_str[], char val[], char *add_str) {
+char *add_new_str(char sub_str[], char val[], char *add_str) {
   int i = 0;
   int j = 0;
   char *final_val;
   char *original_val;
   bzero(add_str, UUID_SIZE);
-  final_val=add_str;
-  original_val=val;
-  strcpy(add_str,sub_str);
-  while(add_str[i] != '\0'){
+  final_val = add_str;
+  original_val = val;
+  strcpy(add_str, sub_str);
+  while (add_str[i] != '\0') {
     ++final_val;
     i++;
   }
-  while(val[j] != '\0'){
+  while (val[j] != '\0') {
     *final_val = *original_val;
     final_val++;
     original_val++;
     j++;
   }
   return add_str;
-
 }
 
 static void ovs_stats_submit_interfaces(port_list_t *port) {
   char devname[PORT_NAME_SIZE_MAX * 2];
   char add_str[UUID_SIZE] = {0};
-  char vm_id[UUID_SIZE]= {0};
+  char vm_id[UUID_SIZE] = {0};
   char iface_id[UUID_SIZE];
   char mac[MAC_SIZE];
   char *items[3];
@@ -315,34 +314,33 @@ static void ovs_stats_submit_interfaces(port_list_t *port) {
         meta_data_add_string(meta, "iface-id", iface->ex_iface_id);
     }
     /*Modify  metric data as per the configuration*/
-    if (enable_ex_ids
-               && (strlen(iface->ex_vm_id))){
-        /*store the vm id  */
+    if (enable_ex_ids && (strlen(iface->ex_vm_id))) {
+      /*store the vm id  */
       strncpy(vm_id, add_new_str("vmId=", iface->ex_vm_id, add_str),
-         strlen(iface->ex_vm_id) + 10);
+              strlen(iface->ex_vm_id) + 10);
       items[itemCount] = vm_id;
       itemCount++;
       /*store the iface id  */
       strncpy(iface_id, add_new_str("ifaceId=", iface->ex_iface_id, add_str),
-        strlen(iface->ex_iface_id) + 7);
+              strlen(iface->ex_iface_id) + 7);
       items[itemCount] = iface_id;
       itemCount++;
       /*store the mac */
       strncpy(mac, add_new_str("mac=", iface->ex_mac, add_str),
-        strlen(iface->ex_mac) + 5);
+              strlen(iface->ex_mac) + 5);
       items[itemCount] = mac;
       itemCount++;
       /*create data*/
       strjoin(devname, sizeof(devname), items, itemCount, ",");
-    }else{
-    /*Default data*/
+    } else {
+      /*Default data*/
       strjoin(devname, sizeof(devname),
-        (char *[]){
-            bridge->name,
-            port->name,
-            iface->name,
-        },
-        3, ".");
+              (char *[]){
+                  bridge->name,
+                  port->name,
+                  iface->name,
+              },
+              3, ".");
     }
 
     ovs_stats_submit_one(devname, "if_collisions", NULL,
@@ -1066,8 +1064,8 @@ static int ovs_stats_update_iface_ext_ids(interface_list_t *iface,
       } else if (strncmp(key, "vm-uuid", strlen(key)) == 0) {
         sstrncpy(iface->ex_vm_id, value, sizeof(iface->ex_vm_id));
       } else if (strncmp(key, "attached-mac", strlen(key)) == 0) {
-       sstrncpy(iface->ex_mac, value, sizeof(iface->ex_mac));
-     }
+        sstrncpy(iface->ex_mac, value, sizeof(iface->ex_mac));
+      }
     }
   }
 
@@ -1404,10 +1402,10 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
         return -1;
       }
     } else if (strcasecmp("ExternalIds", child->key) == 0) {
-     if (cf_util_get_boolean(child, &enable_ex_ids) != 0) {
-       ERROR("%s: parse '%s' option failed", plugin_name, child->key);
-       return -1;
-     }
+      if (cf_util_get_boolean(child, &enable_ex_ids) != 0) {
+        ERROR("%s: parse '%s' option failed", plugin_name, child->key);
+        return -1;
+      }
     } else {
       WARNING("%s: option '%s' not allowed here", plugin_name, child->key);
       goto cleanup_fail;
