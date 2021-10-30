@@ -29,6 +29,7 @@
 #include "utils/cmds/putmetric.h"
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
+#include "utils/format_influxdb/format_influxdb.h"
 #include "utils/format_json/format_json.h"
 #include "utils/format_kairosdb/format_kairosdb.h"
 
@@ -69,6 +70,7 @@ struct wh_callback_s {
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
+#define WH_FORMAT_INFLUXDB 3
   int format;
   bool send_metrics;
   bool send_notifications;
@@ -390,6 +392,25 @@ static int wh_write_kairosdb(metric_family_t const *fam, wh_callback_t *cb) {
   return 0;
 } /* int wh_write_kairosdb */
 
+static int wh_write_influxdb(metric_family_t const *fam, wh_callback_t *cb) {
+  pthread_mutex_lock(&cb->send_buffer_lock);
+
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t metric = fam->metric.ptr[i];
+    int status =
+        format_influxdb_point(&cb->send_buffer, metric, cb->store_rates);
+    if (status != 0) {
+      pthread_mutex_unlock(&cb->send_buffer_lock);
+      ERROR("write_http plugin: format_influxdb_point failed: %s",
+            STRERROR(status));
+      return status;
+    }
+  }
+
+  pthread_mutex_unlock(&cb->send_buffer_lock);
+  return 0;
+} /* wh_write_influxdb */
+
 static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
   if ((fam == NULL) || (user_data == NULL)) {
     return EINVAL;
@@ -406,6 +427,9 @@ static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
     break;
   case WH_FORMAT_KAIROSDB:
     status = wh_write_kairosdb(fam, cb);
+    break;
+  case WH_FORMAT_INFLUXDB:
+    status = wh_write_influxdb(fam, cb);
     break;
   default:
     status = wh_write_command(fam, cb);
@@ -461,6 +485,8 @@ static int config_set_format(wh_callback_t *cb, oconfig_item_t *ci) {
     cb->format = WH_FORMAT_JSON;
   else if (strcasecmp("KAIROSDB", string) == 0)
     cb->format = WH_FORMAT_KAIROSDB;
+  else if (strcasecmp("INFLUXDB", string) == 0)
+    cb->format = WH_FORMAT_INFLUXDB;
   else {
     ERROR("write_http plugin: Invalid format string: %s", string);
     return -1;
