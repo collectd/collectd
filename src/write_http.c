@@ -28,6 +28,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
+#include "utils/format_influxdb/format_influxdb.h"
 #include "utils/format_json/format_json.h"
 #include "utils/format_kairosdb/format_kairosdb.h"
 
@@ -72,6 +73,7 @@ struct wh_callback_s {
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
+#define WH_FORMAT_INFLUXDB 3
   int format;
   bool send_metrics;
   bool send_notifications;
@@ -321,6 +323,14 @@ static int wh_flush_nolock(cdtime_t timeout, wh_callback_t *cb) /* {{{ */
             "format_json_finalize failed.");
       wh_reset_buffer(cb);
       return status;
+    }
+
+    status = wh_post_nolock(cb, cb->send_buffer, cb->send_buffer_fill);
+    wh_reset_buffer(cb);
+  } else if (cb->format == WH_FORMAT_INFLUXDB) {
+    if (cb->send_buffer_fill == 0) {
+      cb->send_buffer_init_time = cdtime();
+      return 0;
     }
 
     status = wh_post_nolock(cb, cb->send_buffer, cb->send_buffer_fill);
@@ -575,6 +585,47 @@ static int wh_write_kairosdb(const data_set_t *ds,
   return 0;
 } /* }}} int wh_write_kairosdb */
 
+static int wh_write_influxdb(const data_set_t *ds,
+                             const value_list_t *vl, /* {{{ */
+                             wh_callback_t *cb) {
+  int status;
+
+  pthread_mutex_lock(&cb->send_lock);
+  if (wh_callback_init(cb) != 0) {
+    ERROR("write_http plugin: wh_callback_init failed.");
+    pthread_mutex_unlock(&cb->send_lock);
+    return -1;
+  }
+
+  status = format_influxdb_value_list(cb->send_buffer + cb->send_buffer_fill,
+                                      cb->send_buffer_free, ds, vl,
+                                      cb->store_rates, NS);
+  if (status == -ENOMEM) {
+    status = wh_flush_nolock(/* timeout = */ 0, cb);
+    if (status != 0) {
+      wh_reset_buffer(cb);
+      pthread_mutex_unlock(&cb->send_lock);
+      return status;
+    }
+
+    status = format_influxdb_value_list(cb->send_buffer + cb->send_buffer_fill,
+                                        cb->send_buffer_free, ds, vl,
+                                        cb->store_rates, NS);
+  }
+  if (status < 0) {
+    pthread_mutex_unlock(&cb->send_lock);
+    return status;
+  }
+
+  cb->send_buffer_fill += status;
+  cb->send_buffer_free -= status;
+
+  /* Check if we have enough space for this command. */
+  pthread_mutex_unlock(&cb->send_lock);
+
+  return 0;
+} /* }}} int wh_write_influxdb */
+
 static int wh_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
                     user_data_t *user_data) {
   wh_callback_t *cb;
@@ -592,6 +643,9 @@ static int wh_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     break;
   case WH_FORMAT_KAIROSDB:
     status = wh_write_kairosdb(ds, vl, cb);
+    break;
+  case WH_FORMAT_INFLUXDB:
+    status = wh_write_influxdb(ds, vl, cb);
     break;
   default:
     status = wh_write_command(ds, vl, cb);
@@ -649,6 +703,8 @@ static int config_set_format(wh_callback_t *cb, /* {{{ */
     cb->format = WH_FORMAT_JSON;
   else if (strcasecmp("KAIROSDB", string) == 0)
     cb->format = WH_FORMAT_KAIROSDB;
+  else if (strcasecmp("INFLUXDB", string) == 0)
+    cb->format = WH_FORMAT_INFLUXDB;
   else {
     ERROR("write_http plugin: Invalid format string: %s", string);
     return -1;
