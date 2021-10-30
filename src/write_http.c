@@ -90,6 +90,8 @@ struct wh_callback_s {
 
   int data_ttl;
   char *metrics_prefix;
+
+  char *unix_socket_path;
 };
 typedef struct wh_callback_s wh_callback_t;
 
@@ -248,6 +250,11 @@ static int wh_callback_init(wh_callback_t *cb) {
     if (cb->clientkeypass != NULL)
       curl_easy_setopt(cb->curl, CURLOPT_SSLKEYPASSWD, cb->clientkeypass);
   }
+#ifdef CURL_VERSION_UNIX_SOCKETS
+  if (cb->unix_socket_path) {
+    curl_easy_setopt(cb->curl, CURLOPT_UNIX_SOCKET_PATH, cb->unix_socket_path);
+  }
+#endif // CURL_VERSION_UNIX_SOCKETS
 
   strbuf_reset(&cb->send_buffer);
 
@@ -536,6 +543,7 @@ static int wh_config_node(oconfig_item_t *ci) {
   cb->data_ttl = 0;
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
   cb->curl_stats = NULL;
+  cb->unix_socket_path = NULL;
 
   if (cb->metrics_prefix == NULL) {
     ERROR("write_http plugin: strdup failed.");
@@ -633,7 +641,13 @@ static int wh_config_node(oconfig_item_t *ci) {
       status = cf_util_get_int(child, &cb->data_ttl);
     else if (strcasecmp("Prefix", child->key) == 0)
       status = cf_util_get_string(child, &cb->metrics_prefix);
-    else {
+    else if (strcasecmp("UnixSocket", child->key) == 0) {
+#ifdef CURL_VERSION_UNIX_SOCKETS
+      status = cf_util_get_string(child, &cb->unix_socket_path);
+#else
+      WARNING("libcurl < 7.40.0, UnixSocket config is ignored");
+#endif // CURL_VERSION_UNIX_SOCKETS
+    } else {
       ERROR("write_http plugin: Invalid configuration "
             "option: %s.",
             child->key);
