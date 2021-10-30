@@ -29,6 +29,7 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "utils/metadata/meta_data.h"
 #include "utils_cache.h"
 
 #include "utils/format_influxdb/format_influxdb.h"
@@ -114,6 +115,23 @@ int format_influxdb_value_list(
   if (strcmp(vl->type_instance, "") != 0) {
     BUFFER_ADD(",type_instance=");
     BUFFER_ADD_ESCAPE(vl->type_instance);
+  }
+  if (vl->meta) {
+    for (meta_entry_t *it = meta_data_iter(vl->meta); it != NULL;
+         it = meta_data_iter_next(it)) {
+      const char *key = meta_data_iter_key(it);
+      char *value;
+
+      if (meta_data_iter_type(it) != MD_TYPE_STRING ||
+          meta_data_iter_get_string(vl->meta, it, &value) != 0)
+        continue;
+
+      BUFFER_ADD(",");
+      BUFFER_ADD_ESCAPE(key);
+      BUFFER_ADD("=");
+      BUFFER_ADD_ESCAPE(value);
+      free(value);
+    }
   }
 
   BUFFER_ADD(" ");
