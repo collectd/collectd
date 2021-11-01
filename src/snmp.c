@@ -36,6 +36,9 @@
 
 #include <fnmatch.h>
 
+/* SHA512 plus a trailing nul */
+#define MAX_DIGEST_NAME_LEN 7
+
 /*
  * Private data structes
  */
@@ -667,7 +670,7 @@ static int csnmp_config_add_host_collect(host_definition_t *host,
 
 static int csnmp_config_add_host_auth_protocol(host_definition_t *hd,
                                                oconfig_item_t *ci) {
-  char buffer[4];
+  char buffer[MAX_DIGEST_NAME_LEN];
   int status;
 
   status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
