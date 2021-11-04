@@ -36,15 +36,23 @@
 #include "utils/common/common.h"
 #include <time.h>
 
-static void cpusleep_submit(derive_t cpu_sleep) {
-  value_list_t vl = VALUE_LIST_INIT;
+static void cpusleep_submit(counter_t cpu_sleep) {
+  metric_family_t fam = {
+      .name = "cpusleep_milliseconds_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
 
-  vl.values = &(value_t){.derive = cpu_sleep};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "cpusleep", sizeof(vl.plugin));
-  sstrncpy(vl.type, "total_time_in_ms", sizeof(vl.type));
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.counter = cpu_sleep,
+                                    });
 
-  plugin_dispatch_values(&vl);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("cpusleep plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 }
 
 static int cpusleep_read(void) {
