@@ -81,12 +81,15 @@ debian_default_toolchain_task:
         image: collectd/ci:stretch_i386
       allow_failures: false
     - container:
-        image: collectd/ci:trusty_amd64
-      allow_failures: false
-    - container:
         image: collectd/ci:xenial_amd64
       allow_failures: false
-    # debian/unstable is expected to fail
+    - container:
+        image: collectd/ci:bionic_amd64
+      allow_failures: false
+    - container:
+        image: collectd/ci:focal_amd64
+      allow_failures: false
+      # debian/unstable is expected to fail
     - allow_failures: true
       skip_notifications: true
       only_if: $CIRRUS_BRANCH == 'master'
