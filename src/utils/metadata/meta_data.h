@@ -41,6 +41,9 @@
 struct meta_data_s;
 typedef struct meta_data_s meta_data_t;
 
+struct meta_entry_s;
+typedef struct meta_entry_s meta_entry_t;
+
 meta_data_t *meta_data_create(void);
 meta_data_t *meta_data_clone(meta_data_t *orig);
 int meta_data_clone_merge(meta_data_t **dest, meta_data_t *orig);
@@ -67,5 +70,12 @@ int meta_data_get_boolean(meta_data_t *md, const char *key, bool *value);
 
 /* Returns the value as a string, regardless of the type. */
 int meta_data_as_string(meta_data_t *md, const char *key, char **value);
+
+meta_entry_t *meta_data_iter(meta_data_t *md);
+meta_entry_t *meta_data_iter_next(meta_entry_t *iter);
+int meta_data_iter_type(meta_entry_t *iter);
+const char *meta_data_iter_key(meta_entry_t *iter);
+int meta_data_iter_get_string(meta_data_t *md, meta_entry_t *iter,
+                              char **value);
 
 #endif /* META_DATA_H */
