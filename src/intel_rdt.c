@@ -526,6 +526,7 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
 
   rdt->num_ngroups = 0;
 }
+#endif /* LIBPQOS2 */
 
 /*
  * NAME
@@ -565,6 +566,8 @@ static int rdt_config_events(rdt_ctx_t *rdt) {
 #endif /* LIBPQOS2 */
   return 0;
 }
+
+#ifdef LIBPQOS2
 /*
  * NAME
  *   rdt_config_ngroups
