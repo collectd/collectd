@@ -133,10 +133,11 @@ static void wh_log_http_error(wh_callback_t *cb) {
 }
 
 /* must hold cb->curl_lock when calling */
-static int wh_post(wh_callback_t *cb, char const *data) {
+static int wh_post(wh_callback_t *cb, char const *data, long size) {
   pthread_mutex_lock(&cb->curl_lock);
 
   curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
+  curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDSIZE, size);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, &wh_curl_write_callback);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, (void *)cb);
@@ -282,6 +283,7 @@ static int wh_flush(cdtime_t timeout,
   }
 
   char const *json = strdup(cb->send_buffer.ptr);
+  const size_t size = cb->send_buffer.pos;
   strbuf_reset(&cb->send_buffer);
   cb->send_buffer_init_time = cdtime();
   pthread_mutex_unlock(&cb->send_buffer_lock);
@@ -290,7 +292,7 @@ static int wh_flush(cdtime_t timeout,
     return ENOMEM;
   }
 
-  return wh_post(cb, json);
+  return wh_post(cb, json, size);
 } /* int wh_flush */
 
 static void wh_callback_free(void *data) {
@@ -436,7 +438,7 @@ static int wh_notify(notification_t const *n, user_data_t *ud) {
     return -1;
   }
 
-  status = wh_post(cb, alert);
+  status = wh_post(cb, alert, -1);
   pthread_mutex_unlock(&cb->send_buffer_lock);
 
   return status;
