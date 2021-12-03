@@ -161,11 +161,13 @@ static void wh_reset_buffer(wh_callback_t *cb) /* {{{ */
 } /* }}} wh_reset_buffer */
 
 /* must hold cb->send_lock when calling */
-static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
+static int wh_post_nolock(wh_callback_t *cb, char const *data,
+                          long size) /* {{{ */
 {
   int status = 0;
 
   curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
+  curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDSIZE, size);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, &wh_curl_write_callback);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, (void *)cb);
@@ -304,7 +306,7 @@ static int wh_flush_nolock(cdtime_t timeout, wh_callback_t *cb) /* {{{ */
       return 0;
     }
 
-    status = wh_post_nolock(cb, cb->send_buffer);
+    status = wh_post_nolock(cb, cb->send_buffer, cb->send_buffer_fill);
     wh_reset_buffer(cb);
   } else if (cb->format == WH_FORMAT_JSON || cb->format == WH_FORMAT_KAIROSDB) {
     if (cb->send_buffer_fill <= 2) {
@@ -321,7 +323,7 @@ static int wh_flush_nolock(cdtime_t timeout, wh_callback_t *cb) /* {{{ */
       return status;
     }
 
-    status = wh_post_nolock(cb, cb->send_buffer);
+    status = wh_post_nolock(cb, cb->send_buffer, cb->send_buffer_fill);
     wh_reset_buffer(cb);
   } else {
     ERROR("write_http: wh_flush_nolock: "
@@ -623,7 +625,7 @@ static int wh_notify(notification_t const *n, user_data_t *ud) /* {{{ */
     return -1;
   }
 
-  status = wh_post_nolock(cb, alert);
+  status = wh_post_nolock(cb, alert, -1);
   pthread_mutex_unlock(&cb->send_lock);
 
   return status;
