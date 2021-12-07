@@ -67,9 +67,10 @@ static int get_taskstats_attr_cb(const struct nlattr *attr, void *data) {
     len = mnl_attr_get_payload_len(attr);
     if (len != sizeof(*ret_taskstats)) {
 
-      c_complain_once(LOG_WARNING, &complaint, "utils_taskstats: "
-          "mnl_attr_get_payload_len(attr) = %zu, want %zu",
-          len, sizeof(*ret_taskstats));
+      c_complain_once(LOG_WARNING, &complaint,
+                      "utils_taskstats: "
+                      "mnl_attr_get_payload_len(attr) = %zu, want %zu",
+                      len, sizeof(*ret_taskstats));
 
       if (len > sizeof(*ret_taskstats)) {
         len = sizeof(*ret_taskstats);
