@@ -22,11 +22,12 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
+
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if !KERNEL_LINUX
-# error "No applicable input method."
+#error "No applicable input method."
 #endif
 
 #define CONNTRACK_FILE "/proc/sys/net/netfilter/nf_conntrack_count"
@@ -34,108 +35,61 @@
 #define CONNTRACK_FILE_OLD "/proc/sys/net/ipv4/netfilter/ip_conntrack_count"
 #define CONNTRACK_MAX_FILE_OLD "/proc/sys/net/ipv4/netfilter/ip_conntrack_max"
 
-static const char *config_keys[] =
-{
-	"OldFiles"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+static const char *config_keys[] = {"OldFiles"};
+static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 /*
     Each table/chain combo that will be queried goes into this list
 */
 
-static int old_files = 0;
+static int old_files;
 
-static int conntrack_config(const char *key, const char *value)
-{
-    if (strcmp(key, "OldFiles") == 0)
-        old_files = 1;
+static int conntrack_config(const char *key, const char *value) {
+  if (strcmp(key, "OldFiles") == 0)
+    old_files = 1;
 
-    return 0;
+  return 0;
 }
 
-static void conntrack_submit (const char *type, const char *type_instance,
-			      value_t conntrack)
-{
-	value_list_t vl = VALUE_LIST_INIT;
+static void conntrack_submit(const char *type, const char *type_instance,
+                             value_t conntrack) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	vl.values = &conntrack;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "conntrack", sizeof (vl.plugin));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-	if (type_instance != NULL)
-		sstrncpy (vl.type_instance, type_instance,
-			  sizeof (vl.type_instance));
+  vl.values = &conntrack;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "conntrack", sizeof(vl.plugin));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  if (type_instance != NULL)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
-	plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 } /* static void conntrack_submit */
 
-static int conntrack_read (void)
-{
-	value_t conntrack, conntrack_max, conntrack_pct;
-	FILE *fh;
-	char buffer[64];
-	size_t buffer_len;
+static int conntrack_read(void) {
+  value_t conntrack, conntrack_max, conntrack_pct;
 
-	fh = fopen (old_files?CONNTRACK_FILE_OLD:CONNTRACK_FILE, "r");
-	if (fh == NULL)
-		return (-1);
+  char const *path = old_files ? CONNTRACK_FILE_OLD : CONNTRACK_FILE;
+  if (parse_value_file(path, &conntrack, DS_TYPE_GAUGE) != 0) {
+    ERROR("conntrack plugin: Reading \"%s\" failed.", path);
+    return -1;
+  }
 
-	memset (buffer, 0, sizeof (buffer));
-	if (fgets (buffer, sizeof (buffer), fh) == NULL)
-	{
-		fclose (fh);
-		return (-1);
-	}
-	fclose (fh);
+  path = old_files ? CONNTRACK_MAX_FILE_OLD : CONNTRACK_MAX_FILE;
+  if (parse_value_file(path, &conntrack_max, DS_TYPE_GAUGE) != 0) {
+    ERROR("conntrack plugin: Reading \"%s\" failed.", path);
+    return -1;
+  }
 
-	/* strip trailing newline. */
-	buffer_len = strlen (buffer);
-	while ((buffer_len > 0) && isspace ((int) buffer[buffer_len - 1]))
-	{
-		buffer[buffer_len - 1] = 0;
-		buffer_len--;
-	}
+  conntrack_pct.gauge = (conntrack.gauge / conntrack_max.gauge) * 100;
 
-	if (parse_value (buffer, &conntrack, DS_TYPE_GAUGE) != 0)
-		return (-1);
+  conntrack_submit("conntrack", NULL, conntrack);
+  conntrack_submit("conntrack", "max", conntrack_max);
+  conntrack_submit("percent", "used", conntrack_pct);
 
-	conntrack_submit ("conntrack", NULL, conntrack);
-
-	fh = fopen (old_files?CONNTRACK_MAX_FILE_OLD:CONNTRACK_MAX_FILE, "r");
-	if (fh == NULL)
-		return (-1);
-
-	memset (buffer, 0, sizeof (buffer));
-	if (fgets (buffer, sizeof (buffer), fh) == NULL)
-	{
-		fclose (fh);
-		return (-1);
-	}
-	fclose (fh);
-
-	/* strip trailing newline. */
-	buffer_len = strlen (buffer);
-	while ((buffer_len > 0) && isspace ((int) buffer[buffer_len - 1]))
-	{
-		buffer[buffer_len - 1] = 0;
-		buffer_len--;
-	}
-
-	if (parse_value (buffer, &conntrack_max, DS_TYPE_GAUGE) != 0)
-		return (-1);
-
-	conntrack_submit ("conntrack", "max", conntrack_max);
-	conntrack_pct.gauge = (conntrack.gauge / conntrack_max.gauge) * 100;
-	conntrack_submit ("percent", "used", conntrack_pct);
-
-
-	return (0);
+  return 0;
 } /* static int conntrack_read */
 
-void module_register (void)
-{
-    plugin_register_config ("conntrack", conntrack_config,
-                            config_keys, config_keys_num);
-	plugin_register_read ("conntrack", conntrack_read);
+void module_register(void) {
+  plugin_register_config("conntrack", conntrack_config, config_keys,
+                         config_keys_num);
+  plugin_register_read("conntrack", conntrack_read);
 } /* void module_register */

@@ -25,15 +25,13 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 
-#include <pthread.h>
-
+#include "utils/avltree/avltree.h"
 #include "utils_fbhash.h"
-#include "utils_avltree.h"
 
-struct fbhash_s
-{
+struct fbhash_s {
   char *filename;
   time_t mtime;
 
@@ -44,64 +42,58 @@ struct fbhash_s
 /*
  * Private functions
  */
-static void fbh_free_tree (c_avl_tree_t *tree) /* {{{ */
+static void fbh_free_tree(c_avl_tree_t *tree) /* {{{ */
 {
   int status;
 
   if (tree == NULL)
     return;
 
-  while (42)
-  {
+  while (42) {
     char *key = NULL;
     char *value = NULL;
 
-    status = c_avl_pick (tree, (void *) &key, (void *) &value);
+    status = c_avl_pick(tree, (void *)&key, (void *)&value);
     if (status != 0)
       break;
 
-    free (key);
-    free (value);
+    free(key);
+    free(value);
   }
 
-  c_avl_destroy (tree);
+  c_avl_destroy(tree);
 } /* }}} void fbh_free_tree */
 
-static int fbh_read_file (fbhash_t *h) /* {{{ */
+static int fbh_read_file(fbhash_t *h) /* {{{ */
 {
   FILE *fh;
   char buffer[4096];
-  struct flock fl;
+  struct flock fl = {0};
   c_avl_tree_t *tree;
   int status;
 
-  fh = fopen (h->filename, "r");
+  fh = fopen(h->filename, "r");
   if (fh == NULL)
-    return (-1);
+    return -1;
 
-  memset (&fl, 0, sizeof (fl));
   fl.l_type = F_RDLCK;
   fl.l_whence = SEEK_SET;
-  fl.l_start = 0;
-  fl.l_len = 0; /* == entire file */
   /* TODO: Lock file? -> fcntl */
 
-  status = fcntl (fileno (fh), F_SETLK, &fl);
-  if (status != 0)
-  {
-    fclose (fh);
-    return (-1);
+  status = fcntl(fileno(fh), F_SETLK, &fl);
+  if (status != 0) {
+    fclose(fh);
+    return -1;
   }
 
-  tree = c_avl_create ((void *) strcmp);
-  if (tree == NULL)
-  {
-    fclose (fh);
-    return (-1);
+  tree = c_avl_create((int (*)(const void *, const void *))strcmp);
+  if (tree == NULL) {
+    fclose(fh);
+    return -1;
   }
 
   /* Read `fh' into `tree' */
-  while (fgets (buffer, sizeof (buffer), fh) != NULL) /* {{{ */
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) /* {{{ */
   {
     size_t len;
     char *key;
@@ -110,20 +102,19 @@ static int fbh_read_file (fbhash_t *h) /* {{{ */
     char *key_copy;
     char *value_copy;
 
-    buffer[sizeof (buffer) - 1] = 0;
-    len = strlen (buffer);
+    buffer[sizeof(buffer) - 1] = '\0';
+    len = strlen(buffer);
 
     /* Remove trailing newline characters. */
-    while ((len > 0)
-        && ((buffer[len - 1] == '\n') || (buffer[len - 1] == '\r')))
-    {
+    while ((len > 0) &&
+           ((buffer[len - 1] == '\n') || (buffer[len - 1] == '\r'))) {
       len--;
       buffer[len] = 0;
     }
 
     /* Seek first non-space character */
     key = buffer;
-    while ((*key != 0) && isspace ((int) *key))
+    while ((*key != 0) && isspace((int)*key))
       key++;
 
     /* Skip empty lines and comments */
@@ -131,7 +122,7 @@ static int fbh_read_file (fbhash_t *h) /* {{{ */
       continue;
 
     /* Seek first colon */
-    value = strchr (key, ':');
+    value = strchr(key, ':');
     if (value == NULL)
       continue;
 
@@ -140,137 +131,127 @@ static int fbh_read_file (fbhash_t *h) /* {{{ */
     value++;
 
     /* Skip leading whitespace */
-    while ((*value != 0) && isspace ((int) *value))
+    while ((*value != 0) && isspace((int)*value))
       value++;
 
     /* Skip lines without value */
     if (value[0] == 0)
       continue;
 
-    key_copy = strdup (key);
-    value_copy = strdup (value);
+    key_copy = strdup(key);
+    value_copy = strdup(value);
 
-    if ((key_copy == NULL) || (value_copy == NULL))
-    {
-      free (key_copy);
-      free (value_copy);
+    if ((key_copy == NULL) || (value_copy == NULL)) {
+      free(key_copy);
+      free(value_copy);
       continue;
     }
 
-    status = c_avl_insert (tree, key_copy, value_copy);
-    if (status != 0)
-    {
-      free (key_copy);
-      free (value_copy);
+    status = c_avl_insert(tree, key_copy, value_copy);
+    if (status != 0) {
+      free(key_copy);
+      free(value_copy);
       continue;
     }
 
-    DEBUG ("utils_fbhash: fbh_read_file: key = %s; value = %s;",
-        key, value);
+    DEBUG("utils_fbhash: fbh_read_file: key = %s; value = %s;", key, value);
   } /* }}} while (fgets) */
 
-  fclose (fh);
+  fclose(fh);
 
-  fbh_free_tree (h->tree);
+  fbh_free_tree(h->tree);
   h->tree = tree;
 
-  return (0);
+  return 0;
 } /* }}} int fbh_read_file */
 
-static int fbh_check_file (fbhash_t *h) /* {{{ */
+static int fbh_check_file(fbhash_t *h) /* {{{ */
 {
-  struct stat statbuf;
+  struct stat statbuf = {0};
   int status;
 
-  memset (&statbuf, 0, sizeof (statbuf));
-
-  status = stat (h->filename, &statbuf);
+  status = stat(h->filename, &statbuf);
   if (status != 0)
-    return (-1);
+    return -1;
 
   if (h->mtime >= statbuf.st_mtime)
-    return (0);
+    return 0;
 
-  status = fbh_read_file (h);
+  status = fbh_read_file(h);
   if (status == 0)
     h->mtime = statbuf.st_mtime;
 
-  return (status);
+  return status;
 } /* }}} int fbh_check_file */
 
 /*
  * Public functions
  */
-fbhash_t *fbh_create (const char *file) /* {{{ */
+fbhash_t *fbh_create(const char *file) /* {{{ */
 {
   fbhash_t *h;
   int status;
 
   if (file == NULL)
-    return (NULL);
+    return NULL;
 
-  h = calloc (1, sizeof (*h));
+  h = calloc(1, sizeof(*h));
   if (h == NULL)
-    return (NULL);
+    return NULL;
 
-  h->filename = strdup (file);
-  if (h->filename == NULL)
-  {
-    free (h);
-    return (NULL);
+  h->filename = strdup(file);
+  if (h->filename == NULL) {
+    free(h);
+    return NULL;
   }
 
   h->mtime = 0;
-  pthread_mutex_init (&h->lock, /* attr = */ NULL);
+  pthread_mutex_init(&h->lock, /* attr = */ NULL);
 
-  status = fbh_check_file (h);
-  if (status != 0)
-  {
-    fbh_destroy (h);
-    free (h);
-    return (NULL);
+  status = fbh_check_file(h);
+  if (status != 0) {
+    fbh_destroy(h);
+    free(h);
+    return NULL;
   }
 
-  return (h);
+  return h;
 } /* }}} fbhash_t *fbh_create */
 
-void fbh_destroy (fbhash_t *h) /* {{{ */
+void fbh_destroy(fbhash_t *h) /* {{{ */
 {
   if (h == NULL)
     return;
 
-  pthread_mutex_destroy (&h->lock);
-  free (h->filename);
-  fbh_free_tree (h->tree);
+  pthread_mutex_destroy(&h->lock);
+  free(h->filename);
+  fbh_free_tree(h->tree);
 } /* }}} void fbh_destroy */
 
-char *fbh_get (fbhash_t *h, const char *key) /* {{{ */
+char *fbh_get(fbhash_t *h, const char *key) /* {{{ */
 {
   char *value;
   char *value_copy;
   int status;
 
   if ((h == NULL) || (key == NULL))
-    return (NULL);
+    return NULL;
 
   value = NULL;
   value_copy = NULL;
 
-  pthread_mutex_lock (&h->lock);
+  pthread_mutex_lock(&h->lock);
 
   /* TODO: Checking this every time may be a bit much..? */
-  fbh_check_file (h);
+  fbh_check_file(h);
 
-  status = c_avl_get (h->tree, key, (void *) &value);
-  if (status == 0)
-  {
-    assert (value != NULL);
-    value_copy = strdup (value);
+  status = c_avl_get(h->tree, key, (void *)&value);
+  if (status == 0) {
+    assert(value != NULL);
+    value_copy = strdup(value);
   }
 
-  pthread_mutex_unlock (&h->lock);
+  pthread_mutex_unlock(&h->lock);
 
-  return (value_copy);
+  return value_copy;
 } /* }}} char *fbh_get */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

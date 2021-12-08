@@ -62,6 +62,3 @@ const char *lcc_version_extra (void);
 LCC_END_DECLS
 
 #endif /* ! LIBCOLLECTD_LCC_FEATURES_H */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */
-

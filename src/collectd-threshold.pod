@@ -40,7 +40,7 @@ Also, all values that match a threshold are considered to be relevant or
 "interesting". As a consequence collectd will issue a notification if they are
 not received for B<Timeout> iterations. The B<Timeout> configuration option is
 explained in section L<collectd.conf(5)/"GLOBAL OPTIONS">. If, for example,
-B<Timeout> is set to "2" (the default) and some hosts sends it's CPU statistics
+B<Timeout> is set to "2" (the default) and some hosts sends its CPU statistics
 to the server every 60 seconds, a notification will be dispatched after about
 120 seconds. It may take a little longer because the timeout is checked only
 once each B<Interval> on the server.

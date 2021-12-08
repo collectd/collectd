@@ -14,7 +14,7 @@ Vendor:		Florian octo Forster <octo@verplant.org>
 
 %description
 collectd is a small daemon written in C for performance.  It reads various
-system  statistics  and updates  RRD files,  creating  them if neccessary.
+system  statistics  and updates  RRD files,  creating  them if necessary.
 Since the daemon doesn't need to startup every time it wants to update the
 files it's very fast and easy on the system. Also, the statistics are very
 fine grained since the files are updated every 10 seconds.

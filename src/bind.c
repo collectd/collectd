@@ -24,26 +24,34 @@
 #include "config.h"
 
 #if STRPTIME_NEEDS_STANDARDS
-# ifndef _ISOC99_SOURCE
-#  define _ISOC99_SOURCE 1
-# endif
-# ifndef _POSIX_C_SOURCE
-#  define _POSIX_C_SOURCE 200112L
-# endif
-# ifndef _XOPEN_SOURCE
-#  define _XOPEN_SOURCE 500
-# endif
+#ifndef _ISOC99_SOURCE
+#define _ISOC99_SOURCE 1
+#endif
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 500
+#endif
 #endif /* STRPTIME_NEEDS_STANDARDS */
 
+#if TIMEGM_NEEDS_BSD
+#ifndef _BSD_SOURCE
+#define _BSD_SOURCE 1
+#endif
+#endif /* TIMEGM_NEEDS_BSD */
+
 #include "collectd.h"
-#include "common.h"
+
 #include "plugin.h"
-#include "configfile.h"
+#include "utils/common/common.h"
+
+#include <time.h>
 
 /* Some versions of libcurl don't include this themselves and then don't have
  * fd_set available. */
 #if HAVE_SYS_SELECT_H
-# include <sys/select.h>
+#include <sys/select.h>
 #endif
 
 #include <curl/curl.h>
@@ -51,7 +59,7 @@
 #include <libxml/xpath.h>
 
 #ifndef BIND_DEFAULT_URL
-# define BIND_DEFAULT_URL "http://localhost:8053/"
+#define BIND_DEFAULT_URL "http://localhost:8053/"
 #endif
 
 /*
@@ -59,40 +67,36 @@
  * `list_info_ptr_t' are passed to the callbacks in the `void *user_data'
  * pointer.
  */
-typedef int (*list_callback_t) (const char *name, value_t value,
-    time_t current_time, void *user_data);
+typedef int (*list_callback_t)(const char *name, value_t value,
+                               time_t current_time, void *user_data);
 
-struct cb_view_s
-{
+struct cb_view_s {
   char *name;
 
-  int qtypes;
-  int resolver_stats;
-  int cacherrsets;
+  _Bool qtypes;
+  _Bool resolver_stats;
+  _Bool cacherrsets;
 
   char **zones;
   size_t zones_num;
 };
 typedef struct cb_view_s cb_view_t;
 
-struct translation_info_s
-{
+struct translation_info_s {
   const char *xml_name;
   const char *type;
   const char *type_instance;
 };
 typedef struct translation_info_s translation_info_t;
 
-struct translation_table_ptr_s
-{
+struct translation_table_ptr_s {
   const translation_info_t *table;
   size_t table_length;
   const char *plugin_instance;
 };
 typedef struct translation_table_ptr_s translation_table_ptr_t;
 
-struct list_info_ptr_s
-{
+struct list_info_ptr_s {
   const char *plugin_instance;
   const char *type;
 };
@@ -100,378 +104,348 @@ typedef struct list_info_ptr_s list_info_ptr_t;
 
 /* FIXME: Enabled by default for backwards compatibility. */
 /* TODO: Remove time parsing code. */
-static _Bool config_parse_time = 1;
+static bool config_parse_time = true;
 
-static char *url                   = NULL;
-static int global_opcodes          = 1;
-static int global_qtypes           = 1;
-static int global_server_stats     = 1;
-static int global_zone_maint_stats = 1;
-static int global_resolver_stats   = 0;
-static int global_memory_stats     = 1;
-static int timeout                 = -1;
+static char *url;
+static _Bool global_opcodes = 1;
+static _Bool global_qtypes = 1;
+static _Bool global_server_stats = 1;
+static _Bool global_zone_maint_stats = 1;
+static _Bool global_resolver_stats;
+static _Bool global_memory_stats = 1;
+static int timeout = -1;
 
-static cb_view_t *views = NULL;
-static size_t     views_num = 0;
+static cb_view_t *views;
+static size_t views_num;
 
-static CURL *curl = NULL;
+static CURL *curl;
 
-static char  *bind_buffer = NULL;
-static size_t bind_buffer_size = 0;
-static size_t bind_buffer_fill = 0;
-static char   bind_curl_error[CURL_ERROR_SIZE];
+static char *bind_buffer;
+static size_t bind_buffer_size;
+static size_t bind_buffer_fill;
+static char bind_curl_error[CURL_ERROR_SIZE];
 
 /* Translation table for the `nsstats' values. */
 static const translation_info_t nsstats_translation_table[] = /* {{{ */
-{
-  /* Requests */
-  { "Requestv4",       "dns_request",  "IPv4"        },
-  { "Requestv6",       "dns_request",  "IPv6"        },
-  { "ReqEdns0",        "dns_request",  "EDNS0"       },
-  { "ReqBadEDNSVer",   "dns_request",  "BadEDNSVer"  },
-  { "ReqTSIG",         "dns_request",  "TSIG"        },
-  { "ReqSIG0",         "dns_request",  "SIG0"        },
-  { "ReqBadSIG",       "dns_request",  "BadSIG"      },
-  { "ReqTCP",          "dns_request",  "TCP"         },
-  /* Rejects */
-  { "AuthQryRej",      "dns_reject",   "authorative" },
-  { "RecQryRej",       "dns_reject",   "recursive"   },
-  { "XfrRej",          "dns_reject",   "transfer"    },
-  { "UpdateRej",       "dns_reject",   "update"      },
-  /* Responses */
-  { "Response",        "dns_response", "normal"      },
-  { "TruncatedResp",   "dns_response", "truncated"   },
-  { "RespEDNS0",       "dns_response", "EDNS0"       },
-  { "RespTSIG",        "dns_response", "TSIG"        },
-  { "RespSIG0",        "dns_response", "SIG0"        },
-  /* Queries */
-  { "QryAuthAns",      "dns_query",    "authorative" },
-  { "QryNoauthAns",    "dns_query",    "nonauth"     },
-  { "QryReferral",     "dns_query",    "referral"    },
-  { "QryRecursion",    "dns_query",    "recursion"   },
-  { "QryDuplicate",    "dns_query",    "dupliate"    },
-  { "QryDropped",      "dns_query",    "dropped"     },
-  { "QryFailure",      "dns_query",    "failure"     },
-  /* Response codes */
-  { "QrySuccess",      "dns_rcode",    "tx-NOERROR"  },
-  { "QryNxrrset",      "dns_rcode",    "tx-NXRRSET"  },
-  { "QrySERVFAIL",     "dns_rcode",    "tx-SERVFAIL" },
-  { "QryFORMERR",      "dns_rcode",    "tx-FORMERR"  },
-  { "QryNXDOMAIN",     "dns_rcode",    "tx-NXDOMAIN" }
+    {
+        /* Requests */
+        {"Requestv4", "dns_request", "IPv4"},
+        {"Requestv6", "dns_request", "IPv6"},
+        {"ReqEdns0", "dns_request", "EDNS0"},
+        {"ReqBadEDNSVer", "dns_request", "BadEDNSVer"},
+        {"ReqTSIG", "dns_request", "TSIG"},
+        {"ReqSIG0", "dns_request", "SIG0"},
+        {"ReqBadSIG", "dns_request", "BadSIG"},
+        {"ReqTCP", "dns_request", "TCP"},
+        /* Rejects */
+        {"AuthQryRej", "dns_reject", "authoritative"},
+        {"RecQryRej", "dns_reject", "recursive"},
+        {"XfrRej", "dns_reject", "transfer"},
+        {"UpdateRej", "dns_reject", "update"},
+        /* Responses */
+        {"Response", "dns_response", "normal"},
+        {"TruncatedResp", "dns_response", "truncated"},
+        {"RespEDNS0", "dns_response", "EDNS0"},
+        {"RespTSIG", "dns_response", "TSIG"},
+        {"RespSIG0", "dns_response", "SIG0"},
+        /* Queries */
+        {"QryAuthAns", "dns_query", "authoritative"},
+        {"QryNoauthAns", "dns_query", "nonauth"},
+        {"QryReferral", "dns_query", "referral"},
+        {"QryRecursion", "dns_query", "recursion"},
+        {"QryDuplicate", "dns_query", "duplicate"},
+        {"QryDropped", "dns_query", "dropped"},
+        {"QryFailure", "dns_query", "failure"},
+        /* Response codes */
+        {"QrySuccess", "dns_rcode", "tx-NOERROR"},
+        {"QryNxrrset", "dns_rcode", "tx-NXRRSET"},
+        {"QrySERVFAIL", "dns_rcode", "tx-SERVFAIL"},
+        {"QryFORMERR", "dns_rcode", "tx-FORMERR"},
+        {"QryNXDOMAIN", "dns_rcode", "tx-NXDOMAIN"}
 #if 0
-  { "XfrReqDone",      "type", "type_instance"       },
-  { "UpdateReqFwd",    "type", "type_instance"       },
-  { "UpdateRespFwd",   "type", "type_instance"       },
-  { "UpdateFwdFail",   "type", "type_instance"       },
-  { "UpdateDone",      "type", "type_instance"       },
-  { "UpdateFail",      "type", "type_instance"       },
-  { "UpdateBadPrereq", "type", "type_instance"       },
+  { "XfrReqDone",      "type",         "type_instance" },
+  { "UpdateReqFwd",    "type",         "type_instance" },
+  { "UpdateRespFwd",   "type",         "type_instance" },
+  { "UpdateFwdFail",   "type",         "type_instance" },
+  { "UpdateDone",      "type",         "type_instance" },
+  { "UpdateFail",      "type",         "type_instance" },
+  { "UpdateBadPrereq", "type",         "type_instance" },
 #endif
 };
 static int nsstats_translation_table_length =
-  STATIC_ARRAY_SIZE (nsstats_translation_table);
+    STATIC_ARRAY_SIZE(nsstats_translation_table);
 /* }}} */
 
 /* Translation table for the `zonestats' values. */
 static const translation_info_t zonestats_translation_table[] = /* {{{ */
-{
-  /* Notify's */
-  { "NotifyOutv4",     "dns_notify",   "tx-IPv4"     },
-  { "NotifyOutv6",     "dns_notify",   "tx-IPv6"     },
-  { "NotifyInv4",      "dns_notify",   "rx-IPv4"     },
-  { "NotifyInv6",      "dns_notify",   "rx-IPv6"     },
-  { "NotifyRej",       "dns_notify",   "rejected"    },
-  /* SOA/AXFS/IXFS requests */
-  { "SOAOutv4",        "dns_opcode",   "SOA-IPv4"    },
-  { "SOAOutv6",        "dns_opcode",   "SOA-IPv6"    },
-  { "AXFRReqv4",       "dns_opcode",   "AXFR-IPv4"   },
-  { "AXFRReqv6",       "dns_opcode",   "AXFR-IPv6"   },
-  { "IXFRReqv4",       "dns_opcode",   "IXFR-IPv4"   },
-  { "IXFRReqv6",       "dns_opcode",   "IXFR-IPv6"   },
-  /* Domain transfers */
-  { "XfrSuccess",      "dns_transfer", "success"     },
-  { "XfrFail",         "dns_transfer", "failure"     }
-};
+    {
+        /* Notify's */
+        {"NotifyOutv4", "dns_notify", "tx-IPv4"},
+        {"NotifyOutv6", "dns_notify", "tx-IPv6"},
+        {"NotifyInv4", "dns_notify", "rx-IPv4"},
+        {"NotifyInv6", "dns_notify", "rx-IPv6"},
+        {"NotifyRej", "dns_notify", "rejected"},
+        /* SOA/AXFS/IXFS requests */
+        {"SOAOutv4", "dns_opcode", "SOA-IPv4"},
+        {"SOAOutv6", "dns_opcode", "SOA-IPv6"},
+        {"AXFRReqv4", "dns_opcode", "AXFR-IPv4"},
+        {"AXFRReqv6", "dns_opcode", "AXFR-IPv6"},
+        {"IXFRReqv4", "dns_opcode", "IXFR-IPv4"},
+        {"IXFRReqv6", "dns_opcode", "IXFR-IPv6"},
+        /* Domain transfers */
+        {"XfrSuccess", "dns_transfer", "success"},
+        {"XfrFail", "dns_transfer", "failure"}};
 static int zonestats_translation_table_length =
-  STATIC_ARRAY_SIZE (zonestats_translation_table);
+    STATIC_ARRAY_SIZE(zonestats_translation_table);
 /* }}} */
 
 /* Translation table for the `resstats' values. */
 static const translation_info_t resstats_translation_table[] = /* {{{ */
-{
-  /* Generic resolver information */
-  { "Queryv4",         "dns_query",    "IPv4"        },
-  { "Queryv6",         "dns_query",    "IPv6"        },
-  { "Responsev4",      "dns_response", "IPv4"        },
-  { "Responsev6",      "dns_response", "IPv6"        },
-  /* Received response codes */
-  { "NXDOMAIN",        "dns_rcode",    "rx-NXDOMAIN" },
-  { "SERVFAIL",        "dns_rcode",    "rx-SERVFAIL" },
-  { "FORMERR",         "dns_rcode",    "rx-FORMERR"  },
-  { "OtherError",      "dns_rcode",    "rx-OTHER"    },
-  { "EDNS0Fail",       "dns_rcode",    "rx-EDNS0Fail"},
-  /* Received responses */
-  { "Mismatch",        "dns_response", "mismatch"    },
-  { "Truncated",       "dns_response", "truncated"   },
-  { "Lame",            "dns_response", "lame"        },
-  { "Retry",           "dns_query",    "retry"       },
+    {
+        /* Generic resolver information */
+        {"Queryv4", "dns_query", "IPv4"},
+        {"Queryv6", "dns_query", "IPv6"},
+        {"Responsev4", "dns_response", "IPv4"},
+        {"Responsev6", "dns_response", "IPv6"},
+        /* Received response codes */
+        {"NXDOMAIN", "dns_rcode", "rx-NXDOMAIN"},
+        {"SERVFAIL", "dns_rcode", "rx-SERVFAIL"},
+        {"FORMERR", "dns_rcode", "rx-FORMERR"},
+        {"OtherError", "dns_rcode", "rx-OTHER"},
+        {"EDNS0Fail", "dns_rcode", "rx-EDNS0Fail"},
+        /* Received responses */
+        {"Mismatch", "dns_response", "mismatch"},
+        {"Truncated", "dns_response", "truncated"},
+        {"Lame", "dns_response", "lame"},
+        {"Retry", "dns_query", "retry"},
 #if 0
   { "GlueFetchv4",     "type", "type_instance" },
   { "GlueFetchv6",     "type", "type_instance" },
   { "GlueFetchv4Fail", "type", "type_instance" },
   { "GlueFetchv6Fail", "type", "type_instance" },
 #endif
-  /* DNSSEC information */
-  { "ValAttempt",      "dns_resolver", "DNSSEC-attempt" },
-  { "ValOk",           "dns_resolver", "DNSSEC-okay"    },
-  { "ValNegOk",        "dns_resolver", "DNSSEC-negokay" },
-  { "ValFail",         "dns_resolver", "DNSSEC-fail"    }
-};
+        /* DNSSEC information */
+        {"ValAttempt", "dns_resolver", "DNSSEC-attempt"},
+        {"ValOk", "dns_resolver", "DNSSEC-okay"},
+        {"ValNegOk", "dns_resolver", "DNSSEC-negokay"},
+        {"ValFail", "dns_resolver", "DNSSEC-fail"}};
 static int resstats_translation_table_length =
-  STATIC_ARRAY_SIZE (resstats_translation_table);
+    STATIC_ARRAY_SIZE(resstats_translation_table);
 /* }}} */
 
 /* Translation table for the `memory/summary' values. */
 static const translation_info_t memsummary_translation_table[] = /* {{{ */
-{
-  { "TotalUse",        "memory",       "TotalUse"    },
-  { "InUse",           "memory",       "InUse"       },
-  { "BlockSize",       "memory",       "BlockSize"   },
-  { "ContextSize",     "memory",       "ContextSize" },
-  { "Lost",            "memory",       "Lost"        }
-};
+    {{"TotalUse", "memory", "TotalUse"},
+     {"InUse", "memory", "InUse"},
+     {"BlockSize", "memory", "BlockSize"},
+     {"ContextSize", "memory", "ContextSize"},
+     {"Lost", "memory", "Lost"}};
 static int memsummary_translation_table_length =
-  STATIC_ARRAY_SIZE (memsummary_translation_table);
+    STATIC_ARRAY_SIZE(memsummary_translation_table);
 /* }}} */
 
-static void submit (time_t ts, const char *plugin_instance, /* {{{ */
-    const char *type, const char *type_instance, value_t value)
-{
-  value_t values[1];
+static void submit(time_t ts, const char *plugin_instance, /* {{{ */
+                   const char *type, const char *type_instance, value_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0] = value;
-
-  vl.values = values;
+  vl.values = &value;
   vl.values_len = 1;
   if (config_parse_time)
-    vl.time = TIME_T_TO_CDTIME_T (ts);
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+    vl.time = TIME_T_TO_CDTIME_T(ts);
   sstrncpy(vl.plugin, "bind", sizeof(vl.plugin));
   if (plugin_instance) {
-    sstrncpy(vl.plugin_instance, plugin_instance,
-        sizeof(vl.plugin_instance));
-    replace_special (vl.plugin_instance, sizeof (vl.plugin_instance));
+    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+    replace_special(vl.plugin_instance, sizeof(vl.plugin_instance));
   }
   sstrncpy(vl.type, type, sizeof(vl.type));
   if (type_instance) {
-    sstrncpy(vl.type_instance, type_instance,
-        sizeof(vl.type_instance));
-    replace_special (vl.type_instance, sizeof (vl.type_instance));
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+    replace_special(vl.type_instance, sizeof(vl.type_instance));
   }
   plugin_dispatch_values(&vl);
 } /* }}} void submit */
 
-static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
-    size_t nmemb, void __attribute__((unused)) *stream)
-{
+static size_t bind_curl_callback(void *buf, size_t size, /* {{{ */
+                                 size_t nmemb,
+                                 void __attribute__((unused)) * stream) {
   size_t len = size * nmemb;
 
   if (len == 0)
-    return (len);
+    return len;
 
-  if ((bind_buffer_fill + len) >= bind_buffer_size)
-  {
-    char *temp;
-
-    temp = realloc (bind_buffer, bind_buffer_fill + len + 1);
-    if (temp == NULL)
-    {
-      ERROR ("bind plugin: realloc failed.");
-      return (0);
+  if ((bind_buffer_fill + len) >= bind_buffer_size) {
+    char *temp = realloc(bind_buffer, bind_buffer_fill + len + 1);
+    if (temp == NULL) {
+      ERROR("bind plugin: realloc failed.");
+      return 0;
     }
     bind_buffer = temp;
     bind_buffer_size = bind_buffer_fill + len + 1;
   }
 
-  memcpy (bind_buffer + bind_buffer_fill, (char *) buf, len);
+  memcpy(bind_buffer + bind_buffer_fill, (char *)buf, len);
   bind_buffer_fill += len;
   bind_buffer[bind_buffer_fill] = 0;
 
-  return (len);
+  return len;
 } /* }}} size_t bind_curl_callback */
 
 /*
  * Callback, that's called with a translation table.
  * (Plugin instance is fixed, type and type instance come from lookup table.)
  */
-static int bind_xml_table_callback (const char *name, value_t value, /* {{{ */
-    time_t current_time, void *user_data)
-{
-  translation_table_ptr_t *table = (translation_table_ptr_t *) user_data;
-  size_t i;
+static int bind_xml_table_callback(const char *name, value_t value, /* {{{ */
+                                   time_t current_time, void *user_data) {
+  translation_table_ptr_t *table = (translation_table_ptr_t *)user_data;
 
   if (table == NULL)
-    return (-1);
+    return -1;
 
-  for (i = 0; i < table->table_length; i++)
-  {
-    if (strcmp (table->table[i].xml_name, name) != 0)
+  for (size_t i = 0; i < table->table_length; i++) {
+    if (strcmp(table->table[i].xml_name, name) != 0)
       continue;
 
-    submit (current_time,
-        table->plugin_instance,
-        table->table[i].type,
-        table->table[i].type_instance,
-        value);
+    submit(current_time, table->plugin_instance, table->table[i].type,
+           table->table[i].type_instance, value);
     break;
   }
 
-  return (0);
+  return 0;
 } /* }}} int bind_xml_table_callback */
 
 /*
  * Callback, that's used for lists.
  * (Plugin instance and type are fixed, xml name is used as type instance.)
  */
-static int bind_xml_list_callback (const char *name, /* {{{ */
-    value_t value, time_t current_time, void *user_data)
-{
-  list_info_ptr_t *list_info = (list_info_ptr_t *) user_data;
+static int bind_xml_list_callback(const char *name, /* {{{ */
+                                  value_t value, time_t current_time,
+                                  void *user_data) {
+  list_info_ptr_t *list_info = (list_info_ptr_t *)user_data;
 
   if (list_info == NULL)
-    return (-1);
+    return -1;
 
-  submit (current_time,
-      list_info->plugin_instance,
-      list_info->type,
-      /* type instance = */ name,
-      value);
+  submit(current_time, list_info->plugin_instance, list_info->type,
+         /* type instance = */ name, value);
 
-  return (0);
+  return 0;
 } /* }}} int bind_xml_list_callback */
 
-static int bind_xml_read_derive (xmlDoc *doc, xmlNode *node, /* {{{ */
-    derive_t *ret_value)
-{
-  char *str_ptr;
-  value_t value;
-  int status;
-
-  str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
-  if (str_ptr == NULL)
-  {
-    ERROR ("bind plugin: bind_xml_read_derive: xmlNodeListGetString failed.");
-    return (-1);
+static int bind_xml_read_derive(xmlDoc *doc, xmlNode *node, /* {{{ */
+                                derive_t *ret_value) {
+  char *str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
+  if (str_ptr == NULL) {
+    ERROR("bind plugin: bind_xml_read_derive: xmlNodeListGetString failed.");
+    return -1;
   }
 
-  status = parse_value (str_ptr, &value, DS_TYPE_DERIVE);
-  if (status != 0)
-  {
-    ERROR ("bind plugin: Parsing string \"%s\" to derive value failed.",
-        str_ptr);
+  value_t value;
+
+  int status = parse_value(str_ptr, &value, DS_TYPE_DERIVE);
+  if (status != 0) {
     xmlFree(str_ptr);
-    return (-1);
+    return -1;
   }
 
   xmlFree(str_ptr);
   *ret_value = value.derive;
-  return (0);
+  return 0;
 } /* }}} int bind_xml_read_derive */
 
-static int bind_xml_read_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
-    gauge_t *ret_value)
-{
-  char *str_ptr, *end_ptr;
-  double value;
-
-  str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
-  if (str_ptr == NULL)
-  {
-    ERROR ("bind plugin: bind_xml_read_gauge: xmlNodeListGetString failed.");
-    return (-1);
+static int bind_xml_read_gauge(xmlDoc *doc, xmlNode *node, /* {{{ */
+                               gauge_t *ret_value) {
+  char *str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
+  if (str_ptr == NULL) {
+    ERROR("bind plugin: bind_xml_read_gauge: xmlNodeListGetString failed.");
+    return -1;
   }
 
+  char *end_ptr;
   errno = 0;
-  value = strtod (str_ptr, &end_ptr);
+  double value = strtod(str_ptr, &end_ptr);
   xmlFree(str_ptr);
-  if (str_ptr == end_ptr || errno)
-  {
+  if (str_ptr == end_ptr || errno) {
     if (errno && (value < 0))
-      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed with underflow.");
+      ERROR("bind plugin: bind_xml_read_gauge: strtod failed with underflow.");
     else if (errno && (value > 0))
-      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed with overflow.");
+      ERROR("bind plugin: bind_xml_read_gauge: strtod failed with overflow.");
     else
-      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed.");
-    return (-1);
+      ERROR("bind plugin: bind_xml_read_gauge: strtod failed.");
+    return -1;
   }
 
-  *ret_value = (gauge_t) value;
-  return (0);
+  *ret_value = (gauge_t)value;
+  return 0;
 } /* }}} int bind_xml_read_gauge */
 
-static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
-    xmlDoc *doc, xmlXPathContext *xpathCtx, time_t *ret_value)
-{
-  xmlXPathObject *xpathObj = NULL;
-  xmlNode *node;
-  char *str_ptr;
-  char *tmp;
-  struct tm tm;
-
-  xpathObj = xmlXPathEvalExpression (BAD_CAST xpath_expression, xpathCtx);
-  if (xpathObj == NULL)
-  {
-    ERROR ("bind plugin: Unable to evaluate XPath expression `%s'.",
-        xpath_expression);
-    return (-1);
+static int bind_xml_read_timestamp(const char *xpath_expression, /* {{{ */
+                                   xmlDoc *doc, xmlXPathContext *xpathCtx,
+                                   time_t *ret_value) {
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  if (xpathObj == NULL) {
+    ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
+          xpath_expression);
+    return -1;
   }
 
-  if ((xpathObj->nodesetval == NULL) || (xpathObj->nodesetval->nodeNr < 1))
-  {
-    xmlXPathFreeObject (xpathObj);
-    return (-1);
+  if ((xpathObj->nodesetval == NULL) || (xpathObj->nodesetval->nodeNr < 1)) {
+    xmlXPathFreeObject(xpathObj);
+    return -1;
   }
 
-  if (xpathObj->nodesetval->nodeNr != 1)
-  {
-    NOTICE ("bind plugin: Evaluating the XPath expression `%s' returned "
-        "%i nodes. Only handling the first one.",
-        xpath_expression, xpathObj->nodesetval->nodeNr);
+  if (xpathObj->nodesetval->nodeNr != 1) {
+    NOTICE("bind plugin: Evaluating the XPath expression `%s' returned "
+           "%i nodes. Only handling the first one.",
+           xpath_expression, xpathObj->nodesetval->nodeNr);
   }
 
-  node = xpathObj->nodesetval->nodeTab[0];
+  xmlNode *node = xpathObj->nodesetval->nodeTab[0];
 
-  if (node->xmlChildrenNode == NULL)
-  {
-    ERROR ("bind plugin: bind_xml_read_timestamp: "
-        "node->xmlChildrenNode == NULL");
-    xmlXPathFreeObject (xpathObj);
-    return (-1);
+  if (node->xmlChildrenNode == NULL) {
+    ERROR("bind plugin: bind_xml_read_timestamp: "
+          "node->xmlChildrenNode == NULL");
+    xmlXPathFreeObject(xpathObj);
+    return -1;
   }
 
-  str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
-  if (str_ptr == NULL)
-  {
-    ERROR ("bind plugin: bind_xml_read_timestamp: xmlNodeListGetString failed.");
-    xmlXPathFreeObject (xpathObj);
-    return (-1);
+  char *str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
+  if (str_ptr == NULL) {
+    ERROR("bind plugin: bind_xml_read_timestamp: xmlNodeListGetString failed.");
+    xmlXPathFreeObject(xpathObj);
+    return -1;
   }
 
-  memset (&tm, 0, sizeof(tm));
-  tmp = strptime (str_ptr, "%Y-%m-%dT%T", &tm);
+  struct tm tm = {0};
+  char *tmp = strptime(str_ptr, "%Y-%m-%dT%T", &tm);
   xmlFree(str_ptr);
-  if (tmp == NULL)
-  {
-    ERROR ("bind plugin: bind_xml_read_timestamp: strptime failed.");
-    xmlXPathFreeObject (xpathObj);
-    return (-1);
+  if (tmp == NULL) {
+    ERROR("bind plugin: bind_xml_read_timestamp: strptime failed.");
+    xmlXPathFreeObject(xpathObj);
+    return -1;
   }
 
-  *ret_value = mktime(&tm);
+#if HAVE_TIMEGM
+  time_t t = timegm(&tm);
+  if (t == ((time_t)-1)) {
+    ERROR("bind plugin: timegm() failed: %s", STRERRNO);
+    return -1;
+  }
+  *ret_value = t;
+#else
+  time_t t = mktime(&tm);
+  if (t == ((time_t)-1)) {
+    ERROR("bind plugin: mktime() failed: %s", STRERRNO);
+    return -1;
+  }
+  /* mktime assumes that tm is local time. Luckily, it also sets timezone to
+   * the offset used for the conversion, and we undo the conversion to convert
+   * back to UTC. */
+  *ret_value = t - timezone;
+#endif
 
-  xmlXPathFreeObject (xpathObj);
-  return (0);
+  xmlXPathFreeObject(xpathObj);
+  return 0;
 } /* }}} int bind_xml_read_timestamp */
 
 /*
@@ -483,80 +457,72 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
  *   <counter>123</counter>
  * </foo>
  */
-static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ */
-    list_callback_t list_callback,
-    void *user_data,
-    xmlDoc *doc, xmlXPathContext *xpathCtx,
-    time_t current_time, int ds_type)
-{
-  xmlXPathObject *xpathObj = NULL;
-  int num_entries;
-  int i;
-
-  xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
-  if (xpathObj == NULL)
-  {
+static int bind_parse_generic_name_value(const char *xpath_expression, /* {{{ */
+                                         list_callback_t list_callback,
+                                         void *user_data, xmlDoc *doc,
+                                         xmlXPathContext *xpathCtx,
+                                         time_t current_time, int ds_type) {
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
-        xpath_expression);
-    return (-1);
+          xpath_expression);
+    return -1;
   }
 
-  num_entries = 0;
+  int num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
-  {
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
+       i++) {
+
     xmlNode *name_node = NULL;
     xmlNode *counter = NULL;
-    xmlNode *parent;
-    xmlNode *child;
 
-    parent = xpathObj->nodesetval->nodeTab[i];
-    DEBUG ("bind plugin: bind_parse_generic_name_value: parent->name = %s;",
-        (char *) parent->name);
+    xmlNode *parent = xpathObj->nodesetval->nodeTab[i];
+    DEBUG("bind plugin: bind_parse_generic_name_value: parent->name = %s;",
+          (char *)parent->name);
 
     /* Iterate over all child nodes. */
-    for (child = parent->xmlChildrenNode;
-        child != NULL;
-        child = child->next)
-    {
+    for (xmlNode *child = parent->xmlChildrenNode; child != NULL;
+         child = child->next) {
       if (child->type != XML_ELEMENT_NODE)
         continue;
 
-      if (xmlStrcmp (BAD_CAST "name", child->name) == 0)
+      if (xmlStrcmp(BAD_CAST "name", child->name) == 0)
         name_node = child;
-      else if (xmlStrcmp (BAD_CAST "counter", child->name) == 0)
+      else if (xmlStrcmp(BAD_CAST "counter", child->name) == 0)
         counter = child;
     }
 
-    if ((name_node != NULL) && (counter != NULL))
-    {
-      char *name = (char *) xmlNodeListGetString (doc,
-          name_node->xmlChildrenNode, 1);
+    if ((name_node != NULL) && (counter != NULL)) {
+      char *name =
+          (char *)xmlNodeListGetString(doc, name_node->xmlChildrenNode, 1);
       value_t value;
       int status;
 
       if (ds_type == DS_TYPE_GAUGE)
-        status = bind_xml_read_gauge (doc, counter, &value.gauge);
+        status = bind_xml_read_gauge(doc, counter, &value.gauge);
       else
-        status = bind_xml_read_derive (doc, counter, &value.derive);
-      if (status != 0)
+        status = bind_xml_read_derive(doc, counter, &value.derive);
+      if (status != 0) {
+        xmlFree(name);
         continue;
+      }
 
-      status = (*list_callback) (name, value, current_time, user_data);
+      status = (*list_callback)(name, value, current_time, user_data);
       if (status == 0)
         num_entries++;
 
-      xmlFree (name);
+      xmlFree(name);
     }
   }
 
-  DEBUG ("bind plugin: Found %d %s for XPath expression `%s'",
-      num_entries, (num_entries == 1) ? "entry" : "entries",
-      xpath_expression);
+  DEBUG("bind plugin: Found %d %s for XPath expression `%s'", num_entries,
+        (num_entries == 1) ? "entry" : "entries", xpath_expression);
 
   xmlXPathFreeObject(xpathObj);
 
-  return (0);
+  return 0;
 } /* }}} int bind_parse_generic_name_value */
 
 /*
@@ -570,64 +536,53 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
  *   :
  * </foo>
  */
-static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ */
-    list_callback_t list_callback,
-    void *user_data,
-    xmlDoc *doc, xmlXPathContext *xpathCtx,
-    time_t current_time, int ds_type)
-{
-  xmlXPathObject *xpathObj = NULL;
-  int num_entries;
-  int i;
-
-  xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
-  if (xpathObj == NULL)
-  {
+static int bind_parse_generic_value_list(const char *xpath_expression, /* {{{ */
+                                         list_callback_t list_callback,
+                                         void *user_data, xmlDoc *doc,
+                                         xmlXPathContext *xpathCtx,
+                                         time_t current_time, int ds_type) {
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
-        xpath_expression);
-    return (-1);
+          xpath_expression);
+    return -1;
   }
 
-  num_entries = 0;
+  int num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
-  {
-    xmlNode *child;
-
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
+       i++) {
     /* Iterate over all child nodes. */
-    for (child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
-        child != NULL;
-        child = child->next)
-    {
-      char *node_name;
-      value_t value;
-      int status;
+    for (xmlNode *child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
+         child != NULL; child = child->next) {
 
       if (child->type != XML_ELEMENT_NODE)
         continue;
 
-      node_name = (char *) child->name;
+      char *node_name = (char *)child->name;
 
+      value_t value;
+      int status;
       if (ds_type == DS_TYPE_GAUGE)
-        status = bind_xml_read_gauge (doc, child, &value.gauge);
+        status = bind_xml_read_gauge(doc, child, &value.gauge);
       else
-        status = bind_xml_read_derive (doc, child, &value.derive);
+        status = bind_xml_read_derive(doc, child, &value.derive);
       if (status != 0)
         continue;
 
-      status = (*list_callback) (node_name, value, current_time, user_data);
+      status = (*list_callback)(node_name, value, current_time, user_data);
       if (status == 0)
         num_entries++;
     }
   }
 
-  DEBUG ("bind plugin: Found %d %s for XPath expression `%s'",
-      num_entries, (num_entries == 1) ? "entry" : "entries",
-      xpath_expression);
+  DEBUG("bind plugin: Found %d %s for XPath expression `%s'", num_entries,
+        (num_entries == 1) ? "entry" : "entries", xpath_expression);
 
   xmlXPathFreeObject(xpathObj);
 
-  return (0);
+  return 0;
 } /* }}} int bind_parse_generic_value_list */
 
 /*
@@ -641,341 +596,288 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
  *   :
  * </foo>
  */
-static int bind_parse_generic_name_attr_value_list (const char *xpath_expression, /* {{{ */
-    list_callback_t list_callback,
-    void *user_data,
-    xmlDoc *doc, xmlXPathContext *xpathCtx,
-    time_t current_time, int ds_type)
-{
-  xmlXPathObject *xpathObj = NULL;
-  int num_entries;
-  int i;
+static int bind_parse_generic_name_attr_value_list(
+    const char *xpath_expression, /* {{{ */
+    list_callback_t list_callback, void *user_data, xmlDoc *doc,
+    xmlXPathContext *xpathCtx, time_t current_time, int ds_type) {
 
-  xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
-  if (xpathObj == NULL)
-  {
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
-        xpath_expression);
-    return (-1);
+          xpath_expression);
+    return -1;
   }
 
-  num_entries = 0;
+  int num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
-  {
-    xmlNode *child;
-
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
+       i++) {
     /* Iterate over all child nodes. */
-    for (child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
-        child != NULL;
-        child = child->next)
-    {
+    for (xmlNode *child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
+         child != NULL; child = child->next) {
       if (child->type != XML_ELEMENT_NODE)
         continue;
 
-      if (strncmp ("counter", (char *) child->name, strlen ("counter")) != 0)
+      if (strncmp("counter", (char *)child->name, strlen("counter")) != 0)
         continue;
 
-      char *attr_name;
+      char *attr_name = (char *)xmlGetProp(child, BAD_CAST "name");
+      if (attr_name == NULL) {
+        DEBUG("bind plugin: found <counter> without name.");
+        continue;
+      }
+
       value_t value;
       int status;
 
-      attr_name = (char *) xmlGetProp (child, BAD_CAST "name");
-      if (attr_name == NULL)
-      {
-        DEBUG ("bind plugin: found <counter> without name.");
+      if (ds_type == DS_TYPE_GAUGE)
+        status = bind_xml_read_gauge(doc, child, &value.gauge);
+      else
+        status = bind_xml_read_derive(doc, child, &value.derive);
+      if (status != 0) {
+        xmlFree(attr_name);
         continue;
       }
-      if (ds_type == DS_TYPE_GAUGE)
-        status = bind_xml_read_gauge (doc, child, &value.gauge);
-      else
-        status = bind_xml_read_derive (doc, child, &value.derive);
-      if (status != 0)
-        continue;
 
-      status = (*list_callback) (attr_name, value, current_time, user_data);
+      status = (*list_callback)(attr_name, value, current_time, user_data);
       if (status == 0)
         num_entries++;
+
+      xmlFree(attr_name);
     }
   }
 
-  DEBUG ("bind plugin: Found %d %s for XPath expression `%s'",
-      num_entries, (num_entries == 1) ? "entry" : "entries",
-      xpath_expression);
+  DEBUG("bind plugin: Found %d %s for XPath expression `%s'", num_entries,
+        (num_entries == 1) ? "entry" : "entries", xpath_expression);
 
   xmlXPathFreeObject(xpathObj);
 
-  return (0);
+  return 0;
 } /* }}} int bind_parse_generic_name_attr_value_list */
 
-static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *path_ctx, xmlNode *node, cb_view_t *view,
-    time_t current_time)
-{
-  xmlXPathObject *path_obj;
+static int bind_xml_stats_handle_zone(int version, xmlDoc *doc, /* {{{ */
+                                      xmlXPathContext *path_ctx, xmlNode *node,
+                                      cb_view_t *view, time_t current_time) {
   char *zone_name = NULL;
-  int i;
-  size_t j;
 
-  if (version >= 3)
-  {
-    char *n = (char *) xmlGetProp (node, BAD_CAST "name");
-    char *c = (char *) xmlGetProp (node, BAD_CAST "rdataclass");
-    if (n && c)
-    {
-      zone_name = (char *) xmlMalloc(strlen(n) + strlen(c) + 2);
+  if (version >= 3) {
+    char *n = (char *)xmlGetProp(node, BAD_CAST "name");
+    char *c = (char *)xmlGetProp(node, BAD_CAST "rdataclass");
+    if (n && c) {
+      zone_name = (char *)xmlMalloc(strlen(n) + strlen(c) + 2);
       snprintf(zone_name, strlen(n) + strlen(c) + 2, "%s/%s", n, c);
     }
     xmlFree(n);
     xmlFree(c);
-  }
-  else
-  {
-    path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
-    if (path_obj == NULL)
-    {
-      ERROR ("bind plugin: xmlXPathEvalExpression failed.");
-      return (-1);
+  } else {
+    xmlXPathObject *path_obj =
+        xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
+    if (path_obj == NULL) {
+      ERROR("bind plugin: xmlXPathEvalExpression failed.");
+      return -1;
     }
 
-    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
-    {
-      zone_name = (char *) xmlNodeListGetString (doc,
-          path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
+    for (int i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr);
+         i++) {
+      zone_name = (char *)xmlNodeListGetString(
+          doc, path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
       if (zone_name != NULL)
         break;
     }
-    xmlXPathFreeObject (path_obj);
+    xmlXPathFreeObject(path_obj);
   }
 
-  if (zone_name == NULL)
-  {
-    ERROR ("bind plugin: Could not determine zone name.");
-    return (-1);
+  if (zone_name == NULL) {
+    ERROR("bind plugin: Could not determine zone name.");
+    return -1;
   }
 
-  for (j = 0; j < view->zones_num; j++)
-  {
-    if (strcasecmp (zone_name, view->zones[j]) == 0)
+  size_t j;
+  for (j = 0; j < view->zones_num; j++) {
+    if (strcasecmp(zone_name, view->zones[j]) == 0)
       break;
   }
 
-  xmlFree (zone_name);
-  zone_name = NULL;
+  xmlFree(zone_name);
 
   if (j >= view->zones_num)
-    return (0);
+    return 0;
 
   zone_name = view->zones[j];
 
-  DEBUG ("bind plugin: bind_xml_stats_handle_zone: Found zone `%s'.",
-      zone_name);
+  DEBUG("bind plugin: bind_xml_stats_handle_zone: Found zone `%s'.", zone_name);
 
   { /* Parse the <counters> tag {{{ */
     char plugin_instance[DATA_MAX_NAME_LEN];
-    translation_table_ptr_t table_ptr =
-    {
-      nsstats_translation_table,
-      nsstats_translation_table_length,
-      plugin_instance
-    };
+    translation_table_ptr_t table_ptr = {nsstats_translation_table,
+                                         nsstats_translation_table_length,
+                                         plugin_instance};
 
-    ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-zone-%s",
-        view->name, zone_name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-zone-%s", view->name,
+             zone_name);
 
-    if (version == 3)
-    {
-      list_info_ptr_t list_info =
-      {
-        plugin_instance,
-        /* type = */ "dns_qtype"
-      };
-      bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='rcode']",
-        /* callback = */ bind_xml_table_callback,
-        /* user_data = */ &table_ptr,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
-      bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='qtype']",
-        /* callback = */ bind_xml_list_callback,
-        /* user_data = */ &list_info,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
-    }
-    else
-    {
-      bind_parse_generic_value_list (/* xpath = */ "counters",
+    if (version == 3) {
+      list_info_ptr_t list_info = {plugin_instance,
+                                   /* type = */ "dns_qtype"};
+      bind_parse_generic_name_attr_value_list(
+          /* xpath = */ "counters[@type='rcode']",
           /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+          /* user_data = */ &table_ptr, doc, path_ctx, current_time,
+          DS_TYPE_COUNTER);
+      bind_parse_generic_name_attr_value_list(
+          /* xpath = */ "counters[@type='qtype']",
+          /* callback = */ bind_xml_list_callback,
+          /* user_data = */ &list_info, doc, path_ctx, current_time,
+          DS_TYPE_COUNTER);
+    } else {
+      bind_parse_generic_value_list(/* xpath = */ "counters",
+                                    /* callback = */ bind_xml_table_callback,
+                                    /* user_data = */ &table_ptr, doc, path_ctx,
+                                    current_time, DS_TYPE_COUNTER);
     }
   } /* }}} */
 
-  return (0);
+  return 0;
 } /* }}} int bind_xml_stats_handle_zone */
 
-static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *path_ctx, xmlNode *node, cb_view_t *view,
-    time_t current_time)
-{
-  xmlXPathObject *zone_nodes = NULL;
-  xmlXPathContext *zone_path_context;
-  int i;
-
-  zone_path_context = xmlXPathNewContext (doc);
-  if (zone_path_context == NULL)
-  {
-    ERROR ("bind plugin: xmlXPathNewContext failed.");
-    return (-1);
+static int bind_xml_stats_search_zones(int version, xmlDoc *doc, /* {{{ */
+                                       xmlXPathContext *path_ctx, xmlNode *node,
+                                       cb_view_t *view, time_t current_time) {
+  xmlXPathContext *zone_path_context = xmlXPathNewContext(doc);
+  if (zone_path_context == NULL) {
+    ERROR("bind plugin: xmlXPathNewContext failed.");
+    return -1;
   }
 
-  zone_nodes = xmlXPathEvalExpression (BAD_CAST "zones/zone", path_ctx);
-  if (zone_nodes == NULL)
-  {
-    ERROR ("bind plugin: Cannot find any <view> tags.");
-    xmlXPathFreeContext (zone_path_context);
-    return (-1);
+  xmlXPathObject *zone_nodes =
+      xmlXPathEvalExpression(BAD_CAST "zones/zone", path_ctx);
+  if (zone_nodes == NULL) {
+    ERROR("bind plugin: Cannot find any <view> tags.");
+    xmlXPathFreeContext(zone_path_context);
+    return -1;
   }
 
-  for (i = 0; i < zone_nodes->nodesetval->nodeNr; i++)
-  {
+  for (int i = 0; i < zone_nodes->nodesetval->nodeNr; i++) {
     node = zone_nodes->nodesetval->nodeTab[i];
-    assert (node != NULL);
+    assert(node != NULL);
 
     zone_path_context->node = node;
 
-    bind_xml_stats_handle_zone (version, doc, zone_path_context, node, view,
-        current_time);
+    bind_xml_stats_handle_zone(version, doc, zone_path_context, node, view,
+                               current_time);
   }
 
-  xmlXPathFreeObject (zone_nodes);
-  xmlXPathFreeContext (zone_path_context);
-  return (0);
+  xmlXPathFreeObject(zone_nodes);
+  xmlXPathFreeContext(zone_path_context);
+  return 0;
 } /* }}} int bind_xml_stats_search_zones */
 
-static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *path_ctx, xmlNode *node, time_t current_time)
-{
+static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
+                                      xmlXPathContext *path_ctx, xmlNode *node,
+                                      time_t current_time) {
   char *view_name = NULL;
   cb_view_t *view;
-  int i;
   size_t j;
 
-  if (version == 3)
-  {
-    view_name = (char*) xmlGetProp(node, BAD_CAST "name");
+  if (version == 3) {
+    view_name = (char *)xmlGetProp(node, BAD_CAST "name");
 
-    if (view_name == NULL)
-    {
-      ERROR ("bind plugin: Could not determine view name.");
-      return (-1);
+    if (view_name == NULL) {
+      ERROR("bind plugin: Could not determine view name.");
+      return -1;
     }
 
-    for (j = 0; j < views_num; j++)
-    {
-      if (strcasecmp (view_name, views[j].name) == 0)
+    for (j = 0; j < views_num; j++) {
+      if (strcasecmp(view_name, views[j].name) == 0)
         break;
     }
 
-    xmlFree (view_name);
+    xmlFree(view_name);
     view_name = NULL;
-  }
-  else
-  {
-    xmlXPathObject *path_obj;
-    path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
-    if (path_obj == NULL)
-    {
-      ERROR ("bind plugin: xmlXPathEvalExpression failed.");
-      return (-1);
+  } else {
+    xmlXPathObject *path_obj =
+        xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
+    if (path_obj == NULL) {
+      ERROR("bind plugin: xmlXPathEvalExpression failed.");
+      return -1;
     }
 
-    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
-    {
-      view_name = (char *) xmlNodeListGetString (doc,
-          path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
+    for (int i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr);
+         i++) {
+      view_name = (char *)xmlNodeListGetString(
+          doc, path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
       if (view_name != NULL)
         break;
     }
 
-    if (view_name == NULL)
-    {
-      ERROR ("bind plugin: Could not determine view name.");
-      xmlXPathFreeObject (path_obj);
-      return (-1);
+    if (view_name == NULL) {
+      ERROR("bind plugin: Could not determine view name.");
+      xmlXPathFreeObject(path_obj);
+      return -1;
     }
 
-    for (j = 0; j < views_num; j++)
-    {
-      if (strcasecmp (view_name, views[j].name) == 0)
+    for (j = 0; j < views_num; j++) {
+      if (strcasecmp(view_name, views[j].name) == 0)
         break;
     }
 
-    xmlFree (view_name);
-    xmlXPathFreeObject (path_obj);
+    xmlFree(view_name);
+    xmlXPathFreeObject(path_obj);
 
     view_name = NULL;
     path_obj = NULL;
   }
 
-
   if (j >= views_num)
-    return (0);
+    return 0;
 
   view = views + j;
 
-  DEBUG ("bind plugin: bind_xml_stats_handle_view: Found view `%s'.",
-      view->name);
+  DEBUG("bind plugin: bind_xml_stats_handle_view: Found view `%s'.",
+        view->name);
 
   if (view->qtypes != 0) /* {{{ */
   {
     char plugin_instance[DATA_MAX_NAME_LEN];
-    list_info_ptr_t list_info =
-    {
-      plugin_instance,
-      /* type = */ "dns_qtype"
-    };
+    list_info_ptr_t list_info = {plugin_instance,
+                                 /* type = */ "dns_qtype"};
 
-    ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-qtypes",
-        view->name);
-    if (version == 3)
-    {
-      bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='resqtype']",
-        /* callback = */ bind_xml_list_callback,
-        /* user_data = */ &list_info,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
-    }
-    else
-    {
-      bind_parse_generic_name_value (/* xpath = */ "rdtype",
-        /* callback = */ bind_xml_list_callback,
-        /* user_data = */ &list_info,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-qtypes", view->name);
+    if (version == 3) {
+      bind_parse_generic_name_attr_value_list(
+          /* xpath = */ "counters[@type='resqtype']",
+          /* callback = */ bind_xml_list_callback,
+          /* user_data = */ &list_info, doc, path_ctx, current_time,
+          DS_TYPE_COUNTER);
+    } else {
+      bind_parse_generic_name_value(/* xpath = */ "rdtype",
+                                    /* callback = */ bind_xml_list_callback,
+                                    /* user_data = */ &list_info, doc, path_ctx,
+                                    current_time, DS_TYPE_COUNTER);
     }
   } /* }}} */
 
   if (view->resolver_stats != 0) /* {{{ */
   {
     char plugin_instance[DATA_MAX_NAME_LEN];
-    translation_table_ptr_t table_ptr =
-    {
-      resstats_translation_table,
-      resstats_translation_table_length,
-      plugin_instance
-    };
+    translation_table_ptr_t table_ptr = {resstats_translation_table,
+                                         resstats_translation_table_length,
+                                         plugin_instance};
 
-    ssnprintf (plugin_instance, sizeof (plugin_instance),
-        "%s-resolver_stats", view->name);
-    if (version == 3)
-    {
-      bind_parse_generic_name_attr_value_list ("counters[@type='resstats']",
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-resolver_stats",
+             view->name);
+    if (version == 3) {
+      bind_parse_generic_name_attr_value_list(
+          "counters[@type='resstats']",
           /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, path_ctx, current_time, DS_TYPE_COUNTER);
-    }
-    else
-    {
-      bind_parse_generic_name_value ("resstat",
-          /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+          /* user_data = */ &table_ptr, doc, path_ctx, current_time,
+          DS_TYPE_COUNTER);
+    } else {
+      bind_parse_generic_name_value("resstat",
+                                    /* callback = */ bind_xml_table_callback,
+                                    /* user_data = */ &table_ptr, doc, path_ctx,
+                                    current_time, DS_TYPE_COUNTER);
     }
   } /* }}} */
 
@@ -983,71 +885,59 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
   if (view->cacherrsets != 0) /* {{{ */
   {
     char plugin_instance[DATA_MAX_NAME_LEN];
-    list_info_ptr_t list_info =
-    {
-      plugin_instance,
-      /* type = */ "dns_qtype_cached"
-    };
+    list_info_ptr_t list_info = {plugin_instance,
+                                 /* type = */ "dns_qtype_cached"};
 
-    ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-cache_rr_sets",
-        view->name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-cache_rr_sets",
+             view->name);
 
-    bind_parse_generic_name_value (/* xpath = */ "cache/rrset",
-        /* callback = */ bind_xml_list_callback,
-        /* user_data = */ &list_info,
-        doc, path_ctx, current_time, DS_TYPE_GAUGE);
+    bind_parse_generic_name_value(/* xpath = */ "cache/rrset",
+                                  /* callback = */ bind_xml_list_callback,
+                                  /* user_data = */ &list_info, doc, path_ctx,
+                                  current_time, DS_TYPE_GAUGE);
   } /* }}} */
 
   if (view->zones_num > 0)
-    bind_xml_stats_search_zones (version, doc, path_ctx, node, view,
-        current_time);
+    bind_xml_stats_search_zones(version, doc, path_ctx, node, view,
+                                current_time);
 
-  return (0);
+  return 0;
 } /* }}} int bind_xml_stats_handle_view */
 
-static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time)
-{
-  xmlXPathObject *view_nodes = NULL;
-  xmlXPathContext *view_path_context;
-  int i;
-
-  view_path_context = xmlXPathNewContext (doc);
-  if (view_path_context == NULL)
-  {
-    ERROR ("bind plugin: xmlXPathNewContext failed.");
-    return (-1);
+static int bind_xml_stats_search_views(int version, xmlDoc *doc, /* {{{ */
+                                       xmlXPathContext *xpathCtx,
+                                       time_t current_time) {
+  xmlXPathContext *view_path_context = xmlXPathNewContext(doc);
+  if (view_path_context == NULL) {
+    ERROR("bind plugin: xmlXPathNewContext failed.");
+    return -1;
   }
 
-  view_nodes = xmlXPathEvalExpression (BAD_CAST "views/view", xpathCtx);
-  if (view_nodes == NULL)
-  {
-    ERROR ("bind plugin: Cannot find any <view> tags.");
-    xmlXPathFreeContext (view_path_context);
-    return (-1);
+  xmlXPathObject *view_nodes =
+      xmlXPathEvalExpression(BAD_CAST "views/view", xpathCtx);
+  if (view_nodes == NULL) {
+    ERROR("bind plugin: Cannot find any <view> tags.");
+    xmlXPathFreeContext(view_path_context);
+    return -1;
   }
 
-  for (i = 0; i < view_nodes->nodesetval->nodeNr; i++)
-  {
-    xmlNode *node;
-
-    node = view_nodes->nodesetval->nodeTab[i];
-    assert (node != NULL);
+  for (int i = 0; i < view_nodes->nodesetval->nodeNr; i++) {
+    xmlNode *node = view_nodes->nodesetval->nodeTab[i];
+    assert(node != NULL);
 
     view_path_context->node = node;
 
-    bind_xml_stats_handle_view (version, doc, view_path_context, node,
-        current_time);
+    bind_xml_stats_handle_view(version, doc, view_path_context, node,
+                               current_time);
   }
 
-  xmlXPathFreeObject (view_nodes);
-  xmlXPathFreeContext (view_path_context);
-  return (0);
+  xmlXPathFreeObject(view_nodes);
+  xmlXPathFreeContext(view_path_context);
+  return 0;
 } /* }}} int bind_xml_stats_search_views */
 
-static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
-    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time)
-{
+static void bind_xml_stats_v3(xmlDoc *doc, /* {{{ */
+                              xmlXPathContext *xpathCtx, time_t current_time) {
   /* XPath:     server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
    * Layout v3:
@@ -1056,17 +946,14 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counters>
    */
-  if (global_opcodes != 0)
-  {
-    list_info_ptr_t list_info =
-    {
-      /* plugin instance = */ "global-opcodes",
-      /* type = */ "dns_opcode"
-    };
-    bind_parse_generic_name_attr_value_list (/* xpath = */ "server/counters[@type='opcode']",
-      /* callback = */ bind_xml_list_callback,
-      /* user_data = */ &list_info,
-      doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+  if (global_opcodes != 0) {
+    list_info_ptr_t list_info = {/* plugin instance = */ "global-opcodes",
+                                 /* type = */ "dns_opcode"};
+    bind_parse_generic_name_attr_value_list(
+        /* xpath = */ "server/counters[@type='opcode']",
+        /* callback = */ bind_xml_list_callback,
+        /* user_data = */ &list_info, doc, xpathCtx, current_time,
+        DS_TYPE_COUNTER);
   }
 
   /* XPath:     server/counters[@type='qtype']
@@ -1079,18 +966,15 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counters>
    */
-  if (global_qtypes != 0)
-  {
-    list_info_ptr_t list_info =
-    {
-      /* plugin instance = */ "global-qtypes",
-      /* type = */ "dns_qtype"
-    };
+  if (global_qtypes != 0) {
+    list_info_ptr_t list_info = {/* plugin instance = */ "global-qtypes",
+                                 /* type = */ "dns_qtype"};
 
-    bind_parse_generic_name_attr_value_list (/* xpath = */ "server/counters[@type='qtype']",
+    bind_parse_generic_name_attr_value_list(
+        /* xpath = */ "server/counters[@type='qtype']",
         /* callback = */ bind_xml_list_callback,
-        /* user_data = */ &list_info,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        /* user_data = */ &list_info, doc, xpathCtx, current_time,
+        DS_TYPE_COUNTER);
   }
 
   /* XPath:     server/counters[@type='nsstat']
@@ -1109,22 +993,20 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counter>
    */
-  if (global_server_stats)
-  {
-    translation_table_ptr_t table_ptr =
-    {
-      nsstats_translation_table,
-      nsstats_translation_table_length,
-      /* plugin_instance = */ "global-server_stats"
-    };
+  if (global_server_stats) {
+    translation_table_ptr_t table_ptr = {
+        nsstats_translation_table, nsstats_translation_table_length,
+        /* plugin_instance = */ "global-server_stats"};
 
-    bind_parse_generic_name_attr_value_list ("server/counters[@type='nsstat']",
+    bind_parse_generic_name_attr_value_list(
+        "server/counters[@type='nsstat']",
         /* callback = */ bind_xml_table_callback,
-        /* user_data = */ &table_ptr,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        /* user_data = */ &table_ptr, doc, xpathCtx, current_time,
+        DS_TYPE_COUNTER);
   }
 
-  /* XPath:     server/zonestats, server/zonestat, server/counters[@type='zonestat']
+  /* XPath:     server/zonestats, server/zonestat,
+   * server/counters[@type='zonestat']
    * Variables: NotifyOutv4, NotifyOutv6, NotifyInv4, NotifyInv6, NotifyRej,
    *            SOAOutv4, SOAOutv6, AXFRReqv4, AXFRReqv6, IXFRReqv4, IXFRReqv6,
    *            XfrSuccess, XfrFail
@@ -1135,19 +1017,16 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counter>
    */
-  if (global_zone_maint_stats)
-  {
-    translation_table_ptr_t table_ptr =
-    {
-      zonestats_translation_table,
-      zonestats_translation_table_length,
-      /* plugin_instance = */ "global-zone_maint_stats"
-    };
+  if (global_zone_maint_stats) {
+    translation_table_ptr_t table_ptr = {
+        zonestats_translation_table, zonestats_translation_table_length,
+        /* plugin_instance = */ "global-zone_maint_stats"};
 
-    bind_parse_generic_name_attr_value_list ("server/counters[@type='zonestat']",
+    bind_parse_generic_name_attr_value_list(
+        "server/counters[@type='zonestat']",
         /* callback = */ bind_xml_table_callback,
-        /* user_data = */ &table_ptr,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        /* user_data = */ &table_ptr, doc, xpathCtx, current_time,
+        DS_TYPE_COUNTER);
   }
 
   /* XPath:     server/resstats, server/counters[@type='resstat']
@@ -1162,25 +1041,22 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counter>
    */
-  if (global_resolver_stats != 0)
-  {
-    translation_table_ptr_t table_ptr =
-    {
-      resstats_translation_table,
-      resstats_translation_table_length,
-      /* plugin_instance = */ "global-resolver_stats"
-    };
+  if (global_resolver_stats != 0) {
+    translation_table_ptr_t table_ptr = {
+        resstats_translation_table, resstats_translation_table_length,
+        /* plugin_instance = */ "global-resolver_stats"};
 
-    bind_parse_generic_name_attr_value_list ("server/counters[@type='resstat']",
+    bind_parse_generic_name_attr_value_list(
+        "server/counters[@type='resstat']",
         /* callback = */ bind_xml_table_callback,
-        /* user_data = */ &table_ptr,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        /* user_data = */ &table_ptr, doc, xpathCtx, current_time,
+        DS_TYPE_COUNTER);
   }
 } /* }}} bind_xml_stats_v3 */
 
-static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time)
-{
+static void bind_xml_stats_v1_v2(int version, xmlDoc *doc, /* {{{ */
+                                 xmlXPathContext *xpathCtx,
+                                 time_t current_time) {
   /* XPath:     server/requests/opcode, server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
    * Layout V1 and V2:
@@ -1190,18 +1066,14 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </opcode>
    *   :
    */
-  if (global_opcodes != 0)
-  {
-    list_info_ptr_t list_info =
-    {
-      /* plugin instance = */ "global-opcodes",
-      /* type = */ "dns_opcode"
-    };
+  if (global_opcodes != 0) {
+    list_info_ptr_t list_info = {/* plugin instance = */ "global-opcodes",
+                                 /* type = */ "dns_opcode"};
 
-    bind_parse_generic_name_value (/* xpath = */ "server/requests/opcode",
-        /* callback = */ bind_xml_list_callback,
-        /* user_data = */ &list_info,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    bind_parse_generic_name_value(/* xpath = */ "server/requests/opcode",
+                                  /* callback = */ bind_xml_list_callback,
+                                  /* user_data = */ &list_info, doc, xpathCtx,
+                                  current_time, DS_TYPE_COUNTER);
   }
 
   /* XPath:     server/queries-in/rdtype, server/counters[@type='qtype']
@@ -1215,18 +1087,14 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </rdtype>
    *   :
    */
-  if (global_qtypes != 0)
-  {
-    list_info_ptr_t list_info =
-    {
-      /* plugin instance = */ "global-qtypes",
-      /* type = */ "dns_qtype"
-    };
+  if (global_qtypes != 0) {
+    list_info_ptr_t list_info = {/* plugin instance = */ "global-qtypes",
+                                 /* type = */ "dns_qtype"};
 
-    bind_parse_generic_name_value (/* xpath = */ "server/queries-in/rdtype",
-        /* callback = */ bind_xml_list_callback,
-        /* user_data = */ &list_info,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    bind_parse_generic_name_value(/* xpath = */ "server/queries-in/rdtype",
+                                  /* callback = */ bind_xml_list_callback,
+                                  /* user_data = */ &list_info, doc, xpathCtx,
+                                  current_time, DS_TYPE_COUNTER);
   }
 
   /* XPath:     server/nsstats, server/nsstat, server/counters[@type='nsstat']
@@ -1255,32 +1123,26 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </nsstat>
    *   :
    */
-  if (global_server_stats)
-  {
-    translation_table_ptr_t table_ptr =
-    {
-      nsstats_translation_table,
-      nsstats_translation_table_length,
-      /* plugin_instance = */ "global-server_stats"
-    };
+  if (global_server_stats) {
+    translation_table_ptr_t table_ptr = {
+        nsstats_translation_table, nsstats_translation_table_length,
+        /* plugin_instance = */ "global-server_stats"};
 
-    if (version == 1)
-    {
-      bind_parse_generic_value_list ("server/nsstats",
-          /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
-    }
-    else
-    {
-      bind_parse_generic_name_value ("server/nsstat",
-          /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    if (version == 1) {
+      bind_parse_generic_value_list("server/nsstats",
+                                    /* callback = */ bind_xml_table_callback,
+                                    /* user_data = */ &table_ptr, doc, xpathCtx,
+                                    current_time, DS_TYPE_COUNTER);
+    } else {
+      bind_parse_generic_name_value("server/nsstat",
+                                    /* callback = */ bind_xml_table_callback,
+                                    /* user_data = */ &table_ptr, doc, xpathCtx,
+                                    current_time, DS_TYPE_COUNTER);
     }
   }
 
-  /* XPath:     server/zonestats, server/zonestat, server/counters[@type='zonestat']
+  /* XPath:     server/zonestats, server/zonestat,
+   * server/counters[@type='zonestat']
    * Variables: NotifyOutv4, NotifyOutv6, NotifyInv4, NotifyInv6, NotifyRej,
    *            SOAOutv4, SOAOutv6, AXFRReqv4, AXFRReqv6, IXFRReqv4, IXFRReqv6,
    *            XfrSuccess, XfrFail
@@ -1301,28 +1163,21 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </zonestat>
    *   :
    */
-  if (global_zone_maint_stats)
-  {
-    translation_table_ptr_t table_ptr =
-    {
-      zonestats_translation_table,
-      zonestats_translation_table_length,
-      /* plugin_instance = */ "global-zone_maint_stats"
-    };
+  if (global_zone_maint_stats) {
+    translation_table_ptr_t table_ptr = {
+        zonestats_translation_table, zonestats_translation_table_length,
+        /* plugin_instance = */ "global-zone_maint_stats"};
 
-    if (version == 1)
-    {
-      bind_parse_generic_value_list ("server/zonestats",
-          /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
-    }
-    else
-    {
-      bind_parse_generic_name_value ("server/zonestat",
-          /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    if (version == 1) {
+      bind_parse_generic_value_list("server/zonestats",
+                                    /* callback = */ bind_xml_table_callback,
+                                    /* user_data = */ &table_ptr, doc, xpathCtx,
+                                    current_time, DS_TYPE_COUNTER);
+    } else {
+      bind_parse_generic_name_value("server/zonestat",
+                                    /* callback = */ bind_xml_table_callback,
+                                    /* user_data = */ &table_ptr, doc, xpathCtx,
+                                    current_time, DS_TYPE_COUNTER);
     }
   }
 
@@ -1348,58 +1203,45 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </resstat>
    *   :
    */
-  if (global_resolver_stats != 0)
-  {
-    translation_table_ptr_t table_ptr =
-    {
-      resstats_translation_table,
-      resstats_translation_table_length,
-      /* plugin_instance = */ "global-resolver_stats"
-    };
+  if (global_resolver_stats != 0) {
+    translation_table_ptr_t table_ptr = {
+        resstats_translation_table, resstats_translation_table_length,
+        /* plugin_instance = */ "global-resolver_stats"};
 
-    if (version == 1)
-    {
-      bind_parse_generic_value_list ("server/resstats",
-          /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
-    }
-    else
-    {
-      bind_parse_generic_name_value ("server/resstat",
-          /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    if (version == 1) {
+      bind_parse_generic_value_list("server/resstats",
+                                    /* callback = */ bind_xml_table_callback,
+                                    /* user_data = */ &table_ptr, doc, xpathCtx,
+                                    current_time, DS_TYPE_COUNTER);
+    } else {
+      bind_parse_generic_name_value("server/resstat",
+                                    /* callback = */ bind_xml_table_callback,
+                                    /* user_data = */ &table_ptr, doc, xpathCtx,
+                                    current_time, DS_TYPE_COUNTER);
     }
   }
 } /* }}} bind_xml_stats_v1_v2 */
 
-static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *xpathCtx, xmlNode *statsnode)
-{
+static int bind_xml_stats(int version, xmlDoc *doc, /* {{{ */
+                          xmlXPathContext *xpathCtx, xmlNode *statsnode) {
   time_t current_time = 0;
-  int status;
 
   xpathCtx->node = statsnode;
 
   /* TODO: Check `server/boot-time' to recognize server restarts. */
 
-  status = bind_xml_read_timestamp ("server/current-time",
-      doc, xpathCtx, &current_time);
-  if (status != 0)
-  {
-    ERROR ("bind plugin: Reading `server/current-time' failed.");
-    return (-1);
+  int status = bind_xml_read_timestamp("server/current-time", doc, xpathCtx,
+                                       &current_time);
+  if (status != 0) {
+    ERROR("bind plugin: Reading `server/current-time' failed.");
+    return -1;
   }
-  DEBUG ("bind plugin: Current server time is %i.", (int) current_time);
+  DEBUG("bind plugin: Current server time is %i.", (int)current_time);
 
-  if (version == 3)
-  {
-    bind_xml_stats_v3(doc, xpathCtx, statsnode, current_time);
-  }
-  else
-  {
-    bind_xml_stats_v1_v2(version, doc, xpathCtx, statsnode, current_time);
+  if (version == 3) {
+    bind_xml_stats_v3(doc, xpathCtx, current_time);
+  } else {
+    bind_xml_stats_v1_v2(version, doc, xpathCtx, current_time);
   }
 
   /* XPath:  memory/summary
@@ -1413,400 +1255,333 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
    *     <Lost>0</Lost>
    *   </summary>
    */
-  if (global_memory_stats != 0)
-  {
-    translation_table_ptr_t table_ptr =
-    {
-      memsummary_translation_table,
-      memsummary_translation_table_length,
-      /* plugin_instance = */ "global-memory_stats"
-    };
+  if (global_memory_stats != 0) {
+    translation_table_ptr_t table_ptr = {
+        memsummary_translation_table, memsummary_translation_table_length,
+        /* plugin_instance = */ "global-memory_stats"};
 
-    bind_parse_generic_value_list ("memory/summary",
-          /* callback = */ bind_xml_table_callback,
-          /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_GAUGE);
+    bind_parse_generic_value_list("memory/summary",
+                                  /* callback = */ bind_xml_table_callback,
+                                  /* user_data = */ &table_ptr, doc, xpathCtx,
+                                  current_time, DS_TYPE_GAUGE);
   }
 
   if (views_num > 0)
-    bind_xml_stats_search_views (version, doc, xpathCtx, statsnode,
-        current_time);
+    bind_xml_stats_search_views(version, doc, xpathCtx, current_time);
 
   return 0;
 } /* }}} int bind_xml_stats */
 
-static int bind_xml (const char *data) /* {{{ */
+static int bind_xml(const char *data) /* {{{ */
 {
-  xmlDoc *doc = NULL;
-  xmlXPathContext *xpathCtx = NULL;
-  xmlXPathObject *xpathObj = NULL;
   int ret = -1;
-  int i;
 
-  doc = xmlParseMemory (data, strlen (data));
-  if (doc == NULL)
-  {
-    ERROR ("bind plugin: xmlParseMemory failed.");
-    return (-1);
+  xmlDoc *doc = xmlParseMemory(data, strlen(data));
+  if (doc == NULL) {
+    ERROR("bind plugin: xmlParseMemory failed.");
+    return -1;
   }
 
-  xpathCtx = xmlXPathNewContext (doc);
-  if (xpathCtx == NULL)
-  {
-    ERROR ("bind plugin: xmlXPathNewContext failed.");
-    xmlFreeDoc (doc);
-    return (-1);
+  xmlXPathContext *xpathCtx = xmlXPathNewContext(doc);
+  if (xpathCtx == NULL) {
+    ERROR("bind plugin: xmlXPathNewContext failed.");
+    xmlFreeDoc(doc);
+    return -1;
   }
 
   //
   // version 3.* of statistics XML (since BIND9.9)
   //
 
-  xpathObj = xmlXPathEvalExpression (BAD_CAST "/statistics", xpathCtx);
-  if (xpathObj == NULL || xpathObj->nodesetval == NULL || xpathObj->nodesetval->nodeNr == 0)
-  {
-    DEBUG ("bind plugin: Statistics appears not to be v3");
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST "/statistics", xpathCtx);
+  if (xpathObj == NULL || xpathObj->nodesetval == NULL ||
+      xpathObj->nodesetval->nodeNr == 0) {
+    DEBUG("bind plugin: Statistics appears not to be v3");
     // we will fallback to v1 or v2 detection
-    if (xpathObj != NULL) { xmlXPathFreeObject (xpathObj); }
-  }
-  else
-  {
-    for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
-    {
+    if (xpathObj != NULL) {
+      xmlXPathFreeObject(xpathObj);
+    }
+  } else {
+    for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++) {
       xmlNode *node;
       char *attr_version;
 
       node = xpathObj->nodesetval->nodeTab[i];
-      assert (node != NULL);
+      assert(node != NULL);
 
-      attr_version = (char *) xmlGetProp (node, BAD_CAST "version");
-      if (attr_version == NULL)
-      {
-        NOTICE ("bind plugin: Found <statistics> tag doesn't have a "
-            "`version' attribute.");
+      attr_version = (char *)xmlGetProp(node, BAD_CAST "version");
+      if (attr_version == NULL) {
+        NOTICE("bind plugin: Found <statistics> tag doesn't have a "
+               "`version' attribute.");
         continue;
       }
-      DEBUG ("bind plugin: Found: <statistics version=\"%s\">", attr_version);
+      DEBUG("bind plugin: Found: <statistics version=\"%s\">", attr_version);
 
-      if (strncmp ("3.", attr_version, strlen ("3.")) != 0)
-      {
+      if (strncmp("3.", attr_version, strlen("3.")) != 0) {
         /* TODO: Use the complaint mechanism here. */
-        NOTICE ("bind plugin: Found <statistics> tag with version `%s'. "
-            "Unfortunately I have no clue how to parse that. "
-            "Please open a bug report for this.", attr_version);
-        xmlFree (attr_version);
+        NOTICE("bind plugin: Found <statistics> tag with version `%s'. "
+               "Unfortunately I have no clue how to parse that. "
+               "Please open a bug report for this.",
+               attr_version);
+        xmlFree(attr_version);
         continue;
       }
-      ret = bind_xml_stats (3, doc, xpathCtx, node);
+      ret = bind_xml_stats(3, doc, xpathCtx, node);
 
-      xmlFree (attr_version);
+      xmlFree(attr_version);
       /* One <statistics> node ought to be enough. */
       break;
     }
 
     // we are finished, early-return
-    xmlXPathFreeObject (xpathObj);
-    xmlXPathFreeContext (xpathCtx);
-    xmlFreeDoc (doc);
+    xmlXPathFreeObject(xpathObj);
+    xmlXPathFreeContext(xpathCtx);
+    xmlFreeDoc(doc);
 
-    return (ret);
+    return ret;
   }
 
   //
   // versions 1.* or 2.* of statistics XML
   //
 
-  xpathObj = xmlXPathEvalExpression (BAD_CAST "/isc/bind/statistics", xpathCtx);
-  if (xpathObj == NULL)
-  {
-    ERROR ("bind plugin: Cannot find the <statistics> tag.");
-    xmlXPathFreeContext (xpathCtx);
-    xmlFreeDoc (doc);
-    return (-1);
-  }
-  else if (xpathObj->nodesetval == NULL)
-  {
-    ERROR ("bind plugin: xmlXPathEvalExpression failed.");
-    xmlXPathFreeObject (xpathObj);
-    xmlXPathFreeContext (xpathCtx);
-    xmlFreeDoc (doc);
-    return (-1);
+  xpathObj = xmlXPathEvalExpression(BAD_CAST "/isc/bind/statistics", xpathCtx);
+  if (xpathObj == NULL) {
+    ERROR("bind plugin: Cannot find the <statistics> tag.");
+    xmlXPathFreeContext(xpathCtx);
+    xmlFreeDoc(doc);
+    return -1;
+  } else if (xpathObj->nodesetval == NULL) {
+    ERROR("bind plugin: xmlXPathEvalExpression failed.");
+    xmlXPathFreeObject(xpathObj);
+    xmlXPathFreeContext(xpathCtx);
+    xmlFreeDoc(doc);
+    return -1;
   }
 
-  for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
-  {
+  for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++) {
     xmlNode *node;
     char *attr_version;
     int parsed_version = 0;
 
     node = xpathObj->nodesetval->nodeTab[i];
-    assert (node != NULL);
+    assert(node != NULL);
 
-    attr_version = (char *) xmlGetProp (node, BAD_CAST "version");
-    if (attr_version == NULL)
-    {
-      NOTICE ("bind plugin: Found <statistics> tag doesn't have a "
-          "`version' attribute.");
+    attr_version = (char *)xmlGetProp(node, BAD_CAST "version");
+    if (attr_version == NULL) {
+      NOTICE("bind plugin: Found <statistics> tag doesn't have a "
+             "`version' attribute.");
       continue;
     }
-    DEBUG ("bind plugin: Found: <statistics version=\"%s\">", attr_version);
+    DEBUG("bind plugin: Found: <statistics version=\"%s\">", attr_version);
 
     /* At the time this plugin was written, version "1.0" was used by
      * BIND 9.5.0, version "2.0" was used by BIND 9.5.1 and 9.6.0. We assume
      * that "1.*" and "2.*" don't introduce structural changes, so we just
      * check for the first two characters here. */
-    if (strncmp ("1.", attr_version, strlen ("1.")) == 0)
+    if (strncmp("1.", attr_version, strlen("1.")) == 0)
       parsed_version = 1;
-    else if (strncmp ("2.", attr_version, strlen ("2.")) == 0)
+    else if (strncmp("2.", attr_version, strlen("2.")) == 0)
       parsed_version = 2;
-    else
-    {
+    else {
       /* TODO: Use the complaint mechanism here. */
-      NOTICE ("bind plugin: Found <statistics> tag with version `%s'. "
-          "Unfortunately I have no clue how to parse that. "
-          "Please open a bug report for this.", attr_version);
-      xmlFree (attr_version);
+      NOTICE("bind plugin: Found <statistics> tag with version `%s'. "
+             "Unfortunately I have no clue how to parse that. "
+             "Please open a bug report for this.",
+             attr_version);
+      xmlFree(attr_version);
       continue;
     }
 
-    ret = bind_xml_stats (parsed_version,
-        doc, xpathCtx, node);
+    ret = bind_xml_stats(parsed_version, doc, xpathCtx, node);
 
-    xmlFree (attr_version);
+    xmlFree(attr_version);
     /* One <statistics> node ought to be enough. */
     break;
   }
 
-  xmlXPathFreeObject (xpathObj);
-  xmlXPathFreeContext (xpathCtx);
-  xmlFreeDoc (doc);
+  xmlXPathFreeObject(xpathObj);
+  xmlXPathFreeContext(xpathCtx);
+  xmlFreeDoc(doc);
 
-  return (ret);
+  return ret;
 } /* }}} int bind_xml */
 
-static int bind_config_set_bool (const char *name, int *var, /* {{{ */
-    oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || ( ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("bind plugin: The `%s' option needs "
-        "exactly one boolean argument.", name);
-    return (-1);
+static int bind_config_add_view_zone(cb_view_t *view, /* {{{ */
+                                     oconfig_item_t *ci) {
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    WARNING("bind plugin: The `Zone' option needs "
+            "exactly one string argument.");
+    return -1;
   }
 
-  if (ci->values[0].value.boolean)
-    *var = 1;
-  else
-    *var = 0;
-  return 0;
-} /* }}} int bind_config_set_bool */
-
-static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
-    oconfig_item_t *ci)
-{
-  char **tmp;
-
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("bind plugin: The `Zone' option needs "
-        "exactly one string argument.");
-    return (-1);
-  }
-
-  tmp = realloc (view->zones,
-      sizeof (char *) * (view->zones_num + 1));
-  if (tmp == NULL)
-  {
-    ERROR ("bind plugin: realloc failed.");
-    return (-1);
+  char **tmp = realloc(view->zones, sizeof(char *) * (view->zones_num + 1));
+  if (tmp == NULL) {
+    ERROR("bind plugin: realloc failed.");
+    return -1;
   }
   view->zones = tmp;
 
-  view->zones[view->zones_num] = strdup (ci->values[0].value.string);
-  if (view->zones[view->zones_num] == NULL)
-  {
-    ERROR ("bind plugin: strdup failed.");
-    return (-1);
+  view->zones[view->zones_num] = strdup(ci->values[0].value.string);
+  if (view->zones[view->zones_num] == NULL) {
+    ERROR("bind plugin: strdup failed.");
+    return -1;
   }
   view->zones_num++;
 
-  return (0);
+  return 0;
 } /* }}} int bind_config_add_view_zone */
 
-static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
+static int bind_config_add_view(oconfig_item_t *ci) /* {{{ */
 {
-  cb_view_t *tmp;
-  int i;
-
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("bind plugin: `View' blocks need exactly one string argument.");
-    return (-1);
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    WARNING("bind plugin: `View' blocks need exactly one string argument.");
+    return -1;
   }
 
-  tmp = realloc (views, sizeof (*views) * (views_num + 1));
-  if (tmp == NULL)
-  {
-    ERROR ("bind plugin: realloc failed.");
-    return (-1);
+  cb_view_t *tmp = realloc(views, sizeof(*views) * (views_num + 1));
+  if (tmp == NULL) {
+    ERROR("bind plugin: realloc failed.");
+    return -1;
   }
   views = tmp;
   tmp = views + views_num;
 
-  memset (tmp, 0, sizeof (*tmp));
+  memset(tmp, 0, sizeof(*tmp));
   tmp->qtypes = 1;
   tmp->resolver_stats = 1;
   tmp->cacherrsets = 1;
   tmp->zones = NULL;
   tmp->zones_num = 0;
 
-  tmp->name = strdup (ci->values[0].value.string);
-  if (tmp->name == NULL)
-  {
-    ERROR ("bind plugin: strdup failed.");
-    sfree (views);
-    return (-1);
+  tmp->name = strdup(ci->values[0].value.string);
+  if (tmp->name == NULL) {
+    ERROR("bind plugin: strdup failed.");
+    sfree(views);
+    return -1;
   }
 
-  for (i = 0; i < ci->children_num; i++)
-  {
+  for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("QTypes", child->key) == 0)
-      bind_config_set_bool ("QTypes", &tmp->qtypes, child);
-    else if (strcasecmp ("ResolverStats", child->key) == 0)
-      bind_config_set_bool ("ResolverStats", &tmp->resolver_stats, child);
-    else if (strcasecmp ("CacheRRSets", child->key) == 0)
-      bind_config_set_bool ("CacheRRSets", &tmp->cacherrsets, child);
-    else if (strcasecmp ("Zone", child->key) == 0)
-      bind_config_add_view_zone (tmp, child);
-    else
-    {
-      WARNING ("bind plugin: Unknown configuration option "
-          "`%s' in view `%s' will be ignored.", child->key, tmp->name);
+    if (strcasecmp("QTypes", child->key) == 0)
+      cf_util_get_boolean(child, &tmp->qtypes);
+    else if (strcasecmp("ResolverStats", child->key) == 0)
+      cf_util_get_boolean(child, &tmp->resolver_stats);
+    else if (strcasecmp("CacheRRSets", child->key) == 0)
+      cf_util_get_boolean(child, &tmp->cacherrsets);
+    else if (strcasecmp("Zone", child->key) == 0)
+      bind_config_add_view_zone(tmp, child);
+    else {
+      WARNING("bind plugin: Unknown configuration option "
+              "`%s' in view `%s' will be ignored.",
+              child->key, tmp->name);
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 
   views_num++;
-  return (0);
+  return 0;
 } /* }}} int bind_config_add_view */
 
-static int bind_config (oconfig_item_t *ci) /* {{{ */
+static int bind_config(oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
-  {
+  for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("Url", child->key) == 0) {
-      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING))
-      {
-        WARNING ("bind plugin: The `Url' option needs "
-                 "exactly one string argument.");
-        return (-1);
-      }
-
-      sfree (url);
-      url = strdup (child->values[0].value.string);
-    } else if (strcasecmp ("OpCodes", child->key) == 0)
-      bind_config_set_bool ("OpCodes", &global_opcodes, child);
-    else if (strcasecmp ("QTypes", child->key) == 0)
-      bind_config_set_bool ("QTypes", &global_qtypes, child);
-    else if (strcasecmp ("ServerStats", child->key) == 0)
-      bind_config_set_bool ("ServerStats", &global_server_stats, child);
-    else if (strcasecmp ("ZoneMaintStats", child->key) == 0)
-      bind_config_set_bool ("ZoneMaintStats", &global_zone_maint_stats, child);
-    else if (strcasecmp ("ResolverStats", child->key) == 0)
-      bind_config_set_bool ("ResolverStats", &global_resolver_stats, child);
-    else if (strcasecmp ("MemoryStats", child->key) == 0)
-      bind_config_set_bool ("MemoryStats", &global_memory_stats, child);
-    else if (strcasecmp ("View", child->key) == 0)
-      bind_config_add_view (child);
-    else if (strcasecmp ("ParseTime", child->key) == 0)
-      cf_util_get_boolean (child, &config_parse_time);
-    else if (strcasecmp ("Timeout", child->key) == 0)
-      cf_util_get_int (child, &timeout);
-    else
-    {
-      WARNING ("bind plugin: Unknown configuration option "
-          "`%s' will be ignored.", child->key);
+    if (strcasecmp("Url", child->key) == 0) {
+      cf_util_get_string(child, &url);
+    } else if (strcasecmp("OpCodes", child->key) == 0)
+      cf_util_get_boolean(child, &global_opcodes);
+    else if (strcasecmp("QTypes", child->key) == 0)
+      cf_util_get_boolean(child, &global_qtypes);
+    else if (strcasecmp("ServerStats", child->key) == 0)
+      cf_util_get_boolean(child, &global_server_stats);
+    else if (strcasecmp("ZoneMaintStats", child->key) == 0)
+      cf_util_get_boolean(child, &global_zone_maint_stats);
+    else if (strcasecmp("ResolverStats", child->key) == 0)
+      cf_util_get_boolean(child, &global_resolver_stats);
+    else if (strcasecmp("MemoryStats", child->key) == 0)
+      cf_util_get_boolean(child, &global_memory_stats);
+    else if (strcasecmp("View", child->key) == 0)
+      bind_config_add_view(child);
+    else if (strcasecmp("ParseTime", child->key) == 0)
+      cf_util_get_boolean(child, &config_parse_time);
+    else if (strcasecmp("Timeout", child->key) == 0)
+      cf_util_get_int(child, &timeout);
+    else {
+      WARNING("bind plugin: Unknown configuration option "
+              "`%s' will be ignored.",
+              child->key);
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int bind_config */
 
-static int bind_init (void) /* {{{ */
+static int bind_init(void) /* {{{ */
 {
   if (curl != NULL)
-    return (0);
+    return 0;
 
-  curl = curl_easy_init ();
-  if (curl == NULL)
-  {
-    ERROR ("bind plugin: bind_init: curl_easy_init failed.");
-    return (-1);
+  curl = curl_easy_init();
+  if (curl == NULL) {
+    ERROR("bind plugin: bind_init: curl_easy_init failed.");
+    return -1;
   }
 
-  curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1L);
-  curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, bind_curl_callback);
-  curl_easy_setopt (curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
-  curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, bind_curl_error);
-  curl_easy_setopt (curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
-  curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
-  curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
+  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, bind_curl_callback);
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
+  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, bind_curl_error);
+  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
-  curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, (timeout >= 0) ?
-      (long) timeout : (long) CDTIME_T_TO_MS(plugin_get_interval()));
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,
+                   (timeout >= 0)
+                       ? (long)timeout
+                       : (long)CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
-
-  return (0);
+  return 0;
 } /* }}} int bind_init */
 
-static int bind_read (void) /* {{{ */
+static int bind_read(void) /* {{{ */
 {
-  int status;
-
-  if (curl == NULL)
-  {
-    ERROR ("bind plugin: I don't have a CURL object.");
-    return (-1);
+  if (curl == NULL) {
+    ERROR("bind plugin: I don't have a CURL object.");
+    return -1;
   }
 
   bind_buffer_fill = 0;
-  if (curl_easy_perform (curl) != CURLE_OK)
-  {
-    ERROR ("bind plugin: curl_easy_perform failed: %s",
-        bind_curl_error);
-    return (-1);
+
+  curl_easy_setopt(curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
+
+  if (curl_easy_perform(curl) != CURLE_OK) {
+    ERROR("bind plugin: curl_easy_perform failed: %s", bind_curl_error);
+    return -1;
   }
 
-  status = bind_xml (bind_buffer);
+  int status = bind_xml(bind_buffer);
   if (status != 0)
-    return (-1);
+    return -1;
   else
-    return (0);
+    return 0;
 } /* }}} int bind_read */
 
-static int bind_shutdown (void) /* {{{ */
+static int bind_shutdown(void) /* {{{ */
 {
-  if (curl != NULL)
-  {
-    curl_easy_cleanup (curl);
+  if (curl != NULL) {
+    curl_easy_cleanup(curl);
     curl = NULL;
   }
 
-  return (0);
+  return 0;
 } /* }}} int bind_shutdown */
 
-void module_register (void)
-{
-  plugin_register_complex_config ("bind", bind_config);
-  plugin_register_init ("bind", bind_init);
-  plugin_register_read ("bind", bind_read);
-  plugin_register_shutdown ("bind", bind_shutdown);
+void module_register(void) {
+  plugin_register_complex_config("bind", bind_config);
+  plugin_register_init("bind", bind_init);
+  plugin_register_read("bind", bind_read);
+  plugin_register_shutdown("bind", bind_shutdown);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 ts=8 et fdm=marker : */

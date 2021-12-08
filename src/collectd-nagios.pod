@@ -107,7 +107,7 @@ consolidations simply ignore NaN values.
 =head1 RETURN VALUE
 
 As usual for Nagios plugins, this program writes a short, one line status
-message to STDOUT and signals success or failure with it's return value. It
+message to STDOUT and signals success or failure with its return value. It
 exits with a return value of B<0> for I<success>, B<1> for I<warning> and B<2>
 for I<critical>. If the values are not available or some other error occurred,
 it returns B<3> for I<unknown>.

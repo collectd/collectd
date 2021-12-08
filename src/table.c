@@ -29,94 +29,101 @@
  */
 
 #include "collectd.h"
-#include "common.h"
 
-#include "configfile.h"
+#include "utils/common/common.h"
+
 #include "plugin.h"
 
-#define log_err(...) ERROR ("table plugin: " __VA_ARGS__)
-#define log_warn(...) WARNING ("table plugin: " __VA_ARGS__)
+#define log_err(...) ERROR("table plugin: " __VA_ARGS__)
+#define log_warn(...) WARNING("table plugin: " __VA_ARGS__)
 
 /*
  * private data types
  */
 
 typedef struct {
-	char   *type;
-	char   *instance_prefix;
-	size_t *instances;
-	size_t  instances_num;
-	size_t *values;
-	size_t  values_num;
+  char *type;
+  char *instance_prefix;
+  size_t *instances;
+  size_t instances_num;
+  size_t *values;
+  size_t values_num;
 
-	const data_set_t *ds;
+  const data_set_t *ds;
 } tbl_result_t;
 
 typedef struct {
-	char *file;
-	char *sep;
-	char *instance;
+  char *file;
+  char *sep;
+  char *plugin_name;
+  char *instance;
 
-	tbl_result_t *results;
-	size_t        results_num;
+  tbl_result_t *results;
+  size_t results_num;
 
-	size_t max_colnum;
+  size_t max_colnum;
 } tbl_t;
 
-static void tbl_result_setup (tbl_result_t *res)
-{
-	res->type            = NULL;
+static void tbl_result_setup(tbl_result_t *res) {
+  res->type = NULL;
 
-	res->instance_prefix = NULL;
-	res->instances       = NULL;
-	res->instances_num   = 0;
+  res->instance_prefix = NULL;
+  res->instances = NULL;
+  res->instances_num = 0;
 
-	res->values          = NULL;
-	res->values_num      = 0;
+  res->values = NULL;
+  res->values_num = 0;
 
-	res->ds              = NULL;
+  res->ds = NULL;
 } /* tbl_result_setup */
 
-static void tbl_result_clear (tbl_result_t *res)
-{
-	sfree (res->type);
+static void tbl_result_clear(tbl_result_t *res) {
+  if (res == NULL) {
+    return;
+  }
 
-	sfree (res->instance_prefix);
-	sfree (res->instances);
-	res->instances_num = 0;
+  sfree(res->type);
 
-	sfree (res->values);
-	res->values_num = 0;
+  sfree(res->instance_prefix);
+  sfree(res->instances);
+  res->instances_num = 0;
 
-	res->ds = NULL;
+  sfree(res->values);
+  res->values_num = 0;
+
+  res->ds = NULL;
 } /* tbl_result_clear */
 
-static void tbl_setup (tbl_t *tbl, char *file)
-{
-	tbl->file        = sstrdup (file);
-	tbl->sep         = NULL;
-	tbl->instance    = NULL;
+static void tbl_setup(tbl_t *tbl, char *file) {
+  tbl->file = sstrdup(file);
+  tbl->sep = NULL;
+  tbl->plugin_name = NULL;
+  tbl->instance = NULL;
 
-	tbl->results     = NULL;
-	tbl->results_num = 0;
+  tbl->results = NULL;
+  tbl->results_num = 0;
 
-	tbl->max_colnum  = 0;
+  tbl->max_colnum = 0;
 } /* tbl_setup */
 
-static void tbl_clear (tbl_t *tbl)
-{
-	size_t i;
+static void tbl_clear(tbl_t *tbl) {
+  if (tbl == NULL) {
+    return;
+  }
 
-	sfree (tbl->file);
-	sfree (tbl->sep);
-	sfree (tbl->instance);
+  sfree(tbl->file);
+  sfree(tbl->sep);
+  sfree(tbl->plugin_name);
+  sfree(tbl->instance);
 
-	for (i = 0; i < tbl->results_num; ++i)
-		tbl_result_clear (tbl->results + i);
-	sfree (tbl->results);
-	tbl->results_num = 0;
+  /* (tbl->results == NULL) -> (tbl->results_num == 0) */
+  assert((tbl->results != NULL) || (tbl->results_num == 0));
+  for (size_t i = 0; i < tbl->results_num; ++i)
+    tbl_result_clear(tbl->results + i);
+  sfree(tbl->results);
+  tbl->results_num = 0;
 
-	tbl->max_colnum  = 0;
+  tbl->max_colnum = 0;
 } /* tbl_clear */
 
 static tbl_t *tables;
@@ -125,444 +132,371 @@ static size_t tables_num;
 /*
  * configuration handling
  */
+static int tbl_config_append_array_i(char *name, size_t **var, size_t *len,
+                                     oconfig_item_t *ci) {
+  if (ci->values_num < 1) {
+    log_err("\"%s\" expects at least one argument.", name);
+    return 1;
+  }
 
-static int tbl_config_set_s (char *name, char **var, oconfig_item_t *ci)
-{
-	if ((1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("\"%s\" expects a single string argument.", name);
-		return 1;
-	}
+  size_t num = ci->values_num;
+  for (size_t i = 0; i < num; ++i) {
+    if (OCONFIG_TYPE_NUMBER != ci->values[i].type) {
+      log_err("\"%s\" expects numerical arguments only.", name);
+      return 1;
+    }
+  }
 
-	sfree (*var);
-	*var = sstrdup (ci->values[0].value.string);
-	return 0;
-} /* tbl_config_set_separator */
+  size_t *tmp = realloc(*var, ((*len) + num) * sizeof(**var));
+  if (tmp == NULL) {
+    log_err("realloc failed: %s.", STRERRNO);
+    return -1;
+  }
+  *var = tmp;
 
-static int tbl_config_append_array_i (char *name, size_t **var, size_t *len,
-		oconfig_item_t *ci)
-{
-	size_t *tmp;
-	size_t num;
-	size_t i;
+  for (size_t i = 0; i < num; ++i) {
+    (*var)[*len] = (size_t)ci->values[i].value.number;
+    (*len)++;
+  }
 
-	if (1 > ci->values_num) {
-		log_err ("\"%s\" expects at least one argument.", name);
-		return 1;
-	}
-
-	num = (size_t) ci->values_num;
-	for (i = 0; i < num; ++i) {
-		if (OCONFIG_TYPE_NUMBER != ci->values[i].type) {
-			log_err ("\"%s\" expects numerical arguments only.", name);
-			return 1;
-		}
-	}
-
-	tmp = realloc (*var, ((*len) + num) * sizeof (**var));
-	if (NULL == tmp) {
-		char errbuf[1024];
-		log_err ("realloc failed: %s.",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return -1;
-	}
-	*var = tmp;
-
-	for (i = 0; i < num; ++i) {
-		(*var)[*len] = (size_t) ci->values[i].value.number;
-		(*len)++;
-	}
-
-	return 0;
+  return 0;
 } /* tbl_config_append_array_s */
 
-static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
-{
-	tbl_result_t *res;
+static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
+  if (ci->values_num != 0) {
+    log_err("<Result> does not expect any arguments.");
+    return 1;
+  }
 
-	int status = 0;
-	int i;
+  tbl_result_t *res =
+      realloc(tbl->results, (tbl->results_num + 1) * sizeof(*tbl->results));
+  if (res == NULL) {
+    log_err("realloc failed: %s.", STRERRNO);
+    return -1;
+  }
 
-	if (0 != ci->values_num) {
-		log_err ("<Result> does not expect any arguments.");
-		return 1;
-	}
+  tbl->results = res;
 
-	res = realloc (tbl->results,
-			(tbl->results_num + 1) * sizeof (*tbl->results));
-	if (res == NULL) {
-		char errbuf[1024];
-		log_err ("realloc failed: %s.",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return -1;
-	}
+  res = tbl->results + tbl->results_num;
+  tbl_result_setup(res);
 
-	tbl->results = res;
-	++tbl->results_num;
+  for (int i = 0; i < ci->children_num; ++i) {
+    oconfig_item_t *c = ci->children + i;
 
-	res = tbl->results + tbl->results_num - 1;
-	tbl_result_setup (res);
+    if (strcasecmp(c->key, "Type") == 0)
+      cf_util_get_string(c, &res->type);
+    else if (strcasecmp(c->key, "InstancePrefix") == 0)
+      cf_util_get_string(c, &res->instance_prefix);
+    else if (strcasecmp(c->key, "InstancesFrom") == 0)
+      tbl_config_append_array_i(c->key, &res->instances, &res->instances_num,
+                                c);
+    else if (strcasecmp(c->key, "ValuesFrom") == 0)
+      tbl_config_append_array_i(c->key, &res->values, &res->values_num, c);
+    else
+      log_warn("Ignoring unknown config key \"%s\" "
+               " in <Result>.",
+               c->key);
+  }
 
-	for (i = 0; i < ci->children_num; ++i) {
-		oconfig_item_t *c = ci->children + i;
+  int status = 0;
+  if (res->type == NULL) {
+    log_err("No \"Type\" option specified for <Result> in table \"%s\".",
+            tbl->file);
+    status = 1;
+  }
 
-		if (0 == strcasecmp (c->key, "Type"))
-			tbl_config_set_s (c->key, &res->type, c);
-		else if (0 == strcasecmp (c->key, "InstancePrefix"))
-			tbl_config_set_s (c->key, &res->instance_prefix, c);
-		else if (0 == strcasecmp (c->key, "InstancesFrom"))
-			tbl_config_append_array_i (c->key,
-					&res->instances, &res->instances_num, c);
-		else if (0 == strcasecmp (c->key, "ValuesFrom"))
-			tbl_config_append_array_i (c->key,
-					&res->values, &res->values_num, c);
-		else
-			log_warn ("Ignoring unknown config key \"%s\" "
-					" in <Result>.", c->key);
-	}
+  if (res->values == NULL) {
+    log_err("No \"ValuesFrom\" option specified for <Result> in table \"%s\".",
+            tbl->file);
+    status = 1;
+  }
 
-	if (NULL == res->type) {
-		log_err ("No \"Type\" option specified for <Result> "
-				"in table \"%s\".", tbl->file);
-		status = 1;
-	}
+  if (status != 0) {
+    tbl_result_clear(res);
+    return status;
+  }
 
-	if (NULL == res->values) {
-		log_err ("No \"ValuesFrom\" option specified for <Result> "
-				"in table \"%s\".", tbl->file);
-		status = 1;
-	}
-
-	if (0 != status) {
-		tbl_result_clear (res);
-		--tbl->results_num;
-		return status;
-	}
-	return 0;
+  tbl->results_num++;
+  return 0;
 } /* tbl_config_result */
 
-static int tbl_config_table (oconfig_item_t *ci)
-{
-	tbl_t *tbl;
+static int tbl_config_table(oconfig_item_t *ci) {
+  if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING) {
+    log_err("<Table> expects a single string argument.");
+    return 1;
+  }
 
-	int status = 0;
-	size_t i;
+  tbl_t *tbl = realloc(tables, (tables_num + 1) * sizeof(*tables));
+  if (tbl == NULL) {
+    log_err("realloc failed: %s.", STRERRNO);
+    return -1;
+  }
 
-	if ((1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("<Table> expects a single string argument.");
-		return 1;
-	}
+  tables = tbl;
 
-	tbl = realloc (tables, (tables_num + 1) * sizeof (*tables));
-	if (NULL == tbl) {
-		char errbuf[1024];
-		log_err ("realloc failed: %s.",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return -1;
-	}
+  tbl = tables + tables_num;
+  tbl_setup(tbl, ci->values[0].value.string);
 
-	tables = tbl;
-	++tables_num;
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *c = ci->children + i;
 
-	tbl = tables + tables_num - 1;
-	tbl_setup (tbl, ci->values[0].value.string);
+    if (strcasecmp(c->key, "Separator") == 0)
+      cf_util_get_string(c, &tbl->sep);
+    else if (strcasecmp(c->key, "Plugin") == 0)
+      cf_util_get_string(c, &tbl->plugin_name);
+    else if (strcasecmp(c->key, "Instance") == 0)
+      cf_util_get_string(c, &tbl->instance);
+    else if (strcasecmp(c->key, "Result") == 0)
+      tbl_config_result(tbl, c);
+    else
+      log_warn("Ignoring unknown config key \"%s\" "
+               "in <Table %s>.",
+               c->key, tbl->file);
+  }
 
-	for (i = 0; i < ((size_t) ci->children_num); ++i) {
-		oconfig_item_t *c = ci->children + i;
+  int status = 0;
+  if (tbl->sep == NULL) {
+    log_err("Table \"%s\" does not specify any separator.", tbl->file);
+    status = 1;
+  } else {
+    strunescape(tbl->sep, strlen(tbl->sep) + 1);
+  }
 
-		if (0 == strcasecmp (c->key, "Separator"))
-			tbl_config_set_s (c->key, &tbl->sep, c);
-		else if (0 == strcasecmp (c->key, "Instance"))
-			tbl_config_set_s (c->key, &tbl->instance, c);
-		else if (0 == strcasecmp (c->key, "Result"))
-			tbl_config_result (tbl, c);
-		else
-			log_warn ("Ignoring unknown config key \"%s\" "
-					"in <Table %s>.", c->key, tbl->file);
-	}
+  if (tbl->instance == NULL) {
+    tbl->instance = sstrdup(tbl->file);
+    replace_special(tbl->instance, strlen(tbl->instance));
+  }
 
-	if (NULL == tbl->sep) {
-		log_err ("Table \"%s\" does not specify any separator.", tbl->file);
-		status = 1;
-	} else {
-		strunescape (tbl->sep, strlen (tbl->sep) + 1);
-	}
+  if (tbl->results == NULL) {
+    assert(tbl->results_num == 0);
+    log_err("Table \"%s\" does not specify any (valid) results.", tbl->file);
+    status = 1;
+  }
 
-	if (NULL == tbl->instance) {
-		tbl->instance = sstrdup (tbl->file);
-		replace_special (tbl->instance, strlen (tbl->instance));
-	}
+  if (status != 0) {
+    tbl_clear(tbl);
+    return status;
+  }
 
-	if (NULL == tbl->results) {
-		log_err ("Table \"%s\" does not specify any (valid) results.",
-				tbl->file);
-		status = 1;
-	}
+  for (size_t i = 0; i < tbl->results_num; ++i) {
+    tbl_result_t *res = tbl->results + i;
 
-	if (0 != status) {
-		tbl_clear (tbl);
-		--tables_num;
-		return status;
-	}
+    for (size_t j = 0; j < res->instances_num; ++j)
+      if (res->instances[j] > tbl->max_colnum)
+        tbl->max_colnum = res->instances[j];
 
-	for (i = 0; i < tbl->results_num; ++i) {
-		tbl_result_t *res = tbl->results + i;
-		size_t j;
+    for (size_t j = 0; j < res->values_num; ++j)
+      if (res->values[j] > tbl->max_colnum)
+        tbl->max_colnum = res->values[j];
+  }
 
-		for (j = 0; j < res->instances_num; ++j)
-			if (res->instances[j] > tbl->max_colnum)
-				tbl->max_colnum = res->instances[j];
-
-		for (j = 0; j < res->values_num; ++j)
-			if (res->values[j] > tbl->max_colnum)
-				tbl->max_colnum = res->values[j];
-	}
-	return 0;
+  tables_num++;
+  return 0;
 } /* tbl_config_table */
 
-static int tbl_config (oconfig_item_t *ci)
-{
-	int i;
+static int tbl_config(oconfig_item_t *ci) {
+  for (int i = 0; i < ci->children_num; ++i) {
+    oconfig_item_t *c = ci->children + i;
 
-	for (i = 0; i < ci->children_num; ++i) {
-		oconfig_item_t *c = ci->children + i;
-
-		if (0 == strcasecmp (c->key, "Table"))
-			tbl_config_table (c);
-		else
-			log_warn ("Ignoring unknown config key \"%s\".", c->key);
-	}
-	return 0;
+    if (strcasecmp(c->key, "Table") == 0)
+      tbl_config_table(c);
+    else
+      log_warn("Ignoring unknown config key \"%s\".", c->key);
+  }
+  return 0;
 } /* tbl_config */
 
 /*
  * result handling
  */
 
-static int tbl_prepare (tbl_t *tbl)
-{
-	size_t i;
+static int tbl_prepare(tbl_t *tbl) {
+  for (size_t i = 0; i < tbl->results_num; ++i) {
+    tbl_result_t *res = tbl->results + i;
 
-	for (i = 0; i < tbl->results_num; ++i) {
-		tbl_result_t *res = tbl->results + i;
+    res->ds = plugin_get_ds(res->type);
+    if (res->ds == NULL) {
+      log_err("Unknown type \"%s\". See types.db(5) for details.", res->type);
+      return -1;
+    }
 
-		res->ds = plugin_get_ds (res->type);
-		if (NULL == res->ds) {
-			log_err ("Unknown type \"%s\". See types.db(5) for details.",
-					res->type);
-			return -1;
-		}
-
-		if (res->values_num != res->ds->ds_num) {
-			log_err ("Invalid type \"%s\". Expected %zu data source%s, "
-					"got %zu.", res->type, res->values_num,
-					(1 == res->values_num) ? "" : "s",
-					res->ds->ds_num);
-			return -1;
-		}
-	}
-	return 0;
+    if (res->values_num != res->ds->ds_num) {
+      log_err("Invalid type \"%s\". Expected %" PRIsz " data source%s, "
+              "got %" PRIsz ".",
+              res->type, res->values_num, (1 == res->values_num) ? "" : "s",
+              res->ds->ds_num);
+      return -1;
+    }
+  }
+  return 0;
 } /* tbl_prepare */
 
-static int tbl_finish (tbl_t *tbl)
-{
-	size_t i;
-
-	for (i = 0; i < tbl->results_num; ++i)
-		tbl->results[i].ds = NULL;
-	return 0;
+static int tbl_finish(tbl_t *tbl) {
+  for (size_t i = 0; i < tbl->results_num; ++i)
+    tbl->results[i].ds = NULL;
+  return 0;
 } /* tbl_finish */
 
-static int tbl_result_dispatch (tbl_t *tbl, tbl_result_t *res,
-		char **fields, size_t fields_num)
-{
-	value_list_t vl = VALUE_LIST_INIT;
-	value_t values[res->values_num];
+static int tbl_result_dispatch(tbl_t *tbl, tbl_result_t *res, char **fields,
+                               size_t fields_num) {
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[res->values_num];
 
-	size_t i;
+  assert(res->ds);
+  assert(res->values_num == res->ds->ds_num);
 
-	assert (NULL != res->ds);
-	assert (res->values_num == res->ds->ds_num);
+  for (size_t i = 0; i < res->values_num; ++i) {
+    assert(res->values[i] < fields_num);
+    char *value = fields[res->values[i]];
+    if (parse_value(value, &values[i], res->ds->ds[i].type) != 0)
+      return -1;
+  }
 
-	for (i = 0; i < res->values_num; ++i) {
-		char *value;
+  vl.values = values;
+  vl.values_len = STATIC_ARRAY_SIZE(values);
 
-		assert (res->values[i] < fields_num);
-		value = fields[res->values[i]];
+  sstrncpy(vl.plugin, (tbl->plugin_name != NULL) ? tbl->plugin_name : "table",
+           sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, tbl->instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, res->type, sizeof(vl.type));
 
-		if (0 != parse_value (value, &values[i], res->ds->ds[i].type))
-			return -1;
-	}
+  if (res->instances_num == 0) {
+    if (res->instance_prefix)
+      sstrncpy(vl.type_instance, res->instance_prefix,
+               sizeof(vl.type_instance));
+  } else {
+    char *instances[res->instances_num];
+    char instances_str[DATA_MAX_NAME_LEN];
 
-	vl.values     = values;
-	vl.values_len = STATIC_ARRAY_SIZE (values);
+    for (size_t i = 0; i < res->instances_num; ++i) {
+      assert(res->instances[i] < fields_num);
+      instances[i] = fields[res->instances[i]];
+    }
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "table", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, tbl->instance, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, res->type, sizeof (vl.type));
+    strjoin(instances_str, sizeof(instances_str), instances,
+            STATIC_ARRAY_SIZE(instances), "-");
+    instances_str[sizeof(instances_str) - 1] = '\0';
 
-	if (0 == res->instances_num) {
-		if (NULL != res->instance_prefix)
-			sstrncpy (vl.type_instance, res->instance_prefix,
-					sizeof (vl.type_instance));
-	}
-	else {
-		char *instances[res->instances_num];
-		char  instances_str[DATA_MAX_NAME_LEN];
+    int r;
+    if (res->instance_prefix == NULL)
+      r = snprintf(vl.type_instance, sizeof(vl.type_instance), "%s",
+                   instances_str);
+    else
+      r = snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s",
+                   res->instance_prefix, instances_str);
+    if ((size_t)r >= sizeof(vl.type_instance))
+      log_warn("Truncated type instance: %s.", vl.type_instance);
+  }
 
-		for (i = 0; i < res->instances_num; ++i) {
-			assert (res->instances[i] < fields_num);
-			instances[i] = fields[res->instances[i]];
-		}
-
-		strjoin (instances_str, sizeof (instances_str),
-				instances, STATIC_ARRAY_SIZE (instances), "-");
-		instances_str[sizeof (instances_str) - 1] = '\0';
-
-		vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-		if (NULL == res->instance_prefix)
-			strncpy (vl.type_instance, instances_str,
-					sizeof (vl.type_instance));
-		else
-			snprintf (vl.type_instance, sizeof (vl.type_instance),
-					"%s-%s", res->instance_prefix, instances_str);
-
-		if ('\0' != vl.type_instance[sizeof (vl.type_instance) - 1]) {
-			vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-			log_warn ("Truncated type instance: %s.", vl.type_instance);
-		}
-	}
-
-	plugin_dispatch_values (&vl);
-	return 0;
+  plugin_dispatch_values(&vl);
+  return 0;
 } /* tbl_result_dispatch */
 
-static int tbl_parse_line (tbl_t *tbl, char *line, size_t len)
-{
-	char *fields[tbl->max_colnum + 1];
-	char *ptr, *saveptr;
+static int tbl_parse_line(tbl_t *tbl, char *line, size_t len) {
+  char *fields[tbl->max_colnum + 1];
+  size_t i = 0;
 
-	size_t i;
+  char *ptr = line;
+  char *saveptr = NULL;
+  while ((fields[i] = strtok_r(ptr, tbl->sep, &saveptr)) != NULL) {
+    ptr = NULL;
+    i++;
 
-	i = 0;
-	ptr = line;
-	saveptr = NULL;
-	while (NULL != (fields[i] = strtok_r (ptr, tbl->sep, &saveptr))) {
-		ptr = NULL;
-		++i;
+    if (i > tbl->max_colnum)
+      break;
+  }
 
-		if (i > tbl->max_colnum)
-			break;
-	}
+  if (i <= tbl->max_colnum) {
+    log_warn("Not enough columns in line "
+             "(expected at least %" PRIsz ", got %" PRIsz ").",
+             tbl->max_colnum + 1, i);
+    return -1;
+  }
 
-	if (i <= tbl->max_colnum) {
-		log_warn ("Not enough columns in line "
-				"(expected at least %zu, got %zu).",
-				tbl->max_colnum + 1, i);
-		return -1;
-	}
-
-	for (i = 0; i < tbl->results_num; ++i)
-		if (0 != tbl_result_dispatch (tbl, tbl->results + i,
-					fields, STATIC_ARRAY_SIZE (fields))) {
-			log_err ("Failed to dispatch result.");
-			continue;
-		}
-	return 0;
+  for (i = 0; i < tbl->results_num; ++i)
+    if (tbl_result_dispatch(tbl, tbl->results + i, fields,
+                            STATIC_ARRAY_SIZE(fields)) != 0) {
+      log_err("Failed to dispatch result.");
+      continue;
+    }
+  return 0;
 } /* tbl_parse_line */
 
-static int tbl_read_table (tbl_t *tbl)
-{
-	FILE *fh;
-	char  buf[4096];
+static int tbl_read_table(tbl_t *tbl) {
+  char buf[4096];
 
-	fh = fopen (tbl->file, "r");
-	if (NULL == fh) {
-		char errbuf[1024];
-		log_err ("Failed to open file \"%s\": %s.", tbl->file,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return -1;
-	}
+  FILE *fh = fopen(tbl->file, "r");
+  if (fh == NULL) {
+    log_err("Failed to open file \"%s\": %s.", tbl->file, STRERRNO);
+    return -1;
+  }
 
-	buf[sizeof (buf) - 1] = '\0';
-	while (NULL != fgets (buf, sizeof (buf), fh)) {
-		if ('\0' != buf[sizeof (buf) - 1]) {
-			buf[sizeof (buf) - 1] = '\0';
-			log_warn ("Table %s: Truncated line: %s", tbl->file, buf);
-		}
+  buf[sizeof(buf) - 1] = '\0';
+  while (fgets(buf, sizeof(buf), fh) != NULL) {
+    if (buf[sizeof(buf) - 1] != '\0') {
+      buf[sizeof(buf) - 1] = '\0';
+      log_warn("Table %s: Truncated line: %s", tbl->file, buf);
+    }
 
-		if (0 != tbl_parse_line (tbl, buf, sizeof (buf))) {
-			log_warn ("Table %s: Failed to parse line: %s", tbl->file, buf);
-			continue;
-		}
-	}
+    if (tbl_parse_line(tbl, buf, sizeof(buf)) != 0) {
+      log_warn("Table %s: Failed to parse line: %s", tbl->file, buf);
+      continue;
+    }
+  }
 
-	if (0 != ferror (fh)) {
-		char errbuf[1024];
-		log_err ("Failed to read from file \"%s\": %s.", tbl->file,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		fclose (fh);
-		return -1;
-	}
+  if (ferror(fh) != 0) {
+    log_err("Failed to read from file \"%s\": %s.", tbl->file, STRERRNO);
+    fclose(fh);
+    return -1;
+  }
 
-	fclose (fh);
-	return 0;
+  fclose(fh);
+  return 0;
 } /* tbl_read_table */
 
 /*
  * collectd callbacks
  */
 
-static int tbl_read (void)
-{
-	int status = -1;
-	size_t i;
+static int tbl_read(void) {
+  int status = -1;
 
-	if (0 == tables_num)
-		return 0;
+  if (tables_num == 0)
+    return 0;
 
-	for (i = 0; i < tables_num; ++i) {
-		tbl_t *tbl = tables + i;
+  for (size_t i = 0; i < tables_num; ++i) {
+    tbl_t *tbl = tables + i;
 
-		if (0 != tbl_prepare (tbl)) {
-			log_err ("Failed to prepare and parse table \"%s\".", tbl->file);
-			continue;
-		}
+    if (tbl_prepare(tbl) != 0) {
+      log_err("Failed to prepare and parse table \"%s\".", tbl->file);
+      continue;
+    }
 
-		if (0 == tbl_read_table (tbl))
-			status = 0;
+    if (tbl_read_table(tbl) == 0)
+      status = 0;
 
-		tbl_finish (tbl);
-	}
-	return status;
+    tbl_finish(tbl);
+  }
+  return status;
 } /* tbl_read */
 
-static int tbl_shutdown (void)
-{
-	size_t i;
-
-	for (i = 0; i < tables_num; ++i)
-		tbl_clear (&tables[i]);
-	sfree (tables);
-	return 0;
+static int tbl_shutdown(void) {
+  for (size_t i = 0; i < tables_num; ++i)
+    tbl_clear(&tables[i]);
+  sfree(tables);
+  return 0;
 } /* tbl_shutdown */
 
-static int tbl_init (void)
-{
-	if (0 == tables_num)
-		return 0;
+static int tbl_init(void) {
+  if (tables_num == 0)
+    return 0;
 
-	plugin_register_read ("table", tbl_read);
-	plugin_register_shutdown ("table", tbl_shutdown);
-	return 0;
+  plugin_register_read("table", tbl_read);
+  plugin_register_shutdown("table", tbl_shutdown);
+  return 0;
 } /* tbl_init */
 
-void module_register (void)
-{
-	plugin_register_complex_config ("table", tbl_config);
-	plugin_register_init ("table", tbl_init);
+void module_register(void) {
+  plugin_register_complex_config("table", tbl_config);
+  plugin_register_init("table", tbl_init);
 } /* module_register */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

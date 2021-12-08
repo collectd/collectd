@@ -1,6 +1,6 @@
 /**
  * collectd - src/wireless.c
- * Copyright (C) 2006,2007  Florian octo Forster
+ * Copyright (C) 2006-2018  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,11 +25,16 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
-#include "plugin.h"
 
-#if !KERNEL_LINUX
-# error "No applicable input method."
+#include "plugin.h"
+#include "utils/common/common.h"
+
+#if KERNEL_LINUX
+#include <linux/if.h>
+#include <linux/wireless.h>
+#include <sys/ioctl.h>
+#else
+#error "No applicable input method."
 #endif
 
 #define WIRELESS_PROC_FILE "/proc/net/wireless"
@@ -46,128 +51,133 @@ static double wireless_dbm_to_watt (double dbm)
 
 	watt = pow (10.0, (dbm / 10.0)) / 1000.0;
 
-	return (watt);
+	return watt;
 }
 #endif
 
-static void wireless_submit (const char *plugin_instance, const char *type,
-		double value)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
+static void wireless_submit(const char *plugin_instance, const char *type,
+                            double value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
+  vl.values = &(value_t){.gauge = value};
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "wireless", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, type, sizeof(vl.type));
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "wireless", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, plugin_instance,
-			sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-
-	plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 } /* void wireless_submit */
 
 #define POWER_MIN -90.0
 #define POWER_MAX -50.0
-static double wireless_percent_to_power (double quality)
-{
-	assert ((quality >= 0.0) && (quality <= 100.0));
+static double wireless_percent_to_power(double quality) {
+  assert((quality >= 0.0) && (quality <= 100.0));
 
-	return ((quality * (POWER_MAX - POWER_MIN)) + POWER_MIN);
+  return (quality * (POWER_MAX - POWER_MIN)) + POWER_MIN;
 } /* double wireless_percent_to_power */
 
-static int wireless_read (void)
-{
+static int wireless_read(void) {
 #ifdef KERNEL_LINUX
-	FILE *fh;
-	char buffer[1024];
+  FILE *fh;
+  char buffer[1024];
 
-	char   *device;
-	double  quality;
-	double  power;
-	double  noise;
+  char *device;
+  double quality;
+  double power;
+  double noise;
 
-	char *fields[8];
-	int   numfields;
+  char *fields[8];
+  int numfields;
 
-	int devices_found;
-	int len;
+  int devices_found;
+  size_t len;
 
-	/* there are a variety of names for the wireless device */
-	if ((fh = fopen (WIRELESS_PROC_FILE, "r")) == NULL)
-	{
-		char errbuf[1024];
-		WARNING ("wireless: fopen: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
+  /* there are a variety of names for the wireless device */
+  if ((fh = fopen(WIRELESS_PROC_FILE, "r")) == NULL) {
+    ERROR("wireless plugin: fopen: %s", STRERRNO);
+    return -1;
+  }
 
-	devices_found = 0;
-	while (fgets (buffer, sizeof (buffer), fh) != NULL)
-	{
-		char *endptr;
+  int sock = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock == -1) {
+    ERROR("wireless plugin: socket: %s", STRERRNO);
+    fclose(fh);
+    return -1;
+  }
 
-		numfields = strsplit (buffer, fields, 8);
+  devices_found = 0;
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    char *endptr;
 
-		if (numfields < 5)
-			continue;
+    numfields = strsplit(buffer, fields, 8);
 
-		len = strlen (fields[0]) - 1;
-		if (len < 1)
-			continue;
-		if (fields[0][len] != ':')
-			continue;
-		fields[0][len] = '\0';
+    if (numfields < 5)
+      continue;
 
-		device  = fields[0];
+    len = strlen(fields[0]) - 1;
+    if (len < 1)
+      continue;
+    if (fields[0][len] != ':')
+      continue;
+    fields[0][len] = '\0';
 
-		quality = strtod (fields[2], &endptr);
-		if (fields[2] == endptr)
-			quality = -1.0; /* invalid */
+    device = fields[0];
 
-		/* power [dBm] < 0.0 */
-		power = strtod (fields[3], &endptr);
-		if (fields[3] == endptr)
-			power = 1.0; /* invalid */
-		else if ((power >= 0.0) && (power <= 100.0))
-			power = wireless_percent_to_power (power);
-		else if ((power > 100.0) && (power <= 256.0))
-			power = power - 256.0;
-		else if (power > 0.0)
-			power = 1.0; /* invalid */
+    quality = strtod(fields[2], &endptr);
+    if (fields[2] == endptr)
+      quality = -1.0; /* invalid */
 
-		/* noise [dBm] < 0.0 */
-		noise = strtod (fields[4], &endptr);
-		if (fields[4] == endptr)
-			noise = 1.0; /* invalid */
-		else if ((noise >= 0.0) && (noise <= 100.0))
-			noise = wireless_percent_to_power (noise);
-		else if ((noise > 100.0) && (noise <= 256.0))
-			noise = noise - 256.0;
-		else if (noise > 0.0)
-			noise = 1.0; /* invalid */
+    /* power [dBm] < 0.0 */
+    power = strtod(fields[3], &endptr);
+    if (fields[3] == endptr)
+      power = 1.0; /* invalid */
+    else if ((power >= 0.0) && (power <= 100.0))
+      power = wireless_percent_to_power(power);
+    else if ((power > 100.0) && (power <= 256.0))
+      power = power - 256.0;
+    else if (power > 0.0)
+      power = 1.0; /* invalid */
 
-		wireless_submit (device, "signal_quality", quality);
-		wireless_submit (device, "signal_power", power);
-		wireless_submit (device, "signal_noise", noise);
+    /* noise [dBm] < 0.0 */
+    noise = strtod(fields[4], &endptr);
+    if (fields[4] == endptr)
+      noise = 1.0; /* invalid */
+    else if ((noise >= 0.0) && (noise <= 100.0))
+      noise = wireless_percent_to_power(noise);
+    else if ((noise > 100.0) && (noise <= 256.0))
+      noise = noise - 256.0;
+    else if (noise > 0.0)
+      noise = 1.0; /* invalid */
 
-		devices_found++;
-	}
+    wireless_submit(device, "signal_quality", quality);
+    wireless_submit(device, "signal_power", power);
+    wireless_submit(device, "signal_noise", noise);
 
-	fclose (fh);
+    struct iwreq req = {
+        .ifr_ifrn.ifrn_name = {0},
+    };
+    sstrncpy(req.ifr_ifrn.ifrn_name, device, sizeof(req.ifr_ifrn.ifrn_name));
+    if (ioctl(sock, SIOCGIWRATE, &req) == -1) {
+      WARNING("wireless plugin: ioctl(SIOCGIWRATE): %s", STRERRNO);
+    } else {
+      wireless_submit(device, "bitrate", (double)req.u.bitrate.value);
+    }
 
-	/* If no wireless devices are present return an error, so the plugin
-	 * code delays our read function. */
-	if (devices_found == 0)
-		return (-1);
+    devices_found++;
+  }
+
+  close(sock);
+  fclose(fh);
+
+  /* If no wireless devices are present return an error, so the plugin
+   * code delays our read function. */
+  if (devices_found == 0)
+    return -1;
 #endif /* KERNEL_LINUX */
 
-	return (0);
+  return 0;
 } /* int wireless_read */
 
-void module_register (void)
-{
-	plugin_register_read ("wireless", wireless_read);
+void module_register(void) {
+  plugin_register_read("wireless", wireless_read);
 } /* void module_register */

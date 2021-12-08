@@ -1,0 +1,46 @@
+# Code ownership information.
+# See
+# https://help.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners
+# for details.
+
+# Order is important; the *last* matching pattern takes precedence.
+
+# Default
+#
+# These owners will be the default owners for everything in the repo. Unless a
+# later match takes precedence, @collectd/trusted-contributors will be
+# requested for review when someone opens a pull request.
+*       @collectd/trusted-contributors
+
+# Per-plugin owners
+#
+# These plugins are owned by subject matter experts and require their review.
+/src/intel_pmu.c	@collectd/intel
+/src/intel_rdt.c	@collectd/intel
+/src/ipmi.c		@collectd/intel
+/src/mcelog.c		@collectd/intel
+/src/virt.c		@collectd/intel
+# TODO(#2926): Add the following owners:
+#/src/redfish.c		@collectd/intel
+
+# Core
+#
+# The daemon and some plugins with a huge "blast radius" are considered "core"
+# to the collectd project and require review form a "core owner".
+/CODEOWNERS		@collectd/core-maintainers
+/src/daemon/		@collectd/core-maintainers
+/src/liboconfig/	@collectd/core-maintainers
+/src/cpu.c		@collectd/core-maintainers
+/src/df.c		@collectd/core-maintainers
+/src/disk.c		@collectd/core-maintainers
+/src/exec.c		@collectd/core-maintainers
+/src/interface.c	@collectd/core-maintainers
+/src/memory.c		@collectd/core-maintainers
+/src/network.*		@collectd/core-maintainers
+/src/utils/avltree/	@collectd/core-maintainers
+/src/utils/common/	@collectd/core-maintainers
+/src/utils_fbhash.*	@collectd/core-maintainers
+/src/utils/heap/	@collectd/core-maintainers
+/src/utils/ignorelist/	@collectd/core-maintainers
+/src/utils/metadata/	@collectd/core-maintainers
+/src/utils/mount/	@collectd/core-maintainers

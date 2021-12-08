@@ -1,3 +1,1248 @@
+2020-03-15, Version 5.11.0
+	* collectd: A Code of Conduct has been added. Thanks to Florian Forster.
+	  #3401
+	* text protocol: Support for meta_data in PUTVAL has been added. Thanks
+	  to Rafael Marinheiro, Dagobert Michelsen. #3381, #2726
+	* utils_cache: Internal API has changed - exposed meta_data_toc
+	  function. Thanks to Javier Kohen. #3339
+	* filter_chain: Auto load matches and targets if AutoLoadPlugin option
+	  is set. Thanks to Manuel Luis Sanmartín Rozada. #1034
+	* AMQP plugin: TLS support has been added. Thanks to Märt Bakhoff.
+	  #3391
+	* Battery plugin: Read from Linux sysfs charge files has been added.
+	  Thanks to Nimrod Maclomhair. #3190
+	* Buddyinfo plugin: New plugin for memory fragmentation info has been
+	  added. Thanks to Asaf Kahlon. #3303
+	* capabilities plugin: New plugin to read static platform data has been
+	  added. Thanks to Kamil Wiatrowski, Dagobert Michelsen. #3384, #3292
+	* DCPMM plugin: New plugin for Intel Optane DC Presistent Memory (DCPMM)
+	  has been added. Thanks to Hari TG. #3274
+	* DF plugin: LogOnce option has been added. Thanks to themylogin. #2910
+	* DPDK Telemetry plugin: New plugin to fetch DPDK metrics (with intent
+	  to replace dpdk_stat) has been added. Thanks to Reshma Pattan. #3273
+	* Disk plugin: A native (sysctl-based) implementation for NetBSD has
+	  been added. Thanks to Edgar Fuß, Dagobert Michelsen. #3379, #3334
+	* GPU_Nvidia‏‎ plugin: Configurable plugin instance by GPU name
+	  and/or GPU index has been added. Thanks to Robert Dietrich. #3264
+	* Intel_PMU plugin: Support for uncore multi pmu has been added. Thanks
+	  to Kamil Wiatrowski. #3388
+	* Ipstats plugin: New plugin to count incoming, outgoing, forwarded
+	  packets on FreeBSD has been added. Thanks to Marco van Tol. #3187
+	* Java plugin: Support boolean input has been added. Thanks to Caden.
+	  #3044
+	* Logparser plugin: New plugin for filtering and parsing log messages
+	  has been added. Thanks to Kamil Wiatrowski, Krzysztof Matczak, Marcin
+	  Możejko, Adrian Boczkowski, Radosław Jabłonski. #3045
+	* Network plugin: New metadata "network:ip_address" has been added.
+	  Thanks to Takuro Ashie. #3191
+	* NFS plugin: An implementation for NetBSD (using sysctl) has been
+	  added. Thanks to Edgar Fuß, Dagobert Michelsen. #3377, #3333
+	* NUT plugin: Support for the "output.realpower" value from the ups code
+	  has been added. Thanks to Michael Poetters. #2528
+	* Redfish plugin: New read plugin to collect out-of-band sensor data
+	  from Redfish endpoints has been added. Thanks to Marcin Możejko,
+	  Adrian Boczkowski, Michal Kobyliński, Krzysztof Kepka, Man Singh,
+	  Zoltan Szabo. #2926
+	* Slurm plugin: The new SLURM plugin gathers metrics from the SLURM
+	  workload manager has been added. Thanks to Pablo Llopis. #3037
+	* Tail_CSV plugin: FieldSeparator option has been added. Thanks to
+	  Dheeraj Gupta. #3394
+	* UBI plugin: The new "ubifs" plugin reports block state for flash
+	  memory devices with UBIFS filesystem has been added. Thanks to Pierre
+	  Lebleu. #3204
+	* Write_HTTP plugin: Ability to configure cURL statistics has been
+	  added. Thanks to Nelson. #3265
+	* Write_Influxdb_UDP plugin: New plugin to send values to InfluxDB using
+	  line protocol via udp has been added. Thanks to Carlos Peón Costa.
+	  #3162
+	* Zookeeper plugin: 'quorum' stat has been added. Thanks to Chris Brown.
+	  #2991
+	* collectd: Missing package in specfile has been fixed. Thanks to Fabien
+	  Wernli. #3399
+	* collectd: Factored out read_text_file_contents for reading text files
+	  and used it to fix a potential unterminated string in the thermal
+	  plugin. Thanks to Igor Peshansky. #3359
+	* collectd: Error/warning messages has been extended with more
+	  information. Thanks to Dagobert Michelsen. #3386
+	* collectd: Regression caused by #3217 has been fixed. Thanks to Pavel
+	  Rochnyak. #3349
+	* build: version-gen.sh has been cleaned up. Thanks to William Pursell.
+	  #2635
+	* build: Linking with Python 3.8 has been fixed. Thanks to Alexander
+	  Meshcheryakov. #3344
+	* build: Avoid $< (implied source) in non-inference rules / Building
+	  grpc with non-GNU make has been fixed. Thanks to Edgar Fuß, Dagobert
+	  Michelsen. #3376, #3330
+	* filter_chain: Constant for max plugin name length introduced in #1034
+	  has been fixed. Thanks to Dagobert Michelsen. #3385
+	* ignorelist: Coding style has been fixed. Thanks to Dagobert Michelsen.
+	  #3397
+	* match_regex: Accept all data types of meta data. Thanks to Takuro
+	  Ashie. #3231
+	* perl unixsock: Made the module robust against socket errors and
+	  disconnects. Thanks to Guillem Jover. #3083
+	* tree-wide: Race condition when setting thread names has been fixed.
+	  Thanks to Michael Kaufmann. #2762
+	* types.db: ping_droprate range spec has been fixed. Thanks to Yousong
+	  Zhou. #3244
+	* utils/format_graphite: Comma sign has been added to the list of
+	  prohibited characters. Thanks to Marat Salimzianov. #2998
+	* Aggregation plugin: Unreachable clause where both tmp_plugin and
+	  tmp_plugin_instance are non-empty has been fixed. Thanks to Ling
+	  Huang. #3350
+	* AMQP1 plugin: Leaks on error paths has been fixed. Thanks to Ryan
+	  McCabe. #3352
+	* Apache plugin: BusyWorkers/IdleWorkers update has been fixed. Thanks
+	  to Christian W. Zuckschwerdt. #3131
+	* CPU plugin, Memory plugin, Swap plugin, UUID plugin: Contain use of
+	  sysctl / sysctrlbyname to BSD variants, as deprecated on Linux. Thanks
+	  to Zebity Spring. #3342
+	* Exec plugin: Select has been replaced with poll to allow more then
+	  1024 open file descriptors. Thanks to Kamil Wiatrowski. #3363
+	* GPU_Nvidia plugin: Build issues has been fixed. Thanks to Ruben
+	  Kerkhof. #3393
+	* Interface plugin: Reorder so that Linux-specific code is actually
+	  executed. Thanks to Dagobert Michelsen. #3378
+	* NFS plugin: Condition on existence of libkstat has been fixed. Thanks
+	  to Dagobert Michelsen. #3382
+	* Network plugin: Memory leak has been fixed. Thanks to Ryan McCabe.
+	  #3352
+	* Processes plugin: Number of running processes has been fixed. Thanks
+	  to Bart De Vos. #3243
+	* Write_Riemann plugin: Memory leak has been fixed. Thanks to Fabien
+	  Wernli. #3351
+	* Write_Stackdriver plugin: NaN value handing with gauge metrics has
+	  been fixed. Thanks to Jaroslaw Przybylowicz. #3226
+
+
+2019-10-17, Version 5.10.0
+	* turbostat plugin: Power metrics update for recent server CPUs. Thanks
+	  to Chris MacNamara. #3276
+	* turbostat plugin: Fix warnings generated by the turbostat plugin.
+	  Thanks to Ryan Mccabe. #3340
+	* ZFS ARC plugin: New cache values are now read on Linux. Thanks to
+	  Jan-Philipp Litza. #3247, #2843
+	* connectivity plugin: monitor the network interface up/down status via
+	  the netlink library. Thanks to Andrew Bays. #2622
+	* sysevent plugin: A new plugin that monitors rsyslog for system events.
+	  Thanks to Andrew Bays. #2624
+	* procevent plugin: A new plugin that monitors process starts/stops via
+	  netlink library. Thanks to Andrew Bays. #2623
+	* daemon: Check if plugin actually loaded before reporting configuration
+	  issues. Thanks to Pavel Rochnyak. #3217
+	* daemon: Recover setlocale() call in src/daemon/collectd.c do_init().
+	  Thanks to Pavel Rochnyak. #3181, #3214
+	* Build System: Only include <sys/sysctl.h> when needed. Thanks to Ruben
+	  Kerkhof. #3298
+	* Build System: Link to libnsl.so if needed for inet_ntop(). Thanks to
+	  Dagobert Michelsen. #3291
+	* Build System: Remove double "without" added by commit b781871. Thanks
+	  to Fabrice Fontaine. #3261
+	* Build System: fix compile time issues. Thanks to Matthias Runge.
+	  #3179, #3242, #3245
+	* Build System: Fix activation of snmp_agent. Thanks to Fabrice
+	  Fontaine. #3241
+	* Build System: Fix bug that leads to CPPFLAGS gets overridden with
+	  CFLAGS when libxmms is enabled. Thanks to Dagobert Michelsen. #3207
+	* perl module: Collectd::Plugins::Openvz: Fix indentation of some
+	  closing curlies. Thanks to Christian Bartolomäus. #3239
+	* tree-wide: Fix a few issues found with LGTM. Thanks to Ruben Kerkhof.
+	  #3252
+	* tree-wide: fix ssnprintf wrapper. Thanks to Fabien Wernli.
+	  #3237, #3232, #3235, #3236
+	* tree-wide: Fix make check. Thanks to Ruben Kerkhof. #3306
+	* CI System: Travis: switch to Bionic. Thanks to Ruben Kerkhof. #3307
+	* CI System: Travis improvements for MacOS. Thanks to Ruben Kerkhof.
+	  #3308
+	* MySQL plugin: Minor documentation improvements. Thanks to Christian
+	  Bartolomäus. #3288
+	* Java plugin: Fix typo in an error message. Thanks to Matthias Runge.
+	  #3285, #3286
+	* sysevent plugin: Add a few missing calloc result checks in the
+	  sysevent_init function. Thanks to Andrew Bays. #3282
+	* ZFS ARC plugin: A bug that caused the first to values to be skipped
+	  was fixed. Thanks to Jan-Philipp Litza. #3246
+	* SysLog plugin: restore previous behaviour: fallback to info for
+	  unsupported level. Thanks to Fabien Wernli. #3236, #3238
+	* virt plugin: Fix memory leak with libvirt MetadataXPath enabled.
+	  Thanks to Pavel Rochnyak. #3225, #3228
+	* GPU NVidia plugin: Fix build of the plugin. Thanks to Ruben Kerkhof.
+	  #3320
+
+2019-10-01, Version 5.9.2
+	* syslog plugin: Don't fail if syslog loglevel doesn't match. Thanks to
+	  Fabien Wernli. #3236 #3238
+	* collectd: Fix ssnprintf wrapper. Thanks to Fabien Wernli. #3237
+	* rdt plugin: Fix compile time issues. Thanks to Matthias Runge. #3245
+
+2019-07-24, Version 5.9.1
+	* collectd: redhat spec: fix build due to new upstream plugins. Thanks
+	  to Fabien Wernli. #3175
+	* collectd: regex match: Fix unexpected match with empty meta data .
+	  Thanks to Takuro Ashie. #3178
+	* collectd: Fix return value or loglevel for several plugins. Thanks to
+	  Fabien Wernli. #3182
+	* collectd: Add standard include early or _FILE_OFFSET_BITS will have
+	  definition … . Thanks to Dagobert Michelsen. #3193
+	* collectd: Use GCC-specific flags only when compiling with GCC. Thanks
+	  to Dagobert Michelsen. #3195
+	* Use test_utils_proc_pids only when compiling the plugin that uses it.
+	  Thanks to Dagobert Michelsen. #3197
+	* DNS plugin: Do not use headers from glibc. Thanks to Pavel Rochnyak.
+	  #3156, #3145
+	* collectd: Add missing definitions for libnetsnmpagent. Thanks to
+	  Dagobert Michelsen. #3203
+	* collectd: Move Makefile rules for pid_test inside conditional for
+	  code. Thanks to Dagobert Michelsen. #3206
+	* collectd: Recover setlocale() call in src/daemon/collectd.c do_init().
+	  Thanks to Pavel Rochnyak. #3214, #3181
+	* collectd: Add snprintf wrapper for GCC 8.2/3. Thanks to zebity. #3153,
+	  #2895, #3038
+	* collectd: Fix bug that leads to CPPFLAGS gets overridden with CFLAGS
+	  when libxmms is enabled. Thanks to Dagobert Michelsen. #3207
+	* Write_Riemann plugin: Copy MetaData to Riemann events in
+	  write_riemann. Thanks to Romain Tartière. #3158
+	* virt plugin: Fix memory leak with libvirt MetadataXPath enabled.
+	  Thanks to Pavel Rochnyak. #3225, #3230
+
+2019-06-13, Version 5.9.0
+	* Build System: configure.ac: option "--with-libxml2" has been added.
+	  Thanks to Dimitrios Apostolou, Pavel Rochnyak. #2864
+	* Build System: configure.ac: run dpdk build tests only if pkgconfig
+	  fails. Thanks to Luca Boccassi, Pavel Rochnyak. #3015
+	* Build System: The "df" plugin is now built when "getmntent_r()" is
+	  available. Thanks to Florian Forster. #3095
+	* Build System: The ability to turn on collectd "debug" feature in RPMs
+	  has been added. Thanks to dehotot. #2755
+	* collectd: A new "UNKNOWN" state as the initial state of metrics has
+	  been added. Thanks to Luis Fernández Álvarez, Florian Forster. #2976
+	* collectd: Base port to Windows. Thanks to Sean Campbell. #2810
+	* collectd: Code ownership of five plugins has been handed out to folks
+	  from Intel. Thanks to Florian Forster. #3053
+	* collectd: config parser: Improved error reporting on global options.
+	  Thanks to Pavel Rochnyak. #2813
+	* collectd: daemon: make plugin_dispatch_multivalue() obey write queue
+	  limits. Thanks to Adam Romanek. #2898
+	* collectd: Macros "STRERROR" and "STRERRNO" have been added. Thanks to
+	  Florian Forster. #2519
+	* collectd: Plugin name field has been added to plugin context to
+	  improve error reporting. Thanks to Pavel Rochnyak. #2821
+	* collectd-tg: Use "CLOCK_REALTIME" for collectd-tg times. Thanks to
+	  Andrew Bays. #2837
+	* tree-wide: Don't initialize static pointers to NULL, use "bool" from
+	  "stdbool.h" (instead of "_Bool"). Thanks to Ruben Kerkhof. #2771,
+	  #2772
+	* tree-wide: Replace zu with "PRIsz" and llu with "PRIu64". Thanks to
+	  Sean Campbell. #2512
+	* tree-wide: Use interval value from plugin context, do not set
+	  "vl->interval" in plugins more. Thanks to Pavel Rochnyak. #2847
+	* tree-wide: Utilities and libraries have been moved to "src/utils/".
+	  Thanks to Florian Forster. #2961
+	* AMPQ1 plugin: A new plugin to write to amqp1 protocol. Thanks to Andy
+	  Smith. #2618
+	* Chrony plugin: Ignoring late responses has been added. Thanks to
+	  Miroslav Lichvar, Pavel Rochnyak. #2896
+	* CPUFreq plugin: Read number of p-state transitions and time spent in
+	  each p-state. Thanks to Sexton Rory. #2803
+	* cURL, cURL-XML plugins: Option "Interval" has been added. Thanks to
+	  Pavel Rochnyak. #2847
+	* Disk plugin: Report number of in progress disk IO requests on FreeBSD.
+	  Thanks to Nathan Huff. #2878
+	* Exec plugin: Dynamic allocation of grname buffer has been added.
+	  Thanks to sreedi, Florian Forster. #2937
+	* GPU NVML plugin: New plugin to collect NVIDIA GPU stats. Thanks to
+	  Evgeny Naumov. #2923
+	* gRPC plugin: The "VerifyPeer" option for servers has been added.
+	  Thanks to Florian Forster. #2593
+	* Intel RDT plugin: Support for groups of PIDs has been added. Thanks to
+	  Wojciech Andralojc, Mateusz Starzyk, Michal Aleksinski. #2891
+	* IPMI plugin: Config options "SELSensor" and "SELIgnoreSelected" have
+	  been added. Thanks to Mariusz Szafranski. #2796
+	* Modbus plugin: Support for 64 bit vals has been added, support for
+	  CDAB endian 32-bit modbus polls has been added. Thanks to Anthony
+	  Vickers, PJ Bostley. #2670, #2660
+	* Modbus plugin: The "Scale" and "Shift" metrics have been added. Thanks
+	  to cekstam. #2729
+	* Netlink plugin: Handle new counter from Linux kernel version 4.6+.
+	  Thanks to Pavel Rochnyak. #2767
+	* Network plugin: Option "BindAddress" has been added. Thanks to Ofir
+	  Hermesh. #2831
+	* Ping plugin: An "AddressFamily" configuration option has been added.
+	  Thanks to 依云 lilydjwg. #2961
+	* OVS Stats plugin: Extended metrics "ovs-dpdk" have been added. Thanks
+	  to Matteo Croce, Ryan McCabe. #3000
+	* OVS Stats plugin: Support of bond interface and a "InterfaceStats"
+	  config option have been added. Thanks to Andrew Bays. #2880
+	* PCIe Errors plugin: New plugin to read "PCIe" errors. Thanks to Kamil
+	  Wiatrowski. #2733
+	* Processes plugin: Support for Linux Delay Accounting has been added.
+	  Thanks to Florian Forster. #2598
+	* Redis plugin: Keyspace "hitratio" metric has been added, metric
+	  "operations_per_second" has been removed, an option for connecting via
+	  UNIX socket has been added. Thanks to Pavel Rochnyak. #2838, #2845,
+	  #2904
+	* RouterOS plugin: Support for temperature and voltage data has been
+	  added, use MAC-address when Radio-name is missing. Thanks to Pavel
+	  Rochnyak. #2851, #2854
+	* RRDCacheD plugin: Time resolution has been improved to microseconds.
+	  Thanks to Brian T. O'Neill. #3065
+	* Sensors plugin: Checks for upper limit of "SENSORS_API_VERSION" have
+	  been removed, support for libsensors older than 3.0.0 has been
+	  dropped. Thanks to Pavel Rochnyak. #3013, #3014
+	* SNMP plugin: New options "PluginInstance", "TypeInstance",
+	  "TypeInstanceOID", "PluginInstanceOID", "FilterOID", "FilterValues"
+	  and "FilterIgnoreSelected" have been added. Thanks to Pavel Rochnyak.
+	  #2817, #2819
+	* SNMP Agent plugin: Multiple key indexes to snmp table and other new
+	  features have been added, refactoring, coverity scan issues have been
+	  fixed. Thanks to Marcin Mozejko. #2702, #2844
+	* Swap plugin: Support for Linux 2.4 has been dropped. Thanks to Pavel
+	  Rochnyak. #2979
+	* Turbostat plugin: Configuration option "RestoreAffinityPolicy" has
+	  been added. Thanks to Pablo Llopis. #2627
+	* Turbostat plugin: New metrics "P-states", "Turboboost", "Platform
+	  TDP", "Uncore bus ratio" have been added. Thanks to Sexton Rory. #2806
+	* Turbostat plugin: Support of reporting GPU power on SKL has been
+	  added. Thanks to Gordon Kelly. #2605
+	* virt plugin: Allow read "Hostname" from libvirt metadata. Thanks to
+	  Mehdi ABAAKOUK. #2807
+	* virt plugin: Block info statistics for disk devices have been added.
+	  Thanks to Radoslaw Jablonski. #2874
+	* Wireless plugin: A "bitrate" metric has been added. Thanks to Florian
+	  Forster. #2950
+	* Write Graphite, Write Kafka plugins: Support for Graphite 1.1+ tag has
+	  been added. Thanks to Dan Cech. #2631
+	* Write Prometheus plugin: Option "Host" has been added. Thanks to Pavel
+	  Rochnyak. #2969
+	* Write Stackdriver plugin: New plugin to write to Google Stackdriver
+	  Monitoring. Thanks to Florian Forster. #2472
+	* Write Syslog plugin: "write_syslog" plugin writes values lists as
+	  syslog messages. Thanks to Shirly Radco. #3019
+	* Build System: A warning that pkgdatadir and pkglibdir were previously
+	  defined has been fixed, additional plugins have been enabled,
+	  GNULIB_DIR has been added to LDFLAGS in configure.ac on Windows.
+	  Thanks to Sean Campbell. #2907, #2885, #2882
+	* Build System: Including "utils/mount/mount.h" has been fixed. Thanks
+	  to Florian Forster. #3097
+	* Build System: The amount of output from ./configure has been reduced,
+	  rendering of collectd-lua(5) manpage has been fixed, don't hide errors
+	  when creating manpage. Thanks to Ruben Kerkhof. #3086, #3088, #3092
+	* collectd: A bug in "c_avl_iterator_prev" has been fixed. Thanks to
+	  volth. #2917
+	* collectd: A stringop compiler warning has been fixed. Thanks to Ruben
+	  Kerkhof, Juan Osorio Robles. #3021
+	* collectd: An invalid memory access in the "strjoin()" function has
+	  been fixed. Thanks to Florian Forster. #3063
+	* collectd: collectd binary has been refactored. Thanks to Sean
+	  Campbell, Sebastian Harl. #2745
+	* collectd: collectdmon cannot exit command line options parse loop has
+	  been fixed. Thanks to takahashi-tsc. #2774
+	* collectd: Endianness checks for AIX have been added, gcc issue on Mac
+	  byteorder has been fixed, fallback for endianness conversion has been
+	  added. Thanks to Dagobert Michelsen. #2761, #2741, #2717
+	* collectd: Handle failure of simple config callbacks. Thanks to Ruben
+	  Kerkhof. #3085
+	* collectd: Include "kstat.h" if available to provide "kstat_ctl_t",
+	  include "kstat.h" when available. Thanks to Dagobert Michelsen. #2716,
+	  #2711
+	* collectd: Parsing option for avoiding making BaseDir has been fixed.
+	  Thanks to Mariusz Białończyk. #2856
+	* collectd: Remove empty "cmd_listval_t" data structure and related
+	  no-op code. Thanks to Pavel Rochnyak. #2779
+	* collectd: src/daemon/plugin.c: Refactor plugin_load_file(),
+	  src/utils_format_json.c: Remove chatty debug messages. Thanks to
+	  Florian Forster. #2558, #2938
+	* collectd: Stop poisoning function in debug mode. Thanks to Ruben
+	  Kerkhof. #2804
+	* collectd: The number of allocations when parsing types.db has been
+	  reduced. Thanks to Ruben Kerkhof. #3091
+	* collectd: The organization of the source repository has been improved.
+	  Thanks to Florian Forster. #2961
+	* collectd: Typos have been fixed. Thanks to Florian Forster, Jakub
+	  Jankowski, William Pursell. #2944, #2692, #2643
+	* tree-wide: cleanup: cf_util_get* instead of local copy in plugins,
+	  prefixed error reporting. Thanks to Pavel Rochnyak. #2833
+	* tree-wide: Some style issues have been fixed. Thanks to Ruben Kerkhof.
+	  #3022
+	* tree-wide: "sstrerror()" has been replaced with "STRERRNO". Thanks to
+	  Pavel Rochnyak. #2735
+	* AMQP1 plugin: Potential memory leaks found via scan-build have been
+	  fixed, a typo in error log message has been fixed, cleanups. Thanks to
+	  Andy Smith, Andrew Bays, Ruben Kerkhof. #2802, #2876, #2797
+	* Barometer plugin: Support to "libi2c-4.0" has been added. Thanks to
+	  Pavel Rochnyak. #2783
+	* DBI, Oracle, PostgreSQL plugins: Fixes and improvements. Thanks to
+	  Pavel Rochnyak. #1705
+	* Disk plugin: "HAVE_UDEV_H" has been changed to "HAVE_LIBUDEV_H".
+	  Thanks to Dylan Stephano-Shachter. #2668
+	* Disk plugin: In linux, reset the disk when it disappears from
+	  "/proc/diskstats". Thanks to Nikita Kozlov, Pavel Rochnyak. #2551
+	* DPDK Events, DPDK Stats plugins: Buffer size for parsing lcores has
+	  been increased, a deprecation warning has been fixed, runtime config
+	  file path has been fixed. Thanks to Kevin Laatz. #2722, #2840, #2924
+	* DPDK Stats plugin: A compilation issue has been fixed. Thanks to
+	  Volodymyr Mytnyk. #2524
+	* GPS plugin: Build with gpsd version 3.18 has been fixed. Thanks to
+	  Baruch Siach. #2947
+	* Intel RDT plugin: Compiler warnings have been fixed. Thanks to Ruben
+	  Kerkhof. #3104
+	* Log Logstash plugin: Non-portable struct initialization with "{}" has
+	  been fixed. Thanks to Florian Forster. #2988
+	* LUA plugin: A memory leak has been fixed. Thanks to Ruben Kerkhof.
+	  #3090
+	* MySQL plugin: Properly cleanup dropped MySQL connections. Thanks to
+	  Dhrupad Bhardwaj. #2704
+	* Netlink plugin: Truncation warnings have been fixed. Thanks to Ruben
+	  Kerkhof. #2777
+	* NFS plugin: Message "Unexpected number of fields for NFSv4 server
+	  statistics: 62" has been fixed. Thanks to Yedidyah Bar David. #2076
+	* NFS plugin: Number of fields for "NFSv4" has been fixed. Thanks to
+	  Jan-Philipp Litza. #2915
+	* Notify Email plugin: All notification parameters have been included
+	  into email. Thanks to Pavel Rochnyak. #2834
+	* NTPd plugin: Don't treat normal peers as refclocks, skip "0.0.0.0"
+	  hosts in ntpd plugin. Thanks to Pavel Rochnyak, Ivan Kurnosov. #2822,
+	  #2376
+	* OAuth plugin: src/utils_oauth.c: Renew OAuth tokens 30 seconds before
+	  they expire. Thanks to Florian Forster. #2970
+	* OVS Stats plugin: A macro to populate counters list has been added,
+	  value of "OpenFlow" has been corrected. Thanks to Matteo Croce. #2966,
+	  #2963
+	* OVS Stats plugin: Code style, cleanup and improvements. Thanks to
+	  Pavel Rochnyak. #3011, #3012
+	* OVS Stats, OVS Events plugins: utils_ovs: Avoid potential access of
+	  freed memory, fixes. Thanks to Ciara Loftus, Mark Kavanagh. #2801,
+	  #2731
+	* Processes plugin: Compilation has been fixed when ps_delay() is not
+	  used. Thanks to Pavel Rochnyak. #2610
+	* Python plugin: A compilation warning with Python 3.7 has been fixed.
+	  Thanks to Manoj Srivastava. #3042
+	* Redis plugin: Bugfixes, extended error reporting, persistent
+	  connections and parallel polling, ability to select db for queries has
+	  been fixed. Thanks to Pavel Rochnyak, skob. #2826, #2789
+	* Router OS plugin: Unset radio-name showing up as "(null)" has been
+	  fixed. Thanks to melak. #2740
+	* RRDCacheD plugin: Cleanup rrdcached plugin a bit. Thanks to Pavel
+	  Rochnyak. #3080
+	* RRDTool plugin: Error reporting has been extended. Thanks to Pavel
+	  Rochnyak. #2825
+	* Sensors plugin: Support for humidity sensors has been added. Thanks to
+	  Sarah Fischmann. #2913
+	* Sensu, OVS Stat, Turbostat, virt, OAuth, Write Prometheus, Intel RDT
+	  plugins: Compiler warnings have been fixed. Thanks to Ruben Kerkhof.
+	  #3093, #3098, #3099, #3100, #3102, #3103, #3104
+	* virt plugin: Code "do {} while(0)" around macro has been removed.
+	  Thanks to Florian Forster. #2579
+	* virt plugin: Compiler warnings, a segfault in libvirt, typo in error
+	  messages have been fixed. Thanks to Antoine Naud, Ruben Kerkhof, sarah
+	  niuxu18. #2808, #2919, #2957
+	* virt plugin: Optional "virDomainGetCPUStats()" has been removed from
+	  main flow, cleanup. Thanks to Pavel Rochnyak. #2972, #2978
+	* virt plugin: Tracking of VM state changes has been fixed. Thanks to
+	  Radoslaw Jablonski. #2701
+	* Write MongoDB plugin: Plugin dependencies have been fixed. Thanks to
+	  Pavel Rochnyak. #3010
+	* Write Prometheus plugin: A compilation issue on Mac OS X has been
+	  fixed. Thanks to Florian Forster. #3059
+	* Write Redis plugin: Bug ""max_set_duration" deletes unexpected data"
+	  has been fixed. Thanks to takahashi-tsc. #2773
+	* Write Stackdriver plugin: Potential NULL dereference and error
+	  reporting have been fixed. Thanks to Florian Forster. #2960
+	* collectd.conf(5): a typo has been fixed, the tail plugin's
+	  documentation has been improved. Thanks to Ruben Kerkhof, Florian
+	  Forster. #3087, #2994
+	* collectd.conf.pod: virt: "Instances" option has been documented, a
+	  clarifying example has been added. Thanks to Pavel Rochnyak, Fabien
+	  Wernli. #2990, #2903
+	* collectd-python: "Import" configuration option has been documented.
+	  Thanks to Tyler Harper. #2985
+	* collectd-snmp.pod: Document thread usage correctly. Thanks to Nathan
+	  Ward. #3078
+	* CONTRIBUTING.md: Improve wording around ChangeLog; fix example,
+	  document the new change log requirement / behavior. Thanks to Florian
+	  Forster. #3061, #3054
+	* docs/review_comments.md: document with frequent review comments has
+	  been started. Thanks to Florian Forster. #2964
+	* README: Include compiler defenses suggestion, do not point users to
+	  non-existing file. Thanks to Kevin Laatz, Ruben Kerkhof. #2721, #2045
+
+2018-10-23, Version 5.8.1
+	* collectd: Fix "BaseDir" option. Thanks to Mariusz Białończyk and
+	  Pavel Rochnyak. #2857
+	* collectd: improve error handling, check return values. Thanks to
+	  Florian Forster.
+	* Build System: use "kstat.h", when available. Thanks to Dagobert
+	  Michelsen and Pavel Rochnyak. #2784
+	* Build System: Fix distcheck on MacOS. Thanks to Ruben Kerkhof.
+	* Build System: add missing include of ""collectd.h"" to fix builds on
+	  Solaris. Thanks to Pavel Rochnyak.
+	* Build System: add endianess checks for AIX, fix GCC issue on Mac
+	  byteorder, fix byteorder on Solaris, add fallback for endianess
+	  conversion. Thanks to Dagobert Michelsen (multiple cherry picks from
+	  master).
+	* Build System: Out-of-tree builds have been fixed. Thanks to Florian
+	  Forster. #2602
+	* Configuration: Error handling in the config parsing code has been
+	  improved. Thanks to Florian Forster.
+	* Documentation: Fix typo in collectd.conf(5). Thanks to Pavel Rochnyak.
+	  #2760
+	* Documentation: update note on dpdkstat. Thanks to Maryam Tahhan. #2613
+	* Various plugins: Errors found by the static code analysis tool
+	  Coverity were fixed. Thanks to Florian Forster. #2559, #2560, #2561,
+	  #2562, #2563, #2565, #2568, #2575, #2579, #2580, #2588, #2589
+	* Ceph plugin: A segfault has been fixed. Thanks to Aleksei Zakharov and
+	  Matthias Runge. #2572
+	* DF plugin: fix memory leak in error case. Thanks to Takahashi tsc.
+	* Exec plugin: check return value of "plugin_thread_create()". Thanks to
+	  Florian Forster.
+	* Exec plugin: Handling of large groups has been fixed. Thanks to
+	  Sridhar Mallem. #2696
+	* Exec plugin: Incorrect use of *putenv(3)* has been fixed. Thanks to
+	  Daniel Vrátil.
+	* Exec plugin: A deadlock related to setting environment variables after
+	  *fork()* has been fixed. Thanks to Daniel Vrátil.
+	* Intel PMU plugin: add core groups feature. Thanks to Kamil Wiatrowski.
+	  #2681
+	* Intel PMU plugin: fix compatibility issue with collectd 5.8. Thanks to
+	  Kamil Wiatrowski.
+	* Intel PMU plugin: fix possible "NULL" pointer dereference. Thanks to
+	  Kamil Wiatrowski. #2676
+	* IPMI plugin: A segfault caused by a wrong data type has been fixed.
+	  Thanks to Mariusz Szafrański. #2742
+	* IPMI plugin: The sensor configuration option has been fixed. Thanks to
+	  Pavel Rochnyak. #2629
+	* memcached plugin: A deadlock situation has been fixed. Thanks to Pavel
+	  Rochnyak. #2612
+	* NFS plugin: Support for NFSv4 has been fixed. Thanks to Jan-Philipp
+	  Litza. #2076
+	* NTPd plugin: A memory leak in the error handling path has been fixed.
+	  Thanks to Ruben Kerkhof. #2942
+	* OVS Stats plugin: A deadlock situation has been fixed. Thanks to
+	  Volodymyr Mytnyk. #2590
+	* OVS Stats plugin: Fix reconnect after thread terminated. Thanks to
+	  Volodymyr Mytnyk and Maram Tahhan. #2574
+	* Perl plugin: A compilation failure has been fixed. Thanks to Pavel
+	  Rochnyak. #2732
+	* Perl plugin: Fix exporting notification meta data. Thanks to Florian
+	  Forster.
+	* RRDtool plugin: Handling of very large "GAUGE" metrics has been fixed.
+	  Thanks to Miroslav Lichvar. #2566
+	* Tail plugin: Several regressions have been fixed. Thanks to Pavel
+	  Rochnyak. #2535, #2587, #2611
+	* turbostat plugin: A potential segfault due to an incorrect *free()*
+	  has been fixed. Thanks to Ruben Kerkhof. #2948
+	* UUID plugin: Fix hostname setting. Thanks to Pavel Rochnyak. #2723
+	* virt plugin: A segfault during error handling has been fixed. Thanks
+	  to Ruben Kerkhof. {{Issue|2919]}
+	* Write Kafka plugin: A build failure due to a deprecated API call has
+	  been fixed. Thanks to Pavel Rochnyak. #2607, #2628, #2640
+	* Write Prometheus plugin: Fix "MHD_USE_INTERNAL_POLLING_THREAD" flag in
+	  newer libmicrohttpd. Thanks to Pavel Rochnyak. #2849
+	* Write Prometheus plugin: set "SO_REUSEADDRESS" on listening socket.
+	  Thanks to Pavel Rochnyak. #2570, #2673
+	* Write Syslog plugin: The new "write_syslog" plugin writes value
+	  lists as syslog messages. Thanks to Shirly Radco. #3019
+
+2017-11-17, Version 5.8.0
+	* collectd: The core daemon is now completely licensed under the MIT
+	  license.
+	* collectd: Added daemon option to avoid making BaseDir. Thanks to
+	  Nathaniel Wesley Filardo and Florian Forster. #2422
+	* collectd: Global variables have been moved to their own module to make
+	  porting collectd easier. Thanks to Sean Campbell. #2467
+	* collectd as well as Apache, memcached, OpenLDAP, Perl, RouterOS, SNMP,
+	  Tail-CSV plugins: Free userdata for "plugin_register_complex_read()".
+	  Thanks to Pavel Rochnyack. #2349
+	* Collectd client library: Added parsing and server code. Thanks to
+	  Florian Forster. #2258
+	* Build system: Dependency on libltdl has been removed, support for
+	  libtool 1 has been dropped. Thanks to Ruben Kerkhof. #1898
+	* Build system: The build system has been switched to non-recursive
+	  make. Thanks to Ruben Kerkhof. #2085
+	* APC UPS plugin: The plugin's configuration is now optional. Without a
+	  "<Plugin />" block reasonable defaults will be used. Thanks to Pavel
+	  Rochnyack. #2351
+	* Chrony plugin: Several issues found when working with a stratum-1
+	  server have been fixed. Thanks to Miroslav Lichvar. #2190
+	* Ceph plugin: Support for the Ceph version "Luminous" has been added.
+	  Thanks to Aleksei Zakharov. #2464
+	* CPU plugin : Linux-specific "guest" states have been added. Thanks to
+	  Xavier G. #2439
+	* cURL plugin, cURL-JSON, cURL-XML, DBI, FileCount, memcachec, Oracle,
+	  PostgreSQL, Table, Tail, Tail CSV plugins: The ability to configure
+	  the "plugin" field of generated metrics has been added. Thanks to
+	  Pavel Rochnyack. #1944, #1681, #1558
+	* cURL-JSON plugin: Parsing of arrays has been fixed. Thanks to Florian
+	  Forster. #2281
+	* DPDKEvents plugin: This new plugin reports link status and keep alive
+	  events. Thanks to Maryam Tahhan, Harry van Haaren, Serhiy Pshyk,
+	  Kim-Marie Jones, Krzysztof Matczak, Przemyslaw Szczerbik, Christian
+	  Ehrhardt and Luca Boccassi. #2157, #2348, #2400, #2405, #2417
+	* DPDKStat plugin: The plugin has been refactored to make DPDK related
+	  utility functions reusable. Thanks to Krzysztof Matczak, Przemyslaw
+	  Szczerbik, Christian Ehrhardt and Luca Boccassi. #2130, #2348, #2400,
+	  #2405, #2417
+	* DPDKStat plugin: The "LogLevel" and "RteDriverLibPath" config options
+	  have been added. Thanks to Jiri Prokes. #2505
+	* Email plugin as well as Exec and Unixsock plugins: Use
+	  "_SC_GETPW_R_SIZE_MAX". Thanks to Florian Forster. #2451
+	* FileCount plugin: Custom values for reported plugin, type and type
+	  instance. Thanks to Pavel Rochnyack. #1979
+	* GenericJMX plugin: Support for "AtomicInteger" and "AtomicLong" has
+	  been added. Thanks to Pierre Mauduit. #2158
+	* gRPC plugin: Support for meta data has been added. Thanks to Taylor
+	  Cramer. #2378
+	* IPC plugin: Fixed failed compilation on AIX. Thanks to Pavel
+	  Rochnyack. #2357
+	* Intel PMU plugin: This new plugin collects CPU performance metrics
+	  using Intel's Performance Monitoring Unit (PMU). Scaling information
+	  added to metadata. Thanks to Serhiy Pshyk and Roman Korynkevych.
+	  #2276, #2398, #2374
+	* Intel RDT plugin: Support for collectd's logging infrastructure has
+	  been added. PQoS monitoring groups are being reset on start-up to fix
+	  potential previous unclean shutdowns. Thanks to Roman Korynkevych.
+	  #2089.
+	* IPMI plugin: Support for System Event Log (SEL) has been added. Thanks
+	  to Roman Korynkevych. #2091
+	* IPMI plugin: Support for remote IPMI controllers has been added.
+	  Thanks to Pavel Rochnyack. #2024
+	* LVM plugin: A check for the "CAP_SYS_ADMIN" capability has been added.
+	  This will give users an informative warning when the process is not
+	  running with the required privileges for this plugin. Thanks to
+	  Florian Forster. #2426, #2499
+	* mcelog plugin: This new plugin subscribes to Machine Check Exceptions
+	  (MCE) and dispatches notifications. Metadata reset. Thanks to Maryam
+	  Tahhan, Volodymyr Mytnyk, Taras Chornyi, Krzysztof Matczak and Roman
+	  Korynkevych. #2003, #2246, #2380
+	* MQTT plugin: Add support for TLS in "Subscriber" blocks. Thanks to
+	  Florian Forster. #2434
+	* memcached plugin: Persistent connections have been implemented. Fix
+	  hit ratio reporting, add connections rate report. Thanks to Pavel
+	  Rochnyack. #2388, #2385
+	* memcached plugin: The type of the "listen_disabled" metric has been
+	  changed to "total_events". Thanks to Florian Forster. #2386, #2468
+	* Netlink plugin: The dropped packets metric has been added. Thanks to
+	  Denys Fedoryshchenko. #2053
+	* NFS plugin: Support for NFS 4.2 metrics has been added. Thanks to
+	  Marek Becka. #2369
+	* NFS plugin: Config options to ignore specified NFS versions have been
+	  added. Thanks to Christian Bartolomäus. #2430
+	* NUT plugin: The "ConnectTimeout", "ForceSSL", "VerifyPeer" and
+	  "CAPath" options have been added. Thanks to Pavel Rochnyack and Steven
+	  Bell. #2145, #2354
+	* OpenLDAP plugin: A segfault after a connection failure has been fixed.
+	  Thanks to Pavel Rochnyack. #2377
+	* Openvpn plugin: Added support for status files from latest OpenVPN-2.4
+	  and possible from future versions. Thanks to Pavel Rochnyack. #2352
+	* OVS Events plugin: This new plugin reports link state changes from
+	  Open vSwitch (OVS). Thanks to Volodymyr Mytnyk. #1971
+	* OVS Stats plugin: This new plugin reports bridge / interface
+	  statistics from Open vSwitch (OVS). Thanks to Volodymyr Mytnyk and
+	  Taras Chornyi. #2137
+	* Perl plugin: Bugfix, added check of proper interpreter initialization.
+	  Thanks to Pavel Rochnyack. #2391
+	* PostgreSQL plugin: The plugin now sets the "application_name"
+	  parameter when connecting to the database. Thanks to daniacs. #2497
+	* Processes plugin: The I/O operations reported for selected processes
+	  has been fixed. The metric "ps_disk_octets" has been renamed to
+	  "io_octets" because it actually contains the number of I/O operation
+	  by the process, not just disk related I/O. Same for "io_ops"
+	  (previously "ps_disk_ops"). The new metric "disk_octets" has been
+	  added and is reporting disk I/O only. Add option to collect the count
+	  of active memory maps for Linux processes. The "CollectFileDescriptor"
+	  and "CollectContextSwitch" options have been added. Thanks to Pavel
+	  Rochnyack and to Wilfried Goesgens. #2232, #2454, #1989
+	* Processes and TCPConns plugins: The OpenBSD implementation has been
+	  changed to use "kvm_openfiles" with "KVM_NO_FILES". Thanks to Jeremie
+	  Courreges-Anglas. #2061
+	* Python plugin: Extend Notification class to include metadata. Thanks
+	  to Volodymyr Mytnyk. #2135
+	* Python plugin: The "CollectdException" class has been added. This
+	  allows to throw an exception without a stack trace being logged.
+	  Thanks to Sven Trenkel. #2330, #2346
+	* Sensors plugin: Support for (electrical) current has been added.
+	  Thanks to Clemens Gruber. #2255
+	* SNMP plugin: Error handling has been improved: a potential double-free
+	  is now avoided (potentially leaking memory) and handling of
+	  non-failing subtrees has been fixed. Thanks to Pavel Rochnyack. #2449
+	* SNMP plugin: The "Timeout" and "Retries" config options have been
+	  added. Thanks to Carlos Vicente. #1472, #2488
+	* SNMP Agent plugin: This new plugin implements an SNMP AgentX subagent
+	  that receives and handles queries from SNMP master agent and returns
+	  configured metrics. Thanks to Roman Korynkevych, Serhiy Pshyk and
+	  Pavel Rochnyack. #2105, #2362
+	* Synproxy plugin: This new plugin provides statistics for Linux
+	  SYNPROXY. Thanks to Marek Bečka. #2381
+	* Tail plugin: Allow the calculation of several distributions in one
+	  "tail" instance through a "bucket" type. Thanks to Pavel Rochnyack.
+	  #2442
+	* Turbostat plugin: Import "msr-index.h" header from Linux and better
+	  support for mutliple packages. Thanks to Vincent Brillault. #2445,
+	  #2446
+	* Uptime plugin: Changed implementation to read from "/proc/uptime"
+	  instead of "/proc/stat". Update for Linux and AIX, uptime is read
+	  directly using a system call. Update for BSD and Solaris, uptime is
+	  calculated by subtracting boot time from current time. Thanks to Ivan
+	  Kurnosov and Marcin Jurkowski. #2431, #2034
+	* UUID plugin: Support for libhal has been removed. Thanks to Ruben
+	  Kerkhof. #2080
+	* Varnish plugin: Extended the varnish plugin with varnish-plus
+	  counters. Fixed invalid data source type. Thanks to Denes Matetelki.
+	  #2453, #2463
+	* virt plugin: The plugin has been updated to use
+	  "virConnectListAllDomains()". Thanks to Denis Silakov. #2051
+	* virt plugin: Support for domain tags has been added. Thanks to
+	  Francesco Romani. #2048
+	* virt plugin: Connection handling has been improved. Thanks to
+	  Francesco Romani. #2100, #2101
+	* virt plugin: Many metrics have been added, including disk, hypervisor
+	  CPU usage, performance monitoring events, domain state, CPU pinning
+	  (affinity), file system, and job statistics. Thanks to Francesco
+	  Romani and Przemyslaw Szczerbik. #2103, #2175, #2168
+	* Write Graphite plugin: Additional tests have been added. Thanks to
+	  Florian Forster.
+	* Write HTTP plugin: The "Attribute" and "TTL" options for the KairosDB
+	  format have been added. Implementation of "Prefix" option. Thanks to
+	  jaroug, Denis Pompilio and Pavel Rochnyack. #2199, #2252, #2482
+	* Write MongoDB plugin: Memory leaks have been fixed. Thanks to
+	  Saikrishna Arcot. #2307
+	* Write Prometheus plugin: Label values are now properly escaped. Thanks
+	  to Florian Forster. #2035
+	* Write Redis plugin: Add "max_set_duration" to set duration for value.
+	  Thanks to Tomofumi Hayashi. #2440
+	* Write Riemann plugin: Export times with microsecond resolution. Thanks
+	  to mcorbin. #2315
+	* Write TSDB plugin: The options "ResolveInterval" and "ResolveJitter"
+	  have been added to control DNS lookup behavior. This prevents DNS
+	  flooding in case TSDB is not available. Thanks to Yves Mettier and
+	  Florian Forster. #2059
+	* ZFS ARC plugin: Header lines are now ignored in the Linux
+	  implementation. Thanks to YmrDtnJu. #2097
+
+2017-06-06, Version 5.7.2
+	* Build system: The Notify Email plugin is no longer linked with
+	  indirect dependencies. Thanks to Marc Fournier.
+	* collectd: A race condition when calculating a metric's rate has been
+	  fixed. Thanks to Florian Forster. #1193
+	* AMQP, Exec, UnixSock, Write Kafka plugins: Parsing of the PUTVAL
+	  command with multiple values has been fixed. Thanks to Florian
+	  Forster. #2274
+	* AMQP plugin: The "ExchangeType" option is now also valid for
+	  publishers. Thanks to Florian Forster. #2286
+	* BIND plugin: Fix parsing of the sample time provided by BIND.
+	  Previously, the time was assumed to be in the local timezone when in
+	  fact it was in UTC. Thanks to Ed Ravin. #1268
+	* BIND plugin: Memory leaks have been fixed. Thanks to Ruben Kerkhof.
+	  #2303
+	* cURL-JSON plugin: Handling of arrays has been fixed. Thanks to Florian
+	  Forster. #2266
+	* DPDKStat plugin: Error handling during initialization has been
+	  improved. Thanks to Ruben Kerkhof.
+	* DPDKStat plugin: Handling of a number of metrics has been improved,
+	  for example "rx_q0bytes". Thanks to Przemyslaw Szczerbik. #2167
+	* Intel RDT plugin: Configuration handling has been changed to be more
+	  graceful. Thanks to Maryam Tahhan. #2165
+	* Log Logstash plugin: If writing the log entry fails, print it to
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* LogFile plugin: If writing to the file fails, print log messages on
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* memcachec, Tail plugins: A resource leak in the matching
+	  infrastructure has been fixed. Thanks to Krzysztof Matczak. #2192
+	* MQTT plugin: Invalid symbols in topic names are now replaced and a
+	  resource leak has been fixed. Thanks to Denys Fedoryshchenko. #2123
+	* Network plugin: A potential endless-loop has been fixed. This can be
+	  triggered remotely by sending a signed network packet to a server
+	  which is not set up to check signatures. Thanks to Marcin Kozlowski
+	  and Pavel Rochnyack. #2174, #2233, CVE-2017-7401
+	* Perl plugin: A potential double-free has been fixed. Thanks to Florian
+	  Forster. #2278
+	* Processes plugin: A compilation error on AIX has been fixed. Thanks to
+	  Pavel Rochnyack. #2210
+	* SMART plugin: A check for the "CAP_SYS_RAWIO" capability has been
+	  added. Thanks to Marc Fournier.
+	* Write Graphite plugin: Error handling in the case that calculating a
+	  metric's rate fails has been improved. Previously, the raw counter
+	  values were sent to Graphite. Thanks to Iain Buclaw. #2209
+	* Write Prometheus plugin: An incorrect use of "realloc(3)" has been
+	  fixed. Thanks to Florian Forster. #2275
+
+2017-01-23, Version 5.7.1
+	* collectd: Handling of boolean configuration options has been unified.
+	  Thanks to Sebastian Harl. #2083, #2098
+	* collectd: Reporting of internal statistics has been fixed. Thanks to
+	  Florian Forster. #2108
+	* collectd, various plugins: Bugs and issues reported by scan-build and
+	  coverity-scan have been fixed. Thanks to Ruben Kerkhof and Florian
+	  Forster.
+	* Build system: Parallel build have been fixed. Thanks to Ruben Kerkhof.
+	  #2110
+	* DPDKStat plugin: Portability issues and a double-close bug have been
+	  fixed. Thanks to Ruben Kerkhof and Marc Fournier.
+	* Intel RDT plugin: A check for the libpqos library version has been
+	  added. Thanks to Serhiy Pshyk.
+	* NetApp plugin: Compilation problems have been corrected. Thanks to
+	  Florian Forster. #2120
+	* Write Prometheus plugin: A memory leak has been fixed. Thanks to Ruben
+	  Kerkhof.
+
+2016-12-12, Version 5.7.0
+	* Documentation: The Turbostat plugin section has been improved. Thanks
+	  to Florian Forster
+	* Documentation: The semantics of the "TypesDB" option have been
+	  improved. Thanks to Florian Forster.
+	* collectd: A generic interface for parsing the text protocol has been
+	  added. Thanks to Sebastian Harl. #1749
+	* collectd: Threads now get named, making them easier to track using
+	  tools such as top, ps, etc. Thanks to Manuel Luis Sanmartín Rozada
+	  and Marc Fournier. #547
+	* AMQP plugin, Write Graphite plugin, Write Kafka plugin: The new
+	  "[Graphite]PreserveSeparator" option allows retaining the default dot
+	  separator rather than escaping it. Thanks to Florian Forster. #419
+	* Battery plugin: A StateFS backend for gathering statistics has been
+	  added. Thanks to Rinigus. #1795
+	* CPU plugin: CPU aggregation on AIX was fixed. Thanks to Chao Yang.
+	  #1957
+	* Collectd::Unixsock: Fractional seconds support has been made more
+	  robust. Thanks to Matthias Bethke. #2052
+	* DPDKStat plugin: This new plugin collects DPDK interface statistics.
+	  Thanks to Maryam Tahhan, Harry van Haaren, Taras Chornyi and Kim
+	  Jones. #1649
+	* gRPC plugin: The "DispatchValues" option has been renamed to
+	  "PutValues". Thanks to Florian Forster.
+	* HDDTemp plugin: The 32 devices limit has been removed. Thanks to
+	  Benjamin Gilbert. #631
+	* Hugepages plugin: This new plugin reports the number of used and free
+	  hugepages on Linux. Thanks to Jaroslav Safka, Maryam Tahhan, Kim Jones
+	  and Florian Forster. #1799
+	* Intel RDT plugin: This new plugin collects statistics exposed by
+	  Intel's Resource Director Technology . Thanks to SerhiyX. #1970
+	* memcached plugin: The new "Address" option allows connecting to a
+	  different server than specified by the "Host" option. Thanks to Pavel
+	  Rochnyack. #1975
+	* nginx plugin: Support for reporting failed connections has been added.
+	  Thanks to Pavel Rochnyack. #1609
+	* Perl plugin: Significant internal reworking has been made. The new
+	  "RegisterLegacyFlush" option has been added. Thanks to Pavel
+	  Rochnyack. #1731
+	* PostgreSQL plugin: Timestamps are now RFC 3339-formatted local time.
+	  Thanks to Igor Peshansky and Dave Cunningham. #1918
+	* Processes plugin: Internal performance improvements have been made.
+	  Thanks to Pavel Rochnyack. #1980, #1981
+	* RRDCacheD plugin: The plugin now tries to reconnect upon failed
+	  operations. Thanks to Sebastian Harl. #1959
+	* SpamAssassin: The plugin can now run in Perl's "tainted mode" ("-T").
+	  Thanks to Akos Vandra. #1962
+	* Tail plugin: Support for calculating latency distribution of matching
+	  values has been added. Thanks to Pavel Rochnyack and Florian Forster.
+	  #1700
+	* Tail plugin: The new "GaugePersist" option has been added. Thanks to
+	  Florian Forster. #2015
+	* Target:Set, Target:Replace, Match:RegEx: MetaData support has been
+	  added . Thanks to Igor Peshansky. #1922, #1923, #1930
+	* turbostat plugin: The new "LogicalCoreNames" option allows switching
+	  to per-core naming rather than per-CPU. Thanks to Brock Johnson. #2056
+	* virt plugin: The new "BlockDeviceFormat" and
+	  "BlockDeviceFormatBasename" options help controlling the names
+	  reported for block-device metrics. Thanks to Deyan Chepishev. #2004
+	* Write Graphite plugin: A new "DropDuplicateFields" option has been
+	  added. Thanks to Michael Leinartas. #1915
+	* Write Kafka plugin: The "Key Random" setting has been reintroduced.
+	  Thanks to Florian Forster. #1977
+	* Write Log plugin: Support for formatting output in JSON has been
+	  added, using the new "Format" configuration option. Thanks to Igor
+	  Peshansky. #1924
+	* Write Prometheus plugin: This new plugin publishes values using an
+	  embedded HTTP server, in a format compatible with Prometheus'
+	  collectd_exporter. Thanks to Florian Forster. #1967
+
+2017-10-06, Version 5.6.3
+	* collectd: support for boolean string config values has been
+	  reintroduced. Thanks to Sebastian Harl. #2083, #2098
+	* collectd: The capability checking has been changed to use
+	  "cap_get_proc()". Thanks to Marc Fournier. #2151
+	* Documentation: A section documenting ignore lists has been added to
+	  collectd.conf(5). Thanks to Florian Forster.
+	* AMQP plugin: The "ExchangeType" option is now also valid for
+	  publishers. Thanks to Florian Forster. #2286
+	* Apache, Ascent, BIND, cURL, cURL-JSON, cURL-XML, nginx, Write HTTP
+	  plugins: Handling of URLs that redirect elsewhere has been fixed.
+	  Thanks to Pavel Rochnyack. #2328
+	* BIND plugin: Fix parsing of the sample time provided by BIND.
+	  Previously, the time was assumed to be in the local time zone when in
+	  fact it was in UTC. Thanks to Ed Ravin. #1268
+	* BIND plugin: Memory leaks have been fixed. Thanks to Ruben Kerkhof.
+	  #2303
+	* Chrony plugin: Build flags have been fixed. Thanks to Thomas Jost and
+	  Marc Fournier. #2133
+	* cURL-JSON plugin: The timeout value has been changed to default to the
+	  collection interval. This fixes a regression. Thanks to Marc Fournier.
+	* cURL-JSON plugin: Handling of arrays has been fixed. Thanks to Florian
+	  Forster. #2266
+	* DBI plugin: Memory leaks at shutdown have been fixes. Thanks to Pavel
+	  Rochnyack and Florian Forster.
+	* E-Mail, Exec, UnixSock plugins: Group ID lookup on systems with many
+	  groups has been fixed. Thanks to Ruben Kerkhof and Florian Forster.
+	  #2208
+	* IPC plugin: A compilation error on AIX has been fixed. Thanks to Pavel
+	  Rochnyack. #2305
+	* LogFile plugin: If writing to the file fails, print log messages on
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* Log Logstash plugin: If writing the log entry fails, print it to
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* memcachec, Tail plugins: A resource leak in the matching
+	  infrastructure has been fixed. Thanks to Krzysztof Matczak. #2192
+	* MQTT plugin: Invalid symbols in topic names are now replaced and a
+	  resource leak has been fixed. Thanks to Denys Fedoryshchenko. #2123
+	* Network plugin: A potential endless-loop has been fixed. This can be
+	  triggered remotely by sending a signed network packet to a server
+	  which is not set up to check signatures. Thanks to Marcin Kozlowski
+	  and Pavel Rochnyack. #2174, #2233, CVE-2017-7401
+	* Network plugin: A use-after-free has been fixed. Thanks to Pavel
+	  Rochnyack. #2375
+	* Notify Email plugin: The plugin is no longer explicitly linked against
+	  libssl and libcrypto, relies on libesmtp being linked correctly.
+	  Thanks to Marc Fournier. Debian#852924
+	* NTPd plugin: Calculation of loop offset and error has been fixed.
+	  Thanks to Neil Wilson. #2188
+	* OpenLDAP plugin: An incorrect use of the ldap library, leading to a
+	  crash, has been fixed. Thanks to Marc Fournier. #2331
+	* Perl plugin: A potential double-free has been fixed. Thanks to Florian
+	  Forster. #2278
+	* Perl plugin: Print an error when an incorrect configuration is
+	  encountered. Thanks to Pavel Rochnyack. #927
+	* RRDtool plugin: Incorrect handling of the flushes timeout option has
+	  been fixed. Handling of the "RandomTimeout" has been fixed. Thanks to
+	  Pavel Rochnyack. #2363
+	* SMART plugin: Some warning messages have been removed and the code has
+	  been cleaned up. Thanks to Florian Forster. #2062
+	* SMART plugin: A check for the "CAP_SYS_RAWIO" capability has been
+	  added. Thanks to Marc Fournier.
+	* SNMP plugin: A double free has been fixed. Thanks to Pavel Rochnyack.
+	  #2291
+	* Write Graphite plugin: Error handling in the case that calculating a
+	  metric's rate fails has been improved. Previously, the raw counter
+	  values were sent to Graphite. Thanks to Iain Buclaw. #2209
+	* Write Kafka plugin: A 32 bit random number is now used when formatting
+	  a random key. Thanks to Florian Forster. #2074
+
+
+2016-11-30, Version 5.6.2
+	* collectd: A compile error on AIX has been fixed: "MSG_DONTWAIT" is not
+	  available on AIX. Thanks to Chao Yang.
+	* collectd: The capability checking has been rewritten to be more
+	  portable. Thanks to Florian Forster. #2009
+	* collectd.conf(5): Various typos have been fixed. Thanks to Marc
+	  Fournier.
+	* collectd-tg: Incorrect usage of "nanosleep()" has been fixed which
+	  caused the tool to sleep (almost) indefinitely. Thanks to Florian
+	  Forster.
+	* Build system: Detection of the Java environment has been made
+	  deterministic to allow for reproducible builds. Thanks to Marc
+	  Fournier. #1523
+	* Build system: Detection of the Lua headers has been improved. Thanks
+	  to Ruben Kerkhof.
+	* APC UPS plugin: Unavailable metrics are now skipped instead of
+	  reported as 0 (zero). Thanks to Florian Forster. #2025
+	* Modbus plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Florian Forster.
+	* OpenVPN plugin: Gracefully handle empty configurations. Thanks to
+	  Pavel Rochnyack. #1932
+	* PowerDNS plugin: The "recursor command" has been fixed so PowerDNS can
+	  correctly parse all requested fields. Thanks to Ruben Kerkhof.
+	* Write Graphite and AMQP plugins: A bug that could lead to a missing
+	  null-termination has been fixed. Thanks to Markus Linnala.
+	* Write HTTP plugin: A logic error when checking the correctness of the
+	  data set has been fixed. Thanks to Pavel Rochnyack. #1996
+	* Write Kafka plugin: The "Key Random" config option has been fixed.
+	  Thanks to Florian Forster. #1977
+	* Write Kafka plugin: Support for librdkafka 0.9.0 has been added.
+	  Thanks to Florian Forster.
+	* Write Riemann plugin: Build issues on Solaris have been fixed. Thanks
+	  to Florian Forster.
+	* ZFS ARC plugin: A duplicate metric has been removed. Thanks to Ruben
+	  Kerkhof. #1963
+
+2016-10-07, Version 5.6.1
+	* Build system: Unnecessary linking of the Write Graphite plugin with
+	  libyajl has been removed. Thanks to Marc Fournier.
+	  Debian#839771, #1976
+	* collectd: A bug in the "FlushInterval" option that caused a
+	  segmentation fault in the Write HTTP plugin has been fixed. Thanks to
+	  Florian Forster. #1954
+	* Apache plugin: A syntax error has been fixed. Thanks to Florian
+	  Forster.
+	* cURL-JSON plugin: A segmentation fault that occurred when handling
+	  JSON with unexpected structure has been fixed. Thanks to Florian
+	  Forster. #1896
+	* PostgreSQL plugin: Handling of "NULL" values in the "query_plans" and
+	  "query_plans_by_table" queries has been fixed. Thanks to Bernd
+	  Zeimetz. #1905
+	* RRDCacheD plugin: Reconnection behavior has been added. Thanks to
+	  Sebastian Harl. Debian#657877
+	* VServer plugin: Use of a deprecated API ("readdir_r()") has been
+	  fixed. Thanks to Sebastian Harl.
+	* Write Graphite plugin: Make default values configurable at compile
+	  time again. Thanks to Florian Forster. #1953
+	* Write HTTP plugin: A bug has been fixed that lead to flush callbacks
+	  being registered twice. Thanks to Florian Forster. #1955
+
+2016-09-11, Version 5.6.0
+	* Build system: An option to to avoid building the DF plugin against XFS
+	  has been added. Thanks to Ruben Kerkhof. #1878
+	* Build system: Autoconf ≥ 2.60, a C99-capable compiler and pkg-config
+	  are now required. Thanks to Ruben Kerkhof.
+	* Build system: Building with "-Werror" is now optional. Thanks to Ruben
+	  Kerkhof. #1222
+	* Build system: Many compilation issues on non-Linux platforms have been
+	  fixed, leading to wider plugin support. Thanks to Ruben Kerkhof,
+	  Dagobert Michelsen, Havard Eidnes and Robert Viduya.
+	* Build system: The configuration summary now also ends up in
+	  config.log. Thanks to Sebastian Harl.
+	* collectd: All command-line options now override global options from
+	  the config file. Thanks to Sebastian Harl. #366
+	* collectd: A number of unit tests for commonly used functions have been
+	  added. Thanks to Florian Forster.
+	* collectd: Plugins start up and read timeouts are now logged. Thanks to
+	  Marc Fournier. #1293, #1254
+	* collectd: Support for a timeout has been added to "FLUSH" callbacks.
+	  Thanks to Manuel Luis Sanmartín Rozada.
+	* collectd: The "-T" command line switch now reports more errors. Thanks
+	  to Corey Kosak. #1642
+	* collectd: The max size of value list elements ("DATA_MAX_NAME_LEN")
+	  has been doubled and is now configurable at build time. Thanks to Amy
+	  Lin, Florian Forster and Radu Brumariu. #1120
+	* Set target: The "MetaData" option has been added. Thanks to Yves
+	  Mettier and Kevin Bowling. #1106, #1656, #1913
+	* AMQP, Write_HTTP, Write_Kafka plugins: Support for libyajl < 2 has
+	  been added. Thanks to Florian Forster.
+	* APC UPS plugin: Parsing of end markers has been fixed. Thanks to
+	  Florian Forster #617
+	* APC UPS plugin: The "PersistentConnection" option has been added.
+	  Thanks to Florian Forster #617
+	* ceph, DNS, Exec, IPTables, Ping, turbostat plugins: When running
+	  unprivileged, these plugins will now warn about insuffiscient
+	  permissions or capabilities(7). Thanks to Marc Fournier. #1530
+	* Chrony plugin: This new plugin collects NTP data from the chrony NTP
+	  server. Thanks to Claudius Zingerli. #1548
+	* cpusleep plugin: This new plugin measures time spent by CPU in deep
+	  sleep mode. Thanks to Rinigus. #1826
+	* CPU plugin: The "ReportNumCpu" option has been added. Thanks to Fabien
+	  Wernli.
+	* cURL, cURL-JSON, cURL-XML plugins: The new "Statistics" reports
+	  various per-HTTP connection timers. Thanks to Sebastian Harl. #1004
+	* DBI plugin: The "Interval" option has been added to "Database" blocks.
+	  Thanks to Michal Bebjak.
+	* Disk plugin: Support for FreeBSD has been added. Thanks to Xin Li,
+	  Brad Davis, Ruben Kerfhof and Kevin Bowling.
+	* Empty Counter match: Support for derives has been implemented. Thanks
+	  to Florian Forster. #1813
+	* GenericJMX plugin: Support for TabularData and the "PluginName" option
+	  have been added. Thanks to David Crane. #1290, #1291
+	* GPS plugin: This new plugin reports the number of sattelites seen by
+	  and precision of a GPS receiver. Thanks to Nicolas Jourden. #1346
+	* gRPC plugin: This new client and server plugin allows sending and
+	  receiving metrics using the gRPC protocol. Comparable to the UnixSock
+	  plugin, but using TCP and TLS. Thanks to Sebastian Harl and Florian
+	  Forster.
+	* Interface plugin: Reporting dropped packets has been added. Thanks to
+	  Marc Falzon. #1555
+	* Interface plugin: The "ReportInactive" has been added, letting users
+	  skip inactive network interfaces. Thanks to Rinigus. #1791
+	* Interface plugin: The new, Solaris-only "UniqueName" option has been
+	  added. Thanks to Yoga Ramalingam. #1416
+	* Lua plugin: This new language binding allows writing plugins using the
+	  Lua programming language. Thanks to Julien Ammous, Florian Forster and
+	  Ruben Kerkhof.
+	* Memory plugin: Reporting of ARC memory on Solaris has been added.
+	  Thanks to Brian ONeill.
+	* MQTT plugin: This new plugin sends metrics to and/or receives metrics
+	  from an MQTT broker. Thanks to Marc Falzon, Jan-Piet Mens, Nicholas
+	  Humfrey and Florian Forster. #805, #1124
+	* MySQL plugin: Connection to the database server can now be done over
+	  SSL. Thanks to Brian Lalor. #1256
+	* MySQL plugin: Monitoring slow queries has been added. Thanks to skob.
+	  #1773
+	* MySQL plugin: mysql_bpool_pages-flushed has been renamed to
+	  mysql_bpool_counters-pages_flushed because the value is cumulative.
+	  Thanks to Marek Becka.
+	* MySQL plugin: Support for Galera statistics has been added. Thanks to
+	  Rachid Zarouali. #1849
+	* MySQL plugin: Support for InnoDB metrics was improved. Thanks to Aman
+	  Gupta. #1111
+	* MySQL plugin: The "mysql_sort" type has been split into 3 different
+	  types. Thanks to Pavel Rochnyack. #1592
+	* Network plugin: Decryption error logging has been improved. Thanks to
+	  Pavel Rochnyack. #1735
+	* Notify Nagios plugin: This new plugin sends notifications to Nagios as
+	  a passive check result. Thanks to Florian Forster.
+	* NTPd plugin: The plugin now detects if the ntp daemon reports
+	  nanoseconds instead of microseconds. Thanks to Matwey V. Kornilov.
+	  #1783
+	* OpenLDAP plugin: Several connection-related improvements have been
+	  made. Thanks to Marc Fournier. #1308
+	* OpenLDAP plugin: Support for "simple authentication" has been added.
+	  Thanks to Marek Becka. #1087
+	* Ping plugin: The "Size" option has been added, allowing the ICMP data
+	  payload size to be configured. Thanks to Witold Baryluk. #1395
+	* PostgreSQL, DBI, Oracle plugins: The new "PluginInstanceFrom" option
+	  has been added. Thanks to Pavel Rochnyack. #1707
+	* PowerDNS plugin: The recursor metrics have been updated to 3.7.3 and
+	  missing rr types have been added. Thanks to Ruben Kerkhof.
+	* Processes plugin: Counting of context switches was added for Linux.
+	  Thanks to Manuel Luis Sanmartín Rozada. #1036
+	* Processes plugin: Improve reliability of thread counts on Linux.
+	  Thanks to Manuel Luis Sanmartín Rozada.
+	* Python plugin: Minimal Python version requirement has been bumped to
+	  2.6. Thanks to Ruben Kerkhof. #1864
+	* Redis plugin: Several additional metrics are now collected. Thanks to
+	  Marc Falzon and Matteo Contrini. #1807, #1483
+	* Sensors plugin: The "UseLabels" option has been added. Thanks to
+	  Christian Fetzer.
+	* SMART plugin: The new "IgnoreSleepMode" option has been added. Thanks
+	  to Scott Talbert. #1770
+	* SMART plugin: The new "UseSerial" option allows identifying devices in
+	  a stable way. Thanks to Scott Talbert. #1794
+	* SNMP plugin: The "IpAddress" can now be used for instances. Thanks to
+	  Vincent Bernat. #1397
+	* StatsD plugin: Latency calculation histogram is now able to shrink
+	  automatically to optimal size. Thanks to Pavel Rochnyack. #1622
+	* StatsD plugin: The "CounterSum" option has been added. Thanks to
+	  Florian Forster. #929, #1282, #1311
+	* UUID plugin: The plugin now also looks in in smbios system table and
+	  "/sys/class/dmi". Thanks to Ruben Kerkhof. #1490
+	* virt plugin: The "PluginInstanceFormat" option has been added. Thanks
+	  to Ruben Kerkhof. #1100
+	* Write Graphite plugin: The "ReconnectInterval" option has been added.
+	  Thanks to Toni Moreno and Florian Forster.
+	* Write HTTP plugin: A KairosDB formatter has been added. Thanks to
+	  Aurélien Rougemont. #1809
+	* Write HTTP plugin: Notifications are now handled by this plugin.
+	  Thanks to Florian Forster.
+	* Write HTTP plugin: The "LogHttpError" option has been added. Thanks to
+	  vzubko.
+	* Write HTTP plugin: The new "Headers" option allows setting custom HTTP
+	  headers in outgoing requests. Thanks to Brandon Arp. #1634
+	* Write Kafka plugin: Key handling has been made more comprehensive and
+	  reliable. Thanks to Florian Forster, Pierre-Yves Ritschard and Vincent
+	  Bernat. #1765, #1695, #1393
+	* Write Redis plugin: The "Database", "MaxSetSize", "Prefix" and
+	  "StoreRates" options have been added. Thanks to Brian Kelly and
+	  Sebastian Pfahl.
+	* Write Riemann plugin: The new "BatchFlushTimeout" and "Timeout" option
+	  have been added. Thanks to Pierre-Yves Ritschard and Gergely Nagy.
+	* Write Riemann plugin: This plugin now requires the riemann-c-client
+	  library, version 1.6.0+. This adds support for submitting values to
+	  Riemann over TLS. Thanks to Gergely Nagy. #986
+	* Write TSDB, Write Sensu, Write Riemann, Write Graphite, Write TSDB
+	  plugin: TCP keepalive is now enabled, helping graceful recovery from
+	  unclean network disconnections. Thanks to Marc Fournier. #1549
+	* XenCPU plugin: This new plugin collects XEN Hypervisor CPU stats.
+	  Thanks to Pavel Rochnyack. #1608
+	* ZFS ARC plugin: Several new statistics have been added and a couple of
+	  obsolete ones removed. Thanks to Brad Davis, Brian ONeill and Ruben
+	  Kerkhof.
+	* Zone plugin: This new plugin reads per-zone CPU usage on Solaris.
+	  Thanks to Mathijs Mohlmann and Dagobert Michelsen.
+
+2016-11-28, Version 5.5.3
+	* collectd: Write threads are stopped before shutdown callbacks are
+	  called. Thanks to Florian Forster. #1110
+	* collectd: A compile error on AIX has been fixed: "MSG_DONTWAIT" is not
+	  available on AIX. Thanks to Chao Yang.
+	* libcollectdclient: Lines printed to "STDERR" are now guarded by the
+	  environment variable "COLLECTD_TRACE". Thanks to Florian Forster. #105
+	* collectd.conf(5): Various typos have been fixed. Thanks to Marc
+	  Fournier.
+	* Build system: Detection of the Java environment has been made
+	  deterministic to allow for reproducible builds. Thanks to Marc
+	  Fournier. #1523
+	* APC UPS plugin: Unavailable metrics are now skipped instead of
+	  reported as 0 (zero). Thanks to Florian Forster. #2025
+	* Battery plugin: The minimum value has been removed from the power type
+	  to allow the plugin to report discharging batteries as negative power.
+	  Thanks to Florian Forster.
+	* DBI, Oracle and PostgreSQL plugins: An error message when the type
+	  instance is truncated has been added. Thanks to Florian Forster. #4
+	* cURL-JSON plugin: A possible segmentation fault when parsing
+	  unexpected JSON has been fixed. Thanks to Florian Forster. #1896
+	* DF plugin: Compilation with xfsprogs ≥ 4.7.0 has been fixed. Thanks
+	  to Thomas Deutschmann. #1877
+	* Modbus plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Florian Forster.
+	* Network plugin: An error message has been corrected. Thanks to Florian
+	  Forster.
+	* Network plugin: Handling of errors form secure memory initialization
+	  has been improved: the plugin fails gracefully now instead of calling
+	  "abort()". Thanks to Sebastian Harl.
+	* Network plugin: The gcrypt library is only initialized when it is
+	  actually required due to the network plugin's configuration. Thanks to
+	  Florian Forster. #1902
+	* Ping plugin: The init callback has been changed to be idempotent,
+	  fixing errors being reported on Solaris. Thanks to Florian Forster.
+	  #869
+	* PostgreSQL plugin: The query_plans and query_plans_by_table queries
+	  have been improved to return 0 (zero) instead of "NULL" when not
+	  available. Thanks to Bernd Zeimetz. #1905
+	* PowerDNS plugin: The "recursor command" has been fixed so PowerDNS can
+	  correctly parse all requested fields. Thanks to Ruben Kerkhof.
+	* Python plugin: Handling of data sets with multiple data sources of
+	  different type has been fixed. Thanks to Sebastian Harl.
+	* RRDCacheD plugin: Reconnection behavior after failed operations has
+	  been added. Thanks to Sebastian Harl. Debian#657877
+	* Write Graphite and AMQP plugins: A bug that could lead to a missing
+	  null-termination has been fixed. Thanks to Markus Linnala.
+	* Write Kafka plugin: Support for librdkafka 0.9.0 has been added.
+	  Thanks to Florian Forster.
+	* Write Riemann plugin: Build issues on Solaris have been fixed. Thanks
+	  to Florian Forster.
+
+2016-07-25, Version 5.5.2
+	* collectd: A division by zero has been fixed in the
+	  "plugin_dispatch_multivalue()" function. Thanks to Corey Kosak.
+	* collectd: The address of the Free Software Foundation has been fixed
+	  in GPL license headers. Thanks to Ruben Kerkhof.
+	* Build system: Detection and handling of librrd 1.6 and later has been
+	  fixed. Thanks to Ruben Kerkof.
+	* Apache plugin: A warning about a possible misconfiguration has been
+	  added. Thanks to Marc Fournier.
+	* cURL, cURL-JSON and cURL-XML plugins: A memory leak when allocating
+	  more memory fails has been fixed. Thanks to Brandon Arp.
+	* DF plugin: A build issue on DragonFlyBSD has been fixed. Thanks to
+	  Ruben Kerkhof. #1575
+	* Ethstat plugin: Code to strip leading whitespace from device names.
+	  This works around an issue in the VMXNet3 driver. Thanks to Thomas
+	  Guthmann. #1059
+	* Exec plugin: A problem in the error handling of an fdopen() failure
+	  has been fixed. Thanks to @ciomaire.
+	* Modbus plugin: The debug output has been disabled by default. It is
+	  now only enabled when building with "--enable-debug". Thanks to Eric
+	  Sandeen and Marc Fournier.
+	* Network plugin: A check for the initialization of secure memory has
+	  been added. Previously, failure to initialize this memory was
+	  ignored. Thanks to @yujokang. #1665
+	* Network plugin: A heap overflow has been fixed in the server code.
+	  This issue can be triggered remotely and is potentially exploitable.
+	  Thanks to Emilien Gaspar. CVE-2016-6254
+	* Perl plugin: Init callbacks have been changed to run essentially
+	  single-threaded to avoid race conditions by init functions which
+	  create additional threads. Thanks to Pavel Rochnyack. #1706
+	* Processes plugin: A warning about too long process names has been
+	  added. Thanks to Marc Fournier. #1284
+	* Redis plugin: A memory leak in an error handling code path has been
+	  fixed. Thanks to Andrés J. Díaz.
+	* Redis plugin: The data source type of the expired_keys metric has been
+	  corrected to "DERIVE". Thanks to Marc Falzon and Marc Fournier. #1483.
+	* SMART plugin: A build dependency on libudev has been added. Thanks to
+	  Pavel Rochnyack. #1724
+	* StatsD plugin: A deadlock on plugin shutdown has been fixed. Thanks to
+	  Pavel Rochnyack #1703
+	* Write HTTP plugin: Freeing of memory holding HTTP headers during
+	  shutdown has been fixed. Thanks to Tolga Ceylan.
+	* Write Sensu plugin: A segfault when the Tag was unset has been fixed.
+	  Thanks to Marc Fournier.
+	* ZFS ARC plugin: The cache_operation-stolen metric has been removed for
+	  FreeBSD 10.2 and later. Thanks to Ruben Kerkhof. #1580
+
 2016-01-22, Version 5.5.1
 	* Build system: Compilation errors have been avoided by correctly
 	  defining package name and version used by autoconf. Thanks to Nathan
@@ -349,6 +1594,184 @@
 	  Marc Fournier and Wilfried Goesgens. #552
 	* Zookeeper plugin: This new plugin reads data from the Apache Zookeeper
 	  "MNTR" command. Thanks to Jeremy Katz. #826
+
+2016-07-26, Version 5.4.3
+	* Build system: A deprecation warning has been removed. Thanks to
+	  Florian Forster.
+	* Build system: An ordering issue when build the AMQP plugin was
+	  corrected. Thanks to Shahul Hameed.
+	* Build system: Building the gmond plugin against recent libganglia
+	  versions has been added. Thanks to Marc Fournier. #1129
+	* Build system: "collectd-tg" now builds on AIX. Thanks to Manuel Luis
+	  Sanmartín Rozada. #542
+	* Build system: "version-gen.sh" portablility was improved. Thanks to
+	  Marc Fournier and Ruben Kerkhof.
+	* Build system: Compiling utils_dns.c on Solaris has beed fixed. Thanks
+	  to Yves Mettier, Dagobert Michelsen and Florian Forster. #348
+	* Build system: Default JDK detection got improved. Thanks to Ruben
+	  Kerkhof and Marc Fournier.
+	* Build system: Detection and handling of librrd 1.6 and later has been
+	  fixed. Thanks to Ruben Kerkhof.
+	* Build system: notify_email build options got corrected to make it
+	  build on non-GNU libc systems. Thanks to Marc Fournier.
+	* Build system: Protobuf building and logging has been improved. Thanks
+	  to Ruben Kerkhof.
+	* Build system: The "make distcheck" target was fixed to properly handle
+	  java build artifacts. Thanks to Florian Forster.
+	* Build system: The configure script got fixed to work properly when
+	  called with "CC="gcc -Wall -Werror"" . Thanks to Marc Fournier.
+	* Build system: The configure script will now fail if pkg-config isn't
+	  available. Thanks to Ruben Kerkhof.
+	* Build system: The users plugin now builds properly on Solaris when
+	  libstatgrab is available. Thanks to Dagobert Michelsen. #1061
+	* Build system: Various fixes have been done to improve library
+	  detection on FreeBSD. Thanks to Ruben Kerkhof.
+	* collectd2html: Several perl errors have been corrected. Thanks to Ruud
+	  van Melick. #1103
+	* collectd: A global gauge format-string is now used to avoid loss of
+	  precision. Thanks to Florian Forster. #1039
+	* collectd: A race condition at plugin initialization time was fixed.
+	  Thanks to Jan Andres. #1316
+	* collectd: Autoloading now properly sets plugin context, allowing
+	  plugins to determine the interval. Thanks to Florian Forster. #1069
+	* collectd: Empty "Plugin" blocks are now supported by the configuration
+	  file parser. Thanks to Manuel Luis Sanmartín Rozada. #1035
+	* collectd: The address of the Free Software Foundation has been fixed
+	  in GPL license headers. Thanks to Ruben Kerkhof.
+	* collectd: Writing to a closed TCP socket is now properly handled.
+	  Thanks to Tamás Földesi. #1104
+	* Documentation: iptables plugin: IPv6 configuration option has been
+	  added to the collectd.conf(5) manpage. Thanks to 'Marc Fournier''.
+	  #1496
+	* AMQP plugin: The plugin was fixed to build against librabbitmq 0.6.0.
+	  Thanks to Remi Collet. #1008
+	* Apache plugin: A warning about a possible misconfiguration has been
+	  added. Thanks to Marc Fournier.
+	* Apache plugin: The plugin was extended to parse the whole response,
+	  required to support Apache versions greater than 2.4.17. Thanks to
+	  Marc Fournier and Florian Forster. #1170, #1343
+	* APC UPS plugin: Log messages are now prefixed with the plugin name.
+	  Thanks to Sergey. #1329
+	* Bind plugin: The type_instance now gets properly sanitized. Thanks to
+	  Thomas Kho. #992
+	* CPU plugin: Error messages on MacOSX have been improved. Thanks to
+	  Florian Forster. #22
+	* cURL plugin: A typo in an error message got corrected. Thanks to Marc
+	  Fournier.
+	* cURL, cURL-JSON and cURL-XML plugins: A memory leak when allocating
+	  more memory fails has been fixed. Thanks to Brandon Arp.
+	* DF plugin: An bug preventing filesystems which don't report inodes
+	  such as btrfs has been corrected. Thanks to Marek Becka. #1096
+	* DF plugin: Duplicate entries are no longer reported twice. Thanks to
+	  Stefan Brüns and Florian Forster. #1402
+	* DF plugin: Legacy code for skipping "rootfs" mount points has been
+	  removed. Thanks to Marc Fournier. #1402
+	* DF plugin: Legacy references to the "ReportReserved" option have been
+	  removed. Thanks to Marc Fournier.
+	* DF plugin: Reading the mtab now uses a reentrant function when
+	  possible. Thanks to Ruben Kerkhof. #1163
+	* Ethstat plugin: Code to strip leading whitespace from device names.
+	  This works around an issue in the VMXNet3 driver. Thanks to Thomas
+	  Guthmann. #1059
+	* Exec plugin: A file descriptor leak when the plugin is configured to
+	  run as a non-existing user was corrected. Thanks to Gautam BT and Marc
+	  Fournier. #762
+	* Exec plugin: A problem in the error handling of an fdopen() failure
+	  has been fixed. Thanks to @ciomaire.
+	* Interface plugin: Documentation about regular expressions in the
+	  ignore list has been added. Thanks to Jakub Jankowski.
+	* IRQ plugin: The "FIQ" line is now skipped as it doesn't contain any
+	  counter. Thanks to Ruben Kerkhof. #971
+	* Modbus plugin: The debug output has been disabled by default. It is
+	  now only enabled when building with "--enable-debug". Thanks to Eric
+	  Sandeen and Marc Fournier.
+	* MongoDB plugin: A memory leak has been fixed and some adaptations to
+	  the current API of the mongo-c-driver have been made. Thanks to
+	  Florian Forster. #956
+	* Network plugin: A check for the initialization of secure memory has
+	  been added. Previously, failure to initialize this memory was ignored.
+	  Thanks to @yujokang. #1665
+	* Network plugin: A heap overflow has been fixed in the server code.
+	  This issue can be triggered remotely and is potentially exploitable.
+	  Thanks to Emilien Gaspar. CVE-2016-6254
+	* Network plugin: The TimeToLive option handling was made more robust.
+	  Thanks to Tim Laszlo. #654
+	* NTPd plugin: Documentation about the required "mode 7" has been added.
+	  Thanks to Jakub Jankowski.
+	* NTPd plugin: Reporting of "time_offset-loop" was corrected to match
+	  the values from ntpq/ntpdc. Thanks to Pierre Fersing and Florian
+	  Forster. #1300
+	* OpenVPN plugin: The plugin was fixe to avoid signaling an error when
+	  no clients were connected. Thanks to Florian Forster. #731
+	* Perl plugin: Init callbacks have been changed to run essentially
+	  single-threaded to avoid race conditions by init functions which
+	  create additional threads. Thanks to Pavel Rochnyack. #1706
+	* PF plugin and DNS plugin: These plugins have been fixed to build
+	  properly on OpenBSD again. Thanks to Ruben Kerkhof.
+	* Processes plugin: A compilation error on systems without "regex.h" has
+	  been fixed. Thanks to Corey Kosak.
+	* Processes plugin: A memory leak on Solaris has been fixed. Thanks to
+	  Jim Quinn.
+	* Processes plugin and Swap plugin: These plugins have been corrected to
+	  also work inside FreeBSD jails. Thanks to biancalana. #1019
+	* Processes plugin: A warning about too long process names has been
+	  added. Thanks to Marc Fournier. #1284
+	* Processes plugin: Process counting on the FreeBSD and OpenBSD
+	  platforms has been fixed. Thanks to Herve COMMOWICK. #1298
+	* Processes plugin: The plugin was fixed to work properly on Solaris.
+	  Thanks to Jan Andres. #919
+	* Python plugin: A double-free bug got fixed. Thanks to Sven Trenkel.
+	  #1285
+	* RRDtool plugin: A race condition leading to corrupt RRD file creation
+	  has been fixed. Thanks to Manuel Luis Sanmartín Rozada. #1031
+	* SNMP plugin: The "Gauge32" signedness was corrected to match RFC1902.
+	  Thanks to Nathan Ward. #1325
+	* StatsD plugin: A deadlock on plugin shutdown has been fixed. Thanks to
+	  Pavel Rochnyack #1703
+	* StatsD plugin: A memory leak was corrected. Thanks to Florian Forster.
+	  #997
+	* StatsD plugin: A symbol lookup error was fixed by properly linking the
+	  plugin against libm. Thanks to Florian Forster.
+	* StatsD plugin: "utils_latency": Support for including values above
+	  1000 in percentile calculation has been added. Thanks to Yoga
+	  Ramalingam. #401
+	* StatsD plugin: "utils_latency": Two division by zero error conditions
+	  have been corrected. Thanks to Wilfried Goesgens. #655
+	* StatsD plugin: Counters absolute counts are now also reported. Thanks
+	  to Pierre-Yves Ritschard. #1311
+	* StatsD plugin: The plugin now emits NaN values when no timer event is
+	  recorded. Thanks to Florian Forster. #1038, #1039
+	* StatsD plugin: The plugin was corrected to avoid crashing when
+	  negative timer values are submitted. Thanks to Florian Forster. #1131
+	* Tail CSV plugin: The plugin was fixed to work properly with multiple
+	  "Collect" options and a bug got fixed when no "TimeFrom" is specified.
+	  Thanks to Manuel Luis Sanmartín Rozada and Florian Forster. #1032
+	* TCPConns plugin: A memory leak was fixed. Thanks to Florian Forster.
+	  #1074
+	* TCPConns plugin: An bug causing collectd to enter an inifinite loop on
+	  OpenBSD was fixed. Thanks to Landry Breuil. #1094
+	* Threshold plugin: Threshold configuration blocks can now be defined in
+	  different files. Thanks to Michael Salmon. #551
+	* vmem plugin: Support for pgsteal in recent Linux kernels has been
+	  added. Thanks to Jakub Jankowski. #1307
+	* vmem plugin: The DSType for nr_dirtied and nr_written was corrected to
+	  report a derive. Thanks to Marek Becka. #1072
+	* Write Graphite plugin: Error handling when submitting metrics to the
+	  server is now more robust. Thanks to Sam Pointer. #1364
+	* Write HTTP plugin: Freeing of memory holding HTTP headers during
+	  shutdown has been fixed. Thanks to Tolga Ceylan.
+	* Write Redis plugin: Multi-Valued key was made easier to parse by
+	  adding a "|" character as a delimiter. Thanks to brianpkelly and
+	  Florian Forster. #1070
+	* Write Redis plugin: The timestamp format was corrected. Thanks to
+	  Florian Forster.
+	* ZFS ARC plugin: The plugin was will not emit warning about missing
+	  "l2_size" stats anymore. Thanks to Jan Andres. #919
+	* 152 patches have been applied to numerous plugins and core components,
+	  fixing various programming errors which were reported by scan-build,
+	  libasan, FBInfer, coverity-scan, clang and gcc-6: Thanks to Ruben
+	  Kerkhof, Florian Forster, Marc Fournier, Corey Kosak, Laurent,
+	  Claudius Zingerli and Fabien Wernli.
 
 2015-02-26, Version 5.4.2
 	* Build system: Numerous fixes. Thanks to Bjørn Nordbø, Jim Radford,

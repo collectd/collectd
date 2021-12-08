@@ -1,6 +1,6 @@
  collectd - System information collection daemon
 =================================================
-http://collectd.org/
+https://collectd.org/
 
 About
 -----
@@ -45,11 +45,25 @@ Features
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
 
+    - buddyinfo
+      Statistics from buddyinfo file about memory fragmentation.
+
+    - capabilities
+      Platform capabilities decoded from hardware subsystems, for example from
+      SMBIOS using dmidecode.
+      <https://www.nongnu.org/dmidecode/>
+
     - ceph
       Statistics from the Ceph distributed storage system.
 
     - cgroups
       CPU accounting information for process groups under Linux.
+
+    - chrony
+      Chrony daemon statistics: Local clock drift, offset to peers, etc.
+
+    - connectivity
+      Event-based interface status.
 
     - conntrack
       Number of nf_conntrack entries.
@@ -63,6 +77,9 @@ Features
 
     - cpufreq
       CPU frequency (For laptops with speed step or a similar technology)
+
+    - cpusleep
+      CPU sleep: Time spent in suspend (For mobile devices which enter suspend automatically)
 
     - curl
       Parse statistics from websites using regular expressions.
@@ -79,6 +96,9 @@ Features
       Executes SQL statements on various databases and interprets the returned
       data.
 
+    - dcpmm
+      Collects Intel Optane DC Presistent Memory (DCPMM) performance and health statistics.
+
     - df
       Mountpoint usage (Basically the values `df(1)' delivers)
 
@@ -89,6 +109,22 @@ Features
     - dns
       DNS traffic: Query types, response codes, opcodes and traffic/octets
       transferred.
+
+    - dpdkstat
+      Collect DPDK interface statistics.
+      See docs/BUILD.dpdkstat.md for detailed build instructions.
+
+      This plugin should be compiled with compiler defenses enabled, for
+      example -fstack-protector.
+
+    - dpdk_telemetry
+      Collect DPDK interface, application and global statistics.
+      This plugin can be used as substitute to dpdkstat plugin.
+
+      This plugin is dependent on DPDK 19.08 release and must be used
+      along with the DPDK application.
+
+      Also, this plugin has dependency on Jansson library.
 
     - drbd
       Collect individual drbd resource statistics.
@@ -119,8 +155,36 @@ Features
     - gmond
       Receive multicast traffic from Ganglia instances.
 
+    - gps
+      Monitor gps related data through gpsd.
+
+    - gpu_nvidia
+      Monitor NVIDIA GPU statistics available through NVML.
+
     - hddtemp
       Hard disk temperatures using hddtempd.
+
+    - hugepages
+      Report the number of used and free hugepages. More info on
+      hugepages can be found here:
+      https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt.
+
+      This plugin should be compiled with compiler defenses enabled, for
+      example -fstack-protector.
+
+    - intel_pmu
+      The intel_pmu plugin reads performance counters provided by the Linux
+      kernel perf interface. The plugin uses jevents library to resolve named
+      events to perf events and access perf interface.
+
+    - intel_rdt
+      The intel_rdt plugin collects information provided by monitoring features
+      of Intel Resource Director Technology (Intel(R) RDT) like Cache Monitoring
+      Technology (CMT), Memory Bandwidth Monitoring (MBM). These features
+      provide information about utilization of shared resources like last level
+      cache occupancy, local memory bandwidth usage, remote memory bandwidth
+      usage, instructions per clock.
+      <https://01.org/packet-processing/cache-monitoring-technology-memory-bandwidth-monitoring-cache-allocation-technology-code-and-data>
 
     - interface
       Interface traffic: Number of octets, packets and errors for each
@@ -132,6 +196,9 @@ Features
 
     - ipmi
       IPMI (Intelligent Platform Management Interface) sensors information.
+
+    - ipstats
+      IPv4 and IPv6; incoming, outgoing, forwarded counters. FreeBSD only.
 
     - iptables
       Iptables' counters: Number of bytes that were matched by a certain
@@ -147,7 +214,8 @@ Features
 
     - java
       Integrates a `Java Virtual Machine' (JVM) to execute plugins in Java
-      bytecode. See “Configuring with libjvm” below.
+      bytecode.
+      See docs/BUILD.java.md for detailed build instructions.
 
     - load
       System load average over the last 1, 5 and 15 minutes.
@@ -156,9 +224,11 @@ Features
       Detailed CPU statistics of the “Logical Partitions” virtualization
       technique built into IBM's POWER processors.
 
-    - lvm
-      Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
-      “Logical Volume Manager” (LVM).
+    - lua
+      The Lua plugin implements a Lua interpreter into collectd. This
+      makes it possible to write plugins in Lua which are executed by
+      collectd without the need to start a heavy interpreter every interval.
+      See collectd-lua(5) for details.
 
     - madwifi
       Queries very detailed usage statistics from wireless LAN adapters and
@@ -167,6 +237,11 @@ Features
     - mbmon
       Motherboard sensors: temperature, fan speed and voltage information,
       using mbmon(1).
+
+    - mcelog
+      Monitor machine check exceptions (hardware errors detected by hardware
+      and reported to software) reported by mcelog and generate appropriate
+      notifications when machine check exceptions are detected.
 
     - md
       Linux software-RAID device information (number of active, failed, spare
@@ -191,9 +266,6 @@ Features
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.
 
-    - mqtt
-      Publishes and subscribes to MQTT topics.
-
     - multimeter
       Information provided by serial multimeters, such as the `Metex
       M-4650CR'.
@@ -204,7 +276,7 @@ Features
 
     - netapp
       Plugin to query performance values from a NetApp storage system using the
-      “Manage ONTAP” SDK provided by NetApp.
+      “Manage ONTAP” SDK provided by NetApp.
 
     - netlink
       Very detailed Linux network interface and routing statistics. You can get
@@ -217,8 +289,7 @@ Features
       plugin of choice for that.
 
     - nfs
-      NFS Procedures: Which NFS command were called how often. Only NFSv2 and
-      NFSv3 right now.
+      NFS Procedures: Which NFS command were called how often.
 
     - nginx
       Collects statistics from `nginx' (speak: engine X), a HTTP and mail
@@ -252,6 +323,26 @@ Features
     - oracle
       Query data from an Oracle database.
 
+    - ovs_events
+      The plugin monitors the link status of Open vSwitch (OVS) connected
+      interfaces, dispatches the values to collectd and sends the notification
+      whenever the link state change occurs in the OVS database. It requires
+      YAJL library to be installed.
+      Detailed instructions for installing and setting up Open vSwitch, see
+      OVS documentation.
+      <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
+
+    - ovs_stats
+      The plugin collects the statistics of OVS connected bridges and
+      interfaces. It requires YAJL library to be installed.
+      Detailed instructions for installing and setting up Open vSwitch, see
+      OVS documentation.
+      <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
+
+    - pcie_errors
+      Read errors from PCI Express Device Status and AER extended capabilities.
+      <https://www.design-reuse.com/articles/38374/pcie-error-logging-and-handling-on-a-typical-soc.html>
+
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
       write your own plugins in Perl and return arbitrary values using this
@@ -277,6 +368,9 @@ Features
 
     - processes
       Process counts: Number of running, sleeping, zombie, ... processes.
+
+    - procevent
+      Listens for process starts and exits via netlink.
 
     - protocols
       Counts various aspects of network protocols such as IP, TCP, UDP, etc.
@@ -309,6 +403,10 @@ Features
       to have its measurements fed to collectd. This includes multimeters,
       sound level meters, thermometers, and much more.
 
+    - slurm
+      Gathers per-partition node and job state information using libslurm,
+      as well as internal health statistics.
+
     - smart
       Collect SMART statistics, notably load cycle count, temperature
       and bad sectors.
@@ -321,6 +419,9 @@ Features
     - statsd
       Acts as a StatsD server, reading values sent over the network from StatsD
       clients and calculating rates and other aggregates out of these values.
+
+    - sysevent
+      Listens to rsyslog events and submits matched values.
 
     - swap
       Pages swapped out onto hard disk or whatever is called `swap' by the OS..
@@ -359,6 +460,10 @@ Features
       Reads CPU frequency and C-state residency on modern Intel
       turbo-capable processors.
 
+    - ubi
+      Reads the count of bad physical eraseblocks and the current
+      maximum erase counter value on UBI volumes.
+
     - uptime
       System uptime statistics.
 
@@ -372,7 +477,7 @@ Features
       CPU, memory, disk and network I/O statistics from virtual machines.
 
     - vmem
-      Virtual memory statistics, e. g. the number of page-ins/-outs or the
+      Virtual memory statistics, e.g. the number of page-ins/-outs or the
       number of pagefaults.
 
     - vserver
@@ -381,6 +486,9 @@ Features
 
     - wireless
       Link quality of wireless cards. Linux only.
+
+    - xencpu
+      XEN Hypervisor CPU stats.
 
     - xmms
       Bitrate and frequency of music played with XMMS.
@@ -400,12 +508,26 @@ Features
 
     - amqp
       Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
-      server, such as RabbitMQ.
+      0.9.1 server, such as RabbitMQ.
+
+    - amqp1
+      Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
+      1.0 server, such as Qpid Dispatch Router or Apache Artemis Broker.
 
     - csv
       Write to comma separated values (CSV) files. This needs lots of
       diskspace but is extremely portable and can be analysed with almost
       every program that can analyse anything. Even Microsoft's Excel..
+
+    - grpc
+      Send and receive values over the network using the gRPC framework.
+
+    - lua
+      It's possible to implement write plugins in Lua using the Lua
+      plugin. See collectd-lua(5) for details.
+
+    - mqtt
+      Publishes and subscribes to MQTT topics.
 
     - network
       Send the data to a remote host to save the data somehow. This is useful
@@ -432,6 +554,13 @@ Features
       updates to the files and write a bunch of updates at once, which lessens
       system load a lot.
 
+    - snmp_agent
+      Receives and handles queries from SNMP master agent and returns the data
+      collected by read plugins. Handles requests only for OIDs specified in
+      configuration file. To handle SNMP queries the plugin gets data from
+      collectd and translates requested values from collectd's internal format
+      to SNMP format.
+
     - unixsock
       One can query the values from the unixsock plugin whenever they're
       needed. Please read collectd-unixsock(5) for a description on how that's
@@ -456,6 +585,10 @@ Features
     - write_mongodb
       Sends data to MongoDB, a NoSQL database.
 
+    - write_prometheus
+      Publish values using an embedded HTTP server, in a format compatible
+      with Prometheus' collectd_exporter.
+
     - write_redis
       Sends the values to a Redis key-value database server.
 
@@ -465,6 +598,10 @@ Features
     - write_sensu
       Sends data to Sensu, a stream processing and monitoring system, via the
       Sensu client local TCP socket.
+
+    - write_syslog
+      Sends data in syslog format, using TCP, where the message
+      contains the metric in human or JSON format.
 
     - write_tsdb
       Sends data OpenTSDB, a scalable no master, no shared state time series
@@ -501,6 +638,9 @@ Features
     - notify_email
       Send an E-mail with the notification message to the configured
       recipients.
+
+    - notify_nagios
+      Submit notifications as passive check results to a local nagios instance.
 
     - exec
       Execute a program or script to handle the notification.
@@ -623,11 +763,21 @@ Prerequisites
 
   * Usual suspects: C compiler, linker, preprocessor, make, ...
 
+    collectd makes use of some common C99 features, e.g. compound literals and
+    mixed declarations, and therefore requires a C99 compatible compiler.
+
+    On Debian and Ubuntu, the "build-essential" package should pull in
+    everything that's necessary.
+
   * A POSIX-threads (pthread) implementation.
     Since gathering some statistics is slow (network connections, slow devices,
     etc) collectd is parallelized. The POSIX threads interface is being
     used and should be found in various implementations for hopefully all
     platforms.
+
+  * When building from the Git repository, flex (tokenizer) and bison (parser
+    generator) are required. Release tarballs include the generated files – you
+    don't need these packages in that case.
 
   * aerotools-ng (optional)
     Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
@@ -641,6 +791,10 @@ Prerequisites
     For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
     <http://developer.apple.com/corefoundation/>
+
+  * CUDA (optional)
+    Used by the `gpu_nvidia' plugin
+    <https://developer.nvidia.com/cuda-downloads>
 
   * libatasmart (optional)
     Used by the `smart' plugin.
@@ -676,13 +830,18 @@ Prerequisites
     Used by the `gmond' plugin to process data received from Ganglia.
     <http://ganglia.info/>
 
+  * libgrpc (optional)
+    Used by the `grpc' plugin. gRPC requires a C++ compiler supporting the
+    C++11 standard.
+    <https://grpc.io/>
+
   * libgcrypt (optional)
     Used by the `network' plugin for encryption and authentication.
     <http://www.gnupg.org/>
 
-  * libhal (optional)
-    If present, the `uuid' plugin will check for UUID from HAL.
-    <http://hal.freedesktop.org/>
+  * libgps (optional)
+    Used by the `gps' plugin.
+    <http://developer.berlios.de/projects/gpsd/>
 
   * libi2c-dev (optional)
     Used for the plugin `barometer', provides just the i2c-dev.h header file
@@ -692,23 +851,38 @@ Prerequisites
     For querying iptables counters.
     <http://netfilter.org/>
 
+  * libjansson (optional)
+    Parse JSON data. This is used for the `capabilities' and `dpdk_telemetry` plugins.
+    <http://www.digip.org/jansson/>
+
+  * libjevents (optional)
+    The jevents library is used by the `intel_pmu' plugin to access the Linux
+    kernel perf interface.
+    Note: the library should be build with -fPIC flag to be linked with
+    intel_pmu shared object correctly.
+    <https://github.com/andikleen/pmu-tools>
+
   * libjvm (optional)
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
-    used by the `java' plugin to execute Java bytecode. See “Configuring with
-    libjvm” below.
+    used by the `java' plugin to execute Java bytecode.
+    See docs/BUILD.java.md for detailed build instructions.
     <http://openjdk.java.net/> (and others)
 
   * libldap (optional)
     Used by the `openldap' plugin.
     <http://www.openldap.org/>
 
-  * liblvm2 (optional)
-    Used by the `lvm' plugin.
-    <ftp://sources.redhat.com/pub/lvm2/>
+  * liblua (optional)
+    Used by the `lua' plugin. Currently, Lua 5.1 and later are supported.
+    <https://www.lua.org/>
 
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
+
+  * libmicrohttpd (optional)
+    Used by the write_prometheus plugin to run an http daemon.
+    <http://www.gnu.org/software/libmicrohttpd/>
 
   * libmnl (optional)
     Used by the `netlink' plugin.
@@ -729,7 +903,11 @@ Prerequisites
     This library is part of the “Manage ONTAP SDK” published by NetApp.
 
   * libnetsnmp (optional)
-    For the `snmp' plugin.
+    For the `snmp' and 'snmp_agent' plugins.
+    <http://www.net-snmp.org/>
+
+  * libnetsnmpagent (optional)
+    Required for the 'snmp_agent' plugin.
     <http://www.net-snmp.org/>
 
   * libnotify (optional)
@@ -761,9 +939,25 @@ Prerequisites
     ithread support (introduced in Perl 5.6.0).
     <http://www.perl.org/>
 
+  * libpmwapi (optional)
+    Used by the `dcpmm` plugin.
+    The library github: https://github.com/intel/intel-pmwatch
+    Follow the pmwatch build instructions mentioned for dcpmm plugin and
+    use the install path to resolve the dependency here.
+
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
+
+  * libpqos (optional)
+    The PQoS library for Intel(R) Resource Director Technology used by the
+    `intel_rdt' plugin.
+    <https://github.com/01org/intel-cmt-cat>
+
+  * libprotobuf, protoc 3.0+ (optional)
+    Used by the `grpc' plugin to generate service stubs and code to handle
+    network packets of collectd's protobuf-based network protocol.
+    <https://developers.google.com/protocol-buffers/>
 
   * libprotobuf-c, protoc-c (optional)
     Used by the `pinba' plugin to generate a parser for the network packets
@@ -771,12 +965,18 @@ Prerequisites
     <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
-    Used by the `python' plugin. Currently, Python 2.3 and later and Python 3
+    Used by the `python' plugin. Currently, Python 2.6 and later and Python 3
     are supported.
     <http://www.python.org/>
 
+  * libqpid-proton (optional)
+    Used by the `amqp1' plugin for AMQP 1.0 connections, for example to
+    Qdrouterd.
+    <http://qpid.apache.org/>
+
   * librabbitmq (optional; also called “rabbitmq-c”)
-    Used by the `amqp' plugin for AMQP connections, for example to RabbitMQ.
+    Used by the `amqp' plugin for AMQP 0.9.1 connections, for example to
+    RabbitMQ.
     <http://hg.rabbitmq.com/rabbitmq-c/>
 
   * librdkafka (optional; also called “rdkafka”)
@@ -807,6 +1007,10 @@ Prerequisites
     libzip, and optionally (depending on which drivers are enabled) on
     libusb, libftdi and libudev.
 
+  * libslurm (optional)
+    Used by the `slurm` plugin.
+    <https://slurm.schedmd.com/>
+
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux
     and/or Solaris.
@@ -829,12 +1033,16 @@ Prerequisites
     `virt' plugins.
     <http://xmlsoft.org/>
 
+  * libxen (optional)
+    Used by the `xencpu' plugin.
+    <http://xenbits.xensource.com/>
+
   * libxmms (optional)
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `ceph', `curl_json' and
-    `log_logstash' plugins.
+    Parse JSON data. This is needed for the `ceph', `curl_json', 'ovs_events',
+    'ovs_stats' and `log_logstash' plugins.
     <http://github.com/lloyd/yajl>
 
   * libvarnish (optional)
@@ -850,9 +1058,8 @@ Configuring / Compiling / Installing
 ------------------------------------
 
   To configure, build and install collectd with the default settings, run
-  `./configure && make && make install'.  For detailed, generic instructions
-  see INSTALL. For a complete list of configure options and their description,
-  run `./configure --help'.
+  `./configure && make && make install'.  For a complete list of configure
+  options and their description, run `./configure --help'.
 
   By default, the configure script will check for all build dependencies and
   disable all plugins whose requirements cannot be fulfilled (any other plugin
@@ -876,44 +1083,6 @@ Configuring / Compiling / Installing
   prefixed to all installation directories. This might be useful when creating
   packages for collectd.
 
-Configuring with libjvm
------------------------
-
-  To determine the location of the required files of a Java installation is not
-  an easy task, because the locations vary with your kernel (Linux, SunOS, …)
-  and with your architecture (x86, SPARC, …) and there is no ‘java-config’
-  script we could use. Configuration of the JVM library is therefore a bit
-  tricky.
-
-  The easiest way to use the `--with-java=$JAVA_HOME' option, where
-  `$JAVA_HOME' is usually something like:
-    /usr/lib/jvm/java-1.5.0-sun-1.5.0.14
-
-  The configure script will then use find(1) to look for the following files:
-
-    - jni.h
-    - jni_md.h
-    - libjvm.so
-
-  If found, appropriate CPP-flags and LD-flags are set and the following
-  library checks succeed.
-
-  If this doesn't work for you, you have the possibility to specify CPP-flags,
-  C-flags, LD-flags and LIBS for the ‘Java’ plugin by hand, using the
-  following environment variables:
-
-    - JAVA_CPPFLAGS
-    - JAVA_CFLAGS
-    - JAVA_LDFLAGS
-    - JAVA_LIBS
-
-  For example (shortened for demonstration purposes):
-
-    ./configure JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
-
-  Adding "-ljvm" to JAVA_LIBS is done automatically, you don't have to
-  do that.
-
 Generating the configure script
 -------------------------------
 
@@ -927,10 +1096,41 @@ To generate the `configure` script, you'll need the following dependencies:
 - flex
 - bison
 - libtool
-- libtool-ltdl
 - pkg-config
 
 The `build.sh' script takes no arguments.
+
+
+Building on Windows
+-----------------------------------------------
+
+Collectd can be built on Windows using Cygwin, and the result is a binary that
+runs natively on Windows. That is, Cygwin is only needed for building, not running,
+collectd.
+
+You will need to install the following Cygwin packages:
+- automake
+- bison
+- flex
+- git
+- libtool
+- make
+- mingw64-x86_64-dlfcn
+- mingw64-x86_64-gcc-core
+- mingw64-x86_64-zlib
+- pkg-config
+
+To build, just run the `build.sh' script in your Cygwin terminal. By default, it installs
+to "C:/Program Files/collectd". You can change the location by setting the INSTALL_DIR
+variable:
+
+$ export INSTALL_DIR="C:/some/other/install/directory"
+$ ./build.sh
+
+or:
+
+$ INSTALL_DIR="C:/some/other/install/directory" ./build.sh
+
 
 Crosscompiling
 --------------
@@ -966,8 +1166,12 @@ Crosscompiling
 Contact
 -------
 
-  For questions, bug reports, development information and basically all other
-  concerns please send an email to collectd's mailing list at
+  Please use GitHub to report bugs and submit pull requests:
+  <https://github.com/collectd/collectd/>.
+  See CONTRIBUTING.md for details.
+
+  For questions, development information and basically all other concerns please
+  send an email to collectd's mailing list at
   <list at collectd.org>.
 
   For live discussion and more personal contact visit us in IRC, we're in
@@ -980,7 +1184,4 @@ Author
   Florian octo Forster <octo at collectd.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
   and many contributors (see `AUTHORS').
-
-  Please send bug reports and patches to the mailing list, see `Contact'
-  above.
 

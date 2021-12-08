@@ -10,23 +10,24 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
   # ...
   <Plugin snmp>
     <Data "powerplus_voltge_input">
-      Type "voltage"
       Table false
-      Instance "input_line1"
+      Type "voltage"
+      TypeInstance "input_line1"
       Scale 0.1
       Values "SNMPv2-SMI::enterprises.6050.5.4.1.1.2.1"
     </Data>
     <Data "hr_users">
-      Type "users"
       Table false
-      Instance ""
+      Type "users"
       Shift -1
       Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
     </Data>
     <Data "std_traffic">
-      Type "if_octets"
       Table true
-      Instance "IF-MIB::ifDescr"
+      Type "if_octets"
+      TypeInstanceOID "IF-MIB::ifDescr"
+      #FilterOID "IF-MIB::ifOperStatus"
+      #FilterValues "1", "2"
       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
     </Data>
 
@@ -36,6 +37,8 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Community "community_string"
       Collect "std_traffic"
       Interval 120
+      Timeout 10
+      Retries 1
     </Host>
     <Host "some.server.mydomain.org">
       Address "192.168.0.42"
@@ -44,7 +47,7 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Collect "std_traffic" "hr_users"
     </Host>
     <Host "secure.router.mydomain.org">
-      Address "192.168.0.7"
+      Address "192.168.0.7:165"
       Version 3
       SecurityLevel "authPriv"
       Username "cosmo"
@@ -55,11 +58,13 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Collect "std_traffic"
     </Host>
     <Host "some.ups.mydomain.org">
-      Address "192.168.0.3"
+      Address "tcp:192.168.0.3"
       Version 1
       Community "more_communities"
       Collect "powerplus_voltge_input"
       Interval 300
+      Timeout 5
+      Retries 5
     </Host>
   </Plugin>
 
@@ -71,14 +76,16 @@ internal format and dispatches them. Depending on the write plugins you have
 loaded they may be written to disk or submitted to another instance or
 whatever you configured.
 
-Because querying a host via SNMP may produce a timeout multiple threads are
-used to query hosts in parallel. Depending on the number of hosts between one
-and ten threads are used.
+Because querying a host via SNMP may produce a timeout the "complex reads"
+polling method is used. The ReadThreads parameter in the main configuration
+influences the number of parallel polling jobs which can be undertaken. If
+you expect timeouts or some polling to take a long time, you should increase
+this parameter. Note that other plugins also use the same threads.
 
 =head1 CONFIGURATION
 
 Since the aim of the C<snmp plugin> is to provide a generic interface to SNMP,
-it's configuration is not trivial and may take some time.
+its configuration is not trivial and may take some time.
 
 Since the C<Net-SNMP> library is used you can use all the environment variables
 that are interpreted by that package. See L<snmpcmd(1)> for more details.
@@ -110,8 +117,9 @@ queried using the C<GET> SNMP command (see L<snmpget(1)>) and transmitted to
 collectd. B<One> value list is dispatched and, eventually, one file will be
 written.
 
-When B<Table> is set to B<true>, the OIDs given to B<Values> (see below) are
-queried using the C<GETNEXT> SNMP command until the subtree is left. After all
+When B<Table> is set to B<true>, the OIDs given to B<Values>, B<TypeInstanceOID>,
+B<PluginInstanceOID>, B<HostOID> and B<FilterOID> (see below) are queried using
+the C<GETNEXT> SNMP command until the subtree is left. After all
 the lists (think: all columns of the table) have been read B<several> values
 sets will be dispatches and, eventually, several files will be written. If you
 configure a B<Type> (see above) which needs more than one data source (for
@@ -134,32 +142,65 @@ C<IF-MIB::ifHCInOctets> and C<IF-MIB::ifHCOutOctets>. But, this is because of
 the B<Type> setting, not the B<Table> setting.
 
 Since the semantic of B<Instance> and B<Values> depends on this setting you
-need to set it before setting them. Doing vice verse will result in undefined
+need to set it before setting them. Doing vice versa will result in undefined
 behavior.
 
-=item B<Instance> I<Instance>
+=item B<Plugin> I<Plugin>
 
-Sets the type-instance of the values that are dispatched. The meaning of this
-setting depends on whether B<Table> is set to I<true> or I<false>:
+Use I<Plugin> as the plugin name of the values that are dispatched.
+Defaults to C<snmp>.
 
-If B<Table> is set to I<true>, I<Instance> is interpreted as an SNMP-prefix
-that will return a list of values. Those values are then used as the actual
-type-instance. An example would be the C<IF-MIB::ifDescr> subtree.
-L<variables(5)> from the SNMP distribution describes the format of OIDs.
+=item B<PluginInstance> I<Instance>
 
-If B<Table> is set to I<true> and B<Instance> is omitted, then "SUBID" will be
-used as the instance.
+Sets the plugin-instance of the values that are dispatched to I<Instance> value.
 
-If B<Table> is set to I<false> the actual string configured for I<Instance> is
-copied into the value-list. In this case I<Instance> may be empty, i.E<nbsp>e.
-"".
-
-=item B<InstancePrefix> I<String>
-
-If B<Table> is set to I<true>, you may feel the need to add something to the
-instance of the files. If set, I<String> is prepended to the instance as
-determined by querying the agent. When B<Table> is set to I<false> this option
+When B<Table> is set to I<true> and B<PluginInstanceOID> is set then this option
 has no effect.
+
+Defaults to an empty string.
+
+=item B<TypeInstance> I<Instance>
+
+Sets the type-instance of the values that are dispatched to I<Instance> value.
+
+When B<Table> is set to I<true> and B<TypeInstanceOID> is set then this option
+has no effect.
+
+Defaults to an empty string.
+
+=item B<TypeInstanceOID> I<OID>
+
+=item B<PluginInstanceOID> I<OID>
+
+=item B<HostOID> I<OID>
+
+If B<Table> is set to I<true>, I<OID> is interpreted as an SNMP-prefix that will
+return a list of values. Those values are then used as the actual type-instance,
+plugin-instance or host of dispatched metrics. An example would be the
+C<IF-MIB::ifDescr> subtree. L<variables(5)> from the SNMP distribution describes
+the format of OIDs. When option is set to empty string, then "SUBID" will be used
+as the value.
+
+Prefix may be set for values with use of appropriate B<TypeInstancePrefix>,
+B<PluginInstancePrefix> and B<HostPrefix> options.
+
+When B<Table> is set to I<false> these options has no effect.
+
+Defaults: When no one of these options is configured explicitly,
+B<TypeInstanceOID> defaults to an empty string.
+
+=item B<TypeInstancePrefix>
+
+=item B<PluginInstancePrefix>
+
+=item B<HostPrefix>
+
+These options are intented to be used together with B<TypeInstanceOID>,
+B<PluginInstanceOID> and B<HostOID> respectively.
+
+If set, I<String> is preprended to values received by querying the agent.
+
+When B<Table> is set to I<false> these options has no effect.
 
 The C<UPS-MIB> is an example where you need this setting: It has voltages of
 the inlets, outlets and the battery of an UPS. However, it doesn't provide a
@@ -167,6 +208,25 @@ descriptive column for these voltages. In this case having 1, 2,E<nbsp>... as
 instances is not enough, because the inlet voltages and outlet voltages may
 both have the subids 1, 2,E<nbsp>... You can use this setting to distinguish
 between the different voltages.
+
+=item B<Instance> I<Instance>
+
+Attention: this option exists for backwards compatibility only and will be
+removed in next major release. Please use B<TypeInstance> / B<TypeInstanceOID>
+instead.
+
+The meaning of this setting depends on whether B<Table> is set to I<true> or
+I<false>.
+
+If B<Table> is set to I<true>, option behaves as B<TypeInstanceOID>.
+If B<Table> is set to I<false>, option behaves as B<TypeInstance>.
+
+Note what B<Table> option must be set before setting B<Instance>.
+
+=item B<InstancePrefix> I<String>
+
+Attention: this option exists for backwards compatibility only and will be
+removed in next major release. Please use B<TypeInstancePrefix> instead.
 
 =item B<Values> I<OID> [I<OID> ...]
 
@@ -204,15 +264,38 @@ This value is not applied to counter-values.
 
 =item B<Ignore> I<Value> [, I<Value> ...]
 
-The ignore values allows to ignore Instances based on their name and the patterns
-specified by the various values you've entered. The match is a glob-type shell
-matching.
+The ignore values allows one to ignore TypeInstances based on their name and
+the patterns specified by the various values you've entered. The match is a
+glob-type shell matching.
+
+When B<Table> is set to I<false> then this option has no effect.
 
 =item B<InvertMatch> I<true|false(default)>
 
 The invertmatch value should be use in combination of the Ignore option.
 It changes the behaviour of the Ignore option, from a blacklist behaviour
 when InvertMatch is set to false, to a whitelist when specified to true.
+
+=item B<FilterOID> I<OID>
+
+=item B<FilterValues> I<Value> [, I<Value> ...]
+
+=item B<FilterIgnoreSelected> I<true|false(default)>
+
+When B<Table> is set to I<true>, these options allow to configure filtering
+based on MIB values.
+
+The B<FilterOID> declares I<OID> to fill table column with values.
+The B<FilterValues> declares values list to do match. Whether table row will be
+collected or ignored depends on the B<FilterIgnoreSelected> setting.
+As with other plugins that use the daemon's ignorelist functionality, a string
+that starts and ends with a slash is interpreted as a regular expression.
+
+If no selection is configured at all, B<all> table rows are selected.
+
+When B<Table> is set to I<false> then these options has no effect.
+
+See B<Table> and F</"IGNORELISTS"> for details.
 
 =back
 
@@ -228,7 +311,8 @@ stored by collectd.
 
 =item B<Address> I<IP-Address>|I<Hostname>
 
-Set the address to connect to.
+Set the address to connect to. Address may include transport specifier and/or
+port number.
 
 =item B<Version> B<1>|B<2>|B<3>
 
@@ -256,7 +340,7 @@ Selects the authentication protocol for SNMPv3 security.
 
 =item B<AuthPassphrase> I<Passphrase>
 
-Sets the authentication passphrase for SNMPv3 security. 
+Sets the authentication passphrase for SNMPv3 security.
 
 =item B<PrivacyProtocol> I<AES>|I<DES>
 
@@ -264,7 +348,7 @@ Selects the privacy (encryption) protocol for SNMPv3 security.
 
 =item B<PrivacyPassphrase> I<Passphrase>
 
-Sets the privacy (encryption) passphrase for SNMPv3 security. 
+Sets the privacy (encryption) passphrase for SNMPv3 security.
 
 =item B<Collect> I<Data> [I<Data> ...]
 
@@ -279,6 +363,19 @@ devices with not much CPU power, e.E<nbsp>g. network equipment such as
 switches, embedded devices, rack monitoring systems and so on. Since the
 B<Step> of generated RRD files depends on this setting it's wise to select a
 reasonable value once and never change it.
+
+=item B<Timeout> I<Seconds>
+
+How long to wait for a response. The C<Net-SNMP> library default is 1 second.
+
+=item B<Retries> I<Integer>
+
+The number of times that a query should be retried after the Timeout expires.
+The C<Net-SNMP> library default is 5.
+
+=item B<BulkSize> I<Integer>
+
+Configures the size of SNMP bulk transfers. The default is 0, which disables bulk transfers altogether.
 
 =back
 

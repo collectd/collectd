@@ -306,9 +306,9 @@ snmp-probe-host.px - Find out what information an SNMP device provides.
 The C<snmp-probe-host.px> script can be used to automatically generate SNMP
 configuration snippets for collectd's snmp plugin (see L<collectd-snmp(5)>).
 
-This script parses the collectd configuration and detecs all "data" blocks that
+This script parses the collectd configuration and detects all "data" blocks that
 are defined for the SNMP plugin. It then queries the device specified on the
-command line for all OIDs and registeres which OIDs could be answered correctly
+command line for all OIDs and registers which OIDs could be answered correctly
 and which resulted in an error. With that information the script figures out
 which "data" blocks can be used with this hosts and prints an appropriate
 "host" block to standard output.

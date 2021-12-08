@@ -55,9 +55,20 @@ sub daemon {
 }
 
 sub listval {
-    my $now = time;
+    my @timevals = (
+        1479835353.75,
+        1479835354.434,
+        1479835356,
+        1479835354,
+        1479835354,
+        1479835350.820,
+        1479835351,
+        1479835354.2,
+        1479835353,
+    );
+    my $i = 0;
     return print_nvalues(scalar @metrics) .
-    join('', map { "$now $_\n" } @metrics);
+    join('', map { $timevals[$i++ % @timevals] . " $_\n" } @metrics);
 }
 
 sub getval {

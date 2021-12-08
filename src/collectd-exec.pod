@@ -73,7 +73,7 @@ Each line beginning with a C<#> (hash mark) is ignored.
 =item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
 
 Submits one or more values (identified by I<Identifier>, see below) to the
-daemon which will dispatch it to all it's write-plugins.
+daemon which will dispatch it to all its write-plugins.
 
 An I<Identifier> is of the form
 C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
@@ -109,6 +109,10 @@ The currently defined B<Options> are:
 
 Gives the interval in which the data identified by I<Identifier> is being
 collected.
+
+=item meta:B<key>=I<value>
+
+Add meta data with the key B<key> and the value I<value>.
 
 =back
 
@@ -281,12 +285,12 @@ to make use of collectd's more powerful interface.
 
 =over 4
 
-=item
+=item *
 
 The user, the binary is executed as, may not have root privileges, i.E<nbsp>e.
 must have an UID that is non-zero. This is for your own good.
 
-=item
+=item *
 
 Early versions of the plugin did not use a command but treated all lines as if
 they were arguments to the I<PUTVAL> command. When the I<PUTNOTIF> command was

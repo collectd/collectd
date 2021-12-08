@@ -57,24 +57,24 @@
 
 #define NET_DEFAULT_V4_ADDR "239.192.74.66"
 #define NET_DEFAULT_V6_ADDR "ff18::efc0:4a42"
-#define NET_DEFAULT_PORT    "25826"
+#define NET_DEFAULT_PORT "25826"
 
-#define TYPE_HOST            0x0000
-#define TYPE_TIME            0x0001
-#define TYPE_TIME_HR         0x0008
-#define TYPE_PLUGIN          0x0002
+#define TYPE_HOST 0x0000
+#define TYPE_TIME 0x0001
+#define TYPE_TIME_HR 0x0008
+#define TYPE_PLUGIN 0x0002
 #define TYPE_PLUGIN_INSTANCE 0x0003
-#define TYPE_TYPE            0x0004
-#define TYPE_TYPE_INSTANCE   0x0005
-#define TYPE_VALUES          0x0006
-#define TYPE_INTERVAL        0x0007
-#define TYPE_INTERVAL_HR     0x0009
+#define TYPE_TYPE 0x0004
+#define TYPE_TYPE_INSTANCE 0x0005
+#define TYPE_VALUES 0x0006
+#define TYPE_INTERVAL 0x0007
+#define TYPE_INTERVAL_HR 0x0009
 
 /* Types to transmit notifications */
-#define TYPE_MESSAGE         0x0100
-#define TYPE_SEVERITY        0x0101
+#define TYPE_MESSAGE 0x0100
+#define TYPE_SEVERITY 0x0101
 
-#define TYPE_SIGN_SHA256     0x0200
-#define TYPE_ENCR_AES256     0x0210
+#define TYPE_SIGN_SHA256 0x0200
+#define TYPE_ENCR_AES256 0x0210
 
 #endif /* NETWORK_H */

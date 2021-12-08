@@ -30,11 +30,10 @@
 /*
  * Data types
  */
-struct llentry_s
-{
-	char *key;
-	void *value;
-	struct llentry_s *next;
+struct llentry_s {
+  char *key;
+  void *value;
+  struct llentry_s *next;
 };
 typedef struct llentry_s llentry_t;
 
@@ -44,23 +43,23 @@ typedef struct llist_s llist_t;
 /*
  * Functions
  */
-llist_t *llist_create (void);
-void llist_destroy (llist_t *l);
+llist_t *llist_create(void);
+void llist_destroy(llist_t *l);
 
-llentry_t *llentry_create (char *key, void *value);
-void llentry_destroy (llentry_t *e);
+llentry_t *llentry_create(char *key, void *value);
+void llentry_destroy(llentry_t *e);
 
-void llist_append (llist_t *l, llentry_t *e);
-void llist_prepend (llist_t *l, llentry_t *e);
-void llist_remove (llist_t *l, llentry_t *e);
+void llist_append(llist_t *l, llentry_t *e);
+void llist_prepend(llist_t *l, llentry_t *e);
+void llist_remove(llist_t *l, llentry_t *e);
 
-int llist_size (llist_t *l);
+int llist_size(llist_t *l);
 
-llentry_t *llist_search (llist_t *l, const char *key);
-llentry_t *llist_search_custom (llist_t *l,
-		int (*compare) (llentry_t *, void *), void *user_data);
+llentry_t *llist_search(llist_t *l, const char *key);
+llentry_t *llist_search_custom(llist_t *l, int (*compare)(llentry_t *, void *),
+                               void *user_data);
 
-llentry_t *llist_head (llist_t *l);
-llentry_t *llist_tail (llist_t *l);
+llentry_t *llist_head(llist_t *l);
+llentry_t *llist_tail(llist_t *l);
 
 #endif /* UTILS_LLIST_H */

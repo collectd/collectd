@@ -37,7 +37,7 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
-The minimum required Python version is I<2.3>.
+The minimum required Python version is I<2.6>.
 
 =head1 CONFIGURATION
 
@@ -68,8 +68,10 @@ use multiple B<ModulePath> lines to add more than one directory.
 If a Python script throws an exception it will be logged by collectd with the
 name of the exception and the message. If you set this option to true it will
 also log the full stacktrace just like the default output of an interactive
-Python interpreter. This should probably be set to false most of the time but
-is very useful for development and debugging of new modules.
+Python interpreter. This does not apply to the CollectError exception, which
+will never log a stacktrace.
+This should probably be set to false most of the time but is very useful for
+development and debugging of new modules.
 
 =item B<Interactive> I<bool>
 
@@ -87,22 +89,23 @@ collectd script as well as from a normal Python interpreter:
 
 =over 4
 
-=item
+=item *
 
 B<1.> collectd will try to import the B<readline> module to give you a decent
 way of entering your commands. The daemonized collectd won't do that.
 
-=item
+=item *
 
-B<2.> collectd will block I<SIGINT>. Pressing I<Ctrl+C> will usually cause
+B<2.> Python will be handling I<SIGINT>. Pressing I<Ctrl+C> will usually cause
 collectd to shut down. This would be problematic in an interactive session,
-therefore this signal will be blocked. You can still use it to interrupt
-syscalls like sleep and pause but it won't generate a I<KeyboardInterrupt>
-exception either.
+therefore Python will be handling it in interactive sessions. This allows you
+to use I<Ctrl+C> to interrupt Python code without killing collectd. This also
+means you can catch I<KeyboardInterrupt> exceptions which does not work during
+normal operation.
 
 To quit collectd send I<EOF> (press I<Ctrl+D> at the beginning of a new line).
 
-=item
+=item *
 
 B<3.> collectd handles I<SIGCHLD>. This means that Python won't be able to
 determine the return code of spawned processes with system(), popen() and
@@ -122,6 +125,13 @@ this. If you import this from I<collectd.conf> SIGCHLD will be handled
 normally and spawning processes from Python will work as intended.
 
 =back
+
+=item B<Import> I<Name>
+
+Imports the python script I<Name> and loads it into the collectd
+python process. If your python script is not found, be sure its
+directory exists in python's B<sys.path>. You can prepend to the
+B<sys.path> using the B<ModulePath> configuration option.
 
 =item E<lt>B<Module> I<Name>E<gt> block
 
@@ -246,6 +256,18 @@ collectd you're done.
 
 The following complex types are used to pass values between the Python plugin
 and collectd:
+
+=head2 CollectdError
+
+This is an exception. If any Python script raises this exception it will
+still be treated like an error by collectd but it will be logged as a
+warning instead of an error and it will never generate a stacktrace.
+
+ class CollectdError(Exception)
+
+Basic exception for collectd Python scripts.
+Throwing this exception will not cause a stacktrace to be logged, even if
+LogTraces is enabled in the config.
 
 =head2 Signed
 
@@ -474,7 +496,7 @@ Methods defined here:
 
 =over 4
 
-=item B<dispatch>([type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.
+=item B<dispatch>([type][, message][, plugin_instance][, type_instance][, plugin][, host][, time][, severity][, meta]) -> None.  Dispatch a notification.
 
 Dispatch this instance to the collectd process. The object has members for each
 of the possible arguments for this method. For a detailed explanation of these
@@ -500,6 +522,16 @@ generated.
 The severity of this notification. Assign or compare to I<NOTIF_FAILURE>,
 I<NOTIF_WARNING> or I<NOTIF_OKAY>.
 
+=item meta
+
+These are the meta data for the Notification object.
+It has to be a dictionary of numbers, strings or bools. All keys must be
+strings. I<int> and I<long> objects will be dispatched as signed integers unless
+they are between 2**63 and 2**64-1, which will result in a unsigned integer.
+One of these storage classes can be forced by using the classes
+B<collectd.Signed> and B<collectd.Unsigned>. A meta object received by a
+notification callback will always contain B<Signed> or B<Unsigned> objects.
+
 =back
 
 =head1 FUNCTIONS
@@ -515,18 +547,18 @@ different events. With one exception all of them are called as shown above.
 
 =over 4
 
-=item
+=item *
 
 I<callback> is a callable object that will be called every time the event is
 triggered.
 
-=item
+=item *
 
 I<data> is an optional object that will be passed back to the callback function
 every time it is called. If you omit this parameter no object is passed back to
 your callback, not even None.
 
-=item
+=item *
 
 I<name> is an optional identifier for this callback. The default name is
 B<python>.I<module>. I<module> is taken from the B<__module__> attribute of
@@ -534,7 +566,7 @@ your callback function. Every callback needs a unique identifier, so if you
 want to register the same callback multiple times in the same module you need to
 specify a name here. Otherwise it's safe to ignore this parameter.
 
-=item
+=item *
 
 I<identifier> is the full identifier assigned to this callback.
 
@@ -637,7 +669,7 @@ A float or None, the maximum value.
 
 =back
 
-=item B<flush>(I<plugin>[, I<timeout>][, I<identifier>]) -> None
+=item B<flush>(I<plugin[, timeout][, identifier]) -> None
 
 Flush one or all plugins. I<timeout> and the specified I<identifiers> are
 passed on to the registered flush-callbacks. If omitted, the timeout defaults
@@ -658,6 +690,8 @@ Any Python module will start similar to:
 
 A very simple read function might look like:
 
+  import random
+
   def read(data=None):
     vl = collectd.Values(type='gauge')
     vl.plugin='python.spam'
@@ -671,33 +705,17 @@ A very simple write function might look like:
 
 To register those functions with collectd:
 
-  collectd.register_read(read);
-  collectd.register_write(write);
+  collectd.register_read(read)
+  collectd.register_write(write)
 
 See the section L<"CLASSES"> above for a complete documentation of the data
 types used by the read, write and match functions.
-
-=head1 NOTES
-
-=over 4
-
-=item
-
-Please feel free to send in new plugins to collectd's mailing list at
-E<lt>collectdE<nbsp>atE<nbsp>collectd.orgE<gt> for review and, possibly,
-inclusion in the main distribution. In the latter case, we will take care of
-keeping the plugin up to date and adapting it to new versions of collectd.
-
-Before submitting your plugin, please take a look at
-L<http://collectd.org/dev-info.shtml>.
-
-=back
 
 =head1 CAVEATS
 
 =over 4
 
-=item
+=item *
 
 collectd is heavily multi-threaded. Each collectd thread accessing the Python
 plugin will be mapped to a Python interpreter thread. Any such thread will be
@@ -707,13 +725,13 @@ Hence, any plugin has to be thread-safe if it provides several entry points
 from collectd (i.E<nbsp>e. if it registers more than one callback or if a
 registered callback may be called more than once in parallel).
 
-=item
+=item *
 
 The Python thread module is initialized just before calling the init callbacks.
 This means you must not use Python's threading module prior to this point. This
 includes all config and possibly other callback as well.
 
-=item
+=item *
 
 The python plugin exports the internal API of collectd which is considered
 unstable and subject to change at any time. We try hard to not break backwards
@@ -727,10 +745,10 @@ dispatched by the python plugin after upgrades.
 
 =over 4
 
-=item
+=item *
 
 Not all aspects of the collectd API are accessible from Python. This includes
-but is not limited to filters and data sets.
+but is not limited to filters.
 
 =back
 

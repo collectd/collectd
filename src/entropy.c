@@ -25,57 +25,38 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
+
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if !KERNEL_LINUX
-# error "No applicable input method."
+#error "No applicable input method."
 #endif
 
 #define ENTROPY_FILE "/proc/sys/kernel/random/entropy_avail"
 
-static void entropy_submit (double entropy)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
+static void entropy_submit(value_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = entropy;
+  vl.values = &value;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "entropy", sizeof(vl.plugin));
+  sstrncpy(vl.type, "entropy", sizeof(vl.type));
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "entropy", sizeof (vl.plugin));
-	sstrncpy (vl.type, "entropy", sizeof (vl.type));
-
-	plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 }
 
-static int entropy_read (void)
-{
-	double entropy;
-	FILE *fh;
-	char buffer[64];
+static int entropy_read(void) {
+  value_t v;
+  if (parse_value_file(ENTROPY_FILE, &v, DS_TYPE_GAUGE) != 0) {
+    ERROR("entropy plugin: Reading \"" ENTROPY_FILE "\" failed.");
+    return -1;
+  }
 
-	fh = fopen (ENTROPY_FILE, "r");
-	if (fh == NULL)
-		return (-1);
-
-	if (fgets (buffer, sizeof (buffer), fh) == NULL)
-	{
-		fclose (fh);
-		return (-1);
-	}
-	fclose (fh);
-
-	entropy = atof (buffer);
-	
-	if (entropy > 0.0)
-		entropy_submit (entropy);
-
-	return (0);
+  entropy_submit(v);
+  return 0;
 }
 
-void module_register (void)
-{
-	plugin_register_read ("entropy", entropy_read);
+void module_register(void) {
+  plugin_register_read("entropy", entropy_read);
 } /* void module_register */

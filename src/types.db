@@ -7,8 +7,12 @@ apache_scoreboard       value:GAUGE:0:65535
 ath_nodes               value:GAUGE:0:65535
 ath_stat                value:DERIVE:0:U
 backends                value:GAUGE:0:65535
+bad_peb_count           value:COUNTER:0:U
 bitrate                 value:GAUGE:0:4294967295
 blocked_clients         value:GAUGE:0:U
+bool                    value:GAUGE:0:1
+bucket                  value:GAUGE:0:U
+buffer                  value:GAUGE:0:18446744073709551615
 bytes                   value:GAUGE:0:U
 cache_eviction          value:DERIVE:0:U
 cache_operation         value:DERIVE:0:U
@@ -21,29 +25,46 @@ ceph_latency            value:GAUGE:U:U
 ceph_rate               value:DERIVE:0:U
 changes_since_last_save value:GAUGE:0:U
 charge                  value:GAUGE:0:U
+clock_last_meas         value:GAUGE:0:U
+clock_last_update       value:GAUGE:U:U
+clock_mode              value:GAUGE:0:U
+clock_reachability      value:GAUGE:0:U
+clock_skew_ppm          value:GAUGE:0:1000000
+clock_state             value:GAUGE:0:U
+clock_stratum           value:GAUGE:0:U
 compression             uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
 compression_ratio       value:GAUGE:0:2
+commands                value:DERIVE:0:U
 connections             value:DERIVE:0:U
 conntrack               value:GAUGE:0:4294967295
 contextswitch           value:DERIVE:0:U
+controller              value:GAUGE:0:18446744073709551615
+cookies                 value:DERIVE:0:U
 count                   value:GAUGE:0:U
 counter                 value:COUNTER:U:U
 cpu                     value:DERIVE:0:U
+cpu_affinity            value:GAUGE:0:1
 cpufreq                 value:GAUGE:0:U
 current                 value:GAUGE:U:U
 current_connections     value:GAUGE:0:U
 current_sessions        value:GAUGE:0:U
 delay                   value:GAUGE:-1000000:1000000
+delay_rate              value:GAUGE:0:U
 derive                  value:DERIVE:0:U
 df                      used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
 df_complex              value:GAUGE:0:U
 df_inodes               value:GAUGE:0:U
+dilution_of_precision   value:GAUGE:0:U
+disk_allocation         value:GAUGE:0:U
+disk_capacity           value:GAUGE:0:U
+disk_error              value:GAUGE:0:U
 disk_io_time            io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 disk_latency            read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged             read:DERIVE:0:U, write:DERIVE:0:U
 disk_octets             read:DERIVE:0:U, write:DERIVE:0:U
 disk_ops                read:DERIVE:0:U, write:DERIVE:0:U
 disk_ops_complex        value:DERIVE:0:U
+disk_physical           value:GAUGE:0:U
 disk_time               read:DERIVE:0:U, write:DERIVE:0:U
 dns_answer              value:DERIVE:0:U
 dns_notify              value:DERIVE:0:U
@@ -61,25 +82,34 @@ dns_response            value:DERIVE:0:U
 dns_transfer            value:DERIVE:0:U
 dns_update              value:DERIVE:0:U
 dns_zops                value:DERIVE:0:U
+domain_state            state:GAUGE:0:U, reason:GAUGE:0:U
+dpdk_telemetry          value:COUNTER:0:U
 drbd_resource           value:DERIVE:0:U
 duration                seconds:GAUGE:0:U
 email_check             value:GAUGE:0:U
 email_count             value:GAUGE:0:U
 email_size              value:GAUGE:0:U
+energy                  value:GAUGE:U:U
+energy_wh               value:GAUGE:U:U
 entropy                 value:GAUGE:0:4294967295
+errors                  value:DERIVE:0:U
 evicted_keys            value:DERIVE:0:U
 expired_keys            value:DERIVE:0:U
 fanspeed                value:GAUGE:0:U
 file_handles            value:GAUGE:0:U
 file_size               value:GAUGE:0:U
 files                   value:GAUGE:0:U
+filter_result           value:DERIVE:0:U
 flow                    value:GAUGE:0:U
 fork_rate               value:DERIVE:0:U
+freepages               value:GAUGE:0:U
 frequency               value:GAUGE:0:U
+frequency_error         value:GAUGE:-1000000:1000000
 frequency_offset        value:GAUGE:-1000000:1000000
 fscache_stat            value:DERIVE:0:U
 gauge                   value:GAUGE:U:U
 hash_collisions         value:DERIVE:0:U
+health                  value:GAUGE:0:18446744073709551615
 http_request_methods    value:DERIVE:0:U
 http_requests           value:DERIVE:0:U
 http_response_codes     value:DERIVE:0:U
@@ -90,19 +120,30 @@ if_errors               rx:DERIVE:0:U, tx:DERIVE:0:U
 if_multicast            value:DERIVE:0:U
 if_octets               rx:DERIVE:0:U, tx:DERIVE:0:U
 if_packets              rx:DERIVE:0:U, tx:DERIVE:0:U
+if_rx_dropped           value:DERIVE:0:U
 if_rx_errors            value:DERIVE:0:U
+if_rx_nohandler         value:DERIVE:0:U
 if_rx_octets            value:DERIVE:0:U
+if_rx_packets           value:DERIVE:0:U
+if_tx_dropped           value:DERIVE:0:U
 if_tx_errors            value:DERIVE:0:U
 if_tx_octets            value:DERIVE:0:U
+if_tx_packets           value:DERIVE:0:U
 invocations             value:DERIVE:0:U
 io_octets               rx:DERIVE:0:U, tx:DERIVE:0:U
+io_ops                  read:DERIVE:0:U, write:DERIVE:0:U
 io_packets              rx:DERIVE:0:U, tx:DERIVE:0:U
+ipc                     value:GAUGE:0:U
 ipt_bytes               value:DERIVE:0:U
 ipt_packets             value:DERIVE:0:U
 irq                     value:DERIVE:0:U
+job_stats               value:DERIVE:0:U
 latency                 value:GAUGE:0:U
 links                   value:GAUGE:0:U
 load                    shortterm:GAUGE:0:5000, midterm:GAUGE:0:5000, longterm:GAUGE:0:5000
+max_ec                  value:COUNTER:0:U
+media                   value:GAUGE:0:18446744073709551615
+memory_bandwidth        value:DERIVE:0:U
 md_disks                value:GAUGE:0:U
 memcached_command       value:DERIVE:0:U
 memcached_connections   value:GAUGE:0:U
@@ -132,6 +173,7 @@ mysql_select            value:DERIVE:0:U
 mysql_sort              value:DERIVE:0:U
 mysql_sort_merge_passes value:DERIVE:0:U
 mysql_sort_rows         value:DERIVE:0:U
+mysql_slow_queries      value:DERIVE:0:U
 nfs_procedure           value:DERIVE:0:U
 nginx_connections       value:GAUGE:0:U
 nginx_requests          value:DERIVE:0:U
@@ -141,11 +183,13 @@ node_stat               value:DERIVE:0:U
 node_tx_rate            value:GAUGE:0:127
 objects                 value:GAUGE:0:U
 operations              value:DERIVE:0:U
+operations_per_second   value:GAUGE:0:U
 packets                 value:DERIVE:0:U
 pending_operations      value:GAUGE:0:U
 percent                 value:GAUGE:0:100.1
 percent_bytes           value:GAUGE:0:100.1
 percent_inodes          value:GAUGE:0:100.1
+perf                    value:DERIVE:0:U
 pf_counters             value:DERIVE:0:U
 pf_limits               value:DERIVE:0:U
 pf_source               value:DERIVE:0:U
@@ -159,10 +203,11 @@ pg_numbackends          value:GAUGE:0:U
 pg_scan                 value:DERIVE:0:U
 pg_xact                 value:DERIVE:0:U
 ping                    value:GAUGE:0:65535
-ping_droprate           value:GAUGE:0:100
+ping_droprate           value:GAUGE:0:1
 ping_stddev             value:GAUGE:0:65535
 players                 value:GAUGE:0:1000000
-power                   value:GAUGE:0:U
+pools                   value:GAUGE:0:U
+power                   value:GAUGE:U:U
 pressure                value:GAUGE:0:U
 protocol_counter        value:DERIVE:0:U
 ps_code                 value:GAUGE:0:9223372036854775807
@@ -176,20 +221,35 @@ ps_rss                  value:GAUGE:0:9223372036854775807
 ps_stacksize            value:GAUGE:0:9223372036854775807
 ps_state                value:GAUGE:0:65535
 ps_vm                   value:GAUGE:0:9223372036854775807
+pstates_enabled         value:GAUGE:0:1
 pubsub                  value:GAUGE:0:U
 queue_length            value:GAUGE:0:U
 records                 value:GAUGE:0:U
+redis_command_cputime   value:DERIVE:0:U
 requests                value:GAUGE:0:U
 response_code           value:GAUGE:0:U
 response_time           value:GAUGE:0:U
+root_delay              value:GAUGE:U:U
+root_dispersion         value:GAUGE:U:U
 route_etx               value:GAUGE:0:U
 route_metric            value:GAUGE:0:U
 routes                  value:GAUGE:0:U
+satellites              value:GAUGE:0:U
 segments                value:GAUGE:0:65535
 serial_octets           rx:DERIVE:0:U, tx:DERIVE:0:U
 signal_noise            value:GAUGE:U:0
 signal_power            value:GAUGE:U:0
 signal_quality          value:GAUGE:0:U
+slurm_job_state         value:GAUGE:0:U
+slurm_node_state        value:GAUGE:0:U
+slurm_backfilled_jobs   value:DERIVE:0:U
+slurm_cycles            value:DERIVE:0:U
+slurm_cycle_last        value:GAUGE:0:U
+slurm_cycle_duration    value:DERIVE:0:U
+slurm_last_cycle_depth  value:GAUGE:0:U
+slurm_cycle_depth       value:DERIVE:0:U
+slurm_job_stats         value:DERIVE:0:U
+slurm_queue_length      value:DERIVE:0:U
 smart_attribute         current:GAUGE:0:255, worst:GAUGE:0:255, threshold:GAUGE:0:255, pretty:GAUGE:0:U
 smart_badsectors        value:GAUGE:0:U
 smart_powercycles       value:GAUGE:0:U
@@ -201,14 +261,21 @@ spam_score              value:GAUGE:U:U
 spl                     value:GAUGE:U:U
 swap                    value:GAUGE:0:1099511627776
 swap_io                 value:DERIVE:0:U
+sysevent                value:GAUGE:0:1
 tcp_connections         value:GAUGE:0:4294967295
+tdp                     value:GAUGE:U:U
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
 time_dispersion         value:GAUGE:-1000000:1000000
 time_offset             value:GAUGE:-1000000:1000000
+time_offset_ntp         value:GAUGE:-1000000:1000000
+time_offset_rms         value:GAUGE:-1000000:1000000
+time_ref                value:GAUGE:0:U
 timeleft                value:GAUGE:0:U
+timestamp               value:GAUGE:0:18446744073709551615
 total_bytes             value:DERIVE:0:U
 total_connections       value:DERIVE:0:U
+total_events            value:DERIVE:0:U
 total_objects           value:DERIVE:0:U
 total_operations        value:DERIVE:0:U
 total_requests          value:DERIVE:0:U
@@ -216,7 +283,10 @@ total_sessions          value:DERIVE:0:U
 total_threads           value:DERIVE:0:U
 total_time_in_ms        value:DERIVE:0:U
 total_values            value:DERIVE:0:U
+turbo_enabled           value:GAUGE:0:1
+transitions             value:DERIVE:0:U
 uptime                  value:GAUGE:0:4294967295
+uncore_ratio            value:GAUGE:0:U
 users                   value:GAUGE:0:65535
 vcl                     value:GAUGE:0:65535
 vcpu                    value:GAUGE:0:U

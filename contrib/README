@@ -17,6 +17,11 @@ collectd-network.py
 in pure Python. It currently supports to receive data and notifications from
 collectd.
 
+collectd.service
+----------------
+  Service file for systemd. Please ship this file as
+  /lib/systemd/system/collectd.service in any linux package of collectd.
+
 collectd-unixsock.py
 --------------------
   This Python module by Clay Loveless provides an interface to collect's
@@ -43,6 +48,21 @@ should look something like this:
 
   datadir: "/var/lib/collectd/rrd/"
   libdir: "/usr/lib/collectd/"
+
+docker/
+-------
+Sample docker setup using an LD_PRELOAD wrapper to redirect system calls
+accessing /proc and /sys to prefixed bind-mounts inside the container.
+
+Drop your collectd configuration snippets in the
+contrib/docker/collectd.conf.d/ directory, and build an image including them:
+ $ docker build -t my_collectd ./contrib/docker/
+
+Then run it with the required bind-mounts:
+ $ docker run -it --rm \
+    -v /proc:/rootfs/proc:ro -v /sys:/rootfs/sys:ro \
+    --name collectd my_collectd
+ $ docker exec -it collectd collectdctl listval
 
 exec-munin.px
 -------------
@@ -96,8 +116,3 @@ solaris-smf
 -----------
   Manifest file for the Solaris SMF system and detailed information on how to
 register collectd as a service with this system.
-
-collectd.service
-----------------
-  Service file for systemd. Please ship this file as
-  /lib/systemd/system/collectd.service in any linux package of collectd.
