@@ -35,6 +35,7 @@ typedef struct {
   uint64_t blkio_ns;
   uint64_t swapin_ns;
   uint64_t freepages_ns;
+  uint64_t trashing_ns;
 } ts_delay_t;
 
 ts_t *ts_create(void);

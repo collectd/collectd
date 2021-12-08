@@ -302,6 +302,11 @@ int ts_delay_by_tgid(ts_t *ts, uint32_t tgid, ts_delay_t *out) {
       .blkio_ns = raw.blkio_delay_total,
       .swapin_ns = raw.swapin_delay_total,
       .freepages_ns = raw.freepages_delay_total,
+#ifdef HAVE_TASKSTATS_DELAY_TRASHING     
+      .trashing_ns = raw.thrashing_delay_total,
+#else
+      .trashing_ns = 0,
+#endif     
   };
   return 0;
 }

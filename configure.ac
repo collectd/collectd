@@ -591,6 +591,14 @@ AC_CHECK_HEADERS([sys/swap.h vm/anon.h],
 # For users module
 AC_CHECK_HEADERS([sys/loadavg.h linux/config.h utmp.h utmpx.h])
 
+AC_CHECK_MEMBER([struct taskstats.thrashing_delay_total], 
+    AC_DEFINE([HAVE_TASKSTATS_DELAY_TRASHING], [1], [Taskstats version 9]),
+    [],
+    [[
+      #include <linux/taskstats.h>
+    ]]
+)
+
 # For quota module
 AC_CHECK_HEADERS([sys/ucred.h], [], [],
   [[
