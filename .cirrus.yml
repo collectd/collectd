@@ -37,7 +37,7 @@ debian_default_toolchain_task:
       allow_failures: false
     - container:
         image: collectd/ci:trusty_amd64
-      allow_failures: false
+      allow_failures: true
     - container:
         image: collectd/ci:xenial_amd64
       allow_failures: false
@@ -219,3 +219,4 @@ bleeding_edge_compilers_task:
     - make -j2 -sk
   tests_script:
     - make -j2 -sk check
+
