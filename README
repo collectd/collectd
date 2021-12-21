@@ -172,6 +172,9 @@ Features
       This plugin should be compiled with compiler defenses enabled, for
       example -fstack-protector.
 
+    - infiniband
+      Attributes and counters for each port on each IB device.
+
     - intel_pmu
       The intel_pmu plugin reads performance counters provided by the Linux
       kernel perf interface. The plugin uses jevents library to resolve named
@@ -261,6 +264,11 @@ Features
     - mic
       Collects CPU usage, memory usage, temperatures and power consumption from
       Intel Many Integrated Core (MIC) CPUs.
+
+    - mmc
+      Reads the percentage of bad blocks on mmc device. The additional values
+      for block erases and power cycles are also read. This Plugin in does only
+      work for the swissbit mmc Cards. MANFID=0x5D OEMID=0x5342
 
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
@@ -380,6 +388,9 @@ Features
       makes it possible to write plugins in Python which are executed by
       collectd without the need to start a heavy interpreter every interval.
       See collectd-python(5) for details.
+
+    - ras
+      The ras plugin gathers and counts errors provided by RASDaemon
 
     - redis
       The redis plugin gathers information from a Redis server, including:
@@ -1010,6 +1021,10 @@ Prerequisites
   * libslurm (optional)
     Used by the `slurm` plugin.
     <https://slurm.schedmd.com/>
+
+  * libsqlite3 (optional)
+    Used by the `ras` plugin.
+    <https://sqlite.org/>
 
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux

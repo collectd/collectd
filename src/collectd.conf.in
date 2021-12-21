@@ -137,6 +137,7 @@
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 #@BUILD_PLUGIN_HUGEPAGES_TRUE@LoadPlugin hugepages
+#@BUILD_PLUGIN_INFINIBAND_TRUE@LoadPlugin infiniband
 #@BUILD_PLUGIN_INTEL_PMU_TRUE@LoadPlugin intel_pmu
 #@BUILD_PLUGIN_INTEL_RDT_TRUE@LoadPlugin intel_rdt
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
@@ -827,16 +828,14 @@
 #</Plugin>
 
 #<Plugin intel_pmu>
-#    ReportHardwareCacheEvents true
-#    ReportKernelPMUEvents true
-#    ReportSoftwareEvents true
-#    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
+#    EventList "/var/cache/pmu/GenuineIntel-6-55-4-core.json"
 #    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
 #    Cores "[0-3]"
-#    DispatchMultiPmu false
+#    AggregateUncorePMUs true
 #</Plugin>
 
 #<Plugin "intel_rdt">
+#  MonIPCEnabled true
 #  Cores "0-2"
 #  Processes "sshd"
 #</Plugin>
@@ -1043,6 +1042,11 @@
 #	ValuesPercentage false
 #</Plugin>
 
+#<Plugin mmc>
+#	Device "mmc0"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin modbus>
 #	<Data "data_name">
 #		RegisterBase 1234
@@ -1190,6 +1194,7 @@
 #	Class "ppp0" "htb-1:10"
 #	Filter "ppp0" "u32-1:0"
 #	IgnoreSelected false
+#	CollectVFStats false
 #</Plugin>
 
 @LOAD_PLUGIN_NETWORK@<Plugin network>
@@ -1487,6 +1492,10 @@
 #	</Module>
 #</Plugin>
 
+#<Plugin ras>
+#	DB_Path "/var/lib/rasdaemon/ras-mc_event.db"
+#</Plugin>
+
 #<Plugin redis>
 #   <Node example>
 #      Host "redis.example.com"
@@ -1625,6 +1634,22 @@
 #       PluginInstanceOID "IF-MIB::ifDescr"
 #       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
 #   </Data>
+#   <Data "lancom_stations_total">
+#       Type "counter"
+#       PluginInstance "stations_total"
+#       Table true
+#       Count true
+#       Values "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10" # SNMPv2-SMI::enterprises.lancom-systems.lcos.lcsStatus.lcsStatusWlan.lcsStatusWlanStationTableTable.lcsStatusWlanStationTableEntry.lcsStatusWlanStationTableEntryState
+#   </Data>
+#   <Data "lancom_stations_connected">
+#       Type "counter"
+#       PluginInstance "stations_connected"
+#       Table true
+#       Count true
+#       Values "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10" # SNMPv2-SMI::enterprises.lancom-systems.lcos.lcsStatus.lcsStatusWlan.lcsStatusWlanStationTableTable.lcsStatusWlanStationTableEntry.lcsStatusWlanStationTableEntryState
+#       FilterOID "SNMPv2-SMI::enterprises.2356.11.1.3.32.1.10"
+#       FilterValues "3" # eConnected
+#   </Data>
 #
 #   <Host "some.switch.mydomain.org">
 #       Address "192.168.0.2"
@@ -1696,6 +1721,7 @@
 #  DeleteGauges   false
 #  DeleteSets     false
 #  CounterSum     false
+#  CounterGauge   false
 #  TimerPercentile 90.0
 #  TimerPercentile 95.0
 #  TimerPercentile 99.0
@@ -2001,6 +2027,7 @@
 
 #<Plugin write_influxdb_udp>
 #  Server "localhost"
+#  TimePrecision "ms"
 #  StoreRates true
 #  MaxPacketSize 32768
 #  TimeToLive 128

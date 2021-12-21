@@ -4,6 +4,7 @@
  * Copyright (C) 2008-2012  Sebastian Harl
  * Copyright (C) 2013       Andreas Henriksson
  * Copyright (C) 2013       Marc Fournier
+ * Copyright (C) 2020       Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,12 +24,17 @@
  *   Sebastian Harl <sh at tokkee.org>
  *   Andreas Henriksson <andreas at fatal.se>
  *   Marc Fournier <marc.fournier at camptocamp.com>
+ *   Kamil Wiatrowski <kamilx.wiatrowski at intel.com>
  **/
 
 #include "collectd.h"
 
 #include "plugin.h"
 #include "utils/common/common.h"
+
+#if HAVE_REGEX_H
+#include <regex.h>
+#endif
 
 #include <asm/types.h>
 
@@ -41,7 +47,10 @@
 #include <linux/pkt_sched.h>
 #endif
 
+#include <glob.h>
 #include <libmnl/libmnl.h>
+
+#define NETLINK_VF_DEFAULT_BUF_SIZE_KB 16
 
 struct ir_link_stats_storage_s {
 
@@ -79,8 +88,39 @@ union ir_link_stats_u {
 #endif
 };
 
+#ifdef HAVE_IFLA_VF_STATS
+typedef struct vf_stats_s {
+  struct ifla_vf_mac *vf_mac;
+  uint32_t vlan;
+  uint32_t qos;
+  uint32_t spoofcheck;
+  uint32_t link_state;
+  uint32_t txrate;
+  uint32_t min_txrate;
+  uint32_t max_txrate;
+  uint32_t rss_query_en;
+  uint32_t trust;
+
+  uint64_t rx_packets;
+  uint64_t tx_packets;
+  uint64_t rx_bytes;
+  uint64_t tx_bytes;
+  uint64_t broadcast;
+  uint64_t multicast;
+#ifdef HAVE_IFLA_VF_STATS_RX_DROPPED
+  uint64_t rx_dropped;
+#endif
+#ifdef HAVE_IFLA_VF_STATS_TX_DROPPED
+  uint64_t tx_dropped;
+#endif
+} vf_stats_t;
+#endif
+
 typedef struct ir_ignorelist_s {
   char *device;
+#if HAVE_REGEX_H
+  regex_t *rdevice; /* regular expression device identification */
+#endif
   char *type;
   char *inst;
   struct ir_ignorelist_s *next;
@@ -99,9 +139,12 @@ static struct mnl_socket *nl;
 static char **iflist;
 static size_t iflist_len;
 
-static const char *config_keys[] = {"Interface", "VerboseInterface",
-                                    "QDisc",     "Class",
-                                    "Filter",    "IgnoreSelected"};
+static bool collect_vf_stats = false;
+static size_t nl_socket_buffer_size = NETLINK_VF_DEFAULT_BUF_SIZE_KB * 1024;
+
+static const char *config_keys[] = {
+    "Interface", "VerboseInterface", "QDisc",         "Class",
+    "Filter",    "IgnoreSelected",   "CollectVFStats"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static int add_ignorelist(const char *dev, const char *type, const char *inst) {
@@ -111,7 +154,42 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
   if (entry == NULL)
     return -1;
 
-  if (strcasecmp(dev, "All") != 0) {
+#if HAVE_REGEX_H
+  size_t len = strlen(dev);
+  /* regex string is enclosed in "/.../" */
+  if ((len > 2) && (dev[0] == '/') && dev[len - 1] == '/') {
+    char *copy = strdup(dev + 1);
+    if (copy == NULL) {
+      sfree(entry);
+      return -1;
+    }
+    copy[strlen(copy) - 1] = '\0';
+
+    regex_t *re = calloc(1, sizeof(*re));
+    if (re == NULL) {
+      sfree(entry);
+      sfree(copy);
+      return -1;
+    }
+
+    int status = regcomp(re, copy, REG_EXTENDED);
+    if (status != 0) {
+      char errbuf[1024];
+      (void)regerror(status, re, errbuf, sizeof(errbuf));
+      ERROR("netlink plugin: add_ignorelist: regcomp for %s failed: %s", dev,
+            errbuf);
+      regfree(re);
+      sfree(entry);
+      sfree(copy);
+      sfree(re);
+      return -1;
+    }
+
+    entry->rdevice = re;
+    sfree(copy);
+  } else
+#endif
+      if (strcasecmp(dev, "All") != 0) {
     entry->device = strdup(dev);
     if (entry->device == NULL) {
       sfree(entry);
@@ -122,6 +200,9 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
   entry->type = strdup(type);
   if (entry->type == NULL) {
     sfree(entry->device);
+#if HAVE_REGEX_H
+    sfree(entry->rdevice);
+#endif
     sfree(entry);
     return -1;
   }
@@ -131,6 +212,9 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
     if (entry->inst == NULL) {
       sfree(entry->type);
       sfree(entry->device);
+#if HAVE_REGEX_H
+      sfree(entry->rdevice);
+#endif
       sfree(entry);
       return -1;
     }
@@ -154,8 +238,14 @@ static int check_ignorelist(const char *dev, const char *type,
     return ir_ignorelist_invert ? 0 : 1;
 
   for (ir_ignorelist_t *i = ir_ignorelist_head; i != NULL; i = i->next) {
-    /* i->device == NULL  =>  match all devices */
-    if ((i->device != NULL) && (strcasecmp(i->device, dev) != 0))
+#if HAVE_REGEX_H
+    if (i->rdevice != NULL) {
+      if (regexec(i->rdevice, dev, 0, NULL, 0))
+        continue;
+    } else
+#endif
+        /* i->device == NULL  =>  match all devices */
+        if ((i->device != NULL) && (strcasecmp(i->device, dev) != 0))
       continue;
 
     if (strcasecmp(i->type, type) != 0)
@@ -165,18 +255,44 @@ static int check_ignorelist(const char *dev, const char *type,
         (strcasecmp(i->inst, type_instance) != 0))
       continue;
 
+#if COLLECT_DEBUG
+#if HAVE_REGEX_H
+    const char *device = i->device == NULL
+                             ? (i->rdevice != NULL ? "(regexp)" : "(nil)")
+                             : i->device;
+#else
+    const char *device = i->device == NULL ? "(nil)" : i->device;
+#endif
     DEBUG("netlink plugin: check_ignorelist: "
           "(dev = %s; type = %s; inst = %s) matched "
           "(dev = %s; type = %s; inst = %s)",
-          dev, type, type_instance == NULL ? "(nil)" : type_instance,
-          i->device == NULL ? "(nil)" : i->device, i->type,
-          i->inst == NULL ? "(nil)" : i->inst);
+          dev, type, type_instance == NULL ? "(nil)" : type_instance, device,
+          i->type, i->inst == NULL ? "(nil)" : i->inst);
+#endif
 
     return ir_ignorelist_invert ? 0 : 1;
   } /* for i */
 
   return ir_ignorelist_invert;
 } /* int check_ignorelist */
+
+#ifdef HAVE_IFLA_VF_STATS
+static void submit_one_gauge(const char *dev, const char *type,
+                             const char *type_instance, gauge_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.gauge = value};
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "netlink", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, dev, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+
+  if (type_instance != NULL)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+} /* void submit_one_gauge */
+#endif
 
 static void submit_one(const char *dev, const char *type,
                        const char *type_instance, derive_t value) {
@@ -330,12 +446,224 @@ static void check_ignorelist_and_submit32(const char *dev,
   check_ignorelist_and_submit(dev, &s);
 }
 
+#ifdef HAVE_IFLA_VF_STATS
+static void vf_info_submit(const char *dev, vf_stats_t *vf_stats) {
+  if (vf_stats->vf_mac == NULL) {
+    ERROR("netlink plugin: vf_info_submit: failed to get VF macaddress, "
+          "skipping VF for interface %s",
+          dev);
+    return;
+  }
+  uint8_t *mac = vf_stats->vf_mac->mac;
+  uint32_t vf_num = vf_stats->vf_mac->vf;
+  char instance[512];
+  ssnprintf(instance, sizeof(instance), "%s_vf%u_%02x:%02x:%02x:%02x:%02x:%02x",
+            dev, vf_num, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  DEBUG("netlink plugin: vf_info_submit: plugin_instance - %s", instance);
+
+  submit_one_gauge(instance, "vf_link_info", "number", vf_num);
+  submit_one_gauge(instance, "vf_link_info", "vlan", vf_stats->vlan);
+  submit_one_gauge(instance, "vf_link_info", "qos", vf_stats->qos);
+  submit_one_gauge(instance, "vf_link_info", "spoofcheck",
+                   vf_stats->spoofcheck);
+  submit_one_gauge(instance, "vf_link_info", "link_state",
+                   vf_stats->link_state);
+  submit_one_gauge(instance, "vf_link_info", "tx_rate", vf_stats->txrate);
+  submit_one_gauge(instance, "vf_link_info", "min_tx_rate",
+                   vf_stats->min_txrate);
+  submit_one_gauge(instance, "vf_link_info", "max_tx_rate",
+                   vf_stats->max_txrate);
+  submit_one_gauge(instance, "vf_link_info", "rss_query_en",
+                   vf_stats->rss_query_en);
+  submit_one_gauge(instance, "vf_link_info", "trust", vf_stats->trust);
+
+  submit_one(instance, "vf_broadcast", NULL, vf_stats->broadcast);
+  submit_one(instance, "vf_multicast", NULL, vf_stats->multicast);
+  submit_two(instance, "vf_packets", NULL, vf_stats->rx_packets,
+             vf_stats->tx_packets);
+  submit_two(instance, "vf_bytes", NULL, vf_stats->rx_bytes,
+             vf_stats->tx_bytes);
+#if defined(HAVE_IFLA_VF_STATS_RX_DROPPED) &&                                  \
+    defined(HAVE_IFLA_VF_STATS_TX_DROPPED)
+  submit_two(instance, "vf_dropped", NULL, vf_stats->rx_dropped,
+             vf_stats->tx_dropped);
+#endif
+} /* void vf_info_submit */
+
+#define IFCOPY_VF_STAT_VALUE(attr, name, type_name)                            \
+  do {                                                                         \
+    if (mnl_attr_get_type(attr) == type_name) {                                \
+      if (mnl_attr_validate(attr, MNL_TYPE_U64) < 0) {                         \
+        ERROR("netlink plugin: vf_info_attr_cb: " #type_name                   \
+              " mnl_attr_validate failed.");                                   \
+        return MNL_CB_ERROR;                                                   \
+      }                                                                        \
+      vf_stats->name = mnl_attr_get_u64(attr);                                 \
+    }                                                                          \
+  } while (0)
+
+static int vf_info_attr_cb(const struct nlattr *attr, void *args) {
+  vf_stats_t *vf_stats = (vf_stats_t *)args;
+
+  /* skip unsupported attribute */
+  if (mnl_attr_type_valid(attr, IFLA_VF_MAX) < 0) {
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_MAC) {
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*vf_stats->vf_mac)) <
+        0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_MAC mnl_attr_validate2 "
+            "failed: %s",
+            STRERRNO);
+      return MNL_CB_ERROR;
+    }
+
+    vf_stats->vf_mac = (struct ifla_vf_mac *)mnl_attr_get_payload(attr);
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_VLAN) {
+    struct ifla_vf_vlan *vf_vlan;
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*vf_vlan)) < 0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_VLAN mnl_attr_validate2 "
+            "failed: %s",
+            STRERRNO);
+      return MNL_CB_ERROR;
+    }
+
+    vf_vlan = (struct ifla_vf_vlan *)mnl_attr_get_payload(attr);
+    vf_stats->vlan = vf_vlan->vlan;
+    vf_stats->qos = vf_vlan->qos;
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_TX_RATE) {
+    struct ifla_vf_tx_rate *vf_txrate;
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*vf_txrate)) < 0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_TX_RATE "
+            "mnl_attr_validate2 failed: %s",
+            STRERRNO);
+      return MNL_CB_ERROR;
+    }
+
+    vf_txrate = (struct ifla_vf_tx_rate *)mnl_attr_get_payload(attr);
+    vf_stats->txrate = vf_txrate->rate;
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_SPOOFCHK) {
+    struct ifla_vf_spoofchk *vf_spoofchk;
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*vf_spoofchk)) < 0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_SPOOFCHK "
+            "mnl_attr_validate2 failed: %s",
+            STRERRNO);
+      return MNL_CB_ERROR;
+    }
+
+    vf_spoofchk = (struct ifla_vf_spoofchk *)mnl_attr_get_payload(attr);
+    vf_stats->spoofcheck = vf_spoofchk->setting;
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_LINK_STATE) {
+    struct ifla_vf_link_state *vf_link_state;
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*vf_link_state)) < 0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_LINK_STATE "
+            "mnl_attr_validate2 failed: %s",
+            STRERRNO);
+      return MNL_CB_ERROR;
+    }
+
+    vf_link_state = (struct ifla_vf_link_state *)mnl_attr_get_payload(attr);
+    vf_stats->link_state = vf_link_state->link_state;
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_RATE) {
+    struct ifla_vf_rate *vf_rate;
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*vf_rate)) < 0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_RATE mnl_attr_validate2 "
+            "failed: %s",
+            STRERRNO);
+      return MNL_CB_ERROR;
+    }
+
+    vf_rate = (struct ifla_vf_rate *)mnl_attr_get_payload(attr);
+    vf_stats->min_txrate = vf_rate->min_tx_rate;
+    vf_stats->max_txrate = vf_rate->max_tx_rate;
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_RSS_QUERY_EN) {
+    struct ifla_vf_rss_query_en *vf_rss_query_en;
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*vf_rss_query_en)) <
+        0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_RSS_QUERY_EN "
+            "mnl_attr_validate2 "
+            "failed: %s",
+            STRERRNO);
+      return MNL_CB_ERROR;
+    }
+
+    vf_rss_query_en = (struct ifla_vf_rss_query_en *)mnl_attr_get_payload(attr);
+    vf_stats->rss_query_en = vf_rss_query_en->setting;
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_TRUST) {
+    struct ifla_vf_trust *vf_trust;
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*vf_trust)) < 0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_TRUST mnl_attr_validate2 "
+            "failed: %s",
+            STRERRNO);
+      return MNL_CB_ERROR;
+    }
+
+    vf_trust = (struct ifla_vf_trust *)mnl_attr_get_payload(attr);
+    vf_stats->trust = vf_trust->setting;
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == IFLA_VF_STATS) {
+    if (mnl_attr_validate(attr, MNL_TYPE_NESTED) < 0) {
+      ERROR("netlink plugin: vf_info_attr_cb: IFLA_VF_STATS mnl_attr_validate "
+            "failed.");
+      return MNL_CB_ERROR;
+    }
+
+    struct nlattr *nested;
+    mnl_attr_for_each_nested(nested, attr) {
+      IFCOPY_VF_STAT_VALUE(nested, rx_packets, IFLA_VF_STATS_RX_PACKETS);
+      IFCOPY_VF_STAT_VALUE(nested, tx_packets, IFLA_VF_STATS_TX_PACKETS);
+      IFCOPY_VF_STAT_VALUE(nested, rx_bytes, IFLA_VF_STATS_RX_BYTES);
+      IFCOPY_VF_STAT_VALUE(nested, tx_bytes, IFLA_VF_STATS_TX_BYTES);
+      IFCOPY_VF_STAT_VALUE(nested, broadcast, IFLA_VF_STATS_BROADCAST);
+      IFCOPY_VF_STAT_VALUE(nested, multicast, IFLA_VF_STATS_MULTICAST);
+#ifdef HAVE_IFLA_VF_STATS_RX_DROPPED
+      IFCOPY_VF_STAT_VALUE(nested, rx_dropped, IFLA_VF_STATS_RX_DROPPED);
+#endif
+#ifdef HAVE_IFLA_VF_STATS_TX_DROPPED
+      IFCOPY_VF_STAT_VALUE(nested, tx_dropped, IFLA_VF_STATS_TX_DROPPED);
+#endif
+    }
+    return MNL_CB_OK;
+  }
+
+  return MNL_CB_OK;
+} /* int vf_info_attr_cb */
+#endif /* HAVE_IFLA_VF_STATS */
+
 static int link_filter_cb(const struct nlmsghdr *nlh,
                           void *args __attribute__((unused))) {
   struct ifinfomsg *ifm = mnl_nlmsg_get_payload(nlh);
   struct nlattr *attr;
   const char *dev = NULL;
   union ir_link_stats_u stats;
+#ifdef HAVE_IFLA_VF_STATS
+  uint32_t num_vfs = 0;
+#endif
+  bool stats_done = false;
 
   if (nlh->nlmsg_type != RTM_NEWLINK) {
     ERROR("netlink plugin: link_filter_cb: Don't know how to handle type %i.",
@@ -364,6 +692,32 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     ERROR("netlink plugin: link_filter_cb: dev == NULL");
     return MNL_CB_ERROR;
   }
+
+  if (check_ignorelist(dev, "interface", NULL) != 0 &&
+      check_ignorelist(dev, "if_detail", NULL) != 0) {
+    DEBUG("netlink plugin: link_filter_cb: Ignoring %s/interface.", dev);
+    DEBUG("netlink plugin: link_filter_cb: Ignoring %s/if_detail.", dev);
+    return MNL_CB_OK;
+  }
+
+#ifdef HAVE_IFLA_VF_STATS
+  if (collect_vf_stats) {
+    mnl_attr_for_each(attr, nlh, sizeof(*ifm)) {
+      if (mnl_attr_get_type(attr) != IFLA_NUM_VF)
+        continue;
+
+      if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+        ERROR("netlink plugin: link_filter_cb: IFLA_NUM_VF mnl_attr_validate "
+              "failed.");
+        return MNL_CB_ERROR;
+      }
+
+      num_vfs = mnl_attr_get_u32(attr);
+      break;
+    }
+  }
+#endif
+
 #ifdef HAVE_RTNL_LINK_STATS64
   mnl_attr_for_each(attr, nlh, sizeof(*ifm)) {
     if (mnl_attr_get_type(attr) != IFLA_STATS64)
@@ -379,29 +733,74 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
 
     check_ignorelist_and_submit64(dev, stats.stats64);
 
-    return MNL_CB_OK;
+    stats_done = true;
+    break;
   }
 #endif
-  mnl_attr_for_each(attr, nlh, sizeof(*ifm)) {
-    if (mnl_attr_get_type(attr) != IFLA_STATS)
-      continue;
+  if (stats_done == false) {
+    mnl_attr_for_each(attr, nlh, sizeof(*ifm)) {
+      if (mnl_attr_get_type(attr) != IFLA_STATS)
+        continue;
 
-    uint16_t attr_len = mnl_attr_get_payload_len(attr);
-    if (attr_len < sizeof(*stats.stats32)) {
-      ERROR("netlink plugin: link_filter_cb: IFLA_STATS attribute has "
-            "insufficient data.");
-      return MNL_CB_ERROR;
+      uint16_t attr_len = mnl_attr_get_payload_len(attr);
+      if (attr_len < sizeof(*stats.stats32)) {
+        ERROR("netlink plugin: link_filter_cb: IFLA_STATS attribute has "
+              "insufficient data.");
+        return MNL_CB_ERROR;
+      }
+      stats.stats32 = mnl_attr_get_payload(attr);
+
+      check_ignorelist_and_submit32(dev, stats.stats32);
+
+      stats_done = true;
+      break;
     }
-    stats.stats32 = mnl_attr_get_payload(attr);
-
-    check_ignorelist_and_submit32(dev, stats.stats32);
-
-    return MNL_CB_OK;
   }
 
-  DEBUG("netlink plugin: link_filter: No statistics for interface %s.", dev);
-  return MNL_CB_OK;
+#if COLLECT_DEBUG
+  if (stats_done == false)
+    DEBUG("netlink plugin: link_filter: No statistics for interface %s.", dev);
+#endif
 
+#ifdef HAVE_IFLA_VF_STATS
+  if (num_vfs == 0)
+    return MNL_CB_OK;
+
+  /* Get VFINFO list. */
+  mnl_attr_for_each(attr, nlh, sizeof(*ifm)) {
+    if (mnl_attr_get_type(attr) != IFLA_VFINFO_LIST)
+      continue;
+
+    if (mnl_attr_validate(attr, MNL_TYPE_NESTED) < 0) {
+      ERROR("netlink plugin: link_filter_cb: IFLA_VFINFO_LIST "
+            "mnl_attr_validate failed.");
+      return MNL_CB_ERROR;
+    }
+
+    struct nlattr *nested;
+    mnl_attr_for_each_nested(nested, attr) {
+      if (mnl_attr_get_type(nested) != IFLA_VF_INFO) {
+        continue;
+      }
+
+      if (mnl_attr_validate(nested, MNL_TYPE_NESTED) < 0) {
+        ERROR("netlink plugin: link_filter_cb: IFLA_VF_INFO mnl_attr_validate "
+              "failed.");
+        return MNL_CB_ERROR;
+      }
+
+      vf_stats_t vf_stats = {0};
+      if (mnl_attr_parse_nested(nested, vf_info_attr_cb, &vf_stats) ==
+          MNL_CB_ERROR)
+        return MNL_CB_ERROR;
+
+      vf_info_submit(dev, &vf_stats);
+    }
+    break;
+  }
+#endif
+
+  return MNL_CB_OK;
 } /* int link_filter_cb */
 
 #if HAVE_TCA_STATS2
@@ -606,6 +1005,62 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
   return MNL_CB_OK;
 } /* int qos_filter_cb */
 
+static size_t ir_get_buffer_size() {
+  if (collect_vf_stats == false) {
+    return MNL_SOCKET_BUFFER_SIZE;
+  }
+
+  glob_t g;
+  unsigned int max_num = 0;
+  if (glob("/sys/class/net/*/device/sriov_totalvfs", GLOB_NOSORT, NULL, &g)) {
+    ERROR("netlink plugin: ir_get_buffer_size: glob failed");
+    /* using default value */
+    return NETLINK_VF_DEFAULT_BUF_SIZE_KB * 1024;
+  }
+
+  for (size_t i = 0; i < g.gl_pathc; i++) {
+    char buf[16];
+    ssize_t len;
+    int num = 0;
+    int fd = open(g.gl_pathv[i], O_RDONLY);
+    if (fd < 0) {
+      WARNING("netlink plugin: ir_get_buffer_size: failed to open `%s.`",
+              g.gl_pathv[i]);
+      continue;
+    }
+
+    if ((len = read(fd, buf, sizeof(buf) - 1)) <= 0) {
+      WARNING("netlink plugin: ir_get_buffer_size: failed to read `%s.`",
+              g.gl_pathv[i]);
+      close(fd);
+      continue;
+    }
+    buf[len] = '\0';
+
+    if (sscanf(buf, "%d", &num) != 1) {
+      WARNING("netlink plugin: ir_get_buffer_size: failed to read number from "
+              "`%s.`",
+              buf);
+      close(fd);
+      continue;
+    }
+
+    if (num > max_num)
+      max_num = num;
+
+    close(fd);
+  }
+  globfree(&g);
+  DEBUG("netlink plugin: ir_get_buffer_size: max sriov_totalvfs = %u", max_num);
+
+  unsigned int mp = NETLINK_VF_DEFAULT_BUF_SIZE_KB;
+  /* allign to power of two, buffer size should be at least totalvfs/2 kb */
+  while (mp < max_num / 2)
+    mp *= 2;
+
+  return mp * 1024;
+}
+
 static int ir_config(const char *key, const char *value) {
   char *new_val;
   char *fields[8];
@@ -630,10 +1085,9 @@ static int ir_config(const char *key, const char *value) {
             key, fields_num);
       status = -1;
     } else {
-      add_ignorelist(fields[0], "interface", NULL);
+      status = add_ignorelist(fields[0], "interface", NULL);
       if (strcasecmp(key, "VerboseInterface") == 0)
-        add_ignorelist(fields[0], "if_detail", NULL);
-      status = 0;
+        status += add_ignorelist(fields[0], "if_detail", NULL);
     }
   } else if ((strcasecmp(key, "QDisc") == 0) ||
              (strcasecmp(key, "Class") == 0) ||
@@ -644,8 +1098,8 @@ static int ir_config(const char *key, const char *value) {
             key, fields_num);
       return -1;
     } else {
-      add_ignorelist(fields[0], key, (fields_num == 2) ? fields[1] : NULL);
-      status = 0;
+      status =
+          add_ignorelist(fields[0], key, (fields_num == 2) ? fields[1] : NULL);
     }
   } else if (strcasecmp(key, "IgnoreSelected") == 0) {
     if (fields_num != 1) {
@@ -658,6 +1112,23 @@ static int ir_config(const char *key, const char *value) {
         ir_ignorelist_invert = 0;
       else
         ir_ignorelist_invert = 1;
+      status = 0;
+    }
+  } else if (strcasecmp(key, "CollectVFStats") == 0) {
+    if (fields_num != 1) {
+      ERROR("netlink plugin: Invalid number of fields for option "
+            "`%s'. Got %i, expected 1.",
+            key, fields_num);
+      status = -1;
+    } else {
+#ifdef HAVE_IFLA_VF_STATS
+      if (IS_TRUE(fields[0]))
+        collect_vf_stats = true;
+      else
+        collect_vf_stats = false;
+#else
+      WARNING("netlink plugin: VF statistics not supported on this system.");
+#endif
       status = 0;
     }
   }
@@ -679,11 +1150,14 @@ static int ir_init(void) {
     return -1;
   }
 
+  nl_socket_buffer_size = ir_get_buffer_size();
+  INFO("netlink plugin: ir_init: buffer size = %zu", nl_socket_buffer_size);
+
   return 0;
 } /* int ir_init */
 
 static int ir_read(void) {
-  char buf[MNL_SOCKET_BUFFER_SIZE];
+  char buf[nl_socket_buffer_size];
   struct nlmsghdr *nlh;
   struct rtgenmsg *rt;
   int ret;
@@ -700,6 +1174,15 @@ static int ir_read(void) {
   nlh->nlmsg_seq = seq = time(NULL);
   rt = mnl_nlmsg_put_extra_header(nlh, sizeof(*rt));
   rt->rtgen_family = AF_PACKET;
+
+#ifdef HAVE_IFLA_VF_STATS
+  if (collect_vf_stats &&
+      mnl_attr_put_u32_check(nlh, sizeof(buf), IFLA_EXT_MASK,
+                             RTEXT_FILTER_VF) == 0) {
+    ERROR("netlink plugin: FAILED to set RTEXT_FILTER_VF");
+    return -1;
+  }
+#endif
 
   if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
     ERROR("netlink plugin: ir_read: rtnl_wilddump_request failed.");
@@ -774,6 +1257,22 @@ static int ir_shutdown(void) {
     mnl_socket_close(nl);
     nl = NULL;
   }
+
+  ir_ignorelist_t *next = NULL;
+  for (ir_ignorelist_t *i = ir_ignorelist_head; i != NULL; i = next) {
+    next = i->next;
+#if HAVE_REGEX_H
+    if (i->rdevice != NULL) {
+      regfree(i->rdevice);
+      sfree(i->rdevice);
+    }
+#endif
+    sfree(i->inst);
+    sfree(i->type);
+    sfree(i->device);
+    sfree(i);
+  }
+  ir_ignorelist_head = NULL;
 
   return 0;
 } /* int ir_shutdown */

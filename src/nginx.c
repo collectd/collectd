@@ -40,6 +40,7 @@ static char *verify_peer;
 static char *verify_host;
 static char *cacert;
 static char *timeout;
+static char *sock;
 
 static CURL *curl;
 
@@ -47,8 +48,9 @@ static char nginx_buffer[16384];
 static size_t nginx_buffer_len;
 static char nginx_curl_error[CURL_ERROR_SIZE];
 
-static const char *config_keys[] = {
-    "URL", "User", "Password", "VerifyPeer", "VerifyHost", "CACert", "Timeout"};
+static const char *config_keys[] = {"URL",        "User",       "Password",
+                                    "VerifyPeer", "VerifyHost", "CACert",
+                                    "Timeout",    "Socket"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static size_t nginx_curl_callback(void *buf, size_t size, size_t nmemb,
@@ -98,6 +100,8 @@ static int config(const char *key, const char *value) {
     return config_set(&cacert, value);
   else if (strcasecmp(key, "timeout") == 0)
     return config_set(&timeout, value);
+  else if (strcasecmp(key, "socket") == 0)
+    return config_set(&sock, value);
   else
     return -1;
 } /* int config */
@@ -158,6 +162,12 @@ static int init(void) {
   } else {
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,
                      (long)CDTIME_T_TO_MS(plugin_get_interval()));
+  }
+#endif
+
+#ifdef HAVE_CURLOPT_UNIX_SOCKET_PATH
+  if (sock != NULL) {
+    curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, sock);
   }
 #endif
 
