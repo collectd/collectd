@@ -217,12 +217,12 @@ static int metric_type(char *buffer, size_t buffer_size, data_set_t const *ds,
     ssnprintf(buffer, buffer_size, GCM_PREFIX "%s/%s", vl->plugin, vl->type);
   }
 
-  char const *whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  char const *allowlist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                           "abcdefghijklmnopqrstuvwxyz"
                           "0123456789_/";
   char *ptr = buffer + strlen(GCM_PREFIX);
   size_t ok_len;
-  while ((ok_len = strspn(ptr, whitelist)) != strlen(ptr)) {
+  while ((ok_len = strspn(ptr, allowlist)) != strlen(ptr)) {
     ptr[ok_len] = '_';
     ptr += ok_len;
   }
