@@ -46,7 +46,6 @@
  * monitoring api supports up to 100K bytes in one request, 64K is reasonable
  */
 #define MAX_BUFFER_SIZE 65536
-#define MAX_ENCODE_SIZE 2048
 
 struct oauth_s {
   char *url;

@@ -307,13 +307,7 @@ static int do_shutdown(void) {
 static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
-    int c = getopt(argc, argv,
-                   "BhtTC:"
-#if COLLECT_DAEMON
-                   "fP:"
-#endif
-    );
-
+    int c = getopt(argc, argv, "BhtTfC:P:");
     if (c == -1)
       break;
 
@@ -334,18 +328,20 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
       config->daemonize = false;
 #endif /* COLLECT_DAEMON */
       break;
-#if COLLECT_DAEMON
     case 'P':
+#if COLLECT_DAEMON
       global_option_set("PIDFile", optarg, 1);
+#endif /* COLLECT_DAEMON */
       break;
     case 'f':
+#if COLLECT_DAEMON
       config->daemonize = false;
-      break;
 #endif /* COLLECT_DAEMON */
+      break;
     case 'h':
-      exit_usage(0);
+      exit_usage(EXIT_SUCCESS);
     default:
-      exit_usage(1);
+      exit_usage(EXIT_FAILURE);
     } /* switch (c) */
   }   /* while (1) */
 }
@@ -399,16 +395,16 @@ struct cmdline_config init_config(int argc, char **argv) {
 
   read_cmdline(argc, argv, &config);
 
-  if (config.test_config)
-    exit(EXIT_SUCCESS);
-
   if (optind < argc)
-    exit_usage(1);
+    exit_usage(EXIT_FAILURE);
 
   plugin_init_ctx();
 
   if (configure_collectd(&config) != 0)
     exit(EXIT_FAILURE);
+
+  if (config.test_config)
+    exit(EXIT_SUCCESS);
 
   return config;
 }

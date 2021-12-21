@@ -21,6 +21,8 @@
  *   Florian octo Forster <octo at collectd.org>
  *   Aman Gupta <aman at tmm1.net>
  *   Carlos Peon Costa <carlospeon at gmail.com>
+ *   multiple Server directives by:
+ *   Paul (systemcrash) <newtwen thatfunny_at_symbol gmail.com>
  **/
 
 #include "collectd.h"
@@ -60,10 +62,19 @@ typedef struct sockent {
   char *service;
   int interface;
   struct sockent_client client;
+
+  pthread_mutex_t lock;
+  struct sockent *next;
 } sockent_t;
 
 #define NET_DEFAULT_PACKET_SIZE 1452
 #define NET_DEFAULT_PORT "8089"
+
+typedef enum {
+  NS,
+  US,
+  MS,
+} wifxudp_time_precision_t;
 
 /*
  * Private variables
@@ -72,8 +83,9 @@ typedef struct sockent {
 static int wifxudp_config_ttl;
 static size_t wifxudp_config_packet_size = NET_DEFAULT_PACKET_SIZE;
 static bool wifxudp_config_store_rates;
+static wifxudp_time_precision_t wifxudp_config_time_precision = MS;
 
-static sockent_t *sending_socket;
+static sockent_t *sending_sockets;
 
 /* Buffer in which to-be-sent network packets are constructed. */
 static char *send_buffer;
@@ -81,8 +93,6 @@ static char *send_buffer_ptr;
 static int send_buffer_fill;
 static cdtime_t send_buffer_last_update;
 static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static int listen_loop;
 
 static int set_ttl(const sockent_t *se, const struct addrinfo *ai) {
 
@@ -156,6 +166,8 @@ static sockent_t *sockent_create() {
   se->node = NULL;
   se->service = NULL;
   se->interface = 0;
+  se->next = NULL;
+  pthread_mutex_init(&se->lock, NULL);
 
   se->client.fd = -1;
   se->client.addr = NULL;
@@ -279,14 +291,18 @@ static void free_sockent_client(struct sockent_client *sec) {
 } /* void free_sockent_client */
 
 static void sockent_destroy(sockent_t *se) {
+  sockent_t *next;
 
-  if (se != NULL) {
+  while (se != NULL) {
+    next = se->next;
     sfree(se->node);
     sfree(se->service);
 
+    pthread_mutex_destroy(&se->lock);
     free_sockent_client(&se->client);
 
     sfree(se);
+    se = next;
   }
 } /* void sockent_destroy */
 
@@ -297,7 +313,8 @@ static void write_influxdb_udp_init_buffer(void) {
   send_buffer_last_update = 0;
 } /* write_influxdb_udp_init_buffer */
 
-static void write_influxdb_udp_send_buffer(const char *buffer,
+static void write_influxdb_udp_send_buffer(sockent_t *sending_socket,
+                                           const char *buffer,
                                            size_t buffer_size) {
   while (42) {
     int status = sockent_client_connect(sending_socket);
@@ -323,8 +340,16 @@ static void write_influxdb_udp_send_buffer(const char *buffer,
   } /* while (42) */
 } /* void write_influxdb_udp_send_buffer */
 
+static void write_influxdb_send_buffers(char *buffer, size_t buffer_len) {
+  for (sockent_t *se = sending_sockets; se != NULL; se = se->next) {
+    pthread_mutex_lock(&se->lock);
+    write_influxdb_udp_send_buffer(se, buffer, buffer_len);
+    pthread_mutex_unlock(&se->lock);
+  } /* for (sending_sockets) */
+}
+
 static void flush_buffer(void) {
-  write_influxdb_udp_send_buffer(send_buffer, (size_t)send_buffer_fill);
+  write_influxdb_send_buffers(send_buffer, (size_t)send_buffer_fill);
   write_influxdb_udp_init_buffer();
 }
 
@@ -465,7 +490,20 @@ static int write_influxdb_point(char *buffer, int buffer_len,
   if (!have_values)
     return 0;
 
-  BUFFER_ADD(" %" PRIu64 "\n", CDTIME_T_TO_MS(vl->time));
+  uint64_t influxdb_time = 0;
+  switch (wifxudp_config_time_precision) {
+  case NS:
+    influxdb_time = CDTIME_T_TO_NS(vl->time);
+    break;
+  case US:
+    influxdb_time = CDTIME_T_TO_US(vl->time);
+    break;
+  case MS:
+    influxdb_time = CDTIME_T_TO_MS(vl->time);
+    break;
+  }
+
+  BUFFER_ADD(" %" PRIu64 "\n", influxdb_time);
 
 #undef BUFFER_ADD_ESCAPE
 #undef BUFFER_ADD
@@ -476,32 +514,21 @@ static int write_influxdb_point(char *buffer, int buffer_len,
 static int
 write_influxdb_udp_write(const data_set_t *ds, const value_list_t *vl,
                          user_data_t __attribute__((unused)) * user_data) {
+  char buffer[NET_DEFAULT_PACKET_SIZE];
 
-  /* listen_loop is set to non-zero in the shutdown callback, which is
-   * guaranteed to be called *after* all the write threads have been shut
-   * down. */
-  assert(listen_loop == 0);
+  int status = write_influxdb_point(buffer, NET_DEFAULT_PACKET_SIZE, ds, vl);
 
-  pthread_mutex_lock(&send_buffer_lock);
-
-  int status = write_influxdb_point(
-      send_buffer_ptr, wifxudp_config_packet_size - send_buffer_fill, ds, vl);
-
-  if (status < 0) {
-    flush_buffer();
-    status = write_influxdb_point(
-        send_buffer_ptr, wifxudp_config_packet_size - send_buffer_fill, ds, vl);
-  }
   if (status < 0) {
     ERROR("write_influxdb_udp plugin: write_influxdb_udp_write failed.");
-    pthread_mutex_unlock(&send_buffer_lock);
     return -1;
   }
-  if (status == 0) {
-    /* no real values to send (nan) */
-    pthread_mutex_unlock(&send_buffer_lock);
+  if (status == 0) /* no real values to send (nan) */
     return 0;
-  }
+
+  pthread_mutex_lock(&send_buffer_lock);
+  if (wifxudp_config_packet_size - send_buffer_fill < status)
+    flush_buffer();
+  memcpy(send_buffer_ptr, buffer, status);
 
   send_buffer_fill += status;
   send_buffer_ptr += status;
@@ -549,6 +576,28 @@ static int wifxudp_config_set_buffer_size(const oconfig_item_t *ci) {
   return 0;
 } /* int wifxudp_config_set_buffer_size */
 
+/* Add a sockent to the global list of sockets */
+static int sockent_add(sockent_t *se) /* {{{ */
+{
+  sockent_t *last_ptr;
+
+  if (se == NULL)
+    return -1;
+  else {
+    if (sending_sockets == NULL) {
+      sending_sockets = se;
+      return 0;
+    }
+    last_ptr = sending_sockets;
+  }
+
+  while (last_ptr->next != NULL)
+    last_ptr = last_ptr->next;
+  last_ptr->next = se;
+
+  return 0;
+} /* }}} int sockent_add */
+
 static int wifxudp_config_set_server(const oconfig_item_t *ci) {
   if ((ci->values_num < 1) || (ci->values_num > 2) ||
       (ci->values[0].type != OCONFIG_TYPE_STRING) ||
@@ -558,6 +607,9 @@ static int wifxudp_config_set_server(const oconfig_item_t *ci) {
           ci->key);
     return -1;
   }
+
+  sockent_t *sending_socket;
+  int status;
 
   sending_socket = sockent_create();
   if (sending_socket == NULL) {
@@ -569,19 +621,52 @@ static int wifxudp_config_set_server(const oconfig_item_t *ci) {
   if (ci->values_num >= 2)
     sending_socket->service = strdup(ci->values[1].value.string);
 
+  status = sockent_add(sending_socket);
+  if (status != 0) {
+    ERROR("write_influxdb_udp plugin: wifxudp_config_set_server: sockent_add "
+          "failed.");
+    sockent_destroy(sending_socket);
+    return -1;
+  }
+
   return 0;
 } /* int wifxudp_config_set_server */
 
+static int wifxudp_config_set_time_precision(const oconfig_item_t *ci) {
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    ERROR("write_influxdb_udp plugin: The `%s' config option needs "
+          "one string arguments.",
+          ci->key);
+    return -1;
+  }
+  if (strcasecmp("ns", ci->values[0].value.string) == 0)
+    wifxudp_config_time_precision = NS;
+  else if (strcasecmp("us", ci->values[0].value.string) == 0)
+    wifxudp_config_time_precision = US;
+  else if (strcasecmp("ms", ci->values[0].value.string) == 0)
+    wifxudp_config_time_precision = MS;
+  else {
+    WARNING("write_influxdb_udp plugin: "
+            "The `TimePrecision' option must be `ns', `us' or `ms`.");
+    return -1;
+  }
+
+  return 0;
+} /* int wifxudp_config_set_time_precision */
+
 static int write_influxdb_udp_config(oconfig_item_t *ci) {
+
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Server", child->key) == 0)
       wifxudp_config_set_server(child);
-    else if (strcasecmp("TimeToLive", child->key) == 0) {
+    else if (strcasecmp("TimeToLive", child->key) == 0)
       wifxudp_config_set_ttl(child);
-    } else if (strcasecmp("MaxPacketSize", child->key) == 0)
+    else if (strcasecmp("MaxPacketSize", child->key) == 0)
       wifxudp_config_set_buffer_size(child);
+    else if (strcasecmp("TimePrecision", child->key) == 0)
+      wifxudp_config_set_time_precision(child);
     else if (strcasecmp("StoreRates", child->key) == 0)
       cf_util_get_boolean(child, &wifxudp_config_store_rates);
     else {
@@ -600,10 +685,9 @@ static int write_influxdb_udp_shutdown(void) {
 
   sfree(send_buffer);
 
-  if (sending_socket != NULL) {
-    sockent_client_disconnect(sending_socket);
-    sockent_destroy(sending_socket);
-  }
+  for (sockent_t *se = sending_sockets; se != NULL; se = se->next)
+    sockent_client_disconnect(se);
+  sockent_destroy(sending_sockets);
 
   plugin_unregister_config("write_influxdb_udp");
   plugin_unregister_init("write_influxdb_udp");
@@ -632,7 +716,7 @@ static int write_influxdb_udp_init(void) {
   write_influxdb_udp_init_buffer();
 
   /* setup socket(s) and so on */
-  if (sending_socket != NULL) {
+  if (sending_sockets != NULL) {
     plugin_register_write("write_influxdb_udp", write_influxdb_udp_write,
                           /* user_data = */ NULL);
   }

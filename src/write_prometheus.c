@@ -51,6 +51,12 @@
   "encoding=delimited"
 #define CONTENT_TYPE_TEXT "text/plain; version=0.0.4"
 
+#if MHD_VERSION >= 0x00097002
+#define MHD_RESULT enum MHD_Result
+#else
+#define MHD_RESULT int
+#endif
+
 static c_avl_tree_t *metrics;
 static pthread_mutex_t metrics_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -227,10 +233,11 @@ static void format_text(ProtobufCBuffer *buffer) {
 
 /* http_handler is the callback called by the microhttpd library. It essentially
  * handles all HTTP request aspects and creates an HTTP response. */
-static int http_handler(void *cls, struct MHD_Connection *connection,
-                        const char *url, const char *method,
-                        const char *version, const char *upload_data,
-                        size_t *upload_data_size, void **connection_state) {
+static MHD_RESULT http_handler(void *cls, struct MHD_Connection *connection,
+                               const char *url, const char *method,
+                               const char *version, const char *upload_data,
+                               size_t *upload_data_size,
+                               void **connection_state) {
   if (strcmp(method, MHD_HTTP_METHOD_GET) != 0) {
     return MHD_NO;
   }
@@ -268,7 +275,7 @@ static int http_handler(void *cls, struct MHD_Connection *connection,
   MHD_add_response_header(res, MHD_HTTP_HEADER_CONTENT_TYPE,
                           want_proto ? CONTENT_TYPE_PROTO : CONTENT_TYPE_TEXT);
 
-  int status = MHD_queue_response(connection, MHD_HTTP_OK, res);
+  MHD_RESULT status = MHD_queue_response(connection, MHD_HTTP_OK, res);
 
   MHD_destroy_response(res);
   PROTOBUF_C_BUFFER_SIMPLE_CLEAR(&simple);
