@@ -1498,7 +1498,10 @@ endif
 
 if BUILD_PLUGIN_MYSQL
 pkglib_LTLIBRARIES += mysql.la
-mysql_la_SOURCES = src/mysql.c
+mysql_la_SOURCES = \
+	src/mysql.c \
+	src/utils/db_query/db_query.c \
+	src/utils/db_query/db_query.h
 mysql_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMYSQL_CFLAGS)
 mysql_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 mysql_la_LIBADD = $(BUILD_WITH_LIBMYSQL_LIBS)

@@ -31,6 +31,7 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "utils/db_query/db_query.h"
 
 #ifdef HAVE_MYSQL_H
 #include <mysql.h>
@@ -70,8 +71,18 @@ struct mysql_database_s /* {{{ */
   MYSQL *con;
   bool is_connected;
   unsigned long mysql_version;
+
+  udb_query_preparation_area_t **q_prep_areas;
+  udb_query_t **queries;
+  size_t queries_num;
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
+
+/*
+ * Global variables
+ */
+static udb_query_t **queries = NULL;
+static size_t queries_num = 0;
 
 static int mysql_read(user_data_t *ud);
 
@@ -89,6 +100,16 @@ static void mysql_database_free(void *arg) /* {{{ */
   if (db->con != NULL)
     mysql_close(db->con);
 
+  if (db->q_prep_areas) {
+    for (size_t n = 0; n < db->queries_num; ++n)
+      udb_query_delete_preparation_area(db->q_prep_areas[n]);
+
+    sfree(db->q_prep_areas);
+  }
+
+  db->queries_num = 0;
+  sfree(db->queries);
+
   sfree(db->alias);
   sfree(db->host);
   sfree(db->user);
@@ -103,6 +124,14 @@ static void mysql_database_free(void *arg) /* {{{ */
   sfree(db->cipher);
   sfree(db);
 } /* }}} void mysql_database_free */
+
+static int mysql_module_shutdown(void) {
+  udb_query_free(queries, queries_num);
+  queries = NULL;
+  queries_num = 0;
+
+  return 0;
+} /* }}} int mysql_module_shutdown */
 
 /* Configuration handling functions {{{
  *
@@ -202,6 +231,9 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_boolean(child, &db->innodb_stats);
     else if (strcasecmp("WsrepStats", child->key) == 0)
       status = cf_util_get_boolean(child, &db->wsrep_stats);
+    else if (strcasecmp("Query", child->key) == 0)
+      status = udb_query_pick_from_list(child, queries, queries_num,
+                                        &db->queries, &db->queries_num);
     else {
       WARNING("mysql plugin: Option `%s' not allowed here.", child->key);
       status = -1;
@@ -211,6 +243,26 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
       break;
   }
 
+  if (db->queries_num > 0) {
+    db->q_prep_areas = (udb_query_preparation_area_t **)calloc(
+        db->queries_num, sizeof(*db->q_prep_areas));
+
+    if (db->q_prep_areas == NULL) {
+      WARNING("mysql plugin: malloc failed");
+      mysql_database_free(db);
+      return (-1);
+    }
+  }
+
+  for (size_t n = 0; n < db->queries_num; ++n) {
+    db->q_prep_areas[n] = udb_query_allocate_preparation_area(db->queries[n]);
+
+    if (db->q_prep_areas[n] == NULL) {
+      WARNING("mysql plugin: udb_query_allocate_preparation_area failed");
+      status = -1;
+      break;
+    }
+  }
   /* If all went well, register this database for reading */
   if (status == 0) {
     char cb_name[DATA_MAX_NAME_LEN];
@@ -237,6 +289,12 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* }}} int mysql_config_database */
 
+static int config_query_callback(udb_query_t *query, oconfig_item_t *ci) {
+  ERROR("mysql plugin: Option not allowed within a Query block: `%s'", ci->key);
+
+  return (-1);
+} /* }}} int config_query_callback */
+
 static int mysql_config(oconfig_item_t *ci) /* {{{ */
 {
   if (ci == NULL)
@@ -248,6 +306,8 @@ static int mysql_config(oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp("Database", child->key) == 0)
       mysql_config_database(child);
+    else if (strcasecmp("Query", child->key) == 0)
+      db_query_create(&queries, &queries_num, child, config_query_callback);
     else
       WARNING("mysql plugin: Option \"%s\" not allowed here.", child->key);
   }
@@ -290,7 +350,8 @@ static MYSQL *getconnection(mysql_database_t *db) {
   mysql_ssl_set(db->con, db->key, db->cert, db->ca, db->capath, db->cipher);
 
   if (mysql_real_connect(db->con, db->host, db->user, db->pass, db->database,
-                         db->port, db->socket, 0) == NULL) {
+                         db->port, db->socket,
+                         CLIENT_MULTI_STATEMENTS) == NULL) {
     ERROR("mysql plugin: Failed to connect to database %s "
           "at server %s: %s",
           (db->database != NULL) ? db->database : "<none>",
@@ -363,6 +424,102 @@ static void traffic_submit(derive_t rx, derive_t tx, mysql_database_t *db) {
 
   submit("mysql_octets", NULL, values, STATIC_ARRAY_SIZE(values), db);
 } /* void traffic_submit */
+
+static void mysql_custom_query_process(MYSQL_RES *res, mysql_database_t *db,
+                                       unsigned int query_idx,
+                                       unsigned int num_columns)
+    : {
+  MYSQL_ROW row;
+  MYSQL_FIELD *fields;
+
+  char **column_names;
+  char **column_values;
+
+  udb_query_preparation_area_t *prep_area = db->q_prep_areas[query_idx];
+  udb_query_t *q = db->queries[query_idx];
+
+  column_names = (char **)calloc(num_columns, sizeof(char *));
+  if (column_names == NULL) {
+    ERROR("mysql plugin: calloc failed.");
+    return;
+  }
+  column_values = (char **)calloc(num_columns, sizeof(char *));
+  if (column_values == NULL) {
+    ERROR("mysql plugin: calloc failed.");
+    goto cleanup;
+  }
+
+  fields = mysql_fetch_fields(res);
+  for (unsigned int n = 0; n < num_columns; n++) {
+    column_names[n] = fields[n].name;
+  }
+
+  if (udb_query_prepare_result(q, prep_area, (db->host ? db->host : hostname_g),
+                               /* plugin = */ "mysql", db->instance,
+                               column_names, num_columns,
+                               /* interval = */ 0) != 0) {
+    ERROR("mysql plugin: mysql query (%s, %s): "
+          "udb_query_prepare_result failed.",
+          db->instance, udb_query_get_name(q));
+    goto cleanup;
+  }
+
+  while ((row = mysql_fetch_row(res)) != NULL) {
+    /* Copy the value of the columns to `column_values` */
+    for (unsigned int n = 0; n < num_columns; n++) {
+      column_values[n] = row[n];
+    }
+
+    if (udb_query_handle_result(q, prep_area, column_values) != 0) {
+      ERROR("mysql plugin: mysql query (%s, %s): "
+            "udb_query_handle_result failed.",
+            db->instance, udb_query_get_name(q));
+    }
+  }
+
+  udb_query_finish_result(q, prep_area);
+
+cleanup:
+  sfree(column_names);
+  sfree(column_values);
+}
+
+static void exec_custom_query(mysql_database_t *db, const char *query,
+                              unsigned int query_idx) {
+  MYSQL_RES *res;
+  MYSQL *con = db->con;
+
+  size_t query_len = strlen(query);
+  if (mysql_real_query(con, query, query_len)) {
+    ERROR("mysql plugin: Failed to execute query: %s", mysql_error(con));
+    INFO("mysql plugin: SQL query was: %s", query);
+    return;
+  }
+
+  do {
+    res = mysql_store_result(con);
+    if (res == NULL) {
+      if (mysql_field_count(con) != 0) {
+
+        ERROR("mysql plugin: Failed to store query "
+              "result: %s",
+              mysql_error(con));
+        INFO("mysql plugin: SQL query was: %s", query);
+        break;
+      }
+    } else {
+      unsigned int num_columns = mysql_num_fields(res);
+      if (column_num != 0) {
+        mysql_custom_query_process(res, db, query_idx, num_columns);
+      } else {
+        INFO("mysql plugin: Skiping empty result.");
+      }
+
+      mysql_free_result(res);
+    }
+
+  } while ((status = mysql_next_result(con)) == 0);
+}
 
 static MYSQL_RES *exec_query(MYSQL *con, const char *query) {
   MYSQL_RES *res;
@@ -731,6 +888,25 @@ static int mysql_read_wsrep_stats(mysql_database_t *db, MYSQL *con) {
   return 0;
 } /* mysql_read_wsrep_stats */
 
+static void mysql_read_custom_queries(mysql_database_t *db, MYSQL *con) {
+
+  for (unsigned int query_idx = 0; query_idx < db->queries_num; ++query_idx) {
+    udb_query_t *q = db->queries[query_idx];
+
+    /* MySQL version has form:
+     * major_version*10000 + release_level*100 + sub_version */
+    if ((db->server_version != 0) &&
+        (udb_query_check_version(q, (unsigned int)(db->server_version)) <= 0)) {
+      INFO("mysql plugin: skipping the query: %s "
+           "on the server version: %lu",
+           udb_query_get_name(q), db->server_version);
+      continue;
+    }
+
+    exec_custom_query(db, udb_query_get_statement(q), query_idx);
+  }
+}
+
 static int mysql_read(user_data_t *ud) {
   mysql_database_t *db;
   MYSQL *con;
@@ -959,9 +1135,12 @@ static int mysql_read(user_data_t *ud) {
   if (db->wsrep_stats)
     mysql_read_wsrep_stats(db, con);
 
+  mysql_read_custom_queries(db, con);
+
   return 0;
 } /* int mysql_read */
 
 void module_register(void) {
   plugin_register_complex_config("mysql", mysql_config);
+  plugin_register_shutdown("mysql", mysql_module_shutdown);
 } /* void module_register */
