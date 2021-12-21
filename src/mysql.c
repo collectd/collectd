@@ -289,12 +289,6 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* }}} int mysql_config_database */
 
-static int config_query_callback(udb_query_t *query, oconfig_item_t *ci) {
-  ERROR("mysql plugin: Option not allowed within a Query block: `%s'", ci->key);
-
-  return (-1);
-} /* }}} int config_query_callback */
-
 static int mysql_config(oconfig_item_t *ci) /* {{{ */
 {
   if (ci == NULL)
@@ -307,7 +301,7 @@ static int mysql_config(oconfig_item_t *ci) /* {{{ */
     if (strcasecmp("Database", child->key) == 0)
       mysql_config_database(child);
     else if (strcasecmp("Query", child->key) == 0)
-      db_query_create(&queries, &queries_num, child, config_query_callback);
+      udb_query_create(&queries, &queries_num, child, /* callback = */ NULL);
     else
       WARNING("mysql plugin: Option \"%s\" not allowed here.", child->key);
   }
@@ -427,8 +421,7 @@ static void traffic_submit(derive_t rx, derive_t tx, mysql_database_t *db) {
 
 static void mysql_custom_query_process(MYSQL_RES *res, mysql_database_t *db,
                                        unsigned int query_idx,
-                                       unsigned int num_columns)
-    : {
+                                       unsigned int num_columns) {
   MYSQL_ROW row;
   MYSQL_FIELD *fields;
 
@@ -456,8 +449,7 @@ static void mysql_custom_query_process(MYSQL_RES *res, mysql_database_t *db,
 
   if (udb_query_prepare_result(q, prep_area, (db->host ? db->host : hostname_g),
                                /* plugin = */ "mysql", db->instance,
-                               column_names, num_columns,
-                               /* interval = */ 0) != 0) {
+                               column_names, num_columns) != 0) {
     ERROR("mysql plugin: mysql query (%s, %s): "
           "udb_query_prepare_result failed.",
           db->instance, udb_query_get_name(q));
@@ -518,7 +510,7 @@ static void exec_custom_query(mysql_database_t *db, const char *query,
       mysql_free_result(res);
     }
 
-  } while ((status = mysql_next_result(con)) == 0);
+  } while (mysql_next_result(con) == 0);
 }
 
 static MYSQL_RES *exec_query(MYSQL *con, const char *query) {
@@ -895,11 +887,11 @@ static void mysql_read_custom_queries(mysql_database_t *db, MYSQL *con) {
 
     /* MySQL version has form:
      * major_version*10000 + release_level*100 + sub_version */
-    if ((db->server_version != 0) &&
-        (udb_query_check_version(q, (unsigned int)(db->server_version)) <= 0)) {
+    if ((db->mysql_version != 0) &&
+        (udb_query_check_version(q, (unsigned int)(db->mysql_version)) <= 0)) {
       INFO("mysql plugin: skipping the query: %s "
            "on the server version: %lu",
-           udb_query_get_name(q), db->server_version);
+           udb_query_get_name(q), db->mysql_version);
       continue;
     }
 
