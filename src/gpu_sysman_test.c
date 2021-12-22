@@ -396,7 +396,10 @@ ze_result_t zesRasGetState(zes_ras_handle_t handle, ze_bool_t clear,
   }
   static uint64_t count = RAS_INIT;
   memset(state, 0, sizeof(zes_ras_state_t));
-  state->category[ZES_RAS_ERROR_CAT_RESET] = count;
+  /* props default to zeroes i.e. correctable error type,
+   * so this needs to be a correctable category
+   */
+  state->category[ZES_RAS_ERROR_CAT_COMPUTE_ERRORS] = count;
   count += RAS_INC;
   return ZE_RESULT_SUCCESS;
 }
@@ -461,26 +464,27 @@ typedef struct {
 } metrics_validation_t;
 
 static metrics_validation_t valid_metrics[] = {
-    {"error_count", true, false, RAS_INIT, RAS_INC, 0, 0.0},
-    {"actual/frequency_mhz", false, false, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"actual-min/frequency_mhz", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"actual-max/frequency_mhz", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"request/frequency_mhz", false, false, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"request-min/frequency_mhz", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"request-max/frequency_mhz", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"free/memory_bytes", false, false, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"free-min/memory_bytes", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"free-max/memory_bytes", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"used/memory_bytes", false, false, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
-    {"used-min/memory_bytes", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
-    {"used-max/memory_bytes", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
+    {"all_errors_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
+    {"frequency_mhz/actual/", false, false, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"frequency_mhz/actual_min", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"frequency_mhz/actual_max", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"frequency_mhz/request/", false, false, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
+    {"frequency_mhz/request_min", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
+    {"frequency_mhz/request_max", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
+    {"memory_bytes/free/", false, false, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
+    {"memory_bytes/free_min", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
+    {"memory_bytes/free_max", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
+    {"memory_bytes/used/", false, false, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
+    {"memory_bytes/used_min", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
+    {"memory_bytes/used_max", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
     {"temperature_celsius", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
-    {"engines-all/engine_ratio", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"gpu/throttling_ratio", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"reads/memorybw_ratio", true, false, 2 * COUNTER_RATIO, 0, 0, 0.0},
-    {"writes/memorybw_ratio", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"throttling_ratio/gpu", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"memory_bw_ratio/HBM/system/read", true, false, 2 * COUNTER_RATIO, 0, 0,
+     0.0},
+    {"memory_bw_ratio/HBM/system/write", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
 };
 
@@ -533,11 +537,11 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
     int incrounds = base_rounds - 1;
     if (multisampled && metric->multisampled) {
       /* min for increasing metrics is first value in given multisample round */
-      if (metric->value_inc > 0 && strstr(metric->name, "-min")) {
+      if (metric->value_inc > 0 && strstr(metric->name, "_min")) {
         incrounds += multisampled - config.samples + 1;
       }
       /* max for decreasing metrics is first value in given multisample round */
-      else if (metric->value_inc < 0 && strstr(metric->name, "-max")) {
+      else if (metric->value_inc < 0 && strstr(metric->name, "_max")) {
         incrounds += multisampled - config.samples + 1;
       } else {
         /* for all others, it's the last value sampled */
@@ -565,6 +569,52 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
   return missing + wrong;
 }
 
+/* sort in reverse order so 'type' label comes first */
+static int cmp_labels(const void *a, const void *b) {
+  return strcmp(((label_pair_t *)b)->name, ((label_pair_t *)a)->name);
+}
+
+/* constructs metric name from metric family name and metric label values */
+static void compose_name(char *buf, size_t size, const char *name,
+                         metric_t *metric) {
+  label_pair_t *label = metric->label.ptr;
+  size_t num = metric->label.num;
+  assert(num && label);
+
+  /* guarantee stable label ordering i.e. names */
+  qsort(label, num, sizeof(*label), cmp_labels);
+
+  /* compose names (metric family + metric label values) */
+  size_t len = strlen(name);
+  assert(len < size);
+  strcpy(buf, name);
+  for (size_t i = 0; i < num; i++) {
+    assert(label[i].name && label[i].value);
+    if (strcmp(label[i].name, "sub_dev") == 0) {
+      /* for now, skip sub device IDs */
+      continue;
+    }
+    len += snprintf(buf + len, sizeof(buf) - len, "/%s", label[i].value);
+  }
+  assert(len < size);
+}
+
+static double get_value(metric_type_t type, value_t value) {
+  switch (type) {
+  case METRIC_TYPE_COUNTER:
+    return value.counter;
+    break;
+  case METRIC_TYPE_GAUGE:
+    return value.gauge;
+    break;
+  default:
+    assert(0);
+  }
+}
+
+/* matches constructed metric names against validation array ones and
+ * updates the values accordingly
+ */
 int plugin_dispatch_metric_family(metric_family_t const *fam) {
   assert(fam && fam->name);
   if (!fam->metric.num) {
@@ -576,16 +626,23 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
   }
   assert(fam->metric.ptr);
 
+  char name[128];
   bool found = false;
   metric_t *metric = fam->metric.ptr;
+
   for (size_t m = 0; m < fam->metric.num; m++) {
-    double value = metric[m].value.gauge;
+    double value = get_value(fam->type, metric[m].value);
+    compose_name(name, sizeof(name), fam->name, &metric[m]);
     if (globs.verbose & VERBOSE_METRICS) {
-      fprintf(stderr, "METRIC: %s: %.2f\n", fam->name, value);
+      fprintf(stderr, "METRIC: %s: %.2f\n", name, value);
+    }
+    /* for now, ignore other errors than for all_errors */
+    if (strstr(name, "errors") && !strstr(name, "all_errors")) {
+      return 0;
     }
     for (int v = 0; v < (int)STATIC_ARRAY_SIZE(valid_metrics); v++) {
       metrics_validation_t *valid = &valid_metrics[v];
-      if (strstr(fam->name, valid->name)) {
+      if (strstr(name, valid->name)) {
         valid->last = value;
         valid->count++;
         found = true;
@@ -596,7 +653,67 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
   return 0;
 }
 
-int metric_reset(metric_t *) { return 0; }
+#define MAX_LABELS 8
+
+/* mock function uses just one large enough metrics array (for testing)
+ * instead of increasing it one-by-one, like the real collectd metrics
+ * code does
+ */
+int metric_label_set(metric_t *m, char const *name, char const *value) {
+  assert(m && name);
+  size_t num = m->label.num;
+  label_pair_t *pair = m->label.ptr;
+  if (num) {
+    assert(num < MAX_LABELS);
+    assert(pair);
+  } else {
+    assert(!pair);
+    pair = calloc(MAX_LABELS, sizeof(*pair));
+    m->label.ptr = pair;
+    assert(pair);
+  }
+  int i;
+  for (i = 0; i < MAX_LABELS; i++) {
+    if (!pair[i].name) {
+      /* not found -> new label */
+      pair[i].name = strdup(name);
+      m->label.num++;
+      break;
+    }
+    if (strcmp(name, pair[i].name) == 0) {
+      break;
+    }
+  }
+  assert(value); /* removing label with NULL 'value' is not supported */
+  free(pair[i].value);
+  pair[i].value = strdup(value);
+  return 0;
+}
+
+int metric_reset(metric_t *m) {
+  assert(m);
+  size_t num = m->label.num;
+  label_pair_t *pair = m->label.ptr;
+  if (!num) {
+    assert(!pair);
+    return 0;
+  }
+  assert(pair);
+  for (int i = 0; i < MAX_LABELS; i++) {
+    if (!pair[i].name) {
+      break;
+    }
+    free(pair[i].name);
+    free(pair[i].value);
+    pair[i].value = pair[i].name = NULL;
+    num--;
+  }
+  assert(!num);
+  free(pair);
+  m->label.ptr = NULL;
+  m->label.num = 0;
+  return 0;
+}
 
 #define MAX_METRICS 8
 
@@ -617,12 +734,35 @@ int metric_family_metric_append(metric_family_t *fam, metric_t m) {
     fam->metric.ptr = metric;
     assert(metric);
   }
-  metric[fam->metric.num++] = m;
+  /* copy metric and pointers to its labels */
+  metric[num] = m;
+  label_pair_t *src = m.label.ptr;
+  if (src) {
+    const size_t pairs = m.label.num;
+    label_pair_t *dst = malloc(pairs * sizeof(*src));
+    for (size_t i = 0; i < pairs; i++) {
+      dst[i].name = strdup(src[i].name);
+      dst[i].value = strdup(src[i].value);
+    }
+    metric[num].label.ptr = dst;
+  }
+  fam->metric.num++;
   m.family = fam;
   return 0;
 }
 
 int metric_family_metric_reset(metric_family_t *fam) {
+  metric_t *metric = fam->metric.ptr;
+  for (size_t m = 0; m < fam->metric.num; m++) {
+    label_pair_t *pair = metric[m].label.ptr;
+    for (size_t i = 0; i < metric[m].label.num; i++) {
+      free(pair[i].name);
+      free(pair[i].value);
+    }
+    free(pair);
+    metric[m].label.ptr = NULL;
+    metric[m].label.num = 0;
+  }
   free(fam->metric.ptr);
   fam->metric.ptr = NULL;
   fam->metric.num = 0;
