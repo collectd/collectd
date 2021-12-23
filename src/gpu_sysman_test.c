@@ -589,12 +589,14 @@ static void compose_name(char *buf, size_t size, const char *name,
   assert(len < size);
   strcpy(buf, name);
   for (size_t i = 0; i < num; i++) {
-    assert(label[i].name && label[i].value);
-    if (strcmp(label[i].name, "sub_dev") == 0) {
-      /* for now, skip sub device IDs */
+    const char *name = label[i].name;
+    const char *value = label[i].value;
+    assert(name && value);
+    if (strcmp(name, "pci_bdf") == 0 || strcmp(name, "sub_dev") == 0) {
+      /* do not add device PCI ID / sub device IDs to metric name */
       continue;
     }
-    len += snprintf(buf + len, sizeof(buf) - len, "/%s", label[i].value);
+    len += snprintf(buf + len, sizeof(buf) - len, "/%s", value);
   }
   assert(len < size);
 }
@@ -738,13 +740,14 @@ int metric_family_metric_append(metric_family_t *fam, metric_t m) {
   metric[num] = m;
   label_pair_t *src = m.label.ptr;
   if (src) {
-    const size_t pairs = m.label.num;
-    label_pair_t *dst = malloc(pairs * sizeof(*src));
-    for (size_t i = 0; i < pairs; i++) {
+    /* alloc max size as labels can be added also to family metrics copies */
+    label_pair_t *dst = calloc(MAX_LABELS, sizeof(*src));
+    metric[num].label.ptr = dst;
+    assert(dst);
+    for (size_t i = 0; i < m.label.num; i++) {
       dst[i].name = strdup(src[i].name);
       dst[i].value = strdup(src[i].value);
     }
-    metric[num].label.ptr = dst;
   }
   fam->metric.num++;
   m.family = fam;
