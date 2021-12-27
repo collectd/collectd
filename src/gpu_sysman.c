@@ -839,8 +839,13 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
     gpu->memory_count = mem_count;
     assert(gpu->memory);
   }
-  metric_family_t fam = {
-      .name = METRIC_PREFIX "memory_bytes",
+
+  metric_family_t fam_bytes = {
+      .name = METRIC_PREFIX "memory_used_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_ratio = {
+      .name = METRIC_PREFIX "memory_usage_ratio",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_t metric = {0};
@@ -864,17 +869,16 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       ok = false;
       break;
     }
+    double mem_used;
     const uint64_t mem_size = gpu->memory[0][i].size;
     if (config.samples < 2) {
       const uint64_t mem_free = gpu->memory[0][i].free;
       /* Sysman reports just memory size & free amounts => calculate used */
-      metric.value.gauge = mem_size - mem_free;
-      metric_label_set(&metric, "type", "used");
-      metric_family_metric_append(&fam, metric);
-
-      metric.value.gauge = mem_free;
-      metric_label_set(&metric, "type", "free");
-      metric_family_metric_append(&fam, metric);
+      mem_used = mem_size - mem_free;
+      metric.value.gauge = mem_used;
+      metric_family_metric_append(&fam_bytes, metric);
+      metric.value.gauge = mem_used / mem_size;
+      metric_family_metric_append(&fam_ratio, metric);
     } else {
       /* find min & max values for memory free from
        * (the configured number of) samples
@@ -891,26 +895,26 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
         }
       }
       /* largest used amount of memory */
-      metric.value.gauge = mem_size - free_max;
-      metric_label_set(&metric, "type", "used_min");
-      metric_family_metric_append(&fam, metric);
+      mem_used = mem_size - free_max;
+      metric.value.gauge = mem_used;
+      metric_label_set(&metric, "function", "min");
+      metric_family_metric_append(&fam_bytes, metric);
+      metric.value.gauge = mem_used / mem_size;
+      metric_family_metric_append(&fam_ratio, metric);
 
-      metric.value.gauge = mem_size - free_min;
-      metric_label_set(&metric, "type", "used_max");
-      metric_family_metric_append(&fam, metric);
-
-      metric.value.gauge = free_min;
-      metric_label_set(&metric, "type", "free_min");
-      metric_family_metric_append(&fam, metric);
-
-      metric.value.gauge = free_max;
-      metric_label_set(&metric, "type", "free_max");
-      metric_family_metric_append(&fam, metric);
+      /* smallest used amount of memory */
+      mem_used = mem_size - free_min;
+      metric.value.gauge = mem_used;
+      metric_label_set(&metric, "function", "max");
+      metric_family_metric_append(&fam_bytes, metric);
+      metric.value.gauge = mem_used / mem_size;
+      metric_family_metric_append(&fam_ratio, metric);
     }
   }
-  if (mem_count > 0) {
+  if (ok && cache_idx == 0) {
     metric_reset(&metric);
-    gpu_submit(gpu, &fam);
+    gpu_submit(gpu, &fam_bytes);
+    gpu_submit(gpu, &fam_ratio);
   }
   free(mems);
   return ok;
@@ -944,19 +948,15 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     gpu->membw_count = mem_count;
     assert(gpu->membw);
   }
+
   metric_family_t fam = {
       .name = METRIC_PREFIX "memory_bw_ratio",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_t metric = {0};
 
-  bool ok = false;
+  bool reported = false, ok = false;
   for (i = 0; i < mem_count; i++) {
-    if (!set_mem_labels(mems[i], &metric)) {
-      ERROR(PLUGIN_NAME ": failed to get memory module %d properties", i);
-      ok = false;
-      break;
-    }
     ze_result_t ret;
     zes_mem_bandwidth_t bw;
     if (ret = zesMemoryGetBandwidth(mems[i], &bw), ret != ZE_RESULT_SUCCESS) {
@@ -967,6 +967,11 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     }
     zes_mem_bandwidth_t *old = &gpu->membw[i];
     if (old->maxBandwidth) {
+      if (!set_mem_labels(mems[i], &metric)) {
+        ERROR(PLUGIN_NAME ": failed to get memory module %d properties", i);
+        ok = false;
+        break;
+      }
       /* https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv419zes_mem_bandwidth_t
        */
       uint64_t writes = bw.writeCounter - old->writeCounter;
@@ -981,11 +986,12 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       metric.value.gauge = factor * reads;
       metric_label_set(&metric, "direction", "read");
       metric_family_metric_append(&fam, metric);
+      reported = true;
     }
     *old = bw;
     ok = true;
   }
-  if (mem_count > 0) {
+  if (reported) {
     metric_reset(&metric);
     gpu_submit(gpu, &fam);
   }
@@ -1045,13 +1051,14 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     gpu->frequency_count = freq_count;
     assert(gpu->frequency);
   }
+
   metric_family_t fam = {
       .name = METRIC_PREFIX "frequency_mhz",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_t metric = {0};
 
-  bool ok = false;
+  bool reported = false, ok = false;
   for (i = 0; i < freq_count; i++) {
     /* fetch freq samples */
     if (zesFrequencyGetState(freqs[i], &(gpu->frequency[cache_idx][i])) !=
@@ -1070,6 +1077,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       ok = false;
       break;
     }
+
     bool freq_ok = false;
     double value;
 
@@ -1115,28 +1123,29 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       }
       if (req_max >= 0.0) {
         metric.value.gauge = req_min;
-        metric_label_set(&metric, "type", "request_min");
+        metric_label_set(&metric, "type", "request");
+        metric_label_set(&metric, "function", "min");
         metric_family_metric_append(&fam, metric);
 
         metric.value.gauge = req_max;
-        metric_label_set(&metric, "type", "request_max");
+        metric_label_set(&metric, "function", "max");
         metric_family_metric_append(&fam, metric);
         freq_ok = true;
       }
       if (act_max >= 0.0) {
         metric.value.gauge = act_min;
-        metric_label_set(&metric, "type", "actual_min");
+        metric_label_set(&metric, "type", "actual");
+        metric_label_set(&metric, "function", "min");
         metric_family_metric_append(&fam, metric);
 
         metric.value.gauge = act_max;
-        metric_label_set(&metric, "type", "actual_max");
+        metric_label_set(&metric, "function", "max");
         metric_family_metric_append(&fam, metric);
         freq_ok = true;
       }
     }
     if (freq_ok) {
-      metric_reset(&metric);
-      gpu_submit(gpu, &fam);
+      reported = true;
     } else {
       ERROR(PLUGIN_NAME ": neither requests nor actual frequencies supported "
                         "for domain %d",
@@ -1144,6 +1153,10 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       ok = false;
       break;
     }
+  }
+  if (reported) {
+    metric_reset(&metric);
+    gpu_submit(gpu, &fam);
   }
   free(freqs);
   return ok;
@@ -1180,19 +1193,15 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
     gpu->throttle_count = freq_count;
     assert(gpu->throttle);
   }
+
   metric_family_t fam = {
       .name = METRIC_PREFIX "throttling_ratio",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_t metric = {0};
 
-  bool ok = false;
+  bool reported = false, ok = false;
   for (i = 0; i < freq_count; i++) {
-    if (!set_freq_labels(freqs[i], &metric)) {
-      ERROR(PLUGIN_NAME ": failed to get frequency domain %d properties", i);
-      ok = false;
-      break;
-    }
     ze_result_t ret;
     zes_freq_throttle_time_t throttle;
     if (ret = zesFrequencyGetThrottleTime(freqs[i], &throttle),
@@ -1205,15 +1214,21 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
     }
     zes_freq_throttle_time_t *old = &gpu->throttle[i];
     if (old->timestamp) {
+      if (!set_freq_labels(freqs[i], &metric)) {
+        ERROR(PLUGIN_NAME ": failed to get frequency domain %d properties", i);
+        ok = false;
+        break;
+      }
       /* micro seconds => throttle ratio */
       metric.value.gauge = (throttle.throttleTime - old->throttleTime) /
                            (double)(throttle.timestamp - old->timestamp);
       metric_family_metric_append(&fam, metric);
+      reported = true;
     }
     *old = throttle;
     ok = true;
   }
-  if (freq_count > 0) {
+  if (reported) {
     metric_reset(&metric);
     gpu_submit(gpu, &fam);
   }
@@ -1243,6 +1258,7 @@ static bool gpu_temps(gpu_device_t *gpu) {
     INFO(PLUGIN_NAME ": Sysman reports %d temperature sensors", temp_count);
     gpu->temp_count = temp_count;
   }
+
   metric_family_t fam = {
       .name = METRIC_PREFIX "temperature_celsius",
       .type = METRIC_TYPE_GAUGE,
@@ -1299,7 +1315,7 @@ static bool gpu_temps(gpu_device_t *gpu) {
     metric_family_metric_append(&fam, metric);
     ok = true;
   }
-  if (temp_count > 0) {
+  if (ok) {
     metric_reset(&metric);
     gpu_submit(gpu, &fam);
   }
@@ -1325,11 +1341,6 @@ static bool gpu_powers(gpu_device_t *gpu) {
     free(powers);
     return false;
   }
-  metric_family_t fam = {
-      .name = METRIC_PREFIX "power_watts",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_t metric = {0};
 
   if (gpu->power_count != power_count) {
     INFO(PLUGIN_NAME ": Sysman reports %d power domains", power_count);
@@ -1341,7 +1352,13 @@ static bool gpu_powers(gpu_device_t *gpu) {
     assert(gpu->power);
   }
 
-  bool ok = false;
+  metric_family_t fam = {
+      .name = METRIC_PREFIX "power_watts",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_t metric = {0};
+
+  bool reported = false, ok = false;
   for (i = 0; i < power_count; i++) {
     zes_power_properties_t props;
     if (zesPowerGetProperties(powers[i], &props) != ZE_RESULT_SUCCESS) {
@@ -1362,11 +1379,12 @@ static bool gpu_powers(gpu_device_t *gpu) {
                            (counter.timestamp - old->timestamp);
       metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
       metric_family_metric_append(&fam, metric);
+      reported = true;
     }
     *old = counter;
     ok = true;
   }
-  if (power_count > 0) {
+  if (reported) {
     metric_reset(&metric);
     gpu_submit(gpu, &fam);
   }
@@ -1392,11 +1410,6 @@ static bool gpu_engines(gpu_device_t *gpu) {
     free(engines);
     return false;
   }
-  metric_family_t fam = {
-      .name = METRIC_PREFIX "engine_ratio",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_t metric = {0};
 
   if (gpu->engine_count != engine_count) {
     INFO(PLUGIN_NAME ": Sysman reports %d engine groups", engine_count);
@@ -1408,8 +1421,14 @@ static bool gpu_engines(gpu_device_t *gpu) {
     assert(gpu->engine);
   }
 
-  bool ok = false;
+  metric_family_t fam = {
+      .name = METRIC_PREFIX "engine_ratio",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_t metric = {0};
+
   int type_idx[16] = {0};
+  bool reported = false, ok = false;
   for (i = 0; i < engine_count; i++) {
     zes_engine_properties_t props;
     if (zesEngineGetProperties(engines[i], &props) != ZE_RESULT_SUCCESS) {
@@ -1504,11 +1523,12 @@ static bool gpu_engines(gpu_device_t *gpu) {
       metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
       metric_label_set(&metric, "type", vname);
       metric_family_metric_append(&fam, metric);
+      reported = true;
     }
     *old = stats;
     ok = true;
   }
-  if (engine_count > 0) {
+  if (reported) {
     metric_reset(&metric);
     gpu_submit(gpu, &fam);
   }
