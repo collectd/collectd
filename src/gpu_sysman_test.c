@@ -458,25 +458,37 @@ typedef struct {
   /* metric values are multisampled and present only when multisampling */
   const bool multisampled;
   const double value_init;
-  const int value_inc;
+  const double value_inc;
   unsigned int count;
   double last;
 } metrics_validation_t;
 
+#define RATIO_INIT ((double)MEMORY_INIT / MEMORY_SIZE)
+#define RATIO_INC ((double)MEMORY_INC / MEMORY_SIZE)
+
 static metrics_validation_t valid_metrics[] = {
     {"all_errors_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
-    {"frequency_mhz/actual/", false, false, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"frequency_mhz/actual_min", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"frequency_mhz/actual_max", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"frequency_mhz/request/", false, false, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"frequency_mhz/request_min", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"frequency_mhz/request_max", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"memory_bytes/free/", false, false, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"memory_bytes/free_min", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"memory_bytes/free_max", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"memory_bytes/used/", false, false, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
-    {"memory_bytes/used_min", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
-    {"memory_bytes/used_max", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
+    {"frequency_mhz/actual/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"frequency_mhz/actual/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"frequency_mhz/actual/gpu", false, false, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"frequency_mhz/request/gpu/min", true, true, FREQ_INIT, 2 * FREQ_INC, 0,
+     0.0},
+    {"frequency_mhz/request/gpu/max", true, true, FREQ_INIT, 2 * FREQ_INC, 0,
+     0.0},
+    {"frequency_mhz/request/gpu", false, false, FREQ_INIT, 2 * FREQ_INC, 0,
+     0.0},
+    {"memory_used_bytes/HBM/system/min", true, true, MEMORY_INIT, +MEMORY_INC,
+     0, 0.0},
+    {"memory_used_bytes/HBM/system/max", true, true, MEMORY_INIT, +MEMORY_INC,
+     0, 0.0},
+    {"memory_used_bytes/HBM/system", false, false, MEMORY_INIT, +MEMORY_INC, 0,
+     0.0},
+    {"memory_usage_ratio/HBM/system/min", true, true, RATIO_INIT, +RATIO_INC, 0,
+     0.0},
+    {"memory_usage_ratio/HBM/system/max", true, true, RATIO_INIT, +RATIO_INC, 0,
+     0.0},
+    {"memory_usage_ratio/HBM/system", false, false, RATIO_INIT, +RATIO_INC, 0,
+     0.0},
     {"temperature_celsius", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
@@ -525,7 +537,13 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
       continue;
     }
     /* verify metrics array above is correctly filled */
-    assert(metric->multipresent || !multisampled);
+    if (multisampled && !metric->multipresent) {
+      fprintf(stderr, "%s: %s / %s = %g (%d)\n", metric->name,
+              metric->multipresent ? "multipresent" : "-",
+              metric->multisampled ? "multisampled" : "-", metric->last,
+              metric->count);
+      abort();
+    }
 
     double last = metric->last;
     metric->last = 0.0;
@@ -537,11 +555,11 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
     int incrounds = base_rounds - 1;
     if (multisampled && metric->multisampled) {
       /* min for increasing metrics is first value in given multisample round */
-      if (metric->value_inc > 0 && strstr(metric->name, "_min")) {
+      if (metric->value_inc > 0.0 && strstr(metric->name, "/min")) {
         incrounds += multisampled - config.samples + 1;
       }
       /* max for decreasing metrics is first value in given multisample round */
-      else if (metric->value_inc < 0 && strstr(metric->name, "_max")) {
+      else if (metric->value_inc < 0.0 && strstr(metric->name, "/max")) {
         incrounds += multisampled - config.samples + 1;
       } else {
         /* for all others, it's the last value sampled */
@@ -555,7 +573,7 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
     if (last != expected) {
       fprintf(
           stderr,
-          "ERROR: expected %g, but got %g value for metric '%s' on round %d\n",
+          "ERROR: expected %g, but got value %g for metric '%s' on round %d\n",
           expected, last, metric->name, incrounds);
       wrong++;
     } else if (globs.verbose & VERBOSE_METRICS) {
@@ -618,15 +636,7 @@ static double get_value(metric_type_t type, value_t value) {
  * updates the values accordingly
  */
 int plugin_dispatch_metric_family(metric_family_t const *fam) {
-  assert(fam && fam->name);
-  if (!fam->metric.num) {
-    if (globs.verbose & VERBOSE_METRICS) {
-      fprintf(stderr, "metric family '%s' with no metrics\n", fam->name);
-    }
-    assert(!fam->metric.ptr);
-    return 0;
-  }
-  assert(fam->metric.ptr);
+  assert(fam && fam->name && fam->metric.num && fam->metric.ptr);
 
   char name[128];
   bool found = false;
@@ -648,6 +658,7 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
         valid->last = value;
         valid->count++;
         found = true;
+        break;
       }
     }
   }
@@ -1025,16 +1036,19 @@ static int test_query_errors(unsigned int limit) {
   return fails;
 }
 
-/* TEST: metrics queries with multiple samples */
-static int test_multisampled_queries(unsigned int prev_rounds,
-                                     const char *samples_str,
-                                     unsigned int samples) {
-  /* change to multiple samples */
+/* change sampling rate to given, implies plugin reset */
+static void change_sampling_reset(const char *samples) {
+  fprintf(stderr, "Setting 'Samples' to '%s' and reseting plugin\n", samples);
   assert(registry.shutdown() == 0);
-  assert(samples > 1 && atoi(samples_str) == (int)samples);
-  assert(registry.config("Samples", samples_str) == 0);
+  assert(atoi(samples) > 0);
+  assert(registry.config("Samples", samples) == 0);
   assert(registry.init() == 0);
+}
 
+/* TEST: metrics queries with multiple samples, return number of fails */
+static int test_multisampled_queries(unsigned int prev_rounds,
+                                     unsigned int samples) {
+  assert(samples > 1);
   /* first 'samples' rounds to prime counter metrics & count API calls */
   if (globs.verbose & VERBOSE_METRICS) {
     fprintf(stderr, "METRIC: first %d multisample rounds for query priming:\n",
@@ -1051,7 +1065,7 @@ static int test_multisampled_queries(unsigned int prev_rounds,
   }
   unsigned int calls_all = globs.api_calls;
   fprintf(stderr,
-          "expect %d API calls for %dx multisampled metrics, %d for all\n",
+          "expect %d API calls for %dx multisampled metrics, >= %d for all\n",
           calls_sampled, samples, calls_all);
 
   /* additional 2x 'samples' rounds to verify the results */
@@ -1076,8 +1090,11 @@ static int test_multisampled_queries(unsigned int prev_rounds,
       }
       continue;
     }
-    if (calls_all < calls_sampled || calls_all != globs.api_calls) {
-      fprintf(stderr, "ERROR: expected %d (> %d) API calls, got %d\n",
+    /* number of calls may differ on multisampled rounds, so just
+     * check that at least expected number of them is done
+     */
+    if (calls_all < calls_sampled || calls_all > globs.api_calls) {
+      fprintf(stderr, "ERROR: expected >= %d (and > %d) API calls, got %d\n",
               calls_all, calls_sampled, globs.api_calls);
       fails++;
     }
@@ -1270,14 +1287,15 @@ int main(int argc, const char **argv) {
   fprintf(stderr, "metrics query round 1: PASS\n\n");
 
   api_calls = globs.api_calls;
+  globs.api_calls = 0;
 
   fprintf(stderr, "Another query for per-timediff metric values + validation "
                   "for all values...\n");
-  globs.api_calls = 0;
   assert(registry.read() == 0);
   /* make sure second round does (successfully) same (amount of) calls */
   assert(globs.warnings == 0);
-  assert(globs.api_calls == api_calls);
+  /* second round may make additional calls */
+  assert(globs.api_calls >= api_calls);
   /* make sure metrics values were correct and all metric types were now
    * reported */
   assert(validate_and_reset_saved_metrics(2, 0) == 0);
@@ -1286,9 +1304,11 @@ int main(int argc, const char **argv) {
   /* just report total count of errors (should not affect calls) */
   assert(registry.config("DisableSeparateErrors", "true") == 0);
 
+  api_calls = globs.api_calls;
+  globs.api_calls = 0;
+
   fprintf(stderr, "One more query to verify increment handling, with only "
                   "error totals...\n");
-  globs.api_calls = 0;
   assert(registry.read() == 0);
   assert(globs.warnings == 0);
   assert(globs.api_calls == api_calls);
@@ -1300,7 +1320,8 @@ int main(int argc, const char **argv) {
 
   set_verbose(VERBOSE_CALLS_METRICS_SAMPLED, VERBOSE_METRICS_SAMPLED);
   fprintf(stderr, "Check metrics with >1 'Samples' sampling factor...\n");
-  assert(test_multisampled_queries(3, "8", 8) == 0);
+  change_sampling_reset("8");
+  assert(test_multisampled_queries(3, 8) == 0);
   fprintf(stderr, "metrics sampling: PASS\n\n");
 
   /* metrics error handling checks */
@@ -1309,6 +1330,10 @@ int main(int argc, const char **argv) {
   fprintf(stderr,
           "Test error handling separately for each of the %d query calls...\n",
           api_calls);
+  /* disable multisampling & do one query round to guarantee
+   * that all L0 calls are done on every read */
+  change_sampling_reset("1");
+  assert(registry.read() == 0);
   assert(test_query_errors(api_calls) == 0);
   assert(registry.shutdown() == 0);
   fprintf(stderr, "metrics query error handling: PASS\n\n");
