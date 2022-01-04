@@ -1002,14 +1002,19 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     assert(gpu->membw);
   }
 
-  metric_family_t fam = {
+  metric_family_t fam_ratio = {
       .help = "Average memory bandwidth usage ratio (0-1) over query interval",
       .name = METRIC_PREFIX "memory_bw_ratio",
       .type = METRIC_TYPE_GAUGE,
   };
+  metric_family_t fam_counter = {
+      .help = "Memory bandwidth usage total (in bytes)",
+      .name = METRIC_PREFIX "memory_bw_bytes_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
   metric_t metric = {0};
 
-  bool reported = false, ok = false;
+  bool reported_ratio = false, reported_counter = false, ok = false;
   for (i = 0; i < mem_count; i++) {
     ze_result_t ret;
     zes_mem_bandwidth_t bw;
@@ -1019,13 +1024,23 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       ok = false;
       break;
     }
+    if (!set_mem_labels(mems[i], &metric)) {
+      ERROR(PLUGIN_NAME ": failed to get memory module %d properties", i);
+      ok = false;
+      break;
+    }
+    if (config.output & OUTPUT_RAW) {
+      metric.value.counter = bw.writeCounter;
+      metric_label_set(&metric, "direction", "write");
+      metric_family_metric_append(&fam_counter, metric);
+
+      metric.value.counter = bw.readCounter;
+      metric_label_set(&metric, "direction", "read");
+      metric_family_metric_append(&fam_counter, metric);
+      reported_counter = true;
+    }
     zes_mem_bandwidth_t *old = &gpu->membw[i];
-    if (old->maxBandwidth) {
-      if (!set_mem_labels(mems[i], &metric)) {
-        ERROR(PLUGIN_NAME ": failed to get memory module %d properties", i);
-        ok = false;
-        break;
-      }
+    if (old->maxBandwidth && (config.output & OUTPUT_DERIVED)) {
       /* https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv419zes_mem_bandwidth_t
        */
       uint64_t writes = bw.writeCounter - old->writeCounter;
@@ -1035,19 +1050,24 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
 
       metric.value.gauge = factor * writes;
       metric_label_set(&metric, "direction", "write");
-      metric_family_metric_append(&fam, metric);
+      metric_family_metric_append(&fam_ratio, metric);
 
       metric.value.gauge = factor * reads;
       metric_label_set(&metric, "direction", "read");
-      metric_family_metric_append(&fam, metric);
-      reported = true;
+      metric_family_metric_append(&fam_ratio, metric);
+      reported_ratio = true;
     }
     *old = bw;
     ok = true;
   }
-  if (reported) {
+  if (ok) {
     metric_reset(&metric);
-    gpu_submit(gpu, &fam);
+    if (reported_ratio) {
+      gpu_submit(gpu, &fam_ratio);
+    }
+    if (reported_counter) {
+      gpu_submit(gpu, &fam_counter);
+    }
   }
   free(mems);
   return ok;
@@ -1249,15 +1269,20 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
     assert(gpu->throttle);
   }
 
-  metric_family_t fam = {
+  metric_family_t fam_ratio = {
       .help =
           "Ratio (0-1) of HW frequency being throttled during query interval",
-      .name = METRIC_PREFIX "throttling_ratio",
+      .name = METRIC_PREFIX "throttled_ratio",
       .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_counter = {
+      .help = "Total time HW frequency has been throttled (in microseconds)",
+      .name = METRIC_PREFIX "throttled_usecs_total",
+      .type = METRIC_TYPE_COUNTER,
   };
   metric_t metric = {0};
 
-  bool reported = false, ok = false;
+  bool reported_ratio = false, reported_counter = false, ok = false;
   for (i = 0; i < freq_count; i++) {
     ze_result_t ret;
     zes_freq_throttle_time_t throttle;
@@ -1269,25 +1294,36 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       ok = false;
       break;
     }
+    if (!set_freq_labels(freqs[i], &metric)) {
+      ERROR(PLUGIN_NAME ": failed to get frequency domain %d properties", i);
+      ok = false;
+      break;
+    }
+    if (config.output & OUTPUT_RAW) {
+      /* cannot convert microsecs to secs as counters are integers */
+      metric.value.counter = throttle.throttleTime;
+      metric_family_metric_append(&fam_counter, metric);
+      reported_counter = true;
+    }
     zes_freq_throttle_time_t *old = &gpu->throttle[i];
-    if (old->timestamp) {
-      if (!set_freq_labels(freqs[i], &metric)) {
-        ERROR(PLUGIN_NAME ": failed to get frequency domain %d properties", i);
-        ok = false;
-        break;
-      }
+    if (old->timestamp && (config.output & OUTPUT_DERIVED)) {
       /* micro seconds => throttle ratio */
       metric.value.gauge = (throttle.throttleTime - old->throttleTime) /
                            (double)(throttle.timestamp - old->timestamp);
-      metric_family_metric_append(&fam, metric);
-      reported = true;
+      metric_family_metric_append(&fam_ratio, metric);
+      reported_ratio = true;
     }
     *old = throttle;
     ok = true;
   }
-  if (reported) {
+  if (ok) {
     metric_reset(&metric);
-    gpu_submit(gpu, &fam);
+    if (reported_ratio) {
+      gpu_submit(gpu, &fam_ratio);
+    }
+    if (reported_counter) {
+      gpu_submit(gpu, &fam_counter);
+    }
   }
   free(freqs);
   return ok;
@@ -1410,14 +1446,19 @@ static bool gpu_powers(gpu_device_t *gpu) {
     assert(gpu->power);
   }
 
-  metric_family_t fam = {
+  metric_family_t fam_power = {
       .help = "Average power usage (in Watts) over query interval",
       .name = METRIC_PREFIX "power_watts",
       .type = METRIC_TYPE_GAUGE,
   };
+  metric_family_t fam_energy = {
+      .help = "Total energy consumption since boot (in microjoules)",
+      .name = METRIC_PREFIX "energy_ujoules_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
   metric_t metric = {0};
 
-  bool reported = false, ok = false;
+  bool reported_power = false, reported_energy = false, ok = false;
   for (i = 0; i < power_count; i++) {
     zes_power_properties_t props;
     if (zesPowerGetProperties(powers[i], &props) != ZE_RESULT_SUCCESS) {
@@ -1431,21 +1472,31 @@ static bool gpu_powers(gpu_device_t *gpu) {
       ok = false;
       break;
     }
+    metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
+    if (config.output & OUTPUT_RAW) {
+      metric.value.counter = counter.energy;
+      metric_family_metric_append(&fam_energy, metric);
+      reported_energy = true;
+    }
     zes_power_energy_counter_t *old = &gpu->power[i];
-    if (old->timestamp) {
+    if (old->timestamp && (config.output & OUTPUT_DERIVED)) {
       /* microJoules / microSeconds => watts */
       metric.value.gauge = (double)(counter.energy - old->energy) /
                            (counter.timestamp - old->timestamp);
-      metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
-      metric_family_metric_append(&fam, metric);
-      reported = true;
+      metric_family_metric_append(&fam_power, metric);
+      reported_power = true;
     }
     *old = counter;
     ok = true;
   }
-  if (reported) {
+  if (ok) {
     metric_reset(&metric);
-    gpu_submit(gpu, &fam);
+    if (reported_energy) {
+      gpu_submit(gpu, &fam_energy);
+    }
+    if (reported_power) {
+      gpu_submit(gpu, &fam_power);
+    }
   }
   free(powers);
   return ok;
@@ -1480,16 +1531,22 @@ static bool gpu_engines(gpu_device_t *gpu) {
     assert(gpu->engine);
   }
 
-  metric_family_t fam = {
+  metric_family_t fam_ratio = {
       .help = "Average GPU engine / group utilization ratio (0-1) over query "
               "interval",
       .name = METRIC_PREFIX "engine_ratio",
       .type = METRIC_TYPE_GAUGE,
   };
+  metric_family_t fam_counter = {
+      .help = "GPU engine / group execution time (activity) total (in "
+              "microseconds)",
+      .name = METRIC_PREFIX "engine_use_usecs_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
   metric_t metric = {0};
 
   int type_idx[16] = {0};
-  bool reported = false, ok = false;
+  bool reported_ratio = false, reported_counter = false, ok = false;
   for (i = 0; i < engine_count; i++) {
     zes_engine_properties_t props;
     if (zesEngineGetProperties(engines[i], &props) != ZE_RESULT_SUCCESS) {
@@ -1580,21 +1637,31 @@ static bool gpu_engines(gpu_device_t *gpu) {
       ok = false;
       break;
     }
+    metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
+    metric_label_set(&metric, "type", vname);
+    if (config.output & OUTPUT_RAW) {
+      metric.value.counter = stats.activeTime;
+      metric_family_metric_append(&fam_counter, metric);
+      reported_counter = true;
+    }
     zes_engine_stats_t *old = &gpu->engine[i];
-    if (old->timestamp) {
+    if (old->timestamp && (config.output & OUTPUT_DERIVED)) {
       metric.value.gauge = (double)(stats.activeTime - old->activeTime) /
                            (stats.timestamp - old->timestamp);
-      metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
-      metric_label_set(&metric, "type", vname);
-      metric_family_metric_append(&fam, metric);
-      reported = true;
+      metric_family_metric_append(&fam_ratio, metric);
+      reported_ratio = true;
     }
     *old = stats;
     ok = true;
   }
-  if (reported) {
+  if (ok) {
     metric_reset(&metric);
-    gpu_submit(gpu, &fam);
+    if (reported_ratio) {
+      gpu_submit(gpu, &fam_ratio);
+    }
+    if (reported_counter) {
+      gpu_submit(gpu, &fam_counter);
+    }
   }
   free(engines);
   return ok;
