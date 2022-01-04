@@ -905,9 +905,17 @@ static int test_config_keys(bool check_nonbool, bool enable_metrics,
     const char *value;
     bool success;
   } test[] = {
-      {"Foobar", "Foobar", false}, {"Samples", "999", false},
-      {"Samples", "-1", false},    {"Samples", "8", true},
-      {"Samples", "1", true}, /* set back to default */
+      {"MetricsOutput", "derived", true},
+      {"MetricsOutput", "raW", true},
+      {"MetricsOutput", "Foobar", false},
+      {"MetricsOutput", "1", false},
+      {"Foobar", "Foobar", false},
+      {"Samples", "999", false},
+      {"Samples", "-1", false},
+      {"Samples", "8", true},
+      /* set back to default */
+      {"MetricsOutput", "Both", true},
+      {"Samples", "1", true},
   };
   unsigned int i, j;
   int ret, fails = 0;

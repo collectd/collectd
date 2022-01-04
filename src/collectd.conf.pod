@@ -3726,6 +3726,16 @@ values is disabled, it is better to set Samples to 1 (default).
 If enabled, plugin logs at start some information about all the GPUs
 detected through Sysman API.
 
+=item B<MetricsOutput>
+
+Either "raw", "derived" or "both".
+
+Specifies whether metrics should be reported as raw values provided
+by Sysman (e.g. HW energy usage counter value in Joules) which is
+preferred for use in Prometheus, as more human-readable and easier
+to debug derived values (e.g. power usage gauge value in Watts), or
+whether to increase number of produced metrics by reporting both.
+
 =item B<DisableMemory>
 
 Disable memory usage metrics collection.

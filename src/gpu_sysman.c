@@ -113,11 +113,23 @@ typedef struct {
   uint64_t counter;
 } gpu_device_t;
 
+typedef enum {
+  OUTPUT_UNSET = 0,
+  OUTPUT_RAW,
+  OUTPUT_DERIVED,
+  OUTPUT_BOTH, /* 3 = 1 | 2 mask */
+  OUTPUT_TYPES
+} output_t;
+
+static const char *metrics_output[OUTPUT_TYPES] = {"unset", "raw", "derived",
+                                                   "both"};
+
 static gpu_device_t *gpus;
 static uint32_t gpu_count;
 static struct {
   bool gpuinfo;
   gpu_disable_t disabled;
+  output_t output;
   uint32_t samples;
 } config;
 
@@ -133,6 +145,7 @@ static struct {
 #define KEY_DISABLE_TEMP "DisableTemperature"
 #define KEY_DISABLE_THROTTLE "DisableThrottleTime"
 
+#define KEY_METRICS_OUTPUT "MetricsOutput"
 #define KEY_LOG_GPU_INFO "LogGpuInfo"
 #define KEY_SAMPLES "Samples"
 #define MAX_SAMPLES 64
@@ -220,8 +233,14 @@ static int gpu_config_free(void) {
  * if at least some metric is enabled, otherwise error code
  */
 static int gpu_config_check(void) {
+  if (config.output == OUTPUT_UNSET) {
+    config.output = OUTPUT_BOTH;
+  }
+  assert(config.output < STATIC_ARRAY_SIZE(metrics_output));
+
   if (config.gpuinfo) {
     INFO("Sysman '" KEY_SAMPLES "': %d", config.samples);
+    INFO(KEY_METRICS_OUTPUT ": %s", metrics_output[config.output]);
     INFO("Disabled metrics:");
   }
   struct {
@@ -1708,6 +1727,18 @@ static int gpu_config_parse(const char *key, const char *value) {
     config.disabled.throttle = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_LOG_GPU_INFO) == 0) {
     config.gpuinfo = IS_TRUE(value);
+  } else if (strcasecmp(key, KEY_METRICS_OUTPUT) == 0) {
+    config.output = OUTPUT_UNSET;
+    for (unsigned i = 0; i < STATIC_ARRAY_SIZE(metrics_output); i++) {
+      if (strcasecmp(value, metrics_output[i]) == 0) {
+        config.output = i;
+        break;
+      }
+    }
+    if (config.output == OUTPUT_UNSET) {
+      ERROR(PLUGIN_NAME ": Invalid '%s' config key value '%s'", key, value);
+      return RET_INVALID_CONFIG;
+    }
   } else if (strcasecmp(key, KEY_SAMPLES) == 0) {
     /* because collectd converts config values to floating point strings,
      * this can't use strtol() to check that value is integer, so simply
@@ -1739,7 +1770,8 @@ void module_register(void) {
       KEY_DISABLE_ENGINE,   KEY_DISABLE_ENGINE_SINGLE, KEY_DISABLE_FREQ,
       KEY_DISABLE_MEM,      KEY_DISABLE_MEMBW,         KEY_DISABLE_POWER,
       KEY_DISABLE_RAS,      KEY_DISABLE_RAS_SEPARATE,  KEY_DISABLE_TEMP,
-      KEY_DISABLE_THROTTLE, KEY_LOG_GPU_INFO,          KEY_SAMPLES};
+      KEY_DISABLE_THROTTLE, KEY_METRICS_OUTPUT,        KEY_LOG_GPU_INFO,
+      KEY_SAMPLES};
   const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
   plugin_register_config(PLUGIN_NAME, gpu_config_parse, config_keys,
