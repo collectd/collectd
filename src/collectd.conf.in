@@ -802,6 +802,7 @@
 #   DisableTemperature false
 #   DisablePower false
 #   DisableEngine false
+#   DisableEngineSingle false
 #   DisableErrors false
 #   DisableSeparateErrors false
 #</Plugin>

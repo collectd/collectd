@@ -3754,6 +3754,11 @@ Disable temperature metrics collection.
 
 Disable engine utilization metrics collection.
 
+=item B<DisableEngineSingle>
+
+Disable utilization metrics collection for single engines i.e. provide
+utilization information only for engine groups.
+
 =item B<DisableErrors>
 
 Disable RAS (Reliability, Availability, and Serviceability) error

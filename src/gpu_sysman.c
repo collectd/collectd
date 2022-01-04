@@ -73,6 +73,7 @@
 typedef struct {
   bool all; /* no metrics from whole GPU */
   bool engine;
+  bool engine_single;
   bool freq;
   bool mem;
   bool membw;
@@ -122,6 +123,7 @@ static struct {
 
 /* Sysman GPU plugin config options (defines to ease catching typos) */
 #define KEY_DISABLE_ENGINE "DisableEngine"
+#define KEY_DISABLE_ENGINE_SINGLE "DisableEngineSingle"
 #define KEY_DISABLE_FREQ "DisableFrequency"
 #define KEY_DISABLE_MEM "DisableMemory"
 #define KEY_DISABLE_MEMBW "DisableMemoryBandwidth"
@@ -226,6 +228,7 @@ static int gpu_config_check(void) {
     const char *name;
     bool value;
   } options[] = {{KEY_DISABLE_ENGINE, config.disabled.engine},
+                 {KEY_DISABLE_ENGINE_SINGLE, config.disabled.engine_single},
                  {KEY_DISABLE_FREQ, config.disabled.freq},
                  {KEY_DISABLE_MEM, config.disabled.mem},
                  {KEY_DISABLE_MEMBW, config.disabled.membw},
@@ -1540,6 +1543,9 @@ static bool gpu_engines(gpu_device_t *gpu) {
     if (all) {
       vname = type;
     } else {
+      if (gpu->disabled.engine_single) {
+        continue;
+      }
       assert(props.type < sizeof(type_idx));
       /* include engine index as there can be multiple engines of same type */
       snprintf(buf, sizeof(buf), "%s-%03d", type, type_idx[props.type]);
@@ -1682,6 +1688,8 @@ static int gpu_config_parse(const char *key, const char *value) {
   /* all metrics are enabled by default, but user can disable them */
   if (strcasecmp(key, KEY_DISABLE_ENGINE) == 0) {
     config.disabled.engine = IS_TRUE(value);
+  } else if (strcasecmp(key, KEY_DISABLE_ENGINE_SINGLE) == 0) {
+    config.disabled.engine_single = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_FREQ) == 0) {
     config.disabled.freq = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_MEM) == 0) {
@@ -1728,10 +1736,10 @@ static int gpu_config_parse(const char *key, const char *value) {
 void module_register(void) {
   /* NOTE: key strings *must* be static */
   static const char *config_keys[] = {
-      KEY_DISABLE_ENGINE,       KEY_DISABLE_FREQ,  KEY_DISABLE_MEM,
-      KEY_DISABLE_MEMBW,        KEY_DISABLE_POWER, KEY_DISABLE_RAS,
-      KEY_DISABLE_RAS_SEPARATE, KEY_DISABLE_TEMP,  KEY_DISABLE_THROTTLE,
-      KEY_LOG_GPU_INFO,         KEY_SAMPLES};
+      KEY_DISABLE_ENGINE,   KEY_DISABLE_ENGINE_SINGLE, KEY_DISABLE_FREQ,
+      KEY_DISABLE_MEM,      KEY_DISABLE_MEMBW,         KEY_DISABLE_POWER,
+      KEY_DISABLE_RAS,      KEY_DISABLE_RAS_SEPARATE,  KEY_DISABLE_TEMP,
+      KEY_DISABLE_THROTTLE, KEY_LOG_GPU_INFO,          KEY_SAMPLES};
   const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
   plugin_register_config(PLUGIN_NAME, gpu_config_parse, config_keys,
