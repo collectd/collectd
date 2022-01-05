@@ -127,6 +127,7 @@
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
+#@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin epics
 #@BUILD_PLUGIN_ETHSTAT_TRUE@LoadPlugin ethstat
 #@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
 #@BUILD_PLUGIN_FHCOUNT_TRUE@LoadPlugin fhcount
@@ -735,6 +736,14 @@
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
+#</Plugin>
+
+#<Plugin epics>
+#	<Variable "Cavity1:Temp">
+#		Type "gauge"
+#	</Variable>
+#
+#	Label "Cavity1:Name"
 #</Plugin>
 
 #<Plugin ethstat>
