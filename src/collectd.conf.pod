@@ -3312,6 +3312,51 @@ at most B<16384> to prevent typos and dumb mistakes.
 
 =back
 
+=head2 Plugin C<epics>
+
+The I<epics plugin> collects data from EPICS (Experimental Physics and
+Industrial Control System) message bus.
+
+Note that in addition to the plugin configuration, the host OS has to be
+configured to be part of the message bus: caRepeater daemon is up and running
+and appropriate EPICS environment variables are set, if required. Consult EPICS
+documentation for details.
+
+B<Synopsis:>
+
+ <Plugin epics>
+   <Variable "Cavity1:Temp">
+     Type "gauge"
+   </Variable>
+   Label "Cavity1:Name"
+ </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item E<lt>B<Variable> I<PVName>E<gt>
+
+The plugin configuration consists of multiple E<lt>B<Variable>E<gt> blocks,
+each per monitored EPICS Process Variable (PV). The variables are constantly
+monitored and their values are latched once per I<global Interval>.
+
+=item B<Type> I<Type>
+
+This is mandatory option to specify internal collectd type for this particular
+PV. PV data type announced by EPICS and the I<Type> specified here must be in a
+reasonable agreement.
+
+=item B<Label> I<PVName>
+
+Additionally, string-typed PV can be monitored as a B<Label>. For instance,
+this can potentially be useful for tracking an experiment ID. Note that in
+addition to configuring B<Label> the appropriate label-avare collectd writing
+plugin has to be enabled. For instance, I<write_prometheus plugin>,
+I<write_influxdb_udp plugin>, or I<write_http plugin> with InfluxDB B<Format>.
+
+=back
+
 =head2 Plugin C<ethstat>
 
 The I<ethstat plugin> collects information about network interface cards (NICs)
