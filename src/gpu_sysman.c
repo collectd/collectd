@@ -593,18 +593,23 @@ static int gpu_init(void) {
 }
 
 /* Dispatch given value to collectd */
-static void gpu_submit(const char *name, const char *type, const char *valname,
-                       double value) {
-  value_list_t vl = VALUE_LIST_INIT;
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
+static void gpu_submit(char *name, double value) {
+  // TODO: provide 'fam' from callers with metrics already appended
+  metric_family_t fam = {
+    .name = name,
+    .type = METRIC_TYPE_GAUGE,
+  };
+  metric_t m = {
+    .value.gauge = value,
+  };
+  metric_family_metric_append(&fam, m);
+  metric_reset(&m);
 
-  sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, name, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type_instance, valname, sizeof(vl.type_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR(PLUGIN_NAME ": gpu_submit() failed: %s", strerror(status));
+  }
+  metric_family_metric_reset(&fam);
 }
 
 /* Report error set types, return true for success */
@@ -664,7 +669,6 @@ static bool gpu_ras(gpu_device_t *gpu) {
     }
     char vname[64];
     uint64_t value, total = 0;
-    const char *gpuname = gpu->name;
     for (int cat_idx = 0; cat_idx < ZES_MAX_RAS_ERROR_CATEGORY_COUNT;
          cat_idx++) {
       value = values.category[cat_idx];
@@ -698,11 +702,11 @@ static bool gpu_ras(gpu_device_t *gpu) {
       default:
         catname = "unknown";
       }
-      snprintf(vname, sizeof(vname), "%s-%s", prefix, catname);
-      gpu_submit(gpuname, "error_count", vname, value);
+      snprintf(vname, sizeof(vname), "%s-%s/error_count", prefix, catname);
+      gpu_submit(vname, value);
     }
-    snprintf(vname, sizeof(vname), "%s-total", prefix);
-    gpu_submit(gpuname, "error_count", vname, total);
+    snprintf(vname, sizeof(vname), "%s-total/error_count", prefix);
+    gpu_submit(vname, total);
     ok = true;
   }
   free(ras);
@@ -833,18 +837,16 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       ok = false;
       break;
     }
-    const char *gpuname = gpu->name;
     char vname[64];
-
     const uint64_t mem_size = gpu->memory[0][i].size;
     if (config.samples < 2) {
       const uint64_t mem_free = gpu->memory[0][i].free;
       /* Sysman reports just memory size & free amounts => calculate used */
-      snprintf(vname, sizeof(vname), "%s-used", prefix);
-      gpu_submit(gpuname, "memory", vname, mem_size - mem_free);
+      snprintf(vname, sizeof(vname), "%s-used/memory_bytes", prefix);
+      gpu_submit(vname, mem_size - mem_free);
 
-      snprintf(vname, sizeof(vname), "%s-free", prefix);
-      gpu_submit(gpuname, "memory", vname, mem_free);
+      snprintf(vname, sizeof(vname), "%s-free/memory_bytes", prefix);
+      gpu_submit(vname, mem_free);
     } else {
       /* find min & max values for memory free from
        * (the configured number of) samples
@@ -860,15 +862,15 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
           free_max = mem_free;
         }
       }
-      snprintf(vname, sizeof(vname), "%s-used-min", prefix);
-      gpu_submit(gpuname, "memory", vname, mem_size - free_max);
-      snprintf(vname, sizeof(vname), "%s-used-max", prefix);
-      gpu_submit(gpuname, "memory", vname, mem_size - free_min);
+      snprintf(vname, sizeof(vname), "%s-used-min/memory_bytes", prefix);
+      gpu_submit(vname, mem_size - free_max);
+      snprintf(vname, sizeof(vname), "%s-used-max/memory_bytes", prefix);
+      gpu_submit(vname, mem_size - free_min);
 
-      snprintf(vname, sizeof(vname), "%s-free-min", prefix);
-      gpu_submit(gpuname, "memory", vname, free_min);
-      snprintf(vname, sizeof(vname), "%s-free-max", prefix);
-      gpu_submit(gpuname, "memory", vname, free_max);
+      snprintf(vname, sizeof(vname), "%s-free-min/memory_bytes", prefix);
+      gpu_submit(vname, free_min);
+      snprintf(vname, sizeof(vname), "%s-free-max/memory_bytes", prefix);
+      gpu_submit(vname, free_max);
     }
   }
   free(mems);
@@ -928,14 +930,14 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       uint64_t writes = bw.writeCounter - old->writeCounter;
       uint64_t reads = bw.readCounter - old->readCounter;
       uint64_t timediff = bw.timestamp - old->timestamp;
-      double factor = 100.0 * 1.0e6 / (bw.maxBandwidth * timediff);
+      double factor = 1.0e6 / (bw.maxBandwidth * timediff);
       char vname[64];
 
-      snprintf(vname, sizeof(vname), "%s-membw-writes", prefix);
-      gpu_submit(gpu->name, "percent", vname, factor * writes);
+      snprintf(vname, sizeof(vname), "%s-writes/memorybw_ratio", prefix);
+      gpu_submit(vname, factor * writes);
 
-      snprintf(vname, sizeof(vname), "%s-membw-reads", prefix);
-      gpu_submit(gpu->name, "percent", vname, factor * reads);
+      snprintf(vname, sizeof(vname), "%s-reads/memorybw_ratio", prefix);
+      gpu_submit(vname, factor * reads);
     }
     *old = bw;
     ok = true;
@@ -1021,7 +1023,6 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       ok = false;
       break;
     }
-    const char *gpuname = gpu->name;
     bool freq_ok = false;
     char vname[64];
     double value;
@@ -1032,14 +1033,14 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
        */
       value = gpu->frequency[0][i].request;
       if (value >= 0) {
-        snprintf(vname, sizeof(vname), "%s-request", prefix);
-        gpu_submit(gpuname, "frequency", vname, value);
+        snprintf(vname, sizeof(vname), "%s-request/frequency_mhz", prefix);
+        gpu_submit(vname, value);
         freq_ok = true;
       }
       value = gpu->frequency[0][i].actual;
       if (value >= 0) {
-        snprintf(vname, sizeof(vname), "%s-actual", prefix);
-        gpu_submit(gpuname, "frequency", vname, value);
+        snprintf(vname, sizeof(vname), "%s-actual/frequency_mhz", prefix);
+        gpu_submit(vname, value);
         freq_ok = true;
       }
     } else {
@@ -1065,17 +1066,17 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         }
       }
       if (req_max >= 0.0) {
-        snprintf(vname, sizeof(vname), "%s-request-min", prefix);
-        gpu_submit(gpuname, "frequency", vname, req_min);
-        snprintf(vname, sizeof(vname), "%s-request-max", prefix);
-        gpu_submit(gpuname, "frequency", vname, req_max);
+        snprintf(vname, sizeof(vname), "%s-request-min/frequency_mhz", prefix);
+        gpu_submit(vname, req_min);
+        snprintf(vname, sizeof(vname), "%s-request-max/frequency_mhz", prefix);
+        gpu_submit(vname, req_max);
         freq_ok = true;
       }
       if (act_max >= 0.0) {
-        snprintf(vname, sizeof(vname), "%s-actual-min", prefix);
-        gpu_submit(gpuname, "frequency", vname, act_min);
-        snprintf(vname, sizeof(vname), "%s-actual-max", prefix);
-        gpu_submit(gpuname, "frequency", vname, act_max);
+        snprintf(vname, sizeof(vname), "%s-actual-min/frequency_mhz", prefix);
+        gpu_submit(vname, act_min);
+        snprintf(vname, sizeof(vname), "%s-actual-max/frequency_mhz", prefix);
+        gpu_submit(vname, act_max);
         freq_ok = true;
       }
     }
@@ -1142,12 +1143,11 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
     }
     zes_freq_throttle_time_t *old = &gpu->throttle[i];
     if (old->timestamp) {
-      char vname[64];
       /* in micro seconds */
+      strcat(prefix, "/throttling_ratio");
       double throttled = (throttle.throttleTime - old->throttleTime) /
                          (double)(throttle.timestamp - old->timestamp);
-      snprintf(vname, sizeof(vname), "%s-throttled", prefix);
-      gpu_submit(gpu->name, "percent", vname, 100.0 * throttled);
+      gpu_submit(prefix, throttled);
     }
     *old = throttle;
     ok = true;
@@ -1210,11 +1210,11 @@ static bool gpu_temps(gpu_device_t *gpu) {
     default:
       type = "unknown";
     }
-    char vname[32];
+    char vname[64];
     if (props.onSubdevice) {
-      snprintf(vname, sizeof(vname), "subdev%02d-%s", props.subdeviceId, type);
+      snprintf(vname, sizeof(vname), "subdev%02d-%s/temperature_celsius", props.subdeviceId, type);
     } else {
-      snprintf(vname, sizeof(vname), "device-%s", type);
+      snprintf(vname, sizeof(vname), "device-%s/temperature_celsius", type);
     }
     double value;
     if (zesTemperatureGetState(temps[i], &value) != ZE_RESULT_SUCCESS) {
@@ -1223,7 +1223,7 @@ static bool gpu_temps(gpu_device_t *gpu) {
       ok = false;
       break;
     }
-    gpu_submit(gpu->name, "temperature", vname, value);
+    gpu_submit(vname, value);
     ok = true;
   }
   free(temps);
@@ -1275,16 +1275,16 @@ static bool gpu_powers(gpu_device_t *gpu) {
     }
     zes_power_energy_counter_t *old = &gpu->power[i];
     if (old->timestamp) {
-      char vname[64];
-      if (props.onSubdevice) {
-        snprintf(vname, sizeof(vname), "subdev%02d-watts", props.subdeviceId);
-      } else {
-        strcpy(vname, "device-watts");
-      }
       /* microJoules / microSeconds */
       double watts = (double)(counter.energy - old->energy) /
                      (counter.timestamp - old->timestamp);
-      gpu_submit(gpu->name, "power", vname, watts);
+      if (props.onSubdevice) {
+	char vname[64];
+        snprintf(vname, sizeof(vname), "subdev%02d/power_watts", props.subdeviceId);
+	gpu_submit(vname, watts);
+      } else {
+	gpu_submit("device/power_watts", watts);
+      }
     }
     *old = counter;
     ok = true;
@@ -1398,10 +1398,10 @@ static bool gpu_engines(gpu_device_t *gpu) {
     }
     char vname[64];
     if (all) {
-      snprintf(vname, sizeof(vname), "%s-engines-%s", location, type);
+      snprintf(vname, sizeof(vname), "%s-engines-%s/engine_ratio", location, type);
     } else {
       /* include engine index as there can be multiple engines of same type */
-      snprintf(vname, sizeof(vname), "%s-engine%02d-%s", location, i, type);
+      snprintf(vname, sizeof(vname), "%s-engine%02d-%s/engine_ratio", location, i, type);
     }
     ze_result_t ret;
     zes_engine_stats_t stats;
@@ -1416,7 +1416,7 @@ static bool gpu_engines(gpu_device_t *gpu) {
     if (old->timestamp) {
       double util = (double)(stats.activeTime - old->activeTime) /
                     (stats.timestamp - old->timestamp);
-      gpu_submit(gpu->name, "percent", vname, 100.0 * util);
+      gpu_submit(vname, util);
     }
     *old = stats;
     ok = true;
