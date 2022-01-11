@@ -61,7 +61,7 @@
 
 #include "gpu_sysman.c" /* test this */
 
-/* set first logging bit based on next logging bits */
+/* logging check bit, and per-phase logging bits enabling it */
 #define VERBOSE_CALLS 1
 #define VERBOSE_CALLS_INIT 2
 #define VERBOSE_CALLS_INIT_LIMIT 4
@@ -69,7 +69,7 @@
 #define VERBOSE_CALLS_METRICS_LIMIT 16
 #define VERBOSE_CALLS_METRICS_SAMPLED 32
 
-/* set first logging bit based on next logging bits */
+/* logging check bit, and per-phase logging bits enabling it */
 #define VERBOSE_METRICS 64
 #define VERBOSE_METRICS_NORMAL 128
 #define VERBOSE_METRICS_LIMIT 256
@@ -267,8 +267,7 @@ ze_result_t zesDeviceGetState(zes_device_handle_t dev,
 #define COUNTER_MAX TIME_INC
 
 /* what should get reported as result of above */
-#define COUNTER_VALUE ((double)COUNTER_INC / TIME_INC)
-#define COUNTER_PERCENTAGE (100.0 * COUNTER_VALUE)
+#define COUNTER_RATIO ((double)COUNTER_INC / TIME_INC)
 
 #define FREQ_INIT 300
 #define FREQ_INC 50
@@ -450,7 +449,7 @@ ze_result_t zesMemoryGetBandwidth(zes_mem_handle_t handle,
 /* mock up metrics reporting and validation */
 
 typedef struct {
-  const char *type;
+  const char *name;
   /* present also when multisampling */
   const bool multipresent;
   /* metric values are multisampled and present only when multisampling */
@@ -463,26 +462,26 @@ typedef struct {
 
 static metrics_validation_t valid_metrics[] = {
     {"error_count", true, false, RAS_INIT, RAS_INC, 0, 0.0},
-    {"actual/frequency", false, false, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"actual-min/frequency", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"actual-max/frequency", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"request/frequency", false, false, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"request-min/frequency", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"request-max/frequency", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
-    {"free/memory", false, false, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"free-min/memory", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"free-max/memory", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
-    {"used/memory", false, false, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
-    {"used-min/memory", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
-    {"used-max/memory", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
-    {"temperature", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
+    {"actual/frequency_mhz", false, false, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"actual-min/frequency_mhz", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"actual-max/frequency_mhz", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
+    {"request/frequency_mhz", false, false, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
+    {"request-min/frequency_mhz", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
+    {"request-max/frequency_mhz", true, true, FREQ_INIT, 2 * FREQ_INC, 0, 0.0},
+    {"free/memory_bytes", false, false, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
+    {"free-min/memory_bytes", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
+    {"free-max/memory_bytes", true, true, MEMORY_INIT, -MEMORY_INC, 0, 0.0},
+    {"used/memory_bytes", false, false, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
+    {"used-min/memory_bytes", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
+    {"used-max/memory_bytes", true, true, MEMORY_INIT, +MEMORY_INC, 0, 0.0},
+    {"temperature_celsius", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
-    {"engines-all/percent", true, false, COUNTER_PERCENTAGE, 0, 0, 0.0},
-    {"throttled/percent", true, false, COUNTER_PERCENTAGE, 0, 0, 0.0},
-    {"membw-reads/percent", true, false, 2 * COUNTER_PERCENTAGE, 0, 0, 0.0},
-    {"membw-writes/percent", true, false, COUNTER_PERCENTAGE, 0, 0, 0.0},
-    {"power", true, false, COUNTER_VALUE, 0, 0, 0.0},
+    {"engines-all/engine_ratio", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"gpu/throttling_ratio", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"reads/memorybw_ratio", true, false, 2 * COUNTER_RATIO, 0, 0, 0.0},
+    {"writes/memorybw_ratio", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
 };
 
 /* VALIDATE: reset tracked metrics values and return count of how many
@@ -516,7 +515,7 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
       }
       if (missed) {
         fprintf(stderr, "expected metric type '%s' not reported\n",
-                metric->type);
+                metric->name);
         missing++;
       }
       continue;
@@ -534,11 +533,11 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
     int incrounds = base_rounds - 1;
     if (multisampled && metric->multisampled) {
       /* min for increasing metrics is first value in given multisample round */
-      if (metric->value_inc > 0 && strstr(metric->type, "-min/")) {
+      if (metric->value_inc > 0 && strstr(metric->name, "-min")) {
         incrounds += multisampled - config.samples + 1;
       }
       /* max for decreasing metrics is first value in given multisample round */
-      else if (metric->value_inc < 0 && strstr(metric->type, "-max/")) {
+      else if (metric->value_inc < 0 && strstr(metric->name, "-max")) {
         incrounds += multisampled - config.samples + 1;
       } else {
         /* for all others, it's the last value sampled */
@@ -553,11 +552,11 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
       fprintf(
           stderr,
           "ERROR: expected %g, but got %g value for metric '%s' on round %d\n",
-          expected, last, metric->type, incrounds);
+          expected, last, metric->name, incrounds);
       wrong++;
     } else if (globs.verbose & VERBOSE_METRICS) {
       fprintf(stderr, "round %d metric value verified for '%s' (%.2f)\n",
-              incrounds, metric->type, expected);
+              incrounds, metric->name, expected);
     }
   }
   if (missing && (globs.verbose & VERBOSE_METRICS)) {
@@ -566,25 +565,67 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
   return missing + wrong;
 }
 
-int plugin_dispatch_values(value_list_t const *vl) {
-  assert(vl && vl->values_len == 1);
-
-  char name[512];
-  snprintf(name, sizeof(name), "%s/%s", vl->type_instance, vl->type);
-  if (globs.verbose & VERBOSE_METRICS) {
-    fprintf(stderr, "METRIC: %s/%s: %.2f\n", vl->plugin_instance, name,
-            vl->values[0].gauge);
+int plugin_dispatch_metric_family(metric_family_t const *fam) {
+  assert(fam && fam->name);
+  if (!fam->metric.num) {
+    if (globs.verbose & VERBOSE_METRICS) {
+      fprintf(stderr, "metric family '%s' with no metrics\n", fam->name);
+    }
+    assert(!fam->metric.ptr);
+    return 0;
   }
+  assert(fam->metric.ptr);
+
   bool found = false;
-  for (int i = 0; i < (int)STATIC_ARRAY_SIZE(valid_metrics); i++) {
-    metrics_validation_t *metric = &valid_metrics[i];
-    if (strstr(name, metric->type)) {
-      metric->last = vl->values[0].gauge;
-      metric->count++;
-      found = true;
+  metric_t *metric = fam->metric.ptr;
+  for (size_t m = 0; m < fam->metric.num; m++) {
+    double value = metric[m].value.gauge;
+    if (globs.verbose & VERBOSE_METRICS) {
+      fprintf(stderr, "METRIC: %s: %.2f\n", fam->name, value);
+    }
+    for (int v = 0; v < (int)STATIC_ARRAY_SIZE(valid_metrics); v++) {
+      metrics_validation_t *valid = &valid_metrics[v];
+      if (strstr(fam->name, valid->name)) {
+        valid->last = value;
+        valid->count++;
+        found = true;
+      }
     }
   }
   assert(found);
+  return 0;
+}
+
+int metric_reset(metric_t *) { return 0; }
+
+#define MAX_METRICS 8
+
+/* mock function uses just one large enough metrics array (for testing)
+ * instead of increasing it one-by-one, like the real collectd metrics
+ * code does
+ */
+int metric_family_metric_append(metric_family_t *fam, metric_t m) {
+  assert(fam);
+  size_t num = fam->metric.num;
+  metric_t *metric = fam->metric.ptr;
+  if (num) {
+    assert(num < MAX_METRICS);
+    assert(metric);
+  } else {
+    assert(!metric);
+    metric = calloc(MAX_METRICS, sizeof(*metric));
+    fam->metric.ptr = metric;
+    assert(metric);
+  }
+  metric[fam->metric.num++] = m;
+  m.family = fam;
+  return 0;
+}
+
+int metric_family_metric_reset(metric_family_t *fam) {
+  free(fam->metric.ptr);
+  fam->metric.ptr = NULL;
+  fam->metric.num = 0;
   return 0;
 }
 
@@ -638,15 +679,6 @@ int plugin_register_shutdown(const char *name, plugin_shutdown_cb callback) {
 
 /* ------------------------------------------------------------------------- */
 /* helper code copied from collectd */
-
-/* taken from utils/common/common.c, for gpu_submit()
- * (fixed for Ubuntu GCC v9 FORTIFY_SOURCE warning)
- */
-char *sstrncpy(char *dest, const char *src, size_t n) {
-  strncpy(dest, src, n - 1);
-  dest[n - 1] = '\0';
-  return dest;
-}
 
 static const struct {
   int level;
