@@ -1168,6 +1168,17 @@ intel_pmu_la_SOURCES = \
 intel_pmu_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
 intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
 intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
+
+test_plugin_intel_pmu_SOURCES = \
+	src/intel_pmu_test.c \
+	src/utils/config_cores/config_cores.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_intel_pmu_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
+test_plugin_intel_pmu_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
+test_plugin_intel_pmu_LDADD = libplugin_mock.la liboconfig.la $(BUILD_WITH_LIBJEVENTS_LIBS)
+check_PROGRAMS += test_plugin_intel_pmu
+TESTS += test_plugin_intel_pmu
 endif
 
 if BUILD_PLUGIN_INTEL_RDT

@@ -218,6 +218,7 @@ ping                    value:GAUGE:0:65535
 ping_droprate           value:GAUGE:0:1
 ping_stddev             value:GAUGE:0:65535
 players                 value:GAUGE:0:1000000
+pmu_counter             scaled:COUNTER:0:U, raw:COUNTER:0:U, enabled:COUNTER:0:U, running:COUNTER:0:U
 pools                   value:GAUGE:0:U
 power                   value:GAUGE:U:U
 pressure                value:GAUGE:0:U
