@@ -916,6 +916,12 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
     if (cache_idx > 0) {
       continue;
     }
+    const uint64_t mem_size = gpu->memory[0][i].size;
+    if (!mem_size) {
+      ERROR(PLUGIN_NAME ": invalid (zero) memory module %d size", i);
+      ok = false;
+      break;
+    }
     /* process samples */
     if (!set_mem_labels(mems[i], &metric)) {
       ERROR(PLUGIN_NAME ": failed to get memory module %d properties", i);
@@ -923,7 +929,6 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       break;
     }
     double mem_used;
-    const uint64_t mem_size = gpu->memory[0][i].size;
     if (config.samples < 2) {
       const uint64_t mem_free = gpu->memory[0][i].free;
       /* Sysman reports just memory size & free amounts => calculate used */
@@ -1040,13 +1045,14 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       reported_counter = true;
     }
     zes_mem_bandwidth_t *old = &gpu->membw[i];
-    if (old->maxBandwidth && (config.output & OUTPUT_DERIVED)) {
+    if (old->maxBandwidth && (config.output & OUTPUT_DERIVED) &&
+        bw.timestamp > old->timestamp) {
       /* https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv419zes_mem_bandwidth_t
        */
       uint64_t writes = bw.writeCounter - old->writeCounter;
       uint64_t reads = bw.readCounter - old->readCounter;
       uint64_t timediff = bw.timestamp - old->timestamp;
-      double factor = 1.0e6 / (bw.maxBandwidth * timediff);
+      double factor = 1.0e6 / (old->maxBandwidth * timediff);
 
       metric.value.gauge = factor * writes;
       metric_label_set(&metric, "direction", "write");
@@ -1306,7 +1312,8 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       reported_counter = true;
     }
     zes_freq_throttle_time_t *old = &gpu->throttle[i];
-    if (old->timestamp && (config.output & OUTPUT_DERIVED)) {
+    if (old->timestamp && (config.output & OUTPUT_DERIVED) &&
+        throttle.timestamp > old->timestamp) {
       /* micro seconds => throttle ratio */
       metric.value.gauge = (throttle.throttleTime - old->throttleTime) /
                            (double)(throttle.timestamp - old->timestamp);
@@ -1479,7 +1486,8 @@ static bool gpu_powers(gpu_device_t *gpu) {
       reported_energy = true;
     }
     zes_power_energy_counter_t *old = &gpu->power[i];
-    if (old->timestamp && (config.output & OUTPUT_DERIVED)) {
+    if (old->timestamp && (config.output & OUTPUT_DERIVED) &&
+        counter.timestamp > old->timestamp) {
       /* microJoules / microSeconds => watts */
       metric.value.gauge = (double)(counter.energy - old->energy) /
                            (counter.timestamp - old->timestamp);
@@ -1645,7 +1653,8 @@ static bool gpu_engines(gpu_device_t *gpu) {
       reported_counter = true;
     }
     zes_engine_stats_t *old = &gpu->engine[i];
-    if (old->timestamp && (config.output & OUTPUT_DERIVED)) {
+    if (old->timestamp && (config.output & OUTPUT_DERIVED) &&
+        stats.timestamp > old->timestamp) {
       metric.value.gauge = (double)(stats.activeTime - old->activeTime) /
                            (stats.timestamp - old->timestamp);
       metric_family_metric_append(&fam_ratio, metric);
