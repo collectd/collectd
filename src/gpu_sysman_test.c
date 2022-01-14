@@ -340,7 +340,7 @@ ADD_METRIC(0, zesDeviceEnumEngineGroups, zes_engine_handle_t,
            zesEngineGetProperties, zes_engine_properties_t,
            zesEngineGetActivity, zes_engine_stats_t, engine_stats,
            engine_stats.activeTime += COUNTER_INC,
-           engine_stats.timestamp += TIME_INC);
+           engine_stats.timestamp += TIME_INC)
 
 static zes_freq_state_t freq_state = {.request = FREQ_INIT,
                                       .actual = FREQ_INIT};
@@ -348,7 +348,7 @@ static zes_freq_state_t freq_state = {.request = FREQ_INIT,
 ADD_METRIC(3, zesDeviceEnumFrequencyDomains, zes_freq_handle_t,
            zesFrequencyGetProperties, zes_freq_properties_t,
            zesFrequencyGetState, zes_freq_state_t, freq_state,
-           freq_state.request += 2 * FREQ_INC, freq_state.actual += FREQ_INC);
+           freq_state.request += 2 * FREQ_INC, freq_state.actual += FREQ_INC)
 
 static zes_mem_state_t mem_state = {.free = MEMORY_SIZE - MEMORY_INIT,
                                     .size = MEMORY_SIZE};
@@ -356,7 +356,7 @@ static zes_mem_state_t mem_state = {.free = MEMORY_SIZE - MEMORY_INIT,
 ADD_METRIC(6, zesDeviceEnumMemoryModules, zes_mem_handle_t,
            zesMemoryGetProperties, zes_mem_properties_t, zesMemoryGetState,
            zes_mem_state_t, mem_state, mem_state.free -= MEMORY_INC,
-           mem_state.health ^= ZES_MEM_HEALTH_OK);
+           mem_state.health ^= ZES_MEM_HEALTH_OK)
 
 static zes_power_energy_counter_t power_counter = {.energy = COUNTER_START,
                                                    .timestamp = TIME_START};
@@ -365,7 +365,7 @@ ADD_METRIC(9, zesDeviceEnumPowerDomains, zes_pwr_handle_t,
            zesPowerGetProperties, zes_power_properties_t,
            zesPowerGetEnergyCounter, zes_power_energy_counter_t, power_counter,
            power_counter.energy += COUNTER_INC,
-           power_counter.timestamp += TIME_INC);
+           power_counter.timestamp += TIME_INC)
 
 static int dummy;
 static double temperature = TEMP_INIT;
@@ -373,12 +373,12 @@ static double temperature = TEMP_INIT;
 ADD_METRIC(12, zesDeviceEnumTemperatureSensors, zes_temp_handle_t,
            zesTemperatureGetProperties, zes_temp_properties_t,
            zesTemperatureGetState, double, temperature, temperature += TEMP_INC,
-           dummy = 0);
+           dummy = 0)
 
 ADD_METRIC(15, zesDeviceEnumRasErrorSets, zes_ras_handle_t, zesRasGetProperties,
            zes_ras_properties_t, zesRasGetDummy, int,
            dummy, // dummy as state API differs from others
-           dummy = 0, dummy = 0);
+           dummy = 0, dummy = 0)
 
 ze_result_t zesRasGetState(zes_ras_handle_t handle, ze_bool_t clear,
                            zes_ras_state_t *state) {
@@ -598,7 +598,8 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
 
 /* sort in reverse order so 'type' label comes first */
 static int cmp_labels(const void *a, const void *b) {
-  return strcmp(((label_pair_t *)b)->name, ((label_pair_t *)a)->name);
+  return strcmp(((const label_pair_t *)b)->name,
+                ((const label_pair_t *)a)->name);
 }
 
 /* constructs metric name from metric family name and metric label values */
