@@ -3878,75 +3878,31 @@ B<except> the ones matched.
 The I<intel_pmu> plugin collects performance counters data on Intel CPUs using
 Linux perf interface. All events are reported on a per core basis.
 
+B<Note:> When using intel_pmu plugin number of reading threads in collectd
+should be adjusted accordingly. The value should be more than a half of
+configured cores, so for 60 monitored cores the recommendation is to set
+B<ReadThreads> > 30. The optimal number of B<WriteThreads> depends on volume
+of metrics from read plugins, interval and number of enabled write plugins.
+The above adjustments can help with performance scaling when monitoring a high
+number of events on many cores.
+
+
 B<Synopsis:>
 
   <Plugin intel_pmu>
-    ReportHardwareCacheEvents true
-    ReportKernelPMUEvents true
-    ReportSoftwareEvents true
-    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
+    EventList "/var/cache/pmu/GenuineIntel-6-55-4-core.json"
     HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
     Cores "0-3" "4,6" "[12-15]"
-    DispatchMultiPmu false
+    HardwareEvents "L2_RQSTS.PF_MISS"
+    Cores "[1,2]"
+    HardwareEvents "INST_RETIRED.ANY" "CPU_CLK_UNHALTED.THREAD"
+    Cores ""
+    AggregateUncorePMUs true
   </Plugin>
 
 B<Options:>
 
 =over 4
-
-=item B<ReportHardwareCacheEvents> B<false>|B<true>
-
-Enable or disable measuring of hardware CPU cache events:
-  - L1-dcache-loads
-  - L1-dcache-load-misses
-  - L1-dcache-stores
-  - L1-dcache-store-misses
-  - L1-dcache-prefetches
-  - L1-dcache-prefetch-misses
-  - L1-icache-loads
-  - L1-icache-load-misses
-  - L1-icache-prefetches
-  - L1-icache-prefetch-misses
-  - LLC-loads
-  - LLC-load-misses
-  - LLC-stores
-  - LLC-store-misses
-  - LLC-prefetches
-  - LLC-prefetch-misses
-  - dTLB-loads
-  - dTLB-load-misses
-  - dTLB-stores
-  - dTLB-store-misses
-  - dTLB-prefetches
-  - dTLB-prefetch-misses
-  - iTLB-loads
-  - iTLB-load-misses
-  - branch-loads
-  - branch-load-misses
-
-=item B<ReportKernelPMUEvents> B<false>|B<true>
-
-Enable or disable measuring of the following events:
-  - cpu-cycles
-  - instructions
-  - cache-references
-  - cache-misses
-  - branches
-  - branch-misses
-  - bus-cycles
-
-=item B<ReportSoftwareEvents> B<false>|B<true>
-
-Enable or disable measuring of software events provided by kernel:
-  - cpu-clock
-  - task-clock
-  - context-switches
-  - cpu-migrations
-  - page-faults
-  - minor-faults
-  - major-faults
-  - alignment-faults
-  - emulation-faults
 
 =item B<EventList> I<filename>
 
@@ -3957,7 +3913,10 @@ event_download.py script to download event list for current CPU.
 =item B<HardwareEvents> I<events>
 
 This field is a list of event names or groups of comma separated event names.
-This option requires B<EventList> option to be configured.
+This option requires B<EventList> option to be configured. If "All" is
+provided, all events from B<EventList> are going to be loaded. This option
+can be used multiple times in pair with B<Cores> option, as shown in example
+above.
 
 =item B<Cores> I<cores groups>
 
@@ -3975,12 +3934,18 @@ Allowed formats are:
 
 If an empty string is provided as value for this field default cores
 configuration is applied - that is separate group is created for each core.
+This option can be used once for every B<HardwareEvents> set.
 
-=item B<DispatchMultiPmu> B<false>|B<true>
+=item B<AggregateUncorePMUs> B<false>|B<true>
 
-Enable or disable dispatching of cloned multi PMU for uncore events. If
-disabled only total sum is dispatched as single event. If enabled separate
-metric is dispatched for every counter.
+This option toggles the event value reporting from all the uncore PMUs to either
+dispatch as aggregated value in a single metric or dispatch as individual
+values. If B<AggregateUncorePMUs> is set to 'true', uncore events from the
+various PMU subsystems across uncore are reported as a single metric, usually
+reported as single 'Core0' events. The total value is obtained by summing all
+counters across all the units (e.g. CHAs). If B<AggregateUncorePMUs> is set to
+'false', values from the individual PMU subsystems across uncore are dispatched
+separately with PMU name/number added to Collectd's I<plugin_instance>.
 
 =back
 
@@ -4005,6 +3970,7 @@ Please refer to I<contrib/systemd.collectd.service> file for more details.
 B<Synopsis:>
 
   <Plugin "intel_rdt">
+    MonIPCEnabled true
     Cores "0-2" "3,4,6" "8-10,15"
     Processes "sshd,qemu-system-x86" "bash"
   </Plugin>
@@ -4019,6 +3985,11 @@ The interval within which to retrieve statistics on monitored events in seconds.
 For milliseconds divide the time by 1000 for example if the desired interval
 is 50ms, set interval to 0.05. Due to limited capacity of counters it is not
 recommended to set interval higher than 1 sec.
+
+=item B<MonIPCEnabled> B<true>|B<false>
+
+Determines whether or not to enable IPC monitoring. If set to B<true> (the
+default), IPC monitoring statistics will be collected by intel_rdt plugin.
 
 =item B<Cores> I<cores groups>
 
@@ -6527,6 +6498,12 @@ The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
 milliseconds. By default, the configured B<Interval> is used to set the
 timeout.
 
+=item B<Socket> I<Path>
+
+The B<Socket> option sets the UNIX domain socket to use, if the NGINX listens
+on a UNIX domain socket instead. Note that you still need to provide the
+B<URL> option.
+
 =back
 
 =head2 Plugin C<notify_desktop>
@@ -8194,6 +8171,60 @@ matching values will be ignored.
 This plugin embeds a Python-interpreter into collectd and provides an interface
 to collectd's plugin system. See L<collectd-python(5)> for its documentation.
 
+=head2 Plugin C<ras>
+
+The C<ras> plugin gathers and counts errors provided by [RASDaemon]
+(https://github.com/mchehab/rasdaemon). This plugin requires access to SQLite3
+database from `RASDaemon`.
+
+Metrics:
+  type: ras_errors
+  plugin_instance: CPU_(number CPU) for metrics per CPU Core metric. For metrics per Server metrics this value is empty.
+  type_instance:
+    per CPU Core:
+      - memory_read_corrected_errors
+      - memory_read_uncorrectable_errors
+      - memory_write_corrected_errors
+      - memory_write_uncorrectable_errors
+      - cache_l0_l1_errors
+      - tlb_instruction_errors
+      - processor_base_errors
+      - processor_bus_errors
+      - internal_timer_errors
+      - smm_handler_code_access_violation_errors
+      - internal_parity_errors
+      - frc_errors
+      - external_mce_errors
+      - microcode_rom_parity_errors
+      - unclassified_mce_errors
+    per Server:
+      - cache_l2_errors
+      - upi_errors
+
+Please note that `processor_base_errors` is aggregate counter measuring the following MCE events:
+- internal_timer_errors
+- smm_handler_code_access_violation_errors
+- internal_parity_errors
+- frc_errors
+- external_mce_errors
+- microcode_rom_parity_errors
+- unclassified_mce_errors
+
+
+In addition `RASDaemon` runs, by default, with `--enable-sqlite3` flag. In case of
+problems with SQLite3 database please verify this is still a default option.
+
+=over 4
+
+=item B<DB_Path> I<Path>
+
+Path to the RASDemon database (sqlite3). Please make sure that user has read
+permissions to this database. Example and default setting:
+
+  DB_Path "/var/lib/rasdaemon/ras-mc_event.db"
+
+=back
+
 =head2 Plugin C<redfish>
 
 The C<redfish> plugin collects sensor data using REST protocol called
@@ -9123,6 +9154,13 @@ removed from the internal cache.
 When enabled, creates a C<count> metric which reports the change since the last
 read. This option primarily exists for compatibility with the I<statsd>
 implementation by Etsy.
+
+=item B<CounterSum> B<false>|B<true>
+
+When enabled, creates a C<gauge> metric which reports counters as a "gauge"
+of the differential, resetting the counter between flush intervals.  This
+option primarily exists for compatibility with the I<statsd> implementation
+in GitHub Enterprise Server.
 
 =item B<TimerPercentile> I<Percent>
 
@@ -11203,12 +11241,14 @@ traffic between collectd and the HTTP server.
 
 =head2 Plugin C<write_influxdb_udp>
 
-The write_influxdb_udp plugin sends data to a instance of InfluxDB using the
+The write_influxdb_udp plugin sends data to instances of InfluxDB using the
 "Line Protocol". Each plugin is sent as a measurement with a time precision of
 miliseconds while plugin instance, type and type instance are sent as tags.
 
  <Plugin "write_influxdb_udp">
-   Server "influxdb.internal.tld"
+   Server "influxdb.fqdn"
+   Server "influxdb2.fqdn"
+   TimePrecision "ms"
    StoreRates "yes"
  </Plugin>
 
@@ -11216,11 +11256,21 @@ miliseconds while plugin instance, type and type instance are sent as tags.
 
 =item B<E<lt>Server> I<Host> [I<Port>]B<E<gt>>
 
-The B<Server> statement sets the server to send datagrams to.
+The B<Server> statement sets a server to send datagrams to. This statement can
+appear multiple times, once for each unique destination to send to.
 
 The argument I<Host> may be a hostname, an IPv4 address or an IPv6 address. The
 optional second argument specifies a port number or a service name. If not
-given, the default, B<8089>, is used.
+given, the default, B<8089>, is used. The arguments I<Host> and I<Port> should
+be enclosed in "quotes".
+
+=item B<TimePrecision> I<ms>|I<us>|I<ns>
+
+The B<TimePrecision> option sets the precision of the timestamps sent to 
+InfluxDB. It must match the precision set in InfluxDB line protocol 
+configuration.
+
+The defaut value is I<ms>. Note that InfluxDB default may differ.
 
 =item B<TimeToLive> I<1-255>
 

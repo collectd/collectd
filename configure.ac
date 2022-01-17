@@ -2071,7 +2071,7 @@ AC_ARG_WITH([cuda],
   [
     if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
       with_cuda_cppflags="-I$withval/include"
-      with_cuda_ldflags="-I$withval/lib"
+      with_cuda_ldflags="-L$withval/lib"
       with_cuda="yes"
     else
       with_cuda="$withval"
@@ -2223,7 +2223,7 @@ LDFLAGS="$LDFLAGS $LIBREDFISH_LDFLAGS"
 
 if test "x$with_libredfish" = "xyes"; then
   if test "x$LIBREDFISH_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libredfish CPPFLAGS: $LIBHIREDFISH_CPPFLAGS])
+    AC_MSG_NOTICE([libredfish CPPFLAGS: $LIBREDFISH_CPPFLAGS])
   fi
   AC_CHECK_HEADERS([redfish.h],
     [with_libredfish="yes"],
@@ -2252,6 +2252,52 @@ fi
 AC_SUBST([BUILD_WITH_LIBREDFISH_CPPFLAGS])
 AC_SUBST([BUILD_WITH_LIBREDFISH_LDFLAGS])
 
+# }}}
+
+# --with-sqlite3 {{{
+AC_ARG_WITH([sqlite3],
+  [AS_HELP_STRING([--with-sqlite3@<:@=PREFIX@:>@], [Path to sqlite3.])],
+  [
+    if test "x$withval" = "xyes"; then
+      with_sqlite3="yes"
+    else if test "x$withval" = "xno"; then
+      with_sqlite3="no"
+    else
+      with_sqlite3="yes"
+      SQLITE3_CPPFLAGS="$SQLITE3_CPPFLAGS -I$withval/include"
+      SQLITE3_LDFLAGS="$SQLITE3_LDFLAGS -L$withval/lib"
+    fi; fi
+  ],
+  [with_sqlite3="yes"]
+)
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $SQLITE3_CPPFLAGS"
+LDFLAGS="$LDFLAGS $SQLITE3_LDFLAGS"
+
+if test "x$with_sqlite3" = "xyes"; then
+  if test "x$SQLITE3_CPPFLAGS" != "x"; then
+    AC_MSG_NOTICE([sqlite3 CPPFLAGS: $SQLITE3_CPPFLAGS])
+  fi
+  AC_CHECK_HEADERS([sqlite3.h],
+    [with_sqlite3="yes"],
+    [with_sqlite3="no (sqlite3.h not found)"]
+  )
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_sqlite3" = "xyes"; then
+  BUILD_WITH_SQLITE3_CPPFLAGS="$SQLITE3_CPPFLAGS"
+  BUILD_WITH_SQLITE3_LDFLAGS="$SQLITE3_LDFLAGS"
+  BUILD_WITH_SQLITE3_LIBS="-lsqlite3"
+fi
+
+AC_SUBST([BUILD_WITH_SQLITE3_CPPFLAGS])
+AC_SUBST([BUILD_WITH_SQLITE3_LDFLAGS])
+AC_SUBST([BUILD_WITH_SQLITE3_LIBS])
 # }}}
 
 # --with-libcurl {{{
@@ -2322,6 +2368,12 @@ if test "x$with_libcurl" = "xyes"; then
       [have_curlopt_timeout="no"],
       [[#include <curl/curl.h>]]
     )
+
+    AC_CHECK_DECL(CURLOPT_UNIX_SOCKET_PATH,
+      [have_curlopt_unix_socket_path="yes"],
+      [have_curlopt_unix_socket_path="no"],
+      [[#include <curl/curl.h>]]
+    )
   fi
 fi
 
@@ -2371,6 +2423,12 @@ if test "x$with_libcurl" = "xyes"; then
   if test "x$have_curlopt_timeout" = "xyes"; then
     AC_DEFINE([HAVE_CURLOPT_TIMEOUT_MS], [1],
       [Define if libcurl supports CURLOPT_TIMEOUT_MS option.]
+    )
+  fi
+
+  if test "x$have_curlopt_unix_socket_path" = "xyes"; then
+    AC_DEFINE([HAVE_CURLOPT_UNIX_SOCKET_PATH], [1],
+      [Define if libcurl supports CURLOPT_UNIX_SOCKET_PATH option.]
     )
   fi
 fi
@@ -3815,7 +3873,7 @@ AC_ARG_WITH([libnetsnmp],
      with_libnetsnmp="yes"
     else
       with_libnetsnmp_cppflags="-I$withval/include"
-      with_libnetsnmp_ldflags="-I$withval/lib"
+      with_libnetsnmp_ldflags="-L$withval/lib"
       with_libnetsnmp="yes"
     fi; fi
   ],
@@ -3936,7 +3994,7 @@ AC_ARG_WITH([libnetsnmpagent],
       with_libnetsnmpagent="yes"
     else
       with_libnetsnmpagent_cppflags="-I$withval/include"
-      with_libnetsnmpagent_ldflags="-I$withval/lib"
+      with_libnetsnmpagent_ldflags="-L$withval/lib"
       with_libnetsnmpagent="yes"
     fi; fi
   ],
@@ -6628,6 +6686,7 @@ plugin_log_logstash="no"
 plugin_mcelog="no"
 plugin_mdevents="no"
 plugin_memory="no"
+plugin_mmc="no"
 plugin_multimeter="no"
 plugin_netstat_udp="no"
 plugin_nfs="no"
@@ -6641,6 +6700,7 @@ plugin_processes="no"
 plugin_procevent="no"
 plugin_protocols="no"
 plugin_python="no"
+plugin_ras="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_swap="no"
@@ -6967,6 +7027,10 @@ if test "x$with_libpython" != "xno"; then
   plugin_python="yes"
 fi
 
+if test "x$with_sqlite3" = "xyes"; then
+  plugin_ras="yes"
+fi
+
 if test "x$with_libatasmart" = "xyes" && test "x$with_libudev" = "xyes"; then
   plugin_smart="yes"
 fi
@@ -7113,6 +7177,7 @@ AC_PLUGIN([memory],              [$plugin_memory],            [Memory usage])
 AC_PLUGIN([mic],                 [$with_mic],                 [Intel Many Integrated Core stats])
 AC_PLUGIN([modbus],              [$with_libmodbus],           [Modbus plugin])
 AC_PLUGIN([mqtt],                [$with_libmosquitto],        [MQTT output plugin])
+AC_PLUGIN([mmc],                 [$plugin_mmc],               [MMC statistics])
 AC_PLUGIN([multimeter],          [$plugin_multimeter],        [Read multimeter values])
 AC_PLUGIN([mysql],               [$with_libmysql],            [MySQL statistics])
 AC_PLUGIN([netapp],              [$with_libnetapp],           [NetApp plugin])
@@ -7146,6 +7211,7 @@ AC_PLUGIN([processes],           [$plugin_processes],         [Process statistic
 AC_PLUGIN([procevent],           [$plugin_procevent],         [Process event (start, stop) statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],         [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],            [Embed a Python interpreter])
+AC_PLUGIN([ras],                 [$plugin_ras],               [RAS plugin])
 AC_PLUGIN([redfish],             [$with_libredfish],          [Redfish plugin])
 AC_PLUGIN([redis],               [$with_libhiredis],          [Redis plugin])
 AC_PLUGIN([routeros],            [$with_librouteros],         [RouterOS plugin])
@@ -7592,6 +7658,7 @@ AC_MSG_RESULT([    processes . . . . . . $enable_processes])
 AC_MSG_RESULT([    procevent . . . . . . $enable_procevent])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
+AC_MSG_RESULT([    ras . . . . . . . . . $enable_ras])
 AC_MSG_RESULT([    redfish . . . . . . . $enable_redfish])
 AC_MSG_RESULT([    redis . . . . . . . . $enable_redis])
 AC_MSG_RESULT([    routeros  . . . . . . $enable_routeros])

@@ -37,7 +37,7 @@ debian_default_toolchain_task:
       allow_failures: false
     - container:
         image: collectd/ci:trusty_amd64
-      allow_failures: false
+      allow_failures: true
     - container:
         image: collectd/ci:xenial_amd64
       allow_failures: false
@@ -68,10 +68,6 @@ debian_default_toolchain_task:
 #
 redhat_default_toolchain_task:
   matrix:
-    - allow_failures: false
-      skip_notifications: false
-      container:
-        image: collectd/ci:el6_x86_64
     - allow_failures: true
       skip_notifications: true
       container:

@@ -399,9 +399,6 @@ struct cmdline_config init_config(int argc, char **argv) {
 
   read_cmdline(argc, argv, &config);
 
-  if (config.test_config)
-    exit(EXIT_SUCCESS);
-
   if (optind < argc)
     exit_usage(EXIT_FAILURE);
 
@@ -409,6 +406,9 @@ struct cmdline_config init_config(int argc, char **argv) {
 
   if (configure_collectd(&config) != 0)
     exit(EXIT_FAILURE);
+
+  if (config.test_config)
+    exit(EXIT_SUCCESS);
 
   return config;
 }

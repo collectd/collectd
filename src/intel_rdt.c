@@ -75,6 +75,7 @@ typedef struct rdt_name_group_s rdt_name_group_t;
 #endif /* LIBPQOS2 */
 
 struct rdt_ctx_s {
+  bool mon_ipc_enabled;
   core_groups_list_t cores;
   enum pqos_mon_event events[RDT_MAX_CORES];
   struct pqos_mon_data *pcgroups[RDT_MAX_CORES];
@@ -155,6 +156,21 @@ static void rdt_submit(const struct pqos_mon_data *group) {
     }
   }
 
+  if (events & PQOS_MON_EVENT_TMEM_BW) {
+    const struct pqos_monitor *mon = NULL;
+
+    int retval =
+        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_TMEM_BW, &mon);
+    if (retval == PQOS_RETVAL_OK) {
+      uint64_t value = values->mbm_total;
+
+      if (mon->scale_factor != 0)
+        value = value * mon->scale_factor;
+
+      rdt_submit_derive(desc, "memory_bandwidth", "total", value);
+    }
+  }
+
   if (events & PQOS_MON_EVENT_RMEM_BW) {
     const struct pqos_monitor *mon = NULL;
 
@@ -181,6 +197,8 @@ static void rdt_dump_cgroups(void) {
   char cores[RDT_MAX_CORES * 4];
 
   if (g_rdt == NULL)
+    return;
+  if (g_rdt->cores.num_cgroups == 0)
     return;
 
   DEBUG(RDT_PLUGIN ": Core Groups Dump");
@@ -210,6 +228,8 @@ static void rdt_dump_ngroups(void) {
   char names[DATA_MAX_NAME_LEN];
 
   if (g_rdt == NULL)
+    return;
+  if (g_rdt->num_ngroups == 0)
     return;
 
   DEBUG(RDT_PLUGIN ": Process Names Groups Dump");
@@ -506,7 +526,48 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
 
   rdt->num_ngroups = 0;
 }
+#endif /* LIBPQOS2 */
 
+/*
+ * NAME
+ *   rdt_config_events
+ *
+ * DESCRIPTION
+ *   Configure available monitoring events
+ *
+ * PARAMETERS
+ *   `rdt`       Pointer to rdt context
+ *
+ * RETURN VALUE
+ *  0 on success. Negative number on error.
+ */
+static int rdt_config_events(rdt_ctx_t *rdt) {
+  enum pqos_mon_event events = 0;
+
+  /* Get all available events on this platform */
+  for (unsigned i = 0; i < rdt->cap_mon->u.mon->num_events; i++)
+    events |= rdt->cap_mon->u.mon->events[i].type;
+
+  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
+
+  /* IPC monitoring is disabled */
+  if (!rdt->mon_ipc_enabled)
+    events &= ~(PQOS_PERF_EVENT_IPC);
+
+  DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
+
+  for (size_t i = 0; i < rdt->cores.num_cgroups; i++) {
+    rdt->events[i] = events;
+  }
+#ifdef LIBPQOS2
+  for (size_t i = 0; i < rdt->num_ngroups; i++) {
+    rdt->ngroups[i].events = events;
+  }
+#endif /* LIBPQOS2 */
+  return 0;
+}
+
+#ifdef LIBPQOS2
 /*
  * NAME
  *   rdt_config_ngroups
@@ -523,7 +584,6 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
  */
 static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
   int n = 0;
-  enum pqos_mon_event events = 0;
 
   if (item == NULL) {
     DEBUG(RDT_PLUGIN ": ngroups_config: Invalid argument.");
@@ -571,14 +631,6 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
     return -EINVAL;
   }
 
-  /* Get all available events on this platform */
-  for (unsigned i = 0; i < rdt->cap_mon->u.mon->num_events; i++)
-    events |= rdt->cap_mon->u.mon->events[i].type;
-
-  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
-
-  DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
-
   rdt->num_ngroups = n;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < i; j++) {
@@ -591,7 +643,6 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
       }
     }
 
-    rdt->ngroups[i].events = events;
     rdt->pngroups[i] = calloc(1, sizeof(*rdt->pngroups[i]));
     if (rdt->pngroups[i] == NULL) {
       rdt_free_ngroups(rdt);
@@ -955,7 +1006,6 @@ static int rdt_is_core_id_valid(unsigned int core_id) {
 
 static int rdt_config_cgroups(oconfig_item_t *item) {
   size_t n = 0;
-  enum pqos_mon_event events = 0;
 
   if (config_cores_parse(item, &g_rdt->cores) < 0) {
     rdt_free_cgroups();
@@ -990,15 +1040,8 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
          ": No core groups configured. Default core groups created.");
   }
 
-  /* Get all available events on this platform */
-  for (unsigned int i = 0; i < g_rdt->cap_mon->u.mon->num_events; i++)
-    events |= g_rdt->cap_mon->u.mon->events[i].type;
-
-  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
-
   DEBUG(RDT_PLUGIN ": Number of cores in the system: %u",
         g_rdt->pqos_cpu->num_cores);
-  DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
 
   g_rdt->cores.num_cgroups = n;
   for (int i = 0; i < n; i++) {
@@ -1013,7 +1056,6 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
       }
     }
 
-    g_rdt->events[i] = events;
     g_rdt->pcgroups[i] = calloc(1, sizeof(*g_rdt->pcgroups[i]));
     if (g_rdt->pcgroups[i] == NULL) {
       rdt_free_cgroups();
@@ -1042,6 +1084,9 @@ static int rdt_preinit(void) {
     ERROR(RDT_PLUGIN ": Failed to allocate memory for rdt context.");
     return -ENOMEM;
   }
+
+  /* IPC monitoring is enabled by default */
+  g_rdt->mon_ipc_enabled = 1;
 
   struct pqos_config pqos = {.fd_log = -1,
                              .callback_log = rdt_pqos_log,
@@ -1136,9 +1181,6 @@ static int rdt_config(oconfig_item_t *ci) {
          */
         return 0;
 
-#if COLLECT_DEBUG
-      rdt_dump_cgroups();
-#endif /* COLLECT_DEBUG */
     } else if (strncasecmp("Processes", child->key,
                            (size_t)strlen("Processes")) == 0) {
 #ifdef LIBPQOS2
@@ -1166,18 +1208,26 @@ static int rdt_config(oconfig_item_t *ci) {
          */
         return 0;
 
-#if COLLECT_DEBUG
-      rdt_dump_ngroups();
-#endif /* COLLECT_DEBUG */
 #else  /* !LIBPQOS2 */
       ERROR(RDT_PLUGIN ": Configuration parameter \"%s\" not supported, please "
                        "recompile collectd with libpqos version 2.0 or newer.",
             child->key);
 #endif /* LIBPQOS2 */
+    } else if (strcasecmp("MonIPCEnabled", child->key) == 0) {
+      cf_util_get_boolean(child, &g_rdt->mon_ipc_enabled);
     } else {
       ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
     }
   }
+
+  rdt_config_events(g_rdt);
+
+#if COLLECT_DEBUG
+  rdt_dump_cgroups();
+#ifdef LIBPQOS2
+  rdt_dump_ngroups();
+#endif /* LIBPQOS2 */
+#endif /* COLLECT_DEBUG */
 
   return 0;
 }

@@ -322,6 +322,7 @@ static int memory_read_internal(value_list_t *vl) {
   char *fields[8];
   int numfields;
 
+  bool mem_available_info = false;
   bool detailed_slab_info = false;
 
   gauge_t mem_total = 0;
@@ -329,6 +330,7 @@ static int memory_read_internal(value_list_t *vl) {
   gauge_t mem_buffered = 0;
   gauge_t mem_cached = 0;
   gauge_t mem_free = 0;
+  gauge_t mem_available = 0;
   gauge_t mem_slab_total = 0;
   gauge_t mem_slab_reclaimable = 0;
   gauge_t mem_slab_unreclaimable = 0;
@@ -357,6 +359,9 @@ static int memory_read_internal(value_list_t *vl) {
     } else if (strncasecmp(buffer, "SUnreclaim:", 11) == 0) {
       val = &mem_slab_unreclaimable;
       detailed_slab_info = true;
+    } else if (strncasecmp(buffer, "MemAvailable:", 13) == 0) {
+      val = &mem_available;
+      mem_available_info = true;
     } else
       continue;
 
@@ -374,14 +379,27 @@ static int memory_read_internal(value_list_t *vl) {
   if (mem_total < (mem_free + mem_buffered + mem_cached + mem_slab_total))
     return -1;
 
-  mem_used =
-      mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_total);
+  if (detailed_slab_info)
+    mem_used = mem_total -
+               (mem_free + mem_buffered + mem_cached + mem_slab_reclaimable);
+  else
+    mem_used =
+        mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_total);
 
   /* SReclaimable and SUnreclaim were introduced in kernel 2.6.19
    * They sum up to the value of Slab, which is available on older & newer
    * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
    * if not. */
-  if (detailed_slab_info)
+  if (mem_available_info && detailed_slab_info)
+    MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
+                  mem_cached, "free", mem_free, "available", mem_available,
+                  "slab_unrecl", mem_slab_unreclaimable, "slab_recl",
+                  mem_slab_reclaimable);
+  else if (mem_available_info)
+    MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
+                  mem_cached, "free", mem_free, "slab", mem_slab_total,
+                  "available", mem_available);
+  else if (detailed_slab_info)
     MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
                   mem_cached, "free", mem_free, "slab_unrecl",
                   mem_slab_unreclaimable, "slab_recl", mem_slab_reclaimable);

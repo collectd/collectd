@@ -828,16 +828,14 @@
 #</Plugin>
 
 #<Plugin intel_pmu>
-#    ReportHardwareCacheEvents true
-#    ReportKernelPMUEvents true
-#    ReportSoftwareEvents true
-#    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
+#    EventList "/var/cache/pmu/GenuineIntel-6-55-4-core.json"
 #    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
 #    Cores "[0-3]"
-#    DispatchMultiPmu false
+#    AggregateUncorePMUs true
 #</Plugin>
 
 #<Plugin "intel_rdt">
+#  MonIPCEnabled true
 #  Cores "0-2"
 #  Processes "sshd"
 #</Plugin>
@@ -1042,6 +1040,11 @@
 #<Plugin memory>
 #	ValuesAbsolute true
 #	ValuesPercentage false
+#</Plugin>
+
+#<Plugin mmc>
+#	Device "mmc0"
+#	IgnoreSelected false
 #</Plugin>
 
 #<Plugin modbus>
@@ -1489,6 +1492,10 @@
 #	</Module>
 #</Plugin>
 
+#<Plugin ras>
+#	DB_Path "/var/lib/rasdaemon/ras-mc_event.db"
+#</Plugin>
+
 #<Plugin redis>
 #   <Node example>
 #      Host "redis.example.com"
@@ -1714,6 +1721,7 @@
 #  DeleteGauges   false
 #  DeleteSets     false
 #  CounterSum     false
+#  CounterGauge   false
 #  TimerPercentile 90.0
 #  TimerPercentile 95.0
 #  TimerPercentile 99.0
@@ -2019,6 +2027,7 @@
 
 #<Plugin write_influxdb_udp>
 #  Server "localhost"
+#  TimePrecision "ms"
 #  StoreRates true
 #  MaxPacketSize 32768
 #  TimeToLive 128

@@ -119,8 +119,8 @@ ib_errors               value:DERIVE:0:U
 ib_lid                  value:GAUGE:0:32767
 ib_lid_mask_count       value:GAUGE:0:7
 ib_link_error_recovery  value:DERIVE:0:U
-ib_octets               rx:DERIVE:0:U tx:DERIVE:0:U
-ib_packets              rx:DERIVE:0:U tx:DERIVE:0:U
+ib_octets               rx:DERIVE:0:U, tx:DERIVE:0:U
+ib_packets              rx:DERIVE:0:U, tx:DERIVE:0:U
 ib_phys_state           value:GAUGE:0:15
 ib_rate                 value:GAUGE:0:U
 ib_sm_lid               value:GAUGE:0:32767
@@ -166,6 +166,9 @@ memcached_ops           value:DERIVE:0:U
 memory                  value:GAUGE:0:281474976710656
 memory_lua              value:GAUGE:0:281474976710656
 memory_throttle_count   value:DERIVE:0:U
+mmc_power_cycles        value:GAUGE:0:U
+mmc_block_erases        value:GAUGE:0:U
+mmc_bad_blocks          value:GAUGE:0:255
 multimeter              value:GAUGE:U:U
 mutex_operations        value:DERIVE:0:U
 mysql_bpool_bytes       value:GAUGE:0:U
@@ -219,6 +222,7 @@ ping                    value:GAUGE:0:65535
 ping_droprate           value:GAUGE:0:1
 ping_stddev             value:GAUGE:0:65535
 players                 value:GAUGE:0:1000000
+pmu_counter             scaled:COUNTER:0:U, raw:COUNTER:0:U, enabled:COUNTER:0:U, running:COUNTER:0:U
 pools                   value:GAUGE:0:U
 power                   value:GAUGE:U:U
 pressure                value:GAUGE:0:U
@@ -237,6 +241,7 @@ ps_vm                   value:GAUGE:0:9223372036854775807
 pstates_enabled         value:GAUGE:0:1
 pubsub                  value:GAUGE:0:U
 queue_length            value:GAUGE:0:U
+ras_errors              value:COUNTER:0:U
 records                 value:GAUGE:0:U
 redis_command_cputime   value:DERIVE:0:U
 requests                value:GAUGE:0:U

@@ -96,8 +96,8 @@ static size_t wg_write_memory_cb(void *contents, size_t size,
 
 static char *wg_get_authorization_header(wg_callback_t *cb) { /* {{{ */
   int status = 0;
-  char access_token[256];
-  char authorization_header[256];
+  char access_token[GOOGLE_OAUTH_ACCESS_TOKEN_SIZE];
+  char authorization_header[GOOGLE_OAUTH_ACCESS_TOKEN_SIZE + 32];
 
   assert((cb->auth != NULL) || gce_check());
   if (cb->auth != NULL)

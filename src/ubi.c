@@ -35,6 +35,9 @@
 #define DEV_BAD_COUNT                                                          \
   "bad_peb_count" // Count of bad physical eraseblocks on the underlying MTD
                   // device.
+// Value reserved for bad block
+#define DEV_RESERVED_BAD_BLOCK "reserved_for_bad"
+
 #define MAXIMUM_ERASE "max_ec" // Current maximum erase counter value
 
 /*
@@ -84,15 +87,14 @@ static void ubi_submit(const char *dev_name, const char *type, gauge_t value) {
   plugin_dispatch_values(&vl);
 } /* void ubi_submit */
 
-static int ubi_read_dev_attr(const char *dev_name, const char *attr) {
+static int ubi_read_dev_attr(const char *dev_name, const char *attr,
+                             int *value) {
   FILE *f;
-  int val;
   const size_t str_len =
       sizeof(SYS_PATH) + strlen(dev_name) + sizeof("/") + strlen(attr) + 1;
   char *str = alloca(str_len);
   if (!str)
     return -1;
-
   int n;
 
   snprintf(str, str_len, SYS_PATH "%s/%s", dev_name, attr);
@@ -102,7 +104,7 @@ static int ubi_read_dev_attr(const char *dev_name, const char *attr) {
     return -1;
   }
 
-  n = fscanf(f, "%d", &val);
+  n = fscanf(f, "%d", value);
   fclose(f);
 
   if (n != 1) {
@@ -110,18 +112,71 @@ static int ubi_read_dev_attr(const char *dev_name, const char *attr) {
     return -1;
   }
 
-  ubi_submit(dev_name, attr, (gauge_t)val);
-
   return 0;
 } /* int ubi_read_dev_attr */
 
 static inline int ubi_read_dev_bad_count(const char *dev_name) {
-  return ubi_read_dev_attr(dev_name, DEV_BAD_COUNT);
+  int ret;
+  int value;
+
+  ret = ubi_read_dev_attr(dev_name, DEV_BAD_COUNT, &value);
+
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME " : Unable to read bad_peb_count");
+    return -1;
+  }
+
+  ubi_submit(dev_name, DEV_BAD_COUNT, (gauge_t)value);
+
+  return 0;
 } /* int ubi_read_dev_bad_count */
 
 static inline int ubi_read_max_ec(const char *dev_name) {
-  return ubi_read_dev_attr(dev_name, MAXIMUM_ERASE);
+  int ret;
+  int value;
+
+  ret = ubi_read_dev_attr(dev_name, MAXIMUM_ERASE, &value);
+
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME " : Unable to read max_ec");
+    return -1;
+  }
+
+  ubi_submit(dev_name, MAXIMUM_ERASE, (gauge_t)value);
+
+  return 0;
 } /* int ubi_read_max_ec */
+
+static inline int ubi_read_percent(const char *dev_name) {
+  int ret;
+  int bcount;
+  int bblock;
+
+  ret = ubi_read_dev_attr(dev_name, DEV_BAD_COUNT, &bcount);
+
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME " : Unable to read bad_peb_count");
+    return -1;
+  }
+
+  ret = ubi_read_dev_attr(dev_name, DEV_RESERVED_BAD_BLOCK, &bblock);
+
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME " : Unable to read reserved_for_bad");
+    return -1;
+  }
+
+  if (bblock == 0) {
+    ERROR(PLUGIN_NAME
+          " : Percentage value cannot be determined (reserved_for_bad = 0)");
+    return -2;
+  }
+
+  ubi_submit(dev_name, "percent",
+             (gauge_t)((float_t)bcount / (float_t)bblock * 100.0));
+
+  return 0;
+} /* int ubi_read_percent */
 
 static int ubi_read(void) {
   DIR *dir;
@@ -138,6 +193,7 @@ static int ubi_read(void) {
 
     ubi_read_dev_bad_count(dirent->d_name);
     ubi_read_max_ec(dirent->d_name);
+    ubi_read_percent(dirent->d_name);
   }
 
   closedir(dir);

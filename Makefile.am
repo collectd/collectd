@@ -1149,6 +1149,17 @@ intel_pmu_la_SOURCES = \
 intel_pmu_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
 intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
 intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
+
+test_plugin_intel_pmu_SOURCES = \
+	src/intel_pmu_test.c \
+	src/utils/config_cores/config_cores.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_intel_pmu_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
+test_plugin_intel_pmu_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
+test_plugin_intel_pmu_LDADD = libplugin_mock.la liboconfig.la $(BUILD_WITH_LIBJEVENTS_LIBS)
+check_PROGRAMS += test_plugin_intel_pmu
+TESTS += test_plugin_intel_pmu
 endif
 
 if BUILD_PLUGIN_INTEL_RDT
@@ -1470,6 +1481,13 @@ mqtt_la_SOURCES = src/mqtt.c
 mqtt_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
 mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMOSQUITTO_LDFLAGS)
 mqtt_la_LIBADD = $(BUILD_WITH_LIBMOSQUITTO_LIBS)
+endif
+
+if BUILD_PLUGIN_MMC
+pkglib_LTLIBRARIES += mmc.la
+mmc_la_SOURCES = src/mmc.c
+mmc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+mmc_la_LIBADD = libignorelist.la
 endif
 
 if BUILD_PLUGIN_MULTIMETER
@@ -1807,6 +1825,21 @@ pkglib_LTLIBRARIES += protocols.la
 protocols_la_SOURCES = src/protocols.c
 protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 protocols_la_LIBADD = libignorelist.la
+endif
+
+if BUILD_PLUGIN_RAS
+pkglib_LTLIBRARIES += ras.la
+ras_la_SOURCES = src/ras.c
+ras_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_SQLITE3_CPPFLAGS)
+ras_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_SQLITE3_LDFLAGS)
+ras_la_LIBADD = $(BUILD_WITH_SQLITE3_LIBS)
+
+test_plugin_ras_SOURCES = src/ras_test.c
+test_plugin_ras_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_SQLITE3_CPPFLAGS)
+test_plugin_ras_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_SQLITE3_LDFLAGS)
+test_plugin_ras_LDADD = libplugin_mock.la $(BUILD_WITH_SQLITE3_LIBS)
+check_PROGRAMS += test_plugin_ras
+
 endif
 
 if BUILD_PLUGIN_REDFISH

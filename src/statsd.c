@@ -80,6 +80,7 @@ static double *conf_timer_percentile;
 static size_t conf_timer_percentile_num;
 
 static bool conf_counter_sum;
+static bool conf_counter_gauge;
 static bool conf_timer_lower;
 static bool conf_timer_upper;
 static bool conf_timer_sum;
@@ -636,6 +637,8 @@ static int statsd_config(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &conf_delete_gauges);
     else if (strcasecmp("DeleteSets", child->key) == 0)
       cf_util_get_boolean(child, &conf_delete_sets);
+    else if (strcasecmp("CounterGauge", child->key) == 0)
+      cf_util_get_boolean(child, &conf_counter_gauge);
     else if (strcasecmp("CounterSum", child->key) == 0)
       cf_util_get_boolean(child, &conf_counter_sum);
     else if (strcasecmp("TimerLower", child->key) == 0)
@@ -804,6 +807,43 @@ static int statsd_metric_submit_unsafe(char const *name,
 
       /* restore vl.type */
       sstrncpy(vl.type, "derive", sizeof(vl.type));
+    }
+
+    /*
+     * From: Vicent Marti <tanoku@gmail.com>
+     * Date: Mon, 15 Dec 2014 17:07:28 +0100
+     * Subject: [PATCH] Report Counters using the same behavior as StatsD
+     *
+     * The current implementation is not really compatible with what the
+     * reference StatsD implementation does. StatsD aggregates the increase in
+     * the counter during the flushing interval, and at flush, reports the
+     * current value as a differential and resets the counter.
+     *
+     * The implementation in Collectd instead never resets the counter, and
+     * always reports the *absolute* value to RRD as a DERIVE, assuming it will
+     * perform the differential itself. This behavior is rather surprising,
+     * particularly when graphing with tools that expect to be
+     * Graphite-compatible.
+     *
+     * This patch implements the right behavior by reporting counters as a
+     * "gauge" of the differential (i.e. resetting the counter between flush
+     * intervals). This mimics StatsD's behavior, and even the same behavior
+     * that Collectd performs when reporting the "count" row in a histogram --
+     * after all, the count row in the histogram should have the same semantics
+     * as a counter metric. This was previously inconsistent in this
+     * implementation. */
+    if (conf_counter_gauge) {
+      gauge_t previous_gauge = vl.values[0].gauge;
+
+      sstrncpy(vl.type, "gauge", sizeof(vl.type));
+      vl.values[0].gauge = (gauge_t)metric->value;
+      metric->value = 0.0;
+      plugin_dispatch_values(&vl);
+
+      /* restore vl.type and values[0].gauge */
+      sstrncpy(vl.type, "derive", sizeof(vl.type));
+      metric->value = vl.values[0].gauge;
+      vl.values[0].gauge = previous_gauge;
     }
 
     /* Rather than resetting value to zero, subtract delta so we correctly keep

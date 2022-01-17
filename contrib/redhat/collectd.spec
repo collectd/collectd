@@ -81,6 +81,7 @@
 %define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_hugepages 0%{!?_without_hugepages:1}
+%define with_infiniband 0%{!?_without_interface:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
@@ -96,6 +97,7 @@
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_mcelog 0%{!?_without_mcelog:1}
 %define with_md 0%{!?_without_md:1}
+%define with_mdevents 0%{!?_without_mdevents:1}
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
@@ -200,6 +202,8 @@
 %define with_mic 0%{!?_without_mic:0}
 # plugin netapp disabled, requires libnetapp
 %define with_netapp 0%{!?_without_netapp:0}
+# plugin netstat_udp requires NetBSD
+%define with_netstat_udp 0%{!?_without_netstat_udp:0}
 # plugin onewire disabled, requires libowfs
 %define with_onewire 0%{!?_without_onewire:0}
 # plugin oracle disabled, requires Oracle
@@ -272,7 +276,7 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.11.0
+Version:	5.12.0
 Release:	1%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -1395,6 +1399,12 @@ Collectd utilities
 %define _with_intel_rdt --disable-intel_rdt
 %endif
 
+%if %{with_infiniband}
+%define _with_infiniband --enable-infiniband
+%else
+%define _with_infiniband --disable-infiniband
+%endif
+
 %if %{with_interface}
 %define _with_interface --enable-interface
 %else
@@ -1503,6 +1513,12 @@ Collectd utilities
 %define _with_md --disable-md
 %endif
 
+%if %{with_mdevents}
+%define _with_mdevents --enable-mdevents
+%else
+%define _with_mdevents --disable-mdevents
+%endif
+
 %if %{with_memcachec}
 %define _with_memcachec --enable-memcachec
 %else
@@ -1561,6 +1577,12 @@ Collectd utilities
 %define _with_netlink --enable-netlink
 %else
 %define _with_netlink --disable-netlink
+%endif
+
+%if %{with_netstat_udp}
+%define _with_netstat_udp --enable-netstat_udp
+%else
+%define _with_netstat_udp --disable-netstat_udp
 %endif
 
 %if %{with_network}
@@ -2119,6 +2141,7 @@ Collectd utilities
 	%{?_with_hugepages} \
 	%{?_with_intel_pmu} \
 	%{?_with_intel_rdt} \
+	%{?_with_infiniband} \
 	%{?_with_interface} \
 	%{?_with_ipc} \
 	%{?_with_ipmi} \
@@ -2147,6 +2170,7 @@ Collectd utilities
 	%{?_with_mysql} \
 	%{?_with_netapp} \
 	%{?_with_netlink} \
+	%{?_with_netstat_udp} \
 	%{?_with_network} \
 	%{?_with_nfs} \
 	%{?_with_nginx} \
@@ -2423,6 +2447,9 @@ fi
 %if %{with_hugepages}
 %{_libdir}/%{name}/hugepages.so
 %endif
+%if %{with_infiniband}
+%{_libdir}/%{name}/infiniband.so
+%endif
 %if %{with_interface}
 %{_libdir}/%{name}/interface.so
 %endif
@@ -2452,6 +2479,9 @@ fi
 %endif
 %if %{with_md}
 %{_libdir}/%{name}/md.so
+%endif
+%if %{with_mdevents}
+%{_libdir}/%{name}/mdevents.so
 %endif
 %if %{with_memcached}
 %{_libdir}/%{name}/memcached.so
@@ -2982,6 +3012,11 @@ fi
 %doc contrib/
 
 %changelog
+* Wed May 05 2021 Fabien Wernli <rpmbuild@faxmodem.org> - 5.12.0-1
+- Update to 5.12.0
+- Remove netstat_udp
+- Add infiniband and mdevents
+
 * Mon Mar 16 2020 Matthias Runge <mrunge@redhat.com> - 5.11.0-1
 - update to 5.11.0
 
