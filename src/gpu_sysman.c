@@ -653,8 +653,12 @@ static void ras_submit(gpu_device_t *gpu, const char *name, const char *help,
   metric_t m = {0};
 
   m.value.counter = value;
-  metric_label_set(&m, "type", type);
-  metric_label_set(&m, "sub_dev", subdev);
+  if (type) {
+    metric_label_set(&m, "type", type);
+  }
+  if (subdev) {
+    metric_label_set(&m, "sub_dev", subdev);
+  }
   metric_family_metric_append(&fam, m);
   metric_reset(&m);
   gpu_submit(gpu, &fam);
@@ -700,17 +704,16 @@ static bool gpu_ras(gpu_device_t *gpu) {
     default:
       type = "unknown";
     }
-    char subdev[8];
+    char buf[8];
+    const char *subdev = NULL;
     if (props.onSubdevice) {
-      snprintf(subdev, sizeof(subdev), "%d", props.subdeviceId);
-    } else {
-      subdev[0] = '\0';
+      snprintf(buf, sizeof(buf), "%d", props.subdeviceId);
+      subdev = buf;
     }
     zes_ras_state_t values;
     const bool clear = false;
     if (zesRasGetState(ras[i], clear, &values) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get RAS set %d (%s%s) state", i, type,
-            subdev);
+      ERROR(PLUGIN_NAME ": failed to get RAS set %d (%s) state", i, type);
       ok = false;
       break;
     }
@@ -727,7 +730,8 @@ static bool gpu_ras(gpu_device_t *gpu) {
       }
       correctable = true;
       switch (cat_idx) {
-        // categories which are not correctable
+        // categories which are not correctable, see:
+        // https://spec.oneapi.io/level-zero/latest/sysman/PROG.html#querying-ras-errors
       case ZES_RAS_ERROR_CAT_RESET:
         help = "Total number of GPU reset attempts by the driver";
         catname = METRIC_PREFIX "resets_total";
@@ -768,10 +772,11 @@ static bool gpu_ras(gpu_device_t *gpu) {
         help = "Total number of errors in unsupported categories";
         catname = METRIC_PREFIX "unknown_errors_total";
       }
-      if (!correctable && props.type == ZES_RAS_ERROR_TYPE_CORRECTABLE) {
-        continue;
+      if (correctable) {
+        ras_submit(gpu, catname, help, type, subdev, value);
+      } else if (props.type == ZES_RAS_ERROR_TYPE_UNCORRECTABLE) {
+        ras_submit(gpu, catname, help, NULL, subdev, value);
       }
-      ras_submit(gpu, catname, help, type, subdev, value);
     }
     catname = METRIC_PREFIX "all_errors_total";
     help = "Total number of errors in all categories";
@@ -783,14 +788,11 @@ static bool gpu_ras(gpu_device_t *gpu) {
 }
 
 static void metric_set_subdev(metric_t *m, bool onsub, uint32_t subid) {
-  char *subdev, buf[8];
   if (onsub) {
+    char buf[8];
     snprintf(buf, sizeof(buf), "%d", subid);
-    subdev = buf;
-  } else {
-    subdev = "";
+    metric_label_set(m, "sub_dev", buf);
   }
-  metric_label_set(m, "sub_dev", subdev);
 }
 
 static bool set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
