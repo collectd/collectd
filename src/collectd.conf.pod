@@ -5458,9 +5458,26 @@ C<SHOW SLAVE STATUS> command. See the B<MySQL reference manual>,
 I<12.5.5.21 SHOW MASTER STATUS Syntax> and
 I<12.5.5.31 SHOW SLAVE STATUS Syntax> for details.
 
+Custom database queries using a B<Query> block are also supported. This enable 
+to collect data from MySQL tables or use future or special statistics provided 
+by MySQL server.
+
 Synopsis:
 
   <Plugin mysql>
+
+    <Query "out_of_stock">
+      Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
+      # Use with MySQL 5.0.0 or later
+      MinVersion 50000
+      <Result>
+        Type "gauge"
+        InstancePrefix "out_of_stock"
+        InstancesFrom "category"
+        ValuesFrom "value"
+      </Result>
+    </Query>
+
     <Database foo>
       Host "hostname"
       User "username"
@@ -5481,6 +5498,8 @@ Synopsis:
       Socket "/var/run/mysql/mysqld.sock"
       SlaveStats true
       SlaveNotifications true
+
+      Query "out_of_stock"
     </Database>
 
    <Database galera>
@@ -5490,6 +5509,87 @@ Synopsis:
       WsrepStats true
    </Database>
   </Plugin>
+
+The B<Query> block defines one database query which may later be used by 
+a database definition. It accepts a single mandatory argument which specifies 
+the name of the query. The names of all queries have to be unique (see the 
+MinVersion and MaxVersion options below for an exception to this rule).
+
+In each Query block, there is one or more B<Result> blocks. Multiple Result 
+blocks may be used to extract multiple values from a single query.
+
+The following configuration options are available to define the query:
+
+=over 4
+
+=item B<Statement> I<Sql>
+
+Specify the sql statement that should be executed on the server. This is not 
+interpreted by collectd, but simply passed to the database server.
+
+The query has to return at least two columns, one for the instance and one
+value. You cannot omit the instance, even if the statement is guaranteed to
+always return exactly one line. In that case, you can usually specify something
+like this:
+
+  Statement "SELECT \"instance\", COUNT(*) AS value FROM table"
+
+=item B<MinVersion> I<Version>
+
+=item B<MaxVersion> I<Version>
+
+Specify the minimum or maximum version of MySQL that this query should be used with.
+You can use these options to provide multiple queries with the same name but 
+with a slightly different syntax. The plugin will use only those queries,
+where the specified minimum and maximum versions fit the version of the database in use.
+
+The version has to be specified as the concatenation of the major, minor and 
+patch-level versions, each represented as two-decimal-digit numbers. For example, 
+versions "4.1.2" becomes "40102", version "5.0.42" becomes "50042".
+
+=back
+
+The B<Result> block defines how to handle the values returned from the query. 
+It defines which column holds which value and how to dispatch that value to the daemon.
+
+=item B<Type> I<Type>
+
+The B<type> that's used for each line returned. See L<types.db(5)> for more
+details on how types are defined. In short: A type is a predefined layout of
+data and the number of values and type of values has to match the type
+definition.
+
+=item B<InstancePrefix> I<prefix>
+=item B<InstancesFrom> I<column0> [I<column1> ...]
+
+Specifies the columns whose values will be used to create the "type-instance"
+for each row. If you specify more than one column, the value of all columns
+will be joined together with dashes I<("-")> as separation characters.
+
+The plugin itself does not check whether or not all built instances are
+different. It's your responsibility to assure that each is unique. This is
+especially true, if you do not specify B<InstancesFrom>: B<You> have to make
+sure that only one row is returned in this case.
+
+If neither B<InstancePrefix> nor B<InstancesFrom> is given, the type-instance
+will be empty.
+
+=item B<ValuesFrom> I<column0> [I<column1> ...]
+
+Names the columns whose content is used as the actual data for the data sets
+that are dispatched to the daemon. How many such columns you need is determined
+by the B<Type> setting above. If you specify too many or not enough columns,
+the plugin will complain about that and no data will be submitted to the
+daemon.
+
+The actual data type in the columns is not that important. The plugin will
+automatically cast the values to the right type if it know how to do that. So
+it should be able to handle integer an floating point types, as well as strings
+(if they include a number at the beginning).
+
+There must be at least one B<ValuesFrom> option inside each B<Result> block.
+
+=back
 
 A B<Database> block defines one connection to a MySQL database. It accepts a
 single argument which specifies the name of the database. None of the other
@@ -5541,6 +5641,13 @@ Specifies the path to the UNIX domain socket of the MySQL server. This option
 only has any effect, if B<Host> is set to B<localhost> (the default).
 Otherwise, use the B<Port> option above. See the documentation for the
 C<mysql_real_connect> function for details.
+
+=item B<Query> I<QueryName>
+
+Specifies a query named I<QueryName> which should be executed in the context 
+of the database connection. The query needs to be defined before this statement, 
+i. e. all query blocks you want to refer to must be placed above the database 
+block you want to refer to them from.
 
 =item B<InnodbStats> I<true|false>
 
