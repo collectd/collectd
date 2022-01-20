@@ -5560,6 +5560,7 @@ data and the number of values and type of values has to match the type
 definition.
 
 =item B<InstancePrefix> I<prefix>
+
 =item B<InstancesFrom> I<column0> [I<column1> ...]
 
 Specifies the columns whose values will be used to create the "type-instance"
