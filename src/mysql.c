@@ -501,7 +501,7 @@ static void exec_custom_query(mysql_database_t *db, const char *query,
       }
     } else {
       unsigned int num_columns = mysql_num_fields(res);
-      if (column_num != 0) {
+      if (num_columns != 0) {
         mysql_custom_query_process(res, db, query_idx, num_columns);
       } else {
         INFO("mysql plugin: Skiping empty result.");
