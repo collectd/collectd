@@ -5552,6 +5552,8 @@ versions "4.1.2" becomes "40102", version "5.0.42" becomes "50042".
 The B<Result> block defines how to handle the values returned from the query. 
 It defines which column holds which value and how to dispatch that value to the daemon.
 
+=over 4
+
 =item B<Type> I<Type>
 
 The B<type> that's used for each line returned. See L<types.db(5)> for more
