@@ -1,7 +1,7 @@
 /**
  * collectd - src/gpu_sysman.c
  *
- * Copyright(c) 2020-2021 Intel Corporation. All rights reserved.
+ * Copyright(c) 2020-2022 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -50,9 +50,19 @@
 #include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
 
+/* whether to add "dev_file" label to metrics for Kubernetes Intel GPU plugin,
+ * needs (POSIX.1-2001) basename() + glob() and (POSIX.1-2008) getline()
+ * functions.
+ */
+#define ADD_DEV_FILE 1
+#if ADD_DEV_FILE
+#include <glob.h>
+#include <libgen.h>
+#endif
+
+#include "collectd.h"
 #include "plugin.h"
 #include "utils/common/common.h"
-#include "collectd.h"
 
 #define PLUGIN_NAME "gpu_sysman"
 #define METRIC_PREFIX "collectd_" PLUGIN_NAME "_"
@@ -87,6 +97,7 @@ typedef struct {
 /* handles for the GPU devices discovered by Sysman library */
 typedef struct {
   char *pci_bdf;
+  char *dev_file;
   /* number of types for metrics without allocs */
   uint32_t ras_count;
   uint32_t temp_count;
@@ -221,6 +232,8 @@ static int gpu_config_free(void) {
     gpus[i].temp_count = 0;
     free(gpus[i].pci_bdf);
     gpus[i].pci_bdf = NULL;
+    free(gpus[i].dev_file);
+    gpus[i].dev_file = NULL;
   }
 #undef FREE_GPU_SAMPLING_ARRAYS
 #undef FREE_GPU_ARRAY
@@ -439,6 +452,71 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
   return pci_bdf;
 }
 
+/* Add (given) BDF string and device file name to GPU struct for metric labels.
+ *
+ * Return false if (required) BDF string is missing, true otherwise.
+ */
+static bool add_gpu_labels(gpu_device_t *gpu, char *pci_bdf) {
+  assert(gpu);
+  if (!pci_bdf) {
+    return false;
+  }
+  gpu->pci_bdf = pci_bdf;
+  /*
+   * scan devfs and sysfs to find primary GPU device file node matching
+   * given BDF, and if one is found, use that as device file name.
+   *
+   * NOTE: scanning can log only INFO messages, because ERRORs and WARNINGs
+   * would FAIL unit test that are run as part of build, if build environment
+   * has no GPU access.
+   */
+#if ADD_DEV_FILE
+#define BDF_LINE "PCI_SLOT_NAME="
+#define DEVFS_GLOB "/dev/dri/card*"
+  glob_t devfs;
+  if (glob(DEVFS_GLOB, 0, NULL, &devfs) != 0) {
+    INFO(PLUGIN_NAME ": device <-> BDF mapping, no matches for: " DEVFS_GLOB);
+    globfree(&devfs);
+    return true;
+  }
+  const size_t prefix_size = strlen(BDF_LINE);
+  for (size_t i = 0; i < devfs.gl_pathc; i++) {
+    char path[PATH_MAX], *dev_file;
+    dev_file = basename(devfs.gl_pathv[i]);
+
+    FILE *fp;
+    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/uevent", dev_file);
+    if (!(fp = fopen(path, "r"))) {
+      INFO(PLUGIN_NAME ": device <-> BDF mapping, file missing: %s", path);
+      continue;
+    }
+    ssize_t nread;
+    size_t len = 0;
+    char *line = NULL;
+    while ((nread = getline(&line, &len, fp)) > 0) {
+      if (strncmp(line, BDF_LINE, prefix_size) != 0) {
+        continue;
+      }
+      line[nread - 1] = '\0'; // remove newline
+      if (strcmp(line + prefix_size, pci_bdf) == 0) {
+        INFO(PLUGIN_NAME ": %s <-> %s", dev_file, pci_bdf);
+        gpu->dev_file = strdup(dev_file);
+        break;
+      }
+    }
+    free(line);
+    fclose(fp);
+    if (gpu->dev_file) {
+      break;
+    }
+  }
+  globfree(&devfs);
+#undef DEVFS_GLOB
+#undef BDF_LINE
+#endif
+  return true;
+}
+
 /* Scan how many GPU devices Sysman reports in total, and set 'scan_count'
  * accordingly
  *
@@ -490,7 +568,6 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
 
   uint32_t ignored = 0, count = 0;
   int retval = RET_NO_GPUS;
-  char *pci_bdf;
 
   for (uint32_t drv_idx = 0; drv_idx < driver_count; drv_idx++) {
     uint32_t dev_count = 0;
@@ -525,12 +602,10 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
         continue;
       }
       gpus[count].handle = (zes_device_handle_t)devs[dev_idx];
-      pci_bdf = gpu_info(count, devs[dev_idx]);
-      if (!pci_bdf) {
+      if (!add_gpu_labels(&(gpus[count]), gpu_info(count, devs[dev_idx]))) {
         ignored++;
         continue;
       }
-      gpus[count].pci_bdf = pci_bdf;
       count++;
     }
     free(devs);
@@ -613,11 +688,15 @@ static int gpu_init(void) {
   return gpu_config_init(count);
 }
 
-/* Dispatch given value to collectd.  Resets metric family after dispatch */
+/* Add device labels to all metrics in given metric family and submit family to
+ * collectd.  Resets metric family after dispatch */
 static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
   metric_t *m = fam->metric.ptr;
   for (size_t i = 0; i < fam->metric.num; i++) {
     metric_label_set(m + i, "pci_bdf", gpu->pci_bdf);
+    if (gpu->dev_file) {
+      metric_label_set(m + i, "dev_file", gpu->dev_file);
+    }
   }
   int status = plugin_dispatch_metric_family(fam);
   if (status != 0) {
