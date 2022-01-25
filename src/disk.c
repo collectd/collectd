@@ -91,21 +91,31 @@ typedef struct diskstats {
 
   derive_t read_sectors;
   derive_t write_sectors;
+  derive_t discard_sectors;
 
   derive_t read_bytes;
   derive_t write_bytes;
+  derive_t discard_bytes;
 
   derive_t read_ops;
   derive_t write_ops;
+  derive_t discard_ops;
+  derive_t flush_ops;
   derive_t read_time;
   derive_t write_time;
+  derive_t discard_time;
+  derive_t flush_time;
 
   derive_t avg_read_time;
   derive_t avg_write_time;
+  derive_t avg_discard_time;
+  derive_t avg_flush_time;
 
   bool has_merged;
   bool has_in_progress;
   bool has_io_time;
+  bool has_discard;
+  bool has_flush;
 
   struct diskstats *next;
 } diskstats_t;
@@ -216,7 +226,7 @@ static int disk_init(void) {
     io_master_port = MACH_PORT_NULL;
     return -1;
   }
-    /* #endif HAVE_IOKIT_IOKITLIB_H */
+  /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
 #if HAVE_LIBUDEV_H
@@ -228,7 +238,7 @@ static int disk_init(void) {
     }
   }
 #endif /* HAVE_LIBUDEV_H */
-    /* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
   int rv;
@@ -243,7 +253,7 @@ static int disk_init(void) {
     ERROR("geom_stats_open() failed, returned %d", rv);
     return -1;
   }
-    /* #endif KERNEL_FREEBSD */
+  /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp_chain;
@@ -353,6 +363,21 @@ static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
 #endif /* KERNEL_FREEBSD || KERNEL_LINUX */
 
 #if KERNEL_LINUX
+static void submit_one(const char *plugin_instance, const char *type,
+                       const char *type_instance, derive_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.derive = value};
+  vl.values_len = 1;
+
+  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+}
+
 static counter_t disk_calc_time_incr(counter_t delta_time,
                                      counter_t delta_ops) {
   double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
@@ -702,6 +727,7 @@ static int disk_read(void) {
 
   derive_t read_sectors = 0;
   derive_t write_sectors = 0;
+  derive_t discard_sectors = 0;
 
   derive_t read_ops = 0;
   derive_t read_merged = 0;
@@ -709,6 +735,11 @@ static int disk_read(void) {
   derive_t write_ops = 0;
   derive_t write_merged = 0;
   derive_t write_time = 0;
+  derive_t discard_ops = 0;
+  derive_t discard_merged = 0;
+  derive_t discard_time = 0;
+  derive_t flush_ops = 0;
+  derive_t flush_time = 0;
   gauge_t in_progress = NAN;
   derive_t io_time = 0;
   derive_t weighted_time = 0;
@@ -776,11 +807,23 @@ static int disk_read(void) {
 
       io_time = atof(fields[12]);
       weighted_time = atof(fields[13]);
+
+      if (numfields >= 20) {
+        flush_ops = atoll(fields[18]);
+        flush_time = atoll(fields[19]);
+      }
+      if (numfields >= 18) {
+        discard_ops = atoll(fields[14]);
+        discard_merged = atoll(fields[15]);
+        discard_sectors = atoll(fields[16]);
+        discard_time = atoll(fields[17]);
+      }
     }
 
     {
       derive_t diff_read_sectors;
       derive_t diff_write_sectors;
+      derive_t diff_discard_sectors;
 
       /* If the counter wraps around, it's only 32 bits.. */
       if (read_sectors < ds->read_sectors)
@@ -791,19 +834,30 @@ static int disk_read(void) {
         diff_write_sectors = 1 + write_sectors + (UINT_MAX - ds->write_sectors);
       else
         diff_write_sectors = write_sectors - ds->write_sectors;
+      if (discard_sectors < ds->discard_sectors)
+        diff_discard_sectors =
+            1 + discard_sectors + (UINT_MAX - ds->discard_sectors);
+      else
+        diff_discard_sectors = discard_sectors - ds->discard_sectors;
 
       ds->read_bytes += 512 * diff_read_sectors;
       ds->write_bytes += 512 * diff_write_sectors;
+      ds->discard_bytes += 512 * diff_discard_sectors;
       ds->read_sectors = read_sectors;
       ds->write_sectors = write_sectors;
+      ds->discard_sectors = discard_sectors;
     }
 
     /* Calculate the average time an io-op needs to complete */
     if (is_disk) {
       derive_t diff_read_ops;
       derive_t diff_write_ops;
+      derive_t diff_discard_ops;
+      derive_t diff_flush_ops;
       derive_t diff_read_time;
       derive_t diff_write_time;
+      derive_t diff_discard_time;
+      derive_t diff_flush_time;
 
       if (read_ops < ds->read_ops)
         diff_read_ops = 1 + read_ops + (UINT_MAX - ds->read_ops);
@@ -818,6 +872,16 @@ static int disk_read(void) {
       else
         diff_write_ops = write_ops - ds->write_ops;
 
+      if (discard_ops < ds->discard_ops)
+        diff_discard_ops = 1 + discard_ops + (UINT_MAX - ds->discard_ops);
+      else
+        diff_discard_ops = discard_ops - ds->discard_ops;
+
+      if (flush_ops < ds->flush_ops)
+        diff_flush_ops = 1 + flush_ops + (UINT_MAX - ds->flush_ops);
+      else
+        diff_flush_ops = flush_ops - ds->flush_ops;
+
       if (read_time < ds->read_time)
         diff_read_time = 1 + read_time + (UINT_MAX - ds->read_time);
       else
@@ -828,16 +892,36 @@ static int disk_read(void) {
       else
         diff_write_time = write_time - ds->write_time;
 
+      if (discard_time < ds->discard_time)
+        diff_discard_time = 1 + discard_time + (UINT_MAX - ds->discard_time);
+      else
+        diff_discard_time = discard_time - ds->discard_time;
+
+      if (flush_time < ds->flush_time)
+        diff_flush_time = 1 + flush_time + (UINT_MAX - ds->flush_time);
+      else
+        diff_flush_time = flush_time - ds->flush_time;
+
       if (diff_read_ops != 0)
         ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
       if (diff_write_ops != 0)
         ds->avg_write_time +=
             disk_calc_time_incr(diff_write_time, diff_write_ops);
+      if (diff_discard_ops != 0)
+        ds->avg_discard_time +=
+            disk_calc_time_incr(diff_discard_time, diff_discard_ops);
+      if (diff_flush_ops != 0)
+        ds->avg_flush_time +=
+            disk_calc_time_incr(diff_flush_time, diff_flush_ops);
 
       ds->read_ops = read_ops;
       ds->read_time = read_time;
       ds->write_ops = write_ops;
       ds->write_time = write_time;
+      ds->discard_ops = discard_ops;
+      ds->discard_time = discard_time;
+      ds->flush_ops = flush_ops;
+      ds->flush_time = flush_time;
 
       if (read_merged || write_merged)
         ds->has_merged = true;
@@ -847,6 +931,12 @@ static int disk_read(void) {
 
       if (io_time)
         ds->has_io_time = true;
+
+      if (discard_time)
+        ds->has_discard = true;
+
+      if (flush_time)
+        ds->has_flush = true;
 
     } /* if (is_disk) */
 
@@ -901,6 +991,20 @@ static int disk_read(void) {
         submit_in_progress(output_name, in_progress);
       if (ds->has_io_time)
         submit_io_time(output_name, io_time, weighted_time);
+      if (ds->has_discard) {
+        submit_one(output_name, "disk_octets_complex", "discard",
+                   ds->discard_bytes);
+        submit_one(output_name, "disk_merged_complex", "discard",
+                   discard_merged);
+        submit_one(output_name, "disk_ops_complex", "discard", ds->discard_ops);
+        submit_one(output_name, "disk_time_complex", "discard",
+                   ds->avg_discard_time);
+      }
+      if (ds->has_flush) {
+        submit_one(output_name, "disk_ops_complex", "flush", ds->flush_ops);
+        submit_one(output_name, "disk_time_complex", "flush",
+                   ds->avg_flush_time);
+      }
     } /* if (is_disk) */
 
 #if HAVE_LIBUDEV_H
@@ -980,7 +1084,7 @@ static int disk_read(void) {
       disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
     }
   }
-    /* #endif defined(HAVE_LIBKSTAT) */
+  /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_disk_io_stats *ds;
@@ -1007,7 +1111,7 @@ static int disk_read(void) {
     disk_submit(name, "disk_octets", ds->read_bytes, ds->write_bytes);
     ds++;
   }
-    /* #endif defined(HAVE_LIBSTATGRAB) */
+  /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
   derive_t read_sectors;
