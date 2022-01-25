@@ -359,12 +359,12 @@ static void submit_utilization(char const *disk_name, derive_t delta_time) {
   value_t v;
   value_list_t vl = VALUE_LIST_INIT;
 
-  double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
-  if (interval == 0.0) {
+  long interval = CDTIME_T_TO_MS(plugin_get_interval());
+  if (interval == 0) {
     DEBUG("disk plugin: got zero plugin interval");
   }
 
-  v.gauge = (((double)delta_time / interval) * 100.0);
+  v.gauge = ((delta_time / (double)interval) * 100.0);
 
   vl.values = &v;
   vl.values_len = 1;
