@@ -103,6 +103,8 @@ typedef struct diskstats {
   derive_t avg_read_time;
   derive_t avg_write_time;
 
+  derive_t io_time;
+
   bool has_merged;
   bool has_in_progress;
   bool has_io_time;
@@ -353,6 +355,28 @@ static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
 #endif /* KERNEL_FREEBSD || KERNEL_LINUX */
 
 #if KERNEL_LINUX
+static void submit_utilization(char const *disk_name, derive_t delta_time)
+{
+  value_t v;
+  value_list_t vl = VALUE_LIST_INIT;
+
+  double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
+  if (interval == 0.0) {
+    DEBUG("disk plugin: got zero plugin interval");
+  }
+  
+  v.gauge = (((double)delta_time / interval) * 100.0);
+
+  vl.values = &v;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, disk_name, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "percent", sizeof(vl.type));
+  sstrncpy(vl.type_instance, "utilization", sizeof(vl.type_instance));
+  
+  plugin_dispatch_values (&vl);
+}
+
 static counter_t disk_calc_time_incr(counter_t delta_time,
                                      counter_t delta_ops) {
   double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
@@ -712,6 +736,7 @@ static int disk_read(void) {
   gauge_t in_progress = NAN;
   derive_t io_time = 0;
   derive_t weighted_time = 0;
+  derive_t diff_io_time = 0;
   int is_disk = 0;
 
   diskstats_t *ds, *pre_ds;
@@ -828,6 +853,11 @@ static int disk_read(void) {
       else
         diff_write_time = write_time - ds->write_time;
 
+      if (io_time < ds->io_time)
+        diff_io_time = 1 + io_time + (UINT_MAX - ds->io_time);
+      else
+        diff_io_time = io_time - ds->io_time;
+
       if (diff_read_ops != 0)
         ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
       if (diff_write_ops != 0)
@@ -838,6 +868,7 @@ static int disk_read(void) {
       ds->read_time = read_time;
       ds->write_ops = write_ops;
       ds->write_time = write_time;
+      ds->io_time = io_time;
 
       if (read_merged || write_merged)
         ds->has_merged = true;
@@ -901,6 +932,8 @@ static int disk_read(void) {
         submit_in_progress(output_name, in_progress);
       if (ds->has_io_time)
         submit_io_time(output_name, io_time, weighted_time);
+
+      submit_inflight(output_name, diff_io_time);
     } /* if (is_disk) */
 
 #if HAVE_LIBUDEV_H
