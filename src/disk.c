@@ -226,7 +226,7 @@ static int disk_init(void) {
     io_master_port = MACH_PORT_NULL;
     return -1;
   }
-    /* #endif HAVE_IOKIT_IOKITLIB_H */
+  /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
 #if HAVE_LIBUDEV_H
@@ -238,7 +238,7 @@ static int disk_init(void) {
     }
   }
 #endif /* HAVE_LIBUDEV_H */
-    /* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
   int rv;
@@ -253,7 +253,7 @@ static int disk_init(void) {
     ERROR("geom_stats_open() failed, returned %d", rv);
     return -1;
   }
-    /* #endif KERNEL_FREEBSD */
+  /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp_chain;
@@ -364,7 +364,7 @@ static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
 
 #if KERNEL_LINUX
 static void submit_one(const char *plugin_instance, const char *type,
-                        const char *type_instance, derive_t value) {
+                       const char *type_instance, derive_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.derive = value};
@@ -808,15 +808,15 @@ static int disk_read(void) {
       io_time = atof(fields[12]);
       weighted_time = atof(fields[13]);
 
+      if (numfields >= 20) {
+        flush_ops = atoll(fields[18]);
+        flush_time = atoll(fields[19]);
+      }
       if (numfields >= 18) {
         discard_ops = atoll(fields[14]);
         discard_merged = atoll(fields[15]);
         discard_sectors = atoll(fields[16]);
         discard_time = atoll(fields[17]);
-      }
-      if (numfields >= 20) {
-        flush_ops = atoll(fields[18]);
-        flush_time = atoll(fields[19]);
       }
     }
 
@@ -835,7 +835,8 @@ static int disk_read(void) {
       else
         diff_write_sectors = write_sectors - ds->write_sectors;
       if (discard_sectors < ds->discard_sectors)
-        diff_discard_sectors = 1 + discard_sectors + (UINT_MAX - ds->discard_sectors);
+        diff_discard_sectors =
+            1 + discard_sectors + (UINT_MAX - ds->discard_sectors);
       else
         diff_discard_sectors = discard_sectors - ds->discard_sectors;
 
@@ -991,14 +992,18 @@ static int disk_read(void) {
       if (ds->has_io_time)
         submit_io_time(output_name, io_time, weighted_time);
       if (ds->has_discard) {
-        submit_one(output_name, "disk_octets_complex", "discard", ds->discard_bytes);
-        submit_one(output_name, "disk_merged_complex", "discard", discard_merged);
+        submit_one(output_name, "disk_octets_complex", "discard",
+                   ds->discard_bytes);
+        submit_one(output_name, "disk_merged_complex", "discard",
+                   discard_merged);
         submit_one(output_name, "disk_ops_complex", "discard", ds->discard_ops);
-        submit_one(output_name, "disk_time_complex", "discard", ds->avg_discard_time);
+        submit_one(output_name, "disk_time_complex", "discard",
+                   ds->avg_discard_time);
       }
       if (ds->has_flush) {
         submit_one(output_name, "disk_ops_complex", "flush", ds->flush_ops);
-        submit_one(output_name, "disk_time_complex", "flush", ds->avg_flush_time);
+        submit_one(output_name, "disk_time_complex", "flush",
+                   ds->avg_flush_time);
       }
     } /* if (is_disk) */
 
@@ -1079,7 +1084,7 @@ static int disk_read(void) {
       disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
     }
   }
-    /* #endif defined(HAVE_LIBKSTAT) */
+  /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_disk_io_stats *ds;
@@ -1106,7 +1111,7 @@ static int disk_read(void) {
     disk_submit(name, "disk_octets", ds->read_bytes, ds->write_bytes);
     ds++;
   }
-    /* #endif defined(HAVE_LIBSTATGRAB) */
+  /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
   derive_t read_sectors;
