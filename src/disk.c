@@ -218,7 +218,7 @@ static int disk_init(void) {
     io_master_port = MACH_PORT_NULL;
     return -1;
   }
-    /* #endif HAVE_IOKIT_IOKITLIB_H */
+  /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
 #if HAVE_LIBUDEV_H
@@ -230,7 +230,7 @@ static int disk_init(void) {
     }
   }
 #endif /* HAVE_LIBUDEV_H */
-    /* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
   int rv;
@@ -245,7 +245,7 @@ static int disk_init(void) {
     ERROR("geom_stats_open() failed, returned %d", rv);
     return -1;
   }
-    /* #endif KERNEL_FREEBSD */
+  /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp_chain;
@@ -355,8 +355,7 @@ static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
 #endif /* KERNEL_FREEBSD || KERNEL_LINUX */
 
 #if KERNEL_LINUX
-static void submit_utilization(char const *disk_name, derive_t delta_time)
-{
+static void submit_utilization(char const *disk_name, derive_t delta_time) {
   value_t v;
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -364,7 +363,7 @@ static void submit_utilization(char const *disk_name, derive_t delta_time)
   if (interval == 0.0) {
     DEBUG("disk plugin: got zero plugin interval");
   }
-  
+
   v.gauge = (((double)delta_time / interval) * 100.0);
 
   vl.values = &v;
@@ -373,8 +372,8 @@ static void submit_utilization(char const *disk_name, derive_t delta_time)
   sstrncpy(vl.plugin_instance, disk_name, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "percent", sizeof(vl.type));
   sstrncpy(vl.type_instance, "utilization", sizeof(vl.type_instance));
-  
-  plugin_dispatch_values (&vl);
+
+  plugin_dispatch_values(&vl);
 }
 
 static counter_t disk_calc_time_incr(counter_t delta_time,
@@ -933,7 +932,7 @@ static int disk_read(void) {
       if (ds->has_io_time)
         submit_io_time(output_name, io_time, weighted_time);
 
-      submit_inflight(output_name, diff_io_time);
+      submit_utilization(output_name, diff_io_time);
     } /* if (is_disk) */
 
 #if HAVE_LIBUDEV_H
@@ -1013,7 +1012,7 @@ static int disk_read(void) {
       disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
     }
   }
-    /* #endif defined(HAVE_LIBKSTAT) */
+  /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_disk_io_stats *ds;
@@ -1040,7 +1039,7 @@ static int disk_read(void) {
     disk_submit(name, "disk_octets", ds->read_bytes, ds->write_bytes);
     ds++;
   }
-    /* #endif defined(HAVE_LIBSTATGRAB) */
+  /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
   derive_t read_sectors;
