@@ -805,6 +805,8 @@ static struct {
   plugin_shutdown_cb shutdown;
 } registry;
 
+cdtime_t plugin_get_interval(void) { return MS_TO_CDTIME_T(500); }
+
 int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),
                            const char **keys, int keys_num) {
