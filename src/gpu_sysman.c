@@ -242,8 +242,17 @@ static int gpu_config_check(void) {
   assert(config.output < STATIC_ARRAY_SIZE(metrics_output));
 
   if (config.gpuinfo) {
-    INFO("Sysman '" KEY_SAMPLES "': %d", config.samples);
-    INFO(KEY_METRICS_OUTPUT ": %s", metrics_output[config.output]);
+    double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
+    INFO("\nPlugin settings for '" PLUGIN_NAME "':");
+    INFO("- " KEY_SAMPLES ": %d", config.samples);
+    if (config.samples > 1) {
+      INFO("- internal sampling interval: %.2f", interval);
+      INFO("- query / aggregation submit interval: %.2f",
+           config.samples * interval);
+    } else {
+      INFO("- query / submit interval: %.2f", interval);
+    }
+    INFO("- " KEY_METRICS_OUTPUT ": %s", metrics_output[config.output]);
     INFO("Disabled metrics:");
   }
   struct {
@@ -957,12 +966,12 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   }
 
   metric_family_t fam_bytes = {
-      .help = "Memory usage (in bytes)",
+      .help = "Sampled memory usage (in bytes)",
       .name = METRIC_PREFIX "memory_used_bytes",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_ratio = {
-      .help = "Memory usage ratio (0-1)",
+      .help = "Sampled memory usage ratio (0-1)",
       .name = METRIC_PREFIX "memory_usage_ratio",
       .type = METRIC_TYPE_GAUGE,
   };
@@ -1195,7 +1204,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
   }
 
   metric_family_t fam = {
-      .help = "HW frequency (in MHz)",
+      .help = "Sampled HW frequency (in MHz)",
       .name = METRIC_PREFIX "frequency_mhz",
       .type = METRIC_TYPE_GAUGE,
   };

@@ -3723,8 +3723,8 @@ values is disabled, it is better to set Samples to 1 (default).
 
 =item B<LogGpuInfo>
 
-If enabled, plugin logs at start some information about all the GPUs
-detected through Sysman API.
+If enabled, plugin logs at start some information about plugin
+settings and all the GPUs detected through Sysman API.
 
 =item B<MetricsOutput>
 
