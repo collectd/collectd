@@ -91,8 +91,10 @@ typedef struct {
 
 /* handles for the GPU devices discovered by Sysman library */
 typedef struct {
-  char *pci_bdf;
-  char *dev_file;
+  /* GPU info for metric labels */
+  char *pci_bdf;  // required
+  char *pci_dev;  // if GpuInfo
+  char *dev_file; // if ADD_DEV_FILE
   /* number of types for metrics without allocs */
   uint32_t ras_count;
   uint32_t temp_count;
@@ -228,6 +230,8 @@ static int gpu_config_free(void) {
     gpus[i].temp_count = 0;
     free(gpus[i].pci_bdf);
     gpus[i].pci_bdf = NULL;
+    free(gpus[i].pci_dev);
+    gpus[i].pci_dev = NULL;
     free(gpus[i].dev_file);
     gpus[i].dev_file = NULL;
   }
@@ -338,13 +342,15 @@ static void log_uuid(const char *prefix, const uint8_t *byte, int len) {
   INFO("%s", buf);
 }
 
-/* Log Sysman API provided info for given GPU if logging is enabled
- * and on success, return GPU PCI ID as string in BDF notation:
- *   https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
+/* If GPU info setting is enabled, log Sysman API provided info for
+ * given GPU, and set PCI device ID to 'pci_dev'.  On success, return
+ * true and set GPU PCI address to 'pci_bdf' as string in BDF notation:
+ * https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
  */
-static char *gpu_info(int idx, zes_device_handle_t dev) {
-  char *pci_bdf, buf[32];
+static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
+  char buf[32];
 
+  *pci_bdf = *pci_dev = NULL;
   zes_pci_properties_t pci;
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
@@ -352,21 +358,20 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
     snprintf(buf, sizeof(buf), "%04x:%02x:%02x.%x", addr->domain, addr->bus,
              addr->device, addr->function);
   } else {
-    ERROR(PLUGIN_NAME ": failed to get GPU %d PCI device properties => 0x%x",
-          idx, ret);
-    return NULL;
+    ERROR(PLUGIN_NAME ": failed to get GPU PCI device properties => 0x%x", ret);
+    return false;
   }
-  pci_bdf = sstrdup(buf);
+  *pci_bdf = sstrdup(buf);
   if (!config.gpuinfo) {
-    return pci_bdf;
+    return true;
   }
 
-  INFO("Level-Zero Sysman API GPU %d info", idx);
-  INFO("==================================");
+  INFO("Level-Zero Sysman API GPU info");
+  INFO("==============================");
 
   INFO("PCI info:");
   if (ret == ZE_RESULT_SUCCESS) {
-    INFO("- PCI B/D/F:  %s", pci_bdf);
+    INFO("- PCI B/D/F:  %s", *pci_bdf);
     const zes_pci_speed_t *speed = &pci.maxSpeed;
     INFO("- PCI gen:    %d", speed->gen);
     INFO("- PCI width:  %d", speed->width);
@@ -395,14 +400,15 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
     }
   } else {
     INFO("- unavailable");
-    WARNING(PLUGIN_NAME ": failed to get GPU %d device state => 0x%x", idx,
-            ret);
+    WARNING(PLUGIN_NAME ": failed to get GPU device state => 0x%x", ret);
   }
 
   INFO("HW identification:");
   zes_device_properties_t props;
   if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
     const ze_device_properties_t *core = &props.core;
+    snprintf(buf, sizeof(buf), "0x%x", core->deviceId);
+    *pci_dev = sstrdup(buf); // used only if present
     INFO("- name:       %s", core->name);
     INFO("- vendor ID:  0x%x", core->vendorId);
     INFO("- device ID:  0x%x", core->deviceId);
@@ -424,8 +430,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
                                  core->numSubslicesPerSlice * core->numSlices);
   } else {
     INFO("- unavailable");
-    WARNING(PLUGIN_NAME ": failed to get GPU %d device properties => 0x%x", idx,
-            ret);
+    WARNING(PLUGIN_NAME ": failed to get GPU device properties => 0x%x", ret);
   }
 
   /* HW info for all memories */
@@ -434,7 +439,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
   if (zeDeviceGetMemoryProperties(mdev, &mem_count, NULL) !=
       ZE_RESULT_SUCCESS) {
     WARNING(PLUGIN_NAME ": failed to get memory properties count");
-    return pci_bdf;
+    return true;
   }
   ze_device_memory_properties_t *mems;
   mems = scalloc(mem_count, sizeof(*mems));
@@ -442,7 +447,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
       ZE_RESULT_SUCCESS) {
     WARNING(PLUGIN_NAME ": failed to get %d memory properties", mem_count);
     free(mems);
-    return pci_bdf;
+    return true;
   }
   for (i = 0; i < mem_count; i++) {
     const char *memname = mems[i].name;
@@ -455,19 +460,21 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
     INFO("- max clock:  %u", mems[i].maxClockRate);
   }
   free(mems);
-  return pci_bdf;
+  return true;
 }
 
 /* Add (given) BDF string and device file name to GPU struct for metric labels.
  *
  * Return false if (required) BDF string is missing, true otherwise.
  */
-static bool add_gpu_labels(gpu_device_t *gpu, char *pci_bdf) {
+static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
   assert(gpu);
-  if (!pci_bdf) {
+  char *pci_bdf, *pci_dev;
+  if (!gpu_info(dev, &pci_bdf, &pci_dev) || !pci_bdf) {
     return false;
   }
   gpu->pci_bdf = pci_bdf;
+  gpu->pci_dev = pci_dev;
   /*
    * scan devfs and sysfs to find primary GPU device file node matching
    * given BDF, and if one is found, use that as device file name.
@@ -606,7 +613,9 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
         continue;
       }
       gpus[count].handle = (zes_device_handle_t)devs[dev_idx];
-      if (!add_gpu_labels(&(gpus[count]), gpu_info(count, devs[dev_idx]))) {
+      if (!add_gpu_labels(&(gpus[count]), devs[dev_idx])) {
+        ERROR(PLUGIN_NAME ": failed to get driver %d device %d information",
+              drv_idx, dev_idx);
         ignored++;
         continue;
       }
@@ -699,6 +708,9 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
     metric_label_set(m + i, "pci_bdf", gpu->pci_bdf);
     if (gpu->dev_file) {
       metric_label_set(m + i, "dev_file", gpu->dev_file);
+    }
+    if (gpu->pci_dev) {
+      metric_label_set(m + i, "pci_dev", gpu->pci_dev);
     }
   }
   int status = plugin_dispatch_metric_family(fam);
