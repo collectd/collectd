@@ -729,6 +729,9 @@
 
 #<Plugin ethstat>
 #	Interface "eth0"
+#	EthtoolExcludeMetrics "tx_packets"
+#	UseSysClassNet true
+#	SysClassNetExcludeMetrics "rx_packets"
 #	Map "rx_csum_offload_errors" "if_rx_errors" "checksum_offload"
 #	Map "multicast" "if_multicast"
 #	MappedOnly false
