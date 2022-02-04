@@ -52,7 +52,7 @@ cgroups_submit_one(char const *plugin_instance, char const *type_instance,
  * This callback reads the user/system CPU time for each cgroup.
  */
 static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
-                              void *user_data) {
+                              __attribute__((unused)) void *user_data) {
   char abs_path[PATH_MAX];
   struct stat statbuf;
   char buf[1024];
@@ -131,7 +131,7 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
  * read_cpuacct_procs callback on every folder it finds, such as "system".
  */
 static int read_cpuacct_root(const char *dirname, const char *filename,
-                             void *user_data) {
+                             __attribute__((unused)) void *user_data) {
   char abs_path[PATH_MAX];
   struct stat statbuf;
   int status;
