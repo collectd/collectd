@@ -605,11 +605,10 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN annotations */
 
   JSON_ADD(g, "severity");
-  JSON_ADD(g, (n->severity == NOTIF_FAILURE)
-                  ? "FAILURE"
-                  : (n->severity == NOTIF_WARNING)
-                        ? "WARNING"
-                        : (n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN");
+  JSON_ADD(g, (n->severity == NOTIF_FAILURE)   ? "FAILURE"
+              : (n->severity == NOTIF_WARNING) ? "WARNING"
+              : (n->severity == NOTIF_OKAY)    ? "OKAY"
+                                               : "UNKNOWN");
   JSON_ADD(g, "summary");
   JSON_ADD(g, n->message);
 

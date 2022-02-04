@@ -180,7 +180,7 @@ static struct thread_data {
   unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE 0x2
 #define CPU_IS_FIRST_CORE_IN_PACKAGE 0x4
-} * thread_delta, *thread_even, *thread_odd;
+} *thread_delta, *thread_even, *thread_odd;
 
 static struct core_data {
   unsigned long long c3;
@@ -188,7 +188,7 @@ static struct core_data {
   unsigned long long c7;
   unsigned int core_temp_c;
   unsigned int core_id;
-} * core_delta, *core_even, *core_odd;
+} *core_delta, *core_even, *core_odd;
 
 static struct pkg_data {
   unsigned long long pc2;
@@ -209,7 +209,7 @@ static struct pkg_data {
   uint32_t uncore;
   unsigned int tcc_activation_temp;
   unsigned int pkg_temp_c;
-} * package_delta, *package_even, *package_odd;
+} *package_delta, *package_even, *package_odd;
 
 #define DELTA_COUNTERS thread_delta, core_delta, package_delta
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
@@ -1464,9 +1464,9 @@ static void free_all_buffers(void) {
   package_delta = NULL;
 }
 
-  /**********************
-   * Collectd functions *
-   **********************/
+/**********************
+ * Collectd functions *
+ **********************/
 
 #define DO_OR_GOTO_ERR(something)                                              \
   do {                                                                         \
