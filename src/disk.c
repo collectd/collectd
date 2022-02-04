@@ -103,6 +103,8 @@ typedef struct diskstats {
   derive_t avg_read_time;
   derive_t avg_write_time;
 
+  derive_t io_time;
+
   bool has_merged;
   bool has_in_progress;
   bool has_io_time;
@@ -418,6 +420,12 @@ static int disk_read(void) {
       .name = "disk_pending_operations",
       .type = METRIC_TYPE_GAUGE,
   };
+#if KERNEL_LINUX
+  metric_family_t fam_disk_utilization = {
+      .name = "disk_utilization",
+      .type = METRIC_TYPE_GAUGE,
+  };
+#endif
 
   metric_family_t *fams[] = {&fam_disk_read_bytes,
                              &fam_disk_read_merged,
@@ -430,6 +438,9 @@ static int disk_read(void) {
                              &fam_disk_io_time,
                              &fam_disk_io_weighted_time,
                              &fam_disk_pending_operations,
+#if KERNEL_LINUX
+                             &fam_disk_utilization,
+#endif
                              NULL};
 
 #if HAVE_IOKIT_IOKITLIB_H
@@ -755,6 +766,7 @@ static int disk_read(void) {
   gauge_t in_progress = NAN;
   derive_t io_time = 0;
   derive_t weighted_time = 0;
+  derive_t diff_io_time = 0;
   int is_disk = 0;
 
   diskstats_t *ds, *pre_ds;
@@ -871,6 +883,11 @@ static int disk_read(void) {
       else
         diff_write_time = write_time - ds->write_time;
 
+      if (io_time < ds->io_time)
+        diff_io_time = 1 + io_time + (UINT_MAX - ds->io_time);
+      else
+        diff_io_time = io_time - ds->io_time;
+
       if (diff_read_ops != 0)
         ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
       if (diff_write_ops != 0)
@@ -881,6 +898,7 @@ static int disk_read(void) {
       ds->read_time = read_time;
       ds->write_ops = write_ops;
       ds->write_time = write_time;
+      ds->io_time = io_time;
 
       if (read_merged || write_merged)
         ds->has_merged = true;
@@ -971,6 +989,14 @@ static int disk_read(void) {
       }
       m.value.counter = (counter_t)weighted_time;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
+
+      long interval = CDTIME_T_TO_MS(plugin_get_interval());
+      if (interval == 0) {
+        DEBUG("disk plugin: got zero plugin interval");
+      }
+
+      m.value.gauge = ((diff_io_time / (double)interval) * 100.0);
+      metric_family_metric_append(&fam_disk_utilization, m);
     } /* if (is_disk) */
 
     metric_reset(&m);
