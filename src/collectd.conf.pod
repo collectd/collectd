@@ -3970,6 +3970,7 @@ Please refer to I<contrib/systemd.collectd.service> file for more details.
 B<Synopsis:>
 
   <Plugin "intel_rdt">
+    MonIPCEnabled true
     Cores "0-2" "3,4,6" "8-10,15"
     Processes "sshd,qemu-system-x86" "bash"
   </Plugin>
@@ -3984,6 +3985,11 @@ The interval within which to retrieve statistics on monitored events in seconds.
 For milliseconds divide the time by 1000 for example if the desired interval
 is 50ms, set interval to 0.05. Due to limited capacity of counters it is not
 recommended to set interval higher than 1 sec.
+
+=item B<MonIPCEnabled> B<true>|B<false>
+
+Determines whether or not to enable IPC monitoring. If set to B<true> (the
+default), IPC monitoring statistics will be collected by intel_rdt plugin.
 
 =item B<Cores> I<cores groups>
 

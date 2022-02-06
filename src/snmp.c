@@ -36,6 +36,9 @@
 
 #include <fnmatch.h>
 
+/* SHA512 plus a trailing nul */
+#define MAX_DIGEST_NAME_LEN 7
+
 /*
  * Private data structes
  */
@@ -675,29 +678,104 @@ static int csnmp_config_add_host_collect(host_definition_t *host,
 
 static int csnmp_config_add_host_auth_protocol(host_definition_t *hd,
                                                oconfig_item_t *ci) {
-  char buffer[4];
+  char buffer[MAX_DIGEST_NAME_LEN];
   int status;
 
   status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
   if (status != 0)
     return status;
 
+#ifdef NETSNMP_USMAUTH_HMACMD5
   if (strcasecmp("MD5", buffer) == 0) {
     hd->auth_protocol = usmHMACMD5AuthProtocol;
     hd->auth_protocol_len = sizeof(usmHMACMD5AuthProtocol) / sizeof(oid);
-  } else if (strcasecmp("SHA", buffer) == 0) {
+
+    DEBUG("snmp plugin: host = %s; host->auth_protocol = %s;", hd->name, "MD5");
+    return 0;
+  }
+#endif
+
+#ifdef NETSNMP_USMAUTH_HMACSHA1
+  if (strcasecmp("SHA", buffer) == 0) {
     hd->auth_protocol = usmHMACSHA1AuthProtocol;
     hd->auth_protocol_len = sizeof(usmHMACSHA1AuthProtocol) / sizeof(oid);
-  } else {
-    WARNING("snmp plugin: The `AuthProtocol' config option must be `MD5' or "
-            "`SHA'.");
-    return -1;
+
+    DEBUG("snmp plugin: host = %s; host->auth_protocol = %s;", hd->name, "SHA");
+
+    return 0;
   }
+#endif
 
-  DEBUG("snmp plugin: host = %s; host->auth_protocol = %s;", hd->name,
-        hd->auth_protocol == usmHMACMD5AuthProtocol ? "MD5" : "SHA");
+#ifdef NETSNMP_USMAUTH_HMAC128SHA224
+  if (strcasecmp("SHA224", buffer) == 0) {
+    hd->auth_protocol = usmHMAC128SHA224AuthProtocol;
+    hd->auth_protocol_len = sizeof(usmHMAC128SHA224AuthProtocol) / sizeof(oid);
 
-  return 0;
+    DEBUG("snmp plugin: host = %s; host->auth_protocol = %s;", hd->name,
+          "SHA224");
+
+    return 0;
+  }
+#endif
+
+#ifdef NETSNMP_USMAUTH_HMAC192SHA256
+  if (strcasecmp("SHA256", buffer) == 0) {
+    hd->auth_protocol = usmHMAC192SHA256AuthProtocol;
+    hd->auth_protocol_len = sizeof(usmHMAC192SHA256AuthProtocol) / sizeof(oid);
+
+    DEBUG("snmp plugin: host = %s; host->auth_protocol = %s;", hd->name,
+          "SHA256");
+
+    return 0;
+  }
+#endif
+
+#ifdef NETSNMP_USMAUTH_HMAC256SHA384
+  if (strcasecmp("SHA384", buffer) == 0) {
+    hd->auth_protocol = usmHMAC256SHA384AuthProtocol;
+    hd->auth_protocol_len = sizeof(usmHMAC256SHA384AuthProtocol) / sizeof(oid);
+
+    DEBUG("snmp plugin: host = %s; host->auth_protocol = %s;", hd->name,
+          "SHA384");
+
+    return 0;
+  }
+#endif
+
+#ifdef NETSNMP_USMAUTH_HMAC384SHA512
+  if (strcasecmp("SHA512", buffer) == 0) {
+    hd->auth_protocol = usmHMAC384SHA512AuthProtocol;
+    hd->auth_protocol_len = sizeof(usmHMAC384SHA512AuthProtocol) / sizeof(oid);
+
+    DEBUG("snmp plugin: host = %s; host->auth_protocol = %s;", hd->name,
+          "SHA512");
+
+    return 0;
+  }
+#endif
+
+  WARNING("snmp plugin: The `AuthProtocol' config option must be:"
+#ifdef NETSNMP_USMAUTH_HMACMD5
+          " MD5"
+#endif
+#ifdef NETSNMP_USMAUTH_HMACSHA1
+          " SHA"
+#endif
+#ifdef NETSNMP_USMAUTH_HMAC128SHA224
+          " SHA224"
+#endif
+#ifdef NETSNMP_USMAUTH_HMAC192SHA256
+          " SHA256"
+#endif
+#ifdef NETSNMP_USMAUTH_HMAC256SHA384
+          " SHA384"
+#endif
+#ifdef NETSNMP_USMAUTH_HMAC384SHA512
+          " SHA512"
+#endif
+  );
+  return -1;
+
 } /* int csnmp_config_add_host_auth_protocol */
 
 static int csnmp_config_add_host_priv_protocol(host_definition_t *hd,
@@ -712,12 +790,8 @@ static int csnmp_config_add_host_priv_protocol(host_definition_t *hd,
   if (strcasecmp("AES", buffer) == 0) {
     hd->priv_protocol = usmAESPrivProtocol;
     hd->priv_protocol_len = sizeof(usmAESPrivProtocol) / sizeof(oid);
-  } else if (strcasecmp("DES", buffer) == 0) {
-    hd->priv_protocol = usmDESPrivProtocol;
-    hd->priv_protocol_len = sizeof(usmDESPrivProtocol) / sizeof(oid);
   } else {
-    WARNING("snmp plugin: The `PrivProtocol' config option must be `AES' or "
-            "`DES'.");
+    WARNING("snmp plugin: The `PrivProtocol' config option must be `AES'.");
     return -1;
   }
 

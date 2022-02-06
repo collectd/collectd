@@ -103,6 +103,8 @@ typedef struct diskstats {
   derive_t avg_read_time;
   derive_t avg_write_time;
 
+  derive_t io_time;
+
   bool has_merged;
   bool has_in_progress;
   bool has_io_time;
@@ -216,7 +218,7 @@ static int disk_init(void) {
     io_master_port = MACH_PORT_NULL;
     return -1;
   }
-    /* #endif HAVE_IOKIT_IOKITLIB_H */
+  /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
 #if HAVE_LIBUDEV_H
@@ -228,7 +230,7 @@ static int disk_init(void) {
     }
   }
 #endif /* HAVE_LIBUDEV_H */
-    /* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
   int rv;
@@ -243,7 +245,7 @@ static int disk_init(void) {
     ERROR("geom_stats_open() failed, returned %d", rv);
     return -1;
   }
-    /* #endif KERNEL_FREEBSD */
+  /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp_chain;
@@ -353,6 +355,27 @@ static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
 #endif /* KERNEL_FREEBSD || KERNEL_LINUX */
 
 #if KERNEL_LINUX
+static void submit_utilization(char const *disk_name, derive_t delta_time) {
+  value_t v;
+  value_list_t vl = VALUE_LIST_INIT;
+
+  long interval = CDTIME_T_TO_MS(plugin_get_interval());
+  if (interval == 0) {
+    DEBUG("disk plugin: got zero plugin interval");
+  }
+
+  v.gauge = ((delta_time / (double)interval) * 100.0);
+
+  vl.values = &v;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, disk_name, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "percent", sizeof(vl.type));
+  sstrncpy(vl.type_instance, "utilization", sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+}
+
 static counter_t disk_calc_time_incr(counter_t delta_time,
                                      counter_t delta_ops) {
   double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
@@ -712,6 +735,7 @@ static int disk_read(void) {
   gauge_t in_progress = NAN;
   derive_t io_time = 0;
   derive_t weighted_time = 0;
+  derive_t diff_io_time = 0;
   int is_disk = 0;
 
   diskstats_t *ds, *pre_ds;
@@ -828,6 +852,11 @@ static int disk_read(void) {
       else
         diff_write_time = write_time - ds->write_time;
 
+      if (io_time < ds->io_time)
+        diff_io_time = 1 + io_time + (UINT_MAX - ds->io_time);
+      else
+        diff_io_time = io_time - ds->io_time;
+
       if (diff_read_ops != 0)
         ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
       if (diff_write_ops != 0)
@@ -838,6 +867,7 @@ static int disk_read(void) {
       ds->read_time = read_time;
       ds->write_ops = write_ops;
       ds->write_time = write_time;
+      ds->io_time = io_time;
 
       if (read_merged || write_merged)
         ds->has_merged = true;
@@ -901,6 +931,8 @@ static int disk_read(void) {
         submit_in_progress(output_name, in_progress);
       if (ds->has_io_time)
         submit_io_time(output_name, io_time, weighted_time);
+
+      submit_utilization(output_name, diff_io_time);
     } /* if (is_disk) */
 
 #if HAVE_LIBUDEV_H
@@ -980,7 +1012,7 @@ static int disk_read(void) {
       disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
     }
   }
-    /* #endif defined(HAVE_LIBKSTAT) */
+  /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_disk_io_stats *ds;
@@ -1007,7 +1039,7 @@ static int disk_read(void) {
     disk_submit(name, "disk_octets", ds->read_bytes, ds->write_bytes);
     ds++;
   }
-    /* #endif defined(HAVE_LIBSTATGRAB) */
+  /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
   derive_t read_sectors;
