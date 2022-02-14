@@ -39,6 +39,8 @@ jobs:
     env:
       MAKEFLAGS: "-j 2"
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+      # this env var picked up by valgrind during make check phase
+      VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v2
     - run: type pkg-config
@@ -86,6 +88,7 @@ jobs:
       CFLAGS: ${{ matrix.cflags }}
       CPPFLAGS: ${{ matrix.cppflags }}
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+      VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v2
     - run: type pkg-config
