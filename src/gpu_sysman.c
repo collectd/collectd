@@ -1025,6 +1025,28 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       ok = false;
       break;
     }
+    /* get health status from last i.e. zeroeth sample */
+    zes_mem_health_t value = gpu->memory[0][i].health;
+    if (value != ZES_MEM_HEALTH_UNKNOWN) {
+      const char *health;
+      switch (value) {
+      case ZES_MEM_HEALTH_OK:
+        health = "ok";
+        break;
+      case ZES_MEM_HEALTH_DEGRADED:
+        health = "degraded";
+        break;
+      case ZES_MEM_HEALTH_CRITICAL:
+        health = "critical";
+        break;
+      case ZES_MEM_HEALTH_REPLACE:
+        health = "replace";
+        break;
+      default:
+        health = "unknown";
+      }
+      metric_label_set(&metric, "health", health);
+    }
     double mem_used;
     if (config.samples < 2) {
       const uint64_t mem_free = gpu->memory[0][i].free;
