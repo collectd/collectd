@@ -26,8 +26,10 @@ jobs:
           - buster_amd64
           - stretch_amd64
           - stretch_i386
-          - trusty_amd64
+          # Ubuntu
           - xenial_amd64
+          - bionic_amd64
+          - focal_amd64
           # RedHat family
           - el8_x86_64
           - el7_x86_64
