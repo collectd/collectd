@@ -44,18 +44,18 @@ jobs:
     - name: Generate configure script
       run:
         ./build.sh
-    - name: configure
+    - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
-    - name: Make
+    - name: Build collectd
       run: make
-    - name: make check
+    - name: Run make check
       continue-on-error: true
       run: make check
-    - name: install bzip2
+    - name: Install bzip2
       continue-on-error: true
       run: |
         yum install -y bzip2 || apt install -y bzip2
-    - name: make
+    - name: Run make distcheck
       continue-on-error: true
       run: |
         make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
@@ -91,19 +91,19 @@ jobs:
     - name: Generate configure script
       run:
         ./build.sh
-    - name: configure
+    - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
-    - name: Make
+    - name: Build collectd
       run: make
-    - name: make check
+    - name: Run make check
       # Make check is failing on a few newer distros, temporarily mark it as optional until that is resolved 
       continue-on-error: true
       run: make check
-    - name: install bzip2
+    - name: Install bzip2
       continue-on-error: true
       run: |
         yum install -y bzip2 || apt install -y bzip2
-    - name: make distcheck
+    - name: Run make distcheck
       continue-on-error: true
       run: |
         make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
