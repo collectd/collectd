@@ -35,7 +35,7 @@ jobs:
           - fedora28_x86_64
         config_flags: ['']
     env:
-      MAKEFLAGS: "-j 2"
+      MAKEFLAGS: "-j2 -sk"
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
     steps:
     - uses: actions/checkout@v2
@@ -47,10 +47,10 @@ jobs:
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Build collectd
-      run: make
+      run: make $MAKEFLAGS
     - name: Run make check
       continue-on-error: true
-      run: make check
+      run: make $MAKEFLAGS check
     - name: Install bzip2
       continue-on-error: true
       run: |
@@ -58,7 +58,7 @@ jobs:
     - name: Run make distcheck
       continue-on-error: true
       run: |
-        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+        make $MAKEFLAG distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
 
   experimental:
     runs-on: ubuntu-20.04
@@ -80,7 +80,7 @@ jobs:
             cppflags: "-fPIE -Wno-deprecated-declarations"
             config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
     env:
-      MAKEFLAGS: "-j 2"
+      MAKEFLAGS: "-j2 -sk"
       CFLAGS: ${{ matrix.cflags }}
       CPPFLAGS: ${{ matrix.cppflags }}
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
@@ -94,11 +94,11 @@ jobs:
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Build collectd
-      run: make
+      run: make $MAKEFLAGS
     - name: Run make check
       # Make check is failing on a few newer distros, temporarily mark it as optional until that is resolved 
       continue-on-error: true
-      run: make check
+      run: make $MAKEFLAGS check
     - name: Install bzip2
       continue-on-error: true
       run: |
@@ -106,5 +106,5 @@ jobs:
     - name: Run make distcheck
       continue-on-error: true
       run: |
-        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+        make $MAKEFLAGS distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
 
