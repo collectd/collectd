@@ -3835,6 +3835,10 @@ Disable frequency throttling time metric collection.
 
 Disable power usage metrics collection.
 
+=item B<DisablePSU>
+
+Disable power supply related metrics collection.
+
 =item B<DisableTemperature>
 
 Disable temperature metrics collection.
