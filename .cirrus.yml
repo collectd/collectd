@@ -178,6 +178,9 @@ non_standard_toolchains_task:
         - make -j2 -sk
       tests_script:
         - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check
+      on_failure:
+        debug_script: cat test-suite.log || true
+
 
     # build against libstatgrab, should always pass
     - env:
@@ -243,6 +246,8 @@ non_standard_toolchains_task:
         - make -j2 -sk
       tests_script:
         - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check
+      on_failure:
+        debug_script: cat test-suite.log || true
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
