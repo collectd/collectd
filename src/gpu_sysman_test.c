@@ -464,10 +464,11 @@ typedef struct {
   double last;
 } metrics_validation_t;
 
-#define RATIO_INIT ((double)MEMORY_INIT / MEMORY_SIZE)
-#define RATIO_INC ((double)MEMORY_INC / MEMORY_SIZE)
+#define MEM_RATIO_INIT ((double)MEMORY_INIT / MEMORY_SIZE)
+#define MEM_RATIO_INC ((double)MEMORY_INC / MEMORY_SIZE)
 
 static metrics_validation_t valid_metrics[] = {
+    /* gauge value changes */
     {"all_errors_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
     {"frequency_mhz/actual/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
     {"frequency_mhz/actual/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
@@ -478,27 +479,25 @@ static metrics_validation_t valid_metrics[] = {
      0.0},
     {"frequency_mhz/request/gpu", false, false, FREQ_INIT, 2 * FREQ_INC, 0,
      0.0},
-    {"memory_used_bytes/HBM/system/min", true, true, MEMORY_INIT, +MEMORY_INC,
-     0, 0.0},
-    {"memory_used_bytes/HBM/system/max", true, true, MEMORY_INIT, +MEMORY_INC,
-     0, 0.0},
-    {"memory_used_bytes/HBM/system", false, false, MEMORY_INIT, +MEMORY_INC, 0,
+    {"memory_used_bytes/HBM/system/min", true, true, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
-    {"memory_usage_ratio/HBM/system/min", true, true, RATIO_INIT, +RATIO_INC, 0,
+    {"memory_used_bytes/HBM/system/max", true, true, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
-    {"memory_usage_ratio/HBM/system/max", true, true, RATIO_INIT, +RATIO_INC, 0,
+    {"memory_used_bytes/HBM/system", false, false, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
-    {"memory_usage_ratio/HBM/system", false, false, RATIO_INIT, +RATIO_INC, 0,
-     0.0},
+    {"memory_usage_ratio/HBM/system/min", true, true, MEM_RATIO_INIT,
+     MEM_RATIO_INC, 0, 0.0},
+    {"memory_usage_ratio/HBM/system/max", true, true, MEM_RATIO_INIT,
+     MEM_RATIO_INC, 0, 0.0},
+    {"memory_usage_ratio/HBM/system", false, false, MEM_RATIO_INIT,
+     MEM_RATIO_INC, 0, 0.0},
     {"temperature_celsius", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
+    {"energy_ujoules_total", true, false, COUNTER_START, COUNTER_INC, 0, 0.0},
+    {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"engine_use_usecs_total/all", true, false, COUNTER_START, COUNTER_INC, 0,
      0.0},
-    {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"throttled_usecs_total/gpu", true, false, COUNTER_START, COUNTER_INC, 0,
-     0.0},
-    {"throttled_ratio/gpu", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"memory_bw_bytes_total/HBM/system/read", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
     {"memory_bw_bytes_total/HBM/system/write", true, false, COUNTER_START,
@@ -506,8 +505,10 @@ static metrics_validation_t valid_metrics[] = {
     {"memory_bw_ratio/HBM/system/read", true, false, 2 * COUNTER_RATIO, 0, 0,
      0.0},
     {"memory_bw_ratio/HBM/system/write", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"energy_ujoules_total", true, false, COUNTER_START, COUNTER_INC, 0, 0.0},
     {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"throttled_usecs_total/gpu", true, false, COUNTER_START, COUNTER_INC, 0,
+     0.0},
+    {"throttled_ratio/gpu", true, false, COUNTER_RATIO, 0, 0, 0.0},
 };
 
 /* VALIDATE: reset tracked metrics values and return count of how many
