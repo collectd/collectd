@@ -78,6 +78,8 @@ typedef enum {
   COLLECTD_MEMORY_TYPE_ARC,
   COLLECTD_MEMORY_TYPE_UNUSED,
   COLLECTD_MEMORY_TYPE_AVAILABLE,
+  COLLECTD_MEMORY_TYPE_USER_WIRE,
+  COLLECTD_MEMORY_TYPE_LAUNDRY,
   COLLECTD_MEMORY_TYPE_MAX, /* #states */
 } memory_type_t;
 
@@ -97,6 +99,8 @@ static char const *memory_type_names[COLLECTD_MEMORY_TYPE_MAX] = {
     "arc",
     "unusable",
     "available",
+    "user_wire",
+    "laundry",
 };
 
 /* vm_statistics_data_t */
@@ -356,6 +360,8 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
    * vm.stats.vm.v_active_count: 55239
    * vm.stats.vm.v_inactive_count: 113730
    * vm.stats.vm.v_cache_count: 10809
+   * vm.stats.vm.v_user_wire_count: 0
+   * vm.stats.vm.v_laundry_count: 40394
    */
   struct {
     char const *sysctl_key;
@@ -367,6 +373,8 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
       {"vm.stats.vm.v_active_count", COLLECTD_MEMORY_TYPE_ACTIVE},
       {"vm.stats.vm.v_inactive_count", COLLECTD_MEMORY_TYPE_INACTIVE},
       {"vm.stats.vm.v_cache_count", COLLECTD_MEMORY_TYPE_CACHED},
+      {"vm.stats.vm.v_user_wire_count", COLLECTD_MEMORY_TYPE_USER_WIRE},
+      {"vm.stats.vm.v_laundry_count", COLLECTD_MEMORY_TYPE_LAUNDRY},
   };
 
   gauge_t pagesize = 0;
