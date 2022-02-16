@@ -220,47 +220,38 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
 
 /* mock up level-zero sysman device handling API, called during gpu_init() */
 
-ze_result_t zesDeviceGetProperties(zes_device_handle_t dev,
-                                   zes_device_properties_t *props) {
-  if (call_limit(5, "zesDeviceGetProperties"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!props)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  memset(props, 0, sizeof(*props));
-  return ZE_RESULT_SUCCESS;
-}
+#define DEV_GET_ZEROED_STRUCT(callbit, getname, structtype)                    \
+  ze_result_t getname(zes_device_handle_t dev, structtype *to_zero) {          \
+    if (call_limit(callbit, #getname))                                         \
+      return ZE_RESULT_ERROR_DEVICE_LOST;                                      \
+    if (dev != DEV_HANDLE)                                                     \
+      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
+    if (!to_zero)                                                              \
+      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
+    memset(to_zero, 0, sizeof(*to_zero));                                      \
+    return ZE_RESULT_SUCCESS;                                                  \
+  }
 
-ze_result_t zesDevicePciGetProperties(zes_device_handle_t dev,
-                                      zes_pci_properties_t *props) {
-  if (call_limit(6, "zesDevicePciGetProperties"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!props)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  memset(props, 0, sizeof(*props));
-  return ZE_RESULT_SUCCESS;
-}
-
-ze_result_t zesDeviceGetState(zes_device_handle_t dev,
-                              zes_device_state_t *state) {
-  if (call_limit(7, "zesDeviceGetState"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!state)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  memset(state, 0, sizeof(*state));
-  return ZE_RESULT_SUCCESS;
-}
+DEV_GET_ZEROED_STRUCT(5, zesDeviceGetProperties, zes_device_properties_t)
+DEV_GET_ZEROED_STRUCT(6, zesDevicePciGetProperties, zes_pci_properties_t)
+DEV_GET_ZEROED_STRUCT(7, zesDeviceGetState, zes_device_state_t)
 
 #define INIT_CALL_FUNCS 8
 #define INIT_CALL_BITS (((uint64_t)1 << INIT_CALL_FUNCS) - 1)
 
 /* ------------------------------------------------------------------------- */
 /* mock up Sysman API metrics querying functions */
+
+static ze_result_t metric_args_check(int callbit, const char *name,
+                                     void *handle, void *type) {
+  if (call_limit(callbit, name))
+    return ZE_RESULT_ERROR_NOT_AVAILABLE;
+  if (handle != (void *)VAL_HANDLE)
+    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
+  if (!type)
+    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  return ZE_RESULT_SUCCESS;
+}
 
 #define COUNTER_START 100000 // 100ms
 #define COUNTER_INC 20000    // 20ms
@@ -312,27 +303,22 @@ ze_result_t zesDeviceGetState(zes_device_handle_t dev,
     return ZE_RESULT_SUCCESS;                                                  \
   }                                                                            \
   ze_result_t propname(handletype handle, proptype *prop) {                    \
-    proptype value = {.onSubdevice = true};                                    \
-    if (call_limit(callbit + 1, #propname))                                    \
-      return ZE_RESULT_ERROR_NOT_AVAILABLE;                                    \
-    if (handle != (handletype)VAL_HANDLE)                                      \
-      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
-    if (!prop)                                                                 \
-      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
-    *prop = value;                                                             \
-    return ZE_RESULT_SUCCESS;                                                  \
+    ze_result_t ret = metric_args_check(callbit + 1, #propname, handle, prop); \
+    if (ret == ZE_RESULT_SUCCESS) {                                            \
+      proptype value = {.onSubdevice = true};                                  \
+      *prop = value;                                                           \
+    }                                                                          \
+    return ret;                                                                \
   }                                                                            \
   ze_result_t statename(handletype handle, statetype *state) {                 \
-    if (call_limit(callbit + 2, #statename))                                   \
-      return ZE_RESULT_ERROR_NOT_AVAILABLE;                                    \
-    if (handle != (handletype)VAL_HANDLE)                                      \
-      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
-    if (!state)                                                                \
-      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
-    *state = statevar;                                                         \
-    stateinc1;                                                                 \
-    stateinc2;                                                                 \
-    return ZE_RESULT_SUCCESS;                                                  \
+    ze_result_t ret =                                                          \
+        metric_args_check(callbit + 2, #statename, handle, state);             \
+    if (ret == ZE_RESULT_SUCCESS) {                                            \
+      *state = statevar;                                                       \
+      stateinc1;                                                               \
+      stateinc2;                                                               \
+    }                                                                          \
+    return ret;                                                                \
   }
 
 static zes_engine_stats_t engine_stats = {.activeTime = COUNTER_START,
@@ -382,19 +368,15 @@ ADD_METRIC(15, zesDeviceEnumRasErrorSets, zes_ras_handle_t, zesRasGetProperties,
            dummy, // dummy as state API differs from others
            dummy = 0, dummy = 0)
 
+/* needed because there's an extra parameter */
 ze_result_t zesRasGetState(zes_ras_handle_t handle, ze_bool_t clear,
                            zes_ras_state_t *state) {
-  if (call_limit(17, "zesRasGetState")) {
-    return ZE_RESULT_ERROR_NOT_AVAILABLE;
-  }
-  if (handle != (zes_ras_handle_t)VAL_HANDLE) {
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
+  ze_result_t ret = metric_args_check(17, "zesRasGetState", handle, state);
+  if (ret != ZE_RESULT_SUCCESS) {
+    return ret;
   }
   if (clear) {
     return ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;
-  }
-  if (!state) {
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
   }
   static uint64_t count = RAS_INIT;
   memset(state, 0, sizeof(zes_ras_state_t));
@@ -408,14 +390,10 @@ ze_result_t zesRasGetState(zes_ras_handle_t handle, ze_bool_t clear,
 
 ze_result_t zesFrequencyGetThrottleTime(zes_freq_handle_t handle,
                                         zes_freq_throttle_time_t *state) {
-  if (call_limit(18, "zesFrequencyGetThrottleTime")) {
-    return ZE_RESULT_ERROR_NOT_AVAILABLE;
-  }
-  if (handle != (zes_freq_handle_t)VAL_HANDLE) {
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  }
-  if (!state) {
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  ze_result_t ret =
+      metric_args_check(18, "zesFrequencyGetThrottleTime", handle, state);
+  if (ret != ZE_RESULT_SUCCESS) {
+    return ret;
   }
   static zes_freq_throttle_time_t throttle = {.throttleTime = COUNTER_START,
                                               .timestamp = TIME_START};
@@ -427,14 +405,10 @@ ze_result_t zesFrequencyGetThrottleTime(zes_freq_handle_t handle,
 
 ze_result_t zesMemoryGetBandwidth(zes_mem_handle_t handle,
                                   zes_mem_bandwidth_t *state) {
-  if (call_limit(19, "zesMemoryGetBandwidth")) {
-    return ZE_RESULT_ERROR_NOT_AVAILABLE;
-  }
-  if (handle != (zes_mem_handle_t)VAL_HANDLE) {
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  }
-  if (!state) {
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  ze_result_t ret =
+      metric_args_check(19, "zesMemoryGetBandwidth", handle, state);
+  if (ret != ZE_RESULT_SUCCESS) {
+    return ret;
   }
   static zes_mem_bandwidth_t bw = {.readCounter = 2 * COUNTER_START,
                                    .writeCounter = COUNTER_START,
