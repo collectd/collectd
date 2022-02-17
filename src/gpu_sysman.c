@@ -78,6 +78,7 @@ typedef struct {
   bool all; /* no metrics from whole GPU */
   bool engine;
   bool engine_single;
+  bool fabric;
   bool freq;
   bool mem;
   bool membw;
@@ -100,14 +101,16 @@ typedef struct {
   uint32_t temp_count;
   /* number of types for each counter metric */
   uint32_t engine_count;
+  uint32_t fabric_count;
   uint32_t membw_count;
   uint32_t power_count;
   uint32_t throttle_count;
   /* number of types for each sampled metric */
   uint32_t frequency_count;
   uint32_t memory_count;
-  /* previous values for counters */
+  /* previous values for counters, must have matching <name>_count */
   zes_engine_stats_t *engine;
+  zes_fabric_port_throughput_t *fabric;
   zes_mem_bandwidth_t *membw;
   zes_power_energy_counter_t *power;
   zes_freq_throttle_time_t *throttle;
@@ -147,6 +150,7 @@ static struct {
 /* Sysman GPU plugin config options (defines to ease catching typos) */
 #define KEY_DISABLE_ENGINE "DisableEngine"
 #define KEY_DISABLE_ENGINE_SINGLE "DisableEngineSingle"
+#define KEY_DISABLE_FABRIC "DisableFabric"
 #define KEY_DISABLE_FREQ "DisableFrequency"
 #define KEY_DISABLE_MEM "DisableMemory"
 #define KEY_DISABLE_MEMBW "DisableMemoryBandwidth"
@@ -221,6 +225,7 @@ static int gpu_config_free(void) {
   for (uint32_t i = 0; i < gpu_count; i++) {
     /* free previous values for counters & zero their counts */
     FREE_GPU_ARRAY(i, engine);
+    FREE_GPU_ARRAY(i, fabric);
     FREE_GPU_ARRAY(i, membw);
     FREE_GPU_ARRAY(i, power);
     FREE_GPU_ARRAY(i, throttle);
@@ -275,6 +280,7 @@ static int gpu_config_check(void) {
     bool value;
   } options[] = {{KEY_DISABLE_ENGINE, config.disabled.engine},
                  {KEY_DISABLE_ENGINE_SINGLE, config.disabled.engine_single},
+                 {KEY_DISABLE_FABRIC, config.disabled.fabric},
                  {KEY_DISABLE_FREQ, config.disabled.freq},
                  {KEY_DISABLE_MEM, config.disabled.mem},
                  {KEY_DISABLE_MEMBW, config.disabled.membw},
@@ -1708,6 +1714,241 @@ static bool gpu_temps(gpu_device_t *gpu) {
   return ok;
 }
 
+/* status / health labels */
+static void add_fabric_state_labels(metric_t *metric,
+                                    zes_fabric_port_state_t *state) {
+  const char *status;
+  switch (state->status) {
+  case ZES_FABRIC_PORT_STATUS_UNKNOWN:
+    status = "unknown";
+    break;
+  case ZES_FABRIC_PORT_STATUS_HEALTHY:
+    status = "healthy";
+    break;
+  case ZES_FABRIC_PORT_STATUS_DEGRADED:
+    status = "degraded";
+    break;
+  case ZES_FABRIC_PORT_STATUS_FAILED:
+    status = "failed";
+    break;
+  case ZES_FABRIC_PORT_STATUS_DISABLED:
+    status = "disabled";
+    break;
+  default:
+    status = "unsupported";
+  }
+  metric_label_set(metric, "status", status);
+
+  const char *issues = NULL;
+  switch (state->qualityIssues) {
+  case 0:
+    break;
+  case ZES_FABRIC_PORT_QUAL_ISSUE_FLAG_LINK_ERRORS:
+    issues = "link";
+    break;
+  case ZES_FABRIC_PORT_QUAL_ISSUE_FLAG_SPEED:
+    issues = "speed";
+    break;
+  default:
+    issues = "link+speed";
+  }
+  switch (state->failureReasons) {
+  case 0:
+    break;
+  case ZES_FABRIC_PORT_FAILURE_FLAG_FAILED:
+    issues = "failure";
+    break;
+  case ZES_FABRIC_PORT_FAILURE_FLAG_TRAINING_TIMEOUT:
+    issues = "training";
+    break;
+  case ZES_FABRIC_PORT_FAILURE_FLAG_FLAPPING:
+    issues = "flapping";
+    break;
+  default:
+    issues = "multiple";
+  }
+  if (issues) {
+    metric_label_set(metric, "issues", issues);
+  }
+}
+
+/* Report metrics for relevant fabric ports, return true for success */
+static bool gpu_fabrics(gpu_device_t *gpu) {
+  uint32_t i, port_count = 0;
+  zes_device_handle_t dev = gpu->handle;
+  ze_result_t ret = zesDeviceEnumFabricPorts(dev, &port_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get fabric port count => 0x%x", ret);
+    return false;
+  }
+  zes_fabric_port_handle_t *ports;
+  ports = scalloc(port_count, sizeof(*ports));
+  if (ret = zesDeviceEnumFabricPorts(dev, &port_count, ports),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d fabric ports => 0x%x", port_count,
+          ret);
+    free(ports);
+    return false;
+  }
+  if (gpu->fabric_count != port_count) {
+    INFO(PLUGIN_NAME ": Sysman reports %d fabric ports", port_count);
+    if (gpu->fabric) {
+      free(gpu->fabric);
+    }
+    gpu->fabric = scalloc(port_count, sizeof(*gpu->fabric));
+    gpu->fabric_count = port_count;
+  }
+
+  metric_family_t fam_ratio = {
+      .help =
+          "Average fabric port bandwidth usage ratio (0-1) over query interval",
+      .name = METRIC_PREFIX "fabric_port_ratio",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_rate = {
+      .help = "Fabric port throughput rate (in bytes per second)",
+      .name = METRIC_PREFIX "fabric_port_bytes_per_second",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_counter = {
+      .help = "Fabric port throughput total (in bytes)",
+      .name = METRIC_PREFIX "fabric_port_bytes_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_t metric = {0};
+
+  bool reported_rate = false, reported_ratio = false, reported_counter = false;
+
+  bool ok = false;
+  for (i = 0; i < port_count; i++) {
+
+    /* fetch all information before allocing labels */
+
+    zes_fabric_port_state_t state = {.pNext = NULL};
+    if (ret = zesFabricPortGetState(ports[i], &state),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d state => 0x%x", i, ret);
+      ok = false;
+      break;
+    }
+    zes_fabric_port_properties_t props = {.pNext = NULL};
+    if (ret = zesFabricPortGetProperties(ports[i], &props),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d properties => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+    zes_fabric_port_config_t conf = {.pNext = NULL};
+    if (ret = zesFabricPortGetConfig(ports[i], &conf),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d config => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+    zes_fabric_port_throughput_t bw;
+    if (ret = zesFabricPortGetThroughput(ports[i], &bw),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d throughput => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+    zes_fabric_link_type_t link;
+    if (ret = zesFabricPortGetLinkType(ports[i], &link),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d link type => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+
+    /* port setting / identity setting labels */
+
+    link.desc[sizeof(link.desc) - 1] = '\0';
+    metric_label_set(&metric, "link", link.desc);
+    metric_label_set(&metric, "enabled", conf.enabled ? "on" : "off");
+    metric_label_set(&metric, "beaconing", conf.beaconing ? "on" : "off");
+
+    props.model[sizeof(props.model) - 1] = '\0';
+    metric_label_set(&metric, "model", props.model);
+    metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
+
+    /* topology labels */
+
+    char buf[32];
+    zes_fabric_port_id_t *pid = &props.portId;
+    snprintf(buf, sizeof(buf), "%08x.%08x.%02x", pid->fabricId, pid->attachId,
+             pid->portNumber);
+    metric_label_set(&metric, "port", buf);
+
+    pid = &state.remotePortId;
+    snprintf(buf, sizeof(buf), "%08x.%08x.%02x", pid->fabricId, pid->attachId,
+             pid->portNumber);
+    metric_label_set(&metric, "remote", buf);
+
+    /* status / health labels */
+
+    add_fabric_state_labels(&metric, &state);
+
+    /* add counters with direction labels */
+
+    if (config.output & OUTPUT_COUNTER) {
+      metric.value.counter = bw.txCounter;
+      metric_label_set(&metric, "direction", "write");
+      metric_family_metric_append(&fam_counter, metric);
+
+      metric.value.counter = bw.rxCounter;
+      metric_label_set(&metric, "direction", "read");
+      metric_family_metric_append(&fam_counter, metric);
+      reported_counter = true;
+    }
+
+    /* add rate + ratio gauges with direction labels */
+
+    zes_fabric_port_throughput_t *old = &gpu->fabric[i];
+    if (old->timestamp && bw.timestamp > old->timestamp &&
+        (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
+      /* https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-fabric-port-throughput-t
+       */
+      uint64_t writes = bw.txCounter - old->txCounter;
+      uint64_t reads = bw.rxCounter - old->rxCounter;
+      uint64_t timediff = bw.timestamp - old->timestamp;
+
+      if (config.output & OUTPUT_RATE) {
+        double factor = 1.0e6 / timediff;
+        add_bw_gauges(&metric, &fam_rate, factor * reads, factor * writes);
+        reported_rate = true;
+      }
+      if (config.output & OUTPUT_RATIO) {
+        int64_t maxr = props.maxRxSpeed.bitRate * props.maxRxSpeed.width / 8;
+        int64_t maxw = props.maxTxSpeed.bitRate * props.maxTxSpeed.width / 8;
+        if (maxr > 0 && maxw > 0) {
+          double rfactor = 1.0e6 / (maxr * timediff);
+          double wfactor = 1.0e6 / (maxw * timediff);
+          add_bw_gauges(&metric, &fam_ratio, rfactor * reads, wfactor * writes);
+          reported_ratio = true;
+        }
+      }
+    }
+    metric_reset(&metric);
+    *old = bw;
+    ok = true;
+  }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  if (reported_rate) {
+    gpu_submit(gpu, &fam_rate);
+  }
+  if (reported_counter) {
+    gpu_submit(gpu, &fam_counter);
+  }
+  free(ports);
+  return ok;
+}
+
 /* Report power usage for relevant domains, return true for success */
 static bool gpu_powers(gpu_device_t *gpu) {
   uint32_t i, power_count = 0;
@@ -2088,6 +2329,12 @@ static int gpu_read(void) {
               i);
       disabled->engine = true;
     }
+    if (!disabled->fabric && !gpu_fabrics(gpu)) {
+      WARNING(PLUGIN_NAME
+              ": GPU-%d fabric query fail / no fabric ports => disabled",
+              i);
+      disabled->fabric = true;
+    }
     if (!disabled->membw && !gpu_mems_bw(gpu)) {
       WARNING(PLUGIN_NAME ": GPU-%d mem BW query fail / no modules => disabled",
               i);
@@ -2115,9 +2362,9 @@ static int gpu_read(void) {
               i);
       gpu->disabled.throttle = true;
     }
-    if (disabled->engine && disabled->mem && disabled->freq &&
-        disabled->membw && disabled->power && disabled->ras && disabled->temp &&
-        disabled->throttle) {
+    if (disabled->engine && disabled->fabric && disabled->freq &&
+        disabled->mem && disabled->membw && disabled->power && disabled->ras &&
+        disabled->temp && disabled->throttle) {
       /* all metrics missing -> disable use of that GPU */
       ERROR(PLUGIN_NAME ": No metrics from GPU-%d, disabling its querying", i);
       disabled->all = true;
@@ -2134,6 +2381,8 @@ static int gpu_config_parse(const char *key, const char *value) {
     config.disabled.engine = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_ENGINE_SINGLE) == 0) {
     config.disabled.engine_single = IS_TRUE(value);
+  } else if (strcasecmp(key, KEY_DISABLE_FABRIC) == 0) {
+    config.disabled.fabric = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_FREQ) == 0) {
     config.disabled.freq = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_MEM) == 0) {
@@ -2205,11 +2454,13 @@ static int gpu_config_parse(const char *key, const char *value) {
 void module_register(void) {
   /* NOTE: key strings *must* be static */
   static const char *config_keys[] = {
-      KEY_DISABLE_ENGINE,   KEY_DISABLE_ENGINE_SINGLE, KEY_DISABLE_FREQ,
-      KEY_DISABLE_MEM,      KEY_DISABLE_MEMBW,         KEY_DISABLE_POWER,
-      KEY_DISABLE_RAS,      KEY_DISABLE_RAS_SEPARATE,  KEY_DISABLE_TEMP,
-      KEY_DISABLE_THROTTLE, KEY_METRICS_OUTPUT,        KEY_LOG_GPU_INFO,
-      KEY_SAMPLES};
+      KEY_DISABLE_ENGINE,       KEY_DISABLE_ENGINE_SINGLE,
+      KEY_DISABLE_FABRIC,       KEY_DISABLE_FREQ,
+      KEY_DISABLE_MEM,          KEY_DISABLE_MEMBW,
+      KEY_DISABLE_POWER,        KEY_DISABLE_RAS,
+      KEY_DISABLE_RAS_SEPARATE, KEY_DISABLE_TEMP,
+      KEY_DISABLE_THROTTLE,     KEY_METRICS_OUTPUT,
+      KEY_LOG_GPU_INFO,         KEY_SAMPLES};
   const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
   plugin_register_config(PLUGIN_NAME, gpu_config_parse, config_keys,

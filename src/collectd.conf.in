@@ -799,6 +799,7 @@
 #   MetricsOutput "counter:rate:ratio"
 #   DisableMemory false
 #   DisableMemoryBandwidth false
+#   DisableFabric false
 #   DisableFrequency false
 #   DisableThrottleTime false
 #   DisableTemperature false
