@@ -3765,6 +3765,10 @@ Disable memory usage metrics collection.
 
 Disable memory bandwidth metrics collection.
 
+=item B<DisableFabric>
+
+Disable fabric port metrics collection.
+
 =item B<DisableFrequency>
 
 Disable actual / requested frequency metrics collection.
