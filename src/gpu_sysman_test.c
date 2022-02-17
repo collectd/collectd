@@ -139,28 +139,40 @@ static bool call_limit(int callbit, const char *name) {
 #define DEV_HANDLE ((ze_device_handle_t)(0xecced))
 #define VAL_HANDLE 0xcaffa
 
+/* driver/device initialization status */
+typedef enum {
+  L0_NOT_INITIALIZED,
+  L0_IS_INITIALIZED,
+  L0_DRIVER_INITIALIZED,
+  L0_DEVICE_INITIALIZED
+} initialized_t;
+
+static initialized_t initialized = L0_NOT_INITIALIZED;
+
 ze_result_t zeInit(ze_init_flags_t flags) {
   if (call_limit(0, "zeInit"))
     return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (flags && flags != ZE_INIT_FLAG_GPU_ONLY) {
+  if (flags && flags != ZE_INIT_FLAG_GPU_ONLY)
     return ZE_RESULT_ERROR_INVALID_ENUMERATION;
-  }
+  initialized = L0_IS_INITIALIZED;
   return ZE_RESULT_SUCCESS;
 }
 
 ze_result_t zeDriverGet(uint32_t *count, ze_driver_handle_t *handles) {
   if (call_limit(1, "zeDriverGet"))
     return ZE_RESULT_ERROR_DEVICE_LOST;
+  if (initialized < L0_IS_INITIALIZED)
+    return ZE_RESULT_ERROR_UNINITIALIZED;
   if (!count)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
   if (!*count) {
     *count = 1;
     return ZE_RESULT_SUCCESS;
   }
-  if (*count != 1)
-    return ZE_RESULT_ERROR_INVALID_SIZE;
+  *count = 1;
   if (!handles)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  initialized = L0_DRIVER_INITIALIZED;
   handles[0] = DRV_HANDLE;
   return ZE_RESULT_SUCCESS;
 }
@@ -171,47 +183,58 @@ ze_result_t zeDeviceGet(ze_driver_handle_t drv, uint32_t *count,
     return ZE_RESULT_ERROR_DEVICE_LOST;
   if (drv != DRV_HANDLE)
     return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
+  if (initialized < L0_DRIVER_INITIALIZED)
+    return ZE_RESULT_ERROR_UNINITIALIZED;
   if (!count)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
   if (!*count) {
     *count = 1;
     return ZE_RESULT_SUCCESS;
   }
-  if (*count != 1)
-    return ZE_RESULT_ERROR_INVALID_SIZE;
+  *count = 1;
   if (!handles)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  initialized = L0_DEVICE_INITIALIZED;
   handles[0] = DEV_HANDLE;
+  return ZE_RESULT_SUCCESS;
+}
+
+/* mock up level-zero core device handling API, called during gpu_init() */
+
+static ze_result_t dev_args_check(int callbit, const char *name,
+                                  ze_device_handle_t dev, void *type) {
+  if (call_limit(callbit, name))
+    return ZE_RESULT_ERROR_DEVICE_LOST;
+  if (dev != DEV_HANDLE)
+    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
+  if (!type)
+    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  if (initialized < L0_DEVICE_INITIALIZED)
+    return ZE_RESULT_ERROR_UNINITIALIZED;
   return ZE_RESULT_SUCCESS;
 }
 
 ze_result_t zeDeviceGetProperties(ze_device_handle_t dev,
                                   ze_device_properties_t *props) {
-  if (call_limit(3, "zeDeviceGetProperties"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!props)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  memset(props, 0, sizeof(*props));
-  props->type = ZE_DEVICE_TYPE_GPU;
-  return ZE_RESULT_SUCCESS;
+  ze_result_t ret = dev_args_check(3, "zeDeviceGetProperties", dev, props);
+  if (ret == ZE_RESULT_SUCCESS) {
+    memset(props, 0, sizeof(*props));
+    props->type = ZE_DEVICE_TYPE_GPU;
+  }
+  return ret;
 }
 
 ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
                                         ze_device_memory_properties_t *props) {
-  if (call_limit(4, "zeDeviceGetMemoryProperties"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!count)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  ze_result_t ret =
+      dev_args_check(4, "zeDeviceGetMemoryProperties", dev, count);
+  if (ret != ZE_RESULT_SUCCESS)
+    return ret;
   if (!*count) {
     *count = 1;
     return ZE_RESULT_SUCCESS;
   }
-  if (*count != 1)
-    return ZE_RESULT_ERROR_INVALID_SIZE;
+  *count = 1;
   if (!props)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
   memset(props, 0, sizeof(*props));
@@ -222,14 +245,10 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
 
 #define DEV_GET_ZEROED_STRUCT(callbit, getname, structtype)                    \
   ze_result_t getname(zes_device_handle_t dev, structtype *to_zero) {          \
-    if (call_limit(callbit, #getname))                                         \
-      return ZE_RESULT_ERROR_DEVICE_LOST;                                      \
-    if (dev != DEV_HANDLE)                                                     \
-      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
-    if (!to_zero)                                                              \
-      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
-    memset(to_zero, 0, sizeof(*to_zero));                                      \
-    return ZE_RESULT_SUCCESS;                                                  \
+    ze_result_t ret = dev_args_check(callbit, #getname, dev, to_zero);         \
+    if (ret == ZE_RESULT_SUCCESS)                                              \
+      memset(to_zero, 0, sizeof(*to_zero));                                    \
+    return ret;                                                                \
   }
 
 DEV_GET_ZEROED_STRUCT(5, zesDeviceGetProperties, zes_device_properties_t)
@@ -244,12 +263,18 @@ DEV_GET_ZEROED_STRUCT(7, zesDeviceGetState, zes_device_state_t)
 
 static ze_result_t metric_args_check(int callbit, const char *name,
                                      void *handle, void *type) {
+  /* metric being unavailable on some HW / driver combination
+   * is more likely for metric queries than device loss, so use
+   * ZE_RESULT_ERROR_NOT_AVAILABLE rathen than ZE_RESULT_ERROR_DEVICE_LOST
+   */
   if (call_limit(callbit, name))
     return ZE_RESULT_ERROR_NOT_AVAILABLE;
   if (handle != (void *)VAL_HANDLE)
     return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
   if (!type)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  if (initialized < L0_DEVICE_INITIALIZED)
+    return ZE_RESULT_ERROR_UNINITIALIZED;
   return ZE_RESULT_SUCCESS;
 }
 
@@ -285,18 +310,14 @@ static ze_result_t metric_args_check(int callbit, const char *name,
                    statename, statetype, statevar, stateinc1, stateinc2)       \
   ze_result_t getname(zes_device_handle_t dev, uint32_t *count,                \
                       handletype *handles) {                                   \
-    if (call_limit(callbit, #getname))                                         \
-      return ZE_RESULT_ERROR_NOT_AVAILABLE;                                    \
-    if (dev != DEV_HANDLE)                                                     \
-      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
-    if (!count)                                                                \
-      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
+    ze_result_t ret = dev_args_check(callbit, #getname, dev, count);           \
+    if (ret != ZE_RESULT_SUCCESS)                                              \
+      return ret;                                                              \
     if (!*count) {                                                             \
       *count = 1;                                                              \
       return ZE_RESULT_SUCCESS;                                                \
     }                                                                          \
-    if (*count != 1)                                                           \
-      return ZE_RESULT_ERROR_INVALID_SIZE;                                     \
+    *count = 1;                                                                \
     if (!handles)                                                              \
       return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
     handles[0] = (handletype)VAL_HANDLE;                                       \
