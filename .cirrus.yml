@@ -106,7 +106,7 @@ debian_default_toolchain_task:
   build_script:
     - make -j2 -sk
   tests_script:
-    - make -j2 -sk check
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check
     #- /checks/check-built-plugins.sh
   on_failure:
     debug_script: cat test-suite.log || true
@@ -143,7 +143,7 @@ redhat_default_toolchain_task:
   build_script:
     - make -j2 -sk
   tests_script:
-    - make -j2 -sk check
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check
     #- /checks/check-built-plugins.sh
   on_failure:
     debug_script: cat test-suite.log || true
@@ -177,7 +177,7 @@ non_standard_toolchains_task:
       build_script:
         - make -j2 -sk
       tests_script:
-        - make -j2 -sk check
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check
 
     # build against libstatgrab, should always pass
     - env:
@@ -242,7 +242,7 @@ non_standard_toolchains_task:
       build_script:
         - make -j2 -sk
       tests_script:
-        - make -j2 -sk check
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -274,6 +274,6 @@ bleeding_edge_compilers_task:
   build_script:
     - make -j2 -sk
   tests_script:
-    - make -j2 -sk check
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check
   on_failure:
     debug_script: cat test-suite.log || true
