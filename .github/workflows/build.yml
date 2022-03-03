@@ -26,8 +26,10 @@ jobs:
           - buster_amd64
           - stretch_amd64
           - stretch_i386
-          - trusty_amd64
+          # Ubuntu
           - xenial_amd64
+          - bionic_amd64
+          - focal_amd64
           # RedHat family
           - el8_x86_64
           - el7_x86_64
@@ -35,8 +37,10 @@ jobs:
           - fedora28_x86_64
         config_flags: ['']
     env:
-      MAKEFLAGS: "-j 2"
+      MAKEFLAGS: "-j2 -sk"
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+      # this env var picked up by valgrind during make check phase
+      VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v2
     - run: type pkg-config
@@ -44,21 +48,21 @@ jobs:
     - name: Generate configure script
       run:
         ./build.sh
-    - name: configure
+    - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
-    - name: Make
-      run: make
-    - name: make check
-      continue-on-error: true
-      run: make check
-    - name: install bzip2
-      continue-on-error: true
+    - name: Build collectd
+      run: make $MAKEFLAGS
+    - name: Run make check
+      run: make $MAKEFLAGS check
+    - name: Dump test logs
+      run: |
+          cat ./test-suite.log || true
+    - name: Install bzip2
       run: |
         yum install -y bzip2 || apt install -y bzip2
-    - name: make
-      continue-on-error: true
+    - name: Run make distcheck
       run: |
-        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+        make $MAKEFLAG distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
 
   experimental:
     runs-on: ubuntu-20.04
@@ -80,10 +84,11 @@ jobs:
             cppflags: "-fPIE -Wno-deprecated-declarations"
             config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
     env:
-      MAKEFLAGS: "-j 2"
+      MAKEFLAGS: "-j2 -sk"
       CFLAGS: ${{ matrix.cflags }}
       CPPFLAGS: ${{ matrix.cppflags }}
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+      VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v2
     - run: type pkg-config
@@ -91,20 +96,21 @@ jobs:
     - name: Generate configure script
       run:
         ./build.sh
-    - name: configure
+    - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
-    - name: Make
-      run: make
-    - name: make check
+    - name: Build collectd
+      run: make $MAKEFLAGS
+    - name: Run make check
       # Make check is failing on a few newer distros, temporarily mark it as optional until that is resolved 
       continue-on-error: true
-      run: make check
-    - name: install bzip2
-      continue-on-error: true
+      run: make $MAKEFLAGS check
+    - name: Dump test logs
+      run: |
+          cat ./test-suite.log || true
+    - name: Install bzip2
       run: |
         yum install -y bzip2 || apt install -y bzip2
-    - name: make distcheck
-      continue-on-error: true
+    - name: Run make distcheck
       run: |
-        make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+        make $MAKEFLAGS distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
 

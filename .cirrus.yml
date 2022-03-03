@@ -36,12 +36,15 @@ debian_default_toolchain_task:
         image: collectd/ci:stretch_i386
       allow_failures: false
     - container:
-        image: collectd/ci:trusty_amd64
-      allow_failures: true
-    - container:
         image: collectd/ci:xenial_amd64
       allow_failures: false
-    # debian/unstable is expected to fail
+    - container:
+        image: collectd/ci:bionic_amd64
+      allow_failures: false
+    - container:
+        image: collectd/ci:focal_amd64
+      allow_failures: false
+      # debian/unstable is expected to fail
     - allow_failures: true
       skip_notifications: true
       only_if: $CIRRUS_BRANCH == 'master'
@@ -58,7 +61,7 @@ debian_default_toolchain_task:
   build_script:
     - make -j2 -sk
   tests_script:
-    - make -j2 -sk check
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
     - /checks/check-built-plugins.sh
 
 ###
@@ -89,7 +92,7 @@ redhat_default_toolchain_task:
   build_script:
     - make -j2 -sk
   tests_script:
-    - make -j2 -sk check
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
     - /checks/check-built-plugins.sh
 
 
@@ -121,7 +124,7 @@ non_standard_toolchains_task:
       build_script:
         - make -j2 -sk
       tests_script:
-        - make -j2 -sk check
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
 
     # build against libstatgrab, should always pass
     - env:
@@ -186,7 +189,7 @@ non_standard_toolchains_task:
       build_script:
         - make -j2 -sk
       tests_script:
-        - make -j2 -sk check
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -218,4 +221,4 @@ bleeding_edge_compilers_task:
   build_script:
     - make -j2 -sk
   tests_script:
-    - make -j2 -sk check
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
