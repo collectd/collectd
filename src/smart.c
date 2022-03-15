@@ -127,7 +127,12 @@ static int create_ignorelist_by_serial(ignorelist_t *il) {
   }
   udev_enumerate_add_match_subsystem(enumerate, "block");
   udev_enumerate_add_match_property(enumerate, "DEVTYPE", "disk");
-  udev_enumerate_scan_devices(enumerate);
+
+  if (udev_enumerate_scan_devices(enumerate) < 0) {
+    WARNING("smart plugin: udev scan devices failed");
+    return -1;
+  }
+
   devices = udev_enumerate_get_list_entry(enumerate);
   if (devices == NULL) {
     ERROR("udev returned an empty list deviecs");
@@ -611,7 +616,12 @@ static int smart_read(void) {
   }
   udev_enumerate_add_match_subsystem(enumerate, "block");
   udev_enumerate_add_match_property(enumerate, "DEVTYPE", "disk");
-  udev_enumerate_scan_devices(enumerate);
+
+  if (udev_enumerate_scan_devices(enumerate) < 0) {
+    WARNING("smart plugin: udev scan devices failed");
+    return -1;
+  }
+
   devices = udev_enumerate_get_list_entry(enumerate);
   if (devices == NULL) {
     ERROR("udev returned an empty list deviecs");
