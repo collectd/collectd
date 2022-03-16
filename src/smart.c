@@ -47,6 +47,7 @@
 #define O_RDWR 02
 #define NVME_SMART_CDW10 0x00800002
 #define SHIFT_BYTE_LEFT 256
+#define PLUGIN_NAME "smart"
 struct nvme_admin_cmd {
   __u8 opcode;
   __u8 rsvd1[3];
@@ -117,25 +118,25 @@ static int create_ignorelist_by_serial(ignorelist_t *il) {
   // Use udev to get a list of disks
   handle_udev = udev_new();
   if (!handle_udev) {
-    ERROR("smart plugin: unable to initialize udev.");
+    ERROR(PLUGIN_NAME ": unable to initialize udev");
     return 1;
   }
   enumerate = udev_enumerate_new(handle_udev);
   if (enumerate == NULL) {
-    ERROR("fail udev_enumerate_new");
+    ERROR(PLUGIN_NAME ": fail udev_enumerate_new");
     return 1;
   }
   udev_enumerate_add_match_subsystem(enumerate, "block");
   udev_enumerate_add_match_property(enumerate, "DEVTYPE", "disk");
 
   if (udev_enumerate_scan_devices(enumerate) < 0) {
-    WARNING("smart plugin: udev scan devices failed");
+    WARNING(PLUGIN_NAME ": udev scan devices failed");
     return -1;
   }
 
   devices = udev_enumerate_get_list_entry(enumerate);
   if (devices == NULL) {
-    ERROR("udev returned an empty list deviecs");
+    ERROR(PLUGIN_NAME ": udev returned an empty list devices");
     return 1;
   }
   udev_list_entry_foreach(dev_list_entry, devices) {
@@ -280,7 +281,7 @@ static int get_vendor_id(const char *dev, char const *name) {
 
   fd = open(dev, O_RDWR);
   if (fd < 0) {
-    ERROR("open failed with %s\n", strerror(errno));
+    ERROR(PLUGIN_NAME ": open failed with %s\n", strerror(errno));
     return fd;
   }
 
@@ -293,7 +294,8 @@ static int get_vendor_id(const char *dev, char const *name) {
                                        .cdw11 = 0});
 
   if (err < 0) {
-    ERROR("ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n", strerror(errno));
+    ERROR(PLUGIN_NAME ": ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n",
+          strerror(errno));
     close(fd);
     return err;
   }
@@ -308,7 +310,7 @@ static int smart_read_nvme_disk(const char *dev, char const *name) {
 
   fd = open(dev, O_RDWR);
   if (fd < 0) {
-    ERROR("open failed with %s\n", strerror(errno));
+    ERROR(PLUGIN_NAME ": open failed with %s\n", strerror(errno));
     return fd;
   }
 
@@ -327,7 +329,8 @@ static int smart_read_nvme_disk(const char *dev, char const *name) {
                                           .data_len = sizeof(smart_log),
                                           .cdw10 = NVME_SMART_CDW10});
   if (status < 0) {
-    ERROR("ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n", strerror(errno));
+    ERROR(PLUGIN_NAME ": ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n",
+          strerror(errno));
     close(fd);
     return status;
   } else {
@@ -388,7 +391,7 @@ static int smart_read_nvme_intel_disk(const char *dev, char const *name) {
   int fd, status;
   fd = open(dev, O_RDWR);
   if (fd < 0) {
-    ERROR("open failed with %s\n", strerror(errno));
+    ERROR(PLUGIN_NAME ": open failed with %s\n", strerror(errno));
     return fd;
   }
 
@@ -405,7 +408,8 @@ static int smart_read_nvme_intel_disk(const char *dev, char const *name) {
                                      .data_len = sizeof(intel_smart_log),
                                      .cdw10 = NVME_SMART_INTEL_CDW10});
   if (status < 0) {
-    ERROR("ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n", strerror(errno));
+    ERROR(PLUGIN_NAME ": ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n",
+          strerror(errno));
     close(fd);
     return status;
   } else {
@@ -485,27 +489,27 @@ static int smart_read_nvme_intel_disk(const char *dev, char const *name) {
 static void smart_read_sata_disk(SkDisk *d, char const *name) {
   SkBool available = FALSE;
   if (sk_disk_identify_is_available(d, &available) < 0 || !available) {
-    DEBUG("smart plugin: disk %s cannot be identified.", name);
+    DEBUG(PLUGIN_NAME ": disk %s cannot be identified.", name);
     return;
   }
   if (sk_disk_smart_is_available(d, &available) < 0 || !available) {
-    DEBUG("smart plugin: disk %s has no SMART support.", name);
+    DEBUG(PLUGIN_NAME ": disk %s has no SMART support.", name);
     return;
   }
   if (!ignore_sleep_mode) {
     SkBool awake = FALSE;
     if (sk_disk_check_sleep_mode(d, &awake) < 0 || !awake) {
-      DEBUG("smart plugin: disk %s is sleeping.", name);
+      DEBUG(PLUGIN_NAME ": disk %s is sleeping.", name);
       return;
     }
   }
   if (sk_disk_smart_read_data(d) < 0) {
-    ERROR("smart plugin: unable to get SMART data for disk %s.", name);
+    ERROR(PLUGIN_NAME ": unable to get SMART data for disk %s", name);
     return;
   }
 
   if (sk_disk_smart_parse(d, &(SkSmartParsedData const *){NULL}) < 0) {
-    ERROR("smart plugin: unable to parse SMART data for disk %s.", name);
+    ERROR(PLUGIN_NAME ": unable to parse SMART data for disk %s", name);
     return;
   }
 
@@ -514,28 +518,28 @@ static void smart_read_sata_disk(SkDisk *d, char const *name) {
   if (sk_disk_smart_get_power_on(d, &value) >= 0)
     smart_submit(name, "smart_poweron", "", ((gauge_t)value) / 1000.);
   else
-    DEBUG("smart plugin: unable to get milliseconds since power on for %s.",
+    DEBUG(PLUGIN_NAME ": unable to get milliseconds since power on for %s.",
           name);
 
   if (sk_disk_smart_get_power_cycle(d, &value) >= 0)
     smart_submit(name, "smart_powercycles", "", (gauge_t)value);
   else
-    DEBUG("smart plugin: unable to get number of power cycles for %s.", name);
+    DEBUG(PLUGIN_NAME ": unable to get number of power cycles for %s.", name);
 
   if (sk_disk_smart_get_bad(d, &value) >= 0)
     smart_submit(name, "smart_badsectors", "", (gauge_t)value);
   else
-    DEBUG("smart plugin: unable to get number of bad sectors for %s.", name);
+    DEBUG(PLUGIN_NAME ": unable to get number of bad sectors for %s.", name);
 
   if (sk_disk_smart_get_temperature(d, &value) >= 0)
     smart_submit(name, "smart_temperature", "",
                  ((gauge_t)value) / 1000. - 273.15);
   else
-    DEBUG("smart plugin: unable to get temperature for %s.", name);
+    DEBUG(PLUGIN_NAME ": unable to get temperature for %s.", name);
 
   /* Grab all attributes */
   if (sk_disk_smart_parse_attributes(d, handle_attribute, (void *)name) < 0) {
-    ERROR("smart plugin: unable to handle SMART attributes for %s.", name);
+    ERROR(PLUGIN_NAME ": unable to handle SMART attributes for %s", name);
   }
 }
 
@@ -555,28 +559,28 @@ static void smart_handle_disk(const char *dev, const char *serial) {
 
   if (use_serial) {
     if (ignorelist_match(ignorelist_by_serial, name) != 0) {
-      DEBUG("smart plugin: ignoring %s. Name = %s", dev, name);
+      DEBUG(PLUGIN_NAME ": ignoring %s. Name = %s", dev, name);
       return;
     }
   } else {
     if (ignorelist_match(ignorelist, name) != 0) {
-      DEBUG("smart plugin: ignoring %s. Name = %s", dev, name);
+      DEBUG(PLUGIN_NAME ": ignoring %s. Name = %s", dev, name);
       return;
     }
   }
 
-  DEBUG("smart plugin: checking SMART status of %s.", dev);
+  DEBUG(PLUGIN_NAME ": checking SMART status of %s.", dev);
 
   if (strstr(dev, "nvme")) {
     err = smart_read_nvme_disk(dev, name);
     if (err) {
-      ERROR("smart plugin: smart_read_nvme_disk failed, %d", err);
+      ERROR(PLUGIN_NAME ": smart_read_nvme_disk failed, %d", err);
     } else {
       switch (get_vendor_id(dev, name)) {
       case INTEL_VENDOR_ID:
         err = smart_read_nvme_intel_disk(dev, name);
         if (err) {
-          ERROR("smart plugin: smart_read_nvme_intel_disk failed, %d", err);
+          ERROR(PLUGIN_NAME ": smart_read_nvme_intel_disk failed, %d", err);
         }
         break;
 
@@ -589,7 +593,7 @@ static void smart_handle_disk(const char *dev, const char *serial) {
   } else {
 
     if (sk_disk_open(dev, &d) < 0) {
-      ERROR("smart plugin: unable to open %s.", dev);
+      ERROR(PLUGIN_NAME ": unable to open %s", dev);
       return;
     }
     smart_read_sata_disk(d, name);
@@ -606,25 +610,25 @@ static int smart_read(void) {
   /* Use udev to get a list of disks */
   handle_udev = udev_new();
   if (!handle_udev) {
-    ERROR("smart plugin: unable to initialize udev.");
+    ERROR(PLUGIN_NAME ": unable to initialize udev");
     return -1;
   }
   enumerate = udev_enumerate_new(handle_udev);
   if (enumerate == NULL) {
-    ERROR("fail udev_enumerate_new");
+    ERROR(PLUGIN_NAME ": fail udev_enumerate_new");
     return -1;
   }
   udev_enumerate_add_match_subsystem(enumerate, "block");
   udev_enumerate_add_match_property(enumerate, "DEVTYPE", "disk");
 
   if (udev_enumerate_scan_devices(enumerate) < 0) {
-    WARNING("smart plugin: udev scan devices failed");
+    WARNING(PLUGIN_NAME ": udev scan devices failed");
     return -1;
   }
 
   devices = udev_enumerate_get_list_entry(enumerate);
   if (devices == NULL) {
-    ERROR("udev returned an empty list deviecs");
+    ERROR(PLUGIN_NAME ": udev returned an empty list devices");
     return -1;
   }
   udev_list_entry_foreach(dev_list_entry, devices) {
@@ -650,7 +654,7 @@ static int smart_init(void) {
   if (use_serial) {
     err = create_ignorelist_by_serial(ignorelist);
     if (err != 0) {
-      ERROR("Enable to create ignorelist_by_serial");
+      ERROR(PLUGIN_NAME ": Enable to create ignorelist_by_serial");
       return 1;
     }
   }
@@ -658,12 +662,14 @@ static int smart_init(void) {
 #if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_SYS_RAWIO)
   if (check_capability(CAP_SYS_RAWIO) != 0) {
     if (getuid() == 0)
-      WARNING("smart plugin: Running collectd as root, but the "
+      WARNING(PLUGIN_NAME
+              ": Running collectd as root, but the "
               "CAP_SYS_RAWIO capability is missing. The plugin's read "
               "function will probably fail. Is your init system dropping "
               "capabilities?");
     else
-      WARNING("smart plugin: collectd doesn't have the CAP_SYS_RAWIO "
+      WARNING(PLUGIN_NAME
+              ": collectd doesn't have the CAP_SYS_RAWIO "
               "capability. If you don't want to run collectd as root, try "
               "running \"setcap cap_sys_rawio=ep\" on the collectd binary.");
   }
