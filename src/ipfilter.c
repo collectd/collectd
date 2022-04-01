@@ -45,19 +45,19 @@ static ips_stat_t ipsst;
 
 static void uint_gauge(void *x, value_t *v) {
 	v->gauge = *(u_int *)x;
-};
+}
 
 static void ulong_gauge(void *x, value_t *v) {
 	v->gauge = *(u_long *)x;
-};
+}
 
 static void uint_derive(void *x, value_t *v) {
 	v->derive = *(u_int *)x;
-};
+}
 
 static void ulong_derive(void *x, value_t *v) {
 	v->derive = *(u_long *)x;
-};
+}
 
 struct report {
 	char *name;	/* config and type instance name */
