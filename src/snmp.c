@@ -1271,7 +1271,9 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
                      (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
   else if (vb->type == ASN_OBJECT_ID)
     return snprint_objid(dst, dst_size, vb->val.objid,
-                         vb->val_len / sizeof(oid)) >=0 ? 0 : EINVAL;
+                         vb->val_len / sizeof(oid)) >= 0
+               ? 0
+               : EINVAL;
   else {
     dst[0] = 0;
     return EINVAL;
