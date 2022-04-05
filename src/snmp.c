@@ -1264,12 +1264,15 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
     src = (char *)vb->val.string;
   else if (vb->type == ASN_BIT_STR)
     src = (char *)vb->val.bitstring;
-  else if (vb->type == ASN_IPADDRESS) {
+  else if (vb->type == ASN_IPADDRESS)
     return ssnprintf(dst, dst_size,
                      "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
                      (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
                      (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
-  } else {
+  else if (vb->type == ASN_OBJECT_ID)
+    return snprint_objid(dst, dst_size, vb->val.objid,
+                         vb->val_len / sizeof(oid)) >=0 ? 0 : EINVAL;
+  else {
     dst[0] = 0;
     return EINVAL;
   }
@@ -1318,7 +1321,7 @@ static csnmp_cell_char_t *csnmp_get_char_cell(const struct variable_list *vb,
 
   /* Get value */
   if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR) ||
-      (vb->type == ASN_IPADDRESS)) {
+      (vb->type == ASN_IPADDRESS) || (vb->type == ASN_OBJECT_ID)) {
 
     csnmp_strvbcopy(il->value, vb, sizeof(il->value));
 
