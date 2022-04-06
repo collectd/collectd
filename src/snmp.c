@@ -68,6 +68,7 @@ struct data_definition_s {
   char *plugin_name;
   oid_t *values;
   size_t values_len;
+  oid_t scale_oid;
   double scale;
   double shift;
   struct data_definition_s *next;
@@ -118,6 +119,7 @@ typedef struct csnmp_cell_char_s csnmp_cell_char_t;
 
 struct csnmp_cell_value_s {
   oid_t suffix;
+  int value_type;
   value_t value;
   struct csnmp_cell_value_s *next;
 };
@@ -130,6 +132,7 @@ typedef enum {
   OID_TYPE_PLUGININSTANCE,
   OID_TYPE_HOST,
   OID_TYPE_FILTER,
+  OID_TYPE_SCALE,
 } csnmp_oid_type_t;
 
 /*
@@ -320,7 +323,24 @@ static int csnmp_config_add_data_values(data_definition_t *dd,
   }
 
   return 0;
-} /* int csnmp_config_configure_data_instance */
+} /* int csnmp_config_add_data_values */
+
+static int csnmp_config_add_data_scale_oid(data_definition_t *data,
+                                           oconfig_item_t *ci) {
+
+  char buffer[DATA_MAX_NAME_LEN];
+  int status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
+
+  data->scale_oid.oid_len = MAX_OID_LEN;
+
+  if (!read_objid(buffer, data->scale_oid.oid, &data->scale_oid.oid_len)) {
+    ERROR("snmp plugin: read_objid (%s) failed.", buffer);
+    return -1;
+  }
+  return 0;
+} /* int csnmp_config_add_data_scale_oid */
 
 static int csnmp_config_add_data_blacklist(data_definition_t *dd,
                                            oconfig_item_t *ci) {
@@ -464,6 +484,8 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
       status = cf_util_get_double(option, &dd->shift);
     else if (strcasecmp("Scale", option->key) == 0)
       status = cf_util_get_double(option, &dd->scale);
+    else if (strcasecmp("ScaleOID", option->key) == 0)
+      status = csnmp_config_add_data_scale_oid(dd, option);
     else if (strcasecmp("Ignore", option->key) == 0)
       status = csnmp_config_add_data_blacklist(dd, option);
     else if (strcasecmp("InvertMatch", option->key) == 0)
@@ -1332,6 +1354,61 @@ static csnmp_cell_char_t *csnmp_get_char_cell(const struct variable_list *vb,
   return il;
 } /* csnmp_cell_char_t csnmp_get_char_cell */
 
+static csnmp_cell_value_t *csnmp_get_value_cell(const struct variable_list *vb,
+                                                const oid_t *root_oid,
+                                                const host_definition_t *hd,
+                                                const data_definition_t *dd) {
+
+  if (vb == NULL)
+    return NULL;
+
+  csnmp_cell_value_t *il = calloc(1, sizeof(*il));
+  if (il == NULL) {
+    ERROR("snmp plugin: calloc failed.");
+    return NULL;
+  }
+  il->next = NULL;
+
+  oid_t vb_name;
+  csnmp_oid_init(&vb_name, vb->name, vb->name_length);
+
+  if (csnmp_oid_suffix(&il->suffix, &vb_name, root_oid) != 0) {
+    sfree(il);
+    return NULL;
+  }
+
+  /* potentially negative values are interpreted as a gauge, while positive
+   * values are interpreted as counters.
+   */
+  int type = DS_TYPE_GAUGE;
+
+  switch (vb->type) {
+  /* negative / positive values */
+  case ASN_INTEGER:
+    if ((int32_t)*vb->val.integer >= 0) {
+      type = DS_TYPE_COUNTER;
+    }
+    break;
+  /* positive values */
+  case ASN_UINTEGER:
+  case ASN_COUNTER:
+#ifdef ASN_TIMETICKS
+  case ASN_TIMETICKS:
+#endif
+  case ASN_GAUGE:
+  case ASN_COUNTER64:
+    type = DS_TYPE_COUNTER;
+    break;
+  }
+
+  il->value_type = type;
+  il->value = csnmp_value_list_to_value(vb, type,
+                                        /* scale = */ 1.0, /* shift = */ 0.0,
+                                        hd->name, dd->name);
+
+  return il;
+} /* csnmp_cell_value_t csnmp_get_value_cell */
+
 static void csnmp_cells_append(csnmp_cell_char_t **head,
                                csnmp_cell_char_t **tail,
                                csnmp_cell_char_t *il) {
@@ -1362,6 +1439,48 @@ static bool csnmp_ignore_instance(csnmp_cell_char_t *cell,
   return 0;
 } /* bool csnmp_ignore_instance */
 
+static value_t csnmp_multiply_cells(csnmp_cell_value_t *x,
+                                    csnmp_cell_value_t *y) {
+  value_t ret = {0};
+
+  if (!x && !y) {
+    return ret;
+  } else if (!x) {
+    return y->value;
+  } else if (!y) {
+    return x->value;
+  }
+
+#define MULTIPLY_TYPE(DSTYPE, dstype)                                          \
+  {                                                                            \
+  case DSTYPE:                                                                 \
+    switch (y->value_type) {                                                   \
+    case DS_TYPE_COUNTER:                                                      \
+      ret.dstype = x->value.dstype * y->value.counter;                         \
+      break;                                                                   \
+    case DS_TYPE_GAUGE:                                                        \
+      ret.dstype = x->value.dstype * y->value.gauge;                           \
+      break;                                                                   \
+    case DS_TYPE_DERIVE:                                                       \
+      ret.dstype = x->value.dstype * y->value.derive;                          \
+      break;                                                                   \
+    case DS_TYPE_ABSOLUTE:                                                     \
+      ret.dstype = x->value.dstype * y->value.absolute;                        \
+      break;                                                                   \
+    }                                                                          \
+    break;                                                                     \
+  }
+
+  switch (x->value_type) {
+    MULTIPLY_TYPE(DS_TYPE_COUNTER, counter)
+    MULTIPLY_TYPE(DS_TYPE_GAUGE, gauge)
+    MULTIPLY_TYPE(DS_TYPE_DERIVE, derive)
+    MULTIPLY_TYPE(DS_TYPE_ABSOLUTE, absolute)
+  }
+
+  return ret;
+} /* value_t csnmp_multiply_cells */
+
 static void csnmp_cell_replace_reserved_chars(csnmp_cell_char_t *cell) {
   for (char *ptr = cell->value; *ptr != '\0'; ptr++) {
     if ((*ptr > 0) && (*ptr < 32))
@@ -1371,14 +1490,12 @@ static void csnmp_cell_replace_reserved_chars(csnmp_cell_char_t *cell) {
   }
 } /* void csnmp_cell_replace_reserved_chars */
 
-static int csnmp_dispatch_table(host_definition_t *host,
-                                data_definition_t *data,
-                                csnmp_cell_char_t *type_instance_cells,
-                                csnmp_cell_char_t *plugin_instance_cells,
-                                csnmp_cell_char_t *hostname_cells,
-                                csnmp_cell_char_t *filter_cells,
-                                csnmp_cell_value_t **value_cells,
-                                bool count_values) {
+static int csnmp_dispatch_table(
+    host_definition_t *host, data_definition_t *data,
+    csnmp_cell_char_t *type_instance_cells,
+    csnmp_cell_char_t *plugin_instance_cells, csnmp_cell_char_t *hostname_cells,
+    csnmp_cell_char_t *filter_cells, csnmp_cell_value_t *scale_cells,
+    csnmp_cell_value_t **value_cells, bool count_values) {
   const data_set_t *ds;
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -1386,6 +1503,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
   csnmp_cell_char_t *plugin_instance_cell_ptr = plugin_instance_cells;
   csnmp_cell_char_t *hostname_cell_ptr = hostname_cells;
   csnmp_cell_char_t *filter_cell_ptr = filter_cells;
+  csnmp_cell_value_t *scale_cell_ptr = scale_cells;
   csnmp_cell_value_t *value_cell_ptr[data->values_len];
 
   size_t i;
@@ -1499,6 +1617,24 @@ static int csnmp_dispatch_table(host_definition_t *host,
       }
     }
 
+    /* Update scale_cell_ptr to point expected suffix */
+    if (scale_cells != NULL) {
+      while ((scale_cell_ptr != NULL) &&
+             (csnmp_oid_compare(&scale_cell_ptr->suffix, &current_suffix) < 0))
+        scale_cell_ptr = scale_cell_ptr->next;
+
+      if (scale_cell_ptr == NULL) {
+        have_more = 0;
+        continue;
+      }
+
+      if (csnmp_oid_compare(&scale_cell_ptr->suffix, &current_suffix) > 0) {
+        /* This suffix is missing in the subtree. Indicate this with the
+         * "suffix_skipped" flag and try the next instance / suffix. */
+        suffix_skipped = 1;
+      }
+    }
+
     /* Update all the value_cell_ptr to point at the entry with the same
      * trailing partial OID */
     for (i = 0; i < data->values_len; i++) {
@@ -1552,6 +1688,9 @@ static int csnmp_dispatch_table(host_definition_t *host,
                               &value_cell_ptr[0]->suffix) == 0));
     assert((filter_cell_ptr == NULL) ||
            (csnmp_oid_compare(&filter_cell_ptr->suffix,
+                              &value_cell_ptr[0]->suffix) == 0));
+    assert((scale_cell_ptr == NULL) ||
+           (csnmp_oid_compare(&scale_cell_ptr->suffix,
                               &value_cell_ptr[0]->suffix) == 0));
 #endif
 
@@ -1625,8 +1764,10 @@ static int csnmp_dispatch_table(host_definition_t *host,
       value_t values[vl.values_len];
       vl.values = values;
 
-      for (i = 0; i < data->values_len; i++)
-        vl.values[i] = value_cell_ptr[i]->value;
+      for (i = 0; i < data->values_len; i++) {
+        vl.values[i] = csnmp_multiply_cells(value_cell_ptr[i], scale_cell_ptr);
+        ;
+      }
 
       plugin_dispatch_values(&vl);
 
@@ -1703,6 +1844,9 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   if (data->filter_oid.oid_len > 0)
     oid_list_len++;
 
+  if (data->scale_oid.oid_len > 0)
+    oid_list_len++;
+
   /* Holds the last OID returned by the device. We use this in the GETNEXT
    * request to proceed. */
   oid_t oid_list[oid_list_len];
@@ -1724,6 +1868,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   csnmp_cell_char_t *hostname_cells_tail = NULL;
   csnmp_cell_char_t *filter_cells_head = NULL;
   csnmp_cell_char_t *filter_cells_tail = NULL;
+  csnmp_cell_value_t *scale_cells_head = NULL;
+  csnmp_cell_value_t *scale_cells_tail = NULL;
   csnmp_cell_value_t **value_cells_head;
   csnmp_cell_value_t **value_cells_tail;
 
@@ -1786,6 +1932,12 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   if (data->filter_oid.oid_len > 0) {
     memcpy(oid_list + i, &data->filter_oid, sizeof(oid_t));
     oid_list_todo[i] = OID_TYPE_FILTER;
+    i++;
+  }
+
+  if (data->scale_oid.oid_len > 0) {
+    memcpy(oid_list + i, &data->scale_oid, sizeof(oid_t));
+    oid_list_todo[i] = OID_TYPE_SCALE;
     i++;
   }
 
@@ -2028,7 +2180,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
             (snmp_oid_ncompare(data->filter_oid.oid, data->filter_oid.oid_len,
                                vb->name, vb->name_length,
                                data->filter_oid.oid_len) != 0)) {
-          DEBUG("snmp plugin: host = %s; data = %s; Host left its subtree.",
+          DEBUG("snmp plugin: host = %s; data = %s; Filter left its subtree.",
                 host->name, data->name);
           oid_list_todo[i] = 0;
           continue;
@@ -2049,6 +2201,34 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
         DEBUG("snmp plugin: il->filter = `%s';", cell->value);
         csnmp_cells_append(&filter_cells_head, &filter_cells_tail, cell);
+      } else if (oid_list_todo[i] == OID_TYPE_SCALE) {
+        if ((vb->type == SNMP_ENDOFMIBVIEW) ||
+            (snmp_oid_ncompare(data->scale_oid.oid, data->scale_oid.oid_len,
+                               vb->name, vb->name_length,
+                               data->scale_oid.oid_len) != 0)) {
+          DEBUG("snmp plugin: host = %s; data = %s; Scale left its subtree.",
+                host->name, data->name);
+          oid_list_todo[i] = 0;
+          continue;
+        }
+
+        /* Allocate a new `csnmp_cell_value_t', insert the instance name and
+         * add it to the list */
+        csnmp_cell_value_t *cell =
+            csnmp_get_value_cell(vb, &data->scale_oid, host, data);
+        if (cell == NULL) {
+          ERROR("snmp plugin: host %s: csnmp_get_value_cell() failed.",
+                host->name);
+          status = -1;
+          break;
+        }
+
+        DEBUG("snmp plugin: il->scale = `%lf';", cell->value.gauge);
+        if (scale_cells_tail == NULL)
+          scale_cells_head = cell;
+        else
+          scale_cells_tail->next = cell;
+        scale_cells_tail = cell;
       } else /* The variable we are processing is a normal value */
       {
         assert(oid_list_todo[i] == OID_TYPE_VARIABLE);
@@ -2089,8 +2269,9 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
           break;
         }
 
+        vt->value_type = ds->ds[i].type;
         vt->value =
-            csnmp_value_list_to_value(vb, ds->ds[i].type, data->scale,
+            csnmp_value_list_to_value(vb, vt->value_type, data->scale,
                                       data->shift, host->name, data->name);
         memcpy(&vt->suffix, &suffix, sizeof(vt->suffix));
         vt->next = NULL;
@@ -2120,7 +2301,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   if (status == 0)
     csnmp_dispatch_table(host, data, type_instance_cells_head,
                          plugin_instance_cells_head, hostname_cells_head,
-                         filter_cells_head, value_cells_head, data->count);
+                         filter_cells_head, scale_cells_head, value_cells_head,
+                         data->count);
 
   /* Free all allocated variables here */
   while (type_instance_cells_head != NULL) {
@@ -2145,6 +2327,12 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     csnmp_cell_char_t *next = filter_cells_head->next;
     sfree(filter_cells_head);
     filter_cells_head = next;
+  }
+
+  while (scale_cells_head != NULL) {
+    csnmp_cell_value_t *next = scale_cells_head->next;
+    sfree(scale_cells_head);
+    scale_cells_head = next;
   }
 
   for (i = 0; i < data->values_len; i++) {
