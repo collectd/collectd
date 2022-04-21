@@ -865,6 +865,7 @@ before attempting to reconnect. Defaults to 1, which implies attempt
 to reconnect at 1 second intervals.
 
 =item B<SendQueueLimit> I<SendQueueLimit>
+
 If there is no AMQP1 connection, the plugin will continue to queue
 messages to send, which could result in unbounded memory consumption. This
 parameter is used to limit the number of messages in the outbound queue to
