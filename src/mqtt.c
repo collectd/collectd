@@ -532,7 +532,7 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
     return status;
   }
 
-  status = publish(conf, topic, payload, strlen(payload) + 1);
+  status = publish(conf, topic, payload, strlen(payload));
   if (status != 0) {
     ERROR("mqtt plugin: publish failed: %s", mosquitto_strerror(status));
     return status;
