@@ -250,6 +250,9 @@ static int mmc_read(void) {
   }
 
   while ((dirent = readdir(dir)) != NULL) {
+    if (dirent->d_name[0] == '.')
+      continue;
+
     if (ignorelist_match(ignorelist, dirent->d_name))
       continue;
 
