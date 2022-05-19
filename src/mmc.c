@@ -44,6 +44,8 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 #define MMC_MANUFACTOR "manfid"
 #define MMC_OEM_ID "oemid"
 #define MMC_SSR "ssr"
+#define MMC_LIFE_TIME "life_time"
+#define MMC_PRE_EOL_INFO "pre_eol_info"
 
 static ignorelist_t *ignorelist = NULL;
 
@@ -149,6 +151,39 @@ static int mmc_read_oemid(const char *dev_name, int *value) {
   return EXIT_FAILURE;
 }
 
+#define MMC_POWER_CYCLES "mmc_power_cycles"
+#define MMC_BLOCK_ERASES "mmc_block_erases"
+#define MMC_BAD_BLOCKS "mmc_bad_blocks"
+#define MMC_LTE_A "mmc_life_time_est_typ_a"
+#define MMC_LTE_B "mmc_life_time_est_typ_b"
+#define MMC_EOL_INFO "mmc_pre_eol_info"
+
+static int mmc_read_emmc_generic(const char *dev_name) {
+  char buffer[4096];
+  uint8_t life_time_a, life_time_b;
+  uint8_t pre_eol;
+  int res = EXIT_FAILURE;
+
+  /* write generic eMMC 5.0 lifetime estimates / health reports */
+  if (mmc_read_dev_attr(dev_name, MMC_LIFE_TIME, buffer, sizeof(buffer)) == 0) {
+    if (sscanf(buffer, "%hhx %hhx", &life_time_a, &life_time_b) == 2) {
+      mmc_submit(dev_name, MMC_LTE_A, (gauge_t)life_time_a);
+      mmc_submit(dev_name, MMC_LTE_B, (gauge_t)life_time_b);
+      res = EXIT_SUCCESS;
+    }
+  }
+
+  if (mmc_read_dev_attr(dev_name, MMC_PRE_EOL_INFO, buffer, sizeof(buffer)) ==
+      0) {
+    if (sscanf(buffer, "%hhx", &pre_eol) == 1) {
+      mmc_submit(dev_name, MMC_EOL_INFO, (gauge_t)pre_eol);
+      res = EXIT_SUCCESS;
+    }
+  }
+
+  return res;
+}
+
 enum mmc_manfid {
   MANUFACTUR_SWISSBIT = 93, // 0x5d
 };
@@ -156,10 +191,6 @@ enum mmc_manfid {
 enum mmc_oemid_swissbit {
   OEMID_SWISSBIT_1 = 21314, // 0x5342
 };
-
-#define MMC_POWER_CYCLES "mmc_power_cycles"
-#define MMC_BLOCK_ERASES "mmc_block_erases"
-#define MMC_BAD_BLOCKS "mmc_bad_blocks"
 
 // Size of string buffer with '\0'
 #define SWISSBIT_LENGTH_SPARE_BLOCKS 3
@@ -243,6 +274,7 @@ static int mmc_read(void) {
   DIR *dir;
   struct dirent *dirent;
   int manfid;
+  bool have_stats;
 
   if ((dir = opendir(SYS_PATH)) == NULL) {
     ERROR(PLUGIN_NAME ": Cannot open directory [%s]", SYS_PATH);
@@ -250,6 +282,8 @@ static int mmc_read(void) {
   }
 
   while ((dirent = readdir(dir)) != NULL) {
+    have_stats = false;
+
     if (dirent->d_name[0] == '.')
       continue;
 
@@ -261,15 +295,19 @@ static int mmc_read(void) {
 
     DEBUG(PLUGIN_NAME "(%s): manfid=%d", dirent->d_name, manfid);
 
+    if (mmc_read_emmc_generic(dirent->d_name) == EXIT_SUCCESS)
+      have_stats = true;
+
     switch (manfid) {
     case MANUFACTUR_SWISSBIT:
       mmc_read_ssr_swissbit(dirent->d_name);
+      have_stats = true;
       break;
-    default:
-      INFO(PLUGIN_NAME
-           "(%s): The manufactur id %d is not suppored by this plugin",
+    }
+
+    if (!have_stats) {
+      INFO(PLUGIN_NAME "(%s): Could not collect any info for manufactur id %d",
            dirent->d_name, manfid);
-      break;
     }
   }
 

@@ -169,6 +169,9 @@ memory_throttle_count   value:DERIVE:0:U
 mmc_power_cycles        value:GAUGE:0:U
 mmc_block_erases        value:GAUGE:0:U
 mmc_bad_blocks          value:GAUGE:0:255
+mmc_life_time_est_typ_a value:GAUGE:1:11
+mmc_life_time_est_typ_b value:GAUGE:1:11
+mmc_pre_eol_info        value:GAUGE:0:4
 multimeter              value:GAUGE:U:U
 mutex_operations        value:DERIVE:0:U
 mysql_bpool_bytes       value:GAUGE:0:U

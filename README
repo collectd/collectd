@@ -266,9 +266,9 @@ Features
       Intel Many Integrated Core (MIC) CPUs.
 
     - mmc
-      Reads the percentage of bad blocks on mmc device. The additional values
-      for block erases and power cycles are also read. This Plugin in does only
-      work for the swissbit mmc Cards. MANFID=0x5D OEMID=0x5342
+      Reads the life time estimates reported by eMMC 5.0+ devices and some more
+      detailed health metrics, like bad block and erase counts or power cycles,
+      for swissbit mmc Cards (MANFID=0x5D OEMID=0x5342).
 
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
