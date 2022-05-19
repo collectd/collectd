@@ -6748,6 +6748,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_mcelog="yes"
   plugin_mdevents="yes"
   plugin_memory="yes"
+  plugin_mmc="yes"
   plugin_nfs="yes"
   plugin_numa="yes"
   plugin_processes="yes"
@@ -7624,6 +7625,7 @@ AC_MSG_RESULT([    memcachec . . . . . . $enable_memcachec])
 AC_MSG_RESULT([    memcached . . . . . . $enable_memcached])
 AC_MSG_RESULT([    memory  . . . . . . . $enable_memory])
 AC_MSG_RESULT([    mic . . . . . . . . . $enable_mic])
+AC_MSG_RESULT([    mmc . . . . . . . . . $enable_mmc])
 AC_MSG_RESULT([    modbus  . . . . . . . $enable_modbus])
 AC_MSG_RESULT([    mqtt  . . . . . . . . $enable_mqtt])
 AC_MSG_RESULT([    multimeter  . . . . . $enable_multimeter])
