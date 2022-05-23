@@ -113,6 +113,7 @@ static int mmc_read_oemid(struct udev_device *mmc_dev, int *value) {
 }
 enum mmc_manfid {
   MANUFACTUR_MICRON = 0x13,
+  MANUFACTUR_SANDISK = 0x45,
   MANUFACTUR_SWISSBIT = 0x5d,
 };
 
@@ -253,6 +254,119 @@ static int mmc_read_micron(struct udev_device *mmc_dev,
   mmc_submit(dev_name, "mmc_erases_mlc_min", (gauge_t)(er_mlc_min));
   mmc_submit(dev_name, "mmc_erases_mlc_max", (gauge_t)(er_mlc_max));
   mmc_submit(dev_name, "mmc_erases_mlc_avg", (gauge_t)(er_mlc_avg));
+
+  return EXIT_SUCCESS;
+}
+
+// Copy what worked for the micron eMMC but allow busy response in report mode
+// enable flags (MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE | MMC_CMD_ADTC |
+// MMC_RSP_BUSY | MMC_RSP_SPI_S1 | MMC_RSP_SPI_BUSY) The _ARG is a magic value
+// from the datasheet
+#define SANDISK_CMD_EN_REPORT_MODE_FLAGS 0x04bd
+#define SANDISK_CMD_EN_REPORT_MODE_OP 62
+#define SANDIKS_CMD_EN_REPORT_MODE_ARG 0x96C9D71C
+
+#define SANDISK_CMD_READ_REPORT_FLAGS 0x00b5
+#define SANDISK_CMD_READ_REPORT_OP 63
+#define SANDISK_CMD_READ_REPORT_ARG 0
+
+// Fields in the Device Report / Advanced Health Status structure
+#define SANDISK_FIELDS_POWER_UPS 25
+#define SANDISK_FIELDS_TEMP_CUR 41
+
+#define SANDISK_FIELDS_BB_INITIAL 6
+#define SANDISK_FIELDS_BB_RUNTIME_MLC 9
+#define SANDISK_FIELDS_BB_RUNTIME_SLC 36
+#define SANDISK_FIELDS_BB_RUNTIME_SYS 7
+
+#define SANDISK_FIELDS_ER_MLC_AVG 2
+#define SANDISK_FIELDS_ER_MLC_MIN 31
+#define SANDISK_FIELDS_ER_MLC_MAX 28
+
+#define SANDISK_FIELDS_ER_SLC_AVG 34
+#define SANDISK_FIELDS_ER_SLC_MIN 33
+#define SANDISK_FIELDS_ER_SLC_MAX 32
+
+#define SANDISK_FIELDS_ER_SYS_AVG 0
+#define SANDISK_FIELDS_ER_SYS_MIN 29
+#define SANDISK_FIELDS_ER_SYS_MAX 26
+
+static int mmc_read_sandisk(struct udev_device *mmc_dev,
+                            struct udev_device *block_dev) {
+  uint32_t cmd_data[MMC_BLOCK_SIZE / sizeof(uint32_t)];
+
+  struct mmc_ioc_cmd cmd_en_report_mode = {
+      .opcode = SANDISK_CMD_EN_REPORT_MODE_OP,
+      .arg = SANDIKS_CMD_EN_REPORT_MODE_ARG,
+      .flags = SANDISK_CMD_EN_REPORT_MODE_FLAGS,
+  };
+  struct mmc_ioc_cmd cmd_read_report = {
+      .opcode = SANDISK_CMD_READ_REPORT_OP,
+      .arg = SANDISK_CMD_READ_REPORT_ARG,
+      .flags = SANDISK_CMD_READ_REPORT_FLAGS,
+      .blksz = sizeof(cmd_data),
+      .blocks = 1,
+  };
+
+  const char *dev_name = udev_device_get_sysname(mmc_dev);
+  const char *dev_path = udev_device_get_devnode(block_dev);
+
+  int block_fd = mmc_open_block_dev(dev_name, dev_path);
+  if (block_fd < 0) {
+    return EXIT_FAILURE;
+  }
+
+  mmc_ioc_cmd_set_data(cmd_read_report, cmd_data);
+
+  if (ioctl(block_fd, MMC_IOC_CMD, &cmd_en_report_mode) < 0) {
+    close(block_fd);
+    INFO(PLUGIN_NAME
+         "(%s) failed to send enable report mode MMC ioctl to %s: %s",
+         dev_name, dev_path, strerror(errno));
+    return EXIT_FAILURE;
+  }
+
+  if (ioctl(block_fd, MMC_IOC_CMD, &cmd_read_report) < 0) {
+    close(block_fd);
+    INFO(PLUGIN_NAME "(%s) failed to send read_report MMC ioctl to %s: %s",
+         dev_name, dev_path, strerror(errno));
+    return EXIT_FAILURE;
+  }
+
+  close(block_fd);
+
+  gauge_t bb_total = le32toh(cmd_data[SANDISK_FIELDS_BB_INITIAL]) +
+                     le32toh(cmd_data[SANDISK_FIELDS_BB_RUNTIME_MLC]) +
+                     le32toh(cmd_data[SANDISK_FIELDS_BB_RUNTIME_SLC]) +
+                     le32toh(cmd_data[SANDISK_FIELDS_BB_RUNTIME_SYS]);
+
+  mmc_submit(dev_name, "mmc_bad_blocks", bb_total);
+
+  mmc_submit(dev_name, "mmc_power_cycles",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_POWER_UPS]));
+  mmc_submit(dev_name, "temperature",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_TEMP_CUR]));
+
+  mmc_submit(dev_name, "mmc_erases_mlc_avg",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_MLC_AVG]));
+  mmc_submit(dev_name, "mmc_erases_mlc_max",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_MLC_MAX]));
+  mmc_submit(dev_name, "mmc_erases_mlc_min",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_MLC_MIN]));
+
+  mmc_submit(dev_name, "mmc_erases_slc_avg",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_SLC_AVG]));
+  mmc_submit(dev_name, "mmc_erases_slc_max",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_SLC_MAX]));
+  mmc_submit(dev_name, "mmc_erases_slc_min",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_SLC_MIN]));
+
+  mmc_submit(dev_name, "mmc_erases_sys_avg",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_SYS_AVG]));
+  mmc_submit(dev_name, "mmc_erases_sys_max",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_SYS_MAX]));
+  mmc_submit(dev_name, "mmc_erases_sys_min",
+             (gauge_t)le32toh(cmd_data[SANDISK_FIELDS_ER_SYS_MIN]));
 
   return EXIT_SUCCESS;
 }
@@ -414,6 +528,9 @@ static int mmc_read(void) {
       switch (manfid) {
       case MANUFACTUR_MICRON:
         have_stats |= (mmc_read_micron(mmc_dev, block_dev) == EXIT_FAILURE);
+        break;
+      case MANUFACTUR_SANDISK:
+        have_stats |= (mmc_read_sandisk(mmc_dev, block_dev) == EXIT_FAILURE);
         break;
       case MANUFACTUR_SWISSBIT:
         have_stats |= (mmc_read_ssr_swissbit(mmc_dev) == EXIT_SUCCESS);
