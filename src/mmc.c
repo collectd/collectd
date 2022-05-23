@@ -41,12 +41,6 @@ static const char *config_keys[] = {
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-#define MMC_MANUFACTOR "manfid"
-#define MMC_OEM_ID "oemid"
-#define MMC_SSR "ssr"
-#define MMC_LIFE_TIME "life_time"
-#define MMC_PRE_EOL_INFO "pre_eol_info"
-
 static ignorelist_t *ignorelist = NULL;
 
 static int mmc_config(const char *key, const char *value) {
@@ -121,10 +115,10 @@ static int mmc_read_dev_attr(const char *dev_name, const char *file_name,
 static int mmc_read_manfid(const char *dev_name, int *value) {
   char buffer[4096];
 
-  if (mmc_read_dev_attr(dev_name, MMC_MANUFACTOR, buffer, sizeof(buffer)) ==
+  if (mmc_read_dev_attr(dev_name, "manfid", buffer, sizeof(buffer)) ==
       0) {
     *value = (int)strtol(buffer, NULL, 0);
-    DEBUG(PLUGIN_NAME "(%s): [%s]=%s (%d)", dev_name, MMC_MANUFACTOR, buffer,
+    DEBUG(PLUGIN_NAME "(%s): [%s]=%s (%d)", dev_name, "manfid", buffer,
           *value);
     return 0;
   }
@@ -137,9 +131,9 @@ static int mmc_read_manfid(const char *dev_name, int *value) {
 static int mmc_read_oemid(const char *dev_name, int *value) {
   char buffer[4096];
 
-  if (mmc_read_dev_attr(dev_name, MMC_OEM_ID, buffer, sizeof(buffer)) == 0) {
+  if (mmc_read_dev_attr(dev_name, "oemid", buffer, sizeof(buffer)) == 0) {
     *value = (int)strtol(buffer, NULL, 0);
-    DEBUG(PLUGIN_NAME "(%s): [%s]=%s (%d)", dev_name, MMC_OEM_ID, buffer,
+    DEBUG(PLUGIN_NAME "(%s): [%s]=%s (%d)", dev_name, "oemid", buffer,
           *value);
     return 0;
   }
@@ -158,7 +152,7 @@ static int mmc_read_emmc_generic(const char *dev_name) {
   int res = EXIT_FAILURE;
 
   /* write generic eMMC 5.0 lifetime estimates / health reports */
-  if (mmc_read_dev_attr(dev_name, MMC_LIFE_TIME, buffer, sizeof(buffer)) == 0) {
+  if (mmc_read_dev_attr(dev_name, "life_time", buffer, sizeof(buffer)) == 0) {
     if (sscanf(buffer, "%hhx %hhx", &life_time_a, &life_time_b) == 2) {
       mmc_submit(dev_name, "mmc_life_time_est_typ_a", (gauge_t)life_time_a);
       mmc_submit(dev_name, "mmc_life_time_est_typ_b", (gauge_t)life_time_b);
@@ -166,7 +160,7 @@ static int mmc_read_emmc_generic(const char *dev_name) {
     }
   }
 
-  if (mmc_read_dev_attr(dev_name, MMC_PRE_EOL_INFO, buffer, sizeof(buffer)) ==
+  if (mmc_read_dev_attr(dev_name, "pre_eol_info", buffer, sizeof(buffer)) ==
       0) {
     if (sscanf(buffer, "%hhx", &pre_eol) == 1) {
       mmc_submit(dev_name, "mmc_pre_eol_info", (gauge_t)pre_eol);
@@ -214,7 +208,7 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
     return EXIT_FAILURE;
   }
 
-  if (mmc_read_dev_attr(dev_name, MMC_SSR, buffer, sizeof(buffer)) != 0) {
+  if (mmc_read_dev_attr(dev_name, "ssr", buffer, sizeof(buffer)) != 0) {
     return EXIT_FAILURE;
   }
 
@@ -229,7 +223,7 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
     INFO(PLUGIN_NAME "(%s): The SSR register is not 128 byte long", dev_name);
     return EXIT_FAILURE;
   }
-  DEBUG(PLUGIN_NAME "(%s): [%s]=%s", dev_name, MMC_SSR, buffer);
+  DEBUG(PLUGIN_NAME "(%s): [%s]=%s", dev_name, "ssr", buffer);
 
   /* write mmc_bad_blocks */
   sstrncpy(bad_blocks, &buffer[SWISSBIT_SSR_START_SPARE_BLOCKS],
