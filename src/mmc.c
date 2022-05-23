@@ -30,11 +30,16 @@
 #endif
 
 #include <libudev.h>
+#include <linux/major.h>
+#include <linux/mmc/ioctl.h>
+#include <sys/ioctl.h>
 
 #define PLUGIN_NAME "mmc"
 
 #define DEVICE_KEY "Device"
 #define IGNORE_KEY "IgnoreSelected"
+
+#define MMC_BLOCK_SIZE 512
 
 static const char *config_keys[] = {
     DEVICE_KEY,
@@ -107,6 +112,7 @@ static int mmc_read_oemid(struct udev_device *mmc_dev, int *value) {
   return 0;
 }
 enum mmc_manfid {
+  MANUFACTUR_MICRON = 0x13,
   MANUFACTUR_SWISSBIT = 0x5d,
 };
 
@@ -141,6 +147,114 @@ static int mmc_read_emmc_generic(struct udev_device *mmc_dev) {
   }
 
   return res;
+}
+
+static int mmc_open_block_dev(const char *dev_name, const char *dev_path) {
+  int block_fd;
+
+  if (dev_path == NULL) {
+    INFO(PLUGIN_NAME "(%s) failed to find block device", dev_name);
+    return -1;
+  }
+
+  block_fd = open(dev_path, O_RDWR);
+  if (block_fd < 0) {
+    INFO(PLUGIN_NAME "(%s) failed to open block device (%s): (%s)", dev_name,
+         dev_path, strerror(errno));
+    return -1;
+  }
+
+  return block_fd;
+}
+
+// The flags are what emmcparm uses and translate to (include/linux/mmc/core.h):
+// MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE | MMC_CMD_ADTC |
+// MMC_RSP_SPI_S1
+#define MICRON_CMD56_FLAGS 0x00b5
+#define MICRON_CMD56ARG_BAD_BLOCKS 0x11
+#define MICRON_CMD56ARG_ERASES_SLC 0x23
+#define MICRON_CMD56ARG_ERASES_MLC 0x25
+
+static int mmc_micron_cmd56(int block_fd, uint32_t arg, uint16_t *val1,
+                            uint16_t *val2, uint16_t *val3) {
+  uint16_t cmd_data[MMC_BLOCK_SIZE / sizeof(uint16_t)];
+  struct mmc_ioc_cmd cmd = {
+      .opcode = 56,
+      .arg = arg,
+      .flags = MICRON_CMD56_FLAGS,
+      .blksz = sizeof(cmd_data),
+      .blocks = 1,
+  };
+
+  mmc_ioc_cmd_set_data(cmd, cmd_data);
+
+  if (ioctl(block_fd, MMC_IOC_CMD, &cmd) < 0) {
+    return EXIT_FAILURE;
+  }
+
+  *val1 = be16toh(cmd_data[0]);
+  *val2 = be16toh(cmd_data[1]);
+  *val3 = be16toh(cmd_data[2]);
+
+  return EXIT_SUCCESS;
+}
+
+static int mmc_read_micron(struct udev_device *mmc_dev,
+                           struct udev_device *block_dev) {
+  uint16_t bb_initial, bb_runtime, bb_remaining, er_slc_min, er_slc_max,
+      er_slc_avg, er_mlc_min, er_mlc_max, er_mlc_avg;
+  const char *dev_name, *dev_path;
+  int block_fd;
+  gauge_t bb_total;
+
+  dev_name = udev_device_get_sysname(mmc_dev);
+  dev_path = udev_device_get_devnode(block_dev);
+
+  block_fd = mmc_open_block_dev(dev_name, dev_path);
+  if (block_fd < 0) {
+    return EXIT_FAILURE;
+  }
+
+  if (mmc_micron_cmd56(block_fd, MICRON_CMD56ARG_BAD_BLOCKS, &bb_initial,
+                       &bb_runtime, &bb_remaining) != EXIT_SUCCESS) {
+    INFO(PLUGIN_NAME "(%s) failed to send ioctl to %s: %s", dev_name, dev_path,
+         strerror(errno));
+    close(block_fd);
+    return EXIT_FAILURE;
+  }
+
+  if (mmc_micron_cmd56(block_fd, MICRON_CMD56ARG_ERASES_SLC, &er_slc_min,
+                       &er_slc_max, &er_slc_avg) != EXIT_SUCCESS) {
+    INFO(PLUGIN_NAME "(%s) failed to send ioctl to %s: %s", dev_name, dev_path,
+         strerror(errno));
+    close(block_fd);
+    return EXIT_FAILURE;
+  }
+
+  if (mmc_micron_cmd56(block_fd, MICRON_CMD56ARG_ERASES_MLC, &er_mlc_min,
+                       &er_mlc_max, &er_mlc_avg) != EXIT_SUCCESS) {
+    INFO(PLUGIN_NAME "(%s) failed to send ioctl to %s: %s", dev_name, dev_path,
+         strerror(errno));
+    close(block_fd);
+    return EXIT_FAILURE;
+  }
+
+  close(block_fd);
+
+  bb_total = (gauge_t)(bb_initial) + (gauge_t)(bb_runtime);
+
+  mmc_submit(dev_name, "mmc_bad_blocks", bb_total);
+  mmc_submit(dev_name, "mmc_spare_blocks", (gauge_t)(bb_remaining));
+
+  mmc_submit(dev_name, "mmc_erases_slc_min", (gauge_t)(er_slc_min));
+  mmc_submit(dev_name, "mmc_erases_slc_max", (gauge_t)(er_slc_max));
+  mmc_submit(dev_name, "mmc_erases_slc_avg", (gauge_t)(er_slc_avg));
+
+  mmc_submit(dev_name, "mmc_erases_mlc_min", (gauge_t)(er_mlc_min));
+  mmc_submit(dev_name, "mmc_erases_mlc_max", (gauge_t)(er_mlc_max));
+  mmc_submit(dev_name, "mmc_erases_mlc_avg", (gauge_t)(er_mlc_avg));
+
+  return EXIT_SUCCESS;
 }
 
 // Size of string buffer with '\0'
@@ -298,6 +412,9 @@ static int mmc_read(void) {
     // Read more datailed vendor-specific health info
     if (mmc_read_manfid(mmc_dev, &manfid) == EXIT_SUCCESS) {
       switch (manfid) {
+      case MANUFACTUR_MICRON:
+        have_stats |= (mmc_read_micron(mmc_dev, block_dev) == EXIT_FAILURE);
+        break;
       case MANUFACTUR_SWISSBIT:
         have_stats |= (mmc_read_ssr_swissbit(mmc_dev) == EXIT_SUCCESS);
         break;
