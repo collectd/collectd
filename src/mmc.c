@@ -29,8 +29,9 @@
 #error "No applicable input method."
 #endif
 
+#include <libudev.h>
+
 #define PLUGIN_NAME "mmc"
-#define SYS_PATH "/sys/bus/mmc/devices/"
 
 #define DEVICE_KEY "Device"
 #define IGNORE_KEY "IgnoreSelected"
@@ -79,90 +80,61 @@ static void mmc_submit(const char *dev_name, const char *type, gauge_t value) {
   plugin_dispatch_values(&vl);
 }
 
-static int mmc_read_dev_attr(const char *dev_name, const char *file_name,
-                             char *buffer, int size) {
-  FILE *fh;
-  char str[sizeof(SYS_PATH) + strlen(dev_name) + sizeof("/") +
-           strlen(file_name) + 1];
-  int length;
+static int mmc_read_manfid(struct udev_device *mmc_dev, int *value) {
+  const char *attr = udev_device_get_sysattr_value(mmc_dev, "manfid");
 
-  snprintf(str, sizeof(str), SYS_PATH "%s/%s", dev_name, file_name);
-  fh = fopen(str, "r");
-
-  if (fh == NULL) {
-    ERROR(PLUGIN_NAME "(%s): Cannot open file [%s]", dev_name, str);
+  if (attr == NULL) {
+    WARNING(PLUGIN_NAME "(%s): Unable to read manufacturer identifier (manfid)",
+            udev_device_get_sysname(mmc_dev));
     return EXIT_FAILURE;
   }
 
-  DEBUG(PLUGIN_NAME "(%s): try to read [%s]", dev_name, str);
-  if (fgets(buffer, size, fh) == NULL) {
-    ERROR(PLUGIN_NAME "(%s): Unable to read file [%s] (%s)", dev_name, str,
-          STRERRNO);
-    fclose(fh);
-    return EXIT_FAILURE;
-  }
-  fclose(fh);
-
-  /* Remove trailing whitespace for sysfs attr read */
-  length = strlen(buffer);
-  DEBUG(PLUGIN_NAME "(%s): Read %d characters [%s]", dev_name, length, str);
-  if (buffer > 0)
-    buffer[length - 1] = '\0';
-
+  *value = (int)strtol(attr, NULL, 0);
   return 0;
 }
 
-static int mmc_read_manfid(const char *dev_name, int *value) {
-  char buffer[4096];
+static int mmc_read_oemid(struct udev_device *mmc_dev, int *value) {
+  const char *attr = udev_device_get_sysattr_value(mmc_dev, "oemid");
 
-  if (mmc_read_dev_attr(dev_name, "manfid", buffer, sizeof(buffer)) ==
-      0) {
-    *value = (int)strtol(buffer, NULL, 0);
-    DEBUG(PLUGIN_NAME "(%s): [%s]=%s (%d)", dev_name, "manfid", buffer,
-          *value);
-    return 0;
+  if (attr == NULL) {
+    WARNING(PLUGIN_NAME "(%s): Unable to read original equipment manufacturer "
+                        "identifier (oemid)",
+            udev_device_get_sysname(mmc_dev));
+    return EXIT_FAILURE;
   }
 
-  WARNING(PLUGIN_NAME "(%s): Unable to read manufacturer identifier (manfid)",
-          dev_name);
-  return EXIT_FAILURE;
+  *value = (int)strtol(attr, NULL, 0);
+  return 0;
 }
+enum mmc_manfid {
+  MANUFACTUR_SWISSBIT = 0x5d,
+};
 
-static int mmc_read_oemid(const char *dev_name, int *value) {
-  char buffer[4096];
+enum mmc_oemid_swissbit {
+  OEMID_SWISSBIT_1 = 21314, // 0x5342
+};
 
-  if (mmc_read_dev_attr(dev_name, "oemid", buffer, sizeof(buffer)) == 0) {
-    *value = (int)strtol(buffer, NULL, 0);
-    DEBUG(PLUGIN_NAME "(%s): [%s]=%s (%d)", dev_name, "oemid", buffer,
-          *value);
-    return 0;
-  }
-
-  WARNING(
-      PLUGIN_NAME
-      "(%s): Unable to read original equipment manufacturer identifier (oemid)",
-      dev_name);
-  return EXIT_FAILURE;
-}
-
-static int mmc_read_emmc_generic(const char *dev_name) {
-  char buffer[4096];
-  uint8_t life_time_a, life_time_b;
-  uint8_t pre_eol;
+static int mmc_read_emmc_generic(struct udev_device *mmc_dev) {
+  const char *dev_name, *attr_life_time, *attr_pre_eol;
+  uint8_t life_time_a, life_time_b, pre_eol;
   int res = EXIT_FAILURE;
 
-  /* write generic eMMC 5.0 lifetime estimates / health reports */
-  if (mmc_read_dev_attr(dev_name, "life_time", buffer, sizeof(buffer)) == 0) {
-    if (sscanf(buffer, "%hhx %hhx", &life_time_a, &life_time_b) == 2) {
+  dev_name = udev_device_get_sysname(mmc_dev);
+  attr_life_time = udev_device_get_sysattr_value(mmc_dev, "life_time");
+  attr_pre_eol = udev_device_get_sysattr_value(mmc_dev, "pre_eol_info");
+
+  // write generic eMMC 5.0 lifetime estimates
+  if (attr_life_time != NULL) {
+    if (sscanf(attr_life_time, "%hhx %hhx", &life_time_a, &life_time_b) == 2) {
       mmc_submit(dev_name, "mmc_life_time_est_typ_a", (gauge_t)life_time_a);
       mmc_submit(dev_name, "mmc_life_time_est_typ_b", (gauge_t)life_time_b);
       res = EXIT_SUCCESS;
     }
   }
 
-  if (mmc_read_dev_attr(dev_name, "pre_eol_info", buffer, sizeof(buffer)) ==
-      0) {
-    if (sscanf(buffer, "%hhx", &pre_eol) == 1) {
+  // write generic eMMC 5.0 pre_eol estimate
+  if (attr_pre_eol != NULL) {
+    if (sscanf(attr_pre_eol, "%hhx", &pre_eol) == 1) {
       mmc_submit(dev_name, "mmc_pre_eol_info", (gauge_t)pre_eol);
       res = EXIT_SUCCESS;
     }
@@ -170,14 +142,6 @@ static int mmc_read_emmc_generic(const char *dev_name) {
 
   return res;
 }
-
-enum mmc_manfid {
-  MANUFACTUR_SWISSBIT = 93, // 0x5d
-};
-
-enum mmc_oemid_swissbit {
-  OEMID_SWISSBIT_1 = 21314, // 0x5342
-};
 
 // Size of string buffer with '\0'
 #define SWISSBIT_LENGTH_SPARE_BLOCKS 3
@@ -188,8 +152,8 @@ enum mmc_oemid_swissbit {
 #define SWISSBIT_SSR_START_BLOCK_ERASES 92
 #define SWISSBIT_SSR_START_POWER_ON 112
 
-static int mmc_read_ssr_swissbit(const char *dev_name) {
-  char buffer[4096];
+static int mmc_read_ssr_swissbit(struct udev_device *mmc_dev) {
+  const char *dev_name, *attr;
   int oemid;
   int value;
   int length;
@@ -197,7 +161,9 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
   char block_erases[SWISSBIT_LENGTH_BLOCK_ERASES];
   char power_on[SWISSBIT_LENGTH_POWER_ON];
 
-  if (mmc_read_oemid(dev_name, &oemid) != 0) {
+  dev_name = udev_device_get_sysname(mmc_dev);
+
+  if (mmc_read_oemid(mmc_dev, &oemid) != 0) {
     return EXIT_FAILURE;
   }
 
@@ -208,7 +174,9 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
     return EXIT_FAILURE;
   }
 
-  if (mmc_read_dev_attr(dev_name, "ssr", buffer, sizeof(buffer)) != 0) {
+  attr = udev_device_get_sysattr_value(mmc_dev, "ssr");
+
+  if (attr == NULL) {
     return EXIT_FAILURE;
   }
 
@@ -217,16 +185,17 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
    * One char represents a half byte (nibble).
    *
    */
-  length = strlen(buffer);
+  length = strlen(attr);
   DEBUG(PLUGIN_NAME ": %d byte read from SSR register", length);
   if (length < 128) {
     INFO(PLUGIN_NAME "(%s): The SSR register is not 128 byte long", dev_name);
     return EXIT_FAILURE;
   }
-  DEBUG(PLUGIN_NAME "(%s): [%s]=%s", dev_name, "ssr", buffer);
+
+  DEBUG(PLUGIN_NAME "(%s): [ssr]=%s", dev_name, attr);
 
   /* write mmc_bad_blocks */
-  sstrncpy(bad_blocks, &buffer[SWISSBIT_SSR_START_SPARE_BLOCKS],
+  sstrncpy(bad_blocks, &attr[SWISSBIT_SSR_START_SPARE_BLOCKS],
            sizeof(bad_blocks) - 1);
   bad_blocks[sizeof(bad_blocks) - 1] = '\0';
   value = (int)strtol(bad_blocks, NULL, 16);
@@ -234,10 +203,10 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
   value = abs(value - 100);
   DEBUG(PLUGIN_NAME "(%s): [bad_blocks] str=%s int=%d", dev_name, bad_blocks,
         value);
-  mmc_submit(dev_name, "mmc_bad_blocks", (gauge_t)value);
+  mmc_submit(dev_name, "mmc_bad_blocks", value);
 
   /* write mmc_block_erases */
-  sstrncpy(block_erases, &buffer[SWISSBIT_SSR_START_BLOCK_ERASES],
+  sstrncpy(block_erases, &attr[SWISSBIT_SSR_START_BLOCK_ERASES],
            sizeof(block_erases) - 1);
   block_erases[sizeof(block_erases) - 1] = '\0';
   value = (int)strtol(block_erases, NULL, 16);
@@ -245,63 +214,109 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
         block_erases, value);
   mmc_submit(dev_name, "mmc_block_erases", (gauge_t)value);
 
-  /* write mmc_power_cycles  */
-  sstrncpy(power_on, &buffer[SWISSBIT_SSR_START_POWER_ON],
-           sizeof(power_on) - 1);
+  /* write mmc_power_cycles */
+  sstrncpy(power_on, &attr[SWISSBIT_SSR_START_POWER_ON], sizeof(power_on) - 1);
   power_on[sizeof(power_on) - 1] = '\0';
   value = (int)strtol(power_on, NULL, 16);
   DEBUG(PLUGIN_NAME "(%s): [power_on] str=%s int=%d", dev_name, power_on,
         value);
   mmc_submit(dev_name, "mmc_power_cycles", (gauge_t)value);
 
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 static int mmc_read(void) {
-  DIR *dir;
-  struct dirent *dirent;
+  const char *path, *driver, *dev_name;
+  struct udev *handle_udev;
+  struct udev_enumerate *enumerate;
+  struct udev_list_entry *devices, *dev_list_entry;
+  struct udev_device *block_dev, *mmc_dev;
   int manfid;
   bool have_stats;
 
-  if ((dir = opendir(SYS_PATH)) == NULL) {
-    ERROR(PLUGIN_NAME ": Cannot open directory [%s]", SYS_PATH);
+  handle_udev = udev_new();
+  if (!handle_udev) {
+    ERROR(PLUGIN_NAME ": unable to initialize udev for device enumeration");
     return -1;
   }
 
-  while ((dirent = readdir(dir)) != NULL) {
-    have_stats = false;
-
-    if (dirent->d_name[0] == '.')
-      continue;
-
-    if (ignorelist_match(ignorelist, dirent->d_name))
-      continue;
-
-    if (mmc_read_manfid(dirent->d_name, &manfid) != 0)
-      continue;
-
-    DEBUG(PLUGIN_NAME "(%s): manfid=%d", dirent->d_name, manfid);
-
-    if (mmc_read_emmc_generic(dirent->d_name) == EXIT_SUCCESS)
-      have_stats = true;
-
-    switch (manfid) {
-    case MANUFACTUR_SWISSBIT:
-      mmc_read_ssr_swissbit(dirent->d_name);
-      have_stats = true;
-      break;
-    }
-
-    if (!have_stats) {
-      INFO(PLUGIN_NAME "(%s): Could not collect any info for manufactur id %d",
-           dirent->d_name, manfid);
-    }
+  enumerate = udev_enumerate_new(handle_udev);
+  if (enumerate == NULL) {
+    ERROR(PLUGIN_NAME ": udev_enumerate_new failed");
+    return -1;
   }
 
-  closedir(dir);
+  udev_enumerate_add_match_subsystem(enumerate, "block");
+
+  if (udev_enumerate_scan_devices(enumerate) < 0) {
+    WARNING(PLUGIN_NAME ": udev scan devices failed");
+    return -1;
+  }
+
+  devices = udev_enumerate_get_list_entry(enumerate);
+  if (devices == NULL) {
+    WARNING(PLUGIN_NAME ": udev did not return any block devices");
+    return -1;
+  }
+
+  // Iterate through all block devices in the system
+  udev_list_entry_foreach(dev_list_entry, devices) {
+    path = udev_list_entry_get_name(dev_list_entry);
+    block_dev = udev_device_new_from_syspath(handle_udev, path);
+
+    // Get the parent of the block device.
+    // Note that _get_parent() just gives us its reference to the parent device
+    // and does not increment the reference count, so mmc_dev should not be
+    // _unrefed.
+    mmc_dev = udev_device_get_parent(block_dev);
+    if (!mmc_dev) {
+      udev_device_unref(block_dev);
+      continue;
+    }
+
+    // Select only block devices that have a mmcblk device as first parent.
+    // This selects e.g. /dev/mmcblk1, but not /dev/mmcblk1p* or
+    // /dev/mmcblk1boot* and especially not /dev/sda, /dev/vda ....
+    driver = udev_device_get_driver(mmc_dev);
+    if (driver == NULL || strcmp(driver, "mmcblk") != 0) {
+      udev_device_unref(block_dev);
+      continue;
+    }
+
+    // Check if Device name (Something like "mmc2:0001") matches an entry in the
+    // ignore list
+    dev_name = udev_device_get_sysname(mmc_dev);
+    if (ignorelist_match(ignorelist, dev_name)) {
+      udev_device_unref(block_dev);
+      continue;
+    }
+
+    // Read generic health metrics that should be available for all eMMC 5.0+
+    // devices.
+    have_stats = (mmc_read_emmc_generic(mmc_dev) == EXIT_SUCCESS);
+
+    // Read more datailed vendor-specific health info
+    if (mmc_read_manfid(mmc_dev, &manfid) == EXIT_SUCCESS) {
+      switch (manfid) {
+      case MANUFACTUR_SWISSBIT:
+        have_stats |= (mmc_read_ssr_swissbit(mmc_dev) == EXIT_SUCCESS);
+        break;
+      }
+    }
+
+    // Print a warning if no info at all could be collected for a device
+    if (!have_stats) {
+      INFO(PLUGIN_NAME "(%s): Could not collect any info for device", dev_name);
+    }
+
+    udev_device_unref(block_dev);
+  }
+
+  udev_enumerate_unref(enumerate);
+  udev_unref(handle_udev);
 
   return 0;
-}
+} /* int mmc_read */
 
 void module_register(void) {
   plugin_register_config(PLUGIN_NAME, mmc_config, config_keys, config_keys_num);

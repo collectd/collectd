@@ -1491,8 +1491,9 @@ endif
 if BUILD_PLUGIN_MMC
 pkglib_LTLIBRARIES += mmc.la
 mmc_la_SOURCES = src/mmc.c
-mmc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-mmc_la_LIBADD = libignorelist.la
+mmc_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBUDEV_CPPFLAGS)
+mmc_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBUDEV_LDFLAGS)
+mmc_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBUDEV_LIBS)
 endif
 
 if BUILD_PLUGIN_MULTIMETER

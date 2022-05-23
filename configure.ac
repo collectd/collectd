@@ -6748,7 +6748,6 @@ if test "x$ac_system" = "xLinux"; then
   plugin_mcelog="yes"
   plugin_mdevents="yes"
   plugin_memory="yes"
-  plugin_mmc="yes"
   plugin_nfs="yes"
   plugin_numa="yes"
   plugin_processes="yes"
@@ -7010,6 +7009,10 @@ if test "x$have_termios_h" = "xyes"; then
     plugin_multimeter="yes"
   fi
   plugin_ted="yes"
+fi
+
+if test "x$with_libudev" = "xyes"; then
+  plugin_mmc="yes"
 fi
 
 if test "x$have_thread_info" = "xyes"; then
