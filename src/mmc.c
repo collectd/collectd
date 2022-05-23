@@ -151,13 +151,6 @@ static int mmc_read_oemid(const char *dev_name, int *value) {
   return EXIT_FAILURE;
 }
 
-#define MMC_POWER_CYCLES "mmc_power_cycles"
-#define MMC_BLOCK_ERASES "mmc_block_erases"
-#define MMC_BAD_BLOCKS "mmc_bad_blocks"
-#define MMC_LTE_A "mmc_life_time_est_typ_a"
-#define MMC_LTE_B "mmc_life_time_est_typ_b"
-#define MMC_EOL_INFO "mmc_pre_eol_info"
-
 static int mmc_read_emmc_generic(const char *dev_name) {
   char buffer[4096];
   uint8_t life_time_a, life_time_b;
@@ -167,8 +160,8 @@ static int mmc_read_emmc_generic(const char *dev_name) {
   /* write generic eMMC 5.0 lifetime estimates / health reports */
   if (mmc_read_dev_attr(dev_name, MMC_LIFE_TIME, buffer, sizeof(buffer)) == 0) {
     if (sscanf(buffer, "%hhx %hhx", &life_time_a, &life_time_b) == 2) {
-      mmc_submit(dev_name, MMC_LTE_A, (gauge_t)life_time_a);
-      mmc_submit(dev_name, MMC_LTE_B, (gauge_t)life_time_b);
+      mmc_submit(dev_name, "mmc_life_time_est_typ_a", (gauge_t)life_time_a);
+      mmc_submit(dev_name, "mmc_life_time_est_typ_b", (gauge_t)life_time_b);
       res = EXIT_SUCCESS;
     }
   }
@@ -176,7 +169,7 @@ static int mmc_read_emmc_generic(const char *dev_name) {
   if (mmc_read_dev_attr(dev_name, MMC_PRE_EOL_INFO, buffer, sizeof(buffer)) ==
       0) {
     if (sscanf(buffer, "%hhx", &pre_eol) == 1) {
-      mmc_submit(dev_name, MMC_EOL_INFO, (gauge_t)pre_eol);
+      mmc_submit(dev_name, "mmc_pre_eol_info", (gauge_t)pre_eol);
       res = EXIT_SUCCESS;
     }
   }
@@ -238,7 +231,7 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
   }
   DEBUG(PLUGIN_NAME "(%s): [%s]=%s", dev_name, MMC_SSR, buffer);
 
-  /* write MMC_BAD_BLOCKS */
+  /* write mmc_bad_blocks */
   sstrncpy(bad_blocks, &buffer[SWISSBIT_SSR_START_SPARE_BLOCKS],
            sizeof(bad_blocks) - 1);
   bad_blocks[sizeof(bad_blocks) - 1] = '\0';
@@ -247,25 +240,25 @@ static int mmc_read_ssr_swissbit(const char *dev_name) {
   value = abs(value - 100);
   DEBUG(PLUGIN_NAME "(%s): [bad_blocks] str=%s int=%d", dev_name, bad_blocks,
         value);
-  mmc_submit(dev_name, MMC_BAD_BLOCKS, (gauge_t)value);
+  mmc_submit(dev_name, "mmc_bad_blocks", (gauge_t)value);
 
-  /* write MMC_BLOCK_ERASES */
+  /* write mmc_block_erases */
   sstrncpy(block_erases, &buffer[SWISSBIT_SSR_START_BLOCK_ERASES],
            sizeof(block_erases) - 1);
   block_erases[sizeof(block_erases) - 1] = '\0';
   value = (int)strtol(block_erases, NULL, 16);
   DEBUG(PLUGIN_NAME "(%s): [block_erases] str=%s int=%d", dev_name,
         block_erases, value);
-  mmc_submit(dev_name, MMC_BLOCK_ERASES, (gauge_t)value);
+  mmc_submit(dev_name, "mmc_block_erases", (gauge_t)value);
 
-  /* write MMC_POWER_CYCLES */
+  /* write mmc_power_cycles  */
   sstrncpy(power_on, &buffer[SWISSBIT_SSR_START_POWER_ON],
            sizeof(power_on) - 1);
   power_on[sizeof(power_on) - 1] = '\0';
   value = (int)strtol(power_on, NULL, 16);
   DEBUG(PLUGIN_NAME "(%s): [power_on] str=%s int=%d", dev_name, power_on,
         value);
-  mmc_submit(dev_name, MMC_POWER_CYCLES, (gauge_t)value);
+  mmc_submit(dev_name, "mmc_power_cycles", (gauge_t)value);
 
   return 0;
 }
