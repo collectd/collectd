@@ -2695,15 +2695,15 @@ AC_ARG_WITH([libgcrypt],
     if test -f "$withval" && test -x "$withval"; then
       with_libgcrypt_config="$withval"
       with_libgcrypt="yes"
-    else if test -f "$withval/bin/gcrypt-config" && test -x "$withval/bin/gcrypt-config"; then
-      with_libgcrypt_config="$withval/bin/gcrypt-config"
+    else if test -f "$withval/bin/libgcrypt-config" && test -x "$withval/bin/libgcrypt-config"; then
+      with_libgcrypt_config="$withval/bin/libgcrypt-config"
       with_libgcrypt="yes"
     else if test -d "$withval"; then
       GCRYPT_CPPFLAGS="$GCRYPT_CPPFLAGS -I$withval/include"
       GCRYPT_LDFLAGS="$GCRYPT_LDFLAGS -L$withval/lib"
       with_libgcrypt="yes"
     else
-      with_libgcrypt_config="gcrypt-config"
+      with_libgcrypt_config="libgcrypt-config"
       with_libgcrypt="$withval"
     fi; fi; fi
   ],
