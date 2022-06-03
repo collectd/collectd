@@ -6931,6 +6931,10 @@ if test "x$have_termios_h" = "xyes"; then
   plugin_ted="yes"
 fi
 
+if test "x$with_libudev" = "xyes"; then
+  plugin_mmc="yes"
+fi
+
 if test "x$have_thread_info" = "xyes"; then
   plugin_processes="yes"
 fi
@@ -7538,6 +7542,7 @@ AC_MSG_RESULT([    memcachec . . . . . . $enable_memcachec])
 AC_MSG_RESULT([    memcached . . . . . . $enable_memcached])
 AC_MSG_RESULT([    memory  . . . . . . . $enable_memory])
 AC_MSG_RESULT([    mic . . . . . . . . . $enable_mic])
+AC_MSG_RESULT([    mmc . . . . . . . . . $enable_mmc])
 AC_MSG_RESULT([    modbus  . . . . . . . $enable_modbus])
 AC_MSG_RESULT([    mqtt  . . . . . . . . $enable_mqtt])
 AC_MSG_RESULT([    multimeter  . . . . . $enable_multimeter])
