@@ -2105,9 +2105,9 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%5.1lf%% Max,',
     'GPRINT:avg:LAST:%5.1lf%% Last\l'
     ],
-    ping => ['DEF:ping_avg={file}:ping:AVERAGE',
-    'DEF:ping_min={file}:ping:MIN',
-    'DEF:ping_max={file}:ping:MAX',
+    ping => ['DEF:ping_avg={file}:value:AVERAGE',
+    'DEF:ping_min={file}:value:MIN',
+    'DEF:ping_max={file}:value:MAX',
     "AREA:ping_max#$HalfBlue",
     "AREA:ping_min#$Canvas",
     "LINE1:ping_avg#$FullBlue:Ping",
