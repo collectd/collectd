@@ -192,7 +192,7 @@ sub _get_param_host
 {
   my %all_hosts = map { $_ => 1 } (_find_hosts ());
   my @selected_hosts = ();
-  for (param ('host'))
+  for (multi_param ('host'))
   {
     if (defined ($all_hosts{$_}))
     {
@@ -593,7 +593,7 @@ sub action_show_plugin
     _files_union ($all_plugins, $plugins_per_host->{$hosts[$i]});
   }
 
-  for (param ('plugin'))
+  for (multi_param ('plugin'))
   {
     if (defined ($all_plugins->{$_}))
     {
@@ -843,7 +843,7 @@ HTML
   if (keys %selected_hosts)
   {
     my $all_plugins = _find_files_for_hosts (keys %selected_hosts);
-    my %selected_plugins = map { $_ => 1 } (param ('plugin'));
+    my %selected_plugins = map { $_ => 1 } (multi_param ('plugin'));
 
     print qq(\t<select name="plugin" multiple="multiple" size="10">\n);
     for (sort (keys %$all_plugins))
@@ -2105,9 +2105,9 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%5.1lf%% Max,',
     'GPRINT:avg:LAST:%5.1lf%% Last\l'
     ],
-    ping => ['DEF:ping_avg={file}:ping:AVERAGE',
-    'DEF:ping_min={file}:ping:MIN',
-    'DEF:ping_max={file}:ping:MAX',
+    ping => ['DEF:ping_avg={file}:value:AVERAGE',
+    'DEF:ping_min={file}:value:MIN',
+    'DEF:ping_max={file}:value:MAX',
     "AREA:ping_max#$HalfBlue",
     "AREA:ping_min#$Canvas",
     "LINE1:ping_avg#$FullBlue:Ping",
