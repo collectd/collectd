@@ -1,7 +1,7 @@
 /**
  * collectd - src/gpu_sysman_test.c
  *
- * Copyright(c) 2020-2021 Intel Corporation. All rights reserved.
+ * Copyright(c) 2020-2022 Intel Corporation. All rights reserved.
  *
  * Licensed under the same terms and conditions as src/gpu_sysman.c.
  *
@@ -693,9 +693,8 @@ int metric_label_set(metric_t *m, char const *name, char const *value) {
     assert(pair);
   } else {
     assert(!pair);
-    pair = calloc(MAX_LABELS, sizeof(*pair));
+    pair = scalloc(MAX_LABELS, sizeof(*pair));
     m->label.ptr = pair;
-    assert(pair);
   }
   int i;
   for (i = 0; i < MAX_LABELS; i++) {
@@ -755,18 +754,16 @@ int metric_family_metric_append(metric_family_t *fam, metric_t m) {
     assert(metric);
   } else {
     assert(!metric);
-    metric = calloc(MAX_METRICS, sizeof(*metric));
+    metric = scalloc(MAX_METRICS, sizeof(*metric));
     fam->metric.ptr = metric;
-    assert(metric);
   }
   /* copy metric and pointers to its labels */
   metric[num] = m;
   label_pair_t *src = m.label.ptr;
   if (src) {
     /* alloc max size as labels can be added also to family metrics copies */
-    label_pair_t *dst = calloc(MAX_LABELS, sizeof(*src));
+    label_pair_t *dst = scalloc(MAX_LABELS, sizeof(*src));
     metric[num].label.ptr = dst;
-    assert(dst);
     for (size_t i = 0; i < m.label.num; i++) {
       dst[i].name = strdup(src[i].name);
       dst[i].value = strdup(src[i].value);
@@ -815,8 +812,7 @@ int plugin_register_config(const char *name,
   registry.name = strdup(name);
   registry.config = callback;
 
-  registry.keys = calloc(keys_num, sizeof(char *));
-  assert(registry.keys);
+  registry.keys = scalloc(keys_num, sizeof(char *));
   for (int i = 0; i < keys_num; i++) {
     assert(keys[i]);
     registry.keys[i] = strdup(keys[i]);
@@ -844,7 +840,7 @@ int plugin_register_shutdown(const char *name, plugin_shutdown_cb callback) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* helper code copied from collectd */
+/* helper code partially copied from collectd (initially Copyright Florian Foster) */
 
 static const struct {
   int level;
@@ -873,11 +869,21 @@ void plugin_log(int level, const char *format, ...) {
   fprintf(stderr, "%s (%s)\n", msg, log_levels[level].name);
 }
 
-/* from utils/common/common.c */
+/* safe function wrapper from utils/common/common.c */
 char *sstrncpy(char *dest, const char *src, size_t n) {
   strncpy(dest, src, n);
   dest[n - 1] = '\0';
   return dest;
+}
+void *scalloc(size_t nmemb, size_t size)  {
+  void *p = calloc(nmemb, size);
+  assert(p);
+  return p;
+}
+void *smalloc(size_t size)  {
+  void *p = malloc(size);
+  assert(p);
+  return p;
 }
 
 /* ------------------------------------------------------------------------- */

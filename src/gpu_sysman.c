@@ -178,11 +178,9 @@ static bool gpu_subarray_free(void **mem) {
 static void **gpu_subarray_realloc(void **mem, int count, int size) {
   uint32_t i;
   gpu_subarray_free(mem);
-  mem = malloc(config.samples * sizeof(void *));
-  assert(mem);
+  mem = smalloc(config.samples * sizeof(void *));
   for (i = 0; i < config.samples; i++) {
-    mem[i] = calloc(count, size);
-    assert(mem[i]);
+    mem[i] = scalloc(count, size);
   }
   return mem;
 }
@@ -422,8 +420,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
     return pci_bdf;
   }
   ze_device_memory_properties_t *mems;
-  mems = calloc(mem_count, sizeof(*mems));
-  assert(mems);
+  mems = scalloc(mem_count, sizeof(*mems));
   if (zeDeviceGetMemoryProperties(mdev, &mem_count, mems) !=
       ZE_RESULT_SUCCESS) {
     WARNING(PLUGIN_NAME ": failed to get %d memory properties", mem_count);
@@ -555,8 +552,7 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
                      uint32_t *scan_count, uint32_t *scan_ignored) {
   assert(!gpus);
   assert(*scan_count > 0);
-  gpus = calloc(*scan_count, sizeof(*gpus));
-  assert(gpus);
+  gpus = scalloc(*scan_count, sizeof(*gpus));
 
   uint32_t ignored = 0, count = 0;
   int retval = RET_NO_GPUS;
@@ -569,8 +565,7 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
       continue;
     }
     ze_device_handle_t *devs;
-    devs = calloc(dev_count, sizeof(*devs));
-    assert(devs);
+    devs = scalloc(dev_count, sizeof(*devs));
     if (zeDeviceGet(drivers[drv_idx], &dev_count, devs) != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get %d devices for driver %d", dev_count,
             drv_idx);
@@ -642,8 +637,7 @@ static int gpu_init(void) {
     return RET_NO_DRIVERS;
   }
   ze_driver_handle_t *drivers;
-  drivers = calloc(driver_count, sizeof(*drivers));
-  assert(drivers);
+  drivers = scalloc(driver_count, sizeof(*drivers));
   if (zeDriverGet(&driver_count, drivers) != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d L0 drivers", driver_count);
     free(drivers);
@@ -744,8 +738,7 @@ static bool gpu_ras(gpu_device_t *gpu) {
     return false;
   }
   zes_ras_handle_t *ras;
-  ras = calloc(ras_count, sizeof(*ras));
-  assert(ras);
+  ras = scalloc(ras_count, sizeof(*ras));
   if (zesDeviceEnumRasErrorSets(dev, &ras_count, ras) != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d RAS error sets", ras_count);
     free(ras);
@@ -948,8 +941,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
     return false;
   }
   zes_mem_handle_t *mems;
-  mems = calloc(mem_count, sizeof(*mems));
-  assert(mems);
+  mems = scalloc(mem_count, sizeof(*mems));
   if (zesDeviceEnumMemoryModules(dev, &mem_count, mems) != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d memory modules", mem_count);
     free(mems);
@@ -1062,8 +1054,7 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     return false;
   }
   zes_mem_handle_t *mems;
-  mems = calloc(mem_count, sizeof(*mems));
-  assert(mems);
+  mems = scalloc(mem_count, sizeof(*mems));
   if (zesDeviceEnumMemoryModules(dev, &mem_count, mems) != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d memory (BW) modules", mem_count);
     free(mems);
@@ -1075,9 +1066,8 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     if (gpu->membw) {
       free(gpu->membw);
     }
-    gpu->membw = calloc(mem_count, sizeof(*gpu->membw));
+    gpu->membw = scalloc(mem_count, sizeof(*gpu->membw));
     gpu->membw_count = mem_count;
-    assert(gpu->membw);
   }
 
   metric_family_t fam_ratio = {
@@ -1188,8 +1178,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     return false;
   }
   zes_freq_handle_t *freqs;
-  freqs = calloc(freq_count, sizeof(*freqs));
-  assert(freqs);
+  freqs = scalloc(freq_count, sizeof(*freqs));
   if (zesDeviceEnumFrequencyDomains(dev, &freq_count, freqs) !=
       ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d frequency domains", freq_count);
@@ -1327,8 +1316,7 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
     return false;
   }
   zes_freq_handle_t *freqs;
-  freqs = calloc(freq_count, sizeof(*freqs));
-  assert(freqs);
+  freqs = scalloc(freq_count, sizeof(*freqs));
   if (zesDeviceEnumFrequencyDomains(dev, &freq_count, freqs) !=
       ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d frequency (throttling) domains",
@@ -1343,9 +1331,8 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
     if (gpu->throttle) {
       free(gpu->throttle);
     }
-    gpu->throttle = calloc(freq_count, sizeof(*gpu->throttle));
+    gpu->throttle = scalloc(freq_count, sizeof(*gpu->throttle));
     gpu->throttle_count = freq_count;
-    assert(gpu->throttle);
   }
 
   metric_family_t fam_ratio = {
@@ -1419,8 +1406,7 @@ static bool gpu_temps(gpu_device_t *gpu) {
     return false;
   }
   zes_temp_handle_t *temps;
-  temps = calloc(temp_count, sizeof(*temps));
-  assert(temps);
+  temps = scalloc(temp_count, sizeof(*temps));
   if (zesDeviceEnumTemperatureSensors(dev, &temp_count, temps) !=
       ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d temperature sensors", temp_count);
@@ -1507,8 +1493,7 @@ static bool gpu_powers(gpu_device_t *gpu) {
     return false;
   }
   zes_pwr_handle_t *powers;
-  powers = calloc(power_count, sizeof(*powers));
-  assert(powers);
+  powers = scalloc(power_count, sizeof(*powers));
   if (zesDeviceEnumPowerDomains(dev, &power_count, powers) !=
       ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d power domains", power_count);
@@ -1521,9 +1506,8 @@ static bool gpu_powers(gpu_device_t *gpu) {
     if (gpu->power) {
       free(gpu->power);
     }
-    gpu->power = calloc(power_count, sizeof(*gpu->power));
+    gpu->power = scalloc(power_count, sizeof(*gpu->power));
     gpu->power_count = power_count;
-    assert(gpu->power);
   }
 
   metric_family_t fam_power = {
@@ -1593,8 +1577,7 @@ static bool gpu_engines(gpu_device_t *gpu) {
     return false;
   }
   zes_engine_handle_t *engines;
-  engines = calloc(engine_count, sizeof(*engines));
-  assert(engines);
+  engines = scalloc(engine_count, sizeof(*engines));
   if (zesDeviceEnumEngineGroups(dev, &engine_count, engines) !=
       ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d engine groups", engine_count);
@@ -1607,9 +1590,8 @@ static bool gpu_engines(gpu_device_t *gpu) {
     if (gpu->engine) {
       free(gpu->engine);
     }
-    gpu->engine = calloc(engine_count, sizeof(*gpu->engine));
+    gpu->engine = scalloc(engine_count, sizeof(*gpu->engine));
     gpu->engine_count = engine_count;
-    assert(gpu->engine);
   }
 
   metric_family_t fam_ratio = {
