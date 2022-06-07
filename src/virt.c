@@ -736,7 +736,7 @@ static void set_field_from_metadata(value_list_t *vl, virDomainPtr dom,
 
   const char *namespace = NULL;
   if (hm_ns == NULL) {
-    namespace = "http://openstack.org/xmlns/libvirt/nova/1.0";
+    namespace = "http://openstack.org/xmlns/libvirt/nova/1.1";
   } // namespace =hm_ns;
   else {
     namespace = hm_ns;
