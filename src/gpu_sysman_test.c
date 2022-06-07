@@ -605,7 +605,7 @@ static int cmp_labels(const void *a, const void *b) {
 }
 
 /* constructs metric name from metric family name and metric label values */
-static void compose_name(char *buf, size_t size, const char *name,
+static void compose_name(char *buf, size_t bufsize, const char *name,
                          metric_t *metric) {
   label_pair_t *label = metric->label.ptr;
   size_t num = metric->label.num;
@@ -616,8 +616,8 @@ static void compose_name(char *buf, size_t size, const char *name,
 
   /* compose names (metric family + metric label values) */
   size_t len = strlen(name);
-  assert(len < size);
-  strcpy(buf, name);
+  assert(len < bufsize);
+  sstrncpy(buf, name, bufsize);
   for (size_t i = 0; i < num; i++) {
     const char *name = label[i].name;
     const char *value = label[i].value;
@@ -626,9 +626,9 @@ static void compose_name(char *buf, size_t size, const char *name,
       /* do not add device PCI ID / sub device IDs to metric name */
       continue;
     }
-    len += snprintf(buf + len, sizeof(buf) - len, "/%s", value);
+    len += snprintf(buf + len, bufsize - len, "/%s", value);
   }
-  assert(len < size);
+  assert(len < bufsize);
 }
 
 static double get_value(metric_type_t type, value_t value) {
@@ -869,9 +869,15 @@ void plugin_log(int level, const char *format, ...) {
   va_list ap;
   va_start(ap, format);
   vsnprintf(msg, sizeof(msg), format, ap);
-  msg[sizeof(msg) - 1] = '\0';
   va_end(ap);
   fprintf(stderr, "%s (%s)\n", msg, log_levels[level].name);
+}
+
+/* from utils/common/common.c */
+char *sstrncpy(char *dest, const char *src, size_t n) {
+  strncpy(dest, src, n);
+  dest[n - 1] = '\0';
+  return dest;
 }
 
 /* ------------------------------------------------------------------------- */

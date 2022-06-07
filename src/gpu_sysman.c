@@ -314,7 +314,7 @@ static int gpu_config_init(unsigned int count) {
 static void log_uuid(const char *prefix, const uint8_t *byte, int len) {
   int offset = strlen(prefix);
   char buf[offset + 2 * len + 1];
-  strcpy(buf, prefix);
+  sstrncpy(buf, prefix, sizeof(buf));
   while (len-- > 0) {
     sprintf(buf + offset, "%02x", *byte++);
     offset += 2;
