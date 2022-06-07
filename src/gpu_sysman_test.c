@@ -840,7 +840,8 @@ int plugin_register_shutdown(const char *name, plugin_shutdown_cb callback) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* helper code partially copied from collectd (initially Copyright Florian Foster) */
+/* helper code partially copied from collectd (initially Copyright Florian
+ * Foster) */
 
 static const struct {
   int level;
@@ -875,12 +876,12 @@ char *sstrncpy(char *dest, const char *src, size_t n) {
   dest[n - 1] = '\0';
   return dest;
 }
-void *scalloc(size_t nmemb, size_t size)  {
+void *scalloc(size_t nmemb, size_t size) {
   void *p = calloc(nmemb, size);
   assert(p);
   return p;
 }
-void *smalloc(size_t size)  {
+void *smalloc(size_t size) {
   void *p = malloc(size);
   assert(p);
   return p;
