@@ -2105,6 +2105,54 @@ AC_SUBST([BUILD_WITH_CUDA_LIBS])
 
 # }}}
 
+# --with-sysman {{{
+AC_ARG_WITH([sysman],
+  [AS_HELP_STRING([--with-sysman@<:@=PREFIX@:>@], [Path to Level-Zero sysman.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_sysman_cppflags="-I$withval/include"
+      with_sysman_ldflags="-I$withval/lib"
+      with_sysman="yes"
+    else
+      with_sysman="$withval"
+    fi
+  ],
+  [with_sysman="no"]
+)
+
+if test "x$with_sysman" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_sysman_cppflags"
+
+  AC_CHECK_HEADERS([level_zero/ze_api.h level_zero/zes_api.h],
+    [with_sysman="yes"],
+    [with_sysman="no (ze_api.h / zes_api.h not found)"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_sysman" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_sysman_ldflags"
+
+  AC_CHECK_LIB([ze_loader], zeInit,
+    [with_sysman="yes"],
+    [with_sysman="no (libze_loader symbol 'zeInit' not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_sysman" = "xyes"; then
+  BUILD_WITH_SYSMAN_CPPFLAGS="$with_sysman_cppflags"
+  BUILD_WITH_SYSMAN_LDFLAGS="$with_sysman_ldflags"
+  BUILD_WITH_SYSMAN_LIBS="-lze_loader"
+fi
+
+AC_SUBST([BUILD_WITH_SYSMAN_CPPFLAGS])
+AC_SUBST([BUILD_WITH_SYSMAN_LDFLAGS])
+AC_SUBST([BUILD_WITH_SYSMAN_LIBS])
+# }}}
+
 # --with-libaquaero5 {{{
 AC_ARG_WITH([libaquaero5],
   [AS_HELP_STRING([--with-libaquaero5@<:@=PREFIX@:>@], [Path to aquatools-ng source code.])],
@@ -6546,6 +6594,7 @@ plugin_fhcount="no"
 plugin_fscache="no"
 plugin_gps="no"
 plugin_gpu_nvidia="no"
+plugin_gpu_sysman="no"
 plugin_grpc="no"
 plugin_hugepages="no"
 plugin_infiniband="no"
@@ -7006,6 +7055,7 @@ AC_PLUGIN([fscache],             [$plugin_fscache],           [fscache statistic
 AC_PLUGIN([gmond],               [$with_libganglia],          [Ganglia plugin])
 AC_PLUGIN([gps],                 [$plugin_gps],               [GPS plugin])
 AC_PLUGIN([gpu_nvidia],          [$with_cuda],                [NVIDIA GPU plugin])
+AC_PLUGIN([gpu_sysman],          [$with_sysman],              [Level-Zero Sysman GPU plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                       [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],         [Hugepages statistics])
@@ -7385,6 +7435,7 @@ AC_MSG_RESULT([    libsigrok   . . . . . $with_libsigrok])
 AC_MSG_RESULT([    libssl  . . . . . . . $with_libssl])
 AC_MSG_RESULT([    libslurm .  . . . . . $with_libslurm])
 AC_MSG_RESULT([    libstatgrab . . . . . $with_libstatgrab])
+AC_MSG_RESULT([    libsysman . . . . . . $with_sysman])
 AC_MSG_RESULT([    libtokyotyrant  . . . $with_libtokyotyrant])
 AC_MSG_RESULT([    libudev . . . . . . . $with_libudev])
 AC_MSG_RESULT([    libupsclient  . . . . $with_libupsclient])
@@ -7450,6 +7501,7 @@ AC_MSG_RESULT([    fscache . . . . . . . $enable_fscache])
 AC_MSG_RESULT([    gmond . . . . . . . . $enable_gmond])
 AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
 AC_MSG_RESULT([    gpu_nvidia  . . . . . $enable_gpu_nvidia])
+AC_MSG_RESULT([    gpu_sysman  . . . . . $enable_gpu_sysman])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
