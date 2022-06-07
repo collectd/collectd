@@ -13,8 +13,8 @@
  * See: https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
  *
  * Building unit-tests:
- *   gcc -I. -Idaemon  -I/path/to/level-zero -O3 -g --coverage \
- *       -Werror -Wall -Wextra -Wpedantic -Wcast-align=strict -Wformat-security \
+ *   gcc -I. -Idaemon  -I/path/to/level-zero -O3 -g --coverage -Werror \
+ *       -Wall -Wextra -Wpedantic -Wcast-align=strict -Wformat-security \
  *       gpu_sysman_test.c -o test_plugin_gpu_sysman
  *
  * Running unit-units:
