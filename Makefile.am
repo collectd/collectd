@@ -31,8 +31,6 @@ CLEANFILES = \
 	generic-jmx.jar \
 	org/collectd/api/*.class \
 	org/collectd/java/*.class \
-	prometheus.pb-c.c \
-	prometheus.pb-c.h \
 	src/pinba.pb-c.c \
 	src/pinba.pb-c.h \
 	types.grpc.pb.cc \
@@ -50,7 +48,6 @@ EXTRA_DIST = \
 	bindings/perl/uninstall_mod.pl \
 	contrib \
 	proto/collectd.proto \
-	proto/prometheus.proto \
 	proto/types.proto \
 	src/collectd-email.pod \
 	src/collectd-exec.pod \
@@ -1078,6 +1075,13 @@ if BUILD_PLUGIN_ETHSTAT
 pkglib_LTLIBRARIES += ethstat.la
 ethstat_la_SOURCES = src/ethstat.c
 ethstat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+ethstat_la_LIBADD = libignorelist.la
+
+test_plugin_ethstat_SOURCES = src/ethstat_test.c src/daemon/configfile.c src/daemon/types_list.c
+test_plugin_ethstat_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_ethstat_LDADD = libplugin_mock.la libignorelist.la libavltree.la liboconfig.la
+check_PROGRAMS += test_plugin_ethstat
+
 endif
 
 if BUILD_PLUGIN_FHCOUNT
@@ -2293,12 +2297,9 @@ endif
 if BUILD_PLUGIN_WRITE_PROMETHEUS
 pkglib_LTLIBRARIES += write_prometheus.la
 write_prometheus_la_SOURCES = src/write_prometheus.c
-nodist_write_prometheus_la_SOURCES = \
-	prometheus.pb-c.c \
-	prometheus.pb-c.h
-write_prometheus_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_CPPFLAGS) $(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
-write_prometheus_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
-write_prometheus_la_LIBADD = $(BUILD_WITH_LIBPROTOBUF_C_LIBS) $(BUILD_WITH_LIBMICROHTTPD_LIBS)
+write_prometheus_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
+write_prometheus_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
+write_prometheus_la_LIBADD = $(BUILD_WITH_LIBMICROHTTPD_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_REDIS
@@ -2404,14 +2405,6 @@ BUILT_SOURCES += src/pinba.pb-c.c src/pinba.pb-c.h
 
 src/pinba.pb-c.c src/pinba.pb-c.h: $(srcdir)/src/pinba.proto
 	$(AM_V_PROTOC_C)$(PROTOC_C) -I$(srcdir) --c_out . $(srcdir)/src/pinba.proto
-endif
-
-# Protocol buffer for the "write_prometheus" plugin.
-if BUILD_PLUGIN_WRITE_PROMETHEUS
-BUILT_SOURCES += prometheus.pb-c.c prometheus.pb-c.h
-
-prometheus.pb-c.c prometheus.pb-c.h: $(srcdir)/proto/prometheus.proto
-	$(AM_V_PROTOC_C)$(PROTOC_C) -I$(srcdir)/proto --c_out=$(builddir) $(srcdir)/proto/prometheus.proto
 endif
 
 if HAVE_PROTOC3
