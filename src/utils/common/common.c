@@ -235,6 +235,17 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
   return buf;
 } /* char *sstrerror */
 
+void *scalloc(size_t nmemb, size_t size) {
+  void *r;
+
+  if ((r = calloc(nmemb, size)) == NULL) {
+    ERROR("Not enough memory.");
+    exit(3);
+  }
+
+  return r;
+} /* void *scalloc */
+
 void *smalloc(size_t size) {
   void *r;
 
