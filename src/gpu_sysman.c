@@ -34,15 +34,7 @@
  *   one GPU device is available with PCI ID
  * - Sysman errors in metrics queries cause just given metric to be
  *   disabled (for given GPU)
- *
- * Testing/validation:
- * - See gpu_sysman_test.c
  */
-#ifdef TEST_BUILD
-#define KERNEL_LINUX 1
-#define FP_LAYOUT_NEED_NOTHING 1
-#endif
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

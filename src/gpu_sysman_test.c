@@ -13,8 +13,8 @@
  * See: https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
  *
  * Building unit-tests:
- *   gcc -DTEST_BUILD -I. -Idaemon -I/path/to/level-zero \
- *       -O3 -g --coverage -Werror -Wall -Wextra -Wformat-security \
+ *   gcc -I. -Idaemon  -I/path/to/level-zero -O3 -g --coverage \
+ *       -Werror -Wall -Wextra -Wpedantic -Wcast-align=strict -Wformat-security \
  *       gpu_sysman_test.c -o test_plugin_gpu_sysman
  *
  * Running unit-units:
@@ -59,6 +59,8 @@
  * - Plugin init, shutdown and re-init works without problems
  */
 
+#define KERNEL_LINUX 1
+#define FP_LAYOUT_NEED_NOTHING 1
 #include "gpu_sysman.c" /* test this */
 
 /* logging check bit, and per-phase logging bits enabling it */
