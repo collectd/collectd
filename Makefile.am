@@ -130,6 +130,7 @@ noinst_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
+	libformat_influxdb.la \
 	libformat_graphite.la \
 	libheap.la \
 	libignorelist.la \
@@ -436,6 +437,10 @@ libplugin_mock_la_SOURCES = \
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libcommon.la libignorelist.la libmetadata.la $(COMMON_LIBS)
+
+libformat_influxdb_la_SOURCES = \
+	src/utils/format_influxdb/format_influxdb.c \
+	src/utils/format_influxdb/format_influxdb.h
 
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
@@ -1119,6 +1124,21 @@ gpu_nvidia_la_SOURCES = src/gpu_nvidia.c
 gpu_nvidia_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_CUDA_CPPFLAGS)
 gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_CUDA_LDFLAGS)
 gpu_nvidia_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
+endif
+
+if BUILD_PLUGIN_GPU_SYSMAN
+pkglib_LTLIBRARIES += gpu_sysman.la
+gpu_sysman_la_SOURCES = src/gpu_sysman.c
+gpu_sysman_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_SYSMAN_CPPFLAGS)
+gpu_sysman_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_SYSMAN_LDFLAGS)
+gpu_sysman_la_LIBADD = $(BUILD_WITH_SYSMAN_LIBS)
+
+test_plugin_gpu_sysman_SOURCES = src/gpu_sysman_test.c
+test_plugin_gpu_sysman_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_SYSMAN_CPPFLAGS)
+test_plugin_gpu_sysman_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_gpu_sysman_LDADD =
+check_PROGRAMS += test_plugin_gpu_sysman
+TESTS += test_plugin_gpu_sysman
 endif
 
 if BUILD_PLUGIN_GRPC
@@ -2248,7 +2268,7 @@ write_http_la_SOURCES = \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = libcmds.la libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
+write_http_la_LIBADD = libcmds.la libformat_json.la libformat_influxdb.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_INFLUXDB_UDP
@@ -2256,8 +2276,9 @@ pkglib_LTLIBRARIES += write_influxdb_udp.la
 write_influxdb_udp_la_SOURCES = src/write_influxdb_udp.c
 write_influxdb_udp_la_CPPFLAGS = $(AM_CPPFLAGS)
 write_influxdb_udp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_influxdb_udp_la_LIBADD = libformat_influxdb.la
 if BUILD_WITH_LIBSOCKET
-write_influxdb_udp_la_LIBADD = -lsocket
+write_influxdb_udp_la_LIBADD += -lsocket
 endif
 endif
 

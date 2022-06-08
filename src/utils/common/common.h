@@ -79,6 +79,7 @@ size_t strnlen(const char *s, size_t maxlen);
 #endif
 
 char *sstrndup(const char *s, size_t n);
+void *scalloc(size_t nmemb, size_t size);
 void *smalloc(size_t size);
 char *sstrerror(int errnum, char *buf, size_t buflen);
 
