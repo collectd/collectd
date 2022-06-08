@@ -24,16 +24,18 @@
  * Authors:
  * - Eero Tamminen <eero.t.tamminen@intel.com>
  *
- * See: https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
+ * See:
+ * - https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
+ * - https://spec.oneapi.io/level-zero/latest/sysman/api.html
  *
  * Error handling:
- * - All allocation checking is done with asserts, so plugin will abort
- *   if any allocation fails
+ * - Allocations are done using collectd scalloc(), smalloc() and sstrdup()
+ *   helpers which log an error and exit on allocation failures
  * - All Sysman API call errors are logged
- * - Sysman errors do not cause plugin initialization failure if even
- *   one GPU device is available with PCI ID
- * - Sysman errors in metrics queries cause just given metric to be
- *   disabled (for given GPU)
+ * - Sysman errors cause plugin initialization failure only when
+ *   no GPU devices (with PCI ID) are available
+ * - Sysman errors in metric queries cause just given metric to be
+ *    disabled for given GPU
  */
 #include <assert.h>
 #include <stdio.h>
@@ -347,8 +349,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
           idx, ret);
     return NULL;
   }
-  pci_bdf = strdup(buf);
-  assert(pci_bdf);
+  pci_bdf = sstrdup(buf);
   if (!config.gpuinfo) {
     return pci_bdf;
   }
@@ -498,7 +499,7 @@ static bool add_gpu_labels(gpu_device_t *gpu, char *pci_bdf) {
       line[nread - 1] = '\0'; // remove newline
       if (strcmp(line + prefix_size, pci_bdf) == 0) {
         INFO(PLUGIN_NAME ": %s <-> %s", dev_file, pci_bdf);
-        gpu->dev_file = strdup(dev_file);
+        gpu->dev_file = sstrdup(dev_file);
         break;
       }
     }

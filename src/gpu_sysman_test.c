@@ -8,9 +8,11 @@
  * Authors:
  * - Eero Tamminen <eero.t.tamminen@intel.com>
  *
- * Testing for gpu_sysman.c Sysman API and its error handling.
+ * Testing for gpu_sysman.c Sysman API usage and error handling.
  *
- * See: https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
+ * See:
+ * - https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
+ * - https://spec.oneapi.io/level-zero/latest/sysman/api.html
  *
  * Building unit-tests:
  *   gcc -I. -Idaemon  -I/path/to/level-zero -O3 -g --coverage -Werror \
@@ -30,32 +32,34 @@
  *	grep '###' gpu_sysman.c.gcov
  *
  * Note:
- * - Code lines run coverage is best with code compiled using -O3 because
+ * - Coverage of code lines is best when code is compiled using -O3 because
  *   it causes gcc to convert switch-cases to lookup tables.  Builds without
  *   optimizations have significantly lower coverage due to each (trivial
  *   and build-time verifiable) switch-case being considered separately
  *
  *
  * Mock up functionality details:
+ * - Allocation helpers assert instead of exiting on alloc failure,
+ *   to get a backtrace
  * - All functions return only a single property or metric item,
  *   until hitting earlier set call limit, after which they return error
  * - All metric property functions report them coming from subdevice 0
  *   (as non-subdevice cases can be tested on more easily available real HW)
  * - Except for device.prop.type, subdev type in metric property, and
- *   actual metric values in metric state structs, all other struct members
+ *   actual metric values in metric state structs, all struct members
  *   are zeroed
- * - Memory free metric is decreased, all other metric values are increased
- *   after each query
+ * - After each query, memory free metric is decreased, all other metric
+ *   values are increased
  *
  * Testing validates that:
  * - All registered config variables work and invalid config values are rejected
  * - All mocked up Sysman functions get called when no errors are returned and
  *   count of Sysman calls is always same for plugin init() and read() callbacks
- * - Plugin dispatch API receives correct values for all metrics both in
- *   single-sampling and multi-sampling configurations
- * - Single Sysman call failing during init or metrics queries causes logging
- *   of the failure, and in case of metric queries, disabling of the (only)
- *   relevant metric, and that working for all metrics and Sysman APIs they call
+ * - Plugin dispatch API receives correct values for all metrics, both in
+ *   single-sampling, and in multi-sampling configurations
+ * - Every Sysman call failure during init or metrics queries is logged, and
+ *   in case of metric queries, the corresponding metric is disabled, and
+ *   this happens for all metrics and Sysman APIs they call
  * - Plugin init, shutdown and re-init works without problems
  */
 
@@ -695,7 +699,7 @@ int metric_label_set(metric_t *m, char const *name, char const *value) {
   for (i = 0; i < MAX_LABELS; i++) {
     if (!pair[i].name) {
       /* not found -> new label */
-      pair[i].name = strdup(name);
+      pair[i].name = sstrdup(name);
       m->label.num++;
       break;
     }
@@ -705,7 +709,7 @@ int metric_label_set(metric_t *m, char const *name, char const *value) {
   }
   assert(value); /* removing label with NULL 'value' is not supported */
   free(pair[i].value);
-  pair[i].value = strdup(value);
+  pair[i].value = sstrdup(value);
   return 0;
 }
 
@@ -760,8 +764,8 @@ int metric_family_metric_append(metric_family_t *fam, metric_t m) {
     label_pair_t *dst = scalloc(MAX_LABELS, sizeof(*src));
     metric[num].label.ptr = dst;
     for (size_t i = 0; i < m.label.num; i++) {
-      dst[i].name = strdup(src[i].name);
-      dst[i].value = strdup(src[i].value);
+      dst[i].name = sstrdup(src[i].name);
+      dst[i].value = sstrdup(src[i].value);
     }
   }
   fam->metric.num++;
@@ -806,13 +810,13 @@ int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),
                            const char **keys, int keys_num) {
   assert(name && callback && keys && keys_num > 0);
-  registry.name = strdup(name);
+  registry.name = sstrdup(name);
   registry.config = callback;
 
   registry.keys = scalloc(keys_num, sizeof(char *));
   for (int i = 0; i < keys_num; i++) {
     assert(keys[i]);
-    registry.keys[i] = strdup(keys[i]);
+    registry.keys[i] = sstrdup(keys[i]);
   }
   registry.key_count = keys_num;
   return 0;
@@ -882,6 +886,11 @@ void *smalloc(size_t size) {
   void *p = malloc(size);
   assert(p);
   return p;
+}
+char *sstrdup(const char *s1) {
+  char *s2 = strdup(s1);
+  assert(s2);
+  return s2;
 }
 
 /* ------------------------------------------------------------------------- */
