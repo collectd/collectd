@@ -1126,6 +1126,21 @@ gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_CUDA_LDFLAGS)
 gpu_nvidia_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
 endif
 
+if BUILD_PLUGIN_GPU_SYSMAN
+pkglib_LTLIBRARIES += gpu_sysman.la
+gpu_sysman_la_SOURCES = src/gpu_sysman.c
+gpu_sysman_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_SYSMAN_CPPFLAGS)
+gpu_sysman_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_SYSMAN_LDFLAGS)
+gpu_sysman_la_LIBADD = $(BUILD_WITH_SYSMAN_LIBS)
+
+test_plugin_gpu_sysman_SOURCES = src/gpu_sysman_test.c
+test_plugin_gpu_sysman_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_SYSMAN_CPPFLAGS)
+test_plugin_gpu_sysman_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_gpu_sysman_LDADD =
+check_PROGRAMS += test_plugin_gpu_sysman
+TESTS += test_plugin_gpu_sysman
+endif
+
 if BUILD_PLUGIN_GRPC
 pkglib_LTLIBRARIES += grpc.la
 grpc_la_SOURCES = src/grpc.cc

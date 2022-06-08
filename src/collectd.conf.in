@@ -133,6 +133,7 @@
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
 #@BUILD_PLUGIN_GMOND_TRUE@LoadPlugin gmond
 #@BUILD_PLUGIN_GPS_TRUE@LoadPlugin gps
+#@BUILD_PLUGIN_GPU_SYSMAN_TRUE@LoadPlugin gpu_sysman
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 #@BUILD_PLUGIN_HUGEPAGES_TRUE@LoadPlugin hugepages
@@ -790,6 +791,22 @@
 #   IgnoreSelected false
 #   InstanceByGPUIndex true
 #   InstanceByGPUName true
+#</Plugin>
+
+#<Plugin gpu_sysman>
+#   Samples 1
+#   LogGpuInfo false
+#   MetricsOutput both
+#   DisableMemory false
+#   DisableMemoryBandwidth false
+#   DisableFrequency false
+#   DisableThrottleTime false
+#   DisableTemperature false
+#   DisablePower false
+#   DisableEngine false
+#   DisableEngineSingle false
+#   DisableErrors false
+#   DisableSeparateErrors false
 #</Plugin>
 
 #<Plugin grpc>
