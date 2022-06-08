@@ -29,6 +29,7 @@
 #include "utils/cmds/putmetric.h"
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
+#include "utils/format_influxdb/format_influxdb.h"
 #include "utils/format_json/format_json.h"
 #include "utils/format_kairosdb/format_kairosdb.h"
 
@@ -69,6 +70,7 @@ struct wh_callback_s {
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
+#define WH_FORMAT_INFLUXDB 3
   int format;
   bool send_metrics;
   bool send_notifications;
@@ -88,6 +90,8 @@ struct wh_callback_s {
 
   int data_ttl;
   char *metrics_prefix;
+
+  char *unix_socket_path;
 };
 typedef struct wh_callback_s wh_callback_t;
 
@@ -133,10 +137,11 @@ static void wh_log_http_error(wh_callback_t *cb) {
 }
 
 /* must hold cb->curl_lock when calling */
-static int wh_post(wh_callback_t *cb, char const *data) {
+static int wh_post(wh_callback_t *cb, char const *data, long size) {
   pthread_mutex_lock(&cb->curl_lock);
 
   curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
+  curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDSIZE, size);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, &wh_curl_write_callback);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, (void *)cb);
@@ -245,6 +250,11 @@ static int wh_callback_init(wh_callback_t *cb) {
     if (cb->clientkeypass != NULL)
       curl_easy_setopt(cb->curl, CURLOPT_SSLKEYPASSWD, cb->clientkeypass);
   }
+#ifdef CURL_VERSION_UNIX_SOCKETS
+  if (cb->unix_socket_path) {
+    curl_easy_setopt(cb->curl, CURLOPT_UNIX_SOCKET_PATH, cb->unix_socket_path);
+  }
+#endif // CURL_VERSION_UNIX_SOCKETS
 
   strbuf_reset(&cb->send_buffer);
 
@@ -282,6 +292,7 @@ static int wh_flush(cdtime_t timeout,
   }
 
   char const *json = strdup(cb->send_buffer.ptr);
+  const size_t size = cb->send_buffer.pos;
   strbuf_reset(&cb->send_buffer);
   cb->send_buffer_init_time = cdtime();
   pthread_mutex_unlock(&cb->send_buffer_lock);
@@ -290,7 +301,7 @@ static int wh_flush(cdtime_t timeout,
     return ENOMEM;
   }
 
-  return wh_post(cb, json);
+  return wh_post(cb, json, size);
 } /* int wh_flush */
 
 static void wh_callback_free(void *data) {
@@ -388,6 +399,25 @@ static int wh_write_kairosdb(metric_family_t const *fam, wh_callback_t *cb) {
   return 0;
 } /* int wh_write_kairosdb */
 
+static int wh_write_influxdb(metric_family_t const *fam, wh_callback_t *cb) {
+  pthread_mutex_lock(&cb->send_buffer_lock);
+
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t metric = fam->metric.ptr[i];
+    int status =
+        format_influxdb_point(&cb->send_buffer, metric, cb->store_rates);
+    if (status != 0) {
+      pthread_mutex_unlock(&cb->send_buffer_lock);
+      ERROR("write_http plugin: format_influxdb_point failed: %s",
+            STRERROR(status));
+      return status;
+    }
+  }
+
+  pthread_mutex_unlock(&cb->send_buffer_lock);
+  return 0;
+} /* wh_write_influxdb */
+
 static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
   if ((fam == NULL) || (user_data == NULL)) {
     return EINVAL;
@@ -404,6 +434,9 @@ static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
     break;
   case WH_FORMAT_KAIROSDB:
     status = wh_write_kairosdb(fam, cb);
+    break;
+  case WH_FORMAT_INFLUXDB:
+    status = wh_write_influxdb(fam, cb);
     break;
   default:
     status = wh_write_command(fam, cb);
@@ -436,7 +469,7 @@ static int wh_notify(notification_t const *n, user_data_t *ud) {
     return -1;
   }
 
-  status = wh_post(cb, alert);
+  status = wh_post(cb, alert, -1);
   pthread_mutex_unlock(&cb->send_buffer_lock);
 
   return status;
@@ -459,6 +492,8 @@ static int config_set_format(wh_callback_t *cb, oconfig_item_t *ci) {
     cb->format = WH_FORMAT_JSON;
   else if (strcasecmp("KAIROSDB", string) == 0)
     cb->format = WH_FORMAT_KAIROSDB;
+  else if (strcasecmp("INFLUXDB", string) == 0)
+    cb->format = WH_FORMAT_INFLUXDB;
   else {
     ERROR("write_http plugin: Invalid format string: %s", string);
     return -1;
@@ -508,6 +543,7 @@ static int wh_config_node(oconfig_item_t *ci) {
   cb->data_ttl = 0;
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
   cb->curl_stats = NULL;
+  cb->unix_socket_path = NULL;
 
   if (cb->metrics_prefix == NULL) {
     ERROR("write_http plugin: strdup failed.");
@@ -605,7 +641,13 @@ static int wh_config_node(oconfig_item_t *ci) {
       status = cf_util_get_int(child, &cb->data_ttl);
     else if (strcasecmp("Prefix", child->key) == 0)
       status = cf_util_get_string(child, &cb->metrics_prefix);
-    else {
+    else if (strcasecmp("UnixSocket", child->key) == 0) {
+#ifdef CURL_VERSION_UNIX_SOCKETS
+      status = cf_util_get_string(child, &cb->unix_socket_path);
+#else
+      WARNING("libcurl < 7.40.0, UnixSocket config is ignored");
+#endif // CURL_VERSION_UNIX_SOCKETS
+    } else {
       ERROR("write_http plugin: Invalid configuration "
             "option: %s.",
             child->key);
