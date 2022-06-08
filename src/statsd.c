@@ -553,7 +553,7 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
   return 0;
 } /* }}} int statsd_network_init */
 
-static void *statsd_network_thread(void *args) /* {{{ */
+static void *statsd_network_thread(__attribute__((unused)) void *args) /* {{{ */
 {
   struct pollfd *fds = NULL;
   size_t fds_num = 0;

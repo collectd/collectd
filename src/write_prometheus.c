@@ -120,21 +120,23 @@ static void format_text(strbuf_t *buf) {
 
 /* http_handler is the callback called by the microhttpd library. It essentially
  * handles all HTTP request aspects and creates an HTTP response. */
-static MHD_RESULT http_handler(void *cls, struct MHD_Connection *connection,
-                               const char *url, const char *method,
-                               const char *version, const char *upload_data,
-                               size_t *upload_data_size,
+static MHD_RESULT http_handler(__attribute__((unused)) void *cls,
+                               struct MHD_Connection *connection,
+                               __attribute__((unused)) const char *url,
+                               const char *method,
+                               __attribute__((unused)) const char *version,
+                               __attribute__((unused)) const char *upload_data,
+                               __attribute__((unused)) size_t *upload_data_size,
                                void **connection_state) {
   if (strcmp(method, MHD_HTTP_METHOD_GET) != 0) {
     return MHD_NO;
   }
 
-  /* On the first call for each connection, return without anything further.
-   * Apparently not everything has been initialized yet or so; the docs are not
-   * very specific on the issue. */
+  /* According to documentation, first call for each connection is after headers
+   * have been parsed, and should be used only for reporting errors */
   if (*connection_state == NULL) {
-    /* set to a random non-NULL pointer. */
-    *connection_state = &(int){42};
+    /* keep track of connection state */
+    *connection_state = &"called";
     return MHD_YES;
   }
 
@@ -491,6 +493,7 @@ static int prom_missing(metric_family_t const *fam,
         continue;
       }
       metric_family_free(prom_fam);
+      break;
     }
   }
 
