@@ -246,8 +246,8 @@ static MHD_RESULT http_handler(void *cls, struct MHD_Connection *connection,
    * Apparently not everything has been initialized yet or so; the docs are not
    * very specific on the issue. */
   if (*connection_state == NULL) {
-    /* set to a random non-NULL pointer. */
-    *connection_state = &(int){42};
+    /* keep track of connection state */
+    *connection_state = &"called";
     return MHD_YES;
   }
 
