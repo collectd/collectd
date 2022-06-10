@@ -19,16 +19,16 @@
  * 	Edgar Fuß <ef@math.uni-bonn.de>
  **/
 
-#include "collectd.h"
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "collectd.h"
 
-#include <stdlib.h>
-#include <limits.h>
-#include <unistd.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <sys/ioctl.h>
+#include <unistd.h>
 
 /* reordering the #include's will make it fail to compile */
 /* clang-format off */
@@ -46,27 +46,19 @@ static report_mask_t report_mask = 0;
 static int ipl, ipstate;
 static ips_stat_t ipsst;
 
-static void uint_gauge(void *x, value_t *v) {
-	v->gauge = *(u_int *)x;
-}
+static void uint_gauge(void *x, value_t *v) { v->gauge = *(u_int *)x; }
 
-static void ulong_gauge(void *x, value_t *v) {
-	v->gauge = *(u_long *)x;
-}
+static void ulong_gauge(void *x, value_t *v) { v->gauge = *(u_long *)x; }
 
-static void uint_derive(void *x, value_t *v) {
-	v->derive = *(u_int *)x;
-}
+static void uint_derive(void *x, value_t *v) { v->derive = *(u_int *)x; }
 
-static void ulong_derive(void *x, value_t *v) {
-	v->derive = *(u_long *)x;
-}
+static void ulong_derive(void *x, value_t *v) { v->derive = *(u_long *)x; }
 
 struct report {
-	char *name;	/* config and type instance name */
-	void *stat;	/* pointer to field in ipsst structure */
-	char *type;	/* collectd type name */
-	void (*conv)(void *, value_t *);	/* conversion function */
+  char *name;                      /* config and type instance name */
+  void *stat;                      /* pointer to field in ipsst structure */
+  char *type;                      /* collectd type name */
+  void (*conv)(void *, value_t *); /* conversion function */
 };
 /* formatting will make the table much harder to read */
 /* clang-format off */
@@ -175,116 +167,118 @@ struct report report_tab[] = {
 /* clang-format on */
 
 static int ipfilter_config(const char *key, const char *value) /* {{{ */ {
-	char sep[] = " ,";
-	char *w;
+  char sep[] = " ,";
+  char *w;
 
-	if (STATIC_ARRAY_SIZE(report_tab) > sizeof(report_mask_t) * CHAR_BIT) {
-		ERROR("ipfilter plugin: report_tab too large (report_mask_t too small)");
-		return -1;
-	}
-	if (strcasecmp(key, "Report") == 0) {
-		char *v = strdup(value);
-		for (w = strtok(v, sep); w; w = strtok(NULL, sep)) {
-			struct report *r;
-			report_mask_t m;
-			int found = 0;
-			
-			for (r = report_tab, m = 1; r->name; r++, m <<= 1) {
-				if (m == 0) {
-					ERROR("ipfilter plugin: too many reports");
-					return 1;
-				}
-				if (strcmp(w, r->name) == 0) {
-					found = 1; break;
-				}
-			}
-			if (found) {
-				report_mask |= m;
-			} else {
-				WARNING("ipfilter plugin: unknown report %s", w);
-			}
-		}
-	} else
-		return -1;
+  if (STATIC_ARRAY_SIZE(report_tab) > sizeof(report_mask_t) * CHAR_BIT) {
+    ERROR("ipfilter plugin: report_tab too large (report_mask_t too small)");
+    return -1;
+  }
+  if (strcasecmp(key, "Report") == 0) {
+    char *v = strdup(value);
+    for (w = strtok(v, sep); w; w = strtok(NULL, sep)) {
+      struct report *r;
+      report_mask_t m;
+      int found = 0;
 
-	return 0;
+      for (r = report_tab, m = 1; r->name; r++, m <<= 1) {
+        if (m == 0) {
+          ERROR("ipfilter plugin: too many reports");
+          return 1;
+        }
+        if (strcmp(w, r->name) == 0) {
+          found = 1;
+          break;
+        }
+      }
+      if (found) {
+        report_mask |= m;
+      } else {
+        WARNING("ipfilter plugin: unknown report %s", w);
+      }
+    }
+  } else
+    return -1;
+
+  return 0;
 } /* }}} int ipfilter_config */
 
 static int ipfilter_init(void) /* {{{ */ {
-	ipfobj_t ipfo;
-	struct friostat fio;
+  ipfobj_t ipfo;
+  struct friostat fio;
 
-	if ((ipl = open(IPL_NAME, O_RDONLY)) == -1) {
-		ERROR("ipfilter plugin: open(\"%s\": %s)", IPL_NAME, STRERRNO);
-		return 1;
-	}
-	bzero(&ipfo, sizeof(ipfo));
-	ipfo.ipfo_rev = IPFILTER_VERSION;
-	ipfo.ipfo_type = IPFOBJ_IPFSTAT;
-	ipfo.ipfo_ptr = &fio;
-	ipfo.ipfo_size = sizeof(fio);
-	if (ioctl(ipl, SIOCGETFS, &ipfo)) {
-		ERROR("ipfilter plugin: ioctl(IPFSTAT): %s)", STRERRNO);
-		return 1;
-	}
-	if (strncmp(IPL_VERSION, fio.f_version, sizeof(fio.f_version))) {
-		ERROR("ipfilter plugin: version mismatch");
-		return 1;
-	}
+  if ((ipl = open(IPL_NAME, O_RDONLY)) == -1) {
+    ERROR("ipfilter plugin: open(\"%s\": %s)", IPL_NAME, STRERRNO);
+    return 1;
+  }
+  bzero(&ipfo, sizeof(ipfo));
+  ipfo.ipfo_rev = IPFILTER_VERSION;
+  ipfo.ipfo_type = IPFOBJ_IPFSTAT;
+  ipfo.ipfo_ptr = &fio;
+  ipfo.ipfo_size = sizeof(fio);
+  if (ioctl(ipl, SIOCGETFS, &ipfo)) {
+    ERROR("ipfilter plugin: ioctl(IPFSTAT): %s)", STRERRNO);
+    return 1;
+  }
+  if (strncmp(IPL_VERSION, fio.f_version, sizeof(fio.f_version))) {
+    ERROR("ipfilter plugin: version mismatch");
+    return 1;
+  }
 
-	if ((ipstate = open(IPSTATE_NAME, O_RDONLY)) == -1) {
-		ERROR("ipfilter plugin: open(\"%s\": %s)", IPSTATE_NAME, STRERRNO);
-		return 1;
-	}
-	return 0;
+  if ((ipstate = open(IPSTATE_NAME, O_RDONLY)) == -1) {
+    ERROR("ipfilter plugin: open(\"%s\": %s)", IPSTATE_NAME, STRERRNO);
+    return 1;
+  }
+  return 0;
 } /* }}} int ipfilter_init */
 
 static int ipfilter_shutdown(void) /* {{{ */ {
-	close(ipl);
-	close(ipstate);
-	return 0;
+  close(ipl);
+  close(ipstate);
+  return 0;
 } /* }}} int ipfilter_shutdown */
 
 static int ipfilter_read(void) /* {{{ */ {
-	ipfobj_t ipfo;
-	struct report *r;
-	report_mask_t m;
-	value_list_t vl = VALUE_LIST_INIT;
-	value_t values[1];
+  ipfobj_t ipfo;
+  struct report *r;
+  report_mask_t m;
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[1];
 
-	bzero(&ipfo, sizeof(ipfo));
-	ipfo.ipfo_rev = IPFILTER_VERSION;
-	ipfo.ipfo_type = IPFOBJ_STATESTAT;
-	ipfo.ipfo_ptr = &ipsst;
-	ipfo.ipfo_size = sizeof(ips_stat_t);
+  bzero(&ipfo, sizeof(ipfo));
+  ipfo.ipfo_rev = IPFILTER_VERSION;
+  ipfo.ipfo_type = IPFOBJ_STATESTAT;
+  ipfo.ipfo_ptr = &ipsst;
+  ipfo.ipfo_size = sizeof(ips_stat_t);
 
-	if ((ioctl(ipstate, SIOCGETFS, &ipfo) == -1)) {
-		ERROR("ipfilter plugin: ioctl(STATESTAT): %s", STRERRNO);
-		return 1;
-	}
+  if ((ioctl(ipstate, SIOCGETFS, &ipfo) == -1)) {
+    ERROR("ipfilter plugin: ioctl(STATESTAT): %s", STRERRNO);
+    return 1;
+  }
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy(vl.plugin, "ipfilter", sizeof(vl.plugin));
-	for (r = report_tab, m = 1; r->name; r++, m <<= 1) {
-		if (m == 0) {
-			ERROR("ipfilter plugin: too many reports");
-			return 1;
-		}
-		if (report_mask & m) {
-			sstrncpy(vl.type, r->type, sizeof(vl.type));
-			sstrncpy(vl.type_instance, r->name, sizeof(vl.type_instance));
-			r->conv(r->stat, vl.values);
-			plugin_dispatch_values(&vl);
-		}
-	}
+  vl.values = values;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "ipfilter", sizeof(vl.plugin));
+  for (r = report_tab, m = 1; r->name; r++, m <<= 1) {
+    if (m == 0) {
+      ERROR("ipfilter plugin: too many reports");
+      return 1;
+    }
+    if (report_mask & m) {
+      sstrncpy(vl.type, r->type, sizeof(vl.type));
+      sstrncpy(vl.type_instance, r->name, sizeof(vl.type_instance));
+      r->conv(r->stat, vl.values);
+      plugin_dispatch_values(&vl);
+    }
+  }
 
-	return 0;
+  return 0;
 } /* }}} int ipfilter_read */
 
 void module_register(void) /* {{{ */ {
-	plugin_register_init("ipfilter", ipfilter_init);
-	plugin_register_shutdown("ipfilter", ipfilter_shutdown);
-	plugin_register_config("ipfilter", ipfilter_config, config_keys, config_keys_num);
-	plugin_register_read("ipfilter", ipfilter_read);
+  plugin_register_init("ipfilter", ipfilter_init);
+  plugin_register_shutdown("ipfilter", ipfilter_shutdown);
+  plugin_register_config("ipfilter", ipfilter_config, config_keys,
+                         config_keys_num);
+  plugin_register_read("ipfilter", ipfilter_read);
 } /* }}} void module_register */
