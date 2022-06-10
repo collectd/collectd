@@ -30,11 +30,14 @@
 #include <strings.h>
 #include <sys/ioctl.h>
 
+/* reordering the #include's will make it fail to compile */
+/* clang-format off */
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <netinet/ip_fil.h>
 #include <netinet/ipl.h>
 #include <netinet/ip_state.h>
+/* clang-format on */
 
 static const char *config_keys[] = {"Report"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -65,6 +68,8 @@ struct report {
 	char *type;	/* collectd type name */
 	void (*conv)(void *, value_t *);	/* conversion function */
 };
+/* formatting will make the table much harder to read */
+/* clang-format off */
 struct report report_tab[] = {
 #if (IPFILTER_VERSION >= 5000000) && (IPFILTER_VERSION < 6000000) /* IPFilter 5.x */
 	{ "active",		&ipsst.iss_active,		"gauge",	uint_gauge },
@@ -167,6 +172,7 @@ struct report report_tab[] = {
 #error "unknown IPFilter version"
 #endif
 };
+/* clang-format on */
 
 static int ipfilter_config(const char *key, const char *value) /* {{{ */ {
 	char sep[] = " ,";
