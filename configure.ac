@@ -145,6 +145,10 @@ if test "x$ac_system" = "xAIX"; then
   AC_DEFINE([_THREAD_SAFE_ERRNO], [1], [Define to use the thread-safe version of errno under AIX.])
 fi
 
+if test "x${prefix}" != xNONE; then
+  AC_DEFINE_UNQUOTED([PREFIX], ["${prefix}"], [Define the install prefix.])
+fi
+
 # Where to install .pc files.
 pkgconfigdir="${libdir}/pkgconfig"
 AC_SUBST([pkgconfigdir])
