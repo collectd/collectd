@@ -75,8 +75,12 @@
 #include <sys/protosw.h>
 #endif
 
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000) // Before macOS 12 Monterey
+#define IOMainPort IOMasterPort
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H
-static mach_port_t io_master_port = MACH_PORT_NULL;
+static mach_port_t io_main_port = MACH_PORT_NULL;
 /* This defaults to false for backwards compatibility. Please fix in the next
  * major version. */
 static bool use_bsd_name;
@@ -207,15 +211,15 @@ static int disk_init(void) {
 #if HAVE_IOKIT_IOKITLIB_H
   kern_return_t status;
 
-  if (io_master_port != MACH_PORT_NULL) {
-    mach_port_deallocate(mach_task_self(), io_master_port);
-    io_master_port = MACH_PORT_NULL;
+  if (io_main_port != MACH_PORT_NULL) {
+    mach_port_deallocate(mach_task_self(), io_main_port);
+    io_main_port = MACH_PORT_NULL;
   }
 
-  status = IOMasterPort(MACH_PORT_NULL, &io_master_port);
+  status = IOMainPort(MACH_PORT_NULL, &io_main_port);
   if (status != kIOReturnSuccess) {
-    ERROR("IOMasterPort failed: %s", mach_error_string(status));
-    io_master_port = MACH_PORT_NULL;
+    ERROR("IOMainPort failed: %s", mach_error_string(status));
+    io_main_port = MACH_PORT_NULL;
     return -1;
   }
   /* #endif HAVE_IOKIT_IOKITLIB_H */
@@ -462,7 +466,7 @@ static int disk_read(void) {
 
   /* Get the list of all disk objects. */
   if (IOServiceGetMatchingServices(
-          io_master_port, IOServiceMatching(kIOBlockStorageDriverClass),
+          io_main_port, IOServiceMatching(kIOBlockStorageDriverClass),
           &disk_list) != kIOReturnSuccess) {
     ERROR("disk plugin: IOServiceGetMatchingServices failed.");
     return -1;
