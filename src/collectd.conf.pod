@@ -166,7 +166,7 @@ The following metrics are reported:
 =item C<collectd-write_queue/queue_length>
 
 The number of metrics currently in the write queue. You can limit the queue
-length with the B<WriteQueueLimitLow> and B<WriteQueueLimitHigh> options.
+length with the and B<WriteQueueLimitHigh> option.
 
 =item C<collectd-write_queue/derive-dropped>
 
@@ -282,12 +282,6 @@ you may want to increase this if you have more than five plugins that take a
 long time to read. Mostly those are plugins that do network-IO. Setting this to
 a value higher than the number of registered read callbacks is not recommended.
 
-=item B<WriteThreads> I<Num>
-
-Number of threads to start for dispatching value lists to write plugins. The
-default value is B<5>, but you may want to increase this if you have more than
-five plugins that may take relatively long to write to.
-
 =item B<WriteQueueLimitHigh> I<HighNum>
 
 =item B<WriteQueueLimitLow> I<LowNum>
@@ -304,19 +298,18 @@ metrics. For servers it is recommended to set this to a non-zero value, though.
 
 You can set the limits using B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>.
 Each of them takes a numerical argument which is the number of metrics in the
-queue. If there are I<HighNum> metrics in the queue, any new metrics I<will> be
-dropped. If there are less than I<LowNum> metrics in the queue, all new metrics
-I<will> be enqueued. If the number of metrics currently in the queue is between
-I<LowNum> and I<HighNum>, the metric is dropped with a probability that is
-proportional to the number of metrics in the queue (i.e. it increases linearly
-until it reaches 100%.)
+queue. If there are I<HighNum> metrics in the queue a random element from the
+queue will be dropped. This results in the data becoming more and more sparse
+without dropping a lot of continguous values. An exception from the random
+selection of elements to drop are the I<LowNum> most recent elements which will
+never be dropped. This can be used to ensure that one miss-behaving write
+plugin does not result in dropped values for other well-behaved write plugins.
 
 If B<WriteQueueLimitHigh> is set to non-zero and B<WriteQueueLimitLow> is
 unset, the latter will default to half of B<WriteQueueLimitHigh>.
 
-If you do not want to randomly drop values when the queue size is between
-I<LowNum> and I<HighNum>, set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>
-to the same value.
+If you want to deterministically drop the oldest elements instead of random
+ones, set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to the same value.
 
 Enabling the B<CollectInternalStats> option is of great help to figure out the
 values to set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to.

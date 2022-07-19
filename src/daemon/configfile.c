@@ -107,7 +107,6 @@ static cf_global_option_t cf_global_options[] = {
     {"FQDNLookup", NULL, 0, "true"},
     {"Interval", NULL, 0, NULL},
     {"ReadThreads", NULL, 0, "5"},
-    {"WriteThreads", NULL, 0, "5"},
     {"WriteQueueLimitHigh", NULL, 0, NULL},
     {"WriteQueueLimitLow", NULL, 0, NULL},
     {"Timeout", NULL, 0, "2"},
