@@ -871,46 +871,6 @@ static int write_queue_enqueue(write_queue_elem_t *ins_head) {
   return 0;
 }
 
-EXPORT int plugin_write(const char *plugin, metric_family_t const *fam) {
-  if (fam == NULL) {
-    return EINVAL;
-  }
-
-  metric_family_t *fam_copy = metric_family_clone(fam);
-  if (fam_copy == NULL) {
-    int status = errno;
-    ERROR("plugin_write: metric_family_clone failed: %s", STRERROR(status));
-    return status;
-  }
-
-  cdtime_t time = cdtime();
-  cdtime_t interval = plugin_get_interval();
-
-  for (size_t i = 0; i < fam_copy->metric.num; i++) {
-    if (fam_copy->metric.ptr[i].time == 0) {
-      fam_copy->metric.ptr[i].time = time;
-    }
-    if (fam_copy->metric.ptr[i].interval == 0) {
-      fam_copy->metric.ptr[i].interval = interval;
-    }
-
-    /* TODO(octo): set target labels here. */
-  }
-
-  write_queue_elem_t *elem = calloc(1, sizeof(*elem));
-  if (elem == NULL) {
-    return ENOMEM;
-  }
-
-  elem->family = fam_copy;
-  elem->ctx = plugin_get_ctx();
-  elem->plugin = plugin;
-  elem->ref_count = 0;
-  elem->next = NULL;
-
-  return write_queue_enqueue(elem);
-} /* }}} int enqueue_metric_family */
-
 static void *plugin_write_thread(void *args) /* {{{ */
 {
   write_queue_thread_t *this_thread = args;
@@ -1970,6 +1930,46 @@ EXPORT int plugin_read_all_once(void) {
 
   return return_status;
 } /* int plugin_read_all_once */
+
+EXPORT int plugin_write(const char *plugin, metric_family_t const *fam) {
+  if (fam == NULL) {
+    return EINVAL;
+  }
+
+  metric_family_t *fam_copy = metric_family_clone(fam);
+  if (fam_copy == NULL) {
+    int status = errno;
+    ERROR("plugin_write: metric_family_clone failed: %s", STRERROR(status));
+    return status;
+  }
+
+  cdtime_t time = cdtime();
+  cdtime_t interval = plugin_get_interval();
+
+  for (size_t i = 0; i < fam_copy->metric.num; i++) {
+    if (fam_copy->metric.ptr[i].time == 0) {
+      fam_copy->metric.ptr[i].time = time;
+    }
+    if (fam_copy->metric.ptr[i].interval == 0) {
+      fam_copy->metric.ptr[i].interval = interval;
+    }
+
+    /* TODO(octo): set target labels here. */
+  }
+
+  write_queue_elem_t *elem = calloc(1, sizeof(*elem));
+  if (elem == NULL) {
+    return ENOMEM;
+  }
+
+  elem->family = fam_copy;
+  elem->ctx = plugin_get_ctx();
+  elem->plugin = plugin;
+  elem->ref_count = 0;
+  elem->next = NULL;
+
+  return write_queue_enqueue(elem);
+} /* }}} int plugin_write */
 
 EXPORT int plugin_flush(const char *plugin, cdtime_t timeout,
                         const char *identifier) {
