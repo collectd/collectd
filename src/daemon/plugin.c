@@ -1602,6 +1602,9 @@ EXPORT int plugin_unregister_read(const char *name) /* {{{ */
 } /* }}} int plugin_unregister_read */
 
 EXPORT void plugin_log_available_writers(void) {
+  const char *sep = "' , '";
+  size_t sep_len = strlen(sep);
+
   pthread_mutex_lock(&write_queue.lock);
 
   if (write_queue.threads == NULL) {
@@ -1615,7 +1618,7 @@ EXPORT void plugin_log_available_writers(void) {
        piv = piv->next) {
     total_len += strlen(piv->name);
     if (piv->next != NULL) {
-      total_len += 5;
+      total_len += sep_len;
     }
   }
 
@@ -1630,11 +1633,17 @@ EXPORT void plugin_log_available_writers(void) {
 
   for (write_queue_thread_t *piv = write_queue.threads; piv != NULL;
        piv = piv->next) {
-    cursor = stpcpy(cursor, piv->name);
+    size_t name_len = strlen(piv->name);
+    memcpy(cursor, piv->name, name_len);
+    cursor += name_len;
+
     if (piv->next != NULL) {
-      cursor = stpcpy(cursor, "' , '");
+      memcpy(cursor, sep, sep_len);
+      cursor += sep_len;
     }
   }
+
+  *cursor = '\0';
 
   pthread_mutex_unlock(&write_queue.lock);
 
