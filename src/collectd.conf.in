@@ -432,6 +432,7 @@
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
+#	FileDate true
 #</Plugin>
 
 #<Plugin curl>

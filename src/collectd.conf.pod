@@ -1875,6 +1875,11 @@ If set to B<true>, convert counter values to rates. If set to B<false> (the
 default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
 
+=item B<FileDate> B<true|false>
+
+If set to B<true> (the default value), the generated files will include the date.
+If set to B<false> the date will not be included in the generated files.
+
 =back
 
 =head2 cURL Statistics
