@@ -5873,9 +5873,10 @@ fi
 if test "x$with_libupsclient" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
+  someUPSCONN_FOUND=false
 
   AC_CHECK_TYPES([UPSCONN_t, UPSCONN],
-    [],
+    [someUPSCONN_FOUND=true],
     [],
     [[
       #include <stdlib.h>
@@ -5884,6 +5885,12 @@ if test "x$with_libupsclient" = "xyes"; then
     ]]
   )
 
+  AS_IF([test x"$someUPSCONN_FOUND" = xfalse],
+    [AC_MSG_WARN([Can not find either UPSCONN or UPSCONN_t type definition for upsclient library])
+     with_libupsclient="no (required data types for NUT API were not detected)"]
+  )
+
+  unset someUPSCONN_FOUND
   CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
