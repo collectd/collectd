@@ -5882,6 +5882,106 @@ if test "x$with_libupsclient" = "xyes"; then
 fi
 
 if test "x$with_libupsclient" = "xyes"; then
+  dnl The m4 script logic below is modelled after NUT_FUNC_GETNAMEINFO_ARGTYPES
+  dnl further originating in curl autoconf scripts or beyond. See there for an
+  dnl example of general-case logic to handle matching of numerous possible
+  dnl data types for each argument in supported API variants.
+  dnl Note: techically compiler complains here not about int types themselves,
+  dnl but about pointers to such data. We know "out of band" that e.g. NUT
+  dnl change to "size_t" happened at once for all arguments in the API, so
+  dnl simplify the handling here and now with that assumption.
+  AC_LANG_PUSH([C])
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_CFLAGS="$CFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libupsclient_cflags"
+  LDFLAGS="$LDFLAGS $with_libupsclient_libs"
+  CFLAGS="$CFLAGS $with_libupsclient_cflags"
+  if test "x$GCC" = "xyes"; then
+    CFLAGS="$CFLAGS -Wall -Werror"
+  fi
+
+  dnl upscli_splitname() *is* there forever (2007 or older)
+  dnl but int types e.g. "port" changed in NUT 2.8.0
+  dnl Also this is the UPSCONN_t::port field type:
+  AC_CACHE_CHECK([int type of port argument for NUT upscli_splitname],
+    [collectd_cv_func_upscli_splitname_args], [
+     collectd_cv_func_upscli_splitname_args="unknown"
+     for port_arg in 'uint16_t' 'int' ; do
+        AC_COMPILE_IFELSE([
+            AC_LANG_PROGRAM([
+#include <upsclient.h>
+/* int upscli_splitname(const char *buf, char **upsname, char **hostname, <port_arg> *port); */
+            ],[
+const char *origname = "ups@localhost:3493";
+$port_arg port=0;
+char *hostname;
+char *upsname;
+int res = upscli_splitname(origname, &upsname, &hostname, &port);
+return(res);
+            ])
+        ],[
+            collectd_cv_func_upscli_splitname_args="$port_arg"
+            break
+        ])
+     done
+    ])
+
+  AS_IF([test x"$collectd_cv_func_upscli_splitname_args" = xunknown],
+    [AC_MSG_WARN([Can not find proper port type for upscli_splitname()])
+     with_libupsclient="no (required data types for NUT API were not detected)"],
+    [AC_DEFINE_UNQUOTED(NUT_PORT_TYPE, $collectd_cv_func_upscli_splitname_args,
+        [Define to the integer type for TCP/IP ports used by NUT API we build against])
+    ])
+
+
+  AC_CACHE_CHECK([int type of length/numbering arguments for NUT upscli_list_next],
+    [collectd_cv_func_upscli_list_next_args], [
+     collectd_cv_func_upscli_list_next_args="unknown"
+     for size_arg in 'size_t' 'unsigned int' 'int' ; do
+        AC_COMPILE_IFELSE([
+            AC_LANG_PROGRAM([
+#include <upsclient.h>
+/* int upscli_list_next(UPSCONN_t *ups, <size_arg> numq, const char **query, <size_arg> *numa, char ***answer); */
+
+#if HAVE_UPSCONN_T
+typedef UPSCONN_t collectd_upsconn_t;
+#elif HAVE_UPSCONN
+typedef UPSCONN collectd_upsconn_t;
+#else
+#error "Unable to determine the UPS connection type."
+#endif
+            ],[
+$size_arg query_num=0;
+$size_arg answer_num=0;
+const char * query;
+char** answer;
+collectd_upsconn_t ups;
+int res = upscli_list_next(&ups, query_num, &query, &answer_num, &answer);
+return(res);
+            ])
+        ],[
+            collectd_cv_func_upscli_list_next_args="$size_arg"
+            break
+        ])
+     done
+    ])
+
+  AS_IF([test x"$collectd_cv_func_upscli_list_next_args" = xunknown],
+    [AC_MSG_WARN([Can not find proper type for array sizes and string lengths used by upscli_list_next()])
+     with_libupsclient="no (required data types for NUT API were not detected)"],
+    [AC_DEFINE_UNQUOTED(NUT_SIZE_TYPE, $collectd_cv_func_upscli_list_next_args,
+        [Define to the integer type for array sizes and string lengths used by NUT API we build against])
+    ])
+
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  CFLAGS="$SAVE_CFLAGS"
+  AC_LANG_POP([C])
+fi
+
+if test "x$with_libupsclient" = "xyes"; then
   BUILD_WITH_LIBUPSCLIENT_CFLAGS="$with_libupsclient_cflags"
   BUILD_WITH_LIBUPSCLIENT_LIBS="$with_libupsclient_libs"
 fi
