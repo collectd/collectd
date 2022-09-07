@@ -285,11 +285,14 @@ static ze_result_t metric_args_check(int callbit, const char *name,
 #define COUNTER_START 100000 // 100ms
 #define COUNTER_INC 20000    // 20ms
 #define TIME_START 5000000   // 5s in us
-#define TIME_INC 1000000     // 1s in us
+#define TIME_INC 2000000     // 2s in us
 #define COUNTER_MAX TIME_INC
 
 /* what should get reported as result of above */
 #define COUNTER_RATIO ((double)COUNTER_INC / TIME_INC)
+#define COUNTER_RATE (1.0e6 * COUNTER_INC / TIME_INC)
+#define COUNTER_MAX_RATIO                                                      \
+  (1.0e6 * COUNTER_INC / ((double)COUNTER_MAX * TIME_INC))
 
 #define FREQ_INIT 300
 #define FREQ_INC 50
@@ -502,9 +505,14 @@ static metrics_validation_t valid_metrics[] = {
      2 * COUNTER_INC, 0, 0.0},
     {"memory_bw_bytes_total/HBM/system/write", true, false, COUNTER_START,
      COUNTER_INC, 0, 0.0},
-    {"memory_bw_ratio/HBM/system/read", true, false, 2 * COUNTER_RATIO, 0, 0,
+    {"memory_bw_bytes_per_second/HBM/system/read", true, false,
+     2 * COUNTER_RATE, 0, 0, 0.0},
+    {"memory_bw_bytes_per_second/HBM/system/write", true, false, COUNTER_RATE,
+     0, 0, 0.0},
+    {"memory_bw_ratio/HBM/system/read", true, false, 2 * COUNTER_MAX_RATIO, 0,
+     0, 0.0},
+    {"memory_bw_ratio/HBM/system/write", true, false, COUNTER_MAX_RATIO, 0, 0,
      0.0},
-    {"memory_bw_ratio/HBM/system/write", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"throttled_usecs_total/gpu", true, false, COUNTER_START, COUNTER_INC, 0,
      0.0},

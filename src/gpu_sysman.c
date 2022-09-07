@@ -1062,6 +1062,17 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   return ok;
 }
 
+static void add_bw_gauges(metric_t *metric, metric_family_t *fam, double reads,
+                          double writes) {
+  metric->value.gauge = reads;
+  metric_label_set(metric, "direction", "read");
+  metric_family_metric_append(fam, *metric);
+
+  metric->value.gauge = writes;
+  metric_label_set(metric, "direction", "write");
+  metric_family_metric_append(fam, *metric);
+}
+
 /* Report memory modules bandwidth usage, return true for success.
  */
 static bool gpu_mems_bw(gpu_device_t *gpu) {
@@ -1094,6 +1105,11 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       .name = METRIC_PREFIX "memory_bw_ratio",
       .type = METRIC_TYPE_GAUGE,
   };
+  metric_family_t fam_rate = {
+      .help = "Memory bandwidth usage rate (in bytes per second)",
+      .name = METRIC_PREFIX "memory_bw_bytes_per_second",
+      .type = METRIC_TYPE_GAUGE,
+  };
   metric_family_t fam_counter = {
       .help = "Memory bandwidth usage total (in bytes)",
       .name = METRIC_PREFIX "memory_bw_bytes_total",
@@ -1101,7 +1117,9 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
   };
   metric_t metric = {0};
 
-  bool reported_ratio = false, reported_counter = false, ok = false;
+  bool reported_rate = false, reported_ratio = false, reported_counter = false;
+
+  bool ok = false;
   for (i = 0; i < mem_count; i++) {
     ze_result_t ret;
     zes_mem_bandwidth_t bw;
@@ -1127,23 +1145,24 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       reported_counter = true;
     }
     zes_mem_bandwidth_t *old = &gpu->membw[i];
-    if (old->maxBandwidth && (config.output & OUTPUT_RATIO) &&
-        bw.timestamp > old->timestamp) {
+    if (old->timestamp && bw.timestamp > old->timestamp &&
+        (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
       /* https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv419zes_mem_bandwidth_t
        */
       uint64_t writes = bw.writeCounter - old->writeCounter;
       uint64_t reads = bw.readCounter - old->readCounter;
       uint64_t timediff = bw.timestamp - old->timestamp;
-      double factor = 1.0e6 / (old->maxBandwidth * timediff);
 
-      metric.value.gauge = factor * writes;
-      metric_label_set(&metric, "direction", "write");
-      metric_family_metric_append(&fam_ratio, metric);
-
-      metric.value.gauge = factor * reads;
-      metric_label_set(&metric, "direction", "read");
-      metric_family_metric_append(&fam_ratio, metric);
-      reported_ratio = true;
+      if (config.output & OUTPUT_RATE) {
+        double factor = 1.0e6 / timediff;
+        add_bw_gauges(&metric, &fam_rate, factor * reads, factor * writes);
+        reported_rate = true;
+      }
+      if ((config.output & OUTPUT_RATIO) && old->maxBandwidth) {
+        double factor = 1.0e6 / (old->maxBandwidth * timediff);
+        add_bw_gauges(&metric, &fam_ratio, factor * reads, factor * writes);
+        reported_ratio = true;
+      }
     }
     *old = bw;
     ok = true;
@@ -1152,6 +1171,9 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     metric_reset(&metric);
     if (reported_ratio) {
       gpu_submit(gpu, &fam_ratio);
+    }
+    if (reported_rate) {
+      gpu_submit(gpu, &fam_rate);
     }
     if (reported_counter) {
       gpu_submit(gpu, &fam_counter);
