@@ -119,15 +119,18 @@ typedef struct {
 } gpu_device_t;
 
 typedef enum {
-  OUTPUT_UNSET = 0,
-  OUTPUT_RAW,
-  OUTPUT_DERIVED,
-  OUTPUT_BOTH, /* 3 = 1 | 2 mask */
-  OUTPUT_TYPES
+  OUTPUT_COUNTER = 1,
+  OUTPUT_RATE = 2,
+  OUTPUT_RATIO = 4,
+  OUTPUT_ALL = 7
 } output_t;
 
-static const char *metrics_output[OUTPUT_TYPES] = {"unset", "raw", "derived",
-                                                   "both"};
+static const struct {
+  const char *name;
+  output_t value;
+} metrics_output[] = {{"counter", OUTPUT_COUNTER},
+                      {"rate", OUTPUT_RATE},
+                      {"ratio", OUTPUT_RATIO}};
 
 static gpu_device_t *gpus;
 static uint32_t gpu_count;
@@ -238,10 +241,9 @@ static int gpu_config_free(void) {
  * if at least some metric is enabled, otherwise error code
  */
 static int gpu_config_check(void) {
-  if (config.output == OUTPUT_UNSET) {
-    config.output = OUTPUT_BOTH;
+  if (!config.output) {
+    config.output = OUTPUT_ALL;
   }
-  assert(config.output < STATIC_ARRAY_SIZE(metrics_output));
 
   if (config.gpuinfo) {
     double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
@@ -254,7 +256,11 @@ static int gpu_config_check(void) {
     } else {
       INFO("- query / submit interval: %.2f", interval);
     }
-    INFO("- " KEY_METRICS_OUTPUT ": %s", metrics_output[config.output]);
+    for (unsigned i = 0; i < STATIC_ARRAY_SIZE(metrics_output); i++) {
+      if (config.output & metrics_output[i].value) {
+        INFO("- " KEY_METRICS_OUTPUT ": %s", metrics_output[i].name);
+      }
+    }
     INFO("Disabled metrics:");
   }
   struct {
@@ -1110,7 +1116,7 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       ok = false;
       break;
     }
-    if (config.output & OUTPUT_RAW) {
+    if (config.output & OUTPUT_COUNTER) {
       metric.value.counter = bw.writeCounter;
       metric_label_set(&metric, "direction", "write");
       metric_family_metric_append(&fam_counter, metric);
@@ -1121,7 +1127,7 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       reported_counter = true;
     }
     zes_mem_bandwidth_t *old = &gpu->membw[i];
-    if (old->maxBandwidth && (config.output & OUTPUT_DERIVED) &&
+    if (old->maxBandwidth && (config.output & OUTPUT_RATIO) &&
         bw.timestamp > old->timestamp) {
       /* https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv419zes_mem_bandwidth_t
        */
@@ -1378,15 +1384,15 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       ok = false;
       break;
     }
-    if (config.output & OUTPUT_RAW) {
+    if (config.output & OUTPUT_COUNTER) {
       /* cannot convert microsecs to secs as counters are integers */
       metric.value.counter = throttle.throttleTime;
       metric_family_metric_append(&fam_counter, metric);
       reported_counter = true;
     }
     zes_freq_throttle_time_t *old = &gpu->throttle[i];
-    if (old->timestamp && (config.output & OUTPUT_DERIVED) &&
-        throttle.timestamp > old->timestamp) {
+    if (old->timestamp && throttle.timestamp > old->timestamp &&
+        (config.output & OUTPUT_RATIO)) {
       /* micro seconds => throttle ratio */
       metric.value.gauge = (throttle.throttleTime - old->throttleTime) /
                            (double)(throttle.timestamp - old->timestamp);
@@ -1550,13 +1556,13 @@ static bool gpu_powers(gpu_device_t *gpu) {
       break;
     }
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
-    if (config.output & OUTPUT_RAW) {
+    if (config.output & OUTPUT_COUNTER) {
       metric.value.counter = counter.energy;
       metric_family_metric_append(&fam_energy, metric);
       reported_energy = true;
     }
     zes_power_energy_counter_t *old = &gpu->power[i];
-    if (old->timestamp && (config.output & OUTPUT_DERIVED) &&
+    if (old->timestamp && (config.output & OUTPUT_RATE) &&
         counter.timestamp > old->timestamp) {
       /* microJoules / microSeconds => watts */
       metric.value.gauge = (double)(counter.energy - old->energy) /
@@ -1715,14 +1721,14 @@ static bool gpu_engines(gpu_device_t *gpu) {
     }
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
     metric_label_set(&metric, "type", vname);
-    if (config.output & OUTPUT_RAW) {
+    if (config.output & OUTPUT_COUNTER) {
       metric.value.counter = stats.activeTime;
       metric_family_metric_append(&fam_counter, metric);
       reported_counter = true;
     }
     zes_engine_stats_t *old = &gpu->engine[i];
-    if (old->timestamp && (config.output & OUTPUT_DERIVED) &&
-        stats.timestamp > old->timestamp) {
+    if (old->timestamp && stats.timestamp > old->timestamp &&
+        (config.output & OUTPUT_RATIO)) {
       metric.value.gauge = (double)(stats.activeTime - old->activeTime) /
                            (stats.timestamp - old->timestamp);
       metric_family_metric_append(&fam_ratio, metric);
@@ -1872,14 +1878,25 @@ static int gpu_config_parse(const char *key, const char *value) {
   } else if (strcasecmp(key, KEY_LOG_GPU_INFO) == 0) {
     config.gpuinfo = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_METRICS_OUTPUT) == 0) {
-    config.output = OUTPUT_UNSET;
-    for (unsigned i = 0; i < STATIC_ARRAY_SIZE(metrics_output); i++) {
-      if (strcasecmp(value, metrics_output[i]) == 0) {
-        config.output = i;
-        break;
+    config.output = 0;
+    static const char delim[] = ",:/ ";
+    char *save, *flag, *flags = strdup(value);
+    for (flag = strtok_r(flags, delim, &save); flag;
+         flag = strtok_r(NULL, delim, &save)) {
+      unsigned i;
+      for (i = 0; i < STATIC_ARRAY_SIZE(metrics_output); i++) {
+        if (strcasecmp(flag, metrics_output[i].name) == 0) {
+          config.output |= metrics_output[i].value;
+          break;
+        }
+      }
+      if (i >= STATIC_ARRAY_SIZE(metrics_output)) {
+        free(flags);
+        return RET_INVALID_CONFIG;
       }
     }
-    if (config.output == OUTPUT_UNSET) {
+    free(flags);
+    if (!config.output) {
       ERROR(PLUGIN_NAME ": Invalid '%s' config key value '%s'", key, value);
       return RET_INVALID_CONFIG;
     }

@@ -796,7 +796,7 @@
 #<Plugin gpu_sysman>
 #   Samples 1
 #   LogGpuInfo false
-#   MetricsOutput both
+#   MetricsOutput "counter:rate:ratio"
 #   DisableMemory false
 #   DisableMemoryBandwidth false
 #   DisableFrequency false
