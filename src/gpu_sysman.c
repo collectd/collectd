@@ -82,6 +82,7 @@ typedef struct {
   bool mem;
   bool membw;
   bool power;
+  bool power_ratio; // needs extra Sysman data compared to power
   bool ras;
   bool ras_separate;
   bool temp;
@@ -1614,12 +1615,13 @@ static bool gpu_powers(gpu_device_t *gpu) {
     gpu->power = scalloc(power_count, sizeof(*gpu->power));
     gpu->power_count = power_count;
   }
-  if (!(config.output & (OUTPUT_COUNTER | OUTPUT_RATE))) {
-    ERROR(PLUGIN_NAME ": no power output variants selected");
-    free(powers);
-    return false;
-  }
 
+  metric_family_t fam_ratio = {
+      .help = "Ratio of average power usage vs sustained or burst "
+              "power limit",
+      .name = METRIC_PREFIX "power_ratio",
+      .type = METRIC_TYPE_GAUGE,
+  };
   metric_family_t fam_power = {
       .help = "Average power usage (in Watts) over query interval",
       .name = METRIC_PREFIX "power_watts",
@@ -1632,7 +1634,9 @@ static bool gpu_powers(gpu_device_t *gpu) {
   };
   metric_t metric = {0};
 
-  bool reported_power = false, reported_energy = false, ok = false;
+  bool reported_ratio = false, reported_power = false, reported_energy = false;
+
+  bool ok = false;
   for (i = 0; i < power_count; i++) {
     zes_power_properties_t props;
     if (zesPowerGetProperties(powers[i], &props) != ZE_RESULT_SUCCESS) {
@@ -1653,13 +1657,53 @@ static bool gpu_powers(gpu_device_t *gpu) {
       reported_energy = true;
     }
     zes_power_energy_counter_t *old = &gpu->power[i];
-    if (old->timestamp && (config.output & OUTPUT_RATE) &&
-        counter.timestamp > old->timestamp) {
-      /* microJoules / microSeconds => watts */
-      metric.value.gauge = (double)(counter.energy - old->energy) /
-                           (counter.timestamp - old->timestamp);
-      metric_family_metric_append(&fam_power, metric);
-      reported_power = true;
+    if (old->timestamp && counter.timestamp > old->timestamp &&
+        (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
+
+      uint64_t energy_diff = counter.energy - old->energy;
+      double time_diff = counter.timestamp - old->timestamp;
+
+      if (config.output & OUTPUT_RATE) {
+        /* microJoules / microSeconds => watts */
+        metric.value.gauge = energy_diff / time_diff;
+        metric_family_metric_append(&fam_power, metric);
+        reported_power = true;
+      }
+      if ((config.output & OUTPUT_RATIO) && !gpu->disabled.power_ratio) {
+        const char *name;
+        int32_t limit = 0;
+
+        zes_power_burst_limit_t burst;
+        zes_power_sustained_limit_t sustain;
+        if (zesPowerGetLimits(powers[i], &sustain, &burst, NULL) !=
+            ZE_RESULT_SUCCESS) {
+          WARNING(PLUGIN_NAME ": disabling power ratio, failed to get power "
+                              "domain %d limits",
+                  i);
+          gpu->disabled.power_ratio = true;
+        } else {
+          /* Multiply by 1000, as sustain interval is in ms & power in mJ/s,
+           * whereas energy is in uJ and its timestamp in us:
+           * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-power-energy-counter-t
+           */
+          if (sustain.enabled &&
+              (time_diff >= 1000 * sustain.interval || !burst.enabled)) {
+            name = "sustained";
+            limit = sustain.power;
+          } else if (burst.enabled) {
+            name = "burst";
+            limit = burst.power;
+          } else {
+            gpu->disabled.power_ratio = true;
+          }
+        }
+        if (limit > 0) {
+          metric_label_set(&metric, "limit", name);
+          metric.value.gauge = 1000 * energy_diff / (limit * time_diff);
+          metric_family_metric_append(&fam_ratio, metric);
+          reported_ratio = true;
+        }
+      }
     }
     *old = counter;
     ok = true;
@@ -1671,6 +1715,9 @@ static bool gpu_powers(gpu_device_t *gpu) {
     }
     if (reported_power) {
       gpu_submit(gpu, &fam_power);
+    }
+    if (reported_ratio) {
+      gpu_submit(gpu, &fam_ratio);
     }
   }
   free(powers);

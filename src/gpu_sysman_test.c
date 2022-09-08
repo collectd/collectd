@@ -302,6 +302,8 @@ static ze_result_t metric_args_check(int callbit, const char *name,
 #define MEMORY_INIT (MEMORY_SIZE / 2) // so that both free & used get same value
 #define MEMORY_INC (MEMORY_SIZE / 64)
 
+#define POWER_LIMIT (2.0 * COUNTER_INC / TIME_INC) // in Watts
+
 #define RAS_INIT 0
 #define RAS_INC 1
 
@@ -464,8 +466,37 @@ ze_result_t zesMemoryGetBandwidth(zes_mem_handle_t handle,
   return ZE_RESULT_SUCCESS;
 }
 
-#define QUERY_CALL_FUNCS 20
+ze_result_t zesPowerGetLimits(zes_pwr_handle_t handle,
+                              zes_power_sustained_limit_t *sustained,
+                              zes_power_burst_limit_t *burst,
+                              zes_power_peak_limit_t *peak) {
+  void *check = NULL; // something must be requested
+  if (sustained) {
+    check = sustained;
+    sustained->enabled = true;
+    sustained->interval = 2 * TIME_INC / 1000; // 2x to get this skipped
+    sustained->power = 2 * 1000 * POWER_LIMIT; // mW
+  }
+  if (burst) {
+    check = burst;
+    burst->enabled = true;
+    burst->power = 1000 * POWER_LIMIT;
+  }
+  if (peak) {
+    check = NULL; // not supported
+  }
+  return metric_args_check(20, "zesPowerGetLimits", handle, check);
+}
+
+#define QUERY_CALL_FUNCS 21
 #define QUERY_CALL_BITS (((uint64_t)1 << QUERY_CALL_FUNCS) - 1)
+
+/* ------------------------------------------------------------------------- */
+/* bitmask for the calls that happen only on successive query rounds:
+ * - zesPowerGetLimits (20)
+ * (due to them being inside 'old->timestamp' check)
+ */
+#define QUERY_MULTI_BITS (1 << 20)
 
 /* ------------------------------------------------------------------------- */
 /* mock up metrics reporting and validation */
@@ -546,6 +577,8 @@ static metrics_validation_t valid_metrics[] = {
     {"memory_bw_ratio/HBM/system/read", true, false, 2 * COUNTER_MAX_RATIO, 0,
      0, 0.0},
     {"memory_bw_ratio/HBM/system/write", true, false, COUNTER_MAX_RATIO, 0, 0,
+     0.0},
+    {"power_ratio", true, false, COUNTER_INC / POWER_LIMIT / TIME_INC, 0, 0,
      0.0},
     {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"throttled_usecs_total/gpu", true, false, COUNTER_START, COUNTER_INC, 0,
@@ -1044,8 +1077,9 @@ static int get_reset_disabled(gpu_disable_t *disabled, bool value, int *mask,
   } flags[] = {
       {"engine", &disabled->engine},    {"frequency", &disabled->freq},
       {"memory", &disabled->mem},       {"membw", &disabled->membw},
-      {"power", &disabled->power},      {"errors", &disabled->ras},
-      {"temperature", &disabled->temp}, {"throttle", &disabled->throttle}};
+      {"power", &disabled->power},      {"power_ratio", &disabled->power_ratio},
+      {"errors", &disabled->ras},       {"temperature", &disabled->temp},
+      {"throttle", &disabled->throttle}};
   *all = 0;
   int count = 0;
   for (int i = 0; i < (int)STATIC_ARRAY_SIZE(flags); i++) {
@@ -1387,7 +1421,7 @@ int main(int argc, const char **argv) {
   globs.warnings = globs.api_calls = globs.callbits = 0;
   assert(registry.read() == 0);
   /* all Sysman metric query first round functions got successfully called? */
-  check_call_counts("query", QUERY_CALL_BITS);
+  check_call_counts("query", QUERY_CALL_BITS ^ QUERY_MULTI_BITS);
   assert(globs.warnings == 0);
   /* per-time counters do not report on first round */
   assert(validate_and_reset_saved_metrics(1, 0) > 0);
