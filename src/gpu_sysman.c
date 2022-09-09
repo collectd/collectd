@@ -1019,8 +1019,10 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       mem_used = mem_size - mem_free;
       metric.value.gauge = mem_used;
       metric_family_metric_append(&fam_bytes, metric);
-      metric.value.gauge = mem_used / mem_size;
-      metric_family_metric_append(&fam_ratio, metric);
+      if (config.output & OUTPUT_RATIO) {
+        metric.value.gauge = mem_used / mem_size;
+        metric_family_metric_append(&fam_ratio, metric);
+      }
     } else {
       /* find min & max values for memory free from
        * (the configured number of) samples
@@ -1041,16 +1043,19 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       metric.value.gauge = mem_used;
       metric_label_set(&metric, "function", "min");
       metric_family_metric_append(&fam_bytes, metric);
-      metric.value.gauge = mem_used / mem_size;
-      metric_family_metric_append(&fam_ratio, metric);
-
+      if (config.output & OUTPUT_RATIO) {
+        metric.value.gauge = mem_used / mem_size;
+        metric_family_metric_append(&fam_ratio, metric);
+      }
       /* smallest used amount of memory */
       mem_used = mem_size - free_min;
       metric.value.gauge = mem_used;
       metric_label_set(&metric, "function", "max");
       metric_family_metric_append(&fam_bytes, metric);
-      metric.value.gauge = mem_used / mem_size;
-      metric_family_metric_append(&fam_ratio, metric);
+      if (config.output & OUTPUT_RATIO) {
+        metric.value.gauge = mem_used / mem_size;
+        metric_family_metric_append(&fam_ratio, metric);
+      }
     }
   }
   if (ok && cache_idx == 0) {
