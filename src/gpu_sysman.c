@@ -1380,6 +1380,11 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
     gpu->throttle = scalloc(freq_count, sizeof(*gpu->throttle));
     gpu->throttle_count = freq_count;
   }
+  if (!(config.output & (OUTPUT_COUNTER | OUTPUT_RATIO))) {
+    ERROR(PLUGIN_NAME ": no throttle-time output variants selected");
+    free(freqs);
+    return false;
+  }
 
   metric_family_t fam_ratio = {
       .help =
@@ -1555,6 +1560,11 @@ static bool gpu_powers(gpu_device_t *gpu) {
     gpu->power = scalloc(power_count, sizeof(*gpu->power));
     gpu->power_count = power_count;
   }
+  if (!(config.output & (OUTPUT_COUNTER | OUTPUT_RATE))) {
+    ERROR(PLUGIN_NAME ": no power output variants selected");
+    free(powers);
+    return false;
+  }
 
   metric_family_t fam_power = {
       .help = "Average power usage (in Watts) over query interval",
@@ -1638,6 +1648,11 @@ static bool gpu_engines(gpu_device_t *gpu) {
     }
     gpu->engine = scalloc(engine_count, sizeof(*gpu->engine));
     gpu->engine_count = engine_count;
+  }
+  if (!(config.output & (OUTPUT_COUNTER | OUTPUT_RATIO))) {
+    ERROR(PLUGIN_NAME ": no engine output variants selected");
+    free(engines);
+    return false;
   }
 
   metric_family_t fam_ratio = {
