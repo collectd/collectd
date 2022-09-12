@@ -1469,14 +1469,19 @@ static bool gpu_temps(gpu_device_t *gpu) {
     gpu->temp_count = temp_count;
   }
 
-  metric_family_t fam = {
+  metric_family_t fam_temp = {
       .help = "Temperature sensor value (in Celsius) when queried",
       .name = METRIC_PREFIX "temperature_celsius",
       .type = METRIC_TYPE_GAUGE,
   };
+  metric_family_t fam_ratio = {
+      .help = "Temperature sensor value ratio to its max value when queried",
+      .name = METRIC_PREFIX "temperature_ratio",
+      .type = METRIC_TYPE_GAUGE,
+  };
   metric_t metric = {0};
 
-  bool ok = false;
+  bool reported_ratio = false, ok = false;
   for (i = 0; i < temp_count; i++) {
     zes_temp_properties_t props;
     if (zesTemperatureGetProperties(temps[i], &props) != ZE_RESULT_SUCCESS) {
@@ -1523,12 +1528,21 @@ static bool gpu_temps(gpu_device_t *gpu) {
     metric.value.gauge = value;
     metric_label_set(&metric, "location", type);
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
-    metric_family_metric_append(&fam, metric);
+    metric_family_metric_append(&fam_temp, metric);
+
+    if (props.maxTemperature > 0 && (config.output & OUTPUT_RATIO)) {
+      metric.value.gauge = value / props.maxTemperature;
+      metric_family_metric_append(&fam_ratio, metric);
+      reported_ratio = true;
+    }
     ok = true;
   }
   if (ok) {
     metric_reset(&metric);
-    gpu_submit(gpu, &fam);
+    gpu_submit(gpu, &fam_temp);
+    if (reported_ratio) {
+      gpu_submit(gpu, &fam_ratio);
+    }
   }
   free(temps);
   return ok;
