@@ -304,6 +304,7 @@ static ze_result_t metric_args_check(int callbit, const char *name,
 #define RAS_INIT 0
 #define RAS_INC 1
 
+#define TEMP_LIMIT 95
 #define TEMP_INIT 10
 #define TEMP_INC 5
 
@@ -393,7 +394,7 @@ ADD_METRIC(9, zesDeviceEnumPowerDomains, zes_pwr_handle_t,
            power_counter.energy += COUNTER_INC,
            power_counter.timestamp += TIME_INC)
 
-static zes_temp_properties_t temp_props;
+static zes_temp_properties_t temp_props = {.maxTemperature = TEMP_LIMIT};
 static double temperature = TEMP_INIT;
 static int dummy;
 
@@ -480,6 +481,9 @@ typedef struct {
   double last;
 } metrics_validation_t;
 
+#define TEMP_RATIO_INIT ((double)(TEMP_INIT) / (TEMP_LIMIT))
+#define TEMP_RATIO_INC ((double)(TEMP_INC) / (TEMP_LIMIT))
+
 #define MEM_RATIO_INIT ((double)MEMORY_INIT / MEMORY_SIZE)
 #define MEM_RATIO_INC ((double)MEMORY_INC / MEMORY_SIZE)
 
@@ -508,6 +512,7 @@ static metrics_validation_t valid_metrics[] = {
     {"memory_usage_ratio/HBM/system", false, false, MEM_RATIO_INIT,
      MEM_RATIO_INC, 0, 0.0},
     {"temperature_celsius", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
+    {"temperature_ratio", true, false, TEMP_RATIO_INIT, TEMP_RATIO_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
     {"energy_ujoules_total", true, false, COUNTER_START, COUNTER_INC, 0, 0.0},
