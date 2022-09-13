@@ -307,13 +307,19 @@ static ze_result_t metric_args_check(int callbit, const char *name,
 #define TEMP_INIT 10
 #define TEMP_INC 5
 
-/* Call bit, metric enumaration function name, its handle type,
- * corresponding zes*GetProperties() function name, its property struct type,
- * corresponding zes*GetState() function name, its state struct type, global
- * variable for intial state values, two increment operations for the global
- * state variable members (or void)
+/* Arguments:
+ * - call bit
+ * - metric enumaration function name
+ * - its handle type
+ * - zes*GetProperties() function name
+ * - its property struct type
+ * - global variable for initial prop values
+ * - zes*GetState() function name
+ * - its state struct type
+ * - global variable for intial state values
+ * - two increment operations for the global state variable members (or void)
  */
-#define ADD_METRIC(callbit, getname, handletype, propname, proptype,           \
+#define ADD_METRIC(callbit, getname, handletype, propname, proptype, propvar,  \
                    statename, statetype, statevar, stateinc1, stateinc2)       \
   ze_result_t getname(zes_device_handle_t dev, uint32_t *count,                \
                       handletype *handles) {                                   \
@@ -333,8 +339,8 @@ static ze_result_t metric_args_check(int callbit, const char *name,
   ze_result_t propname(handletype handle, proptype *prop) {                    \
     ze_result_t ret = metric_args_check(callbit + 1, #propname, handle, prop); \
     if (ret == ZE_RESULT_SUCCESS) {                                            \
-      proptype value = {.onSubdevice = true};                                  \
-      *prop = value;                                                           \
+      *prop = propvar;                                                         \
+      prop->onSubdevice = true;                                                \
     }                                                                          \
     return ret;                                                                \
   }                                                                            \
@@ -349,50 +355,57 @@ static ze_result_t metric_args_check(int callbit, const char *name,
     return ret;                                                                \
   }
 
+static zes_engine_properties_t engine_props;
 static zes_engine_stats_t engine_stats = {.activeTime = COUNTER_START,
                                           .timestamp = TIME_START};
 
 ADD_METRIC(0, zesDeviceEnumEngineGroups, zes_engine_handle_t,
-           zesEngineGetProperties, zes_engine_properties_t,
+           zesEngineGetProperties, zes_engine_properties_t, engine_props,
            zesEngineGetActivity, zes_engine_stats_t, engine_stats,
            engine_stats.activeTime += COUNTER_INC,
            engine_stats.timestamp += TIME_INC)
 
+static zes_freq_properties_t freq_props;
 static zes_freq_state_t freq_state = {.request = FREQ_INIT,
                                       .actual = FREQ_INIT};
 
 ADD_METRIC(3, zesDeviceEnumFrequencyDomains, zes_freq_handle_t,
-           zesFrequencyGetProperties, zes_freq_properties_t,
+           zesFrequencyGetProperties, zes_freq_properties_t, freq_props,
            zesFrequencyGetState, zes_freq_state_t, freq_state,
            freq_state.request += 2 * FREQ_INC, freq_state.actual += FREQ_INC)
 
+static zes_mem_properties_t mem_props;
 static zes_mem_state_t mem_state = {.free = MEMORY_SIZE - MEMORY_INIT,
                                     .size = MEMORY_SIZE};
 
 ADD_METRIC(6, zesDeviceEnumMemoryModules, zes_mem_handle_t,
-           zesMemoryGetProperties, zes_mem_properties_t, zesMemoryGetState,
-           zes_mem_state_t, mem_state, mem_state.free -= MEMORY_INC,
-           mem_state.health ^= ZES_MEM_HEALTH_OK)
+           zesMemoryGetProperties, zes_mem_properties_t, mem_props,
+           zesMemoryGetState, zes_mem_state_t, mem_state,
+           mem_state.free -= MEMORY_INC, mem_state.health ^= ZES_MEM_HEALTH_OK)
 
+static zes_power_properties_t power_props;
 static zes_power_energy_counter_t power_counter = {.energy = COUNTER_START,
                                                    .timestamp = TIME_START};
 
 ADD_METRIC(9, zesDeviceEnumPowerDomains, zes_pwr_handle_t,
-           zesPowerGetProperties, zes_power_properties_t,
+           zesPowerGetProperties, zes_power_properties_t, power_props,
            zesPowerGetEnergyCounter, zes_power_energy_counter_t, power_counter,
            power_counter.energy += COUNTER_INC,
            power_counter.timestamp += TIME_INC)
 
-static int dummy;
+static zes_temp_properties_t temp_props;
 static double temperature = TEMP_INIT;
+static int dummy;
 
 ADD_METRIC(12, zesDeviceEnumTemperatureSensors, zes_temp_handle_t,
-           zesTemperatureGetProperties, zes_temp_properties_t,
+           zesTemperatureGetProperties, zes_temp_properties_t, temp_props,
            zesTemperatureGetState, double, temperature, temperature += TEMP_INC,
            dummy = 0)
 
+static zes_ras_properties_t ras_props;
+
 ADD_METRIC(15, zesDeviceEnumRasErrorSets, zes_ras_handle_t, zesRasGetProperties,
-           zes_ras_properties_t, zesRasGetDummy, int,
+           zes_ras_properties_t, ras_props, zesRasGetDummyState, int,
            dummy, // dummy as state API differs from others
            dummy = 0, dummy = 0)
 
