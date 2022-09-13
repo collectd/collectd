@@ -294,6 +294,7 @@ static ze_result_t metric_args_check(int callbit, const char *name,
 #define COUNTER_MAX_RATIO                                                      \
   (1.0e6 * COUNTER_INC / ((double)COUNTER_MAX * TIME_INC))
 
+#define FREQ_LIMIT 1600
 #define FREQ_INIT 300
 #define FREQ_INC 50
 
@@ -366,7 +367,7 @@ ADD_METRIC(0, zesDeviceEnumEngineGroups, zes_engine_handle_t,
            engine_stats.activeTime += COUNTER_INC,
            engine_stats.timestamp += TIME_INC)
 
-static zes_freq_properties_t freq_props;
+static zes_freq_properties_t freq_props = {.max = FREQ_LIMIT};
 static zes_freq_state_t freq_state = {.request = FREQ_INIT,
                                       .actual = FREQ_INIT};
 
@@ -481,6 +482,9 @@ typedef struct {
   double last;
 } metrics_validation_t;
 
+#define FREQ_RATIO_INIT ((double)(FREQ_INIT) / (FREQ_LIMIT))
+#define FREQ_RATIO_INC ((double)(FREQ_INC) / (FREQ_LIMIT))
+
 #define TEMP_RATIO_INIT ((double)(TEMP_INIT) / (TEMP_LIMIT))
 #define TEMP_RATIO_INC ((double)(TEMP_INC) / (TEMP_LIMIT))
 
@@ -499,6 +503,18 @@ static metrics_validation_t valid_metrics[] = {
      0.0},
     {"frequency_mhz/request/gpu", false, false, FREQ_INIT, 2 * FREQ_INC, 0,
      0.0},
+    {"frequency_ratio/actual/gpu/min", true, true, FREQ_RATIO_INIT,
+     FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/actual/gpu/max", true, true, FREQ_RATIO_INIT,
+     FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/actual/gpu", false, false, FREQ_RATIO_INIT,
+     FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/request/gpu/min", true, true, FREQ_RATIO_INIT,
+     2 * FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/request/gpu/max", true, true, FREQ_RATIO_INIT,
+     2 * FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/request/gpu", false, false, FREQ_RATIO_INIT,
+     2 * FREQ_RATIO_INC, 0, 0.0},
     {"memory_used_bytes/HBM/system/min", true, true, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
     {"memory_used_bytes/HBM/system/max", true, true, MEMORY_INIT, MEMORY_INC, 0,

@@ -1190,11 +1190,13 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
 
 /* set frequency metric labels based on its properties, return true for success
  */
-static bool set_freq_labels(zes_freq_handle_t freq, metric_t *metric) {
+static bool set_freq_labels(zes_freq_handle_t freq, metric_t *metric,
+                            double *maxfreq) {
   zes_freq_properties_t props;
   if (zesFrequencyGetProperties(freq, &props) != ZE_RESULT_SUCCESS) {
     return false;
   }
+  *maxfreq = props.max;
   const char *type;
   switch (props.type) {
   case ZES_FREQ_DOMAIN_GPU:
@@ -1240,14 +1242,19 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     assert(gpu->frequency);
   }
 
-  metric_family_t fam = {
+  metric_family_t fam_freq = {
       .help = "Sampled HW frequency (in MHz)",
       .name = METRIC_PREFIX "frequency_mhz",
       .type = METRIC_TYPE_GAUGE,
   };
+  metric_family_t fam_ratio = {
+      .help = "Sampled HW frequency ratio vs (non-overclocked) max frequency",
+      .name = METRIC_PREFIX "frequency_ratio",
+      .type = METRIC_TYPE_GAUGE,
+  };
   metric_t metric = {0};
 
-  bool reported = false, ok = false;
+  bool reported_ratio = false, reported = false, ok = false;
   for (i = 0; i < freq_count; i++) {
     /* fetch freq samples */
     if (zesFrequencyGetState(freqs[i], &(gpu->frequency[cache_idx][i])) !=
@@ -1261,7 +1268,8 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       continue;
     }
     /* process samples */
-    if (!set_freq_labels(freqs[i], &metric)) {
+    double maxfreq;
+    if (!set_freq_labels(freqs[i], &metric, &maxfreq)) {
       ERROR(PLUGIN_NAME ": failed to get frequency domain %d properties", i);
       ok = false;
       break;
@@ -1278,14 +1286,24 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       if (value >= 0) {
         metric.value.gauge = value;
         metric_label_set(&metric, "type", "request");
-        metric_family_metric_append(&fam, metric);
+        metric_family_metric_append(&fam_freq, metric);
+        if ((config.output & OUTPUT_RATIO) && maxfreq > 0) {
+          metric.value.gauge = value / maxfreq;
+          metric_family_metric_append(&fam_ratio, metric);
+          reported_ratio = true;
+        }
         freq_ok = true;
       }
       value = gpu->frequency[0][i].actual;
       if (value >= 0) {
         metric.value.gauge = value;
         metric_label_set(&metric, "type", "actual");
-        metric_family_metric_append(&fam, metric);
+        metric_family_metric_append(&fam_freq, metric);
+        if ((config.output & OUTPUT_RATIO) && maxfreq > 0) {
+          metric.value.gauge = value / maxfreq;
+          metric_family_metric_append(&fam_ratio, metric);
+          reported_ratio = true;
+        }
         freq_ok = true;
       }
     } else {
@@ -1314,22 +1332,40 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         metric.value.gauge = req_min;
         metric_label_set(&metric, "type", "request");
         metric_label_set(&metric, "function", "min");
-        metric_family_metric_append(&fam, metric);
-
+        metric_family_metric_append(&fam_freq, metric);
+        if ((config.output & OUTPUT_RATIO) && maxfreq > 0) {
+          metric.value.gauge = req_min / maxfreq;
+          metric_family_metric_append(&fam_ratio, metric);
+          reported_ratio = true;
+        }
         metric.value.gauge = req_max;
         metric_label_set(&metric, "function", "max");
-        metric_family_metric_append(&fam, metric);
+        metric_family_metric_append(&fam_freq, metric);
+        if ((config.output & OUTPUT_RATIO) && maxfreq > 0) {
+          metric.value.gauge = req_max / maxfreq;
+          metric_family_metric_append(&fam_ratio, metric);
+          reported_ratio = true;
+        }
         freq_ok = true;
       }
       if (act_max >= 0.0) {
         metric.value.gauge = act_min;
         metric_label_set(&metric, "type", "actual");
         metric_label_set(&metric, "function", "min");
-        metric_family_metric_append(&fam, metric);
-
+        metric_family_metric_append(&fam_freq, metric);
+        if ((config.output & OUTPUT_RATIO) && maxfreq > 0) {
+          metric.value.gauge = act_min / maxfreq;
+          metric_family_metric_append(&fam_ratio, metric);
+          reported_ratio = true;
+        }
         metric.value.gauge = act_max;
         metric_label_set(&metric, "function", "max");
-        metric_family_metric_append(&fam, metric);
+        metric_family_metric_append(&fam_freq, metric);
+        if ((config.output & OUTPUT_RATIO) && maxfreq > 0) {
+          metric.value.gauge = act_max / maxfreq;
+          metric_family_metric_append(&fam_ratio, metric);
+          reported_ratio = true;
+        }
         freq_ok = true;
       }
     }
@@ -1345,7 +1381,10 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
   }
   if (reported) {
     metric_reset(&metric);
-    gpu_submit(gpu, &fam);
+    gpu_submit(gpu, &fam_freq);
+    if (reported_ratio) {
+      gpu_submit(gpu, &fam_ratio);
+    }
   }
   free(freqs);
   return ok;
@@ -1411,7 +1450,8 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       ok = false;
       break;
     }
-    if (!set_freq_labels(freqs[i], &metric)) {
+    double dummy;
+    if (!set_freq_labels(freqs[i], &metric, &dummy)) {
       ERROR(PLUGIN_NAME ": failed to get frequency domain %d properties", i);
       ok = false;
       break;
