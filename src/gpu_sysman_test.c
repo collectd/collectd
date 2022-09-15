@@ -1219,7 +1219,7 @@ static int test_init_errors(unsigned int limit) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* options parsing & main */
+/* options parsing, call count checks and main */
 
 static void parse_options(int argc, const char **argv) {
   static const struct {
@@ -1261,6 +1261,34 @@ static void parse_options(int argc, const char **argv) {
       exit(1);
     }
   }
+}
+
+void check_call_counts(const char *type, unsigned long reqbits) {
+  int count;
+  bool reqbit, callbit;
+  unsigned long callbits = globs.callbits;
+  for (count = 0; reqbits | callbits;) {
+    reqbit = reqbits & 1;
+    callbit = callbits & 1;
+    if (reqbit != callbit) {
+      if (reqbit) {
+        fprintf(stderr,
+                "ERROR: call to Sysman API metric %s function %d missing\n",
+                type, count);
+      } else {
+        fprintf(stderr,
+                "ERROR: unexpected call to Sysman API metric %s function %d\n",
+                type, count);
+      }
+      exit(1);
+    } else if (callbit) {
+      count++;
+    }
+    callbits >>= 1;
+    reqbits >>= 1;
+  }
+  fprintf(stderr, "%d calls to expected %d Sysman metric %s functions\n",
+          globs.api_calls, count, type);
 }
 
 int main(int argc, const char **argv) {
@@ -1320,9 +1348,7 @@ int main(int argc, const char **argv) {
   globs.warnings = globs.api_calls = globs.callbits = 0;
   assert(registry.init() == 0);
   /* all Sysman metric init functions got called? */
-  assert(globs.callbits == INIT_CALL_BITS);
-  fprintf(stderr, "%d calls to all %d Sysman metric init functions\n",
-          globs.api_calls, INIT_CALL_FUNCS);
+  check_call_counts("init", INIT_CALL_BITS);
   assert(registry.shutdown() == 0);
   assert(globs.warnings == 0);
   fprintf(stderr, "full init: PASS\n\n");
@@ -1360,11 +1386,9 @@ int main(int argc, const char **argv) {
                   "enabled...\n");
   globs.warnings = globs.api_calls = globs.callbits = 0;
   assert(registry.read() == 0);
-  /* all Sysman metric query functions got successfully called? */
-  assert(globs.callbits == QUERY_CALL_BITS);
+  /* all Sysman metric query first round functions got successfully called? */
+  check_call_counts("query", QUERY_CALL_BITS);
   assert(globs.warnings == 0);
-  fprintf(stderr, "%d calls to all %d Sysman metric query functions\n",
-          globs.api_calls, QUERY_CALL_FUNCS);
   /* per-time counters do not report on first round */
   assert(validate_and_reset_saved_metrics(1, 0) > 0);
   fprintf(stderr, "metrics query round 1: PASS\n\n");
@@ -1375,7 +1399,8 @@ int main(int argc, const char **argv) {
   fprintf(stderr, "Another query for per-timediff metric values + validation "
                   "for all values...\n");
   assert(registry.read() == 0);
-  /* make sure second round does (successfully) same (amount of) calls */
+  /* make sure second round calls all Sysman API functions */
+  check_call_counts("query", QUERY_CALL_BITS);
   assert(globs.warnings == 0);
   /* second round may make additional calls */
   assert(globs.api_calls >= api_calls);
