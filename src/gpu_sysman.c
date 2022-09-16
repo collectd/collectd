@@ -1284,6 +1284,41 @@ static ze_result_t set_freq_labels(zes_freq_handle_t freq, metric_t *metric,
   return ZE_RESULT_SUCCESS;
 }
 
+/* set label explaining frequency throttling reason(s) */
+static void set_freq_throttled_label(metric_t *metric,
+                                     zes_freq_throttle_reason_flags_t reasons) {
+  static const struct {
+    zes_freq_throttle_reason_flags_t flag;
+    const char *reason;
+  } flags[] = {
+      {ZES_FREQ_THROTTLE_REASON_FLAG_AVE_PWR_CAP, "average-power"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_BURST_PWR_CAP, "burst-power"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_CURRENT_LIMIT, "current"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_THERMAL_LIMIT, "temperature"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_PSU_ALERT, "PSU-alert"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_SW_RANGE, "SW-freq-range"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_HW_RANGE, "HW-freq-range"},
+  };
+  bool found = false;
+  const char *reason = NULL;
+  for (unsigned int i = 0; i < STATIC_ARRAY_SIZE(flags); i++) {
+    if (reasons & flags[i].flag) {
+      if (found) {
+        reason = "many";
+        break;
+      }
+      reason = flags[i].reason;
+      found = true;
+    }
+  }
+  if (reasons) {
+    if (!found) {
+      reason = "unknown";
+    }
+    metric_label_set(metric, "throttled_by", reason);
+  }
+}
+
 /* Report frequency domains request & actual frequency, return true for success
  *
  * See gpu_read() on 'cache_idx' usage.
@@ -1355,6 +1390,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     double value;
 
     if (config.samples < 2) {
+      set_freq_throttled_label(&metric, gpu->frequency[0][i].throttleReasons);
       /* negative value = unsupported:
        * https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv416zes_freq_state_t
        */
@@ -1388,7 +1424,9 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
        */
       double req_min = 1.0e12, req_max = -1.0e12;
       double act_min = 1.0e12, act_max = -1.0e12;
+      zes_freq_throttle_reason_flags_t reasons = 0;
       for (uint32_t j = 0; j < config.samples; j++) {
+        reasons |= gpu->frequency[j][i].throttleReasons;
         value = gpu->frequency[j][i].request;
         if (value < req_min) {
           req_min = value;
@@ -1404,6 +1442,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           act_max = value;
         }
       }
+      set_freq_throttled_label(&metric, reasons);
       if (req_max >= 0.0) {
         metric.value.gauge = req_min;
         metric_label_set(&metric, "type", "request");
