@@ -725,8 +725,8 @@ static double get_value(metric_type_t type, value_t value) {
 int plugin_dispatch_metric_family(metric_family_t const *fam) {
   assert(fam && fam->name && fam->metric.num && fam->metric.ptr);
 
-  char name[128];
   bool found = false;
+  char name[128] = "\0";
   metric_t *metric = fam->metric.ptr;
 
   for (size_t m = 0; m < fam->metric.num; m++) {
@@ -749,7 +749,11 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
       }
     }
   }
-  assert(found);
+  if (!found) {
+    fprintf(stderr, "ERROR: found no '%s' metrics\n(e.g '%s')\n", fam->name,
+            name);
+    exit(1);
+  }
   return 0;
 }
 
