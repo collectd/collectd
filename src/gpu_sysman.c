@@ -2023,7 +2023,7 @@ static int gpu_config_parse(const char *key, const char *value) {
   } else if (strcasecmp(key, KEY_METRICS_OUTPUT) == 0) {
     config.output = 0;
     static const char delim[] = ",:/ ";
-    char *save, *flag, *flags = strdup(value);
+    char *save, *flag, *flags = sstrdup(value);
     for (flag = strtok_r(flags, delim, &save); flag;
          flag = strtok_r(NULL, delim, &save)) {
       unsigned i;
