@@ -51,6 +51,9 @@
   "encoding=delimited"
 #define CONTENT_TYPE_TEXT "text/plain; version=0.0.4"
 
+#define MHD_HTTP_HEADER_CONTENT_TYPE_OPTIONS "X-Content-Type-Options"
+#define CONTENT_TYPE_OPTIONS_TEXT "nosniff"
+
 #if MHD_VERSION >= 0x00097002
 #define MHD_RESULT enum MHD_Result
 #else
@@ -274,6 +277,8 @@ static MHD_RESULT http_handler(void *cls, struct MHD_Connection *connection,
 #endif
   MHD_add_response_header(res, MHD_HTTP_HEADER_CONTENT_TYPE,
                           want_proto ? CONTENT_TYPE_PROTO : CONTENT_TYPE_TEXT);
+  MHD_add_response_header(res, MHD_HTTP_HEADER_CONTENT_TYPE_OPTIONS,
+                          CONTENT_TYPE_OPTIONS_TEXT);
 
   MHD_RESULT status = MHD_queue_response(connection, MHD_HTTP_OK, res);
 
