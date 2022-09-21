@@ -24,9 +24,15 @@
  *   Sven Trenkel <collectd at semidefinite.de>
  **/
 
+#include <Python.h>
 /* Some python versions don't include this by default. */
-
+#if PY_VERSION_HEX < 0x030B0000
+/*
+ * Python 3.11 move longintrepr.h to cpython/longintrepr.h
+ * And it's always included
+ */
 #include <longintrepr.h>
+#endif /* PY_VERSION_HEX < 0x030B0000 */
 
 /* These two macros are basically Py_BEGIN_ALLOW_THREADS and
  * Py_BEGIN_ALLOW_THREADS
