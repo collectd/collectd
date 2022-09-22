@@ -964,6 +964,24 @@ static ze_result_t set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
   case ZES_MEM_TYPE_LPDDR5:
     type = "LPDDR5";
     break;
+  case ZES_MEM_TYPE_GDDR4:
+    type = "GDDR4";
+    break;
+  case ZES_MEM_TYPE_GDDR5:
+    type = "GDDR5";
+    break;
+  case ZES_MEM_TYPE_GDDR5X:
+    type = "GDDR5X";
+    break;
+  case ZES_MEM_TYPE_GDDR6:
+    type = "GDDR6";
+    break;
+  case ZES_MEM_TYPE_GDDR6X:
+    type = "GDDR6X";
+    break;
+  case ZES_MEM_TYPE_GDDR7:
+    type = "GDDR7";
+    break;
   case ZES_MEM_TYPE_SRAM:
     type = "SRAM";
     break;
