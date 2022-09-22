@@ -411,6 +411,22 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
     WARNING(PLUGIN_NAME ": failed to get GPU device state => 0x%x", ret);
   }
 
+  const char *eccstate = "unavailable";
+  zes_device_ecc_properties_t ecc = {.pNext = NULL};
+  if (zesDeviceGetEccState(dev, &ecc) == ZE_RESULT_SUCCESS) {
+    switch (ecc.currentState) {
+    case ZES_DEVICE_ECC_STATE_ENABLED:
+      eccstate = "enabled";
+      break;
+    case ZES_DEVICE_ECC_STATE_DISABLED:
+      eccstate = "disabled";
+      break;
+    default:
+      break;
+    }
+  }
+  INFO("- ECC state: %s", eccstate);
+
   INFO("HW identification:");
   zes_device_properties_t props = {.pNext = NULL};
   if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {

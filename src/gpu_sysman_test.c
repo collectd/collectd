@@ -250,21 +250,26 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
 
 /* mock up level-zero sysman device handling API, called during gpu_init() */
 
-#define DEV_GET_ZEROED_STRUCT(callbit, getname, structtype)                    \
+#define DEV_GET_SET_STRUCT(callbit, getname, structtype, setval)               \
   ze_result_t getname(zes_device_handle_t dev, structtype *to_zero) {          \
     ze_result_t ret = dev_args_check(callbit, #getname, dev, to_zero);         \
     if (ret == ZE_RESULT_SUCCESS) {                                            \
       assert(!to_zero->pNext);                                                 \
       memset(to_zero, 0, sizeof(*to_zero));                                    \
+      setval;                                                                  \
     }                                                                          \
     return ret;                                                                \
   }
 
-DEV_GET_ZEROED_STRUCT(5, zesDeviceGetProperties, zes_device_properties_t)
-DEV_GET_ZEROED_STRUCT(6, zesDevicePciGetProperties, zes_pci_properties_t)
-DEV_GET_ZEROED_STRUCT(7, zesDeviceGetState, zes_device_state_t)
+DEV_GET_SET_STRUCT(5, zesDeviceGetProperties, zes_device_properties_t, )
+DEV_GET_SET_STRUCT(6, zesDevicePciGetProperties, zes_pci_properties_t, )
+DEV_GET_SET_STRUCT(7, zesDeviceGetState, zes_device_state_t,
+                   to_zero->reset = (ZES_RESET_REASON_FLAG_WEDGED |
+                                     ZES_RESET_REASON_FLAG_REPAIR))
+DEV_GET_SET_STRUCT(8, zesDeviceGetEccState, zes_device_ecc_properties_t,
+                   to_zero->currentState = ZES_DEVICE_ECC_STATE_ENABLED)
 
-#define INIT_CALL_FUNCS 8
+#define INIT_CALL_FUNCS 9
 #define INIT_CALL_BITS (((uint64_t)1 << INIT_CALL_FUNCS) - 1)
 
 /* ------------------------------------------------------------------------- */
