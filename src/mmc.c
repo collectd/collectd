@@ -49,6 +49,18 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist = NULL;
 
+// Cache of open file descriptors for /dev/mmcblk? block devices.
+// The purpose of caching the file descriptors instead of open()/close()ing for
+// every read is to prevent the generation of udev events for every close().
+typedef struct dev_cache_entry_s {
+  char *path;
+  int fd;
+  struct dev_cache_entry_s *next;
+} dev_cache_entry_t;
+
+static pthread_mutex_t block_dev_cache_lock = PTHREAD_MUTEX_INITIALIZER;
+static dev_cache_entry_t *block_dev_cache = NULL;
+
 static int mmc_config(const char *key, const char *value) {
   if (ignorelist == NULL)
     ignorelist = ignorelist_create(1);
@@ -150,22 +162,84 @@ static int mmc_read_emmc_generic(struct udev_device *mmc_dev) {
   return res;
 }
 
+// mmc_open_block_dev open file descriptor for device at path "dev_path" or
+// return a fd from a previous invocation.
+// A caller must hold the block_dev_cache_lock and keep it locked while using
+// the returned fd to prevent races between ioctls.
 static int mmc_open_block_dev(const char *dev_name, const char *dev_path) {
-  int block_fd;
-
   if (dev_path == NULL) {
     INFO(PLUGIN_NAME "(%s) failed to find block device", dev_name);
     return -1;
   }
 
-  block_fd = open(dev_path, O_RDWR);
+  // Check if we have already opened this block device before.
+  // The purpose of this file descriptor caching is to prevent the generation
+  // of periodic udev events.
+  // Why does udev generate an event whenever a block device opened for
+  // writing is closed? Because this usually happens when a device is
+  // partitioned or mkfs is called (e.g. an actual change to the dev).
+  // This is however not what we do. We only need O_RDWR to send special MMC
+  // commands which do not modify the content of the device, so we don't want
+  // to generate the events.
+  for (dev_cache_entry_t *piv = block_dev_cache; piv != NULL; piv = piv->next) {
+    if (strcmp(dev_path, piv->path) == 0) {
+      return piv->fd;
+    }
+  }
+
+  // This dev_path was not opened before. Open it now:
+  int block_fd = open(dev_path, O_RDWR);
   if (block_fd < 0) {
     INFO(PLUGIN_NAME "(%s) failed to open block device (%s): (%s)", dev_name,
          dev_path, strerror(errno));
     return -1;
   }
 
-  return block_fd;
+  // And add it to the cache of already openend block devices:
+  dev_cache_entry_t *cache_entry = calloc(1, sizeof(*cache_entry));
+  if (cache_entry == NULL) {
+    ERROR(PLUGIN_NAME "(%s) failed to allocate memory (%s)", dev_name,
+          strerror(errno));
+    return -1;
+  }
+
+  cache_entry->path = strdup(dev_path);
+  if (cache_entry->path == NULL) {
+    ERROR(PLUGIN_NAME "(%s) failed to copy path string (%s)", dev_name,
+          strerror(errno));
+
+    free(cache_entry);
+    return -1;
+  }
+
+  cache_entry->fd = block_fd;
+  cache_entry->next = block_dev_cache;
+  block_dev_cache = cache_entry;
+
+  return cache_entry->fd;
+}
+
+// mmc_close_block_dev close a file descriptor returned by mmc_open_block_dev.
+// A caller must hold the block_dev_cache_lock.
+static int mmc_close_block_dev(int fd) {
+  for (dev_cache_entry_t **elem_ptr = &block_dev_cache; *elem_ptr != NULL;
+       elem_ptr = &(*elem_ptr)->next) {
+    dev_cache_entry_t *elem = *elem_ptr;
+
+    if (elem->fd == fd) {
+      // Unhook the element from the linked list by overwriting the pointer
+      // that pointed to it. This could be &block_dev_cache or the &->next
+      // pointer of the previous element.
+      *elem_ptr = elem->next;
+
+      free(elem->path);
+      free(elem);
+
+      return close(fd);
+    }
+  }
+
+  return -1;
 }
 
 // The flags are what emmcparm uses and translate to (include/linux/mmc/core.h):
@@ -211,6 +285,7 @@ static int mmc_read_micron(struct udev_device *mmc_dev,
   dev_name = udev_device_get_sysname(mmc_dev);
   dev_path = udev_device_get_devnode(block_dev);
 
+  pthread_mutex_lock(&block_dev_cache_lock);
   block_fd = mmc_open_block_dev(dev_name, dev_path);
   if (block_fd < 0) {
     return EXIT_FAILURE;
@@ -220,7 +295,8 @@ static int mmc_read_micron(struct udev_device *mmc_dev,
                        &bb_runtime, &bb_remaining) != EXIT_SUCCESS) {
     INFO(PLUGIN_NAME "(%s) failed to send ioctl to %s: %s", dev_name, dev_path,
          strerror(errno));
-    close(block_fd);
+    mmc_close_block_dev(block_fd);
+    pthread_mutex_unlock(&block_dev_cache_lock);
     return EXIT_FAILURE;
   }
 
@@ -228,7 +304,8 @@ static int mmc_read_micron(struct udev_device *mmc_dev,
                        &er_slc_max, &er_slc_avg) != EXIT_SUCCESS) {
     INFO(PLUGIN_NAME "(%s) failed to send ioctl to %s: %s", dev_name, dev_path,
          strerror(errno));
-    close(block_fd);
+    mmc_close_block_dev(block_fd);
+    pthread_mutex_unlock(&block_dev_cache_lock);
     return EXIT_FAILURE;
   }
 
@@ -236,11 +313,12 @@ static int mmc_read_micron(struct udev_device *mmc_dev,
                        &er_mlc_max, &er_mlc_avg) != EXIT_SUCCESS) {
     INFO(PLUGIN_NAME "(%s) failed to send ioctl to %s: %s", dev_name, dev_path,
          strerror(errno));
-    close(block_fd);
+    mmc_close_block_dev(block_fd);
+    pthread_mutex_unlock(&block_dev_cache_lock);
     return EXIT_FAILURE;
   }
 
-  close(block_fd);
+  pthread_mutex_unlock(&block_dev_cache_lock);
 
   bb_total = (gauge_t)(bb_initial) + (gauge_t)(bb_runtime);
 
@@ -311,6 +389,7 @@ static int mmc_read_sandisk(struct udev_device *mmc_dev,
   const char *dev_name = udev_device_get_sysname(mmc_dev);
   const char *dev_path = udev_device_get_devnode(block_dev);
 
+  pthread_mutex_lock(&block_dev_cache_lock);
   int block_fd = mmc_open_block_dev(dev_name, dev_path);
   if (block_fd < 0) {
     return EXIT_FAILURE;
@@ -319,7 +398,8 @@ static int mmc_read_sandisk(struct udev_device *mmc_dev,
   mmc_ioc_cmd_set_data(cmd_read_report, cmd_data);
 
   if (ioctl(block_fd, MMC_IOC_CMD, &cmd_en_report_mode) < 0) {
-    close(block_fd);
+    mmc_close_block_dev(block_fd);
+    pthread_mutex_unlock(&block_dev_cache_lock);
     INFO(PLUGIN_NAME
          "(%s) failed to send enable report mode MMC ioctl to %s: %s",
          dev_name, dev_path, strerror(errno));
@@ -327,13 +407,14 @@ static int mmc_read_sandisk(struct udev_device *mmc_dev,
   }
 
   if (ioctl(block_fd, MMC_IOC_CMD, &cmd_read_report) < 0) {
-    close(block_fd);
+    mmc_close_block_dev(block_fd);
+    pthread_mutex_unlock(&block_dev_cache_lock);
     INFO(PLUGIN_NAME "(%s) failed to send read_report MMC ioctl to %s: %s",
          dev_name, dev_path, strerror(errno));
     return EXIT_FAILURE;
   }
 
-  close(block_fd);
+  pthread_mutex_unlock(&block_dev_cache_lock);
 
   gauge_t bb_total = le32toh(cmd_data[SANDISK_FIELDS_BB_INITIAL]) +
                      le32toh(cmd_data[SANDISK_FIELDS_BB_RUNTIME_MLC]) +
@@ -552,7 +633,19 @@ static int mmc_read(void) {
   return 0;
 } /* int mmc_read */
 
+int mmc_shutdown(void) {
+  // Close the file descriptors we have accumulated
+  pthread_mutex_lock(&block_dev_cache_lock);
+  while (block_dev_cache != NULL) {
+    mmc_close_block_dev(block_dev_cache->fd);
+  }
+  pthread_mutex_unlock(&block_dev_cache_lock);
+
+  return 0;
+} /* int mmc_shutdown */
+
 void module_register(void) {
   plugin_register_config(PLUGIN_NAME, mmc_config, config_keys, config_keys_num);
   plugin_register_read(PLUGIN_NAME, mmc_read);
+  plugin_register_shutdown(PLUGIN_NAME, mmc_shutdown);
 } /* void module_register */
