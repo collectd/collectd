@@ -120,10 +120,10 @@ typedef struct {
 } gpu_device_t;
 
 typedef enum {
-  OUTPUT_COUNTER = 1,
-  OUTPUT_RATE = 2,
-  OUTPUT_RATIO = 4,
-  OUTPUT_ALL = 7
+  OUTPUT_COUNTER = (1 << 0),
+  OUTPUT_RATE = (1 << 1),
+  OUTPUT_RATIO = (1 << 2),
+  OUTPUT_ALL = (OUTPUT_COUNTER | OUTPUT_RATE | OUTPUT_RATIO)
 } output_t;
 
 static const struct {
@@ -2026,15 +2026,17 @@ static int gpu_config_parse(const char *key, const char *value) {
     char *save, *flag, *flags = sstrdup(value);
     for (flag = strtok_r(flags, delim, &save); flag;
          flag = strtok_r(NULL, delim, &save)) {
-      unsigned i;
-      for (i = 0; i < STATIC_ARRAY_SIZE(metrics_output); i++) {
+      bool found = false;
+      for (unsigned i = 0; i < STATIC_ARRAY_SIZE(metrics_output); i++) {
         if (strcasecmp(flag, metrics_output[i].name) == 0) {
           config.output |= metrics_output[i].value;
+          found = true;
           break;
         }
       }
-      if (i >= STATIC_ARRAY_SIZE(metrics_output)) {
+      if (!found) {
         free(flags);
+        ERROR(PLUGIN_NAME ": Invalid '%s' config key value '%s'", key, value);
         return RET_INVALID_CONFIG;
       }
     }
