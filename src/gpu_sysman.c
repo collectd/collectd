@@ -1099,7 +1099,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
           free_max = mem_free;
         }
       }
-      /* largest used amount of memory */
+      /* smallest used amount of memory within interval */
       mem_used = mem_size - free_max;
       metric.value.gauge = mem_used;
       metric_label_set(&metric, "function", "min");
@@ -1109,7 +1109,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_family_metric_append(&fam_ratio, metric);
         reported_ratio = true;
       }
-      /* smallest used amount of memory */
+      /* largest used amount of memory within interval */
       mem_used = mem_size - free_min;
       metric.value.gauge = mem_used;
       metric_label_set(&metric, "function", "max");
