@@ -267,7 +267,8 @@ static int sensors_load_conf(void) {
                   chip, feature, &subfeature_num)) != NULL) {
         featurelist_t *fl;
 
-        if (subfeature->type == SENSORS_SUBFEATURE_POWER_AVERAGE) {
+        if ((subfeature->type == SENSORS_SUBFEATURE_POWER_AVERAGE) &&
+            (fl_power == NULL)) {
           fl_power = calloc(1, sizeof(*fl_power));
           if (fl_power != NULL) {
             fl_power->chip = chip;
