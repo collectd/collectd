@@ -28,6 +28,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
+#include "utils/format_influxdb/format_influxdb.h"
 #include "utils/format_json/format_json.h"
 #include "utils/format_kairosdb/format_kairosdb.h"
 
@@ -72,6 +73,7 @@ struct wh_callback_s {
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
+#define WH_FORMAT_INFLUXDB 3
   int format;
   bool send_metrics;
   bool send_notifications;
@@ -94,6 +96,8 @@ struct wh_callback_s {
 
   int data_ttl;
   char *metrics_prefix;
+
+  char *unix_socket_path;
 };
 typedef struct wh_callback_s wh_callback_t;
 
@@ -161,11 +165,13 @@ static void wh_reset_buffer(wh_callback_t *cb) /* {{{ */
 } /* }}} wh_reset_buffer */
 
 /* must hold cb->send_lock when calling */
-static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
+static int wh_post_nolock(wh_callback_t *cb, char const *data,
+                          long size) /* {{{ */
 {
   int status = 0;
 
   curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
+  curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDSIZE, size);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, &wh_curl_write_callback);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, (void *)cb);
@@ -275,6 +281,11 @@ static int wh_callback_init(wh_callback_t *cb) /* {{{ */
     if (cb->clientkeypass != NULL)
       curl_easy_setopt(cb->curl, CURLOPT_SSLKEYPASSWD, cb->clientkeypass);
   }
+#ifdef CURL_VERSION_UNIX_SOCKETS
+  if (cb->unix_socket_path) {
+    curl_easy_setopt(cb->curl, CURLOPT_UNIX_SOCKET_PATH, cb->unix_socket_path);
+  }
+#endif // CURL_VERSION_UNIX_SOCKETS
 
   wh_reset_buffer(cb);
 
@@ -304,7 +315,7 @@ static int wh_flush_nolock(cdtime_t timeout, wh_callback_t *cb) /* {{{ */
       return 0;
     }
 
-    status = wh_post_nolock(cb, cb->send_buffer);
+    status = wh_post_nolock(cb, cb->send_buffer, cb->send_buffer_fill);
     wh_reset_buffer(cb);
   } else if (cb->format == WH_FORMAT_JSON || cb->format == WH_FORMAT_KAIROSDB) {
     if (cb->send_buffer_fill <= 2) {
@@ -321,7 +332,15 @@ static int wh_flush_nolock(cdtime_t timeout, wh_callback_t *cb) /* {{{ */
       return status;
     }
 
-    status = wh_post_nolock(cb, cb->send_buffer);
+    status = wh_post_nolock(cb, cb->send_buffer, cb->send_buffer_fill);
+    wh_reset_buffer(cb);
+  } else if (cb->format == WH_FORMAT_INFLUXDB) {
+    if (cb->send_buffer_fill == 0) {
+      cb->send_buffer_init_time = cdtime();
+      return 0;
+    }
+
+    status = wh_post_nolock(cb, cb->send_buffer, cb->send_buffer_fill);
     wh_reset_buffer(cb);
   } else {
     ERROR("write_http: wh_flush_nolock: "
@@ -573,6 +592,47 @@ static int wh_write_kairosdb(const data_set_t *ds,
   return 0;
 } /* }}} int wh_write_kairosdb */
 
+static int wh_write_influxdb(const data_set_t *ds,
+                             const value_list_t *vl, /* {{{ */
+                             wh_callback_t *cb) {
+  int status;
+
+  pthread_mutex_lock(&cb->send_lock);
+  if (wh_callback_init(cb) != 0) {
+    ERROR("write_http plugin: wh_callback_init failed.");
+    pthread_mutex_unlock(&cb->send_lock);
+    return -1;
+  }
+
+  status = format_influxdb_value_list(cb->send_buffer + cb->send_buffer_fill,
+                                      cb->send_buffer_free, ds, vl,
+                                      cb->store_rates, NS);
+  if (status == -ENOMEM) {
+    status = wh_flush_nolock(/* timeout = */ 0, cb);
+    if (status != 0) {
+      wh_reset_buffer(cb);
+      pthread_mutex_unlock(&cb->send_lock);
+      return status;
+    }
+
+    status = format_influxdb_value_list(cb->send_buffer + cb->send_buffer_fill,
+                                        cb->send_buffer_free, ds, vl,
+                                        cb->store_rates, NS);
+  }
+  if (status < 0) {
+    pthread_mutex_unlock(&cb->send_lock);
+    return status;
+  }
+
+  cb->send_buffer_fill += status;
+  cb->send_buffer_free -= status;
+
+  /* Check if we have enough space for this command. */
+  pthread_mutex_unlock(&cb->send_lock);
+
+  return 0;
+} /* }}} int wh_write_influxdb */
+
 static int wh_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
                     user_data_t *user_data) {
   wh_callback_t *cb;
@@ -590,6 +650,9 @@ static int wh_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     break;
   case WH_FORMAT_KAIROSDB:
     status = wh_write_kairosdb(ds, vl, cb);
+    break;
+  case WH_FORMAT_INFLUXDB:
+    status = wh_write_influxdb(ds, vl, cb);
     break;
   default:
     status = wh_write_command(ds, vl, cb);
@@ -623,7 +686,7 @@ static int wh_notify(notification_t const *n, user_data_t *ud) /* {{{ */
     return -1;
   }
 
-  status = wh_post_nolock(cb, alert);
+  status = wh_post_nolock(cb, alert, -1);
   pthread_mutex_unlock(&cb->send_lock);
 
   return status;
@@ -647,6 +710,8 @@ static int config_set_format(wh_callback_t *cb, /* {{{ */
     cb->format = WH_FORMAT_JSON;
   else if (strcasecmp("KAIROSDB", string) == 0)
     cb->format = WH_FORMAT_KAIROSDB;
+  else if (strcasecmp("INFLUXDB", string) == 0)
+    cb->format = WH_FORMAT_INFLUXDB;
   else {
     ERROR("write_http plugin: Invalid format string: %s", string);
     return -1;
@@ -698,6 +763,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   cb->data_ttl = 0;
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
   cb->curl_stats = NULL;
+  cb->unix_socket_path = NULL;
 
   if (cb->metrics_prefix == NULL) {
     ERROR("write_http plugin: strdup failed.");
@@ -821,6 +887,12 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int(child, &cb->data_ttl);
     } else if (strcasecmp("Prefix", child->key) == 0) {
       status = cf_util_get_string(child, &cb->metrics_prefix);
+    } else if (strcasecmp("UnixSocket", child->key) == 0) {
+#ifdef CURL_VERSION_UNIX_SOCKETS
+      status = cf_util_get_string(child, &cb->unix_socket_path);
+#else
+      WARNING("libcurl < 7.40.0, UnixSocket config is ignored");
+#endif // CURL_VERSION_UNIX_SOCKETS
     } else {
       ERROR("write_http plugin: Invalid configuration "
             "option: %s.",

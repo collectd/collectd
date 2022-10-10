@@ -205,7 +205,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
     pthread_mutex_unlock(&strerror_r_lock);
   }
-    /* #endif !HAVE_STRERROR_R */
+  /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
   {
@@ -221,7 +221,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
                  buflen);
     }
   }
-    /* #endif STRERROR_R_CHAR_P */
+  /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
@@ -234,6 +234,17 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
   return buf;
 } /* char *sstrerror */
+
+void *scalloc(size_t nmemb, size_t size) {
+  void *r;
+
+  if ((r = calloc(nmemb, size)) == NULL) {
+    ERROR("Not enough memory.");
+    exit(3);
+  }
+
+  return r;
+} /* void *scalloc */
 
 void *smalloc(size_t size) {
   void *r;
@@ -793,8 +804,8 @@ unsigned long long htonll(unsigned long long n) {
 #endif /* HAVE_HTONLL */
 
 #if FP_LAYOUT_NEED_NOTHING
-  /* Well, we need nothing.. */
-  /* #endif FP_LAYOUT_NEED_NOTHING */
+/* Well, we need nothing.. */
+/* #endif FP_LAYOUT_NEED_NOTHING */
 
 #elif FP_LAYOUT_NEED_ENDIANFLIP || FP_LAYOUT_NEED_INTSWAP
 #if FP_LAYOUT_NEED_ENDIANFLIP
