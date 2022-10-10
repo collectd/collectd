@@ -330,8 +330,8 @@ hostname will be determined using the L<gethostname(2)> system call.
 
 If B<Hostname> is determined automatically this setting controls whether or not
 the daemon should try to figure out the "fully qualified domain name", FQDN.
-This is done using a lookup of the name returned by C<gethostname>. This option
-is enabled by default.
+This is achieved by using C<getaddrinfo()> to look up full web address of the
+first network interface that has one. This option is enabled by default.
 
 =item B<PreCacheChain> I<ChainName>
 
@@ -865,6 +865,7 @@ before attempting to reconnect. Defaults to 1, which implies attempt
 to reconnect at 1 second intervals.
 
 =item B<SendQueueLimit> I<SendQueueLimit>
+
 If there is no AMQP1 connection, the plugin will continue to queue
 messages to send, which could result in unbounded memory consumption. This
 parameter is used to limit the number of messages in the outbound queue to
@@ -1873,6 +1874,11 @@ much sense when collectd is running in foreground- or non-daemon-mode.
 If set to B<true>, convert counter values to rates. If set to B<false> (the
 default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
+
+=item B<FileDate> B<true|false>
+
+If set to B<true> (the default value), the generated files will include the date.
+If set to B<false> the date will not be included in the generated files.
 
 =back
 
@@ -5178,7 +5184,7 @@ Configures the base register to read from the device. If the option
 B<RegisterType> has been set to B<Uint32> or B<Float>, this and the next
 register will be read (the register number is increased by one).
 
-=item B<RegisterType> B<Int16>|B<Int32>|B<Int64>|B<Uint16>|B<Uint32>|B<UInt64>|B<Float>|B<Int32LE>|B<Uint32LE>|B<FloatLE>
+=item B<RegisterType> B<Int16>|B<Int32>|B<Int64>|B<Uint16>|B<Uint32>|B<UInt64>|B<Float>|B<Int32LE>|B<Uint32LE>|B<FloatLE>|B<Double>
 
 Specifies what kind of data is returned by the device. This defaults to
 B<Uint16>.  If the type is B<Int32>, B<Int32LE>, B<Uint32>, B<Uint32LE>,
@@ -5190,10 +5196,10 @@ significant 16E<nbsp>bits are in the register at B<RegisterBase+1>.
 For B<Int32LE>, B<Uint32LE>, or B<Float32LE>, the high and low order
 registers are swapped with the most significant 16E<nbsp>bits in
 the B<RegisterBase+1> and the least significant 16E<nbsp>bits in
-B<RegisterBase>. If the type is B<Int64> or B<UInt64>, four 16E<nbsp>bit
-registers at B<RegisterBase>, B<RegisterBase+1>, B<RegisterBase+2> and
-B<RegisterBase+3> will be read and the data combined into one
-64E<nbsp>value.
+B<RegisterBase>. If the type is B<Int64>, B<UInt64> or B<Double>, four
+16E<nbsp>bit registers at B<RegisterBase>, B<RegisterBase+1>, B<RegisterBase+2>
+and B<RegisterBase+3> will be read and the data combined into one 64E<nbsp>bit
+value.
 
 =item B<RegisterCmd> B<ReadHolding>|B<ReadInput>
 

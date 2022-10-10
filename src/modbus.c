@@ -83,7 +83,9 @@ enum mb_register_type_e /* {{{ */
   REG_TYPE_INT64,
   REG_TYPE_UINT64,
   REG_TYPE_FLOAT,
-  REG_TYPE_FLOAT_CDAB }; /* }}} */
+  REG_TYPE_FLOAT_CDAB,
+  REG_TYPE_DOUBLE,
+}; /* }}} */
 
 enum mb_mreg_type_e /* {{{ */
 { MREG_HOLDING,
@@ -296,6 +298,38 @@ static float mb_register_to_float(uint16_t hi, uint16_t lo) /* {{{ */
   return conv.f;
 } /* }}} float mb_register_to_float */
 
+static double mb_register_to_double(uint16_t b0, uint16_t b1, uint16_t b2,
+                                    uint16_t b3) /* {{{ */
+{
+  union {
+    uint8_t b[8];
+    double d;
+  } conv;
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+  /* little endian */
+  conv.b[0] = b3 & 0x00ff;
+  conv.b[1] = (b3 >> 8) & 0x00ff;
+  conv.b[2] = b2 & 0x00ff;
+  conv.b[3] = (b2 >> 8) & 0x00ff;
+  conv.b[4] = b1 & 0x00ff;
+  conv.b[5] = (b1 >> 8) & 0x00ff;
+  conv.b[6] = b0 & 0x00ff;
+  conv.b[7] = (b0 >> 8) & 0x00ff;
+#else
+  conv.b[7] = b3 & 0x00ff;
+  conv.b[6] = (b3 >> 8) & 0x00ff;
+  conv.b[5] = b2 & 0x00ff;
+  conv.b[4] = (b2 >> 8) & 0x00ff;
+  conv.b[3] = b1 & 0x00ff;
+  conv.b[2] = (b1 >> 8) & 0x00ff;
+  conv.b[1] = b0 & 0x00ff;
+  conv.b[0] = (b0 >> 8) & 0x00ff;
+#endif
+
+  return (conv.d);
+} /* }}} double mb_register_to_double */
+
 #if LEGACY_LIBMODBUS
 /* Version 2.0.3 */
 static int mb_init_connection(mb_host_t *host) /* {{{ */
@@ -341,7 +375,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
   host->is_connected = true;
   return 0;
 } /* }}} int mb_init_connection */
-  /* #endif LEGACY_LIBMODBUS */
+/* #endif LEGACY_LIBMODBUS */
 
 #else /* if !LEGACY_LIBMODBUS */
 /* Version 2.9.2 */
@@ -471,7 +505,8 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       (data->register_type == REG_TYPE_FLOAT_CDAB))
     values_num = 2;
   else if ((data->register_type == REG_TYPE_INT64) ||
-           (data->register_type == REG_TYPE_UINT64))
+           (data->register_type == REG_TYPE_UINT64) ||
+           (data->register_type == REG_TYPE_DOUBLE))
     values_num = 4;
   else
     values_num = 1;
@@ -569,6 +604,18 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           (double)float_value);
 
     CAST_TO_VALUE_T(ds, vt, float_value, data->scale, data->shift);
+    mb_submit(host, slave, data, vt);
+  } else if (data->register_type == REG_TYPE_DOUBLE) {
+    double double_value;
+    value_t vt;
+
+    double_value =
+        mb_register_to_double(values[0], values[1], values[2], values[3]);
+    DEBUG("Modbus plugin: mb_read_data: "
+          "Returned double value is %g",
+          double_value);
+
+    CAST_TO_VALUE_T(ds, vt, double_value, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT32) {
     union {
@@ -823,6 +870,8 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
         data.register_type = REG_TYPE_UINT64;
       else if (strcasecmp("Int64", tmp) == 0)
         data.register_type = REG_TYPE_INT64;
+      else if (strcasecmp("Double", tmp) == 0)
+        data.register_type = REG_TYPE_DOUBLE;
       else {
         ERROR("Modbus plugin: The register type \"%s\" is unknown.", tmp);
         status = -1;

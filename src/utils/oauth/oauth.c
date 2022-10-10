@@ -331,7 +331,7 @@ static int new_token(oauth_t *auth) /* {{{ */
   char assertion[1024];
   char post_data[1024];
   memory_t data;
-  char access_token[256];
+  char access_token[GOOGLE_OAUTH_ACCESS_TOKEN_SIZE];
   cdtime_t expires_in;
   cdtime_t now;
   char curl_errbuf[CURL_ERROR_SIZE];

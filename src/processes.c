@@ -1658,15 +1658,15 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   snprintf(f_psinfo, sizeof(f_psinfo), "/proc/%li/psinfo", pid);
   snprintf(f_usage, sizeof(f_usage), "/proc/%li/usage", pid);
 
-  buffer = calloc(1, sizeof(pstatus_t));
+  buffer = scalloc(1, sizeof(pstatus_t));
   read_file_contents(filename, buffer, sizeof(pstatus_t));
   myStatus = (pstatus_t *)buffer;
 
-  buffer = calloc(1, sizeof(psinfo_t));
+  buffer = scalloc(1, sizeof(psinfo_t));
   read_file_contents(f_psinfo, buffer, sizeof(psinfo_t));
   myInfo = (psinfo_t *)buffer;
 
-  buffer = calloc(1, sizeof(prusage_t));
+  buffer = scalloc(1, sizeof(prusage_t));
   read_file_contents(f_usage, buffer, sizeof(prusage_t));
   myUsage = (prusage_t *)buffer;
 

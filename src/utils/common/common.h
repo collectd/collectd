@@ -75,6 +75,7 @@ __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
 char *sstrdup(const char *s);
 size_t sstrnlen(const char *s, size_t n);
 char *sstrndup(const char *s, size_t n);
+void *scalloc(size_t nmemb, size_t size);
 void *smalloc(size_t size);
 char *sstrerror(int errnum, char *buf, size_t buflen);
 

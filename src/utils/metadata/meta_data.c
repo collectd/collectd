@@ -44,8 +44,6 @@ union meta_value_u {
 };
 typedef union meta_value_u meta_value_t;
 
-struct meta_entry_s;
-typedef struct meta_entry_s meta_entry_t;
 struct meta_entry_s {
   char *key;
   meta_value_t value;
@@ -543,10 +541,29 @@ int meta_data_add_boolean(meta_data_t *md, /* {{{ */
 /*
  * Get functions
  */
+int _meta_data_get_string(meta_data_t *md, meta_entry_t *e, char **value) {
+  char *temp;
+
+  if (e->type != MD_TYPE_STRING) {
+    ERROR("meta_data_get_string: Type mismatch for key `%s'", e->key);
+    return -ENOENT;
+  }
+
+  temp = md_strdup(e->value.mv_string);
+  if (temp == NULL) {
+    ERROR("meta_data_get_string: md_strdup failed.");
+    return -ENOMEM;
+  }
+
+  *value = temp;
+
+  return 0;
+}
+
 int meta_data_get_string(meta_data_t *md, /* {{{ */
                          const char *key, char **value) {
   meta_entry_t *e;
-  char *temp;
+  int res = 0;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
     return -EINVAL;
@@ -559,24 +576,10 @@ int meta_data_get_string(meta_data_t *md, /* {{{ */
     return -ENOENT;
   }
 
-  if (e->type != MD_TYPE_STRING) {
-    ERROR("meta_data_get_string: Type mismatch for key `%s'", e->key);
-    pthread_mutex_unlock(&md->lock);
-    return -ENOENT;
-  }
-
-  temp = md_strdup(e->value.mv_string);
-  if (temp == NULL) {
-    pthread_mutex_unlock(&md->lock);
-    ERROR("meta_data_get_string: md_strdup failed.");
-    return -ENOMEM;
-  }
+  res = _meta_data_get_string(md, e, value);
 
   pthread_mutex_unlock(&md->lock);
-
-  *value = temp;
-
-  return 0;
+  return res;
 } /* }}} int meta_data_get_string */
 
 int meta_data_get_signed_int(meta_data_t *md, /* {{{ */
@@ -745,3 +748,26 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
 
   return 0;
 } /* }}} int meta_data_as_string */
+
+meta_entry_t *meta_data_iter(meta_data_t *md) { return md->head; }
+
+meta_entry_t *meta_data_iter_next(meta_entry_t *iter) { return iter->next; }
+
+int meta_data_iter_type(meta_entry_t *iter) { return iter->type; }
+
+const char *meta_data_iter_key(meta_entry_t *iter) { return iter->key; }
+
+int meta_data_iter_get_string(meta_data_t *md, meta_entry_t *iter,
+                              char **value) {
+  int res = 0;
+
+  if ((md == NULL) || (iter == NULL) || (value == NULL))
+    return -EINVAL;
+
+  pthread_mutex_lock(&md->lock);
+
+  res = _meta_data_get_string(md, iter, value);
+
+  pthread_mutex_unlock(&md->lock);
+  return res;
+}

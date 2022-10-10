@@ -133,6 +133,7 @@ noinst_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
+	libformat_influxdb.la \
 	libformat_graphite.la \
 	libformat_json.la \
 	libheap.la \
@@ -427,6 +428,10 @@ libplugin_mock_la_SOURCES = \
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libcommon.la libignorelist.la $(COMMON_LIBS)
+
+libformat_influxdb_la_SOURCES = \
+	src/utils/format_influxdb/format_influxdb.c \
+	src/utils/format_influxdb/format_influxdb.h
 
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
@@ -1486,8 +1491,9 @@ endif
 if BUILD_PLUGIN_MMC
 pkglib_LTLIBRARIES += mmc.la
 mmc_la_SOURCES = src/mmc.c
-mmc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-mmc_la_LIBADD = libignorelist.la
+mmc_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBUDEV_CPPFLAGS)
+mmc_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBUDEV_LDFLAGS)
+mmc_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBUDEV_LIBS)
 endif
 
 if BUILD_PLUGIN_MULTIMETER
@@ -2264,7 +2270,7 @@ write_http_la_SOURCES = \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
+write_http_la_LIBADD = libformat_influxdb.la libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_INFLUXDB_UDP
@@ -2272,8 +2278,9 @@ pkglib_LTLIBRARIES += write_influxdb_udp.la
 write_influxdb_udp_la_SOURCES = src/write_influxdb_udp.c
 write_influxdb_udp_la_CPPFLAGS = $(AM_CPPFLAGS)
 write_influxdb_udp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_influxdb_udp_la_LIBADD = libformat_influxdb.la
 if BUILD_WITH_LIBSOCKET
-write_influxdb_udp_la_LIBADD = -lsocket
+write_influxdb_udp_la_LIBADD += -lsocket
 endif
 endif
 

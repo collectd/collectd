@@ -13,6 +13,8 @@
 #
 # - enable the EPEL repository (http://dl.fedoraproject.org/pub/epel/) in the
 #   configuration files for your target systems (/etc/mock/*.cfg).
+#   If there's a +epel configuration (e.g. centos+epel-7-x86_64.cfg)
+#   you can use that instead.
 #
 # - fetch the desired collectd release file from https://collectd.org/files/
 #   and save it in your ~/rpmbuild/SOURCES/ directory (or build your own out of
@@ -20,6 +22,10 @@
 #
 # - copy this file in your ~/rpmbuild/SPECS/ directory. Make sure the
 #   "Version:" tag matches the version from the tarball.
+#   If it doesn't, check the development repository, since more
+#   changes to this specfile than just bumping the Version tag may
+#   be necessary, and such changes may have been merged after the
+#   corresponding collectd release was made.
 #
 # - build the SRPM first:
 #   mock -r centos-6-x86_64 --buildsrpm --spec ~/rpmbuild/SPECS/collectd.spec \
@@ -277,7 +283,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.12.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -887,6 +893,9 @@ Summary:       SMART plugin for collectd
 Group:         System Environment/Daemons
 Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: libatasmart-devel
+%if 0%{?fedora} || 0%{?rhel} >= 7
+BuildRequires: systemd-devel
+%endif
 %description smart
 Collect SMART statistics, notably load cycle count, temperature and bad
 sectors.
@@ -3012,6 +3021,9 @@ fi
 %doc contrib/
 
 %changelog
+* Thu Sep 08 2022 Laura Hild <lsh@jlab.org> - 5.12.0-2
+- require systemd-devel (libudev.h) to build the SMART plugin
+
 * Wed May 05 2021 Fabien Wernli <rpmbuild@faxmodem.org> - 5.12.0-1
 - Update to 5.12.0
 - Remove netstat_udp
