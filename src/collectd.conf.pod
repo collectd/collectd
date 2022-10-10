@@ -1650,6 +1650,46 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<check_presence>
+
+The B<check_presence> plugin keeps track of hosts that have been recently seen,
+and sends notifications when a host is seen for the first time, and subsequently
+when a host has gone missing after not being seen for a period of time. The
+duration after which a host is considered missing is controlled with the
+B<HostTimeout> option.
+
+To ensure that no notifications are missed or duplicated, the hosts are
+persisted in an LMDB key/value store, which is kept across collectd restarts.
+The check_presence plugin provides a grace period after starting up for hosts to
+tell us they are still present, catching hosts that have gone missing during our
+restart. The grace period is controlled with the B<StartupDelay> option.
+
+Note: Both the B<HostTimeout> and B<StartupDelay> values must be greater than
+the Interval, otherwise hosts will be marked missing and then newly rediscovered.
+
+=over 4
+
+=item B<StateDatastore> I<path/to/database>
+
+Path and filename of the LMDB hosts key/value store. Defaults to B<check-presence>.
+
+=item B<HostTimeout> I<Seconds>
+
+Number of seconds after a host has last been seen before the host is considered
+missing. Defaults to B<20>.
+
+=item B<StartupDelay> I<Seconds>
+
+Number of seconds after startup to suppress missing notifications. Defaults to B<20>.
+
+=item B<CheckInterval> I<Seconds>
+
+Interval in seconds between checking that hosts are present. Defaults to B<10>,
+which is half the value of B<HostTimeout>. The lower this value, the sooner a
+missing host is detected, but at the cost of more CPU usage.
+
+=back
+
 =head2 Plugin C<check_uptime>
 
 The I<check_uptime plugin> designed to check and notify about host or service

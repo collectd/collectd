@@ -708,6 +708,11 @@ Features
       Selects multiple value lists based on patterns or regular expressions
       and creates new aggregated values lists from those.
 
+    - check_presence
+      Detects whether a host has been seen for the first time, or whether a
+      host has not been seen for a specified interval, and creates
+      notifications for each case.
+
     - threshold
       Checks values against configured thresholds and creates notifications if
       values are out of bounds. See collectd-threshold(5) for details.

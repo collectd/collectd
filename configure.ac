@@ -3193,6 +3193,55 @@ AC_SUBST([BUILD_WITH_LIBLDAP_CPPFLAGS])
 AC_SUBST([BUILD_WITH_LIBLDAP_LDFLAGS])
 # }}}
 
+# --with-liblmdb {{{
+AC_ARG_WITH([liblmdb],
+  [AS_HELP_STRING([--with-liblmdb@<:@=PREFIX@:>@], [Path to liblmdb.])],
+  [
+    if test "x$withval" = "xyes"; then
+      with_liblmdb="yes"
+    else if test "x$withval" = "xno"; then
+      with_liblmdb="no"
+    else
+      with_liblmdb="yes"
+      LIBLMDB_CPPFLAGS="$LIBLMDB_CPPFLAGS -I$withval/include"
+      LIBLMDB_LDFLAGS="$LIBLMDB_LDFLAGS -L$withval/lib"
+    fi; fi
+  ],
+  [with_liblmdb="yes"]
+)
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $LIBLMDB_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBLMDB_LDFLAGS"
+
+if test "x$with_liblmdb" = "xyes"; then
+  AC_CHECK_HEADERS([lmdb.h],
+    [with_liblmdb="yes"],
+    [with_liblmdb="no ('lmdb.h' not found)"]
+  )
+fi
+
+if test "x$with_liblmdb" = "xyes"; then
+  AC_CHECK_LIB([lmdb], [mdb_version],
+    [with_liblmdb="yes"],
+    [with_liblmdb="no (symbol 'mdb_version' not found)"]
+  )
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_liblmdb" = "xyes"
+then
+  BUILD_WITH_LIBLMDB_CPPFLAGS="$LIBLMDB_CPPFLAGS"
+  BUILD_WITH_LIBLMDB_LDFLAGS="$LIBLMDB_LDFLAGS"
+fi
+AC_SUBST([BUILD_WITH_LIBLMDB_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBLMDB_LDFLAGS])
+# }}}
+
 # --with-liblua {{{
 AC_ARG_VAR([LIBLUA_PKG_CONFIG_NAME], [Name of liblua used by pkg-config])
 if test "x$LIBLUA_PKG_CONFIG_NAME" != "x"
@@ -7226,6 +7275,7 @@ AC_PLUGIN([capabilities],        [$plugin_capabilities],      [Platform static c
 AC_PLUGIN([ceph],                [$plugin_ceph],              [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],           [CGroups CPU usage accounting])
 AC_PLUGIN([chrony],              [yes],                       [Chrony statistics])
+AC_PLUGIN([check_presence],      [$with_liblmdb],             [Host presence checking plugin])
 AC_PLUGIN([check_uptime],        [yes],                       [Notify about uptime reset])
 AC_PLUGIN([connectivity],        [$plugin_connectivity],      [Network interface up/down events])
 AC_PLUGIN([conntrack],           [$plugin_conntrack],         [nf_conntrack statistics])
@@ -7602,6 +7652,7 @@ AC_MSG_RESULT([    libjvm  . . . . . . . $with_java])
 AC_MSG_RESULT([    libkstat  . . . . . . $with_kstat])
 AC_MSG_RESULT([    libkvm  . . . . . . . $with_libkvm])
 AC_MSG_RESULT([    libldap . . . . . . . $with_libldap])
+AC_MSG_RESULT([    liblmdb . . . . . . . $with_liblmdb])
 AC_MSG_RESULT([    liblua  . . . . . . . $with_liblua])
 AC_MSG_RESULT([    libmemcached  . . . . $with_libmemcached])
 AC_MSG_RESULT([    libmicrohttpd . . . . $with_libmicrohttpd])
@@ -7675,6 +7726,7 @@ AC_MSG_RESULT([    capabilities  . . . . $enable_capabilities])
 AC_MSG_RESULT([    ceph  . . . . . . . . $enable_ceph])
 AC_MSG_RESULT([    cgroups . . . . . . . $enable_cgroups])
 AC_MSG_RESULT([    chrony. . . . . . . . $enable_chrony])
+AC_MSG_RESULT([    check_presence  . . . $enable_check_presence])
 AC_MSG_RESULT([    check_uptime. . . . . $enable_check_uptime])
 AC_MSG_RESULT([    connectivity. . . . . $enable_connectivity])
 AC_MSG_RESULT([    conntrack . . . . . . $enable_conntrack])

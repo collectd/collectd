@@ -826,6 +826,14 @@ chrony_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 chrony_la_LIBADD = -lm
 endif
 
+if BUILD_PLUGIN_CHECK_PRESENCE
+pkglib_LTLIBRARIES += check_presence.la
+check_presence_la_SOURCES = src/check_presence.c
+check_presence_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLMDB_CPPFLAGS)
+check_presence_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBLMDB_LDFLAGS)
+check_presence_la_LIBADD = -llmdb
+endif
+
 if BUILD_PLUGIN_CHECK_UPTIME
 pkglib_LTLIBRARIES += check_uptime.la
 check_uptime_la_SOURCES = src/check_uptime.c
