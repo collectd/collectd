@@ -249,7 +249,7 @@ static int start_thread(void) /* {{{ */
                                     /* arg = */ (void *)0, PLUGIN_NAME);
   if (status != 0) {
     presence_thread_loop = 0;
-    ERROR(PLUGIN_NAME " plugin: starting thread failed.");
+    ERROR(PLUGIN_NAME " plugin: starting thread failed: %s", STRERROR(status));
     pthread_mutex_unlock(&presence_lock);
     return -1;
   }
@@ -274,7 +274,7 @@ static int stop_thread(void) /* {{{ */
 
   int status = pthread_join(presence_thread_id, /* return = */ NULL);
   if (status != 0) {
-    ERROR(PLUGIN_NAME " plugin: stopping thread failed.");
+    ERROR(PLUGIN_NAME " plugin: stopping thread failed: %s", STRERROR(status));
     status = -1;
   }
 
