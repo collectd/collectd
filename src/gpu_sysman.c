@@ -988,7 +988,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   };
   metric_t metric = {0};
 
-  bool ok = false;
+  bool reported_ratio = false, ok = false;
   for (i = 0; i < mem_count; i++) {
     /* fetch memory samples */
     if (zesMemoryGetState(mems[i], &(gpu->memory[cache_idx][i])) !=
@@ -1023,6 +1023,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       if (config.output & OUTPUT_RATIO) {
         metric.value.gauge = mem_used / mem_size;
         metric_family_metric_append(&fam_ratio, metric);
+        reported_ratio = true;
       }
     } else {
       /* find min & max values for memory free from
@@ -1047,6 +1048,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       if (config.output & OUTPUT_RATIO) {
         metric.value.gauge = mem_used / mem_size;
         metric_family_metric_append(&fam_ratio, metric);
+        reported_ratio = true;
       }
       /* smallest used amount of memory */
       mem_used = mem_size - free_min;
@@ -1056,13 +1058,16 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       if (config.output & OUTPUT_RATIO) {
         metric.value.gauge = mem_used / mem_size;
         metric_family_metric_append(&fam_ratio, metric);
+        reported_ratio = true;
       }
     }
   }
   if (ok && cache_idx == 0) {
     metric_reset(&metric);
     gpu_submit(gpu, &fam_bytes);
-    gpu_submit(gpu, &fam_ratio);
+    if (reported_ratio) {
+      gpu_submit(gpu, &fam_ratio);
+    }
   }
   free(mems);
   return ok;
