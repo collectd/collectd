@@ -249,6 +249,54 @@ static int gpu_config_free(void) {
   return RET_OK;
 }
 
+/* list GPU metric options that can get disabled at run-time */
+static unsigned int list_gpu_metrics(const gpu_disable_t *disabled) {
+  struct {
+    bool disabled;
+    bool submetric;
+    const char *name;
+  } names[] = {{disabled->engine, false, "Engine"},
+               {disabled->fabric, false, "Fabric port"},
+               {disabled->freq, false, "Frequency"},
+               {disabled->mem, false, "Memory"},
+               {disabled->membw, false, "Memory BW"},
+               {disabled->power, false, "Power"},
+               {disabled->power_ratio, true, "Power ratio"},
+               {disabled->ras, false, "RAS/errors"},
+               {disabled->temp, false, "Temperature"},
+               {disabled->throttle, false, "Throttle time"}};
+
+  unsigned int i;
+
+  if (config.gpuinfo) {
+    unsigned int disabled = 0;
+    INFO("Disabled metrics / submetrics:");
+    for (i = 0; i < STATIC_ARRAY_SIZE(names); i++) {
+      if (names[i].disabled) {
+        INFO("- %s%s", names[i].name, names[i].submetric ? " (submetric)" : "");
+        disabled++;
+      }
+    }
+    if (!disabled) {
+      INFO("- none");
+    }
+    INFO("Enabled metrics:");
+  }
+  unsigned int enabled = 0;
+  for (i = 0; i < STATIC_ARRAY_SIZE(names); i++) {
+    if (!(names[i].disabled || names[i].submetric)) {
+      if (config.gpuinfo) {
+        INFO("- %s", names[i].name);
+      }
+      enabled++;
+    }
+    if (config.gpuinfo && !enabled) {
+      INFO("- none");
+    }
+  }
+  return enabled;
+}
+
 /* show plugin GPU metrics config options, return RET_OK
  * if at least some metric is enabled, otherwise error code
  */
@@ -268,46 +316,29 @@ static int gpu_config_check(void) {
     } else {
       INFO("- query / submit interval: %.2f", interval);
     }
-    for (unsigned i = 0; i < STATIC_ARRAY_SIZE(metrics_output); i++) {
+
+    unsigned i;
+    INFO("'" KEY_METRICS_OUTPUT "' variants:");
+    for (i = 0; i < STATIC_ARRAY_SIZE(metrics_output); i++) {
       if (config.output & metrics_output[i].value) {
-        INFO("- " KEY_METRICS_OUTPUT ": %s", metrics_output[i].name);
+        INFO("- %s", metrics_output[i].name);
       }
     }
-    INFO("Disabled metrics:");
-  }
-  struct {
-    const char *name;
-    bool value;
-  } options[] = {{KEY_DISABLE_ENGINE, config.disabled.engine},
-                 {KEY_DISABLE_ENGINE_SINGLE, config.disabled.engine_single},
-                 {KEY_DISABLE_FABRIC, config.disabled.fabric},
-                 {KEY_DISABLE_FREQ, config.disabled.freq},
-                 {KEY_DISABLE_MEM, config.disabled.mem},
-                 {KEY_DISABLE_MEMBW, config.disabled.membw},
-                 {KEY_DISABLE_POWER, config.disabled.power},
-                 {KEY_DISABLE_RAS, config.disabled.ras},
-                 {KEY_DISABLE_RAS_SEPARATE, config.disabled.ras_separate},
-                 {KEY_DISABLE_TEMP, config.disabled.temp},
-                 {KEY_DISABLE_THROTTLE, config.disabled.throttle}};
-  unsigned int i, disabled = 0;
-  for (i = 0; i < STATIC_ARRAY_SIZE(options); i++) {
-    if (options[i].value) {
-      if (config.gpuinfo) {
-        INFO("- %s", options[i].name);
-      }
-      disabled++;
+
+    struct {
+      const char *name;
+      bool value;
+    } options[] = {{KEY_DISABLE_ENGINE_SINGLE, config.disabled.engine_single},
+                   {KEY_DISABLE_RAS_SEPARATE, config.disabled.ras_separate}};
+    INFO("Metric detail options:");
+    for (i = 0; i < STATIC_ARRAY_SIZE(options); i++) {
+      INFO("- %s: %s", options[i].name, options[i].value ? "true" : "false");
     }
   }
-  if (disabled >= STATIC_ARRAY_SIZE(options)) {
+
+  if (!list_gpu_metrics(&config.disabled)) {
     ERROR(PLUGIN_NAME ": all metrics disabled");
     return RET_NO_METRICS;
-  }
-  if (config.gpuinfo) {
-    if (disabled) {
-      INFO("=> %d disabled metrics", disabled);
-    } else {
-      INFO("- no disabled metrics");
-    }
   }
   return RET_OK;
 }
@@ -2300,6 +2331,18 @@ static bool gpu_engines(gpu_device_t *gpu) {
   return ok;
 }
 
+static void check_gpu_metrics(uint32_t gpu, const gpu_disable_t *initial,
+                              const gpu_disable_t *disabled) {
+  if (!config.gpuinfo) {
+    return;
+  }
+  if (!memcmp(initial, disabled, sizeof(*initial))) {
+    return;
+  }
+  INFO(PLUGIN_NAME ": GPU-%d metric reporting change", gpu);
+  list_gpu_metrics(disabled);
+}
+
 static int gpu_read(void) {
   /* no metrics yet */
   int retval = RET_NO_METRICS;
@@ -2310,6 +2353,8 @@ static int gpu_read(void) {
     if (disabled->all) {
       continue;
     }
+    gpu_disable_t initial = *disabled;
+
     if (!gpu->counter) {
       INFO(PLUGIN_NAME ": GPU-%d queries:", i);
     }
@@ -2350,6 +2395,7 @@ static int gpu_read(void) {
         /* there are still valid counters at least for this GPU */
         retval = RET_OK;
       }
+      check_gpu_metrics(i, &initial, disabled);
       continue;
     }
 
@@ -2403,6 +2449,7 @@ static int gpu_read(void) {
       ERROR(PLUGIN_NAME ": No metrics from GPU-%d, disabling its querying", i);
       disabled->all = true;
     } else {
+      check_gpu_metrics(i, &initial, disabled);
       retval = RET_OK;
     }
   }
