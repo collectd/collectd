@@ -286,7 +286,7 @@ static ze_result_t metric_args_check(int callbit, const char *name,
 #define COUNTER_INC 20000    // 20ms
 #define TIME_START 5000000   // 5s in us
 #define TIME_INC 2000000     // 2s in us
-#define COUNTER_MAX TIME_INC
+#define COUNTER_MAX (2 * COUNTER_START + 20 * COUNTER_INC)
 
 /* what should get reported as result of above */
 #define COUNTER_RATIO ((double)COUNTER_INC / TIME_INC)
@@ -668,7 +668,7 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
           expected, last, metric->name, incrounds);
       wrong++;
     } else if (globs.verbose & VERBOSE_METRICS) {
-      fprintf(stderr, "round %d metric value verified for '%s' (%.2f)\n",
+      fprintf(stderr, "round %d metric value verified for '%s' (%g)\n",
               incrounds, metric->name, expected);
     }
   }
@@ -738,7 +738,7 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
     double value = get_value(fam->type, metric[m].value);
     compose_name(name, sizeof(name), fam->name, &metric[m]);
     if (globs.verbose & VERBOSE_METRICS) {
-      fprintf(stderr, "METRIC: %s: %.2f\n", name, value);
+      fprintf(stderr, "METRIC: %s: %g\n", name, value);
     }
     /* for now, ignore other errors than for all_errors */
     if (strstr(name, "errors") && !strstr(name, "all_errors")) {
@@ -889,7 +889,9 @@ static struct {
   plugin_shutdown_cb shutdown;
 } registry;
 
-cdtime_t plugin_get_interval(void) { return MS_TO_CDTIME_T(500); }
+__attribute__((noinline)) cdtime_t plugin_get_interval(void) {
+  return MS_TO_CDTIME_T(500);
+}
 
 int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),
@@ -1026,6 +1028,7 @@ static int test_config_keys(bool check_nonbool, bool enable_metrics,
       {"MetricsOutput", "RatiO", true},
       {"MetricsOutput", "RatiO/fooBAR", false},
       {"MetricsOutput", "1", false},
+      {"MetricsOutput", "", false},
       {"Foobar", "Foobar", false},
       {"Samples", "999", false},
       {"Samples", "-1", false},
@@ -1360,8 +1363,11 @@ int main(int argc, const char **argv) {
   /* more coverage by disabling only some of metrics at init */
   globs.warnings = 0;
   assert(registry.config("DisablePower", "true") == 0);
+  /* for multi-sample init checks */
+  assert(registry.config("Samples", "8") == 0);
   assert(registry.init() == 0);
   assert(registry.shutdown() == 0);
+  assert(registry.config("Samples", "1") == 0);
   assert(globs.warnings == 0);
   fprintf(stderr, "misc config: PASS\n\n");
 
@@ -1485,6 +1491,9 @@ int main(int argc, const char **argv) {
    * that all L0 calls are done on every read */
   change_sampling_reset("1");
   assert(registry.read() == 0);
+  /* enable extra logging to increase coverage */
+  assert(registry.config("LogGpuInfo", "true") == 0);
+  /* verify metric error handling */
   assert(test_query_errors(api_calls) == 0);
   assert(registry.shutdown() == 0);
   fprintf(stderr, "metrics query error handling: PASS\n\n");
