@@ -251,7 +251,7 @@ int plugin_shutdown_all(void);
  * ARGUMENTS
  *  plugin     Name of the plugin. If NULL, the value is sent to all registered
  *             write functions.
- *  fam   The actual metric family to be processed.
+ *  fam   The actual metric family to be processed. Must not be NULL.
  *
  * RETURN VALUE
  *  Returns zero if the metric family was sucessfully enqueued or non-zero if
