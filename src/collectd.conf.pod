@@ -297,13 +297,15 @@ likely not an issue for clients, i.e. instances that only handle the local
 metrics. For servers it is recommended to set this to a non-zero value, though.
 
 You can set the limits using B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>.
-Each of them takes a numerical argument which is the number of metrics in the
-queue. If there are I<HighNum> metrics in the queue a random element from the
-queue will be dropped. This results in the data becoming more and more sparse
-without dropping a lot of continguous values. An exception from the random
-selection of elements to drop are the I<LowNum> most recent elements which will
-never be dropped. This can be used to ensure that one miss-behaving write
-plugin does not result in dropped values for other well-behaved write plugins.
+Each of them takes a numerical argument which correspond to the number of
+metrics in the queue.
+If there are B<HighNum> metrics in the queue a random element from the queue
+will be dropped. An exception from the random selection of elements to drop are
+the B<LowNum> most recent elements, which will never be dropped.
+Spreading the loss over the B<LowNum> - B<HighNum> range of least recent
+elements avoids large time gaps in the data on write hiccups.
+This way one miss-behaving write plugin is less likely to result in dropped
+values for well-behaved write plugins.
 
 If B<WriteQueueLimitHigh> is set to non-zero and B<WriteQueueLimitLow> is
 unset, the latter will default to half of B<WriteQueueLimitHigh>.
