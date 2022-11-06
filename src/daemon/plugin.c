@@ -585,9 +585,9 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
 
     /* Check, if `rf_next_read' is on the same second as 'now' or in the past */
     if (CDTIME_T_TO_TIME_T(rf->rf_next_read) <= CDTIME_T_TO_TIME_T(now)) {
-      /* `rf_next_read' is on the same second as `now' or earlier
-       * it can cause 'rrdtool plugin: illegal attempt to update ... (minimum one second step)' on server
-       * so move it to the next second. */
+      /* `rf_next_read' is on the same second as `now' or earlier. it can cause
+       * 'rrdtool plugin: illegal attempt to update...(minimum one second step)'
+       * on server so move it to the next second. */
       rf->rf_next_read = now + rf->rf_effective_interval;
     }
 
