@@ -1023,7 +1023,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   };
   metric_t metric = {0};
 
-  bool reported_ratio = false, ok = false;
+  bool reported_ratio = false, reported = false, ok = false;
   for (i = 0; i < mem_count; i++) {
     /* fetch memory samples */
     if (ret = zesMemoryGetState(mems[i], &(gpu->memory[cache_idx][i])),
@@ -1084,6 +1084,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_family_metric_append(&fam_ratio, metric);
         reported_ratio = true;
       }
+      reported = true;
     } else {
       /* find min & max values for memory free from
        * (the configured number of) samples
@@ -1119,9 +1120,10 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_family_metric_append(&fam_ratio, metric);
         reported_ratio = true;
       }
+      reported = true;
     }
   }
-  if (ok && cache_idx == 0) {
+  if (reported) {
     metric_reset(&metric);
     gpu_submit(gpu, &fam_bytes);
     if (reported_ratio) {
@@ -1385,8 +1387,6 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       ok = false;
       break;
     }
-
-    bool freq_ok = false;
     double value;
 
     if (config.samples < 2) {
@@ -1404,7 +1404,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_ratio, metric);
           reported_ratio = true;
         }
-        freq_ok = true;
+        reported = true;
       }
       value = gpu->frequency[0][i].actual;
       if (value >= 0) {
@@ -1416,7 +1416,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_ratio, metric);
           reported_ratio = true;
         }
-        freq_ok = true;
+        reported = true;
       }
     } else {
       /* find min & max values for actual frequency & its request
@@ -1461,7 +1461,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_ratio, metric);
           reported_ratio = true;
         }
-        freq_ok = true;
+        reported = true;
       }
       if (act_max >= 0.0) {
         metric.value.gauge = act_min;
@@ -1481,12 +1481,10 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_ratio, metric);
           reported_ratio = true;
         }
-        freq_ok = true;
+        reported = true;
       }
     }
-    if (freq_ok) {
-      reported = true;
-    } else {
+    if (!reported) {
       ERROR(PLUGIN_NAME ": neither requests nor actual frequencies supported "
                         "for domain %d",
             i);
