@@ -1122,9 +1122,9 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       }
       reported = true;
     }
+    metric_reset(&metric);
   }
   if (reported) {
-    metric_reset(&metric);
     gpu_submit(gpu, &fam_bytes);
     if (reported_ratio) {
       gpu_submit(gpu, &fam_ratio);
@@ -1238,20 +1238,18 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
         reported_ratio = true;
       }
     }
+    metric_reset(&metric);
     *old = bw;
     ok = true;
   }
-  if (ok) {
-    metric_reset(&metric);
-    if (reported_ratio) {
-      gpu_submit(gpu, &fam_ratio);
-    }
-    if (reported_rate) {
-      gpu_submit(gpu, &fam_rate);
-    }
-    if (reported_counter) {
-      gpu_submit(gpu, &fam_counter);
-    }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  if (reported_rate) {
+    gpu_submit(gpu, &fam_rate);
+  }
+  if (reported_counter) {
+    gpu_submit(gpu, &fam_counter);
   }
   free(mems);
   return ok;
@@ -1484,6 +1482,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         reported = true;
       }
     }
+    metric_reset(&metric);
     if (!reported) {
       ERROR(PLUGIN_NAME ": neither requests nor actual frequencies supported "
                         "for domain %d",
@@ -1493,7 +1492,6 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     }
   }
   if (reported) {
-    metric_reset(&metric);
     gpu_submit(gpu, &fam_freq);
     if (reported_ratio) {
       gpu_submit(gpu, &fam_ratio);
@@ -1588,17 +1586,15 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       metric_family_metric_append(&fam_ratio, metric);
       reported_ratio = true;
     }
+    metric_reset(&metric);
     *old = throttle;
     ok = true;
   }
-  if (ok) {
-    metric_reset(&metric);
-    if (reported_ratio) {
-      gpu_submit(gpu, &fam_ratio);
-    }
-    if (reported_counter) {
-      gpu_submit(gpu, &fam_counter);
-    }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  if (reported_counter) {
+    gpu_submit(gpu, &fam_counter);
   }
   free(freqs);
   return ok;
@@ -1698,10 +1694,10 @@ static bool gpu_temps(gpu_device_t *gpu) {
       metric_family_metric_append(&fam_ratio, metric);
       reported_ratio = true;
     }
+    metric_reset(&metric);
     ok = true;
   }
   if (ok) {
-    metric_reset(&metric);
     gpu_submit(gpu, &fam_temp);
     if (reported_ratio) {
       gpu_submit(gpu, &fam_ratio);
@@ -1833,20 +1829,18 @@ static bool gpu_powers(gpu_device_t *gpu) {
         }
       }
     }
+    metric_reset(&metric);
     *old = counter;
     ok = true;
   }
-  if (ok) {
-    metric_reset(&metric);
-    if (reported_energy) {
-      gpu_submit(gpu, &fam_energy);
-    }
-    if (reported_power) {
-      gpu_submit(gpu, &fam_power);
-    }
-    if (reported_ratio) {
-      gpu_submit(gpu, &fam_ratio);
-    }
+  if (reported_energy) {
+    gpu_submit(gpu, &fam_energy);
+  }
+  if (reported_power) {
+    gpu_submit(gpu, &fam_power);
+  }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
   }
   free(powers);
   return ok;
@@ -2007,17 +2001,15 @@ static bool gpu_engines(gpu_device_t *gpu) {
       metric_family_metric_append(&fam_ratio, metric);
       reported_ratio = true;
     }
+    metric_reset(&metric);
     *old = stats;
     ok = true;
   }
-  if (ok) {
-    metric_reset(&metric);
-    if (reported_ratio) {
-      gpu_submit(gpu, &fam_ratio);
-    }
-    if (reported_counter) {
-      gpu_submit(gpu, &fam_counter);
-    }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  if (reported_counter) {
+    gpu_submit(gpu, &fam_counter);
   }
   free(engines);
   return ok;
