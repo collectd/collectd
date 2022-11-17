@@ -188,6 +188,8 @@ static void **gpu_subarray_realloc(void **mem, int count, int size) {
   gpu_subarray_free(mem);
   mem = smalloc(config.samples * sizeof(void *));
   for (i = 0; i < config.samples; i++) {
+    // (s)calloc used so pointers in structs are initialized to
+    // NULLs for Sysman metric state/property Get calls
     mem[i] = scalloc(count, size);
   }
   return mem;
@@ -351,7 +353,7 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
   char buf[32];
 
   *pci_bdf = *pci_dev = NULL;
-  zes_pci_properties_t pci;
+  zes_pci_properties_t pci = {.pNext = NULL};
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
     const zes_pci_address_t *addr = &pci.address;
@@ -382,7 +384,7 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
   }
 
   INFO("HW state:");
-  zes_device_state_t state;
+  zes_device_state_t state = {.pNext = NULL};
   /* Note: there's also zesDevicePciGetState() for PCI link status */
   if (ret = zesDeviceGetState(dev, &state), ret == ZE_RESULT_SUCCESS) {
     INFO("- repaired: %s",
@@ -404,7 +406,7 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
   }
 
   INFO("HW identification:");
-  zes_device_properties_t props;
+  zes_device_properties_t props = {.pNext = NULL};
   if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
     const ze_device_properties_t *core = &props.core;
     snprintf(buf, sizeof(buf), "0x%x", core->deviceId);
@@ -441,8 +443,7 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
     WARNING(PLUGIN_NAME ": failed to get memory properties count => 0x%x", ret);
     return true;
   }
-  ze_device_memory_properties_t *mems;
-  mems = scalloc(mem_count, sizeof(*mems));
+  ze_device_memory_properties_t *mems = scalloc(mem_count, sizeof(*mems));
   if (ret = zeDeviceGetMemoryProperties(mdev, &mem_count, mems),
       ret != ZE_RESULT_SUCCESS) {
     WARNING(PLUGIN_NAME ": failed to get %d memory properties => 0x%x",
@@ -607,7 +608,7 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
     }
     /* Get all GPU devices for the driver */
     for (uint32_t dev_idx = 0; dev_idx < dev_count; dev_idx++) {
-      ze_device_properties_t props;
+      ze_device_properties_t props = {.pNext = NULL};
       if (ret = zeDeviceGetProperties(devs[dev_idx], &props),
           ret != ZE_RESULT_SUCCESS) {
         ERROR(PLUGIN_NAME
@@ -794,7 +795,7 @@ static bool gpu_ras(gpu_device_t *gpu) {
 
   bool ok = false;
   for (i = 0; i < ras_count; i++) {
-    zes_ras_properties_t props;
+    zes_ras_properties_t props = {.pNext = NULL};
     if (ret = zesRasGetProperties(ras[i], &props), ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get RAS set %d properties => 0x%x", i,
             ret);
@@ -818,8 +819,8 @@ static bool gpu_ras(gpu_device_t *gpu) {
       snprintf(buf, sizeof(buf), "%d", props.subdeviceId);
       subdev = buf;
     }
-    zes_ras_state_t values;
     const bool clear = false;
+    zes_ras_state_t values = {.pNext = NULL};
     if (ret = zesRasGetState(ras[i], clear, &values),
         ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get RAS set %d (%s) state => 0x%x", i,
@@ -912,7 +913,7 @@ static void metric_set_subdev(metric_t *m, bool onsub, uint32_t subid) {
  * for success
  */
 static ze_result_t set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
-  zes_mem_properties_t props;
+  zes_mem_properties_t props = {.pNext = NULL};
   ze_result_t ret = zesMemoryGetProperties(mem, &props);
   if (ret != ZE_RESULT_SUCCESS) {
     return ret;
@@ -1260,7 +1261,7 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
  */
 static ze_result_t set_freq_labels(zes_freq_handle_t freq, metric_t *metric,
                                    double *maxfreq) {
-  zes_freq_properties_t props;
+  zes_freq_properties_t props = {.pNext = NULL};
   ze_result_t ret = zesFrequencyGetProperties(freq, &props);
   if (ret != ZE_RESULT_SUCCESS) {
     return ret;
@@ -1637,7 +1638,7 @@ static bool gpu_temps(gpu_device_t *gpu) {
 
   bool reported_ratio = false, ok = false;
   for (i = 0; i < temp_count; i++) {
-    zes_temp_properties_t props;
+    zes_temp_properties_t props = {.pNext = NULL};
     if (ret = zesTemperatureGetProperties(temps[i], &props),
         ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME
@@ -1758,7 +1759,7 @@ static bool gpu_powers(gpu_device_t *gpu) {
   bool ok = false;
 
   for (i = 0; i < power_count; i++) {
-    zes_power_properties_t props;
+    zes_power_properties_t props = {.pNext = NULL};
     if (ret = zesPowerGetProperties(powers[i], &props),
         ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get power domain %d properties => 0x%x", i,
@@ -1905,7 +1906,7 @@ static bool gpu_engines(gpu_device_t *gpu) {
   int type_idx[16] = {0};
   bool reported_ratio = false, reported_counter = false, ok = false;
   for (i = 0; i < engine_count; i++) {
-    zes_engine_properties_t props;
+    zes_engine_properties_t props = {.pNext = NULL};
     if (ret = zesEngineGetProperties(engines[i], &props),
         ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get engine group %d properties => 0x%x", i,
