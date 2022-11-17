@@ -55,6 +55,7 @@
  * - All registered config variables work and invalid config values are rejected
  * - All mocked up Sysman functions get called when no errors are returned and
  *   count of Sysman calls is always same for plugin init() and read() callbacks
+ * - .pNext pointers in structs given to (most) Get functions are initialized
  * - Plugin dispatch API receives correct values for all metrics, both in
  *   single-sampling, and in multi-sampling configurations
  * - Every Sysman call failure during init or metrics queries is logged, and
@@ -222,6 +223,7 @@ ze_result_t zeDeviceGetProperties(ze_device_handle_t dev,
                                   ze_device_properties_t *props) {
   ze_result_t ret = dev_args_check(3, "zeDeviceGetProperties", dev, props);
   if (ret == ZE_RESULT_SUCCESS) {
+    assert(!props->pNext);
     memset(props, 0, sizeof(*props));
     props->type = ZE_DEVICE_TYPE_GPU;
   }
@@ -241,6 +243,7 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
   *count = 1;
   if (!props)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  assert(!props->pNext);
   memset(props, 0, sizeof(*props));
   return ZE_RESULT_SUCCESS;
 }
@@ -250,8 +253,10 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
 #define DEV_GET_ZEROED_STRUCT(callbit, getname, structtype)                    \
   ze_result_t getname(zes_device_handle_t dev, structtype *to_zero) {          \
     ze_result_t ret = dev_args_check(callbit, #getname, dev, to_zero);         \
-    if (ret == ZE_RESULT_SUCCESS)                                              \
+    if (ret == ZE_RESULT_SUCCESS) {                                            \
+      assert(!to_zero->pNext);                                                 \
       memset(to_zero, 0, sizeof(*to_zero));                                    \
+    }                                                                          \
     return ret;                                                                \
   }
 
@@ -343,6 +348,7 @@ static ze_result_t metric_args_check(int callbit, const char *name,
   ze_result_t propname(handletype handle, proptype *prop) {                    \
     ze_result_t ret = metric_args_check(callbit + 1, #propname, handle, prop); \
     if (ret == ZE_RESULT_SUCCESS) {                                            \
+      assert(!prop->pNext);                                                    \
       *prop = propvar;                                                         \
       prop->onSubdevice = true;                                                \
     }                                                                          \
@@ -425,6 +431,7 @@ ze_result_t zesRasGetState(zes_ras_handle_t handle, ze_bool_t clear,
   if (clear) {
     return ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;
   }
+  assert(!state->pNext);
   static uint64_t count = RAS_INIT;
   memset(state, 0, sizeof(zes_ras_state_t));
   /* props default to zeroes i.e. correctable error type,
