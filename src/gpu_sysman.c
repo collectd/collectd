@@ -1754,8 +1754,9 @@ static bool gpu_powers(gpu_device_t *gpu) {
   metric_t metric = {0};
 
   bool reported_ratio = false, reported_power = false, reported_energy = false;
-
+  bool ratio_fail = false;
   bool ok = false;
+
   for (i = 0; i < power_count; i++) {
     zes_power_properties_t props;
     if (ret = zesPowerGetProperties(powers[i], &props),
@@ -1794,18 +1795,17 @@ static bool gpu_powers(gpu_device_t *gpu) {
         reported_power = true;
       }
       if ((config.output & OUTPUT_RATIO) && !gpu->disabled.power_ratio) {
-        const char *name;
-        int32_t limit = 0;
-
         zes_power_burst_limit_t burst;
         zes_power_sustained_limit_t sustain;
+        /* TODO: future spec version deprecates zesPowerGetLimits():
+         *        https://github.com/oneapi-src/level-zero-spec/issues/12
+         * Switch to querying list of limits after Sysman plugin starts
+         * requiring that spec version / loader.
+         */
         if (ret = zesPowerGetLimits(powers[i], &sustain, &burst, NULL),
-            ret != ZE_RESULT_SUCCESS) {
-          WARNING(PLUGIN_NAME ": disabling power ratio, failed to get power "
-                              "domain %d limits => 0x%x",
-                  i, ret);
-          gpu->disabled.power_ratio = true;
-        } else {
+            ret == ZE_RESULT_SUCCESS) {
+          const char *name;
+          int32_t limit = 0;
           /* Multiply by 1000, as sustain interval is in ms & power in mJ/s,
            * whereas energy is in uJ and its timestamp in us:
            * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-power-energy-counter-t
@@ -1817,15 +1817,17 @@ static bool gpu_powers(gpu_device_t *gpu) {
           } else if (burst.enabled) {
             name = "burst";
             limit = burst.power;
-          } else {
-            gpu->disabled.power_ratio = true;
           }
-        }
-        if (limit > 0) {
-          metric_label_set(&metric, "limit", name);
-          metric.value.gauge = 1000 * energy_diff / (limit * time_diff);
-          metric_family_metric_append(&fam_ratio, metric);
-          reported_ratio = true;
+          if (limit > 0) {
+            metric_label_set(&metric, "limit", name);
+            metric.value.gauge = 1000 * energy_diff / (limit * time_diff);
+            metric_family_metric_append(&fam_ratio, metric);
+            reported_ratio = true;
+          } else {
+            ratio_fail = true;
+          }
+        } else {
+          ratio_fail = true;
         }
       }
     }
@@ -1841,6 +1843,13 @@ static bool gpu_powers(gpu_device_t *gpu) {
   }
   if (reported_ratio) {
     gpu_submit(gpu, &fam_ratio);
+  } else if (ratio_fail) {
+    gpu->disabled.power_ratio = true;
+    if (ok) {
+      WARNING(PLUGIN_NAME ": failed to get power limit(s) "
+                          "for any of the %d domain(s), last error = 0x%x",
+              power_count, ret);
+    }
   }
   free(powers);
   return ok;
