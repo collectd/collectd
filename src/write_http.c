@@ -605,8 +605,8 @@ static int wh_write_influxdb(const data_set_t *ds,
   }
 
   status = format_influxdb_value_list(cb->send_buffer + cb->send_buffer_fill,
-                                      cb->send_buffer_free, ds, vl,
-                                      cb->store_rates, NS);
+                                      cb->send_buffer_free, ds, vl, NS,
+                                      cb->store_rates, true);
   if (status == -ENOMEM) {
     status = wh_flush_nolock(/* timeout = */ 0, cb);
     if (status != 0) {
@@ -616,8 +616,8 @@ static int wh_write_influxdb(const data_set_t *ds,
     }
 
     status = format_influxdb_value_list(cb->send_buffer + cb->send_buffer_fill,
-                                        cb->send_buffer_free, ds, vl,
-                                        cb->store_rates, NS);
+                                        cb->send_buffer_free, ds, vl, NS,
+                                        cb->store_rates, true);
   }
   if (status < 0) {
     pthread_mutex_unlock(&cb->send_lock);

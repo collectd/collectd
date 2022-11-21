@@ -11256,6 +11256,7 @@ miliseconds while plugin instance, type and type instance are sent as tags.
    Server "influxdb2.fqdn"
    TimePrecision "ms"
    StoreRates "yes"
+   WriteMetadata "no"
  </Plugin>
 
 =over 4
@@ -11296,6 +11297,11 @@ UDP.
 
 If set to B<true>, convert absolute, counter and derive values to rates. If set
 to B<false> (the default) absolute, counter and derive values are sent as is.
+
+=item B<WriteMetadata> B<true|false>
+
+Defaults to B<false>. If set to B<true>, send aditional tags to influxdb with
+collectd value metadata.
 
 =back
 
