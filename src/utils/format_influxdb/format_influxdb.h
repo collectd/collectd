@@ -40,7 +40,7 @@ typedef enum {
 
 int format_influxdb_value_list(char *buffer, int buffer_len,
                                const data_set_t *ds, const value_list_t *vl,
-                               bool store_rates,
-                               format_influxdb_time_precision_t time_precision);
+                               format_influxdb_time_precision_t time_precision,
+                               bool store_rates, bool write_meta);
 
 #endif /* UTILS_FORMAT_INFLUXDB_H */
