@@ -2235,7 +2235,7 @@ static bool check_drop_value(void) /* {{{ */
     return true;
 
   q = cdrand_d();
-  if (q > p)
+  if (p > q)
     return true;
   else
     return false;
