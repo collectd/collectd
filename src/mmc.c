@@ -85,16 +85,28 @@ static int mmc_config(const char *key, const char *value) {
   return 0;
 }
 
-static void mmc_submit(const char *dev_name, const char *type, gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
+static void mmc_submit(const char *dev_name, char *type, gauge_t value) {
+  metric_family_t fam = {
+      .name = type,
+      .type = METRIC_TYPE_GAUGE,
+  };
 
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, dev_name, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
+  metric_t m = {
+      .family = &fam,
+      .value = (value_t){.gauge = value},
+  };
 
-  plugin_dispatch_values(&vl);
+  metric_label_set(&m, "device", dev_name);
+  metric_family_metric_append(&fam, m);
+
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR(PLUGIN_NAME ": plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_reset(&m);
+  metric_family_metric_reset(&fam);
 }
 
 static int mmc_read_manfid(struct udev_device *mmc_dev, int *value) {
