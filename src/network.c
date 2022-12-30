@@ -443,8 +443,17 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
 
   if (address != NULL) {
     char host[48];
-    status = getnameinfo((struct sockaddr *)address,
-                         sizeof(struct sockaddr_storage), host, sizeof(host),
+    size_t len = sizeof(struct sockaddr_storage);
+
+#ifdef __NetBSD__
+    if (address->ss_family == AF_INET) {
+      len = sizeof(struct sockaddr_in);
+    } else if (address->ss_family == AF_INET6) {
+      len = sizeof(struct sockaddr_in6);
+    }
+#endif
+
+    status = getnameinfo((struct sockaddr *)address, len, host, sizeof(host),
                          NULL, 0, NI_NUMERICHOST | NI_NUMERICSERV);
     if (status != 0) {
       ERROR("network plugin: getnameinfo failed: %s", gai_strerror(status));
