@@ -64,6 +64,15 @@ Then run it with the required bind-mounts:
     --name collectd my_collectd
  $ docker exec -it collectd collectdctl listval
 
+exec-borg
+---------
+  Script to be used with the exec-plugin (see collectd-exec(5)) for collecting
+information about Borg Backup repositories. Often, one is unable to run collectd
+on the Borg Server since it is a remote machine without shell access; hence this
+script allows accessing the repository over SSH to extract the statistics.
+It doesn't currently use a config file and will need to be explicitly modified to
+provide the repository information
+
 exec-munin.px
 -------------
   Script to be used with the exec-plugin (see collectd-exec(5) for details)

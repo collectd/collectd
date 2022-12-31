@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+# collectd - contrib/exec-borg
+# Copyright (C) 2022  Darshit Shah
+# License: GPLv2
+
+# Script to collect BorgBackup statistics for collectd using the exec plugin (collectd-exec(5))
+#
+# This script uses borg(1) to collect information about BorgBackup repositories and exports them.
+# Since Borg in written in Python and does not export any API, the exec plugin is likely
+# the best (and only) way to collect this information. The Borg commands may take quite long
+# to execute and this must be considered when executing this script.
+#
+# Dependencies:
+#   * Bash 5+ (Uses Associative Arrays)
+#   * Jq
+
+readonly HOSTAME="${COLLECTD_HOSTNAME:-$(hostname -f)}"
+# Modify this to your needs. For mine, collecting backup stats once an hour is enough
+readonly INTERVAL="${COLLECTD_INTERVAL:-3600}"
+
+readonly REMOTE_HOST="ssh://example.com"
+readonly BASEDIR="."
+declare -A REPOS
+REPOS["MyRepoName"]='MySuperSecretPasscode'
+
+while sleep "$INTERVAL"; do
+    # Since this is a long running script, we can expect the date to change during its execution
+    TODAY="$(date +%Y-%m-%d)"
+
+    for repo_name in "${!REPOS[@]}"; do
+        export BORG_PASSPHRASE="${REPOS[$repo_name]}"
+
+        borg_repo="$REMOTE_HOST/$BASEDIR/$repo_name"
+
+        archives="$(borg list --json "$borg_repo")"
+        borg_info="$(borg info --json "$borg_repo")"
+
+        last_archive_name="$(jq -r '.archives[-1].name' <<< "$archives")"
+        last_archive="$(borg info --json "${borg_repo}::${last_archive_name}")"
+
+        # Get the UNIX timestamp for the last archive.
+        # It is unfortunate that Borg does not provide a way to get the raw timestamp directly.
+        # It will always convert to a human-readable timestamp which we now convert back
+        last_archive_ts="$(jq '.archives[-1].time | split(".")[0] + "Z" | fromdate' <<< "$archives")"
+
+        total_size="$(jq '.cache.stats.total_size' <<< "$borg_info")"
+        total_size_compressed="$(jq '.cache.stats.total_csize' <<< "$borg_info")"
+        total_size_dedup="$(jq '.cache.stats.unique_csize' <<< "$borg_info")"
+
+        num_archives=$(jq '.archives | length' <<< "$archives")
+        num_archives_today=$(jq ".archives | map(select(.start | test(\"$today\"))) | length" <<< "$archives")
+
+        num_files="$(jq '.archives[0].stats.nfiles' <<< "$last_archive")"
+        num_chunks="$(jq '.cache.stats.total_chunks' <<< "$last_archive")"
+        num_uchunks="$(jq '.cache.stats.total_unique_chunks' <<< "$last_archive")"
+
+        archive_size="$(jq '.archives[0].stats.original_size' <<< "$last_archive")"
+        archive_compressed_size="$(jq '.archives[0].stats.compressed_size' <<< "$last_archive")"
+        archive_dedup_size="$(jq '.archives[0].stats.deduplicated_size' <<< "$last_archive")"
+
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/timestamp-last_archive interval=$INTERVAL N:$last_archive_ts"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/bytes-total_size interval=$INTERVAL N:$total_size"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/bytes-total_size_compressed interval=$INTERVAL N:$total_size_compressed"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/bytes-total_size_dedup interval=$INTERVAL N:$total_size_dedup"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/counter-archives_count interval=$INTERVAL N:$num_archives"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/counter-archives_count_today interval=$INTERVAL N:$num_archives_today"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/count-files_count interval=$INTERVAL N:$num_files"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/count-chunks interval=$INTERVAL N:$num_chunks"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/count-unique_chunks interval=$INTERVAL N:$num_uchunks"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/bytes-last_size interval=$INTERVAL N:$archive_size"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/bytes-last_size_compressed interval=$INTERVAL N:$archive_compressed_size"
+        echo "PUTVAL $HOSTNAME/exec-borg_${repo_name}/bytes-last_size_dedup interval=$INTERVAL N:$archive_dedup_size"
+    done
+    # Don't leave the passphrase in memory when we don't need it
+    # More importantly, ensure that we don't accidentally reuse a passphrase for the wrong repository
+    unset BORG_PASSPHRASE
+done
