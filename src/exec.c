@@ -34,6 +34,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
+#include "utils/cmds/putmetric.h"
 #include "utils/cmds/putnotif.h"
 #include "utils/cmds/putval.h"
 
@@ -558,6 +559,8 @@ static int parse_line(char *buffer) /* {{{ */
 {
   if (strncasecmp("PUTVAL", buffer, strlen("PUTVAL")) == 0)
     return cmd_handle_putval(stdout, buffer);
+  else if (strncasecmp("PUTMETRIC", buffer, strlen("PUTMETRIC")) == 0)
+    return cmd_handle_putmetric(stdout, buffer);
   else if (strncasecmp("PUTNOTIF", buffer, strlen("PUTNOTIF")) == 0)
     return handle_putnotif(stdout, buffer);
   else {
