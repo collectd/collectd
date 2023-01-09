@@ -41,8 +41,6 @@ static int set_option(metric_t *m, char const *key, char const *value,
   if ((m == NULL) || (key == NULL) || (value == NULL))
     return -1;
 
-  printf("set_option(\"%s\", \"%s\")\n", key, value);
-
   if (strcasecmp("type", key) == 0) {
     if (strcasecmp("GAUGE", value) == 0) {
       m->family->type = METRIC_TYPE_GAUGE;
@@ -201,7 +199,7 @@ cmd_status_t cmd_handle_putmetric(FILE *fh, char *buffer) {
   int status;
   if ((status = cmd_parse(buffer, &cmd, NULL, &err)) != CMD_OK)
     return status;
-  if (cmd.type != CMD_PUTVAL) {
+  if (cmd.type != CMD_PUTMETRIC) {
     cmd_error(CMD_UNKNOWN_COMMAND, &err, "Unexpected command: `%s'.",
               CMD_TO_STRING(cmd.type));
     cmd_destroy(&cmd);
