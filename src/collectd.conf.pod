@@ -4723,20 +4723,21 @@ B<Options:>
 
 Names of events to be monitored, separated by spaces. Possible events include:
 
-Event Name        | Class of event
-------------------+---------------
-DeviceDisappeared | FAILURE
-RebuildStarted    | OKAY
-RebuildNN         | OKAY
-RebuildFinished   | WARNING
-Fail              | FAILURE
-FailSpare         | WARNING
-SpareActive       | OKAY
-NewArray          | OKAY
-DegradedArray     | FAILURE
-MoveSpare         | WARNING
-SparesMissing     | WARNING
-TestMessage       | OKAY
+ 
+  Event Name        | Class of event
+  ------------------+---------------
+  DeviceDisappeared | FAILURE
+  RebuildStarted    | OKAY
+  RebuildNN         | OKAY
+  RebuildFinished   | WARNING
+  Fail              | FAILURE
+  FailSpare         | WARNING
+  SpareActive       | OKAY
+  NewArray          | OKAY
+  DegradedArray     | FAILURE
+  MoveSpare         | WARNING
+  SparesMissing     | WARNING
+  TestMessage       | OKAY
 
 User should set the events that should be monitored as a strings separated by spaces,
 for example Events "DeviceDisappeared Fail DegradedArray".
