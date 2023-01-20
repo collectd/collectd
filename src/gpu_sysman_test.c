@@ -8,9 +8,11 @@
  * Authors:
  * - Eero Tamminen <eero.t.tamminen@intel.com>
  *
- * Testing for gpu_sysman.c Sysman API and its error handling.
+ * Testing for gpu_sysman.c Sysman API usage and error handling.
  *
- * See: https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
+ * See:
+ * - https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
+ * - https://spec.oneapi.io/level-zero/latest/sysman/api.html
  *
  * Building unit-tests:
  *   gcc -I. -Idaemon  -I/path/to/level-zero -O3 -g --coverage -Werror \
@@ -30,32 +32,34 @@
  *	grep '###' gpu_sysman.c.gcov
  *
  * Note:
- * - Code lines run coverage is best with code compiled using -O3 because
+ * - Coverage of code lines is best when code is compiled using -O3 because
  *   it causes gcc to convert switch-cases to lookup tables.  Builds without
  *   optimizations have significantly lower coverage due to each (trivial
  *   and build-time verifiable) switch-case being considered separately
  *
  *
  * Mock up functionality details:
+ * - Allocation helpers assert instead of exiting on alloc failure,
+ *   to get a backtrace
  * - All functions return only a single property or metric item,
  *   until hitting earlier set call limit, after which they return error
  * - All metric property functions report them coming from subdevice 0
  *   (as non-subdevice cases can be tested on more easily available real HW)
  * - Except for device.prop.type, subdev type in metric property, and
- *   actual metric values in metric state structs, all other struct members
+ *   actual metric values in metric state structs, all struct members
  *   are zeroed
- * - Memory free metric is decreased, all other metric values are increased
- *   after each query
+ * - After each query, memory free metric is decreased, all other metric
+ *   values are increased
  *
  * Testing validates that:
  * - All registered config variables work and invalid config values are rejected
  * - All mocked up Sysman functions get called when no errors are returned and
  *   count of Sysman calls is always same for plugin init() and read() callbacks
- * - Plugin dispatch API receives correct values for all metrics both in
- *   single-sampling and multi-sampling configurations
- * - Single Sysman call failing during init or metrics queries causes logging
- *   of the failure, and in case of metric queries, disabling of the (only)
- *   relevant metric, and that working for all metrics and Sysman APIs they call
+ * - Plugin dispatch API receives correct values for all metrics, both in
+ *   single-sampling, and in multi-sampling configurations
+ * - Every Sysman call failure during init or metrics queries is logged, and
+ *   in case of metric queries, the corresponding metric is disabled, and
+ *   this happens for all metrics and Sysman APIs they call
  * - Plugin init, shutdown and re-init works without problems
  */
 
@@ -139,28 +143,40 @@ static bool call_limit(int callbit, const char *name) {
 #define DEV_HANDLE ((ze_device_handle_t)(0xecced))
 #define VAL_HANDLE 0xcaffa
 
+/* driver/device initialization status */
+typedef enum {
+  L0_NOT_INITIALIZED,
+  L0_IS_INITIALIZED,
+  L0_DRIVER_INITIALIZED,
+  L0_DEVICE_INITIALIZED
+} initialized_t;
+
+static initialized_t initialized = L0_NOT_INITIALIZED;
+
 ze_result_t zeInit(ze_init_flags_t flags) {
   if (call_limit(0, "zeInit"))
     return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (flags && flags != ZE_INIT_FLAG_GPU_ONLY) {
+  if (flags && flags != ZE_INIT_FLAG_GPU_ONLY)
     return ZE_RESULT_ERROR_INVALID_ENUMERATION;
-  }
+  initialized = L0_IS_INITIALIZED;
   return ZE_RESULT_SUCCESS;
 }
 
 ze_result_t zeDriverGet(uint32_t *count, ze_driver_handle_t *handles) {
   if (call_limit(1, "zeDriverGet"))
     return ZE_RESULT_ERROR_DEVICE_LOST;
+  if (initialized < L0_IS_INITIALIZED)
+    return ZE_RESULT_ERROR_UNINITIALIZED;
   if (!count)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
   if (!*count) {
     *count = 1;
     return ZE_RESULT_SUCCESS;
   }
-  if (*count != 1)
-    return ZE_RESULT_ERROR_INVALID_SIZE;
+  *count = 1;
   if (!handles)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  initialized = L0_DRIVER_INITIALIZED;
   handles[0] = DRV_HANDLE;
   return ZE_RESULT_SUCCESS;
 }
@@ -171,47 +187,58 @@ ze_result_t zeDeviceGet(ze_driver_handle_t drv, uint32_t *count,
     return ZE_RESULT_ERROR_DEVICE_LOST;
   if (drv != DRV_HANDLE)
     return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
+  if (initialized < L0_DRIVER_INITIALIZED)
+    return ZE_RESULT_ERROR_UNINITIALIZED;
   if (!count)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
   if (!*count) {
     *count = 1;
     return ZE_RESULT_SUCCESS;
   }
-  if (*count != 1)
-    return ZE_RESULT_ERROR_INVALID_SIZE;
+  *count = 1;
   if (!handles)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  initialized = L0_DEVICE_INITIALIZED;
   handles[0] = DEV_HANDLE;
+  return ZE_RESULT_SUCCESS;
+}
+
+/* mock up level-zero core device handling API, called during gpu_init() */
+
+static ze_result_t dev_args_check(int callbit, const char *name,
+                                  ze_device_handle_t dev, void *type) {
+  if (call_limit(callbit, name))
+    return ZE_RESULT_ERROR_DEVICE_LOST;
+  if (dev != DEV_HANDLE)
+    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
+  if (!type)
+    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  if (initialized < L0_DEVICE_INITIALIZED)
+    return ZE_RESULT_ERROR_UNINITIALIZED;
   return ZE_RESULT_SUCCESS;
 }
 
 ze_result_t zeDeviceGetProperties(ze_device_handle_t dev,
                                   ze_device_properties_t *props) {
-  if (call_limit(3, "zeDeviceGetProperties"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!props)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  memset(props, 0, sizeof(*props));
-  props->type = ZE_DEVICE_TYPE_GPU;
-  return ZE_RESULT_SUCCESS;
+  ze_result_t ret = dev_args_check(3, "zeDeviceGetProperties", dev, props);
+  if (ret == ZE_RESULT_SUCCESS) {
+    memset(props, 0, sizeof(*props));
+    props->type = ZE_DEVICE_TYPE_GPU;
+  }
+  return ret;
 }
 
 ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
                                         ze_device_memory_properties_t *props) {
-  if (call_limit(4, "zeDeviceGetMemoryProperties"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!count)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  ze_result_t ret =
+      dev_args_check(4, "zeDeviceGetMemoryProperties", dev, count);
+  if (ret != ZE_RESULT_SUCCESS)
+    return ret;
   if (!*count) {
     *count = 1;
     return ZE_RESULT_SUCCESS;
   }
-  if (*count != 1)
-    return ZE_RESULT_ERROR_INVALID_SIZE;
+  *count = 1;
   if (!props)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
   memset(props, 0, sizeof(*props));
@@ -220,41 +247,17 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
 
 /* mock up level-zero sysman device handling API, called during gpu_init() */
 
-ze_result_t zesDeviceGetProperties(zes_device_handle_t dev,
-                                   zes_device_properties_t *props) {
-  if (call_limit(5, "zesDeviceGetProperties"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!props)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  memset(props, 0, sizeof(*props));
-  return ZE_RESULT_SUCCESS;
-}
+#define DEV_GET_ZEROED_STRUCT(callbit, getname, structtype)                    \
+  ze_result_t getname(zes_device_handle_t dev, structtype *to_zero) {          \
+    ze_result_t ret = dev_args_check(callbit, #getname, dev, to_zero);         \
+    if (ret == ZE_RESULT_SUCCESS)                                              \
+      memset(to_zero, 0, sizeof(*to_zero));                                    \
+    return ret;                                                                \
+  }
 
-ze_result_t zesDevicePciGetProperties(zes_device_handle_t dev,
-                                      zes_pci_properties_t *props) {
-  if (call_limit(6, "zesDevicePciGetProperties"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!props)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  memset(props, 0, sizeof(*props));
-  return ZE_RESULT_SUCCESS;
-}
-
-ze_result_t zesDeviceGetState(zes_device_handle_t dev,
-                              zes_device_state_t *state) {
-  if (call_limit(7, "zesDeviceGetState"))
-    return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (dev != DEV_HANDLE)
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  if (!state)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  memset(state, 0, sizeof(*state));
-  return ZE_RESULT_SUCCESS;
-}
+DEV_GET_ZEROED_STRUCT(5, zesDeviceGetProperties, zes_device_properties_t)
+DEV_GET_ZEROED_STRUCT(6, zesDevicePciGetProperties, zes_pci_properties_t)
+DEV_GET_ZEROED_STRUCT(7, zesDeviceGetState, zes_device_state_t)
 
 #define INIT_CALL_FUNCS 8
 #define INIT_CALL_BITS (((uint64_t)1 << INIT_CALL_FUNCS) - 1)
@@ -262,15 +265,36 @@ ze_result_t zesDeviceGetState(zes_device_handle_t dev,
 /* ------------------------------------------------------------------------- */
 /* mock up Sysman API metrics querying functions */
 
+static ze_result_t metric_args_check(int callbit, const char *name,
+                                     void *handle, void *type) {
+  /* metric being unavailable on some HW / driver combination
+   * is more likely for metric queries than device loss, so use
+   * ZE_RESULT_ERROR_NOT_AVAILABLE rathen than ZE_RESULT_ERROR_DEVICE_LOST
+   */
+  if (call_limit(callbit, name))
+    return ZE_RESULT_ERROR_NOT_AVAILABLE;
+  if (handle != (void *)VAL_HANDLE)
+    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
+  if (!type)
+    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  if (initialized < L0_DEVICE_INITIALIZED)
+    return ZE_RESULT_ERROR_UNINITIALIZED;
+  return ZE_RESULT_SUCCESS;
+}
+
 #define COUNTER_START 100000 // 100ms
 #define COUNTER_INC 20000    // 20ms
 #define TIME_START 5000000   // 5s in us
-#define TIME_INC 1000000     // 1s in us
+#define TIME_INC 2000000     // 2s in us
 #define COUNTER_MAX TIME_INC
 
 /* what should get reported as result of above */
 #define COUNTER_RATIO ((double)COUNTER_INC / TIME_INC)
+#define COUNTER_RATE (1.0e6 * COUNTER_INC / TIME_INC)
+#define COUNTER_MAX_RATIO                                                      \
+  (1.0e6 * COUNTER_INC / ((double)COUNTER_MAX * TIME_INC))
 
+#define FREQ_LIMIT 1600
 #define FREQ_INIT 300
 #define FREQ_INC 50
 
@@ -278,123 +302,126 @@ ze_result_t zesDeviceGetState(zes_device_handle_t dev,
 #define MEMORY_INIT (MEMORY_SIZE / 2) // so that both free & used get same value
 #define MEMORY_INC (MEMORY_SIZE / 64)
 
+#define POWER_LIMIT (2.0 * COUNTER_INC / TIME_INC) // in Watts
+
 #define RAS_INIT 0
 #define RAS_INC 1
 
+#define TEMP_LIMIT 95
 #define TEMP_INIT 10
 #define TEMP_INC 5
 
-/* Call bit, metric enumaration function name, its handle type,
- * corresponding zes*GetProperties() function name, its property struct type,
- * corresponding zes*GetState() function name, its state struct type, global
- * variable for intial state values, two increment operations for the global
- * state variable members (or void)
+/* Arguments:
+ * - call bit
+ * - metric enumaration function name
+ * - its handle type
+ * - zes*GetProperties() function name
+ * - its property struct type
+ * - global variable for initial prop values
+ * - zes*GetState() function name
+ * - its state struct type
+ * - global variable for intial state values
+ * - two increment operations for the global state variable members (or void)
  */
-#define ADD_METRIC(callbit, getname, handletype, propname, proptype,           \
+#define ADD_METRIC(callbit, getname, handletype, propname, proptype, propvar,  \
                    statename, statetype, statevar, stateinc1, stateinc2)       \
   ze_result_t getname(zes_device_handle_t dev, uint32_t *count,                \
                       handletype *handles) {                                   \
-    if (call_limit(callbit, #getname))                                         \
-      return ZE_RESULT_ERROR_NOT_AVAILABLE;                                    \
-    if (dev != DEV_HANDLE)                                                     \
-      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
-    if (!count)                                                                \
-      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
+    ze_result_t ret = dev_args_check(callbit, #getname, dev, count);           \
+    if (ret != ZE_RESULT_SUCCESS)                                              \
+      return ret;                                                              \
     if (!*count) {                                                             \
       *count = 1;                                                              \
       return ZE_RESULT_SUCCESS;                                                \
     }                                                                          \
-    if (*count != 1)                                                           \
-      return ZE_RESULT_ERROR_INVALID_SIZE;                                     \
+    *count = 1;                                                                \
     if (!handles)                                                              \
       return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
     handles[0] = (handletype)VAL_HANDLE;                                       \
     return ZE_RESULT_SUCCESS;                                                  \
   }                                                                            \
   ze_result_t propname(handletype handle, proptype *prop) {                    \
-    proptype value = {.onSubdevice = true};                                    \
-    if (call_limit(callbit + 1, #propname))                                    \
-      return ZE_RESULT_ERROR_NOT_AVAILABLE;                                    \
-    if (handle != (handletype)VAL_HANDLE)                                      \
-      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
-    if (!prop)                                                                 \
-      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
-    *prop = value;                                                             \
-    return ZE_RESULT_SUCCESS;                                                  \
+    ze_result_t ret = metric_args_check(callbit + 1, #propname, handle, prop); \
+    if (ret == ZE_RESULT_SUCCESS) {                                            \
+      *prop = propvar;                                                         \
+      prop->onSubdevice = true;                                                \
+    }                                                                          \
+    return ret;                                                                \
   }                                                                            \
   ze_result_t statename(handletype handle, statetype *state) {                 \
-    if (call_limit(callbit + 2, #statename))                                   \
-      return ZE_RESULT_ERROR_NOT_AVAILABLE;                                    \
-    if (handle != (handletype)VAL_HANDLE)                                      \
-      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
-    if (!state)                                                                \
-      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
-    *state = statevar;                                                         \
-    stateinc1;                                                                 \
-    stateinc2;                                                                 \
-    return ZE_RESULT_SUCCESS;                                                  \
+    ze_result_t ret =                                                          \
+        metric_args_check(callbit + 2, #statename, handle, state);             \
+    if (ret == ZE_RESULT_SUCCESS) {                                            \
+      *state = statevar;                                                       \
+      stateinc1;                                                               \
+      stateinc2;                                                               \
+    }                                                                          \
+    return ret;                                                                \
   }
 
+static zes_engine_properties_t engine_props;
 static zes_engine_stats_t engine_stats = {.activeTime = COUNTER_START,
                                           .timestamp = TIME_START};
 
 ADD_METRIC(0, zesDeviceEnumEngineGroups, zes_engine_handle_t,
-           zesEngineGetProperties, zes_engine_properties_t,
+           zesEngineGetProperties, zes_engine_properties_t, engine_props,
            zesEngineGetActivity, zes_engine_stats_t, engine_stats,
            engine_stats.activeTime += COUNTER_INC,
            engine_stats.timestamp += TIME_INC)
 
+static zes_freq_properties_t freq_props = {.max = FREQ_LIMIT};
 static zes_freq_state_t freq_state = {.request = FREQ_INIT,
                                       .actual = FREQ_INIT};
 
 ADD_METRIC(3, zesDeviceEnumFrequencyDomains, zes_freq_handle_t,
-           zesFrequencyGetProperties, zes_freq_properties_t,
+           zesFrequencyGetProperties, zes_freq_properties_t, freq_props,
            zesFrequencyGetState, zes_freq_state_t, freq_state,
            freq_state.request += 2 * FREQ_INC, freq_state.actual += FREQ_INC)
 
+static zes_mem_properties_t mem_props;
 static zes_mem_state_t mem_state = {.free = MEMORY_SIZE - MEMORY_INIT,
                                     .size = MEMORY_SIZE};
 
 ADD_METRIC(6, zesDeviceEnumMemoryModules, zes_mem_handle_t,
-           zesMemoryGetProperties, zes_mem_properties_t, zesMemoryGetState,
-           zes_mem_state_t, mem_state, mem_state.free -= MEMORY_INC,
-           mem_state.health ^= ZES_MEM_HEALTH_OK)
+           zesMemoryGetProperties, zes_mem_properties_t, mem_props,
+           zesMemoryGetState, zes_mem_state_t, mem_state,
+           mem_state.free -= MEMORY_INC, mem_state.health ^= ZES_MEM_HEALTH_OK)
 
+static zes_power_properties_t power_props;
 static zes_power_energy_counter_t power_counter = {.energy = COUNTER_START,
                                                    .timestamp = TIME_START};
 
 ADD_METRIC(9, zesDeviceEnumPowerDomains, zes_pwr_handle_t,
-           zesPowerGetProperties, zes_power_properties_t,
+           zesPowerGetProperties, zes_power_properties_t, power_props,
            zesPowerGetEnergyCounter, zes_power_energy_counter_t, power_counter,
            power_counter.energy += COUNTER_INC,
            power_counter.timestamp += TIME_INC)
 
-static int dummy;
+static zes_temp_properties_t temp_props = {.maxTemperature = TEMP_LIMIT};
 static double temperature = TEMP_INIT;
+static int dummy;
 
 ADD_METRIC(12, zesDeviceEnumTemperatureSensors, zes_temp_handle_t,
-           zesTemperatureGetProperties, zes_temp_properties_t,
+           zesTemperatureGetProperties, zes_temp_properties_t, temp_props,
            zesTemperatureGetState, double, temperature, temperature += TEMP_INC,
            dummy = 0)
 
+static zes_ras_properties_t ras_props;
+
 ADD_METRIC(15, zesDeviceEnumRasErrorSets, zes_ras_handle_t, zesRasGetProperties,
-           zes_ras_properties_t, zesRasGetDummy, int,
+           zes_ras_properties_t, ras_props, zesRasGetDummyState, int,
            dummy, // dummy as state API differs from others
            dummy = 0, dummy = 0)
 
+/* needed because there's an extra parameter */
 ze_result_t zesRasGetState(zes_ras_handle_t handle, ze_bool_t clear,
                            zes_ras_state_t *state) {
-  if (call_limit(17, "zesRasGetState")) {
-    return ZE_RESULT_ERROR_NOT_AVAILABLE;
-  }
-  if (handle != (zes_ras_handle_t)VAL_HANDLE) {
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
+  ze_result_t ret = metric_args_check(17, "zesRasGetState", handle, state);
+  if (ret != ZE_RESULT_SUCCESS) {
+    return ret;
   }
   if (clear) {
     return ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;
-  }
-  if (!state) {
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
   }
   static uint64_t count = RAS_INIT;
   memset(state, 0, sizeof(zes_ras_state_t));
@@ -408,14 +435,10 @@ ze_result_t zesRasGetState(zes_ras_handle_t handle, ze_bool_t clear,
 
 ze_result_t zesFrequencyGetThrottleTime(zes_freq_handle_t handle,
                                         zes_freq_throttle_time_t *state) {
-  if (call_limit(18, "zesFrequencyGetThrottleTime")) {
-    return ZE_RESULT_ERROR_NOT_AVAILABLE;
-  }
-  if (handle != (zes_freq_handle_t)VAL_HANDLE) {
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  }
-  if (!state) {
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  ze_result_t ret =
+      metric_args_check(18, "zesFrequencyGetThrottleTime", handle, state);
+  if (ret != ZE_RESULT_SUCCESS) {
+    return ret;
   }
   static zes_freq_throttle_time_t throttle = {.throttleTime = COUNTER_START,
                                               .timestamp = TIME_START};
@@ -427,14 +450,10 @@ ze_result_t zesFrequencyGetThrottleTime(zes_freq_handle_t handle,
 
 ze_result_t zesMemoryGetBandwidth(zes_mem_handle_t handle,
                                   zes_mem_bandwidth_t *state) {
-  if (call_limit(19, "zesMemoryGetBandwidth")) {
-    return ZE_RESULT_ERROR_NOT_AVAILABLE;
-  }
-  if (handle != (zes_mem_handle_t)VAL_HANDLE) {
-    return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
-  }
-  if (!state) {
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  ze_result_t ret =
+      metric_args_check(19, "zesMemoryGetBandwidth", handle, state);
+  if (ret != ZE_RESULT_SUCCESS) {
+    return ret;
   }
   static zes_mem_bandwidth_t bw = {.readCounter = 2 * COUNTER_START,
                                    .writeCounter = COUNTER_START,
@@ -447,8 +466,37 @@ ze_result_t zesMemoryGetBandwidth(zes_mem_handle_t handle,
   return ZE_RESULT_SUCCESS;
 }
 
-#define QUERY_CALL_FUNCS 20
+ze_result_t zesPowerGetLimits(zes_pwr_handle_t handle,
+                              zes_power_sustained_limit_t *sustained,
+                              zes_power_burst_limit_t *burst,
+                              zes_power_peak_limit_t *peak) {
+  void *check = NULL; // something must be requested
+  if (sustained) {
+    check = sustained;
+    sustained->enabled = true;
+    sustained->interval = 2 * TIME_INC / 1000; // 2x to get this skipped
+    sustained->power = 2 * 1000 * POWER_LIMIT; // mW
+  }
+  if (burst) {
+    check = burst;
+    burst->enabled = true;
+    burst->power = 1000 * POWER_LIMIT;
+  }
+  if (peak) {
+    check = NULL; // not supported
+  }
+  return metric_args_check(20, "zesPowerGetLimits", handle, check);
+}
+
+#define QUERY_CALL_FUNCS 21
 #define QUERY_CALL_BITS (((uint64_t)1 << QUERY_CALL_FUNCS) - 1)
+
+/* ------------------------------------------------------------------------- */
+/* bitmask for the calls that happen only on successive query rounds:
+ * - zesPowerGetLimits (20)
+ * (due to them being inside 'old->timestamp' check)
+ */
+#define QUERY_MULTI_BITS (1 << 20)
 
 /* ------------------------------------------------------------------------- */
 /* mock up metrics reporting and validation */
@@ -465,10 +513,17 @@ typedef struct {
   double last;
 } metrics_validation_t;
 
-#define RATIO_INIT ((double)MEMORY_INIT / MEMORY_SIZE)
-#define RATIO_INC ((double)MEMORY_INC / MEMORY_SIZE)
+#define FREQ_RATIO_INIT ((double)(FREQ_INIT) / (FREQ_LIMIT))
+#define FREQ_RATIO_INC ((double)(FREQ_INC) / (FREQ_LIMIT))
+
+#define TEMP_RATIO_INIT ((double)(TEMP_INIT) / (TEMP_LIMIT))
+#define TEMP_RATIO_INC ((double)(TEMP_INC) / (TEMP_LIMIT))
+
+#define MEM_RATIO_INIT ((double)MEMORY_INIT / MEMORY_SIZE)
+#define MEM_RATIO_INC ((double)MEMORY_INC / MEMORY_SIZE)
 
 static metrics_validation_t valid_metrics[] = {
+    /* gauge value changes */
     {"all_errors_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
     {"frequency_mhz/actual/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
     {"frequency_mhz/actual/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
@@ -479,36 +534,56 @@ static metrics_validation_t valid_metrics[] = {
      0.0},
     {"frequency_mhz/request/gpu", false, false, FREQ_INIT, 2 * FREQ_INC, 0,
      0.0},
-    {"memory_used_bytes/HBM/system/min", true, true, MEMORY_INIT, +MEMORY_INC,
-     0, 0.0},
-    {"memory_used_bytes/HBM/system/max", true, true, MEMORY_INIT, +MEMORY_INC,
-     0, 0.0},
-    {"memory_used_bytes/HBM/system", false, false, MEMORY_INIT, +MEMORY_INC, 0,
+    {"frequency_ratio/actual/gpu/min", true, true, FREQ_RATIO_INIT,
+     FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/actual/gpu/max", true, true, FREQ_RATIO_INIT,
+     FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/actual/gpu", false, false, FREQ_RATIO_INIT,
+     FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/request/gpu/min", true, true, FREQ_RATIO_INIT,
+     2 * FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/request/gpu/max", true, true, FREQ_RATIO_INIT,
+     2 * FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_ratio/request/gpu", false, false, FREQ_RATIO_INIT,
+     2 * FREQ_RATIO_INC, 0, 0.0},
+    {"memory_used_bytes/HBM/system/min", true, true, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
-    {"memory_usage_ratio/HBM/system/min", true, true, RATIO_INIT, +RATIO_INC, 0,
+    {"memory_used_bytes/HBM/system/max", true, true, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
-    {"memory_usage_ratio/HBM/system/max", true, true, RATIO_INIT, +RATIO_INC, 0,
+    {"memory_used_bytes/HBM/system", false, false, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
-    {"memory_usage_ratio/HBM/system", false, false, RATIO_INIT, +RATIO_INC, 0,
-     0.0},
+    {"memory_usage_ratio/HBM/system/min", true, true, MEM_RATIO_INIT,
+     MEM_RATIO_INC, 0, 0.0},
+    {"memory_usage_ratio/HBM/system/max", true, true, MEM_RATIO_INIT,
+     MEM_RATIO_INC, 0, 0.0},
+    {"memory_usage_ratio/HBM/system", false, false, MEM_RATIO_INIT,
+     MEM_RATIO_INC, 0, 0.0},
     {"temperature_celsius", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
+    {"temperature_ratio", true, false, TEMP_RATIO_INIT, TEMP_RATIO_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
+    {"energy_ujoules_total", true, false, COUNTER_START, COUNTER_INC, 0, 0.0},
+    {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"engine_use_usecs_total/all", true, false, COUNTER_START, COUNTER_INC, 0,
      0.0},
-    {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"throttled_usecs_total/gpu", true, false, COUNTER_START, COUNTER_INC, 0,
-     0.0},
-    {"throttled_ratio/gpu", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"memory_bw_bytes_total/HBM/system/read", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
     {"memory_bw_bytes_total/HBM/system/write", true, false, COUNTER_START,
      COUNTER_INC, 0, 0.0},
-    {"memory_bw_ratio/HBM/system/read", true, false, 2 * COUNTER_RATIO, 0, 0,
+    {"memory_bw_bytes_per_second/HBM/system/read", true, false,
+     2 * COUNTER_RATE, 0, 0, 0.0},
+    {"memory_bw_bytes_per_second/HBM/system/write", true, false, COUNTER_RATE,
+     0, 0, 0.0},
+    {"memory_bw_ratio/HBM/system/read", true, false, 2 * COUNTER_MAX_RATIO, 0,
+     0, 0.0},
+    {"memory_bw_ratio/HBM/system/write", true, false, COUNTER_MAX_RATIO, 0, 0,
      0.0},
-    {"memory_bw_ratio/HBM/system/write", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"energy_ujoules_total", true, false, COUNTER_START, COUNTER_INC, 0, 0.0},
+    {"power_ratio", true, false, COUNTER_INC / POWER_LIMIT / TIME_INC, 0, 0,
+     0.0},
     {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"throttled_usecs_total/gpu", true, false, COUNTER_START, COUNTER_INC, 0,
+     0.0},
+    {"throttled_ratio/gpu", true, false, COUNTER_RATIO, 0, 0, 0.0},
 };
 
 /* VALIDATE: reset tracked metrics values and return count of how many
@@ -650,8 +725,8 @@ static double get_value(metric_type_t type, value_t value) {
 int plugin_dispatch_metric_family(metric_family_t const *fam) {
   assert(fam && fam->name && fam->metric.num && fam->metric.ptr);
 
-  char name[128];
   bool found = false;
+  char name[128] = "\0";
   metric_t *metric = fam->metric.ptr;
 
   for (size_t m = 0; m < fam->metric.num; m++) {
@@ -674,7 +749,11 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
       }
     }
   }
-  assert(found);
+  if (!found) {
+    fprintf(stderr, "ERROR: found no '%s' metrics\n(e.g '%s')\n", fam->name,
+            name);
+    exit(1);
+  }
   return 0;
 }
 
@@ -700,7 +779,7 @@ int metric_label_set(metric_t *m, char const *name, char const *value) {
   for (i = 0; i < MAX_LABELS; i++) {
     if (!pair[i].name) {
       /* not found -> new label */
-      pair[i].name = strdup(name);
+      pair[i].name = sstrdup(name);
       m->label.num++;
       break;
     }
@@ -710,7 +789,7 @@ int metric_label_set(metric_t *m, char const *name, char const *value) {
   }
   assert(value); /* removing label with NULL 'value' is not supported */
   free(pair[i].value);
-  pair[i].value = strdup(value);
+  pair[i].value = sstrdup(value);
   return 0;
 }
 
@@ -765,8 +844,8 @@ int metric_family_metric_append(metric_family_t *fam, metric_t m) {
     label_pair_t *dst = scalloc(MAX_LABELS, sizeof(*src));
     metric[num].label.ptr = dst;
     for (size_t i = 0; i < m.label.num; i++) {
-      dst[i].name = strdup(src[i].name);
-      dst[i].value = strdup(src[i].value);
+      dst[i].name = sstrdup(src[i].name);
+      dst[i].value = sstrdup(src[i].value);
     }
   }
   fam->metric.num++;
@@ -805,17 +884,19 @@ static struct {
   plugin_shutdown_cb shutdown;
 } registry;
 
+cdtime_t plugin_get_interval(void) { return MS_TO_CDTIME_T(500); }
+
 int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),
                            const char **keys, int keys_num) {
   assert(name && callback && keys && keys_num > 0);
-  registry.name = strdup(name);
+  registry.name = sstrdup(name);
   registry.config = callback;
 
   registry.keys = scalloc(keys_num, sizeof(char *));
   for (int i = 0; i < keys_num; i++) {
     assert(keys[i]);
-    registry.keys[i] = strdup(keys[i]);
+    registry.keys[i] = sstrdup(keys[i]);
   }
   registry.key_count = keys_num;
   return 0;
@@ -886,6 +967,11 @@ void *smalloc(size_t size) {
   assert(p);
   return p;
 }
+char *sstrdup(const char *s1) {
+  char *s2 = strdup(s1);
+  assert(s2);
+  return s2;
+}
 
 /* ------------------------------------------------------------------------- */
 /* TEST: plugin setup & teardown */
@@ -930,16 +1016,17 @@ static int test_config_keys(bool check_nonbool, bool enable_metrics,
     const char *value;
     bool success;
   } test[] = {
-      {"MetricsOutput", "derived", true},
-      {"MetricsOutput", "raW", true},
-      {"MetricsOutput", "Foobar", false},
+      {"MetricsOutput", "counter", true},
+      {"MetricsOutput", "rate", true},
+      {"MetricsOutput", "RatiO", true},
+      {"MetricsOutput", "RatiO/fooBAR", false},
       {"MetricsOutput", "1", false},
       {"Foobar", "Foobar", false},
       {"Samples", "999", false},
       {"Samples", "-1", false},
       {"Samples", "8", true},
       /* set back to default */
-      {"MetricsOutput", "Both", true},
+      {"MetricsOutput", "counter:rate:ratio", true},
       {"Samples", "1", true},
   };
   unsigned int i, j;
@@ -994,8 +1081,9 @@ static int get_reset_disabled(gpu_disable_t *disabled, bool value, int *mask,
   } flags[] = {
       {"engine", &disabled->engine},    {"frequency", &disabled->freq},
       {"memory", &disabled->mem},       {"membw", &disabled->membw},
-      {"power", &disabled->power},      {"errors", &disabled->ras},
-      {"temperature", &disabled->temp}, {"throttle", &disabled->throttle}};
+      {"power", &disabled->power},      {"power_ratio", &disabled->power_ratio},
+      {"errors", &disabled->ras},       {"temperature", &disabled->temp},
+      {"throttle", &disabled->throttle}};
   *all = 0;
   int count = 0;
   for (int i = 0; i < (int)STATIC_ARRAY_SIZE(flags); i++) {
@@ -1169,7 +1257,7 @@ static int test_init_errors(unsigned int limit) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* options parsing & main */
+/* options parsing, call count checks and main */
 
 static void parse_options(int argc, const char **argv) {
   static const struct {
@@ -1211,6 +1299,34 @@ static void parse_options(int argc, const char **argv) {
       exit(1);
     }
   }
+}
+
+void check_call_counts(const char *type, unsigned long reqbits) {
+  int count;
+  bool reqbit, callbit;
+  unsigned long callbits = globs.callbits;
+  for (count = 0; reqbits | callbits;) {
+    reqbit = reqbits & 1;
+    callbit = callbits & 1;
+    if (reqbit != callbit) {
+      if (reqbit) {
+        fprintf(stderr,
+                "ERROR: call to Sysman API metric %s function %d missing\n",
+                type, count);
+      } else {
+        fprintf(stderr,
+                "ERROR: unexpected call to Sysman API metric %s function %d\n",
+                type, count);
+      }
+      exit(1);
+    } else if (callbit) {
+      count++;
+    }
+    callbits >>= 1;
+    reqbits >>= 1;
+  }
+  fprintf(stderr, "%d calls to expected %d Sysman metric %s functions\n",
+          globs.api_calls, count, type);
 }
 
 int main(int argc, const char **argv) {
@@ -1270,9 +1386,7 @@ int main(int argc, const char **argv) {
   globs.warnings = globs.api_calls = globs.callbits = 0;
   assert(registry.init() == 0);
   /* all Sysman metric init functions got called? */
-  assert(globs.callbits == INIT_CALL_BITS);
-  fprintf(stderr, "%d calls to all %d Sysman metric init functions\n",
-          globs.api_calls, INIT_CALL_FUNCS);
+  check_call_counts("init", INIT_CALL_BITS);
   assert(registry.shutdown() == 0);
   assert(globs.warnings == 0);
   fprintf(stderr, "full init: PASS\n\n");
@@ -1310,11 +1424,9 @@ int main(int argc, const char **argv) {
                   "enabled...\n");
   globs.warnings = globs.api_calls = globs.callbits = 0;
   assert(registry.read() == 0);
-  /* all Sysman metric query functions got successfully called? */
-  assert(globs.callbits == QUERY_CALL_BITS);
+  /* all Sysman metric query first round functions got successfully called? */
+  check_call_counts("query", QUERY_CALL_BITS ^ QUERY_MULTI_BITS);
   assert(globs.warnings == 0);
-  fprintf(stderr, "%d calls to all %d Sysman metric query functions\n",
-          globs.api_calls, QUERY_CALL_FUNCS);
   /* per-time counters do not report on first round */
   assert(validate_and_reset_saved_metrics(1, 0) > 0);
   fprintf(stderr, "metrics query round 1: PASS\n\n");
@@ -1325,7 +1437,8 @@ int main(int argc, const char **argv) {
   fprintf(stderr, "Another query for per-timediff metric values + validation "
                   "for all values...\n");
   assert(registry.read() == 0);
-  /* make sure second round does (successfully) same (amount of) calls */
+  /* make sure second round calls all Sysman API functions */
+  check_call_counts("query", QUERY_CALL_BITS);
   assert(globs.warnings == 0);
   /* second round may make additional calls */
   assert(globs.api_calls >= api_calls);

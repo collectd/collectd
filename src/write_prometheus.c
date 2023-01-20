@@ -228,7 +228,7 @@ static void prom_logger(__attribute__((unused)) void *arg, char const *fmt,
 } /* }}} prom_logger */
 
 #if MHD_VERSION >= 0x00090000
-static int prom_open_socket(int addrfamily) {
+static int prom_open_socket(int addrfamily, const char **failed) {
   /* {{{ */
   char service[NI_MAXSERV];
   ssnprintf(service, sizeof(service), "%hu", httpd_port);
@@ -242,6 +242,7 @@ static int prom_open_socket(int addrfamily) {
                            },
                            &res);
   if (status != 0) {
+    *failed = "getaddrinfo()";
     return -1;
   }
 
@@ -253,24 +254,27 @@ static int prom_open_socket(int addrfamily) {
 #endif
 
     fd = socket(ai->ai_family, flags, 0);
-    if (fd == -1)
+    if (fd == -1) {
+      *failed = "socket()";
       continue;
+    }
 
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) != 0) {
-      WARNING("write_prometheus plugin: setsockopt(SO_REUSEADDR) failed: %s",
-              STRERRNO);
+      *failed = "setsockopt(SO_REUSEADDR)";
       close(fd);
       fd = -1;
       continue;
     }
 
     if (bind(fd, ai->ai_addr, ai->ai_addrlen) != 0) {
+      *failed = "bind()";
       close(fd);
       fd = -1;
       continue;
     }
 
     if (listen(fd, /* backlog = */ 16) != 0) {
+      *failed = "listen()";
       close(fd);
       fd = -1;
       continue;
@@ -295,13 +299,14 @@ static int prom_open_socket(int addrfamily) {
 
 static struct MHD_Daemon *prom_start_daemon() {
   /* {{{ */
-  int fd = prom_open_socket(PF_INET6);
+  const char *failed = "(unknown)";
+  int fd = prom_open_socket(PF_INET6, &failed);
   if (fd == -1)
-    fd = prom_open_socket(PF_INET);
+    fd = prom_open_socket(PF_INET, &failed);
   if (fd == -1) {
     ERROR("write_prometheus plugin: Opening a listening socket for [%s]:%hu "
-          "failed.",
-          (httpd_host != NULL) ? httpd_host : "::", httpd_port);
+          "failed in %s.",
+          (httpd_host != NULL) ? httpd_host : "::", httpd_port, failed);
     return NULL;
   }
 
