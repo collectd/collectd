@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ collectd-6.0 ]
   pull_request:
-    branches: [ main ]
+    branches: [ collectd-6.0 ]
 
 permissions:
   contents: read
