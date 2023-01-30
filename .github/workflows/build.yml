@@ -41,9 +41,55 @@ jobs:
           - fedora35_x86_64
           - fedora34_x86_64
         config_flags: ['']
+
     env:
       MAKEFLAGS: "-j2 -sk"
-      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+      CONFIGURE_FLAGS: >-
+        ${{ matrix.config_flags }}
+        --disable-aggregation
+        --disable-amqp
+        --disable-amqp1
+        --disable-barometer
+        --disable-check_uptime
+        --disable-csv
+        --disable-curl_xml
+        --disable-gmond
+        --disable-grpc
+        --disable-java
+        --disable-lua
+        --disable-match_empty_counter
+        --disable-match_hashed
+        --disable-match_regex
+        --disable-match_timediff
+        --disable-match_value
+        --disable-modbus
+        --disable-mqtt
+        --disable-network
+        --disable-openldap
+        --disable-perl
+        --disable-postgresql
+        --disable-python
+        --disable-redis
+        --disable-rrdcached
+        --disable-rrdtool
+        --disable-snmp
+        --disable-snmp_agent
+        --disable-statsd
+        --disable-target_notification
+        --disable-target_replace
+        --disable-target_scale
+        --disable-target_set
+        --disable-target_v5upgrade
+        --disable-threshold
+        --disable-write_graphite
+        --disable-write_kafka
+        --disable-write_mongodb
+        --disable-write_redis
+        --disable-write_riemann
+        --disable-write_sensu
+        --disable-write_syslog
+        --disable-write_tsdb
+
       # this env var picked up by valgrind during make check phase
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
@@ -67,7 +113,7 @@ jobs:
         yum install -y bzip2 || apt install -y bzip2
     - name: Run make distcheck
       run: |
-        make $MAKEFLAG distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+        make $MAKEFLAG distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug $CONFIGURE_FLAGS"
 
   experimental:
     runs-on: ubuntu-20.04
@@ -92,8 +138,53 @@ jobs:
       MAKEFLAGS: "-j2 -sk"
       CFLAGS: ${{ matrix.cflags }}
       CPPFLAGS: ${{ matrix.cppflags }}
-      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
+      CONFIGURE_FLAGS: >-
+        ${{ matrix.config_flags }}
+        --disable-aggregation
+        --disable-amqp
+        --disable-amqp1
+        --disable-barometer
+        --disable-check_uptime
+        --disable-csv
+        --disable-curl_xml
+        --disable-gmond
+        --disable-grpc
+        --disable-java
+        --disable-lua
+        --disable-match_empty_counter
+        --disable-match_hashed
+        --disable-match_regex
+        --disable-match_timediff
+        --disable-match_value
+        --disable-modbus
+        --disable-mqtt
+        --disable-network
+        --disable-openldap
+        --disable-perl
+        --disable-postgresql
+        --disable-python
+        --disable-redis
+        --disable-rrdcached
+        --disable-rrdtool
+        --disable-snmp
+        --disable-snmp_agent
+        --disable-statsd
+        --disable-target_notification
+        --disable-target_replace
+        --disable-target_scale
+        --disable-target_set
+        --disable-target_v5upgrade
+        --disable-threshold
+        --disable-write_graphite
+        --disable-write_kafka
+        --disable-write_mongodb
+        --disable-write_redis
+        --disable-write_riemann
+        --disable-write_sensu
+        --disable-write_syslog
+        --disable-write_tsdb
+
     steps:
     - uses: actions/checkout@v2
     - run: type pkg-config
@@ -117,5 +208,5 @@ jobs:
         yum install -y bzip2 || apt install -y bzip2
     - name: Run make distcheck
       run: |
-        make $MAKEFLAGS distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+        make $MAKEFLAGS distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug $CONFIGURE_FLAGS"
 
