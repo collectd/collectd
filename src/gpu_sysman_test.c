@@ -55,6 +55,7 @@
  * - All registered config variables work and invalid config values are rejected
  * - All mocked up Sysman functions get called when no errors are returned and
  *   count of Sysman calls is always same for plugin init() and read() callbacks
+ * - .pNext pointers in structs given to (most) Get functions are initialized
  * - Plugin dispatch API receives correct values for all metrics, both in
  *   single-sampling, and in multi-sampling configurations
  * - Every Sysman call failure during init or metrics queries is logged, and
@@ -222,6 +223,7 @@ ze_result_t zeDeviceGetProperties(ze_device_handle_t dev,
                                   ze_device_properties_t *props) {
   ze_result_t ret = dev_args_check(3, "zeDeviceGetProperties", dev, props);
   if (ret == ZE_RESULT_SUCCESS) {
+    assert(!props->pNext);
     memset(props, 0, sizeof(*props));
     props->type = ZE_DEVICE_TYPE_GPU;
   }
@@ -241,6 +243,7 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
   *count = 1;
   if (!props)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
+  assert(!props->pNext);
   memset(props, 0, sizeof(*props));
   return ZE_RESULT_SUCCESS;
 }
@@ -250,8 +253,10 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
 #define DEV_GET_ZEROED_STRUCT(callbit, getname, structtype)                    \
   ze_result_t getname(zes_device_handle_t dev, structtype *to_zero) {          \
     ze_result_t ret = dev_args_check(callbit, #getname, dev, to_zero);         \
-    if (ret == ZE_RESULT_SUCCESS)                                              \
+    if (ret == ZE_RESULT_SUCCESS) {                                            \
+      assert(!to_zero->pNext);                                                 \
       memset(to_zero, 0, sizeof(*to_zero));                                    \
+    }                                                                          \
     return ret;                                                                \
   }
 
@@ -286,7 +291,7 @@ static ze_result_t metric_args_check(int callbit, const char *name,
 #define COUNTER_INC 20000    // 20ms
 #define TIME_START 5000000   // 5s in us
 #define TIME_INC 2000000     // 2s in us
-#define COUNTER_MAX TIME_INC
+#define COUNTER_MAX (2 * COUNTER_START + 20 * COUNTER_INC)
 
 /* what should get reported as result of above */
 #define COUNTER_RATIO ((double)COUNTER_INC / TIME_INC)
@@ -343,6 +348,7 @@ static ze_result_t metric_args_check(int callbit, const char *name,
   ze_result_t propname(handletype handle, proptype *prop) {                    \
     ze_result_t ret = metric_args_check(callbit + 1, #propname, handle, prop); \
     if (ret == ZE_RESULT_SUCCESS) {                                            \
+      assert(!prop->pNext);                                                    \
       *prop = propvar;                                                         \
       prop->onSubdevice = true;                                                \
     }                                                                          \
@@ -370,8 +376,10 @@ ADD_METRIC(0, zesDeviceEnumEngineGroups, zes_engine_handle_t,
            engine_stats.timestamp += TIME_INC)
 
 static zes_freq_properties_t freq_props = {.max = FREQ_LIMIT};
-static zes_freq_state_t freq_state = {.request = FREQ_INIT,
-                                      .actual = FREQ_INIT};
+static zes_freq_state_t freq_state = {
+    .throttleReasons = ZES_FREQ_THROTTLE_REASON_FLAG_CURRENT_LIMIT,
+    .request = FREQ_INIT,
+    .actual = FREQ_INIT};
 
 ADD_METRIC(3, zesDeviceEnumFrequencyDomains, zes_freq_handle_t,
            zesFrequencyGetProperties, zes_freq_properties_t, freq_props,
@@ -423,6 +431,7 @@ ze_result_t zesRasGetState(zes_ras_handle_t handle, ze_bool_t clear,
   if (clear) {
     return ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;
   }
+  assert(!state->pNext);
   static uint64_t count = RAS_INIT;
   memset(state, 0, sizeof(zes_ras_state_t));
   /* props default to zeroes i.e. correctable error type,
@@ -525,26 +534,29 @@ typedef struct {
 static metrics_validation_t valid_metrics[] = {
     /* gauge value changes */
     {"all_errors_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
-    {"frequency_mhz/actual/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"frequency_mhz/actual/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"frequency_mhz/actual/gpu", false, false, FREQ_INIT, FREQ_INC, 0, 0.0},
-    {"frequency_mhz/request/gpu/min", true, true, FREQ_INIT, 2 * FREQ_INC, 0,
+    {"frequency_mhz/actual/current/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0,
      0.0},
-    {"frequency_mhz/request/gpu/max", true, true, FREQ_INIT, 2 * FREQ_INC, 0,
+    {"frequency_mhz/actual/current/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0,
      0.0},
-    {"frequency_mhz/request/gpu", false, false, FREQ_INIT, 2 * FREQ_INC, 0,
+    {"frequency_mhz/actual/current/gpu", false, false, FREQ_INIT, FREQ_INC, 0,
      0.0},
-    {"frequency_ratio/actual/gpu/min", true, true, FREQ_RATIO_INIT,
+    {"frequency_mhz/request/current/gpu/min", true, true, FREQ_INIT,
+     2 * FREQ_INC, 0, 0.0},
+    {"frequency_mhz/request/current/gpu/max", true, true, FREQ_INIT,
+     2 * FREQ_INC, 0, 0.0},
+    {"frequency_mhz/request/current/gpu", false, false, FREQ_INIT, 2 * FREQ_INC,
+     0, 0.0},
+    {"frequency_ratio/actual/current/gpu/min", true, true, FREQ_RATIO_INIT,
      FREQ_RATIO_INC, 0, 0.0},
-    {"frequency_ratio/actual/gpu/max", true, true, FREQ_RATIO_INIT,
+    {"frequency_ratio/actual/current/gpu/max", true, true, FREQ_RATIO_INIT,
      FREQ_RATIO_INC, 0, 0.0},
-    {"frequency_ratio/actual/gpu", false, false, FREQ_RATIO_INIT,
+    {"frequency_ratio/actual/current/gpu", false, false, FREQ_RATIO_INIT,
      FREQ_RATIO_INC, 0, 0.0},
-    {"frequency_ratio/request/gpu/min", true, true, FREQ_RATIO_INIT,
+    {"frequency_ratio/request/current/gpu/min", true, true, FREQ_RATIO_INIT,
      2 * FREQ_RATIO_INC, 0, 0.0},
-    {"frequency_ratio/request/gpu/max", true, true, FREQ_RATIO_INIT,
+    {"frequency_ratio/request/current/gpu/max", true, true, FREQ_RATIO_INIT,
      2 * FREQ_RATIO_INC, 0, 0.0},
-    {"frequency_ratio/request/gpu", false, false, FREQ_RATIO_INIT,
+    {"frequency_ratio/request/current/gpu", false, false, FREQ_RATIO_INIT,
      2 * FREQ_RATIO_INC, 0, 0.0},
     {"memory_used_bytes/HBM/system/min", true, true, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
@@ -663,7 +675,7 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
           expected, last, metric->name, incrounds);
       wrong++;
     } else if (globs.verbose & VERBOSE_METRICS) {
-      fprintf(stderr, "round %d metric value verified for '%s' (%.2f)\n",
+      fprintf(stderr, "round %d metric value verified for '%s' (%g)\n",
               incrounds, metric->name, expected);
     }
   }
@@ -733,7 +745,7 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
     double value = get_value(fam->type, metric[m].value);
     compose_name(name, sizeof(name), fam->name, &metric[m]);
     if (globs.verbose & VERBOSE_METRICS) {
-      fprintf(stderr, "METRIC: %s: %.2f\n", name, value);
+      fprintf(stderr, "METRIC: %s: %g\n", name, value);
     }
     /* for now, ignore other errors than for all_errors */
     if (strstr(name, "errors") && !strstr(name, "all_errors")) {
@@ -884,7 +896,9 @@ static struct {
   plugin_shutdown_cb shutdown;
 } registry;
 
-cdtime_t plugin_get_interval(void) { return MS_TO_CDTIME_T(500); }
+__attribute__((noinline)) cdtime_t plugin_get_interval(void) {
+  return MS_TO_CDTIME_T(500);
+}
 
 int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),
@@ -1021,6 +1035,7 @@ static int test_config_keys(bool check_nonbool, bool enable_metrics,
       {"MetricsOutput", "RatiO", true},
       {"MetricsOutput", "RatiO/fooBAR", false},
       {"MetricsOutput", "1", false},
+      {"MetricsOutput", "", false},
       {"Foobar", "Foobar", false},
       {"Samples", "999", false},
       {"Samples", "-1", false},
@@ -1355,8 +1370,11 @@ int main(int argc, const char **argv) {
   /* more coverage by disabling only some of metrics at init */
   globs.warnings = 0;
   assert(registry.config("DisablePower", "true") == 0);
+  /* for multi-sample init checks */
+  assert(registry.config("Samples", "8") == 0);
   assert(registry.init() == 0);
   assert(registry.shutdown() == 0);
+  assert(registry.config("Samples", "1") == 0);
   assert(globs.warnings == 0);
   fprintf(stderr, "misc config: PASS\n\n");
 
@@ -1480,6 +1498,9 @@ int main(int argc, const char **argv) {
    * that all L0 calls are done on every read */
   change_sampling_reset("1");
   assert(registry.read() == 0);
+  /* enable extra logging to increase coverage */
+  assert(registry.config("LogGpuInfo", "true") == 0);
+  /* verify metric error handling */
   assert(test_query_errors(api_calls) == 0);
   assert(registry.shutdown() == 0);
   fprintf(stderr, "metrics query error handling: PASS\n\n");
