@@ -432,6 +432,7 @@
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
+#	FileDate true
 #</Plugin>
 
 #<Plugin curl>
@@ -2029,6 +2030,7 @@
 #  Server "localhost"
 #  TimePrecision "ms"
 #  StoreRates true
+#  WriteMetadata false
 #  MaxPacketSize 32768
 #  TimeToLive 128
 #</Plugin>

@@ -79,6 +79,7 @@ typedef struct sockent {
 static int wifxudp_config_ttl;
 static size_t wifxudp_config_packet_size = NET_DEFAULT_PACKET_SIZE;
 static bool wifxudp_config_store_rates;
+static bool wifxudp_config_write_meta;
 static format_influxdb_time_precision_t wifxudp_config_time_precision = MS;
 
 static sockent_t *sending_sockets;
@@ -354,9 +355,9 @@ write_influxdb_udp_write(const data_set_t *ds, const value_list_t *vl,
                          user_data_t __attribute__((unused)) * user_data) {
   char buffer[NET_DEFAULT_PACKET_SIZE];
 
-  int status = format_influxdb_value_list(buffer, NET_DEFAULT_PACKET_SIZE, ds,
-                                          vl, wifxudp_config_store_rates,
-                                          wifxudp_config_time_precision);
+  int status = format_influxdb_value_list(
+      buffer, NET_DEFAULT_PACKET_SIZE, ds, vl, wifxudp_config_time_precision,
+      wifxudp_config_store_rates, wifxudp_config_write_meta);
 
   if (status < 0) {
     ERROR("write_influxdb_udp plugin: write_influxdb_udp_write failed.");
@@ -509,6 +510,8 @@ static int write_influxdb_udp_config(oconfig_item_t *ci) {
       wifxudp_config_set_time_precision(child);
     else if (strcasecmp("StoreRates", child->key) == 0)
       cf_util_get_boolean(child, &wifxudp_config_store_rates);
+    else if (strcasecmp("WriteMetadata", child->key) == 0)
+      cf_util_get_boolean(child, &wifxudp_config_write_meta);
     else {
       WARNING("write_influxdb_udp plugin: "
               "Option `%s' is not allowed here.",

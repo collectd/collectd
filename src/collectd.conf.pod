@@ -330,8 +330,8 @@ hostname will be determined using the L<gethostname(2)> system call.
 
 If B<Hostname> is determined automatically this setting controls whether or not
 the daemon should try to figure out the "fully qualified domain name", FQDN.
-This is done using a lookup of the name returned by C<gethostname>. This option
-is enabled by default.
+This is achieved by using C<getaddrinfo()> to look up full web address of the
+first network interface that has one. This option is enabled by default.
 
 =item B<PreCacheChain> I<ChainName>
 
@@ -1874,6 +1874,11 @@ much sense when collectd is running in foreground- or non-daemon-mode.
 If set to B<true>, convert counter values to rates. If set to B<false> (the
 default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
+
+=item B<FileDate> B<true|false>
+
+If set to B<true> (the default value), the generated files will include the date.
+If set to B<false> the date will not be included in the generated files.
 
 =back
 
@@ -4718,20 +4723,21 @@ B<Options:>
 
 Names of events to be monitored, separated by spaces. Possible events include:
 
-Event Name        | Class of event
-------------------+---------------
-DeviceDisappeared | FAILURE
-RebuildStarted    | OKAY
-RebuildNN         | OKAY
-RebuildFinished   | WARNING
-Fail              | FAILURE
-FailSpare         | WARNING
-SpareActive       | OKAY
-NewArray          | OKAY
-DegradedArray     | FAILURE
-MoveSpare         | WARNING
-SparesMissing     | WARNING
-TestMessage       | OKAY
+ 
+  Event Name        | Class of event
+  ------------------+---------------
+  DeviceDisappeared | FAILURE
+  RebuildStarted    | OKAY
+  RebuildNN         | OKAY
+  RebuildFinished   | WARNING
+  Fail              | FAILURE
+  FailSpare         | WARNING
+  SpareActive       | OKAY
+  NewArray          | OKAY
+  DegradedArray     | FAILURE
+  MoveSpare         | WARNING
+  SparesMissing     | WARNING
+  TestMessage       | OKAY
 
 User should set the events that should be monitored as a strings separated by spaces,
 for example Events "DeviceDisappeared Fail DegradedArray".
@@ -11251,6 +11257,7 @@ miliseconds while plugin instance, type and type instance are sent as tags.
    Server "influxdb2.fqdn"
    TimePrecision "ms"
    StoreRates "yes"
+   WriteMetadata "no"
  </Plugin>
 
 =over 4
@@ -11291,6 +11298,11 @@ UDP.
 
 If set to B<true>, convert absolute, counter and derive values to rates. If set
 to B<false> (the default) absolute, counter and derive values are sent as is.
+
+=item B<WriteMetadata> B<true|false>
+
+Defaults to B<false>. If set to B<true>, send aditional tags to influxdb with
+collectd value metadata.
 
 =back
 

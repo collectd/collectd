@@ -51,20 +51,24 @@
 #include <IOKit/IOTypes.h>
 #endif
 
-static mach_port_t io_master_port = MACH_PORT_NULL;
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000) // Before macOS 12 Monterey
+#define IOMainPort IOMasterPort
+#endif
+
+static mach_port_t io_main_port = MACH_PORT_NULL;
 
 static int as_init(void) {
   kern_return_t status;
 
-  if (io_master_port != MACH_PORT_NULL) {
-    mach_port_deallocate(mach_task_self(), io_master_port);
-    io_master_port = MACH_PORT_NULL;
+  if (io_main_port != MACH_PORT_NULL) {
+    mach_port_deallocate(mach_task_self(), io_main_port);
+    io_main_port = MACH_PORT_NULL;
   }
 
-  status = IOMasterPort(MACH_PORT_NULL, &io_master_port);
+  status = IOMainPort(MACH_PORT_NULL, &io_main_port);
   if (status != kIOReturnSuccess) {
-    ERROR("IOMasterPort failed: %s", mach_error_string(status));
-    io_master_port = MACH_PORT_NULL;
+    ERROR("IOMainPort failed: %s", mach_error_string(status));
+    io_main_port = MACH_PORT_NULL;
     return -1;
   }
 
@@ -94,11 +98,11 @@ static int as_read(void) {
   char inst[128];
   int value_int;
   double value_double;
-  if (!io_master_port || (io_master_port == MACH_PORT_NULL))
+  if (!io_main_port || (io_main_port == MACH_PORT_NULL))
     return -1;
 
   status = IOServiceGetMatchingServices(
-      io_master_port, IOServiceNameMatching("IOHWSensor"), &iterator);
+      io_main_port, IOServiceNameMatching("IOHWSensor"), &iterator);
   if (status != kIOReturnSuccess) {
     ERROR("IOServiceGetMatchingServices failed: %s", mach_error_string(status));
     return -1;
