@@ -277,6 +277,24 @@ typedef struct ATTRIB_PACKED {
   uint8_t padding[1024];
 } tChrony_Response;
 
+enum {
+  FAM_CHRONY_CLOCK_MODE = 0,
+  FAM_CHRONY_CLOCK_LAST_MEAS,
+  FAM_CHRONY_CLOCK_LAST_UPDATE,
+  FAM_CHRONY_CLOCK_REACHABILITY,
+  FAM_CHRONY_CLOCK_SKEW,
+  FAM_CHRONY_CLOCK_STATE,
+  FAM_CHRONY_CLOCK_STRATUM,
+  FAM_CHRONY_FREQUENCY_ERROR,
+  FAM_CHRONY_ROOT_DELAY,
+  FAM_CHRONY_ROOT_DISPERSION,
+  FAM_CHRONY_TIME_OFFSET_NTP,
+  FAM_CHRONY_TIME_OFFSET_RMS,
+  FAM_CHRONY_TIME_OFFSET,
+  FAM_CHRONY_TIME_REF,
+  FAM_CHRONY_MAX,
+};
+
 /*****************************************************************************/
 /* Internal functions */
 /*****************************************************************************/
@@ -597,7 +615,7 @@ static void chrony_init_req(tChrony_Request *p_req) {
 /* Original code licensed as GPLv2, by Richard P. Purnow, Miroslav Lichvar */
 /* Original name: double UTI_tFloatNetworkToHost(tFloat f) */
 static double ntohf(tFloat p_float) {
-/* Convert tFloat in Network-bit-order to double in host-bit-order */
+  /* Convert tFloat in Network-bit-order to double in host-bit-order */
 
 #define FLOAT_EXP_BITS 7
 #define FLOAT_EXP_MIN (-(1 << (FLOAT_EXP_BITS - 1)))
@@ -621,39 +639,6 @@ static double ntohf(tFloat p_float) {
     coef -= 1 << FLOAT_COEF_BITS;
 
   return coef * pow(2.0, exp);
-}
-
-static void chrony_push_data(const char *p_type, const char *p_type_inst,
-                             double p_value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.gauge = p_value};
-  vl.values_len = 1;
-
-  /* XXX: Shall g_chrony_host/g_chrony_port be reflected in the plugin's output?
-   */
-  sstrncpy(vl.plugin, PLUGIN_NAME_SHORT, sizeof(vl.plugin));
-  if (g_chrony_plugin_instance != NULL) {
-    sstrncpy(vl.plugin_instance, g_chrony_plugin_instance,
-             sizeof(vl.plugin_instance));
-  }
-  if (p_type != NULL)
-    sstrncpy(vl.type, p_type, sizeof(vl.type));
-
-  if (p_type_inst != NULL)
-    sstrncpy(vl.type_instance, p_type_inst, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
-
-static void chrony_push_data_valid(const char *p_type, const char *p_type_inst,
-                                   const int p_is_valid, double p_value) {
-  /* Push real value if p_is_valid is true, push NAN if p_is_valid is not true
-   * (idea from ntp plugin) */
-  if (p_is_valid == 0)
-    p_value = NAN;
-
-  chrony_push_data(p_type, p_type_inst, p_value);
 }
 
 static int chrony_init_seq(void) {
@@ -748,7 +733,7 @@ static int chrony_config(const char *p_key, const char *p_value) {
   return CHRONY_RC_OK;
 }
 
-static int chrony_request_daemon_stats(void) {
+static int chrony_request_daemon_stats(metric_family_t *fams) {
   /* Perform Tracking request */
   int rc;
   size_t chrony_resp_size;
@@ -798,40 +783,51 @@ static int chrony_request_daemon_stats(void) {
   }
 
   /* Forward results to collectd-daemon */
-  /* Type_instance is always 'chrony' to tag daemon-wide data */
-  /*                Type                Type_instan  Value */
-  chrony_push_data("clock_stratum", DAEMON_NAME,
-                   ntohs(chrony_resp.body.tracking.f_stratum));
-  chrony_push_data("time_ref", DAEMON_NAME, time_ref); /* unit: s */
-  chrony_push_data(
-      "time_offset_ntp", DAEMON_NAME,
-      ntohf(chrony_resp.body.tracking.f_current_correction)); /* Offset between
-                                                                 system time and
-                                                                 NTP, unit: s */
-  chrony_push_data(
-      "time_offset", DAEMON_NAME,
-      ntohf(
-          chrony_resp.body.tracking
-              .f_last_offset)); /* Estimated Offset of the NTP time, unit: s */
-  chrony_push_data(
-      "time_offset_rms", DAEMON_NAME,
+  /* source is always 'chrony' to tag daemon-wide data */
+  metric_t m = {0};
+  metric_label_set(&m, "source", DAEMON_NAME);
+
+  m.value.gauge = ntohs(chrony_resp.body.tracking.f_stratum);
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_STRATUM], m);
+
+  m.value.gauge = time_ref; /* unit: s */
+  metric_family_metric_append(&fams[FAM_CHRONY_TIME_REF], m);
+
+  m.value.gauge = ntohf(chrony_resp.body.tracking
+                            .f_current_correction); /* Offset between system
+                                                       time and NTP, unit: s */
+  metric_family_metric_append(&fams[FAM_CHRONY_TIME_OFFSET_NTP], m);
+
+  m.value.gauge =
       ntohf(chrony_resp.body.tracking
-                .f_rms_offset)); /* averaged value of the above, unit: s */
-  chrony_push_data(
-      "frequency_error", DAEMON_NAME,
+                .f_last_offset); /* Estimated Offset of the NTP time, unit: s */
+  metric_family_metric_append(&fams[FAM_CHRONY_TIME_OFFSET], m);
+
+  m.value.gauge =
       ntohf(chrony_resp.body.tracking
-                .f_freq_ppm)); /* Frequency error of the local osc, unit: ppm */
-  chrony_push_data("clock_skew_ppm", DAEMON_NAME,
-                   ntohf(chrony_resp.body.tracking.f_skew_ppm));
-  chrony_push_data(
-      "root_delay", DAEMON_NAME,
-      ntohf(chrony_resp.body.tracking.f_root_delay)); /* Network latency between
-                                                         local daemon and the
-                                                         current source */
-  chrony_push_data("root_dispersion", DAEMON_NAME,
-                   ntohf(chrony_resp.body.tracking.f_root_dispersion));
-  chrony_push_data("clock_last_update", DAEMON_NAME,
-                   ntohf(chrony_resp.body.tracking.f_last_update_interval));
+                .f_rms_offset); /* averaged value of the above, unit: s */
+  metric_family_metric_append(&fams[FAM_CHRONY_TIME_OFFSET_RMS], m);
+
+  m.value.gauge =
+      ntohf(chrony_resp.body.tracking
+                .f_freq_ppm); /* Frequency error of the local osc, unit: ppm */
+  metric_family_metric_append(&fams[FAM_CHRONY_FREQUENCY_ERROR], m);
+
+  m.value.gauge = ntohf(chrony_resp.body.tracking.f_skew_ppm);
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_SKEW], m);
+
+  m.value.gauge = ntohf(chrony_resp.body.tracking
+                            .f_root_delay); /* Network latency between local
+                                               daemon and the current source */
+  metric_family_metric_append(&fams[FAM_CHRONY_ROOT_DELAY], m);
+
+  m.value.gauge = ntohf(chrony_resp.body.tracking.f_root_dispersion);
+  metric_family_metric_append(&fams[FAM_CHRONY_ROOT_DISPERSION], m);
+
+  m.value.gauge = ntohf(chrony_resp.body.tracking.f_last_update_interval);
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_LAST_UPDATE], m);
+
+  metric_reset(&m);
 
   return CHRONY_RC_OK;
 }
@@ -859,8 +855,9 @@ static int chrony_request_sources_count(unsigned int *p_count) {
   return CHRONY_RC_OK;
 }
 
-static int chrony_request_source_data(int p_src_idx, char *src_addr,
-                                      size_t addr_size, int *p_is_reachable) {
+static int chrony_request_source_data(metric_family_t *fams, int p_src_idx,
+                                      char *src_addr, size_t addr_size,
+                                      int *p_is_reachable) {
   /* Perform Source data request for source #p_src_idx */
   int rc;
   size_t chrony_resp_size;
@@ -902,24 +899,41 @@ static int chrony_request_source_data(int p_src_idx, char *src_addr,
   *p_is_reachable = is_reachable;
 
   /* Forward results to collectd-daemon */
-  chrony_push_data_valid("clock_stratum", src_addr, is_reachable,
-                         ntohs(chrony_resp.body.source_data.f_stratum));
-  chrony_push_data_valid("clock_state", src_addr, is_reachable,
-                         ntohs(chrony_resp.body.source_data.f_state));
-  chrony_push_data_valid("clock_mode", src_addr, is_reachable,
-                         ntohs(chrony_resp.body.source_data.f_mode));
-  chrony_push_data_valid("clock_reachability", src_addr, is_reachable,
-                         ntohs(chrony_resp.body.source_data.f_reachability));
-  chrony_push_data_valid("clock_last_meas", src_addr, is_reachable,
-                         ntohl(chrony_resp.body.source_data.f_since_sample));
-  chrony_push_data_valid(
-      "time_offset", src_addr, is_reachable,
-      ntohf(chrony_resp.body.source_data.f_origin_latest_meas));
+  metric_t m = {0};
+  metric_label_set(&m, "source", src_addr);
+
+  m.value.gauge =
+      is_reachable ? ntohs(chrony_resp.body.source_data.f_stratum) : NAN;
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_STRATUM], m);
+
+  m.value.gauge =
+      is_reachable ? ntohs(chrony_resp.body.source_data.f_state) : NAN;
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_STATE], m);
+
+  m.value.gauge =
+      is_reachable ? ntohs(chrony_resp.body.source_data.f_mode) : NAN;
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_MODE], m);
+
+  m.value.gauge =
+      is_reachable ? ntohs(chrony_resp.body.source_data.f_reachability) : NAN;
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_REACHABILITY], m);
+
+  m.value.gauge =
+      is_reachable ? ntohl(chrony_resp.body.source_data.f_since_sample) : NAN;
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_LAST_MEAS], m);
+
+  m.value.gauge = is_reachable
+                      ? ntohf(chrony_resp.body.source_data.f_origin_latest_meas)
+                      : NAN;
+  metric_family_metric_append(&fams[FAM_CHRONY_TIME_OFFSET], m);
+
+  metric_reset(&m);
 
   return CHRONY_RC_OK;
 }
 
-static int chrony_request_source_stats(int p_src_idx, const char *src_addr,
+static int chrony_request_source_stats(metric_family_t *fams, int p_src_idx,
+                                       const char *src_addr,
                                        const int *p_is_reachable) {
   /* Perform Source stats request for source #p_src_idx */
   int rc;
@@ -963,9 +977,17 @@ static int chrony_request_source_stats(int p_src_idx, const char *src_addr,
   } /* if (*is_reachable) */
 
   /* Forward results to collectd-daemon */
-  chrony_push_data_valid("clock_skew_ppm", src_addr, *p_is_reachable, skew_ppm);
-  chrony_push_data_valid("frequency_error", src_addr, *p_is_reachable,
-                         frequency_error); /* unit: ppm */
+
+  metric_t m = {0};
+  metric_label_set(&m, "source", src_addr);
+
+  m.value.gauge = *p_is_reachable ? skew_ppm : NAN;
+  metric_family_metric_append(&fams[FAM_CHRONY_CLOCK_SKEW], m);
+
+  m.value.gauge = *p_is_reachable ? frequency_error : NAN; /* unit: ppm */
+  metric_family_metric_append(&fams[FAM_CHRONY_FREQUENCY_ERROR], m);
+
+  metric_reset(&m);
 
   return CHRONY_RC_OK;
 }
@@ -974,6 +996,78 @@ static int chrony_read(void) {
   /* collectd read callback: Perform data acquisition */
   int rc;
   unsigned int n_sources;
+  metric_family_t fams[FAM_CHRONY_MAX] = {
+      [FAM_CHRONY_CLOCK_MODE] =
+          {
+              .name = "chrony_clock_mode",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_CLOCK_LAST_MEAS] =
+          {
+              .name = "chrony_clock_last_measurement_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_CLOCK_LAST_UPDATE] =
+          {
+              .name = "chrony_clock_last_update_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_CLOCK_REACHABILITY] =
+          {
+              .name = "chrony_clock_reachability",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_CLOCK_SKEW] =
+          {
+              .name = "chrony_clock_skew_ppm",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_CLOCK_STATE] =
+          {
+              .name = "chrony_clock_state",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_CLOCK_STRATUM] =
+          {
+              .name = "chrony_clock_stratum",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_FREQUENCY_ERROR] =
+          {
+              .name = "chrony_frequency_error_ppm",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_ROOT_DELAY] =
+          {
+              .name = "chrony_root_delay_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_ROOT_DISPERSION] =
+          {
+              .name = "chrony_root_dispersion_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_TIME_OFFSET_NTP] =
+          {
+              .name = "chrony_time_offset_ntp_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_TIME_OFFSET_RMS] =
+          {
+              .name = "chrony_time_offset_rms_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_TIME_OFFSET] =
+          {
+              .name = "chrony_time_offset_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_CHRONY_TIME_REF] =
+          {
+              .name = "chrony_time_ref_seconds",
+              .type = METRIC_TYPE_GAUGE,
+          },
+  };
 
   if (g_chrony_seq_is_initialized == 0) {
     /* Seed RNG for sequence number generation */
@@ -988,7 +1082,7 @@ static int chrony_read(void) {
   chrony_flush_recv_queue();
 
   /* Get daemon stats */
-  rc = chrony_request_daemon_stats();
+  rc = chrony_request_daemon_stats(fams);
   if (rc != CHRONY_RC_OK)
     return rc;
 
@@ -1000,15 +1094,27 @@ static int chrony_read(void) {
   for (unsigned int now_src = 0; now_src < n_sources; ++now_src) {
     char src_addr[IPV6_STR_MAX_SIZE] = {0};
     int is_reachable;
-    rc = chrony_request_source_data(now_src, src_addr, sizeof(src_addr),
+    rc = chrony_request_source_data(fams, now_src, src_addr, sizeof(src_addr),
                                     &is_reachable);
     if (rc != CHRONY_RC_OK)
       return rc;
 
-    rc = chrony_request_source_stats(now_src, src_addr, &is_reachable);
+    rc = chrony_request_source_stats(fams, now_src, src_addr, &is_reachable);
     if (rc != CHRONY_RC_OK)
       return rc;
   }
+
+  for (size_t i = 0; i < FAM_CHRONY_MAX; i++) {
+    if (fams[i].metric.num > 0) {
+      int status = plugin_dispatch_metric_family(&fams[i]);
+      if (status != 0) {
+        ERROR("chrony plugin: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(&fams[i]);
+    }
+  }
+
   return CHRONY_RC_OK;
 }
 

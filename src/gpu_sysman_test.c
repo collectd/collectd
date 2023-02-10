@@ -90,7 +90,7 @@ static struct {
   unsigned int api_calls, api_limit;
 
   /* to verify that all mocked Level-Zero/Sysman functions get called */
-  unsigned int callbits;
+  unsigned long callbits;
 
   /* how many errors & warnings have been logged */
   unsigned int warnings;
@@ -122,7 +122,7 @@ static void set_verbose(unsigned int callmask, unsigned int metricmask) {
  * return true if given call should be failed (call=limit)
  */
 static bool call_limit(int callbit, const char *name) {
-  globs.callbits |= 1u << callbit;
+  globs.callbits |= 1ul << callbit;
   globs.api_calls++;
 
   if (globs.verbose & VERBOSE_CALLS) {
@@ -497,7 +497,60 @@ ze_result_t zesPowerGetLimits(zes_pwr_handle_t handle,
   return metric_args_check(20, "zesPowerGetLimits", handle, check);
 }
 
-#define QUERY_CALL_FUNCS 21
+static zes_fabric_port_properties_t fabric_props = {
+    .maxRxSpeed = {.width = 8, .bitRate = COUNTER_MAX},
+    .maxTxSpeed = {.width = 8, .bitRate = COUNTER_MAX}};
+static zes_fabric_port_state_t port_state = {
+    .status = ZES_FABRIC_PORT_STATUS_HEALTHY};
+
+/* .quality should be set only on degraded, .reasons on failed .status, this
+ * increases them without changing status to increase coverage */
+ADD_METRIC(21, zesDeviceEnumFabricPorts, zes_fabric_port_handle_t,
+           zesFabricPortGetProperties, zes_fabric_port_properties_t,
+           fabric_props, zesFabricPortGetState, zes_fabric_port_state_t,
+           port_state, port_state.qualityIssues += 1,
+           port_state.failureReasons += 1)
+
+/* fabric ports have more functions than the other metrics */
+ze_result_t zesFabricPortGetLinkType(zes_fabric_port_handle_t handle,
+                                     zes_fabric_link_type_t *state) {
+  ze_result_t ret =
+      metric_args_check(24, "zesFabricPortGetLinkType", handle, state);
+  if (ret == ZE_RESULT_SUCCESS) {
+    static zes_fabric_link_type_t port = {.desc = "DummyLink"};
+    *state = port;
+  }
+  return ret;
+}
+
+ze_result_t zesFabricPortGetConfig(zes_fabric_port_handle_t handle,
+                                   zes_fabric_port_config_t *config) {
+  ze_result_t ret =
+      metric_args_check(25, "zesFabricPortGetConfig", handle, config);
+  if (ret == ZE_RESULT_SUCCESS) {
+    assert(!config->pNext);
+    memset(config, 0, sizeof(*config));
+  }
+  return ret;
+}
+
+ze_result_t zesFabricPortGetThroughput(zes_fabric_port_handle_t handle,
+                                       zes_fabric_port_throughput_t *state) {
+  ze_result_t ret =
+      metric_args_check(26, "zesFabricPortGetThroughput", handle, state);
+  if (ret == ZE_RESULT_SUCCESS) {
+    static zes_fabric_port_throughput_t bw = {.rxCounter = 2 * COUNTER_START,
+                                              .txCounter = COUNTER_START,
+                                              .timestamp = TIME_START};
+    *state = bw;
+    bw.timestamp += TIME_INC;
+    bw.rxCounter += 2 * COUNTER_INC;
+    bw.txCounter += COUNTER_INC;
+  }
+  return ret;
+}
+
+#define QUERY_CALL_FUNCS 27
 #define QUERY_CALL_BITS (((uint64_t)1 << QUERY_CALL_FUNCS) - 1)
 
 /* ------------------------------------------------------------------------- */
@@ -578,6 +631,18 @@ static metrics_validation_t valid_metrics[] = {
     {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
     {"engine_use_usecs_total/all", true, false, COUNTER_START, COUNTER_INC, 0,
      0.0},
+    {"fabric_port_bytes_total/healthy/off/read", true, false, 2 * COUNTER_START,
+     2 * COUNTER_INC, 0, 0.0},
+    {"fabric_port_bytes_total/healthy/off/write", true, false, COUNTER_START,
+     COUNTER_INC, 0, 0.0},
+    {"fabric_port_bytes_per_second/healthy/off/read", true, false,
+     2 * COUNTER_RATE, 0, 0, 0.0},
+    {"fabric_port_bytes_per_second/healthy/off/write", true, false,
+     COUNTER_RATE, 0, 0, 0.0},
+    {"fabric_port_ratio/healthy/off/read", true, false, 2 * COUNTER_MAX_RATIO,
+     0, 0, 0.0},
+    {"fabric_port_ratio/healthy/off/write", true, false, COUNTER_MAX_RATIO, 0,
+     0, 0.0},
     {"memory_bw_bytes_total/HBM/system/read", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
     {"memory_bw_bytes_total/HBM/system/write", true, false, COUNTER_START,
@@ -709,8 +774,11 @@ static void compose_name(char *buf, size_t bufsize, const char *name,
     const char *name = label[i].name;
     const char *value = label[i].value;
     assert(name && value);
-    if (strcmp(name, "pci_bdf") == 0 || strcmp(name, "sub_dev") == 0) {
-      /* do not add device PCI ID / sub device IDs to metric name */
+    if (strcmp(name, "pci_bdf") == 0 || strcmp(name, "sub_dev") == 0 ||
+        strcmp(name, "remote") == 0 || strcmp(name, "port") == 0 ||
+        strcmp(name, "link") == 0 || strcmp(name, "model") == 0 ||
+        strcmp(name, "issues") == 0) {
+      /* do not add numeric IDs, HW labels, or issues to metric name */
       continue;
     }
     len += snprintf(buf + len, bufsize - len, "/%s", value);
@@ -769,7 +837,7 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
   return 0;
 }
 
-#define MAX_LABELS 8
+#define MAX_LABELS 16
 
 /* mock function uses just one large enough metrics array (for testing)
  * instead of increasing it one-by-one, like the real collectd metrics
@@ -1093,12 +1161,16 @@ static int get_reset_disabled(gpu_disable_t *disabled, bool value, int *mask,
   struct {
     const char *name;
     bool *flag;
-  } flags[] = {
-      {"engine", &disabled->engine},    {"frequency", &disabled->freq},
-      {"memory", &disabled->mem},       {"membw", &disabled->membw},
-      {"power", &disabled->power},      {"power_ratio", &disabled->power_ratio},
-      {"errors", &disabled->ras},       {"temperature", &disabled->temp},
-      {"throttle", &disabled->throttle}};
+  } flags[] = {{"engine", &disabled->engine},
+               {"fabric", &disabled->fabric},
+               {"frequency", &disabled->freq},
+               {"memory", &disabled->mem},
+               {"membw", &disabled->membw},
+               {"power", &disabled->power},
+               {"power_ratio", &disabled->power_ratio},
+               {"errors", &disabled->ras},
+               {"temperature", &disabled->temp},
+               {"throttle", &disabled->throttle}};
   *all = 0;
   int count = 0;
   for (int i = 0; i < (int)STATIC_ARRAY_SIZE(flags); i++) {
