@@ -158,6 +158,9 @@ Features
     - gpu_nvidia
       Monitor NVIDIA GPU statistics available through NVML.
 
+    - gpu_sysman
+      Monitor GPU statistics available through Level-Zero Sysman API.
+
     - hddtemp
       Hard disk temperatures using hddtempd.
 
@@ -792,6 +795,10 @@ Prerequisites
   * CUDA (optional)
     Used by the `gpu_nvidia' plugin
     <https://developer.nvidia.com/cuda-downloads>
+
+  * Level-Zero / Sysman (optional)
+    Used by the `gpu_sysman' plugin
+    <https://github.com/oneapi-src/level-zero>
 
   * libatasmart (optional)
     Used by the `smart' plugin.
