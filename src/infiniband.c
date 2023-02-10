@@ -118,7 +118,7 @@ static int ib_read_value_file_num_only(const char *device, const char *port,
   strstripnewline(buffer);
 
   // zero-out the first non-digit character
-  for (int i = 0; i < sizeof(buffer); i++) {
+  for (unsigned i = 0; i < sizeof(buffer); i++) {
     if (!isdigit(buffer[i])) {
       buffer[i] = '\0';
       break;
@@ -327,7 +327,7 @@ static int infiniband_read(void) {
   char port_name[255];
 
   if (ib_glob_ports(&g) == 0) {
-    for (int i = 0; i < g.gl_pathc; ++i) {
+    for (unsigned i = 0; i < g.gl_pathc; ++i) {
       char *device = NULL, *port = NULL;
       if (ib_parse_glob_port(g.gl_pathv[i], &device, &port) == 0) {
         snprintf(port_name, sizeof(port_name), "%s:%s", device, port);

@@ -3266,12 +3266,16 @@ at most B<16384> to prevent typos and dumb mistakes.
 =head2 Plugin C<ethstat>
 
 The I<ethstat plugin> collects information about network interface cards (NICs)
-by talking directly with the underlying kernel driver using L<ioctl(2)>.
+by talking directly with the underlying kernel driver using L<ioctl(2)> and
+optional read metrics from sysfs.
 
 B<Synopsis:>
 
  <Plugin "ethstat">
    Interface "eth0"
+   EthtoolExcludeMetrics "tx_packets"
+   UseSysClassNet true
+   SysClassNetExcludeMetrics "rx_packets"
    Map "rx_csum_offload_errors" "if_rx_errors" "checksum_offload"
    Map "multicast" "if_multicast"
  </Plugin>
@@ -3282,7 +3286,40 @@ B<Options:>
 
 =item B<Interface> I<Name>
 
-Collect statistical information about interface I<Name>.
+Collect statistical information about interfaces I<Name>. All configuration
+options below, up to the next interface tag, will apply to all interfaces
+mentioned in this tag outside of mapping
+
+=item B<EthtoolExcludeMetrics> I<Name>
+
+List of metrics passed by ethtool that will not be collected by the plugin
+for the interface.
+
+=item B<UseSysClassNet> B<true>|B<false>
+
+When set to B<true>, metrics will also be collect from sysfs. For metrics from
+two sources (ethtool and sysfs) with the same name, the metric from sysfs
+will be collected. Defaults to B<false>.
+
+metrics collection table:
+
+                     |                                     metric available in                                       |
+metric listed on     | ethtool and sysfs      | only in ethtool        | only in sysfs        | metric not available |
+---------------------+------------------------+------------------------+----------------------|----------------------+
+not listed on any    |                        |                        |                      |                      |
+exclude list         | collected from sysfs   | collected from ethtool | collected from sysfs | metric not collected |
+---------------------+------------------------+------------------------+----------------------+----------------------+
+ethtool exclude list | collected from sysfs   | metric not collected   | collected from sysfs | metric not collected |
+---------------------+------------------------+------------------------+----------------------+----------------------+
+systfs exclude list  | collected from ethtool | collected from ethtool | metric not collected | metric not collected |
+---------------------+------------------------+------------------------+----------------------+----------------------+
+both exclude lsits   | not collected          | metric not collected   | metric not collected | metric not collected |
+---------------------+------------------------+------------------------+----------------------+----------------------+
+
+=item B<SysClassNetExcludeMetrics> I<Name>
+
+List of metrics passed by sysfs that will not be collected by the plugin
+for the interface.
 
 =item B<Map> I<Name> I<Type> [I<TypeInstance>]
 
@@ -3650,6 +3687,123 @@ is 'GPU ID'-'GPU name'
 
 If set to false, the GPU name will not be part of the plugin instance. The 
 default is 'GPU ID'-'GPU name'
+
+=back
+
+=head2 Plugin C<gpu_sysman>
+
+This plugin is available on Linux only. It uses level-Zero Sysman API
+to read GPU information.
+
+Options below give overview of what information it could provide, but
+the information actually available through it depends on what is
+supported by the underlying GPU HW, its kernel driver, and Sysman
+backend user-space (compute) driver implementation.
+
+=over 4
+
+=item B<Samples>
+
+How many values to collect (at specified plugin Interval) for sampled
+metrics, before submitting their (potentially aggregate) metric
+values.
+
+This means that the actual GPU metrics submit interval is B<Interval>
+* B<Samples>.
+
+Currently GPU frequency and GPU memory values are sampled (like this),
+because their values can have very large fluctuations multiple times
+per second. When Samples is larger than 1, min + max are calculated
+for the sampled values and submitted instead of the read values
+themselves.
+
+Most of other metrics values are either counters, or change much
+slower, and are read only at submit intervals.  If collecting of the
+sampled values is disabled, it is better to set Samples to 1
+(default).
+
+=item B<LogGpuInfo>
+
+If enabled, plugin logs at start some information about plugin
+settings and all the GPUs detected through Sysman API, and enables
+"pci_dev" PCI device ID label for the metrics.
+
+=item B<MetricsOutput>
+
+Set of "counter", "rate", and "ratio" values, separated by comma,
+colon, slash or space.
+
+Several of the metric types support multiple variants for their
+values. This option specifies which ones of them are to be reported.
+
+Default is to report all variants ("counter:rate:ratio"). To reduce
+amount of data, it is better to configure just the relevant ones for
+given use (e.g. "counter:ratio" or "rate:ratio"). Note that some of
+the metric types support only two of these variants, whereas metrics
+supporting only single variant ignore this option.
+
+Counter metric variant (e.g. HW energy usage as Joules counter) is
+preferred by Prometheus as doing rate calculations in Prometheus is
+more flexible. However, because collectd stores counters internally as
+integers, counter metrics cannot using base units (seconds, joules) as
+required by OpenMetrics spec, but microseconds and microjoules.
+
+Rate metric variant is directly human readable, and available for
+metrics where it makes sense (e.g. bytes per second, Watts and RPMs).
+
+Ratio variant is a utilization metric. It can be reported only for
+metric types which are either based on time (e.g. GPU engine use
+time), or for which Sysman provides a limit / maximum value. Some
+metrics may give over 100% ratios if their limit applies over longer
+time than the query inteval (could happen e.g. with power limits).
+
+=item B<DisableMemory>
+
+Disable memory usage metrics collection.
+
+=item B<DisableMemoryBandwidth>
+
+Disable memory bandwidth metrics collection.
+
+=item B<DisableFabric>
+
+Disable fabric port metrics collection.
+
+=item B<DisableFrequency>
+
+Disable actual / requested frequency metrics collection.
+
+=item B<DisableThrottleTime>
+
+Disable frequency throttling time metric collection.
+
+=item B<DisablePower>
+
+Disable power usage metrics collection.
+
+=item B<DisableTemperature>
+
+Disable temperature metrics collection.
+
+=item B<DisableEngine>
+
+Disable engine utilization metrics collection.
+
+=item B<DisableEngineSingle>
+
+Disable utilization metrics collection for single engines i.e. provide
+utilization information only for engine groups.
+
+=item B<DisableErrors>
+
+Disable RAS (Reliability, Availability, and Serviceability) error
+metrics collection.
+
+=item B<DisableSeparateErrors>
+
+Disable each error sub-category being reported separately, and just
+report total error counters for higher level "correctable" and
+"uncorrectable" errors.
 
 =back
 

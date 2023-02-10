@@ -37,7 +37,7 @@
 
 /* TODO(octo): add an option to set metric->value_type */
 static int set_option(metric_t *m, char const *key, char const *value,
-                      cmd_error_handler_t *err) {
+                      __attribute__((unused)) cmd_error_handler_t *err) {
   if ((m == NULL) || (key == NULL) || (value == NULL))
     return -1;
 

@@ -31,8 +31,6 @@ CLEANFILES = \
 	generic-jmx.jar \
 	org/collectd/api/*.class \
 	org/collectd/java/*.class \
-	prometheus.pb-c.c \
-	prometheus.pb-c.h \
 	src/pinba.pb-c.c \
 	src/pinba.pb-c.h \
 	types.grpc.pb.cc \
@@ -50,7 +48,6 @@ EXTRA_DIST = \
 	bindings/perl/uninstall_mod.pl \
 	contrib \
 	proto/collectd.proto \
-	proto/prometheus.proto \
 	proto/types.proto \
 	src/collectd-email.pod \
 	src/collectd-exec.pod \
@@ -133,6 +130,7 @@ noinst_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
+	libformat_influxdb.la \
 	libformat_graphite.la \
 	libheap.la \
 	libignorelist.la \
@@ -439,6 +437,10 @@ libplugin_mock_la_SOURCES = \
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libcommon.la libignorelist.la libmetadata.la $(COMMON_LIBS)
+
+libformat_influxdb_la_SOURCES = \
+	src/utils/format_influxdb/format_influxdb.c \
+	src/utils/format_influxdb/format_influxdb.h
 
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
@@ -1073,6 +1075,13 @@ if BUILD_PLUGIN_ETHSTAT
 pkglib_LTLIBRARIES += ethstat.la
 ethstat_la_SOURCES = src/ethstat.c
 ethstat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+ethstat_la_LIBADD = libignorelist.la
+
+test_plugin_ethstat_SOURCES = src/ethstat_test.c src/daemon/configfile.c src/daemon/types_list.c
+test_plugin_ethstat_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_ethstat_LDADD = libplugin_mock.la libignorelist.la libavltree.la liboconfig.la
+check_PROGRAMS += test_plugin_ethstat
+
 endif
 
 if BUILD_PLUGIN_FHCOUNT
@@ -1115,6 +1124,21 @@ gpu_nvidia_la_SOURCES = src/gpu_nvidia.c
 gpu_nvidia_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_CUDA_CPPFLAGS)
 gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_CUDA_LDFLAGS)
 gpu_nvidia_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
+endif
+
+if BUILD_PLUGIN_GPU_SYSMAN
+pkglib_LTLIBRARIES += gpu_sysman.la
+gpu_sysman_la_SOURCES = src/gpu_sysman.c
+gpu_sysman_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_SYSMAN_CPPFLAGS)
+gpu_sysman_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_SYSMAN_LDFLAGS)
+gpu_sysman_la_LIBADD = $(BUILD_WITH_SYSMAN_LIBS)
+
+test_plugin_gpu_sysman_SOURCES = src/gpu_sysman_test.c
+test_plugin_gpu_sysman_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_SYSMAN_CPPFLAGS)
+test_plugin_gpu_sysman_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_gpu_sysman_LDADD =
+check_PROGRAMS += test_plugin_gpu_sysman
+TESTS += test_plugin_gpu_sysman
 endif
 
 if BUILD_PLUGIN_GRPC
@@ -2244,7 +2268,7 @@ write_http_la_SOURCES = \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = libcmds.la libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
+write_http_la_LIBADD = libcmds.la libformat_json.la libformat_influxdb.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_INFLUXDB_UDP
@@ -2252,8 +2276,9 @@ pkglib_LTLIBRARIES += write_influxdb_udp.la
 write_influxdb_udp_la_SOURCES = src/write_influxdb_udp.c
 write_influxdb_udp_la_CPPFLAGS = $(AM_CPPFLAGS)
 write_influxdb_udp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_influxdb_udp_la_LIBADD = libformat_influxdb.la
 if BUILD_WITH_LIBSOCKET
-write_influxdb_udp_la_LIBADD = -lsocket
+write_influxdb_udp_la_LIBADD += -lsocket
 endif
 endif
 
@@ -2287,12 +2312,9 @@ endif
 if BUILD_PLUGIN_WRITE_PROMETHEUS
 pkglib_LTLIBRARIES += write_prometheus.la
 write_prometheus_la_SOURCES = src/write_prometheus.c
-nodist_write_prometheus_la_SOURCES = \
-	prometheus.pb-c.c \
-	prometheus.pb-c.h
-write_prometheus_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_CPPFLAGS) $(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
-write_prometheus_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
-write_prometheus_la_LIBADD = $(BUILD_WITH_LIBPROTOBUF_C_LIBS) $(BUILD_WITH_LIBMICROHTTPD_LIBS)
+write_prometheus_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
+write_prometheus_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
+write_prometheus_la_LIBADD = $(BUILD_WITH_LIBMICROHTTPD_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_REDIS
@@ -2398,14 +2420,6 @@ BUILT_SOURCES += src/pinba.pb-c.c src/pinba.pb-c.h
 
 src/pinba.pb-c.c src/pinba.pb-c.h: $(srcdir)/src/pinba.proto
 	$(AM_V_PROTOC_C)$(PROTOC_C) -I$(srcdir) --c_out . $(srcdir)/src/pinba.proto
-endif
-
-# Protocol buffer for the "write_prometheus" plugin.
-if BUILD_PLUGIN_WRITE_PROMETHEUS
-BUILT_SOURCES += prometheus.pb-c.c prometheus.pb-c.h
-
-prometheus.pb-c.c prometheus.pb-c.h: $(srcdir)/proto/prometheus.proto
-	$(AM_V_PROTOC_C)$(PROTOC_C) -I$(srcdir)/proto --c_out=$(builddir) $(srcdir)/proto/prometheus.proto
 endif
 
 if HAVE_PROTOC3
