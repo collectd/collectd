@@ -364,7 +364,7 @@ static int wt_format_values(char *ret, size_t ret_len, int ds_num,
 }
 
 static int wt_format_name(char *ret, int ret_len, const value_list_t *vl,
-                          const struct wt_callback *cb, const char *ds_name) {
+                          const char *ds_name) {
   int status;
   char *temp = NULL;
   const char *prefix = "";
@@ -525,7 +525,7 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
       ds_name = ds->ds[i].name;
 
     /* Copy the identifier to 'key' and escape it. */
-    status = wt_format_name(key, sizeof(key), vl, cb, ds_name);
+    status = wt_format_name(key, sizeof(key), vl, ds_name);
     if (status != 0) {
       ERROR("write_tsdb plugin: error with format_name");
       return status;
