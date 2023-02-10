@@ -835,7 +835,8 @@ for_all_cpus_delta(const struct thread_data *thread_new_base,
  * Package Thermal Management Sensor (PTM), and thermal event thresholds.
  */
 static int __attribute__((warn_unused_result))
-set_temperature_target(struct thread_data *t, struct core_data *c,
+set_temperature_target(struct thread_data *t,
+                       __attribute__((unused)) struct core_data *c,
                        struct pkg_data *p) {
   unsigned long long msr;
   unsigned int target_c_local;
@@ -1463,9 +1464,9 @@ static void free_all_buffers(void) {
   package_delta = NULL;
 }
 
-  /**********************
-   * Collectd functions *
-   **********************/
+/**********************
+ * Collectd functions *
+ **********************/
 
 #define DO_OR_GOTO_ERR(something)                                              \
   do {                                                                         \

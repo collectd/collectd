@@ -995,23 +995,3 @@ int uc_meta_data_get_double(metric_t const *m, const char *key, double *value)
 int uc_meta_data_get_boolean(metric_t const *m, const char *key, bool *value)
     UC_WRAP(meta_data_get_boolean);
 #undef UC_WRAP
-
-int uc_meta_data_get_signed_int_vl(value_list_t const *vl, char const *key,
-                                   int64_t *value) {
-  return ENOTSUP;
-}
-
-int uc_meta_data_get_unsigned_int_vl(value_list_t const *vl, char const *key,
-                                     uint64_t *value) {
-  return ENOTSUP;
-}
-
-int uc_meta_data_add_signed_int_vl(value_list_t const *vl, char const *key,
-                                   int64_t value) {
-  return ENOTSUP;
-}
-
-int uc_meta_data_add_unsigned_int_vl(value_list_t const *vl, char const *key,
-                                     uint64_t value) {
-  return ENOTSUP;
-}
