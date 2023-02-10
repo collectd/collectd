@@ -78,6 +78,7 @@ typedef struct {
   bool all; /* no metrics from whole GPU */
   bool engine;
   bool engine_single;
+  bool fabric;
   bool freq;
   bool mem;
   bool membw;
@@ -91,21 +92,25 @@ typedef struct {
 
 /* handles for the GPU devices discovered by Sysman library */
 typedef struct {
-  char *pci_bdf;
-  char *dev_file;
+  /* GPU info for metric labels */
+  char *pci_bdf;  // required
+  char *pci_dev;  // if GpuInfo
+  char *dev_file; // if ADD_DEV_FILE
   /* number of types for metrics without allocs */
   uint32_t ras_count;
   uint32_t temp_count;
   /* number of types for each counter metric */
   uint32_t engine_count;
+  uint32_t fabric_count;
   uint32_t membw_count;
   uint32_t power_count;
   uint32_t throttle_count;
   /* number of types for each sampled metric */
   uint32_t frequency_count;
   uint32_t memory_count;
-  /* previous values for counters */
+  /* previous values for counters, must have matching <name>_count */
   zes_engine_stats_t *engine;
+  zes_fabric_port_throughput_t *fabric;
   zes_mem_bandwidth_t *membw;
   zes_power_energy_counter_t *power;
   zes_freq_throttle_time_t *throttle;
@@ -145,6 +150,7 @@ static struct {
 /* Sysman GPU plugin config options (defines to ease catching typos) */
 #define KEY_DISABLE_ENGINE "DisableEngine"
 #define KEY_DISABLE_ENGINE_SINGLE "DisableEngineSingle"
+#define KEY_DISABLE_FABRIC "DisableFabric"
 #define KEY_DISABLE_FREQ "DisableFrequency"
 #define KEY_DISABLE_MEM "DisableMemory"
 #define KEY_DISABLE_MEMBW "DisableMemoryBandwidth"
@@ -186,6 +192,8 @@ static void **gpu_subarray_realloc(void **mem, int count, int size) {
   gpu_subarray_free(mem);
   mem = smalloc(config.samples * sizeof(void *));
   for (i = 0; i < config.samples; i++) {
+    // (s)calloc used so pointers in structs are initialized to
+    // NULLs for Sysman metric state/property Get calls
     mem[i] = scalloc(count, size);
   }
   return mem;
@@ -217,6 +225,7 @@ static int gpu_config_free(void) {
   for (uint32_t i = 0; i < gpu_count; i++) {
     /* free previous values for counters & zero their counts */
     FREE_GPU_ARRAY(i, engine);
+    FREE_GPU_ARRAY(i, fabric);
     FREE_GPU_ARRAY(i, membw);
     FREE_GPU_ARRAY(i, power);
     FREE_GPU_ARRAY(i, throttle);
@@ -228,6 +237,8 @@ static int gpu_config_free(void) {
     gpus[i].temp_count = 0;
     free(gpus[i].pci_bdf);
     gpus[i].pci_bdf = NULL;
+    free(gpus[i].pci_dev);
+    gpus[i].pci_dev = NULL;
     free(gpus[i].dev_file);
     gpus[i].dev_file = NULL;
   }
@@ -269,6 +280,7 @@ static int gpu_config_check(void) {
     bool value;
   } options[] = {{KEY_DISABLE_ENGINE, config.disabled.engine},
                  {KEY_DISABLE_ENGINE_SINGLE, config.disabled.engine_single},
+                 {KEY_DISABLE_FABRIC, config.disabled.fabric},
                  {KEY_DISABLE_FREQ, config.disabled.freq},
                  {KEY_DISABLE_MEM, config.disabled.mem},
                  {KEY_DISABLE_MEMBW, config.disabled.membw},
@@ -338,35 +350,36 @@ static void log_uuid(const char *prefix, const uint8_t *byte, int len) {
   INFO("%s", buf);
 }
 
-/* Log Sysman API provided info for given GPU if logging is enabled
- * and on success, return GPU PCI ID as string in BDF notation:
- *   https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
+/* If GPU info setting is enabled, log Sysman API provided info for
+ * given GPU, and set PCI device ID to 'pci_dev'.  On success, return
+ * true and set GPU PCI address to 'pci_bdf' as string in BDF notation:
+ * https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
  */
-static char *gpu_info(int idx, zes_device_handle_t dev) {
-  char *pci_bdf, buf[32];
+static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
+  char buf[32];
 
-  zes_pci_properties_t pci;
+  *pci_bdf = *pci_dev = NULL;
+  zes_pci_properties_t pci = {.pNext = NULL};
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
     const zes_pci_address_t *addr = &pci.address;
     snprintf(buf, sizeof(buf), "%04x:%02x:%02x.%x", addr->domain, addr->bus,
              addr->device, addr->function);
   } else {
-    ERROR(PLUGIN_NAME ": failed to get GPU %d PCI device properties => 0x%x",
-          idx, ret);
-    return NULL;
+    ERROR(PLUGIN_NAME ": failed to get GPU PCI device properties => 0x%x", ret);
+    return false;
   }
-  pci_bdf = sstrdup(buf);
+  *pci_bdf = sstrdup(buf);
   if (!config.gpuinfo) {
-    return pci_bdf;
+    return true;
   }
 
-  INFO("Level-Zero Sysman API GPU %d info", idx);
-  INFO("==================================");
+  INFO("Level-Zero Sysman API GPU info");
+  INFO("==============================");
 
   INFO("PCI info:");
   if (ret == ZE_RESULT_SUCCESS) {
-    INFO("- PCI B/D/F:  %s", pci_bdf);
+    INFO("- PCI B/D/F:  %s", *pci_bdf);
     const zes_pci_speed_t *speed = &pci.maxSpeed;
     INFO("- PCI gen:    %d", speed->gen);
     INFO("- PCI width:  %d", speed->width);
@@ -377,7 +390,7 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
   }
 
   INFO("HW state:");
-  zes_device_state_t state;
+  zes_device_state_t state = {.pNext = NULL};
   /* Note: there's also zesDevicePciGetState() for PCI link status */
   if (ret = zesDeviceGetState(dev, &state), ret == ZE_RESULT_SUCCESS) {
     INFO("- repaired: %s",
@@ -395,14 +408,15 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
     }
   } else {
     INFO("- unavailable");
-    WARNING(PLUGIN_NAME ": failed to get GPU %d device state => 0x%x", idx,
-            ret);
+    WARNING(PLUGIN_NAME ": failed to get GPU device state => 0x%x", ret);
   }
 
   INFO("HW identification:");
-  zes_device_properties_t props;
+  zes_device_properties_t props = {.pNext = NULL};
   if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
     const ze_device_properties_t *core = &props.core;
+    snprintf(buf, sizeof(buf), "0x%x", core->deviceId);
+    *pci_dev = sstrdup(buf); // used only if present
     INFO("- name:       %s", core->name);
     INFO("- vendor ID:  0x%x", core->vendorId);
     INFO("- device ID:  0x%x", core->deviceId);
@@ -424,25 +438,24 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
                                  core->numSubslicesPerSlice * core->numSlices);
   } else {
     INFO("- unavailable");
-    WARNING(PLUGIN_NAME ": failed to get GPU %d device properties => 0x%x", idx,
-            ret);
+    WARNING(PLUGIN_NAME ": failed to get GPU device properties => 0x%x", ret);
   }
 
   /* HW info for all memories */
   uint32_t i, mem_count = 0;
   ze_device_handle_t mdev = (ze_device_handle_t)dev;
-  if (zeDeviceGetMemoryProperties(mdev, &mem_count, NULL) !=
-      ZE_RESULT_SUCCESS) {
-    WARNING(PLUGIN_NAME ": failed to get memory properties count");
-    return pci_bdf;
+  if (ret = zeDeviceGetMemoryProperties(mdev, &mem_count, NULL),
+      ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get memory properties count => 0x%x", ret);
+    return true;
   }
-  ze_device_memory_properties_t *mems;
-  mems = scalloc(mem_count, sizeof(*mems));
-  if (zeDeviceGetMemoryProperties(mdev, &mem_count, mems) !=
-      ZE_RESULT_SUCCESS) {
-    WARNING(PLUGIN_NAME ": failed to get %d memory properties", mem_count);
+  ze_device_memory_properties_t *mems = scalloc(mem_count, sizeof(*mems));
+  if (ret = zeDeviceGetMemoryProperties(mdev, &mem_count, mems),
+      ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get %d memory properties => 0x%x",
+            mem_count, ret);
     free(mems);
-    return pci_bdf;
+    return true;
   }
   for (i = 0; i < mem_count; i++) {
     const char *memname = mems[i].name;
@@ -455,19 +468,21 @@ static char *gpu_info(int idx, zes_device_handle_t dev) {
     INFO("- max clock:  %u", mems[i].maxClockRate);
   }
   free(mems);
-  return pci_bdf;
+  return true;
 }
 
 /* Add (given) BDF string and device file name to GPU struct for metric labels.
  *
  * Return false if (required) BDF string is missing, true otherwise.
  */
-static bool add_gpu_labels(gpu_device_t *gpu, char *pci_bdf) {
+static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
   assert(gpu);
-  if (!pci_bdf) {
+  char *pci_bdf, *pci_dev;
+  if (!gpu_info(dev, &pci_bdf, &pci_dev) || !pci_bdf) {
     return false;
   }
   gpu->pci_bdf = pci_bdf;
+  gpu->pci_dev = pci_dev;
   /*
    * scan devfs and sysfs to find primary GPU device file node matching
    * given BDF, and if one is found, use that as device file name.
@@ -536,8 +551,10 @@ static int gpu_scan(ze_driver_handle_t *drivers, uint32_t driver_count,
   for (uint32_t drv_idx = 0; drv_idx < driver_count; drv_idx++) {
 
     uint32_t dev_count = 0;
-    if (zeDeviceGet(drivers[drv_idx], &dev_count, NULL) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get device count for driver %d", drv_idx);
+    ze_result_t ret = zeDeviceGet(drivers[drv_idx], &dev_count, NULL);
+    if (ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get device count for driver %d => 0x%x",
+            drv_idx, ret);
       return RET_ZE_DEVICE_GET_FAIL;
     }
     if (config.gpuinfo) {
@@ -573,19 +590,23 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
 
   uint32_t ignored = 0, count = 0;
   int retval = RET_NO_GPUS;
+  ze_result_t ret;
 
   for (uint32_t drv_idx = 0; drv_idx < driver_count; drv_idx++) {
     uint32_t dev_count = 0;
-    if (zeDeviceGet(drivers[drv_idx], &dev_count, NULL) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get device count for driver %d", drv_idx);
+    if (ret = zeDeviceGet(drivers[drv_idx], &dev_count, NULL),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get device count for driver %d => 0x%x",
+            drv_idx, ret);
       retval = RET_ZE_DEVICE_GET_FAIL;
       continue;
     }
     ze_device_handle_t *devs;
     devs = scalloc(dev_count, sizeof(*devs));
-    if (zeDeviceGet(drivers[drv_idx], &dev_count, devs) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get %d devices for driver %d", dev_count,
-            drv_idx);
+    if (ret = zeDeviceGet(drivers[drv_idx], &dev_count, devs),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get %d devices for driver %d => 0x%x",
+            dev_count, drv_idx, ret);
       free(devs);
       devs = NULL;
       retval = RET_ZE_DEVICE_GET_FAIL;
@@ -593,10 +614,12 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
     }
     /* Get all GPU devices for the driver */
     for (uint32_t dev_idx = 0; dev_idx < dev_count; dev_idx++) {
-      ze_device_properties_t props;
-      if (zeDeviceGetProperties(devs[dev_idx], &props) != ZE_RESULT_SUCCESS) {
-        ERROR(PLUGIN_NAME ": failed to get driver %d device %d properties",
-              drv_idx, dev_idx);
+      ze_device_properties_t props = {.pNext = NULL};
+      if (ret = zeDeviceGetProperties(devs[dev_idx], &props),
+          ret != ZE_RESULT_SUCCESS) {
+        ERROR(PLUGIN_NAME
+              ": failed to get driver %d device %d properties => 0x%x",
+              drv_idx, dev_idx, ret);
         retval = RET_ZE_DEVICE_PROPS_FAIL;
         continue;
       }
@@ -606,7 +629,9 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
         continue;
       }
       gpus[count].handle = (zes_device_handle_t)devs[dev_idx];
-      if (!add_gpu_labels(&(gpus[count]), gpu_info(count, devs[dev_idx]))) {
+      if (!add_gpu_labels(&(gpus[count]), devs[dev_idx])) {
+        ERROR(PLUGIN_NAME ": failed to get driver %d device %d information",
+              drv_idx, dev_idx);
         ignored++;
         continue;
       }
@@ -638,15 +663,16 @@ static int gpu_init(void) {
     NOTICE(PLUGIN_NAME ": skipping extra gpu_init() call");
     return RET_OK;
   }
+  ze_result_t ret;
   setenv("ZES_ENABLE_SYSMAN", "1", 1);
-  if (zeInit(ZE_INIT_FLAG_GPU_ONLY) != ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": Level Zero API init failed");
+  if (ret = zeInit(ZE_INIT_FLAG_GPU_ONLY), ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": Level Zero API init failed => 0x%x", ret);
     return RET_ZE_INIT_FAIL;
   }
   /* Discover all the drivers */
   uint32_t driver_count = 0;
-  if (zeDriverGet(&driver_count, NULL) != ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get L0 GPU drivers count");
+  if (ret = zeDriverGet(&driver_count, NULL), ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get L0 GPU drivers count => 0x%x", ret);
     return RET_ZE_DRIVER_GET_FAIL;
   }
   if (!driver_count) {
@@ -655,8 +681,9 @@ static int gpu_init(void) {
   }
   ze_driver_handle_t *drivers;
   drivers = scalloc(driver_count, sizeof(*drivers));
-  if (zeDriverGet(&driver_count, drivers) != ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d L0 drivers", driver_count);
+  if (ret = zeDriverGet(&driver_count, drivers), ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d L0 drivers => 0x%x", driver_count,
+          ret);
     free(drivers);
     return RET_ZE_DRIVER_GET_FAIL;
   }
@@ -699,6 +726,9 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
     metric_label_set(m + i, "pci_bdf", gpu->pci_bdf);
     if (gpu->dev_file) {
       metric_label_set(m + i, "dev_file", gpu->dev_file);
+    }
+    if (gpu->pci_dev) {
+      metric_label_set(m + i, "pci_dev", gpu->pci_dev);
     }
   }
   int status = plugin_dispatch_metric_family(fam);
@@ -750,14 +780,17 @@ static void ras_submit(gpu_device_t *gpu, const char *name, const char *help,
 static bool gpu_ras(gpu_device_t *gpu) {
   uint32_t i, ras_count = 0;
   zes_device_handle_t dev = gpu->handle;
-  if ((zesDeviceEnumRasErrorSets(dev, &ras_count, NULL) != ZE_RESULT_SUCCESS)) {
-    ERROR(PLUGIN_NAME ": failed to get RAS error sets count");
+  ze_result_t ret = zesDeviceEnumRasErrorSets(dev, &ras_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get RAS error sets count => 0x%x", ret);
     return false;
   }
   zes_ras_handle_t *ras;
   ras = scalloc(ras_count, sizeof(*ras));
-  if (zesDeviceEnumRasErrorSets(dev, &ras_count, ras) != ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d RAS error sets", ras_count);
+  if (ret = zesDeviceEnumRasErrorSets(dev, &ras_count, ras),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d RAS error sets => 0x%x", ras_count,
+          ret);
     free(ras);
     return false;
   }
@@ -768,9 +801,10 @@ static bool gpu_ras(gpu_device_t *gpu) {
 
   bool ok = false;
   for (i = 0; i < ras_count; i++) {
-    zes_ras_properties_t props;
-    if (zesRasGetProperties(ras[i], &props) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get RAS set %d properties", i);
+    zes_ras_properties_t props = {.pNext = NULL};
+    if (ret = zesRasGetProperties(ras[i], &props), ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get RAS set %d properties => 0x%x", i,
+            ret);
       ok = false;
       break;
     }
@@ -791,10 +825,12 @@ static bool gpu_ras(gpu_device_t *gpu) {
       snprintf(buf, sizeof(buf), "%d", props.subdeviceId);
       subdev = buf;
     }
-    zes_ras_state_t values;
     const bool clear = false;
-    if (zesRasGetState(ras[i], clear, &values) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get RAS set %d (%s) state", i, type);
+    zes_ras_state_t values = {.pNext = NULL};
+    if (ret = zesRasGetState(ras[i], clear, &values),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get RAS set %d (%s) state => 0x%x", i,
+            type, ret);
       ok = false;
       break;
     }
@@ -879,10 +915,14 @@ static void metric_set_subdev(metric_t *m, bool onsub, uint32_t subid) {
   }
 }
 
-static bool set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
-  zes_mem_properties_t props;
-  if (zesMemoryGetProperties(mem, &props) != ZE_RESULT_SUCCESS) {
-    return false;
+/* set memory metric labels based on its properties, return ZE_RESULT_SUCCESS
+ * for success
+ */
+static ze_result_t set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
+  zes_mem_properties_t props = {.pNext = NULL};
+  ze_result_t ret = zesMemoryGetProperties(mem, &props);
+  if (ret != ZE_RESULT_SUCCESS) {
+    return ret;
   }
   const char *location;
   switch (props.location) {
@@ -945,7 +985,7 @@ static bool set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
   metric_label_set(metric, "type", type);
   metric_label_set(metric, "location", location);
   metric_set_subdev(metric, props.onSubdevice, props.subdeviceId);
-  return true;
+  return ZE_RESULT_SUCCESS;
 }
 
 /* Report memory usage for memory modules, return true for success.
@@ -955,15 +995,17 @@ static bool set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
 static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   uint32_t i, mem_count = 0;
   zes_device_handle_t dev = gpu->handle;
-  if ((zesDeviceEnumMemoryModules(dev, &mem_count, NULL) !=
-       ZE_RESULT_SUCCESS)) {
-    ERROR(PLUGIN_NAME ": failed to get memory modules count");
+  ze_result_t ret = zesDeviceEnumMemoryModules(dev, &mem_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get memory modules count => 0x%x", ret);
     return false;
   }
   zes_mem_handle_t *mems;
   mems = scalloc(mem_count, sizeof(*mems));
-  if (zesDeviceEnumMemoryModules(dev, &mem_count, mems) != ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d memory modules", mem_count);
+  if (ret = zesDeviceEnumMemoryModules(dev, &mem_count, mems),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d memory modules => 0x%x", mem_count,
+          ret);
     free(mems);
     return false;
   }
@@ -988,12 +1030,13 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   };
   metric_t metric = {0};
 
-  bool reported_ratio = false, ok = false;
+  bool reported_ratio = false, reported = false, ok = false;
   for (i = 0; i < mem_count; i++) {
     /* fetch memory samples */
-    if (zesMemoryGetState(mems[i], &(gpu->memory[cache_idx][i])) !=
-        ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get memory module %d state", i);
+    if (ret = zesMemoryGetState(mems[i], &(gpu->memory[cache_idx][i])),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get memory module %d state => 0x%x", i,
+            ret);
       ok = false;
       break;
     }
@@ -1008,10 +1051,33 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       break;
     }
     /* process samples */
-    if (!set_mem_labels(mems[i], &metric)) {
-      ERROR(PLUGIN_NAME ": failed to get memory module %d properties", i);
+    if (ret = set_mem_labels(mems[i], &metric), ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get memory module %d properties => 0x%x",
+            i, ret);
       ok = false;
       break;
+    }
+    /* get health status from last i.e. zeroeth sample */
+    zes_mem_health_t value = gpu->memory[0][i].health;
+    if (value != ZES_MEM_HEALTH_UNKNOWN) {
+      const char *health;
+      switch (value) {
+      case ZES_MEM_HEALTH_OK:
+        health = "ok";
+        break;
+      case ZES_MEM_HEALTH_DEGRADED:
+        health = "degraded";
+        break;
+      case ZES_MEM_HEALTH_CRITICAL:
+        health = "critical";
+        break;
+      case ZES_MEM_HEALTH_REPLACE:
+        health = "replace";
+        break;
+      default:
+        health = "unknown";
+      }
+      metric_label_set(&metric, "health", health);
     }
     double mem_used;
     if (config.samples < 2) {
@@ -1025,6 +1091,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_family_metric_append(&fam_ratio, metric);
         reported_ratio = true;
       }
+      reported = true;
     } else {
       /* find min & max values for memory free from
        * (the configured number of) samples
@@ -1040,7 +1107,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
           free_max = mem_free;
         }
       }
-      /* largest used amount of memory */
+      /* smallest used amount of memory within interval */
       mem_used = mem_size - free_max;
       metric.value.gauge = mem_used;
       metric_label_set(&metric, "function", "min");
@@ -1050,7 +1117,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_family_metric_append(&fam_ratio, metric);
         reported_ratio = true;
       }
-      /* smallest used amount of memory */
+      /* largest used amount of memory within interval */
       mem_used = mem_size - free_min;
       metric.value.gauge = mem_used;
       metric_label_set(&metric, "function", "max");
@@ -1060,10 +1127,11 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_family_metric_append(&fam_ratio, metric);
         reported_ratio = true;
       }
+      reported = true;
     }
-  }
-  if (ok && cache_idx == 0) {
     metric_reset(&metric);
+  }
+  if (reported) {
     gpu_submit(gpu, &fam_bytes);
     if (reported_ratio) {
       gpu_submit(gpu, &fam_ratio);
@@ -1089,15 +1157,17 @@ static void add_bw_gauges(metric_t *metric, metric_family_t *fam, double reads,
 static bool gpu_mems_bw(gpu_device_t *gpu) {
   uint32_t i, mem_count = 0;
   zes_device_handle_t dev = gpu->handle;
-  if ((zesDeviceEnumMemoryModules(dev, &mem_count, NULL) !=
-       ZE_RESULT_SUCCESS)) {
-    ERROR(PLUGIN_NAME ": failed to get memory (BW) modules count");
+  ze_result_t ret = zesDeviceEnumMemoryModules(dev, &mem_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get memory (BW) modules count => 0x%x", ret);
     return false;
   }
   zes_mem_handle_t *mems;
   mems = scalloc(mem_count, sizeof(*mems));
-  if (zesDeviceEnumMemoryModules(dev, &mem_count, mems) != ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d memory (BW) modules", mem_count);
+  if (ret = zesDeviceEnumMemoryModules(dev, &mem_count, mems),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d memory (BW) modules => 0x%x",
+          mem_count, ret);
     free(mems);
     return false;
   }
@@ -1132,7 +1202,6 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
 
   bool ok = false;
   for (i = 0; i < mem_count; i++) {
-    ze_result_t ret;
     zes_mem_bandwidth_t bw;
     if (ret = zesMemoryGetBandwidth(mems[i], &bw), ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get memory module %d bandwidth => 0x%x", i,
@@ -1140,8 +1209,9 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
       ok = false;
       break;
     }
-    if (!set_mem_labels(mems[i], &metric)) {
-      ERROR(PLUGIN_NAME ": failed to get memory module %d properties", i);
+    if (ret = set_mem_labels(mems[i], &metric), ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get memory module %d properties => 0x%x",
+            i, ret);
       ok = false;
       break;
     }
@@ -1175,34 +1245,36 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
         reported_ratio = true;
       }
     }
+    metric_reset(&metric);
     *old = bw;
     ok = true;
   }
-  if (ok) {
-    metric_reset(&metric);
-    if (reported_ratio) {
-      gpu_submit(gpu, &fam_ratio);
-    }
-    if (reported_rate) {
-      gpu_submit(gpu, &fam_rate);
-    }
-    if (reported_counter) {
-      gpu_submit(gpu, &fam_counter);
-    }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  if (reported_rate) {
+    gpu_submit(gpu, &fam_rate);
+  }
+  if (reported_counter) {
+    gpu_submit(gpu, &fam_counter);
   }
   free(mems);
   return ok;
 }
 
-/* set frequency metric labels based on its properties, return true for success
+/* set frequency metric labels based on its properties and maxfreq for non-NULL
+ * pointer, return ZE_RESULT_SUCCESS for success
  */
-static bool set_freq_labels(zes_freq_handle_t freq, metric_t *metric,
-                            double *maxfreq) {
-  zes_freq_properties_t props;
-  if (zesFrequencyGetProperties(freq, &props) != ZE_RESULT_SUCCESS) {
-    return false;
+static ze_result_t set_freq_labels(zes_freq_handle_t freq, metric_t *metric,
+                                   double *maxfreq) {
+  zes_freq_properties_t props = {.pNext = NULL};
+  ze_result_t ret = zesFrequencyGetProperties(freq, &props);
+  if (ret != ZE_RESULT_SUCCESS) {
+    return ret;
   }
-  *maxfreq = props.max;
+  if (maxfreq) {
+    *maxfreq = props.max;
+  }
   const char *type;
   switch (props.type) {
   case ZES_FREQ_DOMAIN_GPU:
@@ -1216,7 +1288,42 @@ static bool set_freq_labels(zes_freq_handle_t freq, metric_t *metric,
   }
   metric_label_set(metric, "location", type);
   metric_set_subdev(metric, props.onSubdevice, props.subdeviceId);
-  return true;
+  return ZE_RESULT_SUCCESS;
+}
+
+/* set label explaining frequency throttling reason(s) */
+static void set_freq_throttled_label(metric_t *metric,
+                                     zes_freq_throttle_reason_flags_t reasons) {
+  static const struct {
+    zes_freq_throttle_reason_flags_t flag;
+    const char *reason;
+  } flags[] = {
+      {ZES_FREQ_THROTTLE_REASON_FLAG_AVE_PWR_CAP, "average-power"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_BURST_PWR_CAP, "burst-power"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_CURRENT_LIMIT, "current"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_THERMAL_LIMIT, "temperature"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_PSU_ALERT, "PSU-alert"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_SW_RANGE, "SW-freq-range"},
+      {ZES_FREQ_THROTTLE_REASON_FLAG_HW_RANGE, "HW-freq-range"},
+  };
+  bool found = false;
+  const char *reason = NULL;
+  for (unsigned int i = 0; i < STATIC_ARRAY_SIZE(flags); i++) {
+    if (reasons & flags[i].flag) {
+      if (found) {
+        reason = "many";
+        break;
+      }
+      reason = flags[i].reason;
+      found = true;
+    }
+  }
+  if (reasons) {
+    if (!found) {
+      reason = "unknown";
+    }
+    metric_label_set(metric, "throttled_by", reason);
+  }
 }
 
 /* Report frequency domains request & actual frequency, return true for success
@@ -1226,16 +1333,17 @@ static bool set_freq_labels(zes_freq_handle_t freq, metric_t *metric,
 static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
   uint32_t i, freq_count = 0;
   zes_device_handle_t dev = gpu->handle;
-  if ((zesDeviceEnumFrequencyDomains(dev, &freq_count, NULL) !=
-       ZE_RESULT_SUCCESS)) {
-    ERROR(PLUGIN_NAME ": failed to get frequency domains count");
+  ze_result_t ret = zesDeviceEnumFrequencyDomains(dev, &freq_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get frequency domains count => 0x%x", ret);
     return false;
   }
   zes_freq_handle_t *freqs;
   freqs = scalloc(freq_count, sizeof(*freqs));
-  if (zesDeviceEnumFrequencyDomains(dev, &freq_count, freqs) !=
-      ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d frequency domains", freq_count);
+  if (ret = zesDeviceEnumFrequencyDomains(dev, &freq_count, freqs),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d frequency domains => 0x%x",
+          freq_count, ret);
     free(freqs);
     return false;
   }
@@ -1263,9 +1371,10 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
   bool reported_ratio = false, reported = false, ok = false;
   for (i = 0; i < freq_count; i++) {
     /* fetch freq samples */
-    if (zesFrequencyGetState(freqs[i], &(gpu->frequency[cache_idx][i])) !=
-        ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get frequency domain %d state", i);
+    if (ret = zesFrequencyGetState(freqs[i], &(gpu->frequency[cache_idx][i])),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get frequency domain %d state => 0x%x", i,
+            ret);
       ok = false;
       break;
     }
@@ -1275,16 +1384,18 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     }
     /* process samples */
     double maxfreq;
-    if (!set_freq_labels(freqs[i], &metric, &maxfreq)) {
-      ERROR(PLUGIN_NAME ": failed to get frequency domain %d properties", i);
+    if (ret = set_freq_labels(freqs[i], &metric, &maxfreq),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME
+            ": failed to get frequency domain %d properties => 0x%x",
+            i, ret);
       ok = false;
       break;
     }
-
-    bool freq_ok = false;
     double value;
 
     if (config.samples < 2) {
+      set_freq_throttled_label(&metric, gpu->frequency[0][i].throttleReasons);
       /* negative value = unsupported:
        * https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv416zes_freq_state_t
        */
@@ -1298,7 +1409,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_ratio, metric);
           reported_ratio = true;
         }
-        freq_ok = true;
+        reported = true;
       }
       value = gpu->frequency[0][i].actual;
       if (value >= 0) {
@@ -1310,7 +1421,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_ratio, metric);
           reported_ratio = true;
         }
-        freq_ok = true;
+        reported = true;
       }
     } else {
       /* find min & max values for actual frequency & its request
@@ -1318,7 +1429,9 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
        */
       double req_min = 1.0e12, req_max = -1.0e12;
       double act_min = 1.0e12, act_max = -1.0e12;
+      zes_freq_throttle_reason_flags_t reasons = 0;
       for (uint32_t j = 0; j < config.samples; j++) {
+        reasons |= gpu->frequency[j][i].throttleReasons;
         value = gpu->frequency[j][i].request;
         if (value < req_min) {
           req_min = value;
@@ -1334,6 +1447,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           act_max = value;
         }
       }
+      set_freq_throttled_label(&metric, reasons);
       if (req_max >= 0.0) {
         metric.value.gauge = req_min;
         metric_label_set(&metric, "type", "request");
@@ -1352,7 +1466,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_ratio, metric);
           reported_ratio = true;
         }
-        freq_ok = true;
+        reported = true;
       }
       if (act_max >= 0.0) {
         metric.value.gauge = act_min;
@@ -1372,12 +1486,11 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_ratio, metric);
           reported_ratio = true;
         }
-        freq_ok = true;
+        reported = true;
       }
     }
-    if (freq_ok) {
-      reported = true;
-    } else {
+    metric_reset(&metric);
+    if (!reported) {
       ERROR(PLUGIN_NAME ": neither requests nor actual frequencies supported "
                         "for domain %d",
             i);
@@ -1386,7 +1499,6 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     }
   }
   if (reported) {
-    metric_reset(&metric);
     gpu_submit(gpu, &fam_freq);
     if (reported_ratio) {
       gpu_submit(gpu, &fam_ratio);
@@ -1401,17 +1513,20 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
 static bool gpu_freqs_throttle(gpu_device_t *gpu) {
   uint32_t i, freq_count = 0;
   zes_device_handle_t dev = gpu->handle;
-  if ((zesDeviceEnumFrequencyDomains(dev, &freq_count, NULL) !=
-       ZE_RESULT_SUCCESS)) {
-    ERROR(PLUGIN_NAME ": failed to get frequency (throttling) domains count");
+  ze_result_t ret = zesDeviceEnumFrequencyDomains(dev, &freq_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME
+          ": failed to get frequency (throttling) domains count => 0x%x",
+          ret);
     return false;
   }
   zes_freq_handle_t *freqs;
   freqs = scalloc(freq_count, sizeof(*freqs));
-  if (zesDeviceEnumFrequencyDomains(dev, &freq_count, freqs) !=
-      ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d frequency (throttling) domains",
-          freq_count);
+  if (ret = zesDeviceEnumFrequencyDomains(dev, &freq_count, freqs),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME
+          ": failed to get %d frequency (throttling) domains => 0x%x",
+          freq_count, ret);
     free(freqs);
     return false;
   }
@@ -1446,7 +1561,6 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
 
   bool reported_ratio = false, reported_counter = false, ok = false;
   for (i = 0; i < freq_count; i++) {
-    ze_result_t ret;
     zes_freq_throttle_time_t throttle;
     if (ret = zesFrequencyGetThrottleTime(freqs[i], &throttle),
         ret != ZE_RESULT_SUCCESS) {
@@ -1456,9 +1570,11 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       ok = false;
       break;
     }
-    double dummy;
-    if (!set_freq_labels(freqs[i], &metric, &dummy)) {
-      ERROR(PLUGIN_NAME ": failed to get frequency domain %d properties", i);
+    if (ret = set_freq_labels(freqs[i], &metric, NULL),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME
+            ": failed to get frequency domain %d properties => 0x%x",
+            i, ret);
       ok = false;
       break;
     }
@@ -1477,17 +1593,15 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       metric_family_metric_append(&fam_ratio, metric);
       reported_ratio = true;
     }
+    metric_reset(&metric);
     *old = throttle;
     ok = true;
   }
-  if (ok) {
-    metric_reset(&metric);
-    if (reported_ratio) {
-      gpu_submit(gpu, &fam_ratio);
-    }
-    if (reported_counter) {
-      gpu_submit(gpu, &fam_counter);
-    }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  if (reported_counter) {
+    gpu_submit(gpu, &fam_counter);
   }
   free(freqs);
   return ok;
@@ -1497,16 +1611,17 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
 static bool gpu_temps(gpu_device_t *gpu) {
   uint32_t i, temp_count = 0;
   zes_device_handle_t dev = gpu->handle;
-  if ((zesDeviceEnumTemperatureSensors(dev, &temp_count, NULL) !=
-       ZE_RESULT_SUCCESS)) {
-    ERROR(PLUGIN_NAME ": failed to get temperature sensors count");
+  ze_result_t ret = zesDeviceEnumTemperatureSensors(dev, &temp_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get temperature sensors count => 0x%x", ret);
     return false;
   }
   zes_temp_handle_t *temps;
   temps = scalloc(temp_count, sizeof(*temps));
-  if (zesDeviceEnumTemperatureSensors(dev, &temp_count, temps) !=
-      ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d temperature sensors", temp_count);
+  if (ret = zesDeviceEnumTemperatureSensors(dev, &temp_count, temps),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d temperature sensors => 0x%x",
+          temp_count, ret);
     free(temps);
     return false;
   }
@@ -1529,9 +1644,12 @@ static bool gpu_temps(gpu_device_t *gpu) {
 
   bool reported_ratio = false, ok = false;
   for (i = 0; i < temp_count; i++) {
-    zes_temp_properties_t props;
-    if (zesTemperatureGetProperties(temps[i], &props) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get temperature sensor %d properties", i);
+    zes_temp_properties_t props = {.pNext = NULL};
+    if (ret = zesTemperatureGetProperties(temps[i], &props),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME
+            ": failed to get temperature sensor %d properties => 0x%x",
+            i, ret);
       ok = false;
       break;
     }
@@ -1565,9 +1683,11 @@ static bool gpu_temps(gpu_device_t *gpu) {
     }
 
     double value;
-    if (zesTemperatureGetState(temps[i], &value) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get temperature sensor %d (%s) state", i,
-            type);
+    if (ret = zesTemperatureGetState(temps[i], &value),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME
+            ": failed to get temperature sensor %d (%s) state => 0x%x",
+            i, type, ret);
       ok = false;
       break;
     }
@@ -1581,10 +1701,10 @@ static bool gpu_temps(gpu_device_t *gpu) {
       metric_family_metric_append(&fam_ratio, metric);
       reported_ratio = true;
     }
+    metric_reset(&metric);
     ok = true;
   }
   if (ok) {
-    metric_reset(&metric);
     gpu_submit(gpu, &fam_temp);
     if (reported_ratio) {
       gpu_submit(gpu, &fam_ratio);
@@ -1594,20 +1714,256 @@ static bool gpu_temps(gpu_device_t *gpu) {
   return ok;
 }
 
+/* status / health labels */
+static void add_fabric_state_labels(metric_t *metric,
+                                    zes_fabric_port_state_t *state) {
+  const char *status;
+  switch (state->status) {
+  case ZES_FABRIC_PORT_STATUS_UNKNOWN:
+    status = "unknown";
+    break;
+  case ZES_FABRIC_PORT_STATUS_HEALTHY:
+    status = "healthy";
+    break;
+  case ZES_FABRIC_PORT_STATUS_DEGRADED:
+    status = "degraded";
+    break;
+  case ZES_FABRIC_PORT_STATUS_FAILED:
+    status = "failed";
+    break;
+  case ZES_FABRIC_PORT_STATUS_DISABLED:
+    status = "disabled";
+    break;
+  default:
+    status = "unsupported";
+  }
+  metric_label_set(metric, "status", status);
+
+  const char *issues = NULL;
+  switch (state->qualityIssues) {
+  case 0:
+    break;
+  case ZES_FABRIC_PORT_QUAL_ISSUE_FLAG_LINK_ERRORS:
+    issues = "link";
+    break;
+  case ZES_FABRIC_PORT_QUAL_ISSUE_FLAG_SPEED:
+    issues = "speed";
+    break;
+  default:
+    issues = "link+speed";
+  }
+  switch (state->failureReasons) {
+  case 0:
+    break;
+  case ZES_FABRIC_PORT_FAILURE_FLAG_FAILED:
+    issues = "failure";
+    break;
+  case ZES_FABRIC_PORT_FAILURE_FLAG_TRAINING_TIMEOUT:
+    issues = "training";
+    break;
+  case ZES_FABRIC_PORT_FAILURE_FLAG_FLAPPING:
+    issues = "flapping";
+    break;
+  default:
+    issues = "multiple";
+  }
+  if (issues) {
+    metric_label_set(metric, "issues", issues);
+  }
+}
+
+/* Report metrics for relevant fabric ports, return true for success */
+static bool gpu_fabrics(gpu_device_t *gpu) {
+  uint32_t i, port_count = 0;
+  zes_device_handle_t dev = gpu->handle;
+  ze_result_t ret = zesDeviceEnumFabricPorts(dev, &port_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get fabric port count => 0x%x", ret);
+    return false;
+  }
+  zes_fabric_port_handle_t *ports;
+  ports = scalloc(port_count, sizeof(*ports));
+  if (ret = zesDeviceEnumFabricPorts(dev, &port_count, ports),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d fabric ports => 0x%x", port_count,
+          ret);
+    free(ports);
+    return false;
+  }
+  if (gpu->fabric_count != port_count) {
+    INFO(PLUGIN_NAME ": Sysman reports %d fabric ports", port_count);
+    if (gpu->fabric) {
+      free(gpu->fabric);
+    }
+    gpu->fabric = scalloc(port_count, sizeof(*gpu->fabric));
+    gpu->fabric_count = port_count;
+  }
+
+  metric_family_t fam_ratio = {
+      .help =
+          "Average fabric port bandwidth usage ratio (0-1) over query interval",
+      .name = METRIC_PREFIX "fabric_port_ratio",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_rate = {
+      .help = "Fabric port throughput rate (in bytes per second)",
+      .name = METRIC_PREFIX "fabric_port_bytes_per_second",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_counter = {
+      .help = "Fabric port throughput total (in bytes)",
+      .name = METRIC_PREFIX "fabric_port_bytes_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_t metric = {0};
+
+  bool reported_rate = false, reported_ratio = false, reported_counter = false;
+
+  bool ok = false;
+  for (i = 0; i < port_count; i++) {
+
+    /* fetch all information before allocing labels */
+
+    zes_fabric_port_state_t state = {.pNext = NULL};
+    if (ret = zesFabricPortGetState(ports[i], &state),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d state => 0x%x", i, ret);
+      ok = false;
+      break;
+    }
+    zes_fabric_port_properties_t props = {.pNext = NULL};
+    if (ret = zesFabricPortGetProperties(ports[i], &props),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d properties => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+    zes_fabric_port_config_t conf = {.pNext = NULL};
+    if (ret = zesFabricPortGetConfig(ports[i], &conf),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d config => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+    zes_fabric_port_throughput_t bw;
+    if (ret = zesFabricPortGetThroughput(ports[i], &bw),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d throughput => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+    zes_fabric_link_type_t link;
+    if (ret = zesFabricPortGetLinkType(ports[i], &link),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fabric port %d link type => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+
+    /* port setting / identity setting labels */
+
+    link.desc[sizeof(link.desc) - 1] = '\0';
+    metric_label_set(&metric, "link", link.desc);
+    metric_label_set(&metric, "enabled", conf.enabled ? "on" : "off");
+    metric_label_set(&metric, "beaconing", conf.beaconing ? "on" : "off");
+
+    props.model[sizeof(props.model) - 1] = '\0';
+    metric_label_set(&metric, "model", props.model);
+    metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
+
+    /* topology labels */
+
+    char buf[32];
+    zes_fabric_port_id_t *pid = &props.portId;
+    snprintf(buf, sizeof(buf), "%08x.%08x.%02x", pid->fabricId, pid->attachId,
+             pid->portNumber);
+    metric_label_set(&metric, "port", buf);
+
+    pid = &state.remotePortId;
+    snprintf(buf, sizeof(buf), "%08x.%08x.%02x", pid->fabricId, pid->attachId,
+             pid->portNumber);
+    metric_label_set(&metric, "remote", buf);
+
+    /* status / health labels */
+
+    add_fabric_state_labels(&metric, &state);
+
+    /* add counters with direction labels */
+
+    if (config.output & OUTPUT_COUNTER) {
+      metric.value.counter = bw.txCounter;
+      metric_label_set(&metric, "direction", "write");
+      metric_family_metric_append(&fam_counter, metric);
+
+      metric.value.counter = bw.rxCounter;
+      metric_label_set(&metric, "direction", "read");
+      metric_family_metric_append(&fam_counter, metric);
+      reported_counter = true;
+    }
+
+    /* add rate + ratio gauges with direction labels */
+
+    zes_fabric_port_throughput_t *old = &gpu->fabric[i];
+    if (old->timestamp && bw.timestamp > old->timestamp &&
+        (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
+      /* https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-fabric-port-throughput-t
+       */
+      uint64_t writes = bw.txCounter - old->txCounter;
+      uint64_t reads = bw.rxCounter - old->rxCounter;
+      uint64_t timediff = bw.timestamp - old->timestamp;
+
+      if (config.output & OUTPUT_RATE) {
+        double factor = 1.0e6 / timediff;
+        add_bw_gauges(&metric, &fam_rate, factor * reads, factor * writes);
+        reported_rate = true;
+      }
+      if (config.output & OUTPUT_RATIO) {
+        int64_t maxr = props.maxRxSpeed.bitRate * props.maxRxSpeed.width / 8;
+        int64_t maxw = props.maxTxSpeed.bitRate * props.maxTxSpeed.width / 8;
+        if (maxr > 0 && maxw > 0) {
+          double rfactor = 1.0e6 / (maxr * timediff);
+          double wfactor = 1.0e6 / (maxw * timediff);
+          add_bw_gauges(&metric, &fam_ratio, rfactor * reads, wfactor * writes);
+          reported_ratio = true;
+        }
+      }
+    }
+    metric_reset(&metric);
+    *old = bw;
+    ok = true;
+  }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  if (reported_rate) {
+    gpu_submit(gpu, &fam_rate);
+  }
+  if (reported_counter) {
+    gpu_submit(gpu, &fam_counter);
+  }
+  free(ports);
+  return ok;
+}
+
 /* Report power usage for relevant domains, return true for success */
 static bool gpu_powers(gpu_device_t *gpu) {
   uint32_t i, power_count = 0;
   zes_device_handle_t dev = gpu->handle;
-  if ((zesDeviceEnumPowerDomains(dev, &power_count, NULL) !=
-       ZE_RESULT_SUCCESS)) {
-    ERROR(PLUGIN_NAME ": failed to get power domains count");
+  ze_result_t ret = zesDeviceEnumPowerDomains(dev, &power_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get power domains count => 0x%x", ret);
     return false;
   }
   zes_pwr_handle_t *powers;
   powers = scalloc(power_count, sizeof(*powers));
-  if (zesDeviceEnumPowerDomains(dev, &power_count, powers) !=
-      ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d power domains", power_count);
+  if (ret = zesDeviceEnumPowerDomains(dev, &power_count, powers),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d power domains => 0x%x", power_count,
+          ret);
     free(powers);
     return false;
   }
@@ -1640,18 +1996,24 @@ static bool gpu_powers(gpu_device_t *gpu) {
   metric_t metric = {0};
 
   bool reported_ratio = false, reported_power = false, reported_energy = false;
-
+  bool ratio_fail = false;
   bool ok = false;
+
   for (i = 0; i < power_count; i++) {
-    zes_power_properties_t props;
-    if (zesPowerGetProperties(powers[i], &props) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get power domain %d properties", i);
+    zes_power_properties_t props = {.pNext = NULL};
+    if (ret = zesPowerGetProperties(powers[i], &props),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get power domain %d properties => 0x%x", i,
+            ret);
       ok = false;
       break;
     }
     zes_power_energy_counter_t counter;
-    if (zesPowerGetEnergyCounter(powers[i], &counter) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get power domain %d energy counter", i);
+    if (ret = zesPowerGetEnergyCounter(powers[i], &counter),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME
+            ": failed to get power domain %d energy counter => 0x%x",
+            i, ret);
       ok = false;
       break;
     }
@@ -1675,18 +2037,17 @@ static bool gpu_powers(gpu_device_t *gpu) {
         reported_power = true;
       }
       if ((config.output & OUTPUT_RATIO) && !gpu->disabled.power_ratio) {
-        const char *name;
-        int32_t limit = 0;
-
         zes_power_burst_limit_t burst;
         zes_power_sustained_limit_t sustain;
-        if (zesPowerGetLimits(powers[i], &sustain, &burst, NULL) !=
-            ZE_RESULT_SUCCESS) {
-          WARNING(PLUGIN_NAME ": disabling power ratio, failed to get power "
-                              "domain %d limits",
-                  i);
-          gpu->disabled.power_ratio = true;
-        } else {
+        /* TODO: future spec version deprecates zesPowerGetLimits():
+         *        https://github.com/oneapi-src/level-zero-spec/issues/12
+         * Switch to querying list of limits after Sysman plugin starts
+         * requiring that spec version / loader.
+         */
+        if (ret = zesPowerGetLimits(powers[i], &sustain, &burst, NULL),
+            ret == ZE_RESULT_SUCCESS) {
+          const char *name;
+          int32_t limit = 0;
           /* Multiply by 1000, as sustain interval is in ms & power in mJ/s,
            * whereas energy is in uJ and its timestamp in us:
            * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-power-energy-counter-t
@@ -1698,31 +2059,38 @@ static bool gpu_powers(gpu_device_t *gpu) {
           } else if (burst.enabled) {
             name = "burst";
             limit = burst.power;
-          } else {
-            gpu->disabled.power_ratio = true;
           }
-        }
-        if (limit > 0) {
-          metric_label_set(&metric, "limit", name);
-          metric.value.gauge = 1000 * energy_diff / (limit * time_diff);
-          metric_family_metric_append(&fam_ratio, metric);
-          reported_ratio = true;
+          if (limit > 0) {
+            metric_label_set(&metric, "limit", name);
+            metric.value.gauge = 1000 * energy_diff / (limit * time_diff);
+            metric_family_metric_append(&fam_ratio, metric);
+            reported_ratio = true;
+          } else {
+            ratio_fail = true;
+          }
+        } else {
+          ratio_fail = true;
         }
       }
     }
+    metric_reset(&metric);
     *old = counter;
     ok = true;
   }
-  if (ok) {
-    metric_reset(&metric);
-    if (reported_energy) {
-      gpu_submit(gpu, &fam_energy);
-    }
-    if (reported_power) {
-      gpu_submit(gpu, &fam_power);
-    }
-    if (reported_ratio) {
-      gpu_submit(gpu, &fam_ratio);
+  if (reported_energy) {
+    gpu_submit(gpu, &fam_energy);
+  }
+  if (reported_power) {
+    gpu_submit(gpu, &fam_power);
+  }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  } else if (ratio_fail) {
+    gpu->disabled.power_ratio = true;
+    if (ok) {
+      WARNING(PLUGIN_NAME ": failed to get power limit(s) "
+                          "for any of the %d domain(s), last error = 0x%x",
+              power_count, ret);
     }
   }
   free(powers);
@@ -1733,16 +2101,17 @@ static bool gpu_powers(gpu_device_t *gpu) {
 static bool gpu_engines(gpu_device_t *gpu) {
   uint32_t i, engine_count = 0;
   zes_device_handle_t dev = gpu->handle;
-  if ((zesDeviceEnumEngineGroups(dev, &engine_count, NULL) !=
-       ZE_RESULT_SUCCESS)) {
-    ERROR(PLUGIN_NAME ": failed to get engine groups count");
+  ze_result_t ret = zesDeviceEnumEngineGroups(dev, &engine_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get engine groups count => 0x%x", ret);
     return false;
   }
   zes_engine_handle_t *engines;
   engines = scalloc(engine_count, sizeof(*engines));
-  if (zesDeviceEnumEngineGroups(dev, &engine_count, engines) !=
-      ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": failed to get %d engine groups", engine_count);
+  if (ret = zesDeviceEnumEngineGroups(dev, &engine_count, engines),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d engine groups => 0x%x", engine_count,
+          ret);
     free(engines);
     return false;
   }
@@ -1778,9 +2147,11 @@ static bool gpu_engines(gpu_device_t *gpu) {
   int type_idx[16] = {0};
   bool reported_ratio = false, reported_counter = false, ok = false;
   for (i = 0; i < engine_count; i++) {
-    zes_engine_properties_t props;
-    if (zesEngineGetProperties(engines[i], &props) != ZE_RESULT_SUCCESS) {
-      ERROR(PLUGIN_NAME ": failed to get engine group %d properties", i);
+    zes_engine_properties_t props = {.pNext = NULL};
+    if (ret = zesEngineGetProperties(engines[i], &props),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get engine group %d properties => 0x%x", i,
+            ret);
       ok = false;
       break;
     }
@@ -1858,7 +2229,6 @@ static bool gpu_engines(gpu_device_t *gpu) {
       type_idx[props.type]++;
       vname = buf;
     }
-    ze_result_t ret;
     zes_engine_stats_t stats;
     if (ret = zesEngineGetActivity(engines[i], &stats),
         ret != ZE_RESULT_SUCCESS) {
@@ -1882,17 +2252,15 @@ static bool gpu_engines(gpu_device_t *gpu) {
       metric_family_metric_append(&fam_ratio, metric);
       reported_ratio = true;
     }
+    metric_reset(&metric);
     *old = stats;
     ok = true;
   }
-  if (ok) {
-    metric_reset(&metric);
-    if (reported_ratio) {
-      gpu_submit(gpu, &fam_ratio);
-    }
-    if (reported_counter) {
-      gpu_submit(gpu, &fam_counter);
-    }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  if (reported_counter) {
+    gpu_submit(gpu, &fam_counter);
   }
   free(engines);
   return ok;
@@ -1961,6 +2329,12 @@ static int gpu_read(void) {
               i);
       disabled->engine = true;
     }
+    if (!disabled->fabric && !gpu_fabrics(gpu)) {
+      WARNING(PLUGIN_NAME
+              ": GPU-%d fabric query fail / no fabric ports => disabled",
+              i);
+      disabled->fabric = true;
+    }
     if (!disabled->membw && !gpu_mems_bw(gpu)) {
       WARNING(PLUGIN_NAME ": GPU-%d mem BW query fail / no modules => disabled",
               i);
@@ -1988,9 +2362,9 @@ static int gpu_read(void) {
               i);
       gpu->disabled.throttle = true;
     }
-    if (disabled->engine && disabled->mem && disabled->freq &&
-        disabled->membw && disabled->power && disabled->ras && disabled->temp &&
-        disabled->throttle) {
+    if (disabled->engine && disabled->fabric && disabled->freq &&
+        disabled->mem && disabled->membw && disabled->power && disabled->ras &&
+        disabled->temp && disabled->throttle) {
       /* all metrics missing -> disable use of that GPU */
       ERROR(PLUGIN_NAME ": No metrics from GPU-%d, disabling its querying", i);
       disabled->all = true;
@@ -2007,6 +2381,8 @@ static int gpu_config_parse(const char *key, const char *value) {
     config.disabled.engine = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_ENGINE_SINGLE) == 0) {
     config.disabled.engine_single = IS_TRUE(value);
+  } else if (strcasecmp(key, KEY_DISABLE_FABRIC) == 0) {
+    config.disabled.fabric = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_FREQ) == 0) {
     config.disabled.freq = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_MEM) == 0) {
@@ -2078,11 +2454,13 @@ static int gpu_config_parse(const char *key, const char *value) {
 void module_register(void) {
   /* NOTE: key strings *must* be static */
   static const char *config_keys[] = {
-      KEY_DISABLE_ENGINE,   KEY_DISABLE_ENGINE_SINGLE, KEY_DISABLE_FREQ,
-      KEY_DISABLE_MEM,      KEY_DISABLE_MEMBW,         KEY_DISABLE_POWER,
-      KEY_DISABLE_RAS,      KEY_DISABLE_RAS_SEPARATE,  KEY_DISABLE_TEMP,
-      KEY_DISABLE_THROTTLE, KEY_METRICS_OUTPUT,        KEY_LOG_GPU_INFO,
-      KEY_SAMPLES};
+      KEY_DISABLE_ENGINE,       KEY_DISABLE_ENGINE_SINGLE,
+      KEY_DISABLE_FABRIC,       KEY_DISABLE_FREQ,
+      KEY_DISABLE_MEM,          KEY_DISABLE_MEMBW,
+      KEY_DISABLE_POWER,        KEY_DISABLE_RAS,
+      KEY_DISABLE_RAS_SEPARATE, KEY_DISABLE_TEMP,
+      KEY_DISABLE_THROTTLE,     KEY_METRICS_OUTPUT,
+      KEY_LOG_GPU_INFO,         KEY_SAMPLES};
   const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
   plugin_register_config(PLUGIN_NAME, gpu_config_parse, config_keys,

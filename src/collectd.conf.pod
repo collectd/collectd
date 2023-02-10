@@ -3725,7 +3725,8 @@ sampled values is disabled, it is better to set Samples to 1
 =item B<LogGpuInfo>
 
 If enabled, plugin logs at start some information about plugin
-settings and all the GPUs detected through Sysman API.
+settings and all the GPUs detected through Sysman API, and enables
+"pci_dev" PCI device ID label for the metrics.
 
 =item B<MetricsOutput>
 
@@ -3763,6 +3764,10 @@ Disable memory usage metrics collection.
 =item B<DisableMemoryBandwidth>
 
 Disable memory bandwidth metrics collection.
+
+=item B<DisableFabric>
+
+Disable fabric port metrics collection.
 
 =item B<DisableFrequency>
 

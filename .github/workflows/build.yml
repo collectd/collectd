@@ -1,0 +1,212 @@
+name: Build
+
+on:
+  push:
+    branches: [ collectd-6.0 ]
+  pull_request:
+    branches: [ collectd-6.0 ]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: collectd/ci:${{ matrix.container_tag }}
+    continue-on-error: ${{ matrix.allow_failures }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
+        allow_failures: [ false ]
+        container_tag:
+          # debian family
+          - bullseye_amd64
+          - buster_amd64
+          - stretch_amd64
+          - stretch_i386
+          # Ubuntu
+          - xenial_amd64
+          - bionic_amd64
+          - focal_amd64
+          # RedHat family
+          - el9_x86_64
+          - el8_x86_64
+          - el7_x86_64
+          - fedora36_x86_64
+          - fedora35_x86_64
+          - fedora34_x86_64
+        config_flags: ['']
+
+    env:
+      MAKEFLAGS: "-j2 -sk"
+      CONFIGURE_FLAGS: >-
+        ${{ matrix.config_flags }}
+        --disable-aggregation
+        --disable-amqp
+        --disable-amqp1
+        --disable-barometer
+        --disable-check_uptime
+        --disable-csv
+        --disable-curl_xml
+        --disable-gmond
+        --disable-grpc
+        --disable-java
+        --disable-lua
+        --disable-match_empty_counter
+        --disable-match_hashed
+        --disable-match_regex
+        --disable-match_timediff
+        --disable-match_value
+        --disable-modbus
+        --disable-mqtt
+        --disable-network
+        --disable-openldap
+        --disable-perl
+        --disable-postgresql
+        --disable-python
+        --disable-redis
+        --disable-rrdcached
+        --disable-rrdtool
+        --disable-snmp
+        --disable-snmp_agent
+        --disable-statsd
+        --disable-target_notification
+        --disable-target_replace
+        --disable-target_scale
+        --disable-target_set
+        --disable-target_v5upgrade
+        --disable-threshold
+        --disable-write_graphite
+        --disable-write_kafka
+        --disable-write_mongodb
+        --disable-write_redis
+        --disable-write_riemann
+        --disable-write_sensu
+        --disable-write_syslog
+        --disable-write_tsdb
+
+      # this env var picked up by valgrind during make check phase
+      VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
+    steps:
+    - uses: actions/checkout@v2
+    - run: type pkg-config
+    - run: pkg-config --list-all | sort -u
+    - name: Generate configure script
+      run:
+        ./build.sh
+    - name: Run configure script
+      run: ./configure $CONFIGURE_FLAGS
+    - name: Build collectd
+      run: make $MAKEFLAGS
+    - name: Run make check
+      run: make $MAKEFLAGS check
+    - name: Dump test logs
+      run: |
+          cat ./test-suite.log || true
+    - name: Install bzip2
+      run: |
+        yum install -y bzip2 || apt install -y bzip2
+    - name: Run make distcheck
+      run: |
+        make $MAKEFLAG distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug $CONFIGURE_FLAGS"
+
+  experimental:
+    runs-on: ubuntu-20.04
+    container: collectd/ci:${{ matrix.container_tag }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
+        container_tag:
+          - sid_amd64
+          - fedora_rawhide_x86_64
+        # Add additional per-distro vars here.
+        include:
+          - container_tag: sid_amd64
+            config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt"
+          - container_tag: fedora_rawhide_x86_64
+            cflags: "-fPIE -Wno-deprecated-declarations"
+            cppflags: "-fPIE -Wno-deprecated-declarations"
+            config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
+    env:
+      MAKEFLAGS: "-j2 -sk"
+      CFLAGS: ${{ matrix.cflags }}
+      CPPFLAGS: ${{ matrix.cppflags }}
+      VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
+      CONFIGURE_FLAGS: >-
+        ${{ matrix.config_flags }}
+        --disable-aggregation
+        --disable-amqp
+        --disable-amqp1
+        --disable-barometer
+        --disable-check_uptime
+        --disable-csv
+        --disable-curl_xml
+        --disable-gmond
+        --disable-grpc
+        --disable-java
+        --disable-lua
+        --disable-match_empty_counter
+        --disable-match_hashed
+        --disable-match_regex
+        --disable-match_timediff
+        --disable-match_value
+        --disable-modbus
+        --disable-mqtt
+        --disable-network
+        --disable-openldap
+        --disable-perl
+        --disable-postgresql
+        --disable-python
+        --disable-redis
+        --disable-rrdcached
+        --disable-rrdtool
+        --disable-snmp
+        --disable-snmp_agent
+        --disable-statsd
+        --disable-target_notification
+        --disable-target_replace
+        --disable-target_scale
+        --disable-target_set
+        --disable-target_v5upgrade
+        --disable-threshold
+        --disable-write_graphite
+        --disable-write_kafka
+        --disable-write_mongodb
+        --disable-write_redis
+        --disable-write_riemann
+        --disable-write_sensu
+        --disable-write_syslog
+        --disable-write_tsdb
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: type pkg-config
+    - run: pkg-config --list-all | sort -u
+    - name: Generate configure script
+      run:
+        ./build.sh
+    - name: Run configure script
+      run: ./configure $CONFIGURE_FLAGS
+    - name: Build collectd
+      run: make $MAKEFLAGS
+    - name: Run make check
+      # Make check is failing on a few newer distros, temporarily mark it as optional until that is resolved 
+      continue-on-error: true
+      run: make $MAKEFLAGS check
+    - name: Dump test logs
+      run: |
+          cat ./test-suite.log || true
+    - name: Install bzip2
+      run: |
+        yum install -y bzip2 || apt install -y bzip2
+    - name: Run make distcheck
+      run: |
+        make $MAKEFLAGS distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug $CONFIGURE_FLAGS"
+
