@@ -45,14 +45,22 @@
 #endif
 
 static void cs_submit(derive_t context_switches) {
-  value_list_t vl = VALUE_LIST_INIT;
+  metric_family_t fam = {
+      .name = "context_switches_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
 
-  vl.values = &(value_t){.derive = context_switches};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "contextswitch", sizeof(vl.plugin));
-  sstrncpy(vl.type, "contextswitch", sizeof(vl.type));
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.counter = context_switches,
+                                    });
 
-  plugin_dispatch_values(&vl);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("contextswitch plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
+
+  metric_family_metric_reset(&fam);
 }
 
 static int cs_read(void) {
