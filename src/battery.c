@@ -340,7 +340,7 @@ static int battery_read(void) /* {{{ */
 
   return 0;
 } /* }}} int battery_read */
-  /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+/* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
 /* Reads a file which contains only a number (and optionally a trailing
