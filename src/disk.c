@@ -431,21 +431,23 @@ static int disk_read(void) {
   };
 #endif
 
-  metric_family_t *fams[] = {&fam_disk_read_bytes,
-                             &fam_disk_read_merged,
-                             &fam_disk_read_ops,
-                             &fam_disk_read_time,
-                             &fam_disk_write_bytes,
-                             &fam_disk_write_merged,
-                             &fam_disk_write_ops,
-                             &fam_disk_write_time,
-                             &fam_disk_io_time,
-                             &fam_disk_io_weighted_time,
-                             &fam_disk_pending_operations,
+  metric_family_t *fams[] = {
+    &fam_disk_read_bytes,
+    &fam_disk_read_merged,
+    &fam_disk_read_ops,
+    &fam_disk_read_time,
+    &fam_disk_write_bytes,
+    &fam_disk_write_merged,
+    &fam_disk_write_ops,
+    &fam_disk_write_time,
+    &fam_disk_io_time,
+    &fam_disk_io_weighted_time,
+    &fam_disk_pending_operations,
 #if KERNEL_LINUX
-                             &fam_disk_utilization,
+    &fam_disk_utilization,
 #endif
-                             NULL};
+    NULL
+  };
 
 #if HAVE_IOKIT_IOKITLIB_H
   io_registry_entry_t disk;
