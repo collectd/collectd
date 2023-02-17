@@ -265,6 +265,12 @@ Features
       Collects CPU usage, memory usage, temperatures and power consumption from
       Intel Many Integrated Core (MIC) CPUs.
 
+    - mmc
+      Reads the life time estimates reported by eMMC 5.0+ devices and some more
+      detailed health metrics, like bad block and erase counts or power cycles,
+      for micron and sandisk eMMCs and some swissbit mmc Cards (MANFID=0x5D
+      OEMID=0x5342).
+
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.

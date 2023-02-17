@@ -6611,6 +6611,7 @@ plugin_log_logstash="no"
 plugin_mcelog="no"
 plugin_mdevents="no"
 plugin_memory="no"
+plugin_mmc="no"
 plugin_multimeter="no"
 plugin_netstat_udp="no"
 plugin_nfs="no"
@@ -6930,6 +6931,10 @@ if test "x$have_termios_h" = "xyes"; then
   plugin_ted="yes"
 fi
 
+if test "x$with_libudev" = "xyes"; then
+  plugin_mmc="yes"
+fi
+
 if test "x$have_thread_info" = "xyes"; then
   plugin_processes="yes"
 fi
@@ -7092,6 +7097,7 @@ AC_PLUGIN([memory],              [$plugin_memory],            [Memory usage])
 AC_PLUGIN([mic],                 [$with_mic],                 [Intel Many Integrated Core stats])
 AC_PLUGIN([modbus],              [$with_libmodbus],           [Modbus plugin])
 AC_PLUGIN([mqtt],                [$with_libmosquitto],        [MQTT output plugin])
+AC_PLUGIN([mmc],                 [$plugin_mmc],               [MMC statistics])
 AC_PLUGIN([multimeter],          [$plugin_multimeter],        [Read multimeter values])
 AC_PLUGIN([mysql],               [$with_libmysql],            [MySQL statistics])
 AC_PLUGIN([netapp],              [$with_libnetapp],           [NetApp plugin])
@@ -7536,6 +7542,7 @@ AC_MSG_RESULT([    memcachec . . . . . . $enable_memcachec])
 AC_MSG_RESULT([    memcached . . . . . . $enable_memcached])
 AC_MSG_RESULT([    memory  . . . . . . . $enable_memory])
 AC_MSG_RESULT([    mic . . . . . . . . . $enable_mic])
+AC_MSG_RESULT([    mmc . . . . . . . . . $enable_mmc])
 AC_MSG_RESULT([    modbus  . . . . . . . $enable_modbus])
 AC_MSG_RESULT([    mqtt  . . . . . . . . $enable_mqtt])
 AC_MSG_RESULT([    multimeter  . . . . . $enable_multimeter])

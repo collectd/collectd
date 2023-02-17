@@ -75,8 +75,12 @@
 #include <sys/protosw.h>
 #endif
 
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000) // Before macOS 12 Monterey
+#define IOMainPort IOMasterPort
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H
-static mach_port_t io_master_port = MACH_PORT_NULL;
+static mach_port_t io_main_port = MACH_PORT_NULL;
 /* This defaults to false for backwards compatibility. Please fix in the next
  * major version. */
 static bool use_bsd_name;
@@ -102,6 +106,8 @@ typedef struct diskstats {
 
   derive_t avg_read_time;
   derive_t avg_write_time;
+
+  derive_t io_time;
 
   bool has_merged;
   bool has_in_progress;
@@ -205,18 +211,18 @@ static int disk_init(void) {
 #if HAVE_IOKIT_IOKITLIB_H
   kern_return_t status;
 
-  if (io_master_port != MACH_PORT_NULL) {
-    mach_port_deallocate(mach_task_self(), io_master_port);
-    io_master_port = MACH_PORT_NULL;
+  if (io_main_port != MACH_PORT_NULL) {
+    mach_port_deallocate(mach_task_self(), io_main_port);
+    io_main_port = MACH_PORT_NULL;
   }
 
-  status = IOMasterPort(MACH_PORT_NULL, &io_master_port);
+  status = IOMainPort(MACH_PORT_NULL, &io_main_port);
   if (status != kIOReturnSuccess) {
-    ERROR("IOMasterPort failed: %s", mach_error_string(status));
-    io_master_port = MACH_PORT_NULL;
+    ERROR("IOMainPort failed: %s", mach_error_string(status));
+    io_main_port = MACH_PORT_NULL;
     return -1;
   }
-    /* #endif HAVE_IOKIT_IOKITLIB_H */
+  /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
 #if HAVE_LIBUDEV_H
@@ -228,7 +234,7 @@ static int disk_init(void) {
     }
   }
 #endif /* HAVE_LIBUDEV_H */
-    /* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
   int rv;
@@ -243,7 +249,7 @@ static int disk_init(void) {
     ERROR("geom_stats_open() failed, returned %d", rv);
     return -1;
   }
-    /* #endif KERNEL_FREEBSD */
+  /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp_chain;
@@ -301,56 +307,6 @@ static int disk_shutdown(void) {
 #endif /* KERNEL_LINUX */
   return 0;
 } /* int disk_shutdown */
-
-static void disk_submit(const char *plugin_instance, const char *type,
-                        derive_t read, derive_t write) {
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[] = {
-      {.derive = read},
-      {.derive = write},
-  };
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
-} /* void disk_submit */
-
-#if KERNEL_FREEBSD || (HAVE_SYSCTL && KERNEL_NETBSD) || KERNEL_LINUX
-static void submit_io_time(char const *plugin_instance, derive_t io_time,
-                           derive_t weighted_time) {
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[] = {
-      {.derive = io_time},
-      {.derive = weighted_time},
-  };
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "disk_io_time", sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
-} /* void submit_io_time */
-#endif /* KERNEL_FREEBSD || (HAVE_SYSCTL && KERNEL_NETBSD) || KERNEL_LINUX */
-
-#if KERNEL_FREEBSD || KERNEL_LINUX
-static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.gauge = in_progress};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, disk_name, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "pending_operations", sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
-}
-#endif /* KERNEL_FREEBSD || KERNEL_LINUX */
 
 #if KERNEL_LINUX
 static counter_t disk_calc_time_incr(counter_t delta_time,
@@ -424,6 +380,75 @@ static signed long long dict_get_value(CFDictionaryRef dict, const char *key) {
 #endif /* HAVE_IOKIT_IOKITLIB_H */
 
 static int disk_read(void) {
+  metric_family_t fam_disk_read_bytes = {
+      .name = "disk_read_bytes_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_read_merged = {
+      .name = "disk_read_merged_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_read_ops = {
+      .name = "disk_read_ops_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_read_time = {
+      .name = "disk_read_time_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_write_bytes = {
+      .name = "disk_write_bytes_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_write_merged = {
+      .name = "disk_write_merged_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_write_ops = {
+      .name = "disk_write_ops_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_write_time = {
+      .name = "disk_write_time_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_io_time = {
+      .name = "disk_io_time_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_io_weighted_time = {
+      .name = "disk_io_weighted_time_total",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_t fam_disk_pending_operations = {
+      .name = "disk_pending_operations",
+      .type = METRIC_TYPE_GAUGE,
+  };
+#if KERNEL_LINUX
+  metric_family_t fam_disk_utilization = {
+      .name = "disk_utilization",
+      .type = METRIC_TYPE_GAUGE,
+  };
+#endif
+
+  metric_family_t *fams[] = {
+    &fam_disk_read_bytes,
+    &fam_disk_read_merged,
+    &fam_disk_read_ops,
+    &fam_disk_read_time,
+    &fam_disk_write_bytes,
+    &fam_disk_write_merged,
+    &fam_disk_write_ops,
+    &fam_disk_write_time,
+    &fam_disk_io_time,
+    &fam_disk_io_weighted_time,
+    &fam_disk_pending_operations,
+#if KERNEL_LINUX
+    &fam_disk_utilization,
+#endif
+    NULL
+  };
+
 #if HAVE_IOKIT_IOKITLIB_H
   io_registry_entry_t disk;
   io_registry_entry_t disk_child;
@@ -443,7 +468,7 @@ static int disk_read(void) {
 
   /* Get the list of all disk objects. */
   if (IOServiceGetMatchingServices(
-          io_master_port, IOServiceMatching(kIOBlockStorageDriverClass),
+          io_main_port, IOServiceMatching(kIOBlockStorageDriverClass),
           &disk_list) != kIOReturnSuccess) {
     ERROR("disk plugin: IOServiceGetMatchingServices failed.");
     return -1;
@@ -560,12 +585,30 @@ static int disk_read(void) {
     IOObjectRelease(disk);
 
     /* and submit */
-    if ((read_byt != -1LL) || (write_byt != -1LL))
-      disk_submit(disk_name, "disk_octets", read_byt, write_byt);
-    if ((read_ops != -1LL) || (write_ops != -1LL))
-      disk_submit(disk_name, "disk_ops", read_ops, write_ops);
-    if ((read_tme != -1LL) || (write_tme != -1LL))
-      disk_submit(disk_name, "disk_time", read_tme / 1000, write_tme / 1000);
+    metric_t m = {0};
+    metric_label_set(&m, "device", disk_name);
+    if ((read_byt != -1LL) || (write_byt != -1LL)) {
+      m.value.counter = read_byt;
+      metric_family_metric_append(&fam_disk_read_bytes, m);
+
+      m.value.counter = write_byt;
+      metric_family_metric_append(&fam_disk_write_bytes, m);
+    }
+    if ((read_ops != -1LL) || (write_ops != -1LL)) {
+      m.value.counter = read_ops;
+      metric_family_metric_append(&fam_disk_read_ops, m);
+
+      m.value.counter = write_ops;
+      metric_family_metric_append(&fam_disk_write_ops, m);
+    }
+    if ((read_tme != -1LL) || (write_tme != -1LL)) {
+      m.value.counter = read_tme / 1000;
+      metric_family_metric_append(&fam_disk_read_time, m);
+
+      m.value.counter = write_tme / 1000;
+      metric_family_metric_append(&fam_disk_write_time, m);
+    }
+    metric_reset(&m);
   }
   IOObjectRelease(disk_list);
   /* #endif HAVE_IOKIT_IOKITLIB_H */
@@ -660,26 +703,36 @@ static int disk_read(void) {
     if (ignorelist_match(ignorelist, disk_name) != 0)
       continue;
 
+    metric_t m = {0};
+    metric_label_set(&m, "device", disk_name);
+
     if ((snap_iter->bytes[DEVSTAT_READ] != 0) ||
         (snap_iter->bytes[DEVSTAT_WRITE] != 0)) {
-      disk_submit(disk_name, "disk_octets",
-                  (derive_t)snap_iter->bytes[DEVSTAT_READ],
-                  (derive_t)snap_iter->bytes[DEVSTAT_WRITE]);
+      m.value.counter = (counter_t)snap_iter->bytes[DEVSTAT_READ];
+      metric_family_metric_append(&fam_disk_read_bytes, m);
+
+      m.value.counter = (counter_t)snap_iter->bytes[DEVSTAT_WRITE];
+      metric_family_metric_append(&fam_disk_write_bytes, m);
     }
 
     if ((snap_iter->operations[DEVSTAT_READ] != 0) ||
         (snap_iter->operations[DEVSTAT_WRITE] != 0)) {
-      disk_submit(disk_name, "disk_ops",
-                  (derive_t)snap_iter->operations[DEVSTAT_READ],
-                  (derive_t)snap_iter->operations[DEVSTAT_WRITE]);
+      m.value.counter = (counter_t)snap_iter->operations[DEVSTAT_READ];
+      metric_family_metric_append(&fam_disk_read_ops, m);
+
+      m.value.counter = (counter_t)snap_iter->operations[DEVSTAT_WRITE];
+      metric_family_metric_append(&fam_disk_write_ops, m);
     }
 
     read_time = devstat_compute_etime(&snap_iter->duration[DEVSTAT_READ], NULL);
     write_time =
         devstat_compute_etime(&snap_iter->duration[DEVSTAT_WRITE], NULL);
     if ((read_time != 0) || (write_time != 0)) {
-      disk_submit(disk_name, "disk_time", (derive_t)(read_time * 1000),
-                  (derive_t)(write_time * 1000));
+      m.value.counter = (counter_t)(read_time * 1000);
+      metric_family_metric_append(&fam_disk_read_time, m);
+
+      m.value.counter = (counter_t)(write_time * 1000);
+      metric_family_metric_append(&fam_disk_write_time, m);
     }
     if (devstat_compute_statistics(snap_iter, NULL, 1.0, DSM_TOTAL_BUSY_TIME,
                                    &busy_time, DSM_TOTAL_DURATION,
@@ -687,9 +740,16 @@ static int disk_read(void) {
                                    &queue_length, DSM_NONE) != 0) {
       WARNING("%s", devstat_errbuf);
     } else {
-      submit_io_time(disk_name, busy_time, total_duration);
-      submit_in_progress(disk_name, (gauge_t)queue_length);
+      m.value.counter = (counter_t)busy_time;
+      metric_family_metric_append(&fam_disk_io_time, m);
+
+      m.value.counter = (counter_t)total_duration;
+      metric_family_metric_append(&fam_disk_io_weighted_time, m);
+
+      m.value.gauge = (gauge_t)queue_length;
+      metric_family_metric_append(&fam_disk_pending_operations, m);
     }
+    metric_reset(&m);
   }
   geom_stats_snapshot_free(snap);
 
@@ -712,6 +772,7 @@ static int disk_read(void) {
   gauge_t in_progress = NAN;
   derive_t io_time = 0;
   derive_t weighted_time = 0;
+  derive_t diff_io_time = 0;
   int is_disk = 0;
 
   diskstats_t *ds, *pre_ds;
@@ -828,6 +889,11 @@ static int disk_read(void) {
       else
         diff_write_time = write_time - ds->write_time;
 
+      if (io_time < ds->io_time)
+        diff_io_time = 1 + io_time + (UINT_MAX - ds->io_time);
+      else
+        diff_io_time = io_time - ds->io_time;
+
       if (diff_read_ops != 0)
         ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
       if (diff_write_ops != 0)
@@ -838,6 +904,7 @@ static int disk_read(void) {
       ds->read_time = read_time;
       ds->write_ops = write_ops;
       ds->write_time = write_time;
+      ds->io_time = io_time;
 
       if (read_merged || write_merged)
         ds->has_merged = true;
@@ -883,25 +950,62 @@ static int disk_read(void) {
 #endif
       continue;
     }
+    metric_t m = {0};
+    metric_label_set(&m, "device", output_name);
 
-    if ((ds->read_bytes != 0) || (ds->write_bytes != 0))
-      disk_submit(output_name, "disk_octets", ds->read_bytes, ds->write_bytes);
+    if ((ds->read_bytes != 0) || (ds->write_bytes != 0)) {
+      m.value.counter = (counter_t)ds->read_bytes;
+      metric_family_metric_append(&fam_disk_read_bytes, m);
 
-    if ((ds->read_ops != 0) || (ds->write_ops != 0))
-      disk_submit(output_name, "disk_ops", read_ops, write_ops);
+      m.value.counter = (counter_t)ds->write_bytes;
+      metric_family_metric_append(&fam_disk_write_bytes, m);
+    }
 
-    if ((ds->avg_read_time != 0) || (ds->avg_write_time != 0))
-      disk_submit(output_name, "disk_time", ds->avg_read_time,
-                  ds->avg_write_time);
+    if ((ds->read_ops != 0) || (ds->write_ops != 0)) {
+      m.value.counter = (counter_t)read_ops;
+      metric_family_metric_append(&fam_disk_read_ops, m);
+
+      m.value.counter = (counter_t)write_ops;
+      metric_family_metric_append(&fam_disk_write_ops, m);
+    }
+
+    if ((ds->avg_read_time != 0) || (ds->avg_write_time != 0)) {
+      m.value.counter = (counter_t)ds->avg_read_time;
+      metric_family_metric_append(&fam_disk_read_time, m);
+
+      m.value.counter = (counter_t)ds->avg_write_time;
+      metric_family_metric_append(&fam_disk_write_time, m);
+    }
 
     if (is_disk) {
-      if (ds->has_merged)
-        disk_submit(output_name, "disk_merged", read_merged, write_merged);
-      if (ds->has_in_progress)
-        submit_in_progress(output_name, in_progress);
-      if (ds->has_io_time)
-        submit_io_time(output_name, io_time, weighted_time);
+      if (ds->has_merged) {
+        m.value.counter = (counter_t)read_merged;
+        metric_family_metric_append(&fam_disk_read_merged, m);
+
+        m.value.counter = (counter_t)write_merged;
+        metric_family_metric_append(&fam_disk_write_merged, m);
+      }
+      if (ds->has_in_progress) {
+        m.value.gauge = in_progress;
+        metric_family_metric_append(&fam_disk_pending_operations, m);
+      }
+      if (ds->has_io_time) {
+        m.value.counter = (counter_t)io_time;
+        metric_family_metric_append(&fam_disk_io_time, m);
+      }
+      m.value.counter = (counter_t)weighted_time;
+      metric_family_metric_append(&fam_disk_io_weighted_time, m);
+
+      long interval = CDTIME_T_TO_MS(plugin_get_interval());
+      if (interval == 0) {
+        DEBUG("disk plugin: got zero plugin interval");
+      }
+
+      m.value.gauge = ((diff_io_time / (double)interval) * 100.0);
+      metric_family_metric_append(&fam_disk_utilization, m);
     } /* if (is_disk) */
+
+    metric_reset(&m);
 
 #if HAVE_LIBUDEV_H
     /* release udev-based alternate name, if allocated */
@@ -966,21 +1070,52 @@ static int disk_read(void) {
       if (ignorelist_match(ignorelist, ksp[i]->ks_name) != 0)
         continue;
 
-      disk_submit(ksp[i]->ks_name, "disk_octets", kio.KIO_ROCTETS,
-                  kio.KIO_WOCTETS);
-      disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
+      metric_t m = {0};
+      metric_label_set(&m, "device", ksp[i]->ks_name);
+
+      m.value.counter = kio.KIO_ROCTETS;
+      metric_family_metric_append(&fam_disk_read_bytes, m);
+
+      m.value.counter = kio.KIO_WOCTETS;
+      metric_family_metric_append(&fam_disk_write_bytes, m);
+
+      m.value.counter = kio.KIO_ROPS;
+      metric_family_metric_append(&fam_disk_read_ops, m);
+
+      m.value.counter = kio.KIO_WOPS;
+      metric_family_metric_append(&fam_disk_write_ops, m);
+
       /* FIXME: Convert this to microseconds if necessary */
-      disk_submit(ksp[i]->ks_name, "disk_time", kio.KIO_RTIME, kio.KIO_WTIME);
+      m.value.counter = kio.KIO_RTIME;
+      metric_family_metric_append(&fam_disk_read_time, m);
+
+      m.value.counter = kio.KIO_WTIME;
+      metric_family_metric_append(&fam_disk_write_time, m);
+
+      metric_reset(&m);
     } else if (strncmp(ksp[i]->ks_class, "partition", 9) == 0) {
       if (ignorelist_match(ignorelist, ksp[i]->ks_name) != 0)
         continue;
 
-      disk_submit(ksp[i]->ks_name, "disk_octets", kio.KIO_ROCTETS,
-                  kio.KIO_WOCTETS);
-      disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
+      metric_t m = {0};
+      metric_label_set(&m, "device", ksp[i]->ks_name);
+
+      m.value.counter = kio.KIO_ROCTETS;
+      metric_family_metric_append(&fam_disk_read_bytes, m);
+
+      m.value.counter = kio.KIO_WOCTETS;
+      metric_family_metric_append(&fam_disk_write_bytes, m);
+
+      m.value.counter = kio.KIO_ROPS;
+      metric_family_metric_append(&fam_disk_read_ops, m);
+
+      m.value.counter = kio.KIO_WOPS;
+      metric_family_metric_append(&fam_disk_write_ops, m);
+
+      metric_reset(&m);
     }
   }
-    /* #endif defined(HAVE_LIBKSTAT) */
+  /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_disk_io_stats *ds;
@@ -1003,11 +1138,19 @@ static int disk_read(void) {
       ds++;
       continue;
     }
+    metric_t m = {0};
+    metric_label_set(&m, "device", name);
 
-    disk_submit(name, "disk_octets", ds->read_bytes, ds->write_bytes);
+    m.value.counter = ds->read_bytes;
+    metric_family_metric_append(&fam_disk_read_bytes, m);
+
+    m.value.counter = ds->write_bytes;
+    metric_family_metric_append(&fam_disk_write_bytes, m);
+
+    metric_reset(&m);
     ds++;
   }
-    /* #endif defined(HAVE_LIBSTATGRAB) */
+  /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
   derive_t read_sectors;
@@ -1040,24 +1183,40 @@ static int disk_read(void) {
   for (int i = 0; i < rnumdisk; i++) {
     if (ignorelist_match(ignorelist, stat_disk[i].name) != 0)
       continue;
+    metric_t m = {0};
+    metric_label_set(&m, "device", stat_disk[i].name);
 
     read_sectors = stat_disk[i].rblks * stat_disk[i].bsize;
+    m.value.counter = (counter_t)read_sectors;
+    metric_family_metric_append(&fam_disk_read_bytes, m);
+
     write_sectors = stat_disk[i].wblks * stat_disk[i].bsize;
-    disk_submit(stat_disk[i].name, "disk_octets", read_sectors, write_sectors);
+    m.value.counter = (counter_t)write_sectors;
+    metric_family_metric_append(&fam_disk_write_bytes, m);
 
     read_ops = stat_disk[i].xrate;
+    m.value.counter = (counter_t)read_ops;
+    metric_family_metric_append(&fam_disk_read_ops, m);
+
     write_ops = stat_disk[i].xfers - stat_disk[i].xrate;
-    disk_submit(stat_disk[i].name, "disk_ops", read_ops, write_ops);
+    m.value.counter = (counter_t)write_ops;
+    metric_family_metric_append(&fam_disk_write_ops, m);
 
     read_time = stat_disk[i].rserv;
     read_time *= ((double)(_system_configuration.Xint) /
                   (double)(_system_configuration.Xfrac)) /
                  1000000.0;
+    m.value.counter = (counter_t)read_time;
+    metric_family_metric_append(&fam_disk_read_time, m);
+
     write_time = stat_disk[i].wserv;
     write_time *= ((double)(_system_configuration.Xint) /
                    (double)(_system_configuration.Xfrac)) /
                   1000000.0;
-    disk_submit(stat_disk[i].name, "disk_time", read_time, write_time);
+    m.value.counter = (counter_t)write_time;
+    metric_family_metric_append(&fam_disk_write_time, m);
+
+    metric_reset(&m);
   }
 /* #endif defined(HAVE_PERFSTAT) */
 #elif HAVE_SYSCTL && KERNEL_NETBSD
@@ -1103,13 +1262,38 @@ static int disk_read(void) {
     if (ignorelist_match(ignorelist, drives[i].name))
       continue;
 
-    disk_submit(drives[i].name, "disk_octets", drives[i].rbytes,
-                drives[i].wbytes);
-    disk_submit(drives[i].name, "disk_ops", drives[i].rxfer, drives[i].wxfer);
-    submit_io_time(drives[i].name,
-                   drives[i].time_sec * 1000 + drives[i].time_usec / 1000, 0);
+    metric_t m = {0};
+    metric_label_set(&m, "device", drives[i].name);
+
+    m.value.counter = drives[i].rbytes;
+    metric_family_metric_append(&fam_disk_read_bytes, m);
+
+    m.value.counter = drives[i].wbytes;
+    metric_family_metric_append(&fam_disk_write_bytes, m);
+
+    m.value.counter = drives[i].rxfer;
+    metric_family_metric_append(&fam_disk_read_ops, m);
+
+    m.value.counter = drives[i].wxfer;
+    metric_family_metric_append(&fam_disk_write_ops, m);
+
+    m.value.counter = drives[i].time_sec * 1000 + drives[i].time_usec / 1000;
+    metric_family_metric_append(&fam_disk_io_time, m);
+
+    metric_reset(&m);
   }
 #endif /* HAVE_SYSCTL && KERNEL_NETBSD */
+
+  for (size_t i = 0; fams[i] != NULL; i++) {
+    if (fams[i]->metric.num > 0) {
+      int status = plugin_dispatch_metric_family(fams[i]);
+      if (status != 0) {
+        ERROR("disk: plugin_dispatch_metric_family failed: %s",
+              STRERROR(status));
+      }
+      metric_family_metric_reset(fams[i]);
+    }
+  }
 
   return 0;
 } /* int disk_read */
