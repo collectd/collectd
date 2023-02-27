@@ -568,7 +568,7 @@ static int fc_bit_jump_destroy(void **user_data) /* {{{ */
   return 0;
 } /* }}} int fc_bit_jump_destroy */
 
-static int fc_bit_jump_invoke(metric_family_t *fam,
+static int fc_bit_jump_invoke(metric_family_t const *fam,
                               notification_meta_t __attribute__((unused)) *
                                   *meta,
                               void **user_data) {
@@ -598,14 +598,16 @@ static int fc_bit_jump_invoke(metric_family_t *fam,
     return FC_TARGET_CONTINUE;
 } /* }}} int fc_bit_jump_invoke */
 
-static int fc_bit_stop_invoke(__attribute__((unused)) metric_family_t *fam,
+static int fc_bit_stop_invoke(__attribute__((unused))
+                              metric_family_t const *fam,
                               __attribute__((unused))
                               notification_meta_t **meta,
                               __attribute__((unused)) void **user_data) {
   return FC_TARGET_STOP;
 } /* }}} int fc_bit_stop_invoke */
 
-static int fc_bit_return_invoke(__attribute__((unused)) metric_family_t *fam,
+static int fc_bit_return_invoke(__attribute__((unused))
+                                metric_family_t const *fam,
                                 __attribute__((unused))
                                 notification_meta_t **meta,
                                 __attribute__((unused)) void **user_data) {
@@ -678,7 +680,7 @@ static int fc_bit_write_destroy(void **user_data) /* {{{ */
   return 0;
 } /* }}} int fc_bit_write_destroy */
 
-static int fc_bit_write_invoke(metric_family_t *fam,
+static int fc_bit_write_invoke(metric_family_t const *fam,
                                __attribute__((unused))
                                notification_meta_t **meta,
                                void **user_data) {
@@ -849,7 +851,7 @@ fc_chain_t *fc_chain_get_by_name(const char *chain_name) /* {{{ */
   return NULL;
 } /* }}} int fc_chain_get_by_name */
 
-int fc_process_chain(metric_family_t *fam, /* {{{ */
+int fc_process_chain(metric_family_t const *fam, /* {{{ */
                      fc_chain_t *chain) {
   fc_target_t *target;
   int status = FC_TARGET_CONTINUE;
@@ -969,7 +971,7 @@ int fc_process_chain(metric_family_t *fam, /* {{{ */
 
 /* Iterate over all rules in the chain and execute all targets for which all
  * matches match. */
-int fc_default_action(metric_family_t *fam) /* {{{ */
+int fc_default_action(metric_family_t const *fam) /* {{{ */
 {
   /* FIXME: Pass the meta-data to match targets here (when implemented). */
   return fc_bit_write_invoke(fam, NULL, NULL);

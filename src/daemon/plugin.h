@@ -243,21 +243,19 @@ int plugin_shutdown_all(void);
  *  plugin_write
  *
  * DESCRIPTION
- *  Calls the write function of the given plugin with the provided data set and
- *  value list. It differs from `plugin_dispatch_values' in that it does not
- *  update the cache, does not do threshold checking, call the chain subsystem
- *  and so on. It looks up the requested plugin and invokes the function, end
- *  of story.
+ *  Directly enqueues the given metric family without updating the cache or
+ *  calling the chain subsystem. The metric family may still be dropped from
+ *  the queue if collectd is stopped or the queue length surpasses the
+ *  configured limit.
  *
  * ARGUMENTS
  *  plugin     Name of the plugin. If NULL, the value is sent to all registered
  *             write functions.
- *  m   The actual value to be processed. Must not be NULL.
+ *  fam   The actual metric family to be processed. Must not be NULL.
  *
  * RETURN VALUE
- *  Returns zero upon success or non-zero if an error occurred. If `plugin' is
- *  NULL and more than one plugin is called, an error is only returned if *all*
- *  plugins fail.
+ *  Returns zero if the metric family was sucessfully enqueued or non-zero if
+ *  an error occurred.
  *
  * NOTES
  *  This is the function used by the `write' built-in target. May be used by

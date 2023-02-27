@@ -43,7 +43,6 @@
 #MaxReadInterval 86400
 #Timeout         2
 #ReadThreads     5
-#WriteThreads    5
 
 # Limit the size of the write queue. Default is no limit. Setting up a limit is
 # recommended for servers handling a high volume of traffic.
@@ -1054,6 +1053,11 @@
 #<Plugin memory>
 #	ValuesAbsolute true
 #	ValuesPercentage false
+#</Plugin>
+
+#<Plugin mmc>
+#	Device "mmc0"
+#	IgnoreSelected false
 #</Plugin>
 
 #<Plugin modbus>
