@@ -211,6 +211,10 @@ static int vmem_read(void) {
       char *inst = key + strlen("pgsteal_");
       value_t value = {.derive = counter};
       submit_one(inst, "vmpage_action", "steal", value);
+    } else if (strncmp("pgscan_", key, strlen("pgscan_")) == 0) {
+      char *inst = key + strlen("pgscan_");
+      value_t value = {.derive = counter};
+      submit_one(inst, "vmpage_action", "scan", value);
     } else if (strncmp("pgscan_kswapd_", key, strlen("pgscan_kswapd_")) == 0) {
       char *inst = key + strlen("pgscan_kswapd_");
       value_t value = {.derive = counter};
