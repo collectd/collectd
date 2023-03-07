@@ -151,6 +151,7 @@ ipt_bytes               value:DERIVE:0:U
 ipt_packets             value:DERIVE:0:U
 irq                     value:DERIVE:0:U
 job_stats               value:DERIVE:0:U
+lag                     value:DERIVE:0:U
 latency                 value:GAUGE:0:U
 links                   value:GAUGE:0:U
 load                    shortterm:GAUGE:0:5000, midterm:GAUGE:0:5000, longterm:GAUGE:0:5000
