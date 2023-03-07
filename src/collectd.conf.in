@@ -205,6 +205,7 @@
 #@BUILD_PLUGIN_SMART_TRUE@LoadPlugin smart
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 #@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent
+#@BUILD_PLUGIN_SNMP6_TRUE@LoadPlugin snmp6
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_SYSEVENT_TRUE@LoadPlugin sysevent
@@ -1730,6 +1731,11 @@
 #  TimerUpper     false
 #  TimerSum       false
 #  TimerCount     false
+#</Plugin>
+
+#<Plugin snmp6>
+#	Interface "eth0"
+#	IgnoreSelected false
 #</Plugin>
 
 #<Plugin swap>

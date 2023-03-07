@@ -132,6 +132,8 @@ if_dropped              rx:DERIVE:0:U, tx:DERIVE:0:U
 if_errors               rx:DERIVE:0:U, tx:DERIVE:0:U
 if_multicast            value:DERIVE:0:U
 if_octets               rx:DERIVE:0:U, tx:DERIVE:0:U
+if_octets_mcast         rx:DERIVE:0:U, tx:DERIVE:0:U
+if_octets_bcast         rx:DERIVE:0:U, tx:DERIVE:0:U
 if_packets              rx:DERIVE:0:U, tx:DERIVE:0:U
 if_rx_dropped           value:DERIVE:0:U
 if_rx_errors            value:DERIVE:0:U

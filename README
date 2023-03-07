@@ -428,6 +428,10 @@ Features
       network devices such as switches, routers, thermometers, rack monitoring
       servers, etc. See collectd-snmp(5).
 
+    - snmp6
+      Read values from SNMP6 (Simple Network Management Protocol). Supports pure
+      IPv6 interface statistics.
+
     - statsd
       Acts as a StatsD server, reading values sent over the network from StatsD
       clients and calculating rates and other aggregates out of these values.
