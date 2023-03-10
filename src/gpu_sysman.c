@@ -2060,6 +2060,7 @@ static bool gpu_powers(gpu_device_t *gpu) {
   };
   metric_t metric = {0};
 
+  ze_result_t limit_ret = ZE_RESULT_SUCCESS;
   bool reported_ratio = false, reported_power = false, reported_energy = false;
   bool ratio_fail = false;
   bool ok = false;
@@ -2109,8 +2110,8 @@ static bool gpu_powers(gpu_device_t *gpu) {
          * Switch to querying list of limits after Sysman plugin starts
          * requiring that spec version / loader.
          */
-        if (ret = zesPowerGetLimits(powers[i], &sustain, &burst, NULL),
-            ret == ZE_RESULT_SUCCESS) {
+        if (limit_ret = zesPowerGetLimits(powers[i], &sustain, &burst, NULL),
+            limit_ret == ZE_RESULT_SUCCESS) {
           const char *name;
           int32_t limit = 0;
           /* Multiply by 1000, as sustain interval is in ms & power in mJ/s,
@@ -2155,7 +2156,7 @@ static bool gpu_powers(gpu_device_t *gpu) {
     if (ok) {
       WARNING(PLUGIN_NAME ": failed to get power limit(s) "
                           "for any of the %d domain(s), last error = 0x%x",
-              power_count, ret);
+              power_count, limit_ret);
     }
   }
   free(powers);
