@@ -343,6 +343,7 @@ static int wg_flush_nolock(cdtime_t timeout, wg_callback_t *cb) /* {{{ */
   char *payload = sd_output_reset(cb->formatter);
   int status = wg_call_timeseries_write(cb, payload);
   wg_reset_buffer(cb);
+  sfree(payload);
   return status;
 } /* }}} wg_flush_nolock */
 
