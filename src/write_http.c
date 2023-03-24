@@ -92,6 +92,8 @@ struct wh_callback_s {
   char *metrics_prefix;
 
   char *unix_socket_path;
+
+  size_t reference_count;
 };
 typedef struct wh_callback_s wh_callback_t;
 
@@ -309,6 +311,17 @@ static void wh_callback_free(void *data) {
     return;
 
   wh_callback_t *cb = data;
+
+  /* cb is used as user_data in:
+   * - plugin_register_write
+   * - plugin_register_flush
+   * - plugin_register_notification
+   * We can not rely on them being torn down in a known order.
+   * Only actually free the structure when all references are dropped. */
+  cb->reference_count--;
+
+  if (cb->reference_count)
+    return;
 
   wh_flush(/* timeout = */ 0, NULL, &(user_data_t){.data = cb});
 
@@ -544,6 +557,7 @@ static int wh_config_node(oconfig_item_t *ci) {
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
   cb->curl_stats = NULL;
   cb->unix_socket_path = NULL;
+  cb->reference_count = 1;
 
   if (cb->metrics_prefix == NULL) {
     ERROR("write_http plugin: strdup failed.");
@@ -700,16 +714,22 @@ static int wh_config_node(oconfig_item_t *ci) {
     ctx.flush_interval = plugin_get_interval();
     plugin_set_ctx(ctx);
 
+    cb->reference_count++;
     plugin_register_write(callback_name, wh_write, &user_data);
-    user_data.free_func = NULL;
 
+    cb->reference_count++;
     plugin_register_flush(callback_name, wh_flush, &user_data);
   }
 
   if (cb->send_notifications) {
+    cb->reference_count++;
     plugin_register_notification(callback_name, wh_notify, &user_data);
-    user_data.free_func = NULL;
   }
+
+  /* Drop the reference used in wh_config_node().
+   * `cb` will actually be freed once all references held in the callback
+   * handlers are dropped as well. */
+  wh_callback_free(cb);
 
   return 0;
 } /* int wh_config_node */
