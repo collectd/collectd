@@ -77,6 +77,9 @@ typedef enum {
   COLLECTD_MEMORY_TYPE_LOCKED,
   COLLECTD_MEMORY_TYPE_ARC,
   COLLECTD_MEMORY_TYPE_UNUSED,
+  COLLECTD_MEMORY_TYPE_AVAILABLE,
+  COLLECTD_MEMORY_TYPE_USER_WIRE,
+  COLLECTD_MEMORY_TYPE_LAUNDRY,
   COLLECTD_MEMORY_TYPE_MAX, /* #states */
 } memory_type_t;
 
@@ -95,6 +98,9 @@ static char const *memory_type_names[COLLECTD_MEMORY_TYPE_MAX] = {
     "locked",
     "arc",
     "unusable",
+    "available",
+    "user_wire",
+    "laundry",
 };
 
 /* vm_statistics_data_t */
@@ -354,6 +360,8 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
    * vm.stats.vm.v_active_count: 55239
    * vm.stats.vm.v_inactive_count: 113730
    * vm.stats.vm.v_cache_count: 10809
+   * vm.stats.vm.v_user_wire_count: 0
+   * vm.stats.vm.v_laundry_count: 40394
    */
   struct {
     char const *sysctl_key;
@@ -365,6 +373,8 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
       {"vm.stats.vm.v_active_count", COLLECTD_MEMORY_TYPE_ACTIVE},
       {"vm.stats.vm.v_inactive_count", COLLECTD_MEMORY_TYPE_INACTIVE},
       {"vm.stats.vm.v_cache_count", COLLECTD_MEMORY_TYPE_CACHED},
+      {"vm.stats.vm.v_user_wire_count", COLLECTD_MEMORY_TYPE_USER_WIRE},
+      {"vm.stats.vm.v_laundry_count", COLLECTD_MEMORY_TYPE_LAUNDRY},
   };
 
   gauge_t pagesize = 0;
@@ -427,16 +437,26 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
       mem_not_used += v;
     } else if (strcmp(fields[0], "Slab:") == 0) {
       values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL] = v;
-      mem_not_used += v;
     } else if (strcmp(fields[0], "SReclaimable:") == 0) {
       values[COLLECTD_MEMORY_TYPE_SLAB_RECL] = v;
     } else if (strcmp(fields[0], "SUnreclaim:") == 0) {
       values[COLLECTD_MEMORY_TYPE_SLAB_UNRECL] = v;
+    } else if (strcmp(fields[0], "MemAvailable:") == 0) {
+      values[COLLECTD_MEMORY_TYPE_AVAILABLE] = v;
     }
   }
 
   if (fclose(fh)) {
     WARNING("memory plugin: fclose failed: %s", STRERRNO);
+  }
+
+  /* If SReclaimable (introduced in kernel 2.6.19) is available count it
+   * (but not SUnreclaim) towards the unused memory.
+   * If we do not have detailed slab info count the total as unused. */
+  if (!isnan(values[COLLECTD_MEMORY_TYPE_SLAB_RECL])) {
+    mem_not_used += values[COLLECTD_MEMORY_TYPE_SLAB_RECL];
+  } else if (!isnan(values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL])) {
+    mem_not_used += values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL];
   }
 
   if (isnan(mem_total) || (mem_total == 0) || (mem_total < mem_not_used)) {

@@ -166,7 +166,7 @@ The following metrics are reported:
 =item C<collectd-write_queue/queue_length>
 
 The number of metrics currently in the write queue. You can limit the queue
-length with the B<WriteQueueLimitLow> and B<WriteQueueLimitHigh> options.
+length with the and B<WriteQueueLimitHigh> option.
 
 =item C<collectd-write_queue/derive-dropped>
 
@@ -282,12 +282,6 @@ you may want to increase this if you have more than five plugins that take a
 long time to read. Mostly those are plugins that do network-IO. Setting this to
 a value higher than the number of registered read callbacks is not recommended.
 
-=item B<WriteThreads> I<Num>
-
-Number of threads to start for dispatching value lists to write plugins. The
-default value is B<5>, but you may want to increase this if you have more than
-five plugins that may take relatively long to write to.
-
 =item B<WriteQueueLimitHigh> I<HighNum>
 
 =item B<WriteQueueLimitLow> I<LowNum>
@@ -303,20 +297,21 @@ likely not an issue for clients, i.e. instances that only handle the local
 metrics. For servers it is recommended to set this to a non-zero value, though.
 
 You can set the limits using B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>.
-Each of them takes a numerical argument which is the number of metrics in the
-queue. If there are I<HighNum> metrics in the queue, any new metrics I<will> be
-dropped. If there are less than I<LowNum> metrics in the queue, all new metrics
-I<will> be enqueued. If the number of metrics currently in the queue is between
-I<LowNum> and I<HighNum>, the metric is dropped with a probability that is
-proportional to the number of metrics in the queue (i.e. it increases linearly
-until it reaches 100%.)
+Each of them takes a numerical argument which correspond to the number of
+metrics in the queue.
+If there are B<HighNum> metrics in the queue a random element from the queue
+will be dropped. An exception from the random selection of elements to drop are
+the B<LowNum> most recent elements, which will never be dropped.
+Spreading the loss over the B<LowNum> - B<HighNum> range of least recent
+elements avoids large time gaps in the data on write hiccups.
+This way one miss-behaving write plugin is less likely to result in dropped
+values for well-behaved write plugins.
 
 If B<WriteQueueLimitHigh> is set to non-zero and B<WriteQueueLimitLow> is
 unset, the latter will default to half of B<WriteQueueLimitHigh>.
 
-If you do not want to randomly drop values when the queue size is between
-I<LowNum> and I<HighNum>, set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>
-to the same value.
+If you want to deterministically drop the oldest elements instead of random
+ones, set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to the same value.
 
 Enabling the B<CollectInternalStats> option is of great help to figure out the
 values to set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to.
@@ -3725,7 +3720,8 @@ sampled values is disabled, it is better to set Samples to 1
 =item B<LogGpuInfo>
 
 If enabled, plugin logs at start some information about plugin
-settings and all the GPUs detected through Sysman API.
+settings and all the GPUs detected through Sysman API, and enables
+"pci_dev" PCI device ID label for the metrics.
 
 =item B<MetricsOutput>
 
@@ -3763,6 +3759,10 @@ Disable memory usage metrics collection.
 =item B<DisableMemoryBandwidth>
 
 Disable memory bandwidth metrics collection.
+
+=item B<DisableFabric>
+
+Disable fabric port metrics collection.
 
 =item B<DisableFrequency>
 
