@@ -1936,6 +1936,8 @@ EXPORT int plugin_write(const char *plugin, metric_family_t const *fam) {
     return EINVAL;
   }
 
+  /* Create a copy of the metric_family_t so we can metric_family_free() it
+   * ourself once it is processed. */
   metric_family_t *fam_copy = metric_family_clone(fam);
   if (fam_copy == NULL) {
     int status = errno;
@@ -1943,22 +1945,9 @@ EXPORT int plugin_write(const char *plugin, metric_family_t const *fam) {
     return status;
   }
 
-  cdtime_t time = cdtime();
-  cdtime_t interval = plugin_get_interval();
-
-  for (size_t i = 0; i < fam_copy->metric.num; i++) {
-    if (fam_copy->metric.ptr[i].time == 0) {
-      fam_copy->metric.ptr[i].time = time;
-    }
-    if (fam_copy->metric.ptr[i].interval == 0) {
-      fam_copy->metric.ptr[i].interval = interval;
-    }
-
-    /* TODO(octo): set target labels here. */
-  }
-
   write_queue_elem_t *elem = calloc(1, sizeof(*elem));
   if (elem == NULL) {
+    metric_family_free(fam_copy);
     return ENOMEM;
   }
 
@@ -2205,13 +2194,41 @@ EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
     return EINVAL;
   }
 
-  int status = plugin_dispatch_metric_internal(fam);
+  /* Create a copy of the metric_family_t so we can modify the time and
+   * interval without causing confusion when the callee later passes the same
+   * fam again. */
+  metric_family_t *fam_copy = metric_family_clone(fam);
+  if (fam_copy == NULL) {
+    int status = errno;
+    ERROR("plugin_dispatch_metric_family: metric_family_clone failed: %s",
+          STRERROR(status));
+    return status;
+  }
+
+  cdtime_t time = cdtime();
+  cdtime_t interval = plugin_get_interval();
+
+  for (size_t i = 0; i < fam_copy->metric.num; i++) {
+    if (fam_copy->metric.ptr[i].time == 0) {
+      fam_copy->metric.ptr[i].time = time;
+    }
+    if (fam_copy->metric.ptr[i].interval == 0) {
+      fam_copy->metric.ptr[i].interval = interval;
+    }
+
+    /* TODO(octo): set target labels here. */
+  }
+
+  int status = plugin_dispatch_metric_internal(fam_copy);
   if (status != 0) {
     ERROR(
         "plugin_dispatch_metric_family: plugin_dispatch_metric_internal failed "
         "with status %i (%s).",
         status, STRERROR(status));
   }
+
+  metric_family_free(fam_copy);
+
   return status;
 }
 
