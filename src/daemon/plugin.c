@@ -105,9 +105,9 @@ typedef struct write_queue_elem_s {
 typedef struct write_queue_thread_s {
   bool loop;
   long queue_length;
-  const char *name;
+  char *name;
   plugin_write_cb callback;
-  user_data_t *ud;
+  user_data_t ud;
   pthread_t thread;
   write_queue_elem_t *head;
   struct write_queue_thread_s *next;
@@ -905,7 +905,7 @@ static void *plugin_write_thread(void *args) /* {{{ */
       plugin_set_ctx(ctx);
 
       /* TODO(lgo): do something with the return value? */
-      this_thread->callback(elem->family, this_thread->ud);
+      this_thread->callback(elem->family, &this_thread->ud);
 
       pthread_mutex_lock(&write_queue.lock);
     }
@@ -917,8 +917,11 @@ static void *plugin_write_thread(void *args) /* {{{ */
   DEBUG("plugin_write_thread(%s): teardown", this_thread->name);
 
   /* Cleanup before leaving */
-  free_userdata(this_thread->ud);
-  this_thread->ud = NULL;
+  free_userdata(&this_thread->ud);
+  this_thread->ud.data = NULL;
+  this_thread->ud.free_func = NULL;
+
+  sfree(this_thread->name);
 
   /* Drop references to all remaining queue elements */
   if (this_thread->head != NULL) {
@@ -1268,10 +1271,15 @@ EXPORT int plugin_register_write(const char *name, plugin_write_cb callback,
 
   this_thread->loop = true;
   this_thread->queue_length = 0;
-  this_thread->name = name;
+  this_thread->name = strdup(name);
   this_thread->callback = callback;
-  this_thread->ud = (user_data_t *)user_data;
   this_thread->head = NULL;
+
+  // If no user_data is passed the data and free_func pointers will be NULL
+  // due to the calloc() zero-initialization.
+  if (user_data) {
+    this_thread->ud = *user_data;
+  }
 
   pthread_mutex_lock(&write_queue.lock);
 
