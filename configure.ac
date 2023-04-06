@@ -974,6 +974,12 @@ if test "x$have_strptime" = "xyes" && test "x$c_cv_have_strptime_default" = "xno
               #ifndef _XOPEN_SOURCE
               # define _XOPEN_SOURCE 500
               #endif
+              # ifndef _BSD_SOURCE
+              #  define _BSD_SOURCE
+              # endif
+              # ifndef _DEFAULT_SOURCE
+              #  define _DEFAULT_SOURCE
+              # endif
               #include <time.h>
             ]],
             [[
@@ -1024,6 +1030,12 @@ AC_CACHE_CHECK([for timegm],
 # ifndef _XOPEN_SOURCE
 #  define _XOPEN_SOURCE 500
 # endif
+# ifndef _BSD_SOURCE
+#  define _BSD_SOURCE
+# endif
+# ifndef _DEFAULT_SOURCE
+#  define _DEFAULT_SOURCE
+# endif
 #endif
 #include <time.h>
 ]]],
@@ -1039,50 +1051,9 @@ AC_CACHE_CHECK([for timegm],
   )
 )
 
-if test "x$c_cv_have_timegm" != "xyes"
-then
-  AC_CACHE_CHECK([for timegm with _BSD_SOURCE],
-    [c_cv_have_timegm_bsd],
-    AC_LINK_IFELSE(
-      [AC_LANG_PROGRAM(
-[[[
-#if STRPTIME_NEEDS_STANDARDS
-# ifndef _ISOC99_SOURCE
-#  define _ISOC99_SOURCE 1
-# endif
-# ifndef _POSIX_C_SOURCE
-#  define _POSIX_C_SOURCE 200112L
-# endif
-# ifndef _XOPEN_SOURCE
-#  define _XOPEN_SOURCE 500
-# endif
-#endif
-#ifndef _BSD_SOURCE
-# define _BSD_SOURCE 1
-#endif
-#include <time.h>
-]]],
-[[[
- time_t t = timegm(&(struct tm){0});
- if (t == ((time_t) -1)) {
-   return 1;
- }
-]]]
-      )],
-      [c_cv_have_timegm_bsd="yes"
-       c_cv_have_timegm="yes"],
-      [c_cv_have_timegm_bsd="no"]
-    )
-  )
-fi
-
 if test "x$c_cv_have_timegm" = "xyes"
 then
   AC_DEFINE(HAVE_TIMEGM, 1, [Define if the timegm(3) function is available.])
-  if test "x$c_cv_have_timegm_bsd" = "xyes"
-  then
-    AC_DEFINE(TIMEGM_NEEDS_BSD, 1, [Set to true if timegm is only exported in BSD mode.])
-  fi
 fi
 
 CFLAGS="$SAVE_CFLAGS"
