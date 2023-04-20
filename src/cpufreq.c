@@ -31,20 +31,17 @@
 #endif
 #define MAX_AVAIL_FREQS "MaxAvailableFreqs"
 
-static int max_avail_freqs = 20;  // default MAX_AVAIL_FREQS
+static int max_avail_freqs = 20; // default MAX_AVAIL_FREQS
 static const char *config_keys[] = {MAX_AVAIL_FREQS};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static int cpufreq_config(char const *key, char const *value)
-{
-  if (strcasecmp(key, "MaxAvailableFreqs") == 0)
-  {
+static int cpufreq_config(char const *key, char const *value) {
+  if (strcasecmp(key, "MaxAvailableFreqs") == 0) {
     int freqs = strtol(value, NULL, 0);
     if (freqs == 0)
       return -1;
     max_avail_freqs = freqs;
-  }
-  else
+  } else
     return -1;
 
   return 0;
@@ -66,7 +63,8 @@ static void cpufreq_stats_init(void) {
   if (cpu_data == NULL)
     return;
   for (int i = 0; i < num_cpu; i++) {
-    cpu_data[i].time_state = calloc(max_avail_freqs, sizeof(value_to_rate_state_t));
+    cpu_data[i].time_state =
+        calloc(max_avail_freqs, sizeof(value_to_rate_state_t));
     if (cpu_data[i].time_state == NULL)
       return;
   }
@@ -273,6 +271,7 @@ static int cpufreq_read(void) {
 
 void module_register(void) {
   plugin_register_init("cpufreq", cpufreq_init);
-  plugin_register_config("cpufreq", cpufreq_config, config_keys, config_keys_num);
+  plugin_register_config("cpufreq", cpufreq_config, config_keys,
+                         config_keys_num);
   plugin_register_read("cpufreq", cpufreq_read);
 }
