@@ -29,14 +29,33 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #endif
+#define MAX_AVAIL_FREQS "MaxAvailableFreqs"
+
+static int max_avail_freqs = 20;  // default MAX_AVAIL_FREQS
+static const char *config_keys[] = {MAX_AVAIL_FREQS};
+static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+
+static int cpufreq_config(char const *key, char const *value)
+{
+  if (strcasecmp(key, "MaxAvailableFreqs") == 0)
+  {
+    int freqs = strtol(value, NULL, 0);
+    if (freqs == 0)
+      return -1;
+    max_avail_freqs = freqs;
+  }
+  else
+    return -1;
+
+  return 0;
+}
 
 #if KERNEL_LINUX
-#define MAX_AVAIL_FREQS 20
 
 static int num_cpu;
 
 struct cpu_data_t {
-  value_to_rate_state_t time_state[MAX_AVAIL_FREQS];
+  value_to_rate_state_t *time_state;
 } * cpu_data;
 
 /* Flags denoting capability of reporting CPU frequency statistics. */
@@ -46,6 +65,11 @@ static void cpufreq_stats_init(void) {
   cpu_data = calloc(num_cpu, sizeof(*cpu_data));
   if (cpu_data == NULL)
     return;
+  for (int i = 0; i < num_cpu; i++) {
+    cpu_data[i].time_state = calloc(max_avail_freqs, sizeof(value_to_rate_state_t));
+    if (cpu_data[i].time_state == NULL)
+      return;
+  }
 
   report_p_stats = true;
 
@@ -180,11 +204,11 @@ static void cpufreq_read_stats(int cpu) {
     char state[DATA_MAX_NAME_LEN];
     snprintf(state, sizeof(state), "%u", frequency);
 
-    if (state_index >= MAX_AVAIL_FREQS) {
+    if (state_index >= max_avail_freqs) {
       NOTICE("cpufreq plugin: Found too many frequency states (%d > %d). "
              "Plugin needs to be recompiled. Please open a bug report for "
              "this.",
-             (state_index + 1), MAX_AVAIL_FREQS);
+             (state_index + 1), max_avail_freqs);
       break;
     }
 
@@ -249,5 +273,6 @@ static int cpufreq_read(void) {
 
 void module_register(void) {
   plugin_register_init("cpufreq", cpufreq_init);
+  plugin_register_config("cpufreq", cpufreq_config, config_keys, config_keys_num);
   plugin_register_read("cpufreq", cpufreq_read);
 }

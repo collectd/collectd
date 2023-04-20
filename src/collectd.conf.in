@@ -428,7 +428,11 @@
 #  ReportGuestState false
 #  SubtractGuestState true
 #</Plugin>
-#
+
+#<Plugin cpufreq>
+#  MaxAvailableFreqs "20"
+#</Plugin>
+
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
