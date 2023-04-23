@@ -47,7 +47,7 @@ debian_default_toolchain_task:
       # debian/unstable is expected to fail
     - allow_failures: true
       skip_notifications: true
-      only_if: $CIRRUS_BRANCH == 'master'
+      only_if: $CIRRUS_BRANCH == 'main'
       container:
         image: collectd/ci:sid_amd64
   configure_script:
@@ -82,7 +82,7 @@ redhat_default_toolchain_task:
     # fedora/rawhide is expected to fail
     - allow_failures: true
       skip_notifications: true
-      only_if: $CIRRUS_BRANCH == 'master'
+      only_if: $CIRRUS_BRANCH == 'main'
       container:
         image: collectd/ci:fedora_rawhide_x86_64
   configure_script:
@@ -198,7 +198,7 @@ non_standard_toolchains_task:
 bleeding_edge_compilers_task:
   container:
     image: collectd/ci:sid_amd64
-  only_if: $CIRRUS_BRANCH == 'master'
+  only_if: $CIRRUS_BRANCH == 'main'
   allow_failures: true
   skip_notifications: true
   env:
