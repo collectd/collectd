@@ -29,25 +29,9 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #endif
-#define MAX_AVAIL_FREQS "MaxAvailableFreqs"
-
-static int max_avail_freqs = 20; // default MAX_AVAIL_FREQS
-static const char *config_keys[] = {MAX_AVAIL_FREQS};
-static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-
-static int cpufreq_config(char const *key, char const *value) {
-  if (strcasecmp(key, "MaxAvailableFreqs") == 0) {
-    int freqs = strtol(value, NULL, 0);
-    if (freqs == 0)
-      return -1;
-    max_avail_freqs = freqs;
-  } else
-    return -1;
-
-  return 0;
-}
 
 #if KERNEL_LINUX
+static int max_avail_freqs = 20; // default MAX_AVAIL_FREQS
 
 static int num_cpu;
 
@@ -62,12 +46,6 @@ static void cpufreq_stats_init(void) {
   cpu_data = calloc(num_cpu, sizeof(*cpu_data));
   if (cpu_data == NULL)
     return;
-  for (int i = 0; i < num_cpu; i++) {
-    cpu_data[i].time_state =
-        calloc(max_avail_freqs, sizeof(value_to_rate_state_t));
-    if (cpu_data[i].time_state == NULL)
-      return;
-  }
 
   report_p_stats = true;
 
@@ -84,6 +62,25 @@ static void cpufreq_stats_init(void) {
              filename);
       report_p_stats = false;
       break;
+    } else {
+      /* Count the number of lines in the file content:
+       * /sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state */
+      FILE *fh = fopen(filename, "r");
+      if (fh == NULL) {
+        ERROR("cpufreq plugin: File %s not exists or no access.", filename);
+        break;
+      }
+      int state_count = 0;
+      char line[DATA_MAX_NAME_LEN] = {0};
+      while (fgets(line, sizeof(line), fh) != NULL) {
+        state_count++;
+      }
+      fclose(fh);
+
+      /* variable: max_avail_freqs, takes the maximum value of the actual
+       * statistics. */
+      max_avail_freqs =
+          state_count > max_avail_freqs ? state_count : max_avail_freqs;
     }
 
     snprintf(filename, sizeof(filename),
@@ -97,6 +94,18 @@ static void cpufreq_stats_init(void) {
       break;
     }
   }
+
+  for (int i = 0; i < num_cpu; i++) {
+    cpu_data[i].time_state =
+        calloc(max_avail_freqs, sizeof(value_to_rate_state_t));
+    if (cpu_data[i].time_state == NULL) {
+      ERROR("cpufreq plugin: time_state memory allocation failed. P-State "
+            "statistics will not be reported.");
+      report_p_stats = false;
+      return;
+    }
+  }
+
   return;
 }
 #endif /* KERNEL_LINUX */
@@ -204,7 +213,7 @@ static void cpufreq_read_stats(int cpu) {
 
     if (state_index >= max_avail_freqs) {
       NOTICE("cpufreq plugin: Found too many frequency states (%d > %d). "
-             "Plugin needs to be recompiled. Please open a bug report for "
+             "Please open a bug report for "
              "this.",
              (state_index + 1), max_avail_freqs);
       break;
@@ -271,7 +280,5 @@ static int cpufreq_read(void) {
 
 void module_register(void) {
   plugin_register_init("cpufreq", cpufreq_init);
-  plugin_register_config("cpufreq", cpufreq_config, config_keys,
-                         config_keys_num);
   plugin_register_read("cpufreq", cpufreq_read);
 }
