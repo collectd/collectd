@@ -31,7 +31,7 @@
 #endif
 
 #if KERNEL_LINUX
-static int max_avail_freqs = 20; // default MAX_AVAIL_FREQS
+static int max_avail_freqs = 128; // default MAX_AVAIL_FREQS
 
 static int num_cpu;
 
