@@ -280,6 +280,8 @@ static unsigned int list_gpu_metrics(const gpu_disable_t *disabled) {
     if (!disabled) {
       INFO("- none");
     }
+  }
+  if (config.gpuinfo) {
     INFO("Enabled metrics:");
   }
   unsigned int enabled = 0;
@@ -290,9 +292,9 @@ static unsigned int list_gpu_metrics(const gpu_disable_t *disabled) {
       }
       enabled++;
     }
-    if (config.gpuinfo && !enabled) {
-      INFO("- none");
-    }
+  }
+  if (config.gpuinfo && !enabled) {
+    INFO("- none");
   }
   return enabled;
 }
