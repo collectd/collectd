@@ -35,15 +35,15 @@
 #include "utils/format_json/format_json.h"
 #include "utils_random.h"
 
-#include <amqp.h>
-#include <amqp_framing.h>
+#include <rabbitmq-c/amqp.h>
+#include <rabbitmq-c/amqp_framing.h>
 
 #ifdef HAVE_AMQP_TCP_SOCKET_H
-#include <amqp_ssl_socket.h>
-#include <amqp_tcp_socket.h>
+#include <rabbitmq-c/amqp_ssl_socket.h>
+#include <rabbitmq-c/amqp_tcp_socket.h>
 #endif
 #ifdef HAVE_AMQP_SOCKET_H
-#include <amqp_socket.h>
+#include <rabbitmq-c/amqp_socket.h>
 #endif
 #ifdef HAVE_AMQP_TCP_SOCKET
 #if defined HAVE_DECL_AMQP_SOCKET_CLOSE && !HAVE_DECL_AMQP_SOCKET_CLOSE
