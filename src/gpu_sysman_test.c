@@ -1093,10 +1093,6 @@ static void plugin_register_free(void) {
  */
 static int test_config_keys(bool check_nonbool, bool enable_metrics,
                             bool enable_logs) {
-  struct {
-    bool set_false;
-    const char *prefix;
-  } bool_checks[] = {{enable_metrics, "Disable"}, {!enable_logs, "Log"}};
   /* tests for non-bool config keys */
   struct {
     const char *key;
@@ -1132,10 +1128,15 @@ static int test_config_keys(bool check_nonbool, bool enable_metrics,
   }
 
   /* make sure that also bool values work */
+  struct {
+    bool set_false;
+    const char *prefix;
+  } bool_checks[] = {{enable_metrics, "Disable"}, {!enable_logs, "Log"}};
+
   for (i = 0; i < registry.key_count; i++) {
 
     const char *prefix, *key = registry.keys[i];
-    for (j = 0; j < 2; j++) {
+    for (j = 0; j < STATIC_ARRAY_SIZE(bool_checks); j++) {
       prefix = bool_checks[j].prefix;
 
       if (strncmp(key, prefix, strlen(prefix))) {
@@ -1157,9 +1158,9 @@ static int test_config_keys(bool check_nonbool, bool enable_metrics,
 /* ------------------------------------------------------------------------- */
 
 /*
- * set all GPU metrics Disable* flags to 'value', update bitmask of
- * what was changed + set what's the full bitmask, and return count
- * of changed items
+ * set all GPU metric disable flags in 'disabled' to 'value', update
+ * bitmask of what was changed + set what's the full bitmask, and
+ * return count of changed items
  */
 static int get_reset_disabled(gpu_disable_t *disabled, bool value, int *mask,
                               int *all) {
@@ -1444,8 +1445,11 @@ int main(int argc, const char **argv) {
   globs.warnings = 0;
   assert(test_config_keys(true, true, true) == 0);
   assert(globs.warnings > 0);
-  /* more coverage by disabling only some of metrics at init */
   globs.warnings = 0;
+  assert(registry.init() == 0);
+  assert(registry.shutdown() == 0);
+  /* more coverage by disabling only some of metrics at init */
+  assert(registry.config("DisableEngine", "true") == 0);
   assert(registry.config("DisablePower", "true") == 0);
   /* for multi-sample init checks */
   assert(registry.config("Samples", "8") == 0);
@@ -1457,8 +1461,16 @@ int main(int argc, const char **argv) {
 
   /* init should fail when every metric is disabled */
   globs.warnings = 0;
-  fprintf(stderr, "All metrics & logs disabled + init/shutdown...\n");
+  fprintf(stderr,
+          "All metrics disabled + logs disabled&enabled + init/shutdown...\n");
   assert(test_config_keys(false, false, false) == 0);
+  assert(registry.init() != 0);
+  assert(globs.warnings > 0);
+  /* undefined whether shutdown() returns fail or success after failed init */
+  registry.shutdown();
+  /* all metrics disabled with GPU info enabled */
+  globs.warnings = 0;
+  assert(registry.config("LogGpuInfo", "true") == 0);
   assert(registry.init() != 0);
   assert(globs.warnings > 0);
   /* undefined whether shutdown() returns fail or success after failed init */
