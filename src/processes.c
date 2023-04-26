@@ -303,6 +303,7 @@ static bool report_ctx_switch;
 static bool report_fd_num;
 static bool report_maps_num;
 static bool report_delay;
+static bool report_sys_ctx_switch;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -734,6 +735,8 @@ static int ps_config(oconfig_item_t *ci) {
       WARNING("processes plugin: The plugin has been compiled without support "
               "for the \"CollectDelayAccounting\" option.");
 #endif
+    } else if(strcasecmp(c->key, "CollectSystemContextSwitch") ==0) {
+      cf_util_get_boolean(c, &report_sys_ctx_switch);
     } else {
       ERROR("processes plugin: The `%s' configuration option is not "
             "understood and will be ignored.",
@@ -974,14 +977,14 @@ static void ps_submit_proc_list(procstat_t *ps) {
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
-static void ps_submit_fork_rate(derive_t value) {
+static void ps_submit_global_stat(const char* type_name, derive_t value) {  // change: ps_submit_fork_rate -> ps_submit_global_stat. In addtion, add a argument: char* type_name.
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "processes", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, "", sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "fork_rate", sizeof(vl.type));
+  sstrncpy(vl.type, type_name, sizeof(vl.type));
   sstrncpy(vl.type_instance, "", sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
@@ -1574,11 +1577,13 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   return buf;
 } /* char *ps_get_cmdline (...) */
 
-static int read_fork_rate(void) {
+static int read_global_stat(void) {  // change: read_fork_rate -> read_global_stat. | this function currently collects fork_rate and context switches(new add).
   FILE *proc_stat;
   char buffer[1024];
-  value_t value;
-  bool value_valid = 0;
+  value_t value_fork_rate;
+  value_t value_sys_ctxt;
+  bool fork_rate_valid = 0;
+  bool sys_ctxt_valid = 0;
 
   proc_stat = fopen("/proc/stat", "r");
   if (proc_stat == NULL) {
@@ -1595,21 +1600,22 @@ static int read_fork_rate(void) {
     if (fields_num != 2)
       continue;
 
-    if (strcmp("processes", fields[0]) != 0)
-      continue;
-
-    status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
-    if (status == 0)
-      value_valid = 1;
-
-    break;
+    if (strcmp("processes", fields[0]) == 0) {
+      status = parse_value(fields[1], &value_fork_rate, DS_TYPE_DERIVE);
+      if (status == 0)
+        fork_rate_valid = 1;
+    } else if (strcmp("ctxt", fields[0]) == 0 && report_sys_ctx_switch) {
+      status = parse_value(fields[1], &value_sys_ctxt, DS_TYPE_DERIVE);
+      if (status == 0)
+        sys_ctxt_valid = 1;
+    }
   }
   fclose(proc_stat);
 
-  if (!value_valid)
-    return -1;
-
-  ps_submit_fork_rate(value.derive);
+  if (fork_rate_valid)
+    ps_submit_global_stat("fork_rate", value_fork_rate.derive);
+  if (sys_ctxt_valid)
+    ps_submit_global_stat("contextswitch", value_sys_ctxt.derive);
   return 0;
 }
 #endif /*KERNEL_LINUX */
@@ -1792,7 +1798,7 @@ static int read_fork_rate(void) {
     }
   }
 
-  ps_submit_fork_rate(result);
+  ps_submit_global_stat("fork_rate", result);
   return 0;
 }
 #endif /* KERNEL_SOLARIS */
@@ -2159,7 +2165,7 @@ static int ps_read(void) {
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
 
-  read_fork_rate();
+  read_global_stat();
   /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD

@@ -1458,6 +1458,7 @@
 #	CollectContextSwitch true
 #	CollectMemoryMaps true
 #	CollectDelayAccounting false
+#	CollectSystemContextSwitch false
 #	Process "name"
 #	ProcessMatch "name" "regex"
 #	<Process "collectd">

@@ -8037,6 +8037,7 @@ B<Synopsis:>
    CollectFileDescriptor  true
    CollectContextSwitch   true
    CollectDelayAccounting false
+   CollectSystemContextSwitch false
    Process "name"
    ProcessMatch "name" "regex"
    <Process "collectd">
@@ -8094,6 +8095,13 @@ Disabled by default.
 Collect the number of memory mapped files of the process.
 The limit for this number is configured via F</proc/sys/vm/max_map_count> in
 the Linux kernel.
+
+=item B<CollectSystemContextSwitch> I<Boolean>
+
+Collect the number of context switches at the system level.
+Collect ctxt fields from /proc/stat in linux systems.
+The option can only be configured outside the B<Process> and B<ProcessMatch>
+blocks.
 
 =back
 
