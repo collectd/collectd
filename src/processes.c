@@ -303,7 +303,7 @@ static bool report_ctx_switch;
 static bool report_fd_num;
 static bool report_maps_num;
 static bool report_delay;
-static bool report_sys_ctx_switch;
+static bool report_sys_ctxt_switch;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -735,8 +735,8 @@ static int ps_config(oconfig_item_t *ci) {
       WARNING("processes plugin: The plugin has been compiled without support "
               "for the \"CollectDelayAccounting\" option.");
 #endif
-    } else if(strcasecmp(c->key, "CollectSystemContextSwitch") ==0) {
-      cf_util_get_boolean(c, &report_sys_ctx_switch);
+    } else if (strcasecmp(c->key, "CollectSystemContextSwitch") == 0) {
+      cf_util_get_boolean(c, &report_sys_ctxt_switch);
     } else {
       ERROR("processes plugin: The `%s' configuration option is not "
             "understood and will be ignored.",
@@ -977,7 +977,10 @@ static void ps_submit_proc_list(procstat_t *ps) {
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
-static void ps_submit_global_stat(const char* type_name, derive_t value) {  // change: ps_submit_fork_rate -> ps_submit_global_stat. In addtion, add a argument: char* type_name.
+static void ps_submit_global_stat(
+    const char *type_name,
+    derive_t value) { // change: ps_submit_fork_rate -> ps_submit_global_stat.
+                      // In addtion, add a argument: char* type_name.
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.derive = value};
@@ -1452,19 +1455,11 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   return 0;
 } /* int ps_read_process (...) */
 
-static int procs_running(void) {
-  char buffer[65536] = {};
+static int procs_running(const char *buffer) {
   char id[] = "procs_running "; /* white space terminated */
   char *running;
   char *endptr = NULL;
   long result = 0L;
-
-  ssize_t status;
-
-  status = read_file_contents("/proc/stat", buffer, sizeof(buffer) - 1);
-  if (status <= 0) {
-    return -1;
-  }
 
   /* the data contains :
    * the literal string 'procs_running',
@@ -1577,45 +1572,58 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   return buf;
 } /* char *ps_get_cmdline (...) */
 
-static int read_global_stat(void) {  // change: read_fork_rate -> read_global_stat. | this function currently collects fork_rate and context switches(new add).
-  FILE *proc_stat;
-  char buffer[1024];
-  value_t value_fork_rate;
-  value_t value_sys_ctxt;
-  bool fork_rate_valid = 0;
-  bool sys_ctxt_valid = 0;
+static int read_fork_rate(const char *buffer) {
+  value_t value;
+  char id[] = "processes ";
+  char *processes;
 
-  proc_stat = fopen("/proc/stat", "r");
-  if (proc_stat == NULL) {
-    ERROR("processes plugin: fopen (/proc/stat) failed: %s", STRERRNO);
+  int status;
+  char *fields[2];
+  int fields_num;
+
+  processes = strstr(buffer, id);
+  if (!processes) {
+    WARNING("processes not found");
     return -1;
   }
 
-  while (fgets(buffer, sizeof(buffer), proc_stat) != NULL) {
-    int status;
-    char *fields[3];
-    int fields_num;
+  fields_num = strsplit(processes, fields, STATIC_ARRAY_SIZE(fields));
+  if (fields_num != 2)
+    return -1;
 
-    fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
-    if (fields_num != 2)
-      continue;
+  status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+  if (status != 0)
+    return -1;
 
-    if (strcmp("processes", fields[0]) == 0) {
-      status = parse_value(fields[1], &value_fork_rate, DS_TYPE_DERIVE);
-      if (status == 0)
-        fork_rate_valid = 1;
-    } else if (strcmp("ctxt", fields[0]) == 0 && report_sys_ctx_switch) {
-      status = parse_value(fields[1], &value_sys_ctxt, DS_TYPE_DERIVE);
-      if (status == 0)
-        sys_ctxt_valid = 1;
-    }
+  ps_submit_global_stat("fork_rate", value.derive);
+  return 0;
+}
+
+static int read_sys_ctxt_switch(const char *buffer) {
+  value_t value;
+  char id[] = "ctxt ";
+  char *ctxt;
+
+  int status;
+  char *fields[2];
+  int fields_num;
+
+  ctxt = strstr(buffer, id);
+  if (!ctxt) {
+    WARNING("ctxt not found");
+    return -1;
   }
-  fclose(proc_stat);
 
-  if (fork_rate_valid)
-    ps_submit_global_stat("fork_rate", value_fork_rate.derive);
-  if (sys_ctxt_valid)
-    ps_submit_global_stat("contextswitch", value_sys_ctxt.derive);
+  fields_num = strsplit(ctxt, fields, STATIC_ARRAY_SIZE(fields));
+  if (fields_num != 2)
+    return -1;
+
+  status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+  if (status != 0)
+    return -1;
+
+  if (report_sys_ctxt_switch)
+    ps_submit_global_stat("contextswitch", value.derive);
   return 0;
 }
 #endif /*KERNEL_LINUX */
@@ -2088,6 +2096,7 @@ static int ps_read(void) {
   DIR *proc;
   long pid;
 
+  char buffer[65536] = {};
   char cmdline[CMDLINE_BUFFER_SIZE];
 
   int status;
@@ -2142,6 +2151,10 @@ static int ps_read(void) {
 
   closedir(proc);
 
+  if (read_file_contents("/proc/stat", buffer, sizeof(buffer) - 1) <= 0) {
+    ERROR("Cannot open `/proc/stat`");
+    return -1;
+  }
   /* get procs_running from /proc/stat
    * scanning /proc/stat AND computing other process stats takes too much time.
    * Consequently, the number of running processes based on the occurences
@@ -2150,7 +2163,7 @@ static int ps_read(void) {
    * stat(s).
    * The 'procs_running' number in /proc/stat on the other hand is more
    * accurate, and can be retrieved in a single 'read' call. */
-  running = procs_running();
+  running = procs_running(buffer);
 
   ps_submit_state("running", running);
   ps_submit_state("sleeping", sleeping);
@@ -2162,7 +2175,8 @@ static int ps_read(void) {
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
 
-  read_global_stat();
+  read_fork_rate(buffer);
+  read_sys_ctxt_switch(buffer);
   /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
