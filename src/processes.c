@@ -2119,9 +2119,6 @@ static int ps_read(void) {
     }
 
     switch (state) {
-    case 'R':
-      running++;
-      break;
     case 'S':
       sleeping++;
       break;
