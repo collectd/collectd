@@ -1587,8 +1587,9 @@ static int read_fork_rate(const char *buffer) {
     return -1;
   }
 
-  fields_num = strsplit(processes, fields, STATIC_ARRAY_SIZE(fields));
-  if (fields_num != 2)
+  const int expected = STATIC_ARRAY_SIZE(fields);
+  fields_num = strsplit(processes, fields, expected);
+  if (fields_num != expected)
     return -1;
 
   status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
@@ -1614,8 +1615,9 @@ static int read_sys_ctxt_switch(const char *buffer) {
     return -1;
   }
 
-  fields_num = strsplit(ctxt, fields, STATIC_ARRAY_SIZE(fields));
-  if (fields_num != 2)
+  const int expected = STATIC_ARRAY_SIZE(fields);
+  fields_num = strsplit(ctxt, fields, expected);
+  if (fields_num != expected)
     return -1;
 
   status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
