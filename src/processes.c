@@ -1469,7 +1469,7 @@ static int procs_running(const char *buffer) {
    */
   running = strstr(buffer, id);
   if (!running) {
-    WARNING("procs_running not found");
+    WARNING("'processes ' not found in /proc/stat");
     return -1;
   }
   running += strlen(id);
@@ -1583,7 +1583,7 @@ static int read_fork_rate(const char *buffer) {
 
   processes = strstr(buffer, id);
   if (!processes) {
-    WARNING("processes not found");
+    WARNING("'processes ' not found in /proc/stat");
     return -1;
   }
 
@@ -1610,7 +1610,7 @@ static int read_sys_ctxt_switch(const char *buffer) {
 
   ctxt = strstr(buffer, id);
   if (!ctxt) {
-    WARNING("ctxt not found");
+    WARNING("'ctxt ' not found in /proc/stat");
     return -1;
   }
 
@@ -2152,7 +2152,7 @@ static int ps_read(void) {
   closedir(proc);
 
   if (read_file_contents("/proc/stat", buffer, sizeof(buffer) - 1) <= 0) {
-    ERROR("Cannot open `/proc/stat`");
+    ERROR("Cannot read `/proc/stat`");
     return -1;
   }
   /* get procs_running from /proc/stat
