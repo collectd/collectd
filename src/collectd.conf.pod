@@ -8100,7 +8100,7 @@ the Linux kernel.
 
 Collect the number of context switches at the system level.
 Collect ctxt fields from /proc/stat in linux systems.
-The option can only be configured outside the B<Process> and B<ProcessMatch>
+Can be configured only outside the B<Process> and B<ProcessMatch>
 blocks.
 
 =back
