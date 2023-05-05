@@ -1622,8 +1622,7 @@ static int read_sys_ctxt_switch(const char *buffer) {
   if (status != 0)
     return -1;
 
-  if (report_sys_ctxt_switch)
-    ps_submit_global_stat("contextswitch", value.derive);
+  ps_submit_global_stat("contextswitch", value.derive);
   return 0;
 }
 #endif /*KERNEL_LINUX */
@@ -2176,8 +2175,9 @@ static int ps_read(void) {
     ps_submit_proc_list(ps_ptr);
 
   read_fork_rate(buffer);
-  read_sys_ctxt_switch(buffer);
-  /* #endif KERNEL_LINUX */
+  if (report_sys_ctxt_switch)
+    read_sys_ctxt_switch(buffer);
+    /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
   int running = 0;
