@@ -1577,6 +1577,7 @@ static int read_fork_rate(const char *buffer) {
   int status;
   char *fields[2];
   int fields_num;
+  const int expected = STATIC_ARRAY_SIZE(fields);
 
   processes = strstr(buffer, id);
   if (!processes) {
@@ -1584,7 +1585,6 @@ static int read_fork_rate(const char *buffer) {
     return -1;
   }
 
-  const int expected = STATIC_ARRAY_SIZE(fields);
   fields_num = strsplit(processes, fields, expected);
   if (fields_num != expected)
     return -1;
@@ -1605,6 +1605,7 @@ static int read_sys_ctxt_switch(const char *buffer) {
   int status;
   char *fields[2];
   int fields_num;
+  const int expected = STATIC_ARRAY_SIZE(fields);
 
   ctxt = strstr(buffer, id);
   if (!ctxt) {
@@ -1612,7 +1613,6 @@ static int read_sys_ctxt_switch(const char *buffer) {
     return -1;
   }
 
-  const int expected = STATIC_ARRAY_SIZE(fields);
   fields_num = strsplit(ctxt, fields, expected);
   if (fields_num != expected)
     return -1;
