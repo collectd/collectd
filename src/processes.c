@@ -977,10 +977,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
-static void ps_submit_global_stat(
-    const char *type_name,
-    derive_t value) { // change: ps_submit_fork_rate -> ps_submit_global_stat.
-                      // In addtion, add a argument: char* type_name.
+static void ps_submit_global_stat(const char *type_name, derive_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.derive = value};
@@ -1469,7 +1466,7 @@ static int procs_running(const char *buffer) {
    */
   running = strstr(buffer, id);
   if (!running) {
-    WARNING("'processes ' not found in /proc/stat");
+    WARNING("'procs_running ' not found in /proc/stat");
     return -1;
   }
   running += strlen(id);
