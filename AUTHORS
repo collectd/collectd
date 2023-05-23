@@ -189,6 +189,9 @@ Florian Eckert
 Gergely Nagy <algernon at madhouse-project.org>
  - Write-Riemann plugin.
 
+Graham Leggett <minfrin at sharp.fm>
+ - check_presence plugin.
+
 Hari TG <hari.tg at intel.com>
  - dcpmm plugin.
 

@@ -104,6 +104,7 @@
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
+#@BUILD_PLUGIN_CHECK_PRESENCE_TRUE@LoadPlugin check_presence
 #@BUILD_PLUGIN_CHECK_UPTIME_TRUE@LoadPlugin check_uptime
 #@BUILD_PLUGIN_CONNECTIVITY_TRUE@LoadPlugin connectivity
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
@@ -403,6 +404,13 @@
 #  <Daemon "mds.a">
 #    SocketPath "/var/run/ceph/ceph-mds.ceph1.asok"
 #  </Daemon>
+#</Plugin>
+
+#<Plugin check_presence>
+#    StateDatastore "check-presence"
+#    HostTimeout 20
+#    StartupDelay 20
+#    CheckInterval 10
 #</Plugin>
 
 #<Plugin chrony>

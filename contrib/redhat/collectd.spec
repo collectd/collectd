@@ -58,7 +58,7 @@
 %define with_bind 0%{!?_without_bind:1}
 %define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
-%define with_check_uptime 0%{!?_without_check_uptime:1}
+%define with_check_presence 0%{!?_without_check_presence:1}
 %define with_chrony 0%{!?_without_chrony:1}
 %define with_connectivity 0%{!?_without_connectivity:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
@@ -527,6 +527,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}, hddtemp
 %description hddtemp
 The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
+%endif
+
+%if %{with_check_presence}
+%package check_presence
+Summary:        Check presence plugin for collectd
+Group:          System Environment/Daemons
+Requires:       %{name}%{?_isa} = %{version}-%{release}, liblmdb
+%description check_presence
+The check_presence plugin sends notifications when a host is seen for the first
+time, and when a host has not been seen for a configurable interval.
 %endif
 
 %if %{with_intel_pmu}
@@ -1244,6 +1254,12 @@ Collectd utilities
 %define _with_ceph --enable-ceph
 %else
 %define _with_ceph --disable-ceph
+%endif
+
+%if %{with_check_presence}
+%define _with_check_presence --enable-check_presence
+%else
+%define _with_check_presence --disable-check_presence
 %endif
 
 %if %{with_curl}
@@ -2116,6 +2132,7 @@ Collectd utilities
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
 	%{?_with_check_uptime} \
+	%{?_with_check_presence} \
 	%{?_with_chrony} \
 	%{?_with_connectivity} \
 	%{?_with_conntrack} \
@@ -2683,6 +2700,11 @@ fi
 %{_libdir}/%{name}/ceph.so
 %endif
 
+%if %{with_check_presence}
+%files check_presence
+%{_libdir}/%{name}/check_presence.so
+%endif
+
 %if %{with_chrony}
 %files chrony
 %{_libdir}/%{name}/chrony.so
@@ -3023,6 +3045,9 @@ fi
 %changelog
 * Thu Sep 08 2022 Laura Hild <lsh@jlab.org> - 5.12.0-2
 - require systemd-devel (libudev.h) to build the SMART plugin
+
+* Thu Oct 25 2021 Graham Leggett <minfrin@sharp.fm> - 5.12.0-1
+- Add new check_presence plugin
 
 * Wed May 05 2021 Fabien Wernli <rpmbuild@faxmodem.org> - 5.12.0-1
 - Update to 5.12.0
