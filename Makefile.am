@@ -1043,6 +1043,15 @@ drbd_la_SOURCES = src/drbd.c
 drbd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_DHCPLEASES
+pkglib_LTLIBRARIES += dhcpleases.la
+dhcpleases_la_SOURCES = \
+	src/dhcpleases.c
+dhcpleases_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPCAP_CPPFLAGS)
+dhcpleases_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPCAP_LDFLAGS)
+dhcpleases_la_LIBADD = $(BUILD_WITH_LIBPCAP_LIBS)
+endif
+
 if BUILD_PLUGIN_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = src/email.c
