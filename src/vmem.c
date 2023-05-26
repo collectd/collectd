@@ -215,6 +215,9 @@ static int vmem_read(void) {
       char *inst = key + strlen("pgscan_");
       value_t value = {.derive = counter};
       submit_one(inst, "vmpage_action", "scan", value);
+    } else if (strncmp("pgrefill", key, strlen("pgrefill")) == 0) {
+      value_t value = {.derive = counter};
+      submit_one(NULL, "vmpage_action", "refill", value);
     }
 
     /*
