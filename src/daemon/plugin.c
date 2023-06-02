@@ -916,13 +916,6 @@ static void *plugin_write_thread(void *args) /* {{{ */
 
   DEBUG("plugin_write_thread(%s): teardown", this_thread->name);
 
-  /* Cleanup before leaving */
-  free_userdata(&this_thread->ud);
-  this_thread->ud.data = NULL;
-  this_thread->ud.free_func = NULL;
-
-  sfree(this_thread->name);
-
   /* Drop references to all remaining queue elements */
   if (this_thread->head != NULL) {
     write_queue_ref_all(this_thread->head, -1);
@@ -1725,8 +1718,11 @@ EXPORT int plugin_unregister_write(const char *name) {
       status = ret;
     }
 
+    free_userdata(&to_stop->ud);
+    sfree(to_stop->name);
     sfree(to_stop);
-    to_stop = next;
+
+    to_free = next;
   }
 
   return status;
