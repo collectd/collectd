@@ -3740,8 +3740,9 @@ supporting only single variant ignore this option.
 Counter metric variant (e.g. HW energy usage as Joules counter) is
 preferred by Prometheus as doing rate calculations in Prometheus is
 more flexible. However, because collectd stores counters internally as
-integers, counter metrics cannot using base units (seconds, joules) as
-required by OpenMetrics spec, but microseconds and microjoules.
+integers instead of floating point, counter metrics are given in
+microjoules / microseconds instead of their (joule / second) SI base
+units (required by OpenMetrics spec), for better accuracy.
 
 Rate metric variant is directly human readable, and available for
 metrics where it makes sense (e.g. bytes per second, Watts and RPMs).
