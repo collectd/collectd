@@ -2024,6 +2024,7 @@ EXPORT int plugin_flush(const char *plugin, cdtime_t timeout,
 } /* int plugin_flush */
 
 EXPORT int plugin_shutdown_all(void) {
+  write_queue_thread_t *write_threads_to_free = NULL;
   llentry_t *le;
   int ret = 0; // Assume success.
 
@@ -2038,8 +2039,11 @@ EXPORT int plugin_shutdown_all(void) {
 
   destroy_read_heap();
 
-  /* blocks until all write threads have shut down. */
-  plugin_unregister_write(NULL);
+  /* blocks until all write threads have stopped.
+   * Do not free the resources associated with this thread yet
+   * (the `user_data` provided via plugin_register_write in particular),
+   * as plugins rely on the order in which callback's user data is freed. */
+  stop_write_threads(NULL, &write_threads_to_free);
 
   /* ask all plugins to write out the state they kept. */
   plugin_flush(/* plugin = */ NULL,
@@ -2079,6 +2083,9 @@ EXPORT int plugin_shutdown_all(void) {
   destroy_all_callbacks(&list_notification);
   destroy_all_callbacks(&list_shutdown);
   destroy_all_callbacks(&list_log);
+
+  /* Free the `user_data` passed via plugin_register_write() last. */
+  free_write_threads_list(write_threads_to_free);
 
   plugin_free_loaded();
   plugin_free_data_sets();
