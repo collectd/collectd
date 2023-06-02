@@ -1670,7 +1670,14 @@ EXPORT int plugin_unregister_read_group(const char *group) /* {{{ */
   return 0;
 } /* }}} int plugin_unregister_read_group */
 
-EXPORT int plugin_unregister_write(const char *name) {
+/* Stop the thread corresponding to write plugin `name` (if provided) or all
+ * write plugin threads (if `name` is NULL).
+ * Returns a linked list of write_queue_thread_ts that should subsequently be
+ * freed _by the caller_ via `**to_free`. */
+static int stop_write_threads(const char *name,
+                              write_queue_thread_t **to_free) {
+  assert(to_free != NULL);
+
   pthread_mutex_lock(&write_queue.lock);
 
   /* Build to completely new thread lists. One with threads to_stop and another
@@ -1700,7 +1707,12 @@ EXPORT int plugin_unregister_write(const char *name) {
   pthread_cond_broadcast(&write_queue.cond);
   pthread_mutex_unlock(&write_queue.lock);
 
-  /* Return error if the requested thread was not found */
+  /* We stop the threads here and wait until they are actually stopped but
+   * leave the freeing of resources to the caller, as it involves freeing
+   * the plugin-provided user data to which other references may exist. */
+  *to_free = to_stop;
+
+  /* Return error if a specific thread/plugin was requested but not found */
   if (to_stop == NULL && name != NULL) {
     return ENOENT;
   }
@@ -1708,22 +1720,42 @@ EXPORT int plugin_unregister_write(const char *name) {
   int status = 0;
 
   while (to_stop != NULL) {
-    write_queue_thread_t *next = to_stop->next;
-
     int ret = pthread_join(to_stop->thread, NULL);
 
     if (ret != 0) {
-      ERROR("plugin_unregister_write: pthread_join failed for %s.",
-            to_stop->name);
+      ERROR("stop_write_threads: pthread_join failed for %s.", to_stop->name);
       status = ret;
     }
 
-    free_userdata(&to_stop->ud);
-    sfree(to_stop->name);
-    sfree(to_stop);
+    to_stop = to_stop->next;
+  }
+
+  return status;
+}
+
+/* Free a linked list of write_queue_thread_t structures and associated
+ * resources. May only be used for threads that have already been stopped
+ * via e.g. stop_write_threads() */
+void free_write_threads_list(write_queue_thread_t *to_free) {
+  while (to_free != NULL) {
+    write_queue_thread_t *next = to_free->next;
+
+    free_userdata(&to_free->ud);
+    sfree(to_free->name);
+    sfree(to_free);
 
     to_free = next;
   }
+}
+
+EXPORT int plugin_unregister_write(const char *name) {
+  write_queue_thread_t *to_free = NULL;
+  int status = stop_write_threads(name, &to_free);
+
+  /* If something went wrong during thread teardown rather leak the memory
+   * than make the situation worse by freeing referenced memory anyways. */
+  if (status == 0)
+    free_write_threads_list(to_free);
 
   return status;
 }
