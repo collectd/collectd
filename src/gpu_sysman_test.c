@@ -1425,6 +1425,7 @@ int main(int argc, const char **argv) {
 
   assert(registry.config("DisableSeparateErrors", "false") == 0);
   set_verbose(VERBOSE_CALLS_METRICS, VERBOSE_METRICS_NORMAL);
+  assert(registry.config("LogMetrics", "true") == 0);
   assert(registry.init() == 0);
 
   fprintf(stderr, "Query all metrics for the first time, with separate errors "
@@ -1436,6 +1437,7 @@ int main(int argc, const char **argv) {
   assert(globs.warnings == 0);
   /* per-time counters do not report on first round */
   assert(validate_and_reset_saved_metrics(1, 0) > 0);
+  assert(registry.config("LogMetrics", "false") == 0);
   fprintf(stderr, "metrics query round 1: PASS\n\n");
 
   api_calls = globs.api_calls;
