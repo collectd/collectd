@@ -8172,6 +8172,11 @@ Collect ctxt fields from /proc/stat in linux systems.
 Can be configured only outside the B<Process> and B<ProcessMatch>
 blocks.
 
+=item B<SkipNonRunningProcess> I<Boolean>
+
+Skip submitting metrics for Zombie and non running processes.
+Disabled by default.
+
 =back
 
 The B<CollectContextSwitch>, B<CollectDelayAccounting>,
