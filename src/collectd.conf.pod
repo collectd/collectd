@@ -8021,6 +8021,7 @@ These may also be a block in which further options may be specified.
 
 The statistics collected for matched processes are:
  - size of the resident segment size (RSS)
+ - size of the proportional set size (PSS)
  - user- and system-time used
  - number of processes
  - number of threads
