@@ -184,6 +184,7 @@ typedef struct process_entry_s {
   unsigned long num_maps;
   unsigned long vmem_size;
   unsigned long vmem_rss;
+  unsigned long vmem_pss;
   unsigned long vmem_data;
   unsigned long vmem_code;
   unsigned long stack_size;
@@ -260,6 +261,7 @@ typedef struct procstat {
   unsigned long num_maps;
   unsigned long vmem_size;
   unsigned long vmem_rss;
+  unsigned long vmem_pss;
   unsigned long vmem_data;
   unsigned long vmem_code;
   unsigned long stack_size;
@@ -304,6 +306,7 @@ static bool report_fd_num;
 static bool report_maps_num;
 static bool report_delay;
 static bool report_sys_ctxt_switch;
+static bool use_smaps_rollup;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -560,6 +563,7 @@ static void ps_list_add(const char *name, const char *cmdline,
     ps->num_maps += entry->num_maps;
     ps->vmem_size += entry->vmem_size;
     ps->vmem_rss += entry->vmem_rss;
+    ps->vmem_pss += entry->vmem_pss;
     ps->vmem_data += entry->vmem_data;
     ps->vmem_code += entry->vmem_code;
     ps->stack_size += entry->stack_size;
@@ -615,6 +619,7 @@ static void ps_list_reset(void) {
     ps->num_maps = 0;
     ps->vmem_size = 0;
     ps->vmem_rss = 0;
+    ps->vmem_pss = 0;
     ps->vmem_data = 0;
     ps->vmem_code = 0;
     ps->stack_size = 0;
@@ -775,6 +780,14 @@ static int ps_init(void) {
   pagesize_g = sysconf(_SC_PAGESIZE);
   DEBUG("pagesize_g = %li; CONFIG_HZ = %i;", pagesize_g, CONFIG_HZ);
 
+  // smaps_rollup requires kernel >= 4.14
+  struct stat sb;
+  if (stat("/proc/1/smaps_rollup", &sb) == 0) {
+      use_smaps_rollup = true;
+  } else {
+      use_smaps_rollup = false;
+  }
+
 #if HAVE_LIBTASKSTATS
   if (taskstats_handle == NULL) {
     taskstats_handle = ts_create();
@@ -840,6 +853,11 @@ static void ps_submit_proc_list(procstat_t *ps) {
 
   sstrncpy(vl.type, "ps_rss", sizeof(vl.type));
   vl.values[0].gauge = ps->vmem_rss;
+  vl.values_len = 1;
+  plugin_dispatch_values(&vl);
+
+  sstrncpy(vl.type, "ps_pss", sizeof(vl.type));
+  vl.values[0].gauge = ps->vmem_pss;
   vl.values_len = 1;
   plugin_dispatch_values(&vl);
 
@@ -956,7 +974,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
 
   DEBUG(
       "name = %s; num_proc = %lu; num_lwp = %lu; num_fd = %lu; num_maps = %lu; "
-      "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
+      "vmem_size = %lu; vmem_rss = %lu; vmem_pss = %lu; vmem_data = %lu; "
       "vmem_code = %lu; "
       "vmem_minflt_counter = %" PRIi64 "; vmem_majflt_counter = %" PRIi64 "; "
       "cpu_user_counter = %" PRIi64 "; cpu_system_counter = %" PRIi64 "; "
@@ -967,7 +985,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
       "delay_cpu = %g; delay_blkio = %g; "
       "delay_swapin = %g; delay_freepages = %g;",
       ps->name, ps->num_proc, ps->num_lwp, ps->num_fd, ps->num_maps,
-      ps->vmem_size, ps->vmem_rss, ps->vmem_data, ps->vmem_code,
+      ps->vmem_size, ps->vmem_rss, ps->vmem_pss, ps->vmem_data, ps->vmem_code,
       ps->vmem_minflt_counter, ps->vmem_majflt_counter, ps->cpu_user_counter,
       ps->cpu_system_counter, ps->io_rchar, ps->io_wchar, ps->io_syscr,
       ps->io_syscw, ps->io_diskr, ps->io_diskw, ps->cswitch_vol,
@@ -1226,6 +1244,55 @@ static int ps_count_fd(int pid) {
   return (count >= 1) ? count : 1;
 } /* int ps_count_fd (pid) */
 
+static int ps_get_pss(process_entry_t *ps) {
+    FILE *fh;
+    char buffer[1024];
+    char filename[64];
+    char *fields[4];
+    int numfields;
+    unsigned long pss = 0;
+
+    if (use_smaps_rollup) {
+        snprintf(filename, sizeof(filename), "/proc/%li/smaps_rollup", ps->id);
+    } else {
+        snprintf(filename, sizeof(filename), "/proc/%li/smaps", ps->id);
+    }
+
+    if ((fh = fopen(filename, "r")) == NULL) {
+        DEBUG("ps_get_pss: Failed to open file `%s'", filename);
+        return -1;
+    }
+
+    while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+        char *endptr;
+        unsigned long tmp;
+
+        if (strncmp(buffer, "Pss:", 4) != 0) {
+            continue;
+        }
+
+        numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+        if (numfields < 2) {
+            continue;
+        }
+
+        errno = 0;
+        endptr = NULL;
+        tmp = strtoul(fields[1], &endptr, 10);
+        if ((errno == 0) && endptr != fields[1]) {
+            pss += tmp;
+        }
+    }
+
+    if (fclose(fh)) {
+        WARNING("processes: fclose: %s", STRERRNO);
+    }
+
+    /* rss is reported in bytes, so be consistent and do the same for pss */
+    ps->vmem_pss = pss * 1024;
+    return 0;
+} /* int ps_get_pss(ps) */
+
 #if HAVE_LIBTASKSTATS
 static int ps_delay(process_entry_t *ps) {
   if (taskstats_handle == NULL) {
@@ -1409,6 +1476,12 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
           "name = %s;",
           pid, ps->name);
     return 0;
+  }
+
+  if (ps_get_pss(ps) != 0) {
+      /* no pss data */
+      ps->vmem_pss = -1;
+      DEBUG("ps_read_process: did not get pss data for pid %li", pid);
   }
 
   cpu_user_counter = atoll(fields[11]);

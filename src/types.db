@@ -248,6 +248,7 @@ ps_disk_octets          read:DERIVE:0:U, write:DERIVE:0:U
 ps_disk_ops             read:DERIVE:0:U, write:DERIVE:0:U
 ps_pagefaults           minflt:DERIVE:0:U, majflt:DERIVE:0:U
 ps_rss                  value:GAUGE:0:9223372036854775807
+ps_pss                  value:GAUGE:0:9223372036854775807
 ps_stacksize            value:GAUGE:0:9223372036854775807
 ps_state                value:GAUGE:0:65535
 ps_vm                   value:GAUGE:0:9223372036854775807
