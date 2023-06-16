@@ -783,9 +783,9 @@ static int ps_init(void) {
   // smaps_rollup requires kernel >= 4.14
   struct stat sb;
   if (stat("/proc/1/smaps_rollup", &sb) == 0) {
-      use_smaps_rollup = true;
+    use_smaps_rollup = true;
   } else {
-      use_smaps_rollup = false;
+    use_smaps_rollup = false;
   }
 
 #if HAVE_LIBTASKSTATS
@@ -1245,52 +1245,52 @@ static int ps_count_fd(int pid) {
 } /* int ps_count_fd (pid) */
 
 static int ps_get_pss(process_entry_t *ps) {
-    FILE *fh;
-    char buffer[1024];
-    char filename[64];
-    char *fields[4];
-    int numfields;
-    unsigned long pss = 0;
+  FILE *fh;
+  char buffer[1024];
+  char filename[64];
+  char *fields[4];
+  int numfields;
+  unsigned long pss = 0;
 
-    if (use_smaps_rollup) {
-        snprintf(filename, sizeof(filename), "/proc/%li/smaps_rollup", ps->id);
-    } else {
-        snprintf(filename, sizeof(filename), "/proc/%li/smaps", ps->id);
+  if (use_smaps_rollup) {
+    snprintf(filename, sizeof(filename), "/proc/%li/smaps_rollup", ps->id);
+  } else {
+    snprintf(filename, sizeof(filename), "/proc/%li/smaps", ps->id);
+  }
+
+  if ((fh = fopen(filename, "r")) == NULL) {
+    DEBUG("ps_get_pss: Failed to open file `%s'", filename);
+    return -1;
+  }
+
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    char *endptr;
+    unsigned long tmp;
+
+    if (strncmp(buffer, "Pss:", 4) != 0) {
+      continue;
     }
 
-    if ((fh = fopen(filename, "r")) == NULL) {
-        DEBUG("ps_get_pss: Failed to open file `%s'", filename);
-        return -1;
+    numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+    if (numfields < 2) {
+      continue;
     }
 
-    while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-        char *endptr;
-        unsigned long tmp;
-
-        if (strncmp(buffer, "Pss:", 4) != 0) {
-            continue;
-        }
-
-        numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
-        if (numfields < 2) {
-            continue;
-        }
-
-        errno = 0;
-        endptr = NULL;
-        tmp = strtoul(fields[1], &endptr, 10);
-        if ((errno == 0) && endptr != fields[1]) {
-            pss += tmp;
-        }
+    errno = 0;
+    endptr = NULL;
+    tmp = strtoul(fields[1], &endptr, 10);
+    if ((errno == 0) && endptr != fields[1]) {
+      pss += tmp;
     }
+  }
 
-    if (fclose(fh)) {
-        WARNING("processes: fclose: %s", STRERRNO);
-    }
+  if (fclose(fh)) {
+    WARNING("processes: fclose: %s", STRERRNO);
+  }
 
-    /* rss is reported in bytes, so be consistent and do the same for pss */
-    ps->vmem_pss = pss * 1024;
-    return 0;
+  /* rss is reported in bytes, so be consistent and do the same for pss */
+  ps->vmem_pss = pss * 1024;
+  return 0;
 } /* int ps_get_pss(ps) */
 
 #if HAVE_LIBTASKSTATS
@@ -1479,9 +1479,9 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   }
 
   if (ps_get_pss(ps) != 0) {
-      /* no pss data */
-      ps->vmem_pss = -1;
-      DEBUG("ps_read_process: did not get pss data for pid %li", pid);
+    /* no pss data */
+    ps->vmem_pss = -1;
+    DEBUG("ps_read_process: did not get pss data for pid %li", pid);
   }
 
   cpu_user_counter = atoll(fields[11]);
