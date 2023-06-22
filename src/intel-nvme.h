@@ -71,4 +71,5 @@ struct nvme_additional_smart_log {
   struct nvme_additional_smart_log_item pll_lock_loss_cnt;
   struct nvme_additional_smart_log_item nand_bytes_written;
   struct nvme_additional_smart_log_item host_bytes_written;
+  char padding[321];
 };
