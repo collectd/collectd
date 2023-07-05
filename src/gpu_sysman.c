@@ -1,7 +1,7 @@
 /**
  * collectd - src/gpu_sysman.c
  *
- * Copyright(c) 2020-2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2020-2023 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1163,7 +1163,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       /* find min & max values for memory free from
        * (the configured number of) samples
        */
-      uint64_t free_min = (uint64_t)1024 * 1024 * 1024 * 1024;
+      uint64_t free_min = (uint64_t)0xffffffff;
       uint64_t free_max = 0, mem_free;
       for (uint32_t j = 0; j < config.samples; j++) {
         mem_free = gpu->memory[j][i].free;
