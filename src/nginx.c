@@ -28,23 +28,37 @@
 
 #include "collectd.h"
 
+#include "common.h"
 #include "plugin.h"
-#include "utils/common/common.h"
 
 #include <curl/curl.h>
 
-#define MAX_NGINX_INSTANCES                                                    \
-  1000 // Max nginx instances that plugin can serve simultaneously
-static int instance_num_counter =
-    0; // Counts number of configured nginx instances
+/* Available options for nginx instance - see nginx.conf description */
+static char *config_keys[] = {"URL",        "User",   "Password", "VerifyPeer",
+                              "VerifyHost", "CACert", "Timeout",  "Socket"};
+
+static const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+/******************/
+
+/* A temporary list of strings where per nginx instance settings from collectd
+config are stored before passing the to curl an index of setting in this list
+corellates to the one from config_keys list, e.g.
+parsed_values_for_nginx_instance[0] stores URL string,
+parsed_values_for_nginx_instance[1] - User etc. */
+static char **parsed_values_for_nginx_instance = NULL;
+/******************/
 
 /* Stores name and curl options of the nginx instance */
+#define MAX_NGINX_INSTANCES                                                    \
+  1000 // Max nginx instances that plugin can serve simultaneously
 
 static struct nginx_instance {
   char name[DATA_MAX_NAME_LEN];
   CURL *curl;
 } ngx_inst[MAX_NGINX_INSTANCES];
 
+static int instance_num_counter =
+    0; // Counts number of configured nginx instances
 /******************/
 
 static char nginx_buffer[16384];
@@ -71,7 +85,138 @@ static size_t nginx_curl_callback(void *buf, size_t size, size_t nmemb,
   return len;
 }
 
-static int init(void) { return 0; }
+/* Zeroing per nginx instance temporary stringlist for getting settings from
+ * collectd config for each nginx instance */
+static void init_nginx_instance_settings_array(void) {
+  for (int i = 0; i < config_keys_num; i++) {
+    for (int j = 0; j < DATA_MAX_NAME_LEN; j++) {
+      parsed_values_for_nginx_instance[i][j] = '\0';
+    }
+  }
+}
+/******************/
+
+/* Cleanup per nginx instance temporary stringlist for storing settings from
+ * collectd config for each nginx instance  */
+static void deinit_nginx_instance_settings_array(void) {
+  for (int i = 0; i < config_keys_num; i++) {
+    if (parsed_values_for_nginx_instance[i] != NULL) {
+      sfree(parsed_values_for_nginx_instance[i]);
+      parsed_values_for_nginx_instance[i] = NULL;
+    }
+  }
+  if (parsed_values_for_nginx_instance != NULL) {
+    sfree(parsed_values_for_nginx_instance);
+    parsed_values_for_nginx_instance = NULL;
+  }
+  DEBUG("nginx plugin: finished shutdown");
+}
+/******************/
+
+/* Configure default curl options for nginx instance */
+static void set_default_curl_opts() {
+  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_WRITEFUNCTION,
+                   nginx_curl_callback);
+  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_USERAGENT,
+                   COLLECTD_USERAGENT);
+  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_ERRORBUFFER,
+                   nginx_curl_error);
+  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_FOLLOWLOCATION,
+                   1L);
+  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_MAXREDIRS, 50L);
+}
+/******************/
+
+/* Configure optional curl settings for nginx instance from collectd
+ * configuration file */
+static int set_optional_curl_params() {
+  if (parsed_values_for_nginx_instance[1][0] != '\0') {
+#ifdef HAVE_CURLOPT_USERNAME
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_USERNAME,
+                     parsed_values_for_nginx_instance[1]);
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_PASSWORD,
+                     (parsed_values_for_nginx_instance[2][0] == '\0')
+                         ? ""
+                         : parsed_values_for_nginx_instance[2]);
+#else
+    static char credentials[1024];
+    int status = ssnprintf(credentials, sizeof(credentials), "%s:%s",
+                           parsed_values_for_nginx_instance[1],
+                           parsed_values_for_nginx_instance[2][0] == '\0'
+                               ? ""
+                               : parsed_values_for_nginx_instance[2]);
+    if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
+      ERROR("nginx plugin: Credentials would have been truncated.");
+      return -1;
+    }
+
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_USERPWD,
+                     credentials);
+#endif
+  }
+
+  if ((parsed_values_for_nginx_instance[3][0] == '\0') ||
+      IS_TRUE(parsed_values_for_nginx_instance[3])) {
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
+                     CURLOPT_SSL_VERIFYPEER, 1L);
+  } else {
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
+                     CURLOPT_SSL_VERIFYPEER, 0L);
+  }
+
+  if ((parsed_values_for_nginx_instance[4][0] == '\0') ||
+      IS_TRUE(parsed_values_for_nginx_instance[4])) {
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
+                     CURLOPT_SSL_VERIFYHOST, 2L);
+  } else {
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
+                     CURLOPT_SSL_VERIFYHOST, 0L);
+  }
+
+  if (parsed_values_for_nginx_instance[5][0] != '\0') {
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_CAINFO,
+                     parsed_values_for_nginx_instance[5]);
+  }
+
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
+  if (parsed_values_for_nginx_instance[6][0] != '\0') {
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_TIMEOUT_MS,
+                     atol(parsed_values_for_nginx_instance[6]));
+  } else {
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_TIMEOUT_MS,
+                     (long)CDTIME_T_TO_MS(plugin_get_interval()));
+  }
+#endif
+
+#ifdef HAVE_CURLOPT_UNIX_SOCKET_PATH
+  if (parsed_values_for_nginx_instance[7][0] != '\0') {
+    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
+                     CURLOPT_UNIX_SOCKET_PATH,
+                     parsed_values_for_nginx_instance[7]);
+  }
+#endif
+
+  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_URL,
+                   parsed_values_for_nginx_instance[0]);
+  return 0;
+}
+/******************/
+
+/* Initialize CURL structure for the conf and set up default options */
+static int init_curl_structure() {
+
+  if (ngx_inst[instance_num_counter].curl != NULL)
+    curl_easy_cleanup(ngx_inst[instance_num_counter].curl);
+
+  if ((ngx_inst[instance_num_counter].curl = curl_easy_init()) == NULL) {
+    ERROR("nginx plugin: curl_easy_init failed.");
+    return -1;
+  }
+
+  return 0;
+}
+/******************/
 
 /******* Nginx plugin config parsing. Inspired by ceph plugin config parser
  * implementation ( see ceph.c ) *******/
@@ -97,7 +242,6 @@ static int nginx_add_daemon_config(oconfig_item_t *ci) {
   int ret;
 
   /* Get instance name first - we need it for building metrics prefix as well */
-
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("nginx plugin: `InstanceName' block must have only name as an "
             "argument.");
@@ -114,160 +258,37 @@ static int nginx_add_daemon_config(oconfig_item_t *ci) {
     ERROR("nginx plugin: you must configure nginx instance name.\n");
     return -EINVAL;
   }
-
   /*****************************************************************************/
 
-  /* Initialize CURL structure for the conf and set up default options */
-
-  if (ngx_inst[instance_num_counter].curl != NULL)
-    curl_easy_cleanup(ngx_inst[instance_num_counter].curl);
-
-  if ((ngx_inst[instance_num_counter].curl = curl_easy_init()) == NULL) {
-    ERROR("nginx plugin: curl_easy_init failed.");
-    return -1;
+  ret = init_curl_structure();
+  if (ret) {
+    return ret;
   }
+  set_default_curl_opts(); // Set default curl params for nginx instance
 
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_NOSIGNAL, 1L);
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_WRITEFUNCTION,
-                   nginx_curl_callback);
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_USERAGENT,
-                   COLLECTD_USERAGENT);
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_ERRORBUFFER,
-                   nginx_curl_error);
-
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_FOLLOWLOCATION,
-                   1L);
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_MAXREDIRS, 50L);
-
-  /**********************************************************************/
-
-  /* Local arrays for temporal storing of the parameters available through
-   * plugin options */
-
-  char u[DATA_MAX_NAME_LEN] = {'\0'};
-  char p[DATA_MAX_NAME_LEN] = {'\0'};
-  char url[DATA_MAX_NAME_LEN] = {'\0'};
-  char verify_peer[DATA_MAX_NAME_LEN] = {'\0'};
-  char verify_host[DATA_MAX_NAME_LEN] = {'\0'};
-  char cacert[DATA_MAX_NAME_LEN] = {'\0'};
-  char timeout[DATA_MAX_NAME_LEN] = {'\0'};
-  char socket[DATA_MAX_NAME_LEN] = {'\0'};
+  init_nginx_instance_settings_array(); // Initialize stringlist berore parsing
+                                        // collectd config for nginx instance
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("user", child->key) == 0) {
-      ret = nginx_handle_str(child, u, sizeof(u));
-      if (ret) {
-        return ret;
-      }
-    }
-    if (strcasecmp("pass", child->key) == 0) {
-      ret = nginx_handle_str(child, p, sizeof(p));
-      if (ret) {
-        return ret;
-      }
-    }
-    if (strcasecmp("url", child->key) == 0) {
-      ret = nginx_handle_str(child, url, sizeof(url));
-      if (ret) {
-        return ret;
-      }
-    }
-    if (strcasecmp("verify_peer", child->key) == 0) {
-      ret = nginx_handle_str(child, verify_peer, sizeof(verify_peer));
-      if (ret) {
-        return ret;
-      }
-    }
-    if (strcasecmp("verify_host", child->key) == 0) {
-      ret = nginx_handle_str(child, verify_host, sizeof(verify_host));
-      if (ret) {
-        return ret;
-      }
-    }
-    if (strcasecmp("cacert", child->key) == 0) {
-      ret = nginx_handle_str(child, cacert, sizeof(cacert));
-      if (ret) {
-        return ret;
-      }
-    }
-    if (strcasecmp("timeout", child->key) == 0) {
-      ret = nginx_handle_str(child, timeout, sizeof(timeout));
-      if (ret) {
-        return ret;
-      }
-    }
-    if (strcasecmp("socket", child->key) == 0) {
-      ret = nginx_handle_str(child, socket, sizeof(socket));
-      if (ret) {
-        return ret;
+    for (int j = 0; j < config_keys_num; j++) {
+      if (strcasecmp(config_keys[j], child->key) == 0) {
+        ret = nginx_handle_str(child, parsed_values_for_nginx_instance[j],
+                               DATA_MAX_NAME_LEN);
+        if (ret) {
+          return ret;
+        }
+        break;
       }
     }
   }
 
-  /****************************************************************************************/
-
-  /* Fill optional curl parameters for instance */
-
-#ifdef HAVE_CURLOPT_USERNAME
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_USERNAME, u);
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_PASSWORD,
-                   (p[0] == '\0') ? "" : p);
-#else
-  static char credentials[1024];
-  int status = ssnprintf(credentials, sizeof(credentials), "%s:%s", u,
-                         p[0] == '\0' ? "" : p);
-  if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
-    ERROR("nginx plugin: Credentials would have been truncated.");
-    return -1;
+  ret =
+      set_optional_curl_params(); // Set optional curl params for nginx instance
+  if (ret) {
+    return ret;
   }
-
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_USERPWD,
-                   credentials);
-#endif
-
-  if ((verify_peer[0] == '\0') || IS_TRUE(verify_peer)) {
-    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
-                     CURLOPT_SSL_VERIFYPEER, 1L);
-  } else {
-    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
-                     CURLOPT_SSL_VERIFYPEER, 0L);
-  }
-
-  if ((verify_host[0] == '\0') || IS_TRUE(verify_host)) {
-    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
-                     CURLOPT_SSL_VERIFYHOST, 2L);
-  } else {
-    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
-                     CURLOPT_SSL_VERIFYHOST, 0L);
-  }
-
-  if (cacert[0] != '\0') {
-    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_CAINFO,
-                     cacert);
-  }
-
-#ifdef HAVE_CURLOPT_TIMEOUT_MS
-  if (timeout[0] != '\0') {
-    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_TIMEOUT_MS,
-                     atol(timeout));
-  } else {
-    curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_TIMEOUT_MS,
-                     (long)CDTIME_T_TO_MS(plugin_get_interval()));
-  }
-#endif
-
-#ifdef HAVE_CURLOPT_UNIX_SOCKET_PATH
-  if (socket[0] != '\0') {
-    curl_easy_setopt(ngx_inst[instance_num_counter].curl,
-                     CURLOPT_UNIX_SOCKET_PATH, socket);
-  }
-#endif
-
-  curl_easy_setopt(ngx_inst[instance_num_counter].curl, CURLOPT_URL, url);
-
-  /*************************************************************************/
 
   instance_num_counter++; // Increase counter of configured nginx instances.
 
@@ -276,6 +297,13 @@ static int nginx_add_daemon_config(oconfig_item_t *ci) {
 
 static int nginx_config(oconfig_item_t *ci) {
   int ret;
+
+  parsed_values_for_nginx_instance =
+      (char **)calloc(config_keys_num, sizeof(char *));
+  for (int i = 0; i < config_keys_num; i++) {
+    parsed_values_for_nginx_instance[i] =
+        (char *)calloc(DATA_MAX_NAME_LEN, sizeof(char));
+  }
 
   for (int i = 0; i < MAX_NGINX_INSTANCES; i++) {
     for (int j = 0; j < DATA_MAX_NAME_LEN; j++) {
@@ -303,8 +331,12 @@ static int nginx_config(oconfig_item_t *ci) {
       }
     }
   }
+  DEBUG("nginx plugin: OK before array deinit");
+  deinit_nginx_instance_settings_array();
   return 0;
 }
+
+/****************************************************************************************/
 
 static void submit(const char *instance_name, const char *type,
                    const char *inst, long long value) {
@@ -402,8 +434,13 @@ static int nginx_read(void) {
   return 0;
 } /* int nginx_read */
 
+static int nginx_plugin_init(void) {
+  DEBUG("nginx plugin: Init completed");
+  return 0;
+}
+
 void module_register(void) {
-  plugin_register_init("nginx", init);
+  plugin_register_init("nginx", nginx_plugin_init);
   plugin_register_complex_config("nginx", nginx_config);
   plugin_register_read("nginx", nginx_read);
 } /* void module_register */
