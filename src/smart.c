@@ -278,6 +278,10 @@ static int get_vendor_id(const char *dev, char const *name) {
 
   int fd, err;
   __le16 vid;
+  union {
+    uint32_t placeholder;
+    char c[sizeof(vid) + 1];
+  } raw_buf = {};
 
   fd = open(dev, O_RDWR);
   if (fd < 0) {
@@ -285,10 +289,14 @@ static int get_vendor_id(const char *dev, char const *name) {
     return fd;
   }
 
+  /*
+   * Writing to the artificially unaligned &raw_buf.c[1] is a workaround for the
+   * Linux kernel >=5.19-rc1 possible buffer overruns.
+   */
   err = ioctl(fd, NVME_IOCTL_ADMIN_CMD,
               &(struct nvme_admin_cmd){.opcode = NVME_ADMIN_IDENTIFY,
                                        .nsid = NVME_NSID_ALL,
-                                       .addr = (unsigned long)&vid,
+                                       .addr = (unsigned long)&raw_buf.c[1],
                                        .data_len = sizeof(vid),
                                        .cdw10 = 1,
                                        .cdw11 = 0});
@@ -300,12 +308,18 @@ static int get_vendor_id(const char *dev, char const *name) {
     return err;
   }
 
+  memcpy(&vid, &raw_buf.c[1], sizeof(vid));
+
   close(fd);
   return (int)le16_to_cpu(vid);
 }
 
 static int smart_read_nvme_disk(const char *dev, char const *name) {
   union nvme_smart_log smart_log = {};
+  union {
+    uint32_t placeholder;
+    char c[sizeof(smart_log) + 1];
+  } raw_buf = {};
   int fd, status;
 
   fd = open(dev, O_RDWR);
@@ -322,10 +336,14 @@ static int smart_read_nvme_disk(const char *dev, char const *name) {
    * - Log Page Indentifier (bits 7:0) - for SMART the id is 0x02
    */
 
+  /*
+   * Writing to the artificially unaligned &raw_buf.c[1] is a workaround for the
+   * Linux kernel >=5.19-rc1 possible buffer overruns.
+   */
   status = ioctl(fd, NVME_IOCTL_ADMIN_CMD,
                  &(struct nvme_admin_cmd){.opcode = NVME_ADMIN_GET_LOG_PAGE,
                                           .nsid = NVME_NSID_ALL,
-                                          .addr = (unsigned long)&smart_log,
+                                          .addr = (unsigned long)&raw_buf.c[1],
                                           .data_len = sizeof(smart_log),
                                           .cdw10 = NVME_SMART_CDW10});
   if (status < 0) {
@@ -334,6 +352,7 @@ static int smart_read_nvme_disk(const char *dev, char const *name) {
     close(fd);
     return status;
   } else {
+    memcpy(&smart_log, &raw_buf.c[1], sizeof(smart_log));
     smart_submit(name, "nvme_critical_warning", "",
                  (double)smart_log.data.critical_warning);
     smart_submit(name, "nvme_temperature", "",
@@ -388,6 +407,10 @@ static int smart_read_nvme_intel_disk(const char *dev, char const *name) {
   DEBUG("dev = %s", dev);
 
   struct nvme_additional_smart_log intel_smart_log;
+  union {
+    uint32_t placeholder;
+    char c[sizeof(intel_smart_log) + 1];
+  } raw_buf = {};
   int fd, status;
   fd = open(dev, O_RDWR);
   if (fd < 0) {
@@ -400,19 +423,23 @@ static int smart_read_nvme_intel_disk(const char *dev, char const *name) {
    * - Additional SMART Attributes (Log Identfiter CAh)
    */
 
-  status =
-      ioctl(fd, NVME_IOCTL_ADMIN_CMD,
-            &(struct nvme_admin_cmd){.opcode = NVME_ADMIN_GET_LOG_PAGE,
-                                     .nsid = NVME_NSID_ALL,
-                                     .addr = (unsigned long)&intel_smart_log,
-                                     .data_len = sizeof(intel_smart_log),
-                                     .cdw10 = NVME_SMART_INTEL_CDW10});
+  /*
+   * Writing to the artificially unaligned &raw_buf.c[1] is a workaround for the
+   * Linux kernel >=5.19-rc1 possible buffer overruns.
+   */
+  status = ioctl(fd, NVME_IOCTL_ADMIN_CMD,
+                 &(struct nvme_admin_cmd){.opcode = NVME_ADMIN_GET_LOG_PAGE,
+                                          .nsid = NVME_NSID_ALL,
+                                          .addr = (unsigned long)&raw_buf.c[1],
+                                          .data_len = sizeof(intel_smart_log),
+                                          .cdw10 = NVME_SMART_INTEL_CDW10});
   if (status < 0) {
     ERROR(PLUGIN_NAME ": ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n",
           strerror(errno));
     close(fd);
     return status;
   } else {
+    memcpy(&intel_smart_log, &raw_buf.c[1], sizeof(intel_smart_log));
 
     smart_submit(name, "nvme_program_fail_count", "norm",
                  (double)intel_smart_log.program_fail_cnt.norm);
