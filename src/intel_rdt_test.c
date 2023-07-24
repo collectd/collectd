@@ -6,17 +6,34 @@
  */
 int pqos_mon_reset(void) { return 0; }
 int pqos_mon_assoc_get(const unsigned lcore, pqos_rmid_t *rmid) { return 0; }
+
+#if PQOS_VERSION >= 40600
+int pqos_mon_start_cores(const unsigned num_cores, const unsigned *cores,
+                         const enum pqos_mon_event event, void *context,
+                         struct pqos_mon_data **group) {
+  return 0;
+}
+#else
 int pqos_mon_start(const unsigned num_cores, const unsigned *cores,
                    const enum pqos_mon_event event, void *context,
                    struct pqos_mon_data *group) {
   return 0;
 }
+#endif
 #if PQOS_VERSION >= 30000
+#if PQOS_VERSION >= 40600
+int pqos_mon_start_pids2(const unsigned num_pids, const pid_t *pids,
+                         const enum pqos_mon_event event, void *context,
+                         struct pqos_mon_data **group) {
+  return 0;
+}
+#else
 int pqos_mon_start_pids(const unsigned num_pids, const pid_t *pids,
                         const enum pqos_mon_event event, void *context,
                         struct pqos_mon_data *group) {
   return 0;
 }
+#endif
 int pqos_mon_add_pids(const unsigned num_pids, const pid_t *pids,
                       struct pqos_mon_data *group) {
   return 0;
