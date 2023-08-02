@@ -523,6 +523,7 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
         io = row[metrics[i].field_index];
       }
     }
+
     set_host(db, n.host, sizeof(n.host));
 
     /* Assured by "mysql_config_database" */
