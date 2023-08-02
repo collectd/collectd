@@ -433,24 +433,53 @@ static int mysql_read_primary_stats(mysql_database_t *db, MYSQL *con) {
 
 static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
   MYSQL_RES *res;
+  MYSQL_FIELD *fields;
   MYSQL_ROW row;
 
   const char *query;
-  int field_num;
+  unsigned char field_num, field_req, field_parsed;
 
-  /* WTF? libmysqlclient does not seem to provide any means to
-   * translate a column name to a column index ... :-/ */
-  const int READ_MASTER_LOG_POS_IDX = 6;
-  const int SLAVE_IO_RUNNING_IDX = 10;
-  const int SLAVE_SQL_RUNNING_IDX = 11;
-  const int EXEC_MASTER_LOG_POS_IDX = 21;
-  const int SECONDS_BEHIND_MASTER_IDX = 32;
+  struct {
+    const char *key;
+    const char *type;
+    int ds_type;
+    const char *field_name;
+    unsigned char field_index;
+  } metrics[] = {
+      {"slave-sql-running", "bool", DS_TYPE_GAUGE, "Slave_SQL_Running", 0},
+      {"slave-io-running", "bool", DS_TYPE_GAUGE, "Slave_IO_Running", 0},
+      {"slave-read", "mysql_log_position", DS_TYPE_DERIVE,
+       "Read_Master_Log_Pos", 0},
+      {"slave-exec", "mysql_log_position", DS_TYPE_DERIVE,
+       "Exec_Master_Log_Pos", 0},
+      {NULL, "time_offset", DS_TYPE_GAUGE, "Seconds_Behind_Master", 0}};
 
   query = "SHOW SLAVE STATUS";
 
   res = exec_query(con, query);
   if (res == NULL)
     return -1;
+
+  fields = mysql_fetch_fields(res);
+  field_num = mysql_num_fields(res);
+  field_req = (char)(sizeof(metrics) / sizeof(*metrics));
+  field_parsed = 0;
+  while (field_num > 0) {
+    field_num--;
+    for (unsigned char i = 0; i < field_req; i++) {
+      if (strcmp(fields[field_num].name, metrics[i].field_name) == 0) {
+        metrics[i].field_index = field_num;
+        field_parsed++;
+      }
+    }
+  }
+  if (field_parsed != field_req) {
+    ERROR("mysql plugin: Failed to get replica statistics: "
+          "`%s' not all fields are collected.",
+          query);
+    mysql_free_result(res);
+    return -1;
+  }
 
   row = mysql_fetch_row(res);
   if (row == NULL) {
@@ -461,38 +490,24 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
     return -1;
   }
 
-  field_num = mysql_num_fields(res);
-  if (field_num < 33) {
-    ERROR("mysql plugin: Failed to get replica statistics: "
-          "`%s' returned less than 33 columns.",
-          query);
-    mysql_free_result(res);
-    return -1;
-  }
-
   if (db->replica_stats) {
-    unsigned long long counter;
-    double gauge;
-
-    gauge_submit("bool", "slave-sql-running",
-                 (row[SLAVE_SQL_RUNNING_IDX] != NULL) &&
-                     (strcasecmp(row[SLAVE_SQL_RUNNING_IDX], "yes") == 0),
-                 db);
-
-    gauge_submit("bool", "slave-io-running",
-                 (row[SLAVE_IO_RUNNING_IDX] != NULL) &&
-                     (strcasecmp(row[SLAVE_IO_RUNNING_IDX], "yes") == 0),
-                 db);
-
-    counter = atoll(row[READ_MASTER_LOG_POS_IDX]);
-    derive_submit("mysql_log_position", "slave-read", counter, db);
-
-    counter = atoll(row[EXEC_MASTER_LOG_POS_IDX]);
-    derive_submit("mysql_log_position", "slave-exec", counter, db);
-
-    if (row[SECONDS_BEHIND_MASTER_IDX] != NULL) {
-      gauge = atof(row[SECONDS_BEHIND_MASTER_IDX]);
-      gauge_submit("time_offset", NULL, gauge, db);
+    for (unsigned char i = 0; i < field_req; i++) {
+      switch (metrics[i].ds_type) {
+      case DS_TYPE_GAUGE:
+        if (row[metrics[i].field_index] != NULL) {
+          if (strcasecmp(row[metrics[i].field_index], "yes") == 0) {
+            gauge_submit(metrics[i].type, metrics[i].key, 1, db);
+          } else {
+            gauge_submit(metrics[i].type, metrics[i].key,
+                         atof(row[metrics[i].field_index]), db);
+          }
+        }
+        break;
+      case DS_TYPE_DERIVE:
+        derive_submit(metrics[i].type, metrics[i].key,
+                      atoll(row[metrics[i].field_index]), db);
+        break;
+      }
     }
   }
 
@@ -500,11 +515,14 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
     notification_t n = {0,  cdtime(),      "", "",  "mysql",
                         "", "time_offset", "", NULL};
 
-    char *io, *sql;
-
-    io = row[SLAVE_IO_RUNNING_IDX];
-    sql = row[SLAVE_SQL_RUNNING_IDX];
-
+    char *io = NULL, *sql = NULL;
+    for (unsigned char i = 0; i < field_req; i++) {
+      if (strcasecmp(metrics[i].field_name, "Slave_SQL_Running") == 0) {
+        sql = row[metrics[i].field_index];
+      } else if (strcasecmp(metrics[i].field_name, "Slave_IO_Running") == 0) {
+        io = row[metrics[i].field_index];
+      }
+    }
     set_host(db, n.host, sizeof(n.host));
 
     /* Assured by "mysql_config_database" */
