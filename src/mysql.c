@@ -498,7 +498,8 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
   char metric_name[DATA_MAX_NAME_LEN];
   while ((row = mysql_fetch_row(res))) {
     if (db->replica_stats) {
-      if (metrics_idx[CHANNEL_NAME_IDX].field_index >= 0) {
+      if (metrics_idx[CHANNEL_NAME_IDX].field_index >= 0 &&
+          row[metrics_idx[CHANNEL_NAME_IDX].field_index] != NULL) {
         gauge_submit(
             "bool",
             strncat(sstrncpy(metric_name, "slave-sql-running-",
