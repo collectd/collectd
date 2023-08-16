@@ -3977,6 +3977,7 @@ B<Synopsis:>
 
   <Plugin "intel_rdt">
     MonIPCEnabled true
+    MonLLCRefEnabled false
     Cores "0-2" "3,4,6" "8-10,15"
     Processes "sshd,qemu-system-x86" "bash"
   </Plugin>
@@ -3996,6 +3997,12 @@ recommended to set interval higher than 1 sec.
 
 Determines whether or not to enable IPC monitoring. If set to B<true> (the
 default), IPC monitoring statistics will be collected by intel_rdt plugin.
+
+=item B<MonLLCRefEnabled> B<true>|B<false>
+
+Determines whether or not to enable LLC references monitoring. If set to
+B<false> (the default), LLC references monitoring statistics will not be
+collected by intel_rdt plugin.
 
 =item B<Cores> I<cores groups>
 
