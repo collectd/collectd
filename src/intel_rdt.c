@@ -44,6 +44,10 @@
 
 #define RDT_PLUGIN "intel_rdt"
 
+#define RDT_EVENTS                                                             \
+  (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
+   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW)
+
 #define RDT_MAX_SOCKETS 8
 #define RDT_MAX_SOCKET_CORES 64
 #define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
@@ -547,8 +551,7 @@ static int rdt_config_events(rdt_ctx_t *rdt) {
   /* Get all available events on this platform */
   for (unsigned i = 0; i < rdt->cap_mon->u.mon->num_events; i++)
     events |= rdt->cap_mon->u.mon->events[i].type;
-
-  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
+  events &= RDT_EVENTS;
 
   /* IPC monitoring is disabled */
   if (!rdt->mon_ipc_enabled)
