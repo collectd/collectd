@@ -1469,7 +1469,7 @@
 #	<ProcessMatch "name" "regex">
 #		CollectFileDescriptor false
 #		CollectContextSwitch true
-#	</Process>
+#	</ProcessMatch>
 #</Plugin>
 
 #<Plugin "procevent">
