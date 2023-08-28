@@ -60,7 +60,7 @@ struct mysql_database_s /* {{{ */
 
   bool primary_stats;
   bool replica_stats;
-  bool mariadb;
+  bool mariadb_dialect;
   bool innodb_stats;
   bool wsrep_stats;
 
@@ -199,8 +199,8 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_boolean(child, &db->replica_stats);
     else if (strcasecmp("SlaveNotifications", child->key) == 0)
       status = cf_util_get_boolean(child, &db->replica_notif);
-    else if (strcasecmp("MariaDb", child->key) == 0)
-      status = cf_util_get_boolean(child, &db->mariadb);
+    else if (strcasecmp("MariadbDialect", child->key) == 0)
+      status = cf_util_get_boolean(child, &db->mariadb_dialect);
     else if (strcasecmp("InnodbStats", child->key) == 0)
       status = cf_util_get_boolean(child, &db->innodb_stats);
     else if (strcasecmp("WsrepStats", child->key) == 0)
@@ -449,7 +449,7 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
 #define EXEC_MASTER_LOG_POS_IDX 4
 #define SECONDS_BEHIND_MASTER_IDX 5
 
-  if (db->mariadb && db->mysql_version >= 50505) {
+  if (db->mariadb_dialect && db->mysql_version >= 50505) {
     query = "SHOW ALL SLAVES STATUS";
     channel_name_field = "Connection_name";
   } else {
