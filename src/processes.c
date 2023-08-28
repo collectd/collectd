@@ -834,7 +834,7 @@ static void ps_submit_state(const char *state, double value) {
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void ps_submit_proc_list(procstat_t *ps) {
   if (ps->skip_non_running_procs && ps->num_lwp == 0) {
-    WARNING("processes: Skip submit data from a non-running process %s",
+    DEBUG("processes: Skip submit data from a non-running process %s",
             ps->name);
     return;
   }
