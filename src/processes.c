@@ -291,6 +291,7 @@ typedef struct procstat {
   bool report_maps_num;
   bool report_ctx_switch;
   bool report_delay;
+  bool skip_non_running_procs;
 
   struct procstat *next;
   struct procstat_entry_s *instances;
@@ -304,6 +305,7 @@ static bool report_fd_num;
 static bool report_maps_num;
 static bool report_delay;
 static bool report_sys_ctxt_switch;
+static bool skip_non_running_procs;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -375,6 +377,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
   new->report_maps_num = report_maps_num;
   new->report_ctx_switch = report_ctx_switch;
   new->report_delay = report_delay;
+  new->skip_non_running_procs = skip_non_running_procs;
 
 #if HAVE_REGEX_H
   if (regexp != NULL) {
@@ -667,6 +670,8 @@ static void ps_tune_instance(oconfig_item_t *ci, procstat_t *ps) {
       WARNING("processes plugin: The plugin has been compiled without support "
               "for the \"CollectDelayAccounting\" option.");
 #endif
+    } else if (strcasecmp(c->key, "SkipNonRunningProcess") == 0) {
+      cf_util_get_boolean(c, &ps->skip_non_running_procs);
     } else {
       ERROR("processes plugin: Option \"%s\" not allowed here.", c->key);
     }
@@ -737,6 +742,8 @@ static int ps_config(oconfig_item_t *ci) {
 #endif
     } else if (strcasecmp(c->key, "CollectSystemContextSwitch") == 0) {
       cf_util_get_boolean(c, &report_sys_ctxt_switch);
+    } else if (strcasecmp(c->key, "SkipNonRunningProcess") == 0) {
+      cf_util_get_boolean(c, &skip_non_running_procs);
     } else {
       ERROR("processes plugin: The `%s' configuration option is not "
             "understood and will be ignored.",
@@ -826,7 +833,7 @@ static void ps_submit_state(const char *state, double value) {
 
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void ps_submit_proc_list(procstat_t *ps) {
-  if (ps->num_lwp == 0) {
+  if (ps->skip_non_running_procs && ps->num_lwp == 0) {
     WARNING("processes: Skip submit data from a non-running process %s",
             ps->name);
     return;
