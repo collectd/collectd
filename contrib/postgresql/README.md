@@ -1,7 +1,9 @@
-Motivation for that second possible postgresql layout:
-------------------------------------------------------
+PostreSQL example databases:
 
-The first layout from Sebastian 'tokkee' Harl is like that:
+    collectd_insert.sql
+    collectd_insert2.sql
+
+The first database layout, from Sebastian 'tokkee' Harl, is like this:
 
 ```
 +-------------------+  +----------------+
@@ -65,7 +67,7 @@ The type, type_inst and value_name get used to create the name of the value volu
 Description:
 ------------
 
-Second database layout is done on postgresql 15, by <INSERT NAME>.
+Second database layout is done on postgresql 15, by Georg Gast.
 
 It has some advantages over first one: The data has much higher data locality as it stays in one table and much less unneeded text columns.
 This leads to much smaller table spaces. In my case the first setup created about 300 MB per day. The new setup about 50 MB with the advantage of depending data near each other.
