@@ -69,7 +69,7 @@ My development was done on postgresql 15.
 
 It has some advantages: The data has much higher data locality as it stays in one table and much less unneeded text columns.
 This leads to much smaller table spaces. In my case the first setup created about 300 MB per day. The new setup about 50 MB with the advantage of depending data near each other.
-You can also think about changing the datatype of the plugin_$plugin table to real. Just think if you realy need the double precission that double vs real. This just cuts the needed space in half.
+You can also think about changing the datatype of the plugin_$plugin table to real. Consider whether you really need the double precision compared to real as latter would cut the needed space in half.
 
 Sample configuration:
 ---------------------
