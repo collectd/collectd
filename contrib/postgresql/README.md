@@ -15,8 +15,8 @@ The first layout from Sebastian 'tokkee' Harl is like that:
 +-------------------+  +----------------+
 ```
 
-The ID connects the two tables. The plugin, plugin_inst, type and tpye_inst
-create s so called identifier. The timestamp, name and value get inserted into
+The ID connects the two tables. The plugin, plugin_inst, type and type_inst
+create a so called identifier. The timestamp, name and value get inserted into
 the value table.
 
 collectd/postgresql calles the collectd_insert function.
