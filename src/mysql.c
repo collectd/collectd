@@ -1008,6 +1008,8 @@ static int mysql_read(user_data_t *ud) {
       derive_submit("mysql_slow_queries", NULL, val, db);
     } else if (strcmp(key, "Uptime") == 0) {
       gauge_submit("uptime", NULL, val, db);
+    } else if (strcmp(key, "Questions") == 0) {
+      gauge_submit("questions", NULL, val, db);
     }
   }
   mysql_free_result(res);

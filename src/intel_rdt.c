@@ -44,6 +44,11 @@
 
 #define RDT_PLUGIN "intel_rdt"
 
+#define RDT_EVENTS                                                             \
+  (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
+   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_REF)
+
+
 #define RDT_MAX_SOCKETS 8
 #define RDT_MAX_SOCKET_CORES 64
 #define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
@@ -76,6 +81,9 @@ typedef struct rdt_name_group_s rdt_name_group_t;
 
 struct rdt_ctx_s {
   bool mon_ipc_enabled;
+#if PQOS_VERSION >= 40400
+  bool mon_llc_ref_enabled;
+#endif
   core_groups_list_t cores;
   enum pqos_mon_event events[RDT_MAX_CORES];
   struct pqos_mon_data *pcgroups[RDT_MAX_CORES];
@@ -140,6 +148,16 @@ static void rdt_submit(const struct pqos_mon_data *group) {
 
   if (events & PQOS_PERF_EVENT_IPC)
     rdt_submit_gauge(desc, "ipc", NULL, values->ipc);
+
+#if PQOS_VERSION >= 40400
+  if (events & PQOS_PERF_EVENT_LLC_REF) {
+    uint64_t value;
+
+    int ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_REF, &value, NULL);
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_gauge(desc, "bytes", "llc_ref", value);
+  }
+#endif
 
   if (events & PQOS_MON_EVENT_LMEM_BW) {
     const struct pqos_monitor *mon = NULL;
@@ -547,12 +565,17 @@ static int rdt_config_events(rdt_ctx_t *rdt) {
   /* Get all available events on this platform */
   for (unsigned i = 0; i < rdt->cap_mon->u.mon->num_events; i++)
     events |= rdt->cap_mon->u.mon->events[i].type;
-
-  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
+  events &= RDT_EVENTS;
 
   /* IPC monitoring is disabled */
   if (!rdt->mon_ipc_enabled)
     events &= ~(PQOS_PERF_EVENT_IPC);
+
+#if PQOS_VERSION >= 40400
+  /* LLC references monitoring is disabled */
+  if (!rdt->mon_llc_ref_enabled)
+    events &= ~(PQOS_PERF_EVENT_LLC_REF);
+#endif
 
   DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
 
@@ -1215,6 +1238,10 @@ static int rdt_config(oconfig_item_t *ci) {
 #endif /* LIBPQOS2 */
     } else if (strcasecmp("MonIPCEnabled", child->key) == 0) {
       cf_util_get_boolean(child, &g_rdt->mon_ipc_enabled);
+#if PQOS_VERSION >= 40400
+    } else if (strcasecmp("MonLLCRefEnabled", child->key) == 0) {
+      cf_util_get_boolean(child, &g_rdt->mon_llc_ref_enabled);
+#endif
     } else {
       ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
     }

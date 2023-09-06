@@ -837,6 +837,7 @@
 
 #<Plugin "intel_rdt">
 #  MonIPCEnabled true
+#  MonLLCRefEnabled false
 #  Cores "0-2"
 #  Processes "sshd"
 #</Plugin>
@@ -1469,7 +1470,7 @@
 #	<ProcessMatch "name" "regex">
 #		CollectFileDescriptor false
 #		CollectContextSwitch true
-#	</Process>
+#	</ProcessMatch>
 #</Plugin>
 
 #<Plugin "procevent">
