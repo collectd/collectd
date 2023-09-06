@@ -5565,8 +5565,8 @@ privileges. See the B<User> documentation above. Defaults to B<false>.
 
 =item B<MariadbDialect> I<true|false>
 
-Enable Multisource replication MariadbDialect support, use
-SHOW ALL SLAVES STATUS command output for MariaDB.
+Enable Multisource replication MariadbDialect support.
+Use SHOW ALL SLAVES STATUS command output for MariaDB.
 
 =item B<SlaveNotifications> I<true|false>
 
