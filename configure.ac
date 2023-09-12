@@ -3560,7 +3560,8 @@ AC_SUBST([BUILD_WITH_LIBMOSQUITTO_LIBS])
 # }}}
 
 # --with-libmysql {{{
-with_mysql_config="mysql_config"
+# mariadb_config provides the same output like mysql_config
+with_mysql_config="mariadb_config"
 AC_ARG_WITH([libmysql],
   [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to libmysql.])],
   [
@@ -3571,8 +3572,8 @@ AC_ARG_WITH([libmysql],
     else
       if test -f "$withval" && test -x "$withval"; then
         with_mysql_config="$withval"
-      else if test -x "$withval/bin/mysql_config"; then
-        with_mysql_config="$withval/bin/mysql_config"
+      else if test -x "$withval/bin/mariadb_config"; then
+        with_mysql_config="$withval/bin/mariadb_config"
       fi; fi
       with_libmysql="yes"
     fi; fi
