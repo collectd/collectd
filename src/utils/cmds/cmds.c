@@ -206,7 +206,8 @@ cmd_status_t cmd_parsev(size_t argc, char **argv, cmd_t *ret_cmd,
         cmd_parse_getval(argc - 1, argv + 1, &ret_cmd->cmd.getval, opts, err);
   } else if (strcasecmp("LISTVAL", command) == 0) {
     ret_cmd->type = CMD_LISTVAL;
-    status = cmd_parse_listval(argc - 1, argv + 1, opts, err);
+    status =
+        cmd_parse_listval(argc - 1, argv + 1, &ret_cmd->cmd.listval, opts, err);
   } else if (strcasecmp("PUTVAL", command) == 0) {
     ret_cmd->type = CMD_PUTVAL;
     status =
@@ -251,6 +252,7 @@ void cmd_destroy(cmd_t *cmd) {
     cmd_destroy_getval(&cmd->cmd.getval);
     break;
   case CMD_LISTVAL:
+    cmd_destroy_listval(&cmd->cmd.listval);
     break;
   case CMD_PUTVAL:
     cmd_destroy_putval(&cmd->cmd.putval);

@@ -826,8 +826,9 @@ int lcc_flush(lcc_connection_t *c, const char *plugin, /* {{{ */
 
 /* TODO: Implement lcc_putnotif */
 
-int lcc_listval(lcc_connection_t *c, /* {{{ */
+int lcc_listval(lcc_connection_t *c, char *state, /* {{{ */
                 lcc_identifier_t **ret_ident, size_t *ret_ident_num) {
+  char command[1024] = "";
   lcc_response_t res;
   int status;
 
@@ -842,7 +843,15 @@ int lcc_listval(lcc_connection_t *c, /* {{{ */
     return -1;
   }
 
-  status = lcc_sendreceive(c, "LISTVAL", &res);
+  SSTRCPY(command, "LISTVAL");
+
+  if (state != NULL) {
+    char buffer[2 * LCC_NAME_LEN];
+    SSTRCATF(command, " state=%s",
+             lcc_strescape(buffer, state, sizeof(buffer)));
+  }
+
+  status = lcc_sendreceive(c, command, &res);
   if (status != 0)
     return status;
 

@@ -277,7 +277,9 @@ static int do_listval(lcc_connection_t *connection) {
 
   int status;
 
-  status = lcc_listval(connection, &ret_ident, &ret_ident_num);
+  char *state = NULL;
+
+  status = lcc_listval(connection, state, &ret_ident, &ret_ident_num);
   if (status != 0) {
     printf("UNKNOWN: %s\n", lcc_strerror(connection));
     if (ret_ident != NULL)

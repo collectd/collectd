@@ -158,6 +158,9 @@ static struct {
         CMD_OK,
         CMD_LISTVAL,
     },
+    {
+        "LISTVAL state=OKAY", NULL, CMD_OK, CMD_LISTVAL,
+    },
 
     /* Invalid LISTVAL commands. */
     {
@@ -165,6 +168,9 @@ static struct {
         NULL,
         CMD_PARSE_ERROR,
         CMD_UNKNOWN,
+    },
+    {
+        "LISTVAL invalid=option", NULL, CMD_PARSE_ERROR, CMD_UNKNOWN,
     },
 
     /* Valid PUTVAL commands. */

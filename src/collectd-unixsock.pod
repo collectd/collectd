@@ -71,6 +71,8 @@ update time as an epoch value and the identifier, separated by a space. The
 update time is the time of the last value, as provided by the collecting
 instance and may be very different from the time the server considers to be
 "now".
+The list can be also filtered by state using the option provided by the command.
+Valid values are: OKAY, ERROR,<...>
 
 Example:
   -> | LISTVAL

@@ -34,13 +34,38 @@
 #include "utils_cache.h"
 
 cmd_status_t cmd_parse_listval(size_t argc, char **argv,
+                               cmd_listval_t *ret_listval,
                                const cmd_options_t *opts
                                __attribute__((unused)),
                                cmd_error_handler_t *err) {
-  if (argc != 0) {
+  if (argc > 1) {
     cmd_error(CMD_PARSE_ERROR, err, "Garbage after end of command: `%s'.",
               argv[0]);
     return CMD_PARSE_ERROR;
+  }
+
+  for (size_t i = 0; i < argc; i++) {
+    char *opt_key;
+    char *opt_value;
+    int status;
+
+    opt_key = NULL;
+    opt_value = NULL;
+    status = cmd_parse_option(argv[i], &opt_key, &opt_value, err);
+    if (status != 0) {
+      if (status == CMD_NO_OPTION)
+        cmd_error(CMD_PARSE_ERROR, err, "Invalid option string `%s'.", argv[i]);
+      cmd_destroy_listval(ret_listval);
+      return CMD_PARSE_ERROR;
+    }
+
+    if (strcasecmp("state", opt_key) == 0) {
+      ret_listval->state = opt_value;
+    } else {
+      cmd_error(CMD_PARSE_ERROR, err, "Cannot parse option `%s'.", opt_key);
+      cmd_destroy_listval(ret_listval);
+      return CMD_PARSE_ERROR;
+    }
   }
 
   return CMD_OK;
@@ -54,6 +79,7 @@ cmd_status_t cmd_parse_listval(size_t argc, char **argv,
     }                                                                          \
     sfree(names);                                                              \
     sfree(times);                                                              \
+    sfree(states);                                                             \
     return status;                                                             \
   } while (0)
 
@@ -74,6 +100,7 @@ cmd_status_t cmd_handle_listval(FILE *fh, char *buffer) {
 
   char **names = NULL;
   cdtime_t *times = NULL;
+  int *states = NULL;
   size_t number = 0;
 
   DEBUG("utils_cmd_listval: handle_listval (fh = %p, buffer = %s);", (void *)fh,
@@ -87,10 +114,11 @@ cmd_status_t cmd_handle_listval(FILE *fh, char *buffer) {
     free_everything_and_return(CMD_UNKNOWN_COMMAND);
   }
 
-  status = uc_get_names(&names, &times, &number);
+  status = uc_get_names_states(&names, &times, &states, &number,
+                               cmd.cmd.listval.state);
   if (status != 0) {
-    DEBUG("command listval: uc_get_names failed with status %i", status);
-    cmd_error(CMD_ERROR, &err, "uc_get_names failed.");
+    DEBUG("command listval: uc_get_names_states failed with status %i", status);
+    cmd_error(CMD_ERROR, &err, "uc_get_names_states failed.");
     free_everything_and_return(CMD_ERROR);
   }
 
@@ -101,3 +129,10 @@ cmd_status_t cmd_handle_listval(FILE *fh, char *buffer) {
 
   free_everything_and_return(CMD_OK);
 } /* cmd_status_t cmd_handle_listval */
+
+void cmd_destroy_listval(cmd_listval_t *listval) {
+  if (listval == NULL)
+    return;
+
+  listval->state = NULL;
+} /* void cmd_destroy_listval */

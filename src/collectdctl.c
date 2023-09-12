@@ -355,13 +355,14 @@ static int flush(lcc_connection_t *c, int argc, char **argv) {
 static int listval(lcc_connection_t *c, int argc, char **argv) {
   lcc_identifier_t *ret_ident = NULL;
   size_t ret_ident_num = 0;
+  char *state = NULL;
 
   int status;
 
   assert(strcasecmp(argv[0], "listval") == 0);
 
-  if (argc != 1) {
-    fprintf(stderr, "ERROR: listval: Does not accept any arguments.\n");
+  if (argc > 2) {
+    fprintf(stderr, "ERROR: listval: Does not accept more than 1 argument.\n");
     return -1;
   }
 
@@ -373,7 +374,29 @@ static int listval(lcc_connection_t *c, int argc, char **argv) {
     return s;                                                                  \
   } while (0)
 
-  status = lcc_listval(c, &ret_ident, &ret_ident_num);
+  for (int i = 1; i < argc; ++i) {
+    char *key, *value;
+
+    key = argv[i];
+    value = strchr(argv[i], (int)'=');
+
+    if (!value) {
+      fprintf(stderr, "ERROR: listval: Invalid option ``%s''.\n", argv[i]);
+      BAIL_OUT(-1);
+    }
+
+    *value = '\0';
+    ++value;
+
+    if (strcasecmp(key, "state") == 0) {
+      state = value;
+    } else {
+      fprintf(stderr, "ERROR: listval: Unknown option `%s'.\n", key);
+      BAIL_OUT(-1);
+    }
+  }
+
+  status = lcc_listval(c, state, &ret_ident, &ret_ident_num);
   if (status != 0) {
     fprintf(stderr, "ERROR: %s\n", lcc_strerror(c));
     BAIL_OUT(status);
