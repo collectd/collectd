@@ -2,6 +2,7 @@
  * collectd - src/cgroups.c
  * Copyright (C) 2011  Michael Stapelberg
  * Copyright (C) 2013  Florian Forster
+ * Copyright (C) 2015  Thomas Weißschuh, Amadeus Germany GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +20,7 @@
  * Authors:
  *   Michael Stapelberg <michael at stapelberg.de>
  *   Florian Forster <octo at collectd.org>
+ *   Thomas Weißschuh <thomas.weissschuh at de.amadeus.com>
  **/
 
 #include "collectd.h"
@@ -28,31 +30,73 @@
 #include "utils/ignorelist/ignorelist.h"
 #include "utils/mount/mount.h"
 
+struct controller_settings {
+  bool found;
+  char *controller;
+  dirwalk_callback_f callback;
+};
+
 static char const *config_keys[] = {"CGroup", "IgnoreSelected"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *il_cgroup;
 
-__attribute__((nonnull(1))) __attribute__((nonnull(2))) static void
-cgroups_submit_one(char const *plugin_instance, char const *type_instance,
-                   value_t value) {
+__attribute__((nonnull(1, 2, 3))) static void
+cgroups_submit_one(char const *type, char const *plugin_instance,
+                   char const *type_instance, value_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &value;
   vl.values_len = 1;
   sstrncpy(vl.plugin, "cgroups", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "cpu", sizeof(vl.type));
+  sstrncpy(vl.type, type, sizeof(vl.type));
   sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
 } /* void cgroups_submit_one */
 
-/*
- * This callback reads the user/system CPU time for each cgroup.
- */
-static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
-                              void *user_data) {
+static bool strip_suffix(char *str, size_t str_len, const char *suffix) {
+  size_t suffix_len = strlen(suffix);
+
+  if (str_len < suffix_len)
+    return false;
+
+  if (strcmp(str + str_len - suffix_len, suffix) == 0) {
+    str[str_len - suffix_len] = '\0';
+    return true;
+  }
+
+  return false;
+}
+
+static value_t multiply_value(int ds_type, value_t value, unsigned int factor) {
+  value_t ret_value = value;
+
+  switch (ds_type) {
+  case DS_TYPE_COUNTER:
+    ret_value.counter = value.counter * factor;
+    break;
+
+  case DS_TYPE_GAUGE:
+    ret_value.gauge = value.gauge * factor;
+    break;
+
+  case DS_TYPE_DERIVE:
+    ret_value.derive = value.derive * factor;
+    break;
+
+  case DS_TYPE_ABSOLUTE:
+    ret_value.absolute = value.absolute * factor;
+  }
+
+  return ret_value;
+}
+
+__attribute__((nonnull(1, 2, 3, 4))) static int
+read_cgroups_table(const char *type, const char *dirname,
+                   const char *cgroup_name, const char *table_name, int ds_type,
+                   void *user_data) {
   char abs_path[PATH_MAX];
   struct stat statbuf;
   char buf[1024];
@@ -75,8 +119,8 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
   if (!S_ISDIR(statbuf.st_mode))
     return 0;
 
-  snprintf(abs_path, sizeof(abs_path), "%s/%s/cpuacct.stat", dirname,
-           cgroup_name);
+  snprintf(abs_path, sizeof(abs_path), "%s/%s/%s", dirname, cgroup_name,
+           table_name);
   fh = fopen(abs_path, "r");
   if (fh == NULL) {
     ERROR("cgroups plugin: fopen (\"%s\") failed: %s", abs_path, STRERRNO);
@@ -114,24 +158,57 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
     if (key[key_len - 1] == ':')
       key[key_len - 1] = '\0';
 
-    status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+    /* Strip _usec suffix, if found */
+    bool is_usec = strip_suffix(key, key_len, "_usec");
+
+    status = parse_value(fields[1], &value, ds_type);
     if (status != 0)
       continue;
 
-    cgroups_submit_one(cgroup_name, key, value);
+    /* cgroup v1 reports nanoseconds, cgroup v2 microseconds. Normalize to nano
+     */
+    if (is_usec)
+      value = multiply_value(ds_type, value, 1000);
+
+    cgroups_submit_one(type, cgroup_name, key, value);
   }
 
   fclose(fh);
   return 0;
+} /* int read_cgroups_table */
+
+/*
+ * This callback reads the user/system CPU time for each cgroup.
+ */
+__attribute__((nonnull(1, 2))) static int
+read_cpuacct_procs(const char *dirname, char const *cgroup_name,
+                   void *user_data) {
+  return read_cgroups_table("cpu", dirname, cgroup_name, "cpuacct.stat",
+                            DS_TYPE_DERIVE, user_data);
 } /* int read_cpuacct_procs */
 
 /*
- * Gets called for every file/folder in /sys/fs/cgroup/cpu,cpuacct (or
- * wherever cpuacct is mounted on the system). Calls walk_directory with the
- * read_cpuacct_procs callback on every folder it finds, such as "system".
+ * This callback reads the user/system CPU time for each cgroup.
  */
-static int read_cpuacct_root(const char *dirname, const char *filename,
-                             void *user_data) {
+__attribute__((nonnull(1, 2))) static int
+read_cpu_procs(const char *dirname, char const *cgroup_name, void *user_data) {
+  return read_cgroups_table("cpu", dirname, cgroup_name, "cpu.stat",
+                            DS_TYPE_DERIVE, user_data);
+} /* int read_cpu_procs */
+
+__attribute__((nonnull(1, 2))) static int
+read_memory_procs(const char *dirname, char const *cgroup_name,
+                  void *user_data) {
+  return read_cgroups_table("memory", dirname, cgroup_name, "memory.stat",
+                            DS_TYPE_GAUGE, user_data);
+} /* int read_memory_procs */
+
+/*
+ * This callback reads the memory statistics for each cgroup.
+ */
+__attribute__((nonnull(1, 2, 3))) static int
+read_cgroups_root(const char *dirname, const char *filename,
+                  dirwalk_callback_f callback, void *user_data) {
   char abs_path[PATH_MAX];
   struct stat statbuf;
   int status;
@@ -145,21 +222,57 @@ static int read_cpuacct_root(const char *dirname, const char *filename,
   }
 
   if (S_ISDIR(statbuf.st_mode)) {
-    status = walk_directory(abs_path, read_cpuacct_procs,
+    status = walk_directory(abs_path, callback,
                             /* user_data = */ NULL,
                             /* include_hidden = */ 0);
     return status;
   }
 
   return 0;
-}
+} /* int read_cgroups_root */
+
+/*
+ * Gets called for every file/folder in /sys/fs/cgroup/cpu,cpuacct (or
+ * wherever cpuacct is mounted on the system). Calls walk_directory with the
+ * read_cpuacct_procs callback on every folder it finds, such as "system".
+ */
+__attribute__((nonnull(1, 2))) static int
+read_cpuacct_root(const char *dirname, const char *filename, void *user_data) {
+  return read_cgroups_root(dirname, filename, read_cpuacct_procs, user_data);
+} /* int read_cpuacct_root */
+
+/*
+ * Gets called for every file/folder in /sys/fs/cgroup/memory (or
+ * wherever memory is mounted on the system). Calls walk_directory with the
+ * read_memory_procs callback on every folder it finds, such as "system".
+ */
+__attribute__((nonnull(1, 2))) static int
+read_memory_root(const char *dirname, const char *filename, void *user_data) {
+  return read_cgroups_root(dirname, filename, read_memory_procs, user_data);
+} /* int read_memory_root */
+
+/*
+ * Gets called for every file/folder in /sys/fs/cgroup (or
+ * wherever cgroup2 is mounted on the system). Calls walk_directory with the
+ * read_cpu_procs callback on every folder it finds, such as "system".
+ */
+__attribute__((nonnull(1, 2))) static int
+read_cpu_root(const char *dirname, const char *filename, void *user_data) {
+  return read_cgroups_root(dirname, filename, read_cpu_procs, user_data);
+} /* int read_cpu_root */
 
 static int cgroups_init(void) {
   if (il_cgroup == NULL)
     il_cgroup = ignorelist_create(1);
 
   return 0;
-}
+} /* int cgroups_init */
+
+static int cgroups_shutdown(void) {
+  ignorelist_free(il_cgroup);
+
+  return 0;
+} /* int cgroups_shutdown */
 
 static int cgroups_config(const char *key, const char *value) {
   cgroups_init();
@@ -177,48 +290,68 @@ static int cgroups_config(const char *key, const char *value) {
   }
 
   return -1;
-}
+} /* int cgroups_config */
+
+static void cgroups_walk_mountpoint(cu_mount_t *mnt_ptr,
+                                    struct controller_settings *settings,
+                                    bool check_mountoption) {
+  if (1 == settings->found)
+    return;
+
+  if (check_mountoption &&
+      !cu_mount_checkoption(mnt_ptr->options, settings->controller, 1))
+    return;
+
+  walk_directory(mnt_ptr->dir, settings->callback,
+                 /* user_data = */ NULL,
+                 /* include_hidden = */ 0);
+  settings->found = 1;
+} /* void cgroups_walk_mountpoint */
 
 static int cgroups_read(void) {
-  cu_mount_t *mnt_list = NULL;
-  bool cgroup_found = false;
+  cu_mount_t *mnt_list;
+  cu_mount_t *mnt_ptr;
+  struct controller_settings settings[] = {
+      {0, "cpuacct", read_cpuacct_root},
+      {0, "cpu", read_cpu_root},
+      {0, "memory", read_memory_root},
+  };
+  unsigned int i;
+  bool found_any = 0;
 
+  mnt_list = NULL;
   if (cu_mount_getlist(&mnt_list) == NULL) {
     ERROR("cgroups plugin: cu_mount_getlist failed.");
     return -1;
   }
 
-  for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL;
-       mnt_ptr = mnt_ptr->next) {
-    /* Find the cgroup mountpoint which contains the cpuacct
-     * controller. */
-    if ((strcmp(mnt_ptr->type, "cgroup") != 0) ||
-        !cu_mount_checkoption(mnt_ptr->options, "cpuacct", /* full = */ 1))
+  for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next) {
+    if (strcmp(mnt_ptr->type, "cgroup") != 0 &&
+        strcmp(mnt_ptr->type, "cgroup2"))
       continue;
 
-    walk_directory(mnt_ptr->dir, read_cpuacct_root,
-                   /* user_data = */ NULL,
-                   /* include_hidden = */ 0);
-    cgroup_found = true;
-    /* It doesn't make sense to check other cpuacct mount-points
-     * (if any), they contain the same data. */
-    break;
+    for (i = 0; i < STATIC_ARRAY_SIZE(settings); i++)
+      cgroups_walk_mountpoint(mnt_ptr, &settings[i],
+                              strcmp(mnt_ptr->type, "cgroup2"));
   }
 
   cu_mount_freelist(mnt_list);
 
-  if (!cgroup_found) {
-    WARNING("cgroups plugin: Unable to find cgroup "
-            "mount-point with the \"cpuacct\" option.");
-    return -1;
+  for (i = 0; i < STATIC_ARRAY_SIZE(settings); i++) {
+    found_any |= settings[i].found;
+    if (0 == settings[i].found)
+      WARNING("cgroups plugin: Unable to find cgroup "
+              "mount-point with the \"%s\" option or cgroup2 mount-point.",
+              settings[i].controller);
   }
 
-  return 0;
+  return found_any ? 0 : -1;
 } /* int cgroup_read */
 
 void module_register(void) {
   plugin_register_config("cgroups", cgroups_config, config_keys,
                          config_keys_num);
   plugin_register_init("cgroups", cgroups_init);
+  plugin_register_shutdown("cgroups", cgroups_shutdown);
   plugin_register_read("cgroups", cgroups_read);
 } /* void module_register */
