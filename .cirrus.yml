@@ -27,10 +27,10 @@ release_ready_task:
 debian_default_toolchain_task:
   matrix:
     - container:
-        image: collectd/ci:buster_amd64
+        image: collectd/ci:bullseye_amd64
       allow_failures: false
     - container:
-        image: collectd/ci:stretch_amd64
+        image: collectd/ci:buster_amd64
       allow_failures: false
     - container:
         image: collectd/ci:stretch_i386
@@ -78,7 +78,11 @@ redhat_default_toolchain_task:
     - allow_failures: true
       skip_notifications: true
       container:
-        image: collectd/ci:fedora28_x86_64
+        image: collectd/ci:el8_x86_64 # TODO: fix this platform
+    - allow_failures: true
+      skip_notifications: true
+      container:
+        image: collectd/ci:fedora34_x86_64
     # fedora/rawhide is expected to fail
     - allow_failures: true
       skip_notifications: true
@@ -102,7 +106,7 @@ redhat_default_toolchain_task:
 # Some are expected to fail, others should always pass
 non_standard_toolchains_task:
   container:
-    image: collectd/ci:stretch_amd64
+    image: collectd/ci:bullseye_amd64
   only_if: $CIRRUS_PR == ''
 
   matrix:
