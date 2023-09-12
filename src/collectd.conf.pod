@@ -174,6 +174,12 @@ The number of metrics dropped due to a queue length limitation.
 If this value is non-zero, your system can't handle all incoming metrics and
 protects itself against overload by dropping metrics.
 
+=item B<SampleBasedRates> B<false>|B<true>
+
+Do not calculate per-second rates.  Instead, calculate the difference since
+the last sample was taken.  This is useful in cases where a downstream
+aggregator will compute time-based rates from the raw data.
+
 =item C<collectd-cache/cache_size>
 
 The number of elements in the metric cache (the cache you can interact with
