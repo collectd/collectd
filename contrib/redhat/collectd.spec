@@ -780,6 +780,7 @@ Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 BuildRequires:	perl-ExtUtils-Embed
+BuildRequires:	perl-macros
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
