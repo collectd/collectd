@@ -137,6 +137,7 @@
 %define with_procevent 0%{!?_without_procevent:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
+%define with_ras 0%{!?_without_ras:1}
 %define with_redis 0%{!?_without_redis:1}
 %define with_rrdcached 0%{!?_without_rrdcached:1}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
@@ -846,6 +847,16 @@ BuildRequires: python2-devel
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
 application programming interface (API) to Python-scripts.
+%endif
+
+%if %{with_ras}
+%package ras
+Summary:	RAS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	sqlite-devel
+%description ras
+The RAS plugin gathers and counts errors provided by RASDaemon.
 %endif
 
 %if %{with_redis}
@@ -1782,6 +1793,12 @@ Collectd utilities
 %define _with_redfish --disable-redfish
 %endif
 
+%if %{with_ras}
+%define _with_ras --enable-ras
+%else
+%define _with_ras --disable-ras
+%endif
+
 %if %{with_redis}
 %define _with_redis --enable-redis
 %else
@@ -2228,6 +2245,7 @@ Collectd utilities
 	%{?_with_procevent} \
 	%{?_with_protocols} \
 	%{?_with_python} \
+	%{?_with_ras} \
 	%{?_with_redfish} \
 	%{?_with_redis} \
 	%{?_with_routeros} \
@@ -2932,6 +2950,11 @@ fi
 %files python
 %{_mandir}/man5/collectd-python*
 %{_libdir}/%{name}/python.so
+%endif
+
+%if %{with_ras}
+%files ras
+%{_libdir}/%{name}/ras.so
 %endif
 
 %if %{with_redis}
