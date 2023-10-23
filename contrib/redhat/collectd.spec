@@ -568,7 +568,11 @@ using the Intelligent Platform Management Interface (IPMI).
 Summary:	IPtables plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+%if 0%{?fedora} || 0%{?rhel} >= 9
+BuildRequires:	iptables-legacy-devel
+%else
 BuildRequires:	iptables-devel
+%endif
 %description iptables
 The IPtables plugin can gather statistics from your ip_tables based packet
 filter (aka. firewall) for both the IPv4 and the IPv6 protocol. It can collect
