@@ -107,6 +107,7 @@
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
+%define with_mmc 0%{!?_without_mmc:1}
 %define with_modbus 0%{!?_without_modbus:1}
 %define with_mqtt 0%{!?_without_mqtt:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
@@ -636,6 +637,19 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 %description mic
 The mic plugin collects CPU usage, memory usage, temperatures and power
 consumption from Intel Many Integrated Core (MIC) CPUs.
+%endif
+
+%if %{with_mmc}
+%package mmc
+Summary:       MMC plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	systemd-devel
+%description mmc
+Reads the life time estimates reported by eMMC 5.0+ devices and some more
+detailed health metrics, like bad block and erase counts or power cycles,
+for Micron and SanDisk eMMCs and some Swissbit MMC cards (MANFID=0x5D
+OEMID=0x5342).
 %endif
 
 %if %{with_modbus}
@@ -1552,6 +1566,12 @@ Collectd utilities
 %define _with_mic --disable-mic
 %endif
 
+%if %{with_mmc}
+%define _with_mmc --enable-mmc
+%else
+%define _with_mmc --disable-mmc
+%endif
+
 %if %{with_modbus}
 %define _with_modbus --enable-modbus
 %else
@@ -2173,6 +2193,7 @@ Collectd utilities
 	%{?_with_memcached} \
 	%{?_with_memory} \
 	%{?_with_mic} \
+	%{?_with_mmc} \
 	%{?_with_modbus} \
 	%{?_with_mqtt} \
 	%{?_with_multimeter} \
@@ -2810,6 +2831,11 @@ fi
 %if %{with_mic}
 %files mic
 %{_libdir}/%{name}/mic.so
+%endif
+
+%if %{with_mmc}
+%files mmc
+%{_libdir}/%{name}/mmc.so
 %endif
 
 %if %{with_modbus}
