@@ -52,6 +52,7 @@ EXTRA_DIST = \
 	proto/collectd.proto \
 	proto/prometheus.proto \
 	proto/types.proto \
+	README.md \
 	src/collectd-email.pod \
 	src/collectd-exec.pod \
 	src/collectd-java.pod \
