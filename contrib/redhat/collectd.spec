@@ -2408,7 +2408,7 @@ fi
 
 
 %files
-%doc AUTHORS COPYING ChangeLog README
+%doc AUTHORS COPYING ChangeLog README.md
 %config(noreplace) %{_sysconfdir}/collectd.conf
 %if 0%{?fedora} || 0%{?rhel} >= 7
 %{_unitdir}/collectd.service
