@@ -18,10 +18,10 @@ The first database layout, from Sebastian 'tokkee' Harl, is like this:
 ```
 
 The ID connects the two tables. The plugin, plugin_inst, type and type_inst
-create a so called identifier. The timestamp, name and value get inserted into
+create a so-called identifier. The timestamp, name and value get inserted into
 the value table.
 
-collectd/postgresql calles the collectd_insert function.
+collectd/postgresql calls the collectd_insert function.
 ```
 	collectd_insert(timestamp with time zone,	-- tstamp
 			character varying,		-- host
@@ -34,16 +34,24 @@ collectd/postgresql calles the collectd_insert function.
 			double precision[])		-- values
 ```
 
-This seems to represents the user_data_t/notification_t structure.
+This seems to represent the user_data_t/notification_t structure.
 https://github.com/collectd/collectd/blob/ef1e157de1a4f2cff10f6f902002066d0998232c/src/daemon/plugin.h#L172
 
-Lets take the ping plugin as an example. It collects 3 values: ping, ping_stddev, ping_droprate.
+Let's take the ping plugin as an example. It collects 3 values: ping, ping_stddev, ping_droprate.
 
-The current structure creates 3 identifiers and 3 lines for each entry. The identifiers get reused. It reports "192.168.myping.ip" as type.
+The current structure creates 3 identifiers and 3 lines for each entry. The identifiers get reused. It reports "192.168.200.123" as type.
 
-To draw a diagram with e.g. grafana i would like all 3 values near each other for that host that i am pinging. See the graph in the wiki. The current setup must join through all collected values to scrap the ping values out of it. Each value must do the same again because it has an other identifier.
+To draw a diagram with e.g. grafana I would like all 3 values near each other for that host that i am pinging. See the graph in the wiki. The current setup must join through all collected values to scrap the ping values out of it. Each value must do the same again because it has another identifier.
 
-This second setup creates two tables:
+
+Description:
+------------
+
+Second database layout is done on postgresql 15, by Georg Gast.
+
+It has some advantages over first one: The data has much higher data locality as it stays in one table and much less unneeded text columns.
+This leads to much smaller table spaces. In my case the first setup created about 300 MB per day. The new setup about 50 MB with the advantage of depending data near each other.
+You can also think about changing the datatype of the plugin_$plugin table to real. Consider whether you really need the double precision compared to real as latter would cut the needed space in half.
 
 ```
 +--------------------+  +--------------------+
@@ -58,20 +66,10 @@ This second setup creates two tables:
 +--------------------+  +--------------------+
 ```
 
-The instance ID get reused. The plugin data get its own table. All relevant measurement values are on one line. Get out the data is much more easy.
+The instance ID get reused. The plugin data get its own table. All relevant measurement values are on one line. Get out the data is much easier.
 
-What could get argued is that i must admit, maybe take the creation of the instance table, sequence out of the collectd_insert function.
+The type, type_inst and value_name get used to create the name of the value column. The impl_location() function handles this "data anomalies" like the ping plugin.
 
-The type, type_inst and value_name get used to create the name of the value volumn. The impl_location() function handles this "data anomalies" like the ping plugin.
-
-Description:
-------------
-
-Second database layout is done on postgresql 15, by Georg Gast.
-
-It has some advantages over first one: The data has much higher data locality as it stays in one table and much less unneeded text columns.
-This leads to much smaller table spaces. In my case the first setup created about 300 MB per day. The new setup about 50 MB with the advantage of depending data near each other.
-You can also think about changing the datatype of the plugin_$plugin table to real. Consider whether you really need the double precision compared to real as latter would cut the needed space in half.
 
 Sample configuration:
 ---------------------
@@ -95,11 +93,31 @@ Please make sure that your database user (in this collector) has the rights to c
 
 Function description:
 ---------------------
-The function collectd_insert() creates all tables and columns by itself.
-1. The instance table consists of host/plugin/plugin_inst
-2. The plugin_$plugin table (e.g. plugin_apache) contain all data for that plugin. The function collectd_insert() inserts the value into the column that its type/type_inst/name determines. There is one sad thing about collectd. The times that are submitted dont match 100%, so there is a epsilon (0.5 sec) that is used to check to what row a value belongs. If the column is not yet present it is added by this function.
+There is one sad thing about collectd. The times that are submitted dont match 100%, so there is an epsilon (0.5 sec) that is used to check to what row a value belongs.
+1. The procedure collectd_insert() inserts the values into the incoming table and realign the timestamps. It also creates the instances in the instance table.
+2. The collected data gets moved from the incoming table to the destination tables by the procedure move_data_to_table().
 
 The function impl_location() removes some data anomalies that are there when the data get submitted. There is a default that matches most cases. The plugins cpufreq, ping and memory get their names, plugin_inst get adjusted.
+
+The plugin_$plugin table (e.g. plugin_apache) then contain all data for that plugin.  If the column is not yet present it is added by this function.
+The procedure move_data_to_table() must be called periodically. In my case by a cron job.
+
+```
+root@www-collectd:/etc/cron.d# cat collectd
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name command to be executed
+  0  0  1  *  * root      /opt/collectd/etc/clean-tables.sh
+*/1  *  *  *  * root      /opt/collectd/etc/move-data.sh
+```
+
+The procedure collectd_cleanup() is the maintenance function. It has as an argument the number of days where to keep the data. It can be called by pgagent or a similar mechanism like "CALL collectd_cleanup(180)". This delete all data that is older than 180 days.
+
 
 My tested plugins are:
 - apache
@@ -121,5 +139,5 @@ My tested plugins are:
 - thermal
 - uptime
 - users
+- wireless
 
-The procedure collectd_cleanup() is the maintainance function. It has as an argument the number of days where to keep the data. It can be called by pgagent or a similar mechanism like "CALL collectd_cleanup(180)". This delete all data that is older than 180 days.
