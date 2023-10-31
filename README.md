@@ -132,7 +132,7 @@ Features
 
     - dpdk_telemetry
       Collect DPDK interface, application and global statistics.
-      This plugin can be used as substitute to dpdkstat plugin.
+      This plugin can be used as a substitute to dpdkstat plugin.
 
       This plugin is dependent on DPDK 19.08 release and must be used
       along with the DPDK application.
