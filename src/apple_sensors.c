@@ -28,170 +28,245 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include <string.h>
 
-#if HAVE_MACH_MACH_TYPES_H
-#include <mach/mach_types.h>
-#endif
-#if HAVE_MACH_MACH_INIT_H
-#include <mach/mach_init.h>
-#endif
-#if HAVE_MACH_MACH_ERROR_H
-#include <mach/mach_error.h>
-#endif
-#if HAVE_MACH_MACH_PORT_H
-#include <mach/mach_port.h>
-#endif
-#if HAVE_COREFOUNDATION_COREFOUNDATION_H
-#include <CoreFoundation/CoreFoundation.h>
-#endif
 #if HAVE_IOKIT_IOKITLIB_H
 #include <IOKit/IOKitLib.h>
 #endif
-#if HAVE_IOKIT_IOTYPES_H
-#include <IOKit/IOTypes.h>
-#endif
 
-#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000) // Before macOS 12 Monterey
-#define IOMainPort IOMasterPort
-#endif
+#define KERNEL_INDEX_SMC 2
 
-static mach_port_t io_main_port = MACH_PORT_NULL;
+#define SMC_CMD_READ_BYTES 5
+#define SMC_CMD_READ_KEYINFO 9
 
-static int as_init(void) {
-  kern_return_t status;
+#define DATATYPE_FPE2 "fpe2"
+#define DATATYPE_SP78 "sp78"
 
-  if (io_main_port != MACH_PORT_NULL) {
-    mach_port_deallocate(mach_task_self(), io_main_port);
-    io_main_port = MACH_PORT_NULL;
-  }
+// key values
+#define SMC_KEY_CPU_TEMP "TC0P"
+#define SMC_KEY_GPU_TEMP "TG0P"
+#define SMC_KEY_AMBIENT_TEMP "TA0V"
+#define SMC_KEY_FAN0_RPM_CUR "F0Ac"
 
-  status = IOMainPort(MACH_PORT_NULL, &io_main_port);
-  if (status != kIOReturnSuccess) {
-    ERROR("IOMainPort failed: %s", mach_error_string(status));
-    io_main_port = MACH_PORT_NULL;
-    return -1;
-  }
+typedef struct {
+    char major;
+    char minor;
+    char build;
+    char reserved[1];
+    UInt16 release;
+} SMCKeyData_vers_t;
 
-  return 0;
+typedef struct {
+    UInt16 version;
+    UInt16 length;
+    UInt32 cpuPLimit;
+    UInt32 gpuPLimit;
+    UInt32 memPLimit;
+} SMCKeyData_pLimitData_t;
+
+typedef struct {
+    UInt32 dataSize;
+    UInt32 dataType;
+    char dataAttributes;
+} SMCKeyData_keyInfo_t;
+
+typedef char SMCBytes_t[32];
+
+typedef struct {
+    UInt32 key;
+    SMCKeyData_vers_t vers;
+    SMCKeyData_pLimitData_t pLimitData;
+    SMCKeyData_keyInfo_t keyInfo;
+    char result;
+    char status;
+    char data8;
+    UInt32 data32;
+    SMCBytes_t bytes;
+} SMCKeyData_t;
+
+typedef char UInt32Char_t[5];
+
+typedef struct {
+    UInt32Char_t key;
+    UInt32 dataSize;
+    UInt32Char_t dataType;
+    SMCBytes_t bytes;
+} SMCVal_t;
+
+
+static io_connect_t conn;
+
+kern_return_t SMCOpen(void)
+{
+    kern_return_t result;
+    io_iterator_t iterator;
+    io_object_t device;
+
+    CFMutableDictionaryRef matchingDictionary = IOServiceMatching("AppleSMC");
+    result = IOServiceGetMatchingServices(kIOMainPortDefault, matchingDictionary, &iterator);
+    if (result != kIOReturnSuccess) {
+        ERROR("Error: IOServiceGetMatchingServices() = %08x\n", result);
+        return 1;
+    }
+
+    device = IOIteratorNext(iterator);
+    IOObjectRelease(iterator);
+    if (device == 0) {
+        ERROR("Error: no SMC found\n");
+        return 1;
+    }
+
+    result = IOServiceOpen(device, mach_task_self(), 0, &conn);
+    IOObjectRelease(device);
+    if (result != kIOReturnSuccess) {
+        ERROR("Error: IOServiceOpen() = %08x\n", result);
+        return 1;
+    }
+
+    return kIOReturnSuccess;
 }
 
-static void as_submit(const char *type, const char *type_instance, double val) {
+UInt32 _strtoul(char* str, int size, int base)
+{
+    UInt32 total = 0;
+    int i;
+
+    for (i = 0; i < size; i++) {
+        if (base == 16)
+            total += str[i] << (size - 1 - i) * 8;
+        else
+            total += (unsigned char)(str[i] << (size - 1 - i) * 8);
+    }
+    return total;
+}
+
+void _ultostr(char* str, UInt32 val)
+{
+    str[0] = '\0';
+    sprintf(str, "%c%c%c%c",
+        (unsigned int)val >> 24,
+        (unsigned int)val >> 16,
+        (unsigned int)val >> 8,
+        (unsigned int)val);
+}
+
+kern_return_t SMCClose(void)
+{
+    return IOServiceClose(conn);
+}
+
+kern_return_t SMCCall(int index, SMCKeyData_t* inputStructure, SMCKeyData_t* outputStructure)
+{
+    size_t structureInputSize;
+    size_t structureOutputSize;
+
+    structureInputSize = sizeof(SMCKeyData_t);
+    structureOutputSize = sizeof(SMCKeyData_t);
+
+#if MAC_OS_X_VERSION_10_5
+    return IOConnectCallStructMethod(conn, index,
+        // inputStructure
+        inputStructure, structureInputSize,
+        // ouputStructure
+        outputStructure, &structureOutputSize);
+#else
+    return IOConnectMethodStructureIStructureO(conn, index,
+        structureInputSize, /* structureInputSize */
+        &structureOutputSize, /* structureOutputSize */
+        inputStructure, /* inputStructure */
+        outputStructure); /* ouputStructure */
+#endif
+}
+
+kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t* val)
+{
+    kern_return_t result;
+    SMCKeyData_t inputStructure;
+    SMCKeyData_t outputStructure;
+
+    memset(&inputStructure, 0, sizeof(SMCKeyData_t));
+    memset(&outputStructure, 0, sizeof(SMCKeyData_t));
+    memset(val, 0, sizeof(SMCVal_t));
+
+    inputStructure.key = _strtoul(key, 4, 16);
+    inputStructure.data8 = SMC_CMD_READ_KEYINFO;
+
+    result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+    if (result != kIOReturnSuccess)
+        return result;
+
+    val->dataSize = outputStructure.keyInfo.dataSize;
+    _ultostr(val->dataType, outputStructure.keyInfo.dataType);
+    inputStructure.keyInfo.dataSize = val->dataSize;
+    inputStructure.data8 = SMC_CMD_READ_BYTES;
+
+    result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
+    if (result != kIOReturnSuccess)
+        return result;
+
+    memcpy(val->bytes, outputStructure.bytes, sizeof(outputStructure.bytes));
+
+    return kIOReturnSuccess;
+}
+
+double SMCGetTemperature(char* key)
+{
+    SMCVal_t val;
+    kern_return_t result;
+
+    result = SMCReadKey(key, &val);
+    if (result == kIOReturnSuccess) {
+        // read succeeded - check returned value
+        if (val.dataSize > 0) {
+            if (strcmp(val.dataType, DATATYPE_SP78) == 0) {
+                // convert sp78 value to temperature
+                int intValue = val.bytes[0] * 256 + (unsigned char)val.bytes[1];
+                return intValue / 256.0;
+            }
+        }
+    }
+    // read failed
+    return 0.0;
+}
+
+static void as_submit(const char *instance, const char *type, double val) {
+
+  value_t v[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t){.gauge = val};
-  vl.values_len = 1;
+  vl.values = v;
+  vl.values_len = STATIC_ARRAY_SIZE(v);
   sstrncpy(vl.plugin, "apple_sensors", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
-  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+  v[0].gauge = val;
 
   plugin_dispatch_values(&vl);
 }
 
 static int as_read(void) {
-  kern_return_t status;
-  io_iterator_t iterator;
-  io_object_t io_obj;
-  CFMutableDictionaryRef prop_dict;
-  CFTypeRef property;
+    double cpuTemp =  SMCGetTemperature(SMC_KEY_CPU_TEMP);
+    as_submit("cpu", "temperature", cpuTemp);
+    double gpuTemp =  SMCGetTemperature(SMC_KEY_GPU_TEMP);
+    as_submit("gpu", "temperature", gpuTemp);
+    double ambientTemp =  SMCGetTemperature(SMC_KEY_AMBIENT_TEMP);
+    as_submit("ambient", "temperature", ambientTemp);
 
-  char type[128];
-  char inst[128];
-  int value_int;
-  double value_double;
-  if (!io_main_port || (io_main_port == MACH_PORT_NULL))
-    return -1;
-
-  status = IOServiceGetMatchingServices(
-      io_main_port, IOServiceNameMatching("IOHWSensor"), &iterator);
-  if (status != kIOReturnSuccess) {
-    ERROR("IOServiceGetMatchingServices failed: %s", mach_error_string(status));
-    return -1;
-  }
-
-  while ((io_obj = IOIteratorNext(iterator))) {
-    prop_dict = NULL;
-    status = IORegistryEntryCreateCFProperties(
-        io_obj, &prop_dict, kCFAllocatorDefault, kNilOptions);
-    if (status != kIOReturnSuccess) {
-      DEBUG("IORegistryEntryCreateCFProperties failed: %s",
-            mach_error_string(status));
-      continue;
-    }
-
-    /* Copy the sensor type. */
-    property = NULL;
-    if (!CFDictionaryGetValueIfPresent(prop_dict, CFSTR("type"), &property))
-      continue;
-    if (CFGetTypeID(property) != CFStringGetTypeID())
-      continue;
-    if (!CFStringGetCString(property, type, sizeof(type),
-                            kCFStringEncodingASCII))
-      continue;
-    type[sizeof(type) - 1] = '\0';
-
-    /* Copy the sensor location. This will be used as `instance'. */
-    property = NULL;
-    if (!CFDictionaryGetValueIfPresent(prop_dict, CFSTR("location"), &property))
-      continue;
-    if (CFGetTypeID(property) != CFStringGetTypeID())
-      continue;
-    if (!CFStringGetCString(property, inst, sizeof(inst),
-                            kCFStringEncodingASCII))
-      continue;
-    inst[sizeof(inst) - 1] = '\0';
-    for (int i = 0; i < 128; i++) {
-      if (inst[i] == '\0')
-        break;
-      else if (isalnum(inst[i]))
-        inst[i] = (char)tolower(inst[i]);
-      else
-        inst[i] = '_';
-    }
-
-    /* Get the actual value. Some computation, based on the `type'
-     * is neccessary. */
-    property = NULL;
-    if (!CFDictionaryGetValueIfPresent(prop_dict, CFSTR("current-value"),
-                                       &property))
-      continue;
-    if (CFGetTypeID(property) != CFNumberGetTypeID())
-      continue;
-    if (!CFNumberGetValue(property, kCFNumberIntType, &value_int))
-      continue;
-
-    /* Found e.g. in the 1.5GHz PowerBooks */
-    if (strcmp(type, "temperature") == 0) {
-      value_double = ((double)value_int) / 65536.0;
-      sstrncpy(type, "temperature", sizeof(type));
-    } else if (strcmp(type, "temp") == 0) {
-      value_double = ((double)value_int) / 10.0;
-      sstrncpy(type, "temperature", sizeof(type));
-    } else if (strcmp(type, "fanspeed") == 0) {
-      value_double = ((double)value_int) / 65536.0;
-      sstrncpy(type, "fanspeed", sizeof(type));
-    } else if (strcmp(type, "voltage") == 0) {
-      /* Leave this to the battery plugin. */
-      continue;
-    } else if (strcmp(type, "adc") == 0) {
-      value_double = ((double)value_int) / 10.0;
-      sstrncpy(type, "fanspeed", sizeof(type));
-    } else {
-      DEBUG("apple_sensors: Read unknown sensor type: %s", type);
-      value_double = (double)value_int;
-    }
-
-    as_submit(type, inst, value_double);
-
-    CFRelease(prop_dict);
-    IOObjectRelease(io_obj);
-  } /* while (iterator) */
-
-  IOObjectRelease(iterator);
-
-  return 0;
+    return 0;
 } /* int as_read */
+
+static int as_init(void) {
+  return SMCOpen();
+} /* int as_init */
+
+/* Close the network connection */
+static int as_shutdown(void) {
+  return SMCClose();
+} /* int as_shutdown */
+
 
 void module_register(void) {
   plugin_register_init("apple_sensors", as_init);
   plugin_register_read("apple_sensors", as_read);
+  plugin_register_shutdown("apple_sensors", as_shutdown);
 } /* void module_register */
