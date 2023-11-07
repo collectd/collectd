@@ -1761,6 +1761,9 @@ if BUILD_PLUGIN_PF
 pkglib_LTLIBRARIES += pf.la
 pf_la_SOURCES = src/pf.c
 pf_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+if BUILD_WITH_LIBPFCTL
+pf_la_LDFLAGS += -lpfctl
+endif
 endif
 
 if BUILD_PLUGIN_PINBA
