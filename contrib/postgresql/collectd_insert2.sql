@@ -26,136 +26,42 @@
 -- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 -- POSSIBILITY OF SUCH DAMAGE.
 
--- Motivation for that second possible postgresql layout:
--- ------------------------------------------------------
---
--- The first layout from Sebastian 'tokkee' Harl is like that:
---
--- ```
--- +-------------------+  +----------------+
--- |Identifiers        |  |values          |
--- +-------------------+  +----------------+
--- |ID          int   <-- >ID        int   |
--- |plugin      text   |  |tstamp    time  |
--- |plugin_inst text   |  |name      text  |
--- |type        text   |  |value     double|
--- |type_inst   text   |  |                |
--- +-------------------+  +----------------+
--- ```
---
--- The ID connects the two tables. The plugin, plugin_inst, type and tpye_inst
--- create s so called identifier. The timestamp, name and value get inserted into
--- the value table.
---
--- collectd/postgresql calles the collectd_insert function.
--- ```
--- 	collectd_insert(timestamp with time zone,	-- tstamp
--- 			character varying,		-- host
--- 			character varying,		-- plugin
--- 			character varying,		-- plugin_inst
--- 			character varying,		-- type
--- 			character varying,		-- type_inst
--- 			character varying[],		-- value_name
--- 			character varying[],		-- type_name
--- 			double precision[])		-- values
--- ```
---
--- This seems to represents the user_data_t/notification_t structure.
--- https://github.com/collectd/collectd/blob/ef1e157de1a4f2cff10f6f902002066d0998232c/src/daemon/plugin.h#L172
---
--- Lets take the ping plugin as an example. It collects 3 values: ping, ping_stddev, ping_droprate.
---
--- The current structure creates 3 identifiers and 3 lines for each entry. The identifiers get reused. It reports "192.168.myping.ip" as type.
---
--- To draw a diagram with e.g. grafana i would like all 3 values near each other for that host that i am pinging. See the graph in the wiki. The current setup must join through all collected values to scrap the ping values out of it. Each value must do the same again because it has an other identifier.
---
--- This second setup creates two tables:
---
--- ```
--- +--------------------+  +--------------------+
--- |Instance            |  |plugin_ping         |
--- +--------------------+  +--------------------+
--- |ID          int    <-- >ID            int   |
--- |plugin      text    |  |tstamp        time  |
--- |plugin_inst text    |  |ping          double|
--- |                    |  |ping_stddev   double|
--- |                    |  |ping_droprate double|
--- |                    |  |                    |
--- +--------------------+  +--------------------+
--- ```
---
--- The instance ID get reused. The plugin data get its own table. All relevant measurement values are on one line. Get out the data is much more easy.
---
--- What could get argued is that i must admit, maybe take the creation of the instance table, sequence out of the collectd_insert function.
---
--- The type, type_inst and value_name get used to create the name of the value volumn. The impl_location() function handles this "data anomalies" like the ping plugin.
---
--- Description:
--- ------------
---
--- My development was done on postgresql 15.
---
--- It has some advantages: The data has much higher data locality as it stays in one table and much less unneeded text columns.
--- This leads to much smaller table spaces. In my case the first setup created about 300 MB per day. The new setup about 50 MB with the advantage of depending data near each other.
--- You can also think about changing the datatype of the plugin_$plugin table to real. Just think if you realy need the double precission that double vs real. This just cuts the needed space in half.
---
--- Sample configuration:
--- ---------------------
--- ```
---
--- <Plugin postgresql>
---     <Writer sqlstore>
---         Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
---     </Writer>
---     <Database collectd>
---         Host "127.0.0.1"
---         Port 5432
---         User collector
---         Password "mypassword"
---         SSLMode "prefer"
---         Writer sqlstore
---     </Database>
--- </Plugin>
--- ```
--- Please make sure that your database user (in this collector) has the rights to create tables, insert and update. The user that drops data must have the delete right.
---
--- Function description:
--- ---------------------
--- The function collectd_insert() creates all tables and columns by itself.
--- 1. The instance table consists of host/plugin/plugin_inst
--- 2. The plugin_$plugin table (e.g. plugin_apache) contain all data for that plugin. The function collectd_insert() inserts the value into the column that its type/type_inst/name determines. There is one sad thing about collectd. The times that are submitted dont match 100%, so there is a epsilon (0.5 sec) that is used to check to what row a value belongs. If the column is not yet present it is added by this function.
---
--- The function impl_location() removes some data anomalies that are there when the data get submitted. There is a default that matches most cases. The plugins cpufreq, ping and memory get their names, plugin_inst get adjusted.
---
--- My tested plugins are:
--- - apache
--- - cpu
--- - cpufreq
--- - df
--- - disk
--- - entropy
--- - interface
--- - irq
--- - load
--- - memory
--- - network
--- - openvpn
--- - ping
--- - postgresql
--- - processes
--- - sensors
--- - thermal
--- - uptime
--- - users
---
--- The procedure collectd_cleanup() is the maintainance function. It has as an argument the number of days where to keep the data. It can be called by pgagent or a similar mechanism like "CALL collectd_cleanup(180)". This delete all data that is older than 180 days.
---
+------------------------------------------------------------------
+-- IMPORTANT           Please read the README.md
+------------------------------------------------------------------
 
-CREATE PROCEDURE collectd_cleanup(IN days_to_keep integer)
-    LANGUAGE plpgsql
-    AS $$
+--CREATE EXTENSION tablefunc;
+
+CREATE TABLE IF NOT EXISTS instance
+(
+    id bigserial,
+    host text COLLATE pg_catalog."default" NOT NULL,
+    plugin text COLLATE pg_catalog."default" NOT NULL,
+    plugin_inst text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT instance_pkey PRIMARY KEY (id),
+    CONSTRAINT instance_uniq UNIQUE (host, plugin, plugin_inst)
+);
+
+
+CREATE TABLE IF NOT EXISTS incoming
+(
+    tstamp timestamp with time zone,
+    id smallint,
+    tbl text COLLATE pg_catalog."default",
+    tbl_col text COLLATE pg_catalog."default",
+    val real,
+    CONSTRAINT incoming_id_fkey FOREIGN KEY (id)
+        REFERENCES public.instance (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+
+CREATE OR REPLACE PROCEDURE collectd_cleanup(IN days_to_keep integer)
+LANGUAGE 'plpgsql'
+AS $BODY$
 DECLARE
-	l RECORD;
+l RECORD;
 	stmt text;
 BEGIN
 	for l in
@@ -170,12 +76,20 @@ BEGIN
 		PERFORM stmt;
 	END LOOP;
 END;
-$$;
+$BODY$;
 
-
-CREATE FUNCTION collectd_insert(timestamp with time zone, character varying, character varying, character varying, character varying, character varying, character varying[], character varying[], double precision[]) RETURNS void
-    LANGUAGE plpgsql
-    AS $_$
+CREATE OR REPLACE PROCEDURE collectd_insert(
+	IN timestamp with time zone,
+	IN character varying,
+	IN character varying,
+	IN character varying,
+	IN character varying,
+	IN character varying,
+	IN character varying[],
+	IN character varying[],
+	IN double precision[])
+LANGUAGE 'plpgsql'
+AS $BODY$
 DECLARE
     p_time alias for $1;
     p_host alias for $2;
@@ -187,141 +101,45 @@ DECLARE
     -- don't use the type info; for 'StoreRates true' it's 'gauge' anyway
     -- p_type_names alias for $8;
     p_values alias for $9;
-    ds_id integer;
-    i integer;
 
-	l RECORD;
-	stmt text;
+	-- working variables
+	i integer;
+	line RECORD;
+	ds_id integer;
 	epsilon interval;
 	tstamp_l timestamp with time zone;
 	tstamp_h timestamp with time zone;
 
+	tstamp_t timestamp with time zone;
 BEGIN
-	epsilon = '0.5 seconds'::interval;
+
+	epsilon = '5 seconds'::interval;
 	SELECT p_time - epsilon INTO tstamp_l;
 	SELECT p_time + epsilon INTO tstamp_h;
 
-	CREATE TABLE IF NOT EXISTS instance
-	(
-		id	bigint NOT NULL UNIQUE PRIMARY KEY,
-		host text NOT NULL,
-		plugin text NOT NULL,
-		plugin_inst text NOT NULL,
-
-	    CONSTRAINT instance_uniq UNIQUE (host, plugin, plugin_inst)
-	);
-
-	CREATE SEQUENCE IF NOT EXISTS instance_id_seq
-		INCREMENT 1
-		START 1
-		MINVALUE 1
-		MAXVALUE 9223372036854775807
-		CACHE 1
-		OWNED BY instance.id;
-
-	ALTER TABLE instance ALTER COLUMN id SET DEFAULT nextval('instance_id_seq'::regclass);
-
+	----------------------------------------------------------------------
+	-- Insert data
+	----------------------------------------------------------------------
 	i := 1;
     LOOP
         EXIT WHEN i > array_upper(p_value_names, 1);
 
-		if p_values[i]  = 'NaN'::double precision THEN
-			i := i + 1;
-			continue;
-		end if;
+		SELECT * INTO line FROM impl_location(p_plugin, p_plugin_inst, p_type, p_type_inst, p_value_names[i]);
 
-		SELECT * FROM impl_location(p_plugin, p_plugin_inst, p_type, p_type_inst, p_value_names[i])
-		INTO l;
+		SELECT impl_instance_id(p_host,p_plugin,line.corr_plugin_inst) INTO ds_id;
 
-		-- create the plugin table
-		stmt = format(
-			'
-				CREATE TABLE IF NOT EXISTS %I
-				(
-					id	bigint NOT NULL,
-					tstamp timestamp with time zone NOT NULL,
+		SELECT tstamp INTO tstamp_t
+		FROM incoming
+		WHERE tstamp_l <= tstamp AND tstamp < tstamp_h
+		AND id = ds_id;
 
-					FOREIGN KEY (id) REFERENCES instance (id)
-				);
-			', l.tbl);
-		EXECUTE stmt;
+		INSERT INTO incoming	(tstamp, id, 	tbl, 		tbl_col, 		val)
+		VALUES 					(COALESCE(tstamp_t,p_time),
+										ds_id,	line.tbl,	line.tbl_col, 	p_values[i]);
 
-		-- RAISE INFO 'L1';
-
-		-- create the tstamp_id_idx
-		stmt = format(
-			'
-				CREATE INDEX IF NOT EXISTS %s_tstamp_id_idx
-				ON %I USING brin
-				(tstamp,id);
-			',l.tbl, l.tbl);
-		EXECUTE stmt;
-		-- RAISE INFO 'L2';
-
-		-- add the column to the table
-		stmt = format(
-			'ALTER table %I ADD COLUMN IF NOT EXISTS %I double precision DEFAULT NULL;',
-				l.tbl, l.tbl_col);
-		EXECUTE stmt;
-		-- RAISE INFO 'L3';
-
-		-- insert the instance if it doesnt exists
-		INSERT INTO instance (host,plugin,plugin_inst)
-			SELECT p_host, p_plugin,l.corr_plugin_inst
-			WHERE NOT EXISTS
-			(
-				SELECT 1 FROM instance
-				WHERE host = p_host AND plugin = p_plugin AND plugin_inst = l.corr_plugin_inst
-			);
-		-- RAISE INFO 'L4';
-
-		-- get the id from the instance. I tmust exist now
-		SELECT id INTO ds_id
-        FROM instance
-        WHERE host = p_host AND plugin = p_plugin AND plugin_inst = l.corr_plugin_inst;
-
-		-- RAISE INFO 'id=%', ds_id;
-
-		-- insert or update the values (anti-join: TAOP book)
-		--INSERT into l.tbl
-		stmt = format(
-			'
-				WITH upd AS
-				(
-					UPDATE %I
-					SET %I=%L
-					WHERE 	%L <= tstamp AND	tstamp < %L
-							AND id=%L
-					returning 1
-				),
-				ins AS (
-					INSERT INTO %I (tstamp,id,%I)
-					SELECT %L,%L,%L
-					WHERE NOT EXISTS
-					(
-						SELECT 1 FROM %I
-						WHERE 	%L <= tstamp AND	tstamp < %L
-								AND id=%L
-					)
-					returning 1
-				)
-				select (select count(*) from upd) as updates,
-					   (select count(*) from ins) as inserts;
-
-			',	l.tbl,
-				l.tbl_col, p_values[i],
-				tstamp_l, tstamp_h,
-				ds_id,
-
-				l.tbl, l.tbl_col,
-				p_time, ds_id, p_values[i],
-				l.tbl,
-				tstamp_l, tstamp_h, ds_id
-			);
-		-- RAISE INFO 'L5: %', stmt;
-		EXECUTE stmt;
-
-		-- RAISE INFO 'L6';
+		-- debug
+		--INSERT INTO incoming_raw(tstamp, plugin, 	plugin_inst, 	type, 	type_inst, 	val_name, 			val, 			idx)
+		--		VALUES			(p_time, p_plugin, 	p_plugin_inst,	p_type,	p_type_inst,p_value_names[i],	p_values[i], 	i	);
 
 		-- continue the loop
         i := i + 1;
@@ -329,18 +147,27 @@ BEGIN
 
 
 END;
-$_$;
+$BODY$;
 
+CREATE OR REPLACE FUNCTION impl_location(
+	v_plugin text,
+	v_plugin_inst text,
+	v_type text,
+	v_type_inst text,
+	v_name text)
+    RETURNS TABLE(tbl text, corr_plugin_inst text, tbl_col text)
+    LANGUAGE 'plpgsql'
+    COST 1
+    VOLATILE PARALLEL SAFE
+    ROWS 1
 
-CREATE FUNCTION impl_location(v_plugin text, v_plugin_inst text, v_type text, v_type_inst text, v_name text) RETURNS TABLE(tbl text, corr_plugin_inst text, tbl_col text)
-    LANGUAGE plpgsql
-    AS $$
+AS $BODY$
 DECLARE
 	v_tbl				text;
 	v_corr_plugin_inst	text;
 	v_tblcol			text;
 BEGIN
-	-- bring the data anaomalies into shape
+	-- bring the data anomalies into shape
 	CASE
 		WHEN (v_plugin = 'cpufreq' AND v_type='percent') THEN
 			v_tbl		 		= 'plugin_' || v_plugin;
@@ -383,7 +210,143 @@ BEGIN
 
 	RETURN QUERY
 		SELECT	v_tbl, COALESCE(v_corr_plugin_inst,''), v_tblcol;
-
 END;
 
-$$;
+$BODY$;
+
+
+CREATE OR REPLACE PROCEDURE move_data_to_table(
+	)
+LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+	-- working variables
+	line RECORD;
+	test RECORD;
+	stmt text;
+	stmt_ins text;
+	stmt_ct text;
+	stmt_sel text;
+	stmt_cp text;
+	cols RECORD;
+
+	tstamp_limit timestamp with time zone;
+BEGIN
+	SELECT max(tstamp) - '30 seconds'::interval INTO tstamp_limit from incoming;
+
+	----------------------------------------------------------------------
+	-- create the tables and indices
+	----------------------------------------------------------------------
+	FOR line IN
+		SELECT DISTINCT tbl FROM incoming
+	LOOP
+		EXECUTE '
+			SELECT 1 FROM
+				pg_tables
+			WHERE
+				schemaname = $1 AND
+				tablename  = $2
+			' INTO test USING 'public', line.tbl;
+
+		IF test ISNULL THEN
+			RAISE INFO 'Create %s', line.tbl;
+			stmt = format(
+				'
+					CREATE TABLE IF NOT EXISTS %I
+					(
+						id	smallint NOT NULL,
+						tstamp timestamp with time zone NOT NULL,
+
+						FOREIGN KEY (id) REFERENCES instance (id)
+					);
+				', line.tbl);
+			EXECUTE stmt;
+
+			-- Create the tstamp_id_idx
+			stmt = format(
+				'
+					CREATE INDEX IF NOT EXISTS %s_tstamp_id_idx
+					ON %I USING brin
+					(tstamp,id);
+				',line.tbl, line.tbl);
+			EXECUTE stmt;
+		END IF;
+	END LOOP;
+
+	----------------------------------------------------------------------
+	-- create the coluns in the table
+	----------------------------------------------------------------------
+	FOR line IN
+		SELECT DISTINCT tbl, tbl_col FROM incoming
+		ORDER BY tbl
+	LOOP
+		EXECUTE
+			'	SELECT 1
+				FROM information_schema.columns
+				WHERE table_name=$1 and column_name=$2;
+			' INTO test USING line.tbl, line.tbl_col;
+
+		IF test ISNULL THEN
+			stmt = format(
+				'ALTER table %I ADD COLUMN IF NOT EXISTS %I real DEFAULT NULL;',
+				line.tbl, line.tbl_col);
+			EXECUTE stmt;
+		END IF;
+	END LOOP;
+
+	----------------------------------------------------------------------
+	-- Now as all tables and all columns exists, move the data
+	-- table by table and not line by line into the target tables
+	----------------------------------------------------------------------
+	FOR line IN
+		SELECT DISTINCT tbl FROM incoming
+		ORDER BY tbl
+	LOOP
+		----------------------------------------------------------------------
+		-- build the crosstab and insert statement
+		----------------------------------------------------------------------
+		stmt_ins = 'INSERT INTO ' || line.tbl || ' (tstamp, id ';
+		stmt_ct = format('
+			WITH ct1 AS(
+				SELECT *
+				FROM crosstab(
+					''select (tstamp || '''';'''' || id), tbl_col, val
+					from incoming
+					where tbl=''%L'' AND tstamp < ''%L''
+					order by 1,2,3'',
+
+					''SELECT DISTINCT tbl_col FROM incoming WHERE tbl=''%L'' ORDER BY tbl_col''
+							)
+				AS ct(row_name text ', line.tbl,tstamp_limit,line.tbl);
+		stmt_sel = '';
+		FOR cols IN
+			SELECT DISTINCT tbl_col from incoming WHERE tbl = line.tbl ORDER by tbl_col
+		LOOP
+			stmt_ct = stmt_ct || ', "' || cols.tbl_col || '" real ';
+			stmt_sel = stmt_sel || ', "' || cols.tbl_col || '" ';
+			stmt_ins = stmt_ins || ', "' || cols.tbl_col || '" ';
+		END LOOP;
+		select trim(LEADING ',' FROM stmt_sel) INTO stmt_sel;
+
+		stmt_ct = stmt_ct || '))
+			SELECT split_part(row_name,'';'',1)::timestamp with time zone as tstamp, split_part(row_name,'';'',2)::smallint as id,'
+			|| stmt_sel || '
+			FROM ct1';
+
+		stmt_ins = stmt_ins || ') ';
+		stmt_cp = stmt_ins || ' ' || stmt_ct;
+		--RAISE INFO 'ct %', stmt_ct;
+		--RAISE INFO 'ins %', stmt_ins;
+		--RAISE INFO 'total %', stmt_cp;
+
+		----------------------------------------------------------------------
+		-- Insert into the target table
+		----------------------------------------------------------------------
+		EXECUTE stmt_cp;
+	END LOOP;
+
+	DELETE FROM incoming WHERE tstamp < tstamp_limit;
+	--ROLLBACK;
+END;
+$BODY$;
+
