@@ -156,7 +156,7 @@ collectd has been written by Florian Forster E<lt>octo at collectd.orgE<gt>
 and many contributors (see `AUTHORS').
 
 collectdctl has been written by
-Håkon J Dugstad Johnsen E<lt>hakon-dugstad.johnsenE<nbsp>atE<nbsp>telenor.comE<gt>
+HÃ¥kon J Dugstad Johnsen E<lt>hakon-dugstad.johnsenE<nbsp>atE<nbsp>telenor.comE<gt>
 and Sebastian Harl E<lt>sh at tokkee.orgE<gt>.
 
 =cut
