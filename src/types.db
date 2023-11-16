@@ -66,6 +66,8 @@ disk_ops                read:DERIVE:0:U, write:DERIVE:0:U
 disk_ops_complex        value:DERIVE:0:U
 disk_physical           value:GAUGE:0:U
 disk_time               read:DERIVE:0:U, write:DERIVE:0:U
+disk_discard            complete:DERIVE:0:U, merged:DERIVE:0:U, sectors:DERIVE:0:U, time:DERIVE:0:U
+disk_flush              complete:DERIVE:0:U, time:DERIVE:0:U
 dns_answer              value:DERIVE:0:U
 dns_notify              value:DERIVE:0:U
 dns_octets              queries:DERIVE:0:U, responses:DERIVE:0:U

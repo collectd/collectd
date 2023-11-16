@@ -103,6 +103,14 @@ typedef struct diskstats {
   derive_t avg_read_time;
   derive_t avg_write_time;
 
+  derive_t discard_completed;
+  derive_t discard_merged;
+  derive_t discard_sectors;
+  derive_t discard_time;
+
+  derive_t flush_completed;
+  derive_t flush_time;
+
   bool has_merged;
   bool has_in_progress;
   bool has_io_time;
@@ -318,6 +326,42 @@ static void disk_submit(const char *plugin_instance, const char *type,
 
   plugin_dispatch_values(&vl);
 } /* void disk_submit */
+
+static void discard_submit(const char *plugin_instance, derive_t complete,
+                           derive_t merged, derive_t sectors, derive_t time) {
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[] = {
+    {.derive = complete},
+    {.derive = merged},
+    {.derive = sectors},
+    {.deriv = time},
+  };
+
+  vl.value = values;
+  vl.value_len = STATIC_ARRAY_SIZE(values);
+  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "disk_discard", sizeof(vl.type));
+
+  plugin_dispatch_values(&vl);
+} /* void discard_submit */
+
+static void flush_submit(const char *plugin_instance, derive_t complete,
+                         derive_t time) {
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[] = {
+      {.derive = complete},
+      {.derive = time},
+  };
+
+  vl.values = values;
+  vl.values_len = STATIC_ARRAY_SIZE(values);
+  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "disk_flush", sizeof(vl.type));
+
+  plugin_dispatch_values(&vl);
+} /* void flush_submit */
 
 #if KERNEL_FREEBSD || (HAVE_SYSCTL && KERNEL_NETBSD) || KERNEL_LINUX
 static void submit_io_time(char const *plugin_instance, derive_t io_time,
@@ -714,6 +758,14 @@ static int disk_read(void) {
   derive_t weighted_time = 0;
   int is_disk = 0;
 
+  derive_t discard_completed = -1;
+  derive_t discard_merged = -1;
+  derive_t discard_sectors = -1;
+  derive_t discard_time = -1;
+
+  derive_t flush_completed = -1;
+  derive_t flush_time = -1;
+
   diskstats_t *ds, *pre_ds;
 
   if ((fh = fopen("/proc/diskstats", "r")) == NULL) {
@@ -776,6 +828,19 @@ static int disk_read(void) {
 
       io_time = atof(fields[12]);
       weighted_time = atof(fields[13]);
+      if (numfields >= 18) {
+        /* Kernal 4.18+ appends four more fields for discard*/
+        discard_completed = atof(fields[14]);
+        discard_merged = atof(fields[15]);
+        discard_sectors = atof(fields[16]);
+        discard_time = atof(fields[17];)
+      }
+
+      if (numfields >= 20) {
+        /* Kernal 5.5+ append two more fields for lush request */
+        flush_completed = atof(fields[18]);
+        flush_time = atof(fields[19]);
+      }
     }
 
     {
@@ -893,6 +958,14 @@ static int disk_read(void) {
     if ((ds->avg_read_time != 0) || (ds->avg_write_time != 0))
       disk_submit(output_name, "disk_time", ds->avg_read_time,
                   ds->avg_write_time);
+
+    if ((ds->discard_completed != -1) || (ds->discard_merged != -1)
+        (ds->discard_sectors != -1) || (ds->discard_time != -1))
+      discard_submit(output_name, ds->discard_completed, ds->discard_merged,
+                     ds->discard_sectors, ds->discard_time);
+    
+    if ((ds->flush_completed != -1) || (ds->flush_time != -1))
+      flush_submit(output_name, ds->flush_completed, ds->flush_time)
 
     if (is_disk) {
       if (ds->has_merged)
