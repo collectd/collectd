@@ -120,8 +120,8 @@ typedef struct {
   /* GPU  specific disable flags */
   gpu_disable_t disabled;
   zes_device_handle_t handle;
-  /* report counter */
-  uint64_t counter;
+  /* how many times metrics have been checked */
+  uint64_t check_count;
 } gpu_device_t;
 
 typedef enum {
@@ -364,7 +364,7 @@ static int gpu_config_init(unsigned int count) {
   unsigned int i;
   for (i = 0; i < count; i++) {
     gpus[i].disabled = config.disabled;
-    gpus[i].counter = 0;
+    gpus[i].check_count = 0;
   }
   gpu_count = count;
   return RET_OK;
@@ -2359,7 +2359,7 @@ static int gpu_read(void) {
     }
     gpu_disable_t initial = *disabled;
 
-    if (!gpu->counter) {
+    if (!gpu->check_count) {
       INFO(PLUGIN_NAME ": GPU-%d queries:", i);
     }
     /* 'cache_idx' is high frequency sampling aggregation counter.
@@ -2375,7 +2375,7 @@ static int gpu_read(void) {
      * them to gpu_submit().
      */
     unsigned int cache_idx =
-        (config.samples - 1) - gpu->counter % config.samples;
+        (config.samples - 1) - gpu->check_count % config.samples;
     /* get potentially high-frequency metrics data (aggregate metrics sent when
      * counter=0)
      */
@@ -2393,7 +2393,7 @@ static int gpu_read(void) {
     /* rest of the metrics are read only when the high frequency
      * counter goes down to zero
      */
-    gpu->counter++;
+    gpu->check_count++;
     if (cache_idx > 0) {
       if (!disabled->all) {
         /* there are still valid counters at least for this GPU */
@@ -2404,7 +2404,7 @@ static int gpu_read(void) {
     }
 
     /* process lower frequency counters */
-    if (config.samples > 1 && gpu->counter <= config.samples) {
+    if (config.samples > 1 && gpu->check_count <= config.samples) {
       INFO(PLUGIN_NAME ": GPU-%d queries:", i);
     }
     /* get lower frequency metrics */
