@@ -757,7 +757,7 @@ static int prom_open_socket(int addrfamily) {
   struct addrinfo *res;
   int status = getaddrinfo(httpd_host, service,
                            &(struct addrinfo){
-                               .ai_flags = AI_PASSIVE | AI_ADDRCONFIG,
+                               .ai_flags = AI_PASSIVE,
                                .ai_family = addrfamily,
                                .ai_socktype = SOCK_STREAM,
                            },
