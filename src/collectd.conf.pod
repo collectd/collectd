@@ -3686,8 +3686,8 @@ to read GPU information.
 
 Options below give overview of what information it could provide, but
 the information actually available through it depends on what is
-supported by the underlying GPU HW, its kernel driver, and Sysman
-backend user-space (compute) driver implementation.
+supported by the underlying GPU HW, its kernel driver, and Level-Zero
+Sysman backend (compute) driver implementation.
 
 =over 4
 
@@ -3706,7 +3706,7 @@ per second. When Samples is larger than 1, min + max are calculated
 for the sampled values and submitted instead of the read values
 themselves.
 
-Most of other metrics values are either counters, or change much
+Most of the other metric values are either counters, or change much
 slower, and are read only at submit intervals.  If collecting of the
 sampled values is disabled, it is better to set Samples to 1
 (default).
@@ -3714,7 +3714,7 @@ sampled values is disabled, it is better to set Samples to 1
 =item B<LogGpuInfo>
 
 If enabled, plugin logs at start some information about plugin
-settings and all the GPUs detected through Sysman API, and enables
+settings, all the GPUs detected through Sysman API, and enables
 "pci_dev" PCI device ID label for the metrics.
 
 =item B<MetricsOutput>
@@ -3749,7 +3749,7 @@ Ratio variant is a utilization metric. It can be reported only for
 metric types which are either based on time (e.g. GPU engine use
 time), or for which Sysman provides a limit / maximum value. Some
 metrics may give over 100% ratios if their limit applies over longer
-time than the query inteval (could happen e.g. with power limits).
+time than the query interval (could happen e.g. with power limits).
 
 =item B<DisableMemory>
 
