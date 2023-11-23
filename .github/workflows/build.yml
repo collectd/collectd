@@ -23,14 +23,13 @@ jobs:
       matrix:
         container_tag:
           # debian family
+          - bookworm_amd64
           - bullseye_amd64
           - buster_amd64
-          - stretch_amd64
-          - stretch_i386
           # Ubuntu
-          - xenial_amd64
-          - bionic_amd64
           - focal_amd64
+          - bionic_amd64
+          - xenial_amd64
           # RedHat family
           - el9_x86_64
           - el8_x86_64
