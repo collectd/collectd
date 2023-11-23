@@ -45,7 +45,7 @@ jobs:
       # this env var picked up by valgrind during make check phase
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - run: type pkg-config
     - run: pkg-config --list-all | sort -u
     - name: Generate configure script
@@ -96,7 +96,7 @@ jobs:
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - run: type pkg-config
     - run: pkg-config --list-all | sort -u
     - name: Generate configure script
