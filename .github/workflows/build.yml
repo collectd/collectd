@@ -59,9 +59,12 @@ jobs:
       run: make $MAKEFLAGS
     - name: Run make check
       run: make $MAKEFLAGS check
+      continue-on-error: true
     - name: Dump test logs
-      run: |
-          cat ./test-suite.log || true
+      uses: actions/upload-artifact@v3
+      with:
+        name: Test suite log
+        path: test-suite.log
     - name: Install bzip2
       run: |
         yum install -y bzip2 || apt install -y bzip2
@@ -106,12 +109,13 @@ jobs:
     - name: Build collectd
       run: make $MAKEFLAGS
     - name: Run make check
-      # Make check is failing on a few newer distros, temporarily mark it as optional until that is resolved 
-      continue-on-error: true
       run: make $MAKEFLAGS check
+      continue-on-error: true
     - name: Dump test logs
-      run: |
-          cat ./test-suite.log || true
+      uses: actions/upload-artifact@v3
+      with:
+        name: Test suite log
+        path: test-suite.log
     - name: Install bzip2
       run: |
         yum install -y bzip2 || apt install -y bzip2
