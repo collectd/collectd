@@ -177,6 +177,9 @@
 typedef struct process_entry_s {
   unsigned long id;
   char name[PROCSTAT_NAME_LEN];
+  // The time the process started after system boot.
+  // Value is in jiffies.
+  unsigned long long starttime;
 
   unsigned long num_proc;
   unsigned long num_lwp;
@@ -220,6 +223,9 @@ typedef struct process_entry_s {
 typedef struct procstat_entry_s {
   unsigned long id;
   unsigned char age;
+  // The time the process started after system boot.
+  // Value is in jiffies.
+  unsigned long long starttime;
 
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
@@ -536,13 +542,20 @@ static void ps_list_add(const char *name, const char *cmdline,
       if ((pse->id == entry->id) || (pse->next == NULL))
         break;
 
-    if ((pse == NULL) || (pse->id != entry->id)) {
+    if ((pse == NULL) || (pse->id != entry->id) ||
+        (pse->starttime != entry->starttime)) {
+      if (pse != NULL && pse->id == entry->id) {
+        WARNING("pid %lu reused between two reads, ignoring existing "
+                "procstat_entry for %s",
+                pse->id, name);
+      }
       procstat_entry_t *new;
 
       new = calloc(1, sizeof(*new));
       if (new == NULL)
         return;
       new->id = entry->id;
+      new->starttime = entry->starttime;
 
       if (pse == NULL)
         ps->instances = new;
@@ -1447,6 +1460,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   ps->cswitch_vol = -1;
   ps->cswitch_invol = -1;
+  ps->starttime = strtoull(fields[19], NULL, 10);
 
   /* success */
   return 0;
