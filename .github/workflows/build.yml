@@ -17,12 +17,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: collectd/ci:${{ matrix.container_tag }}
-    continue-on-error: ${{ matrix.allow_failures }}
+    continue-on-error: false
     strategy:
       fail-fast: false
       matrix:
-        # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
-        allow_failures: [ false ]
         container_tag:
           # debian family
           - bullseye_amd64
@@ -63,7 +61,7 @@ jobs:
     - name: Dump test logs
       uses: actions/upload-artifact@v3
       with:
-        name: Test suite log
+        name: ${{ matrix.container_tag }} test log
         path: test-suite.log
     - name: Install bzip2
       run: |
@@ -114,7 +112,7 @@ jobs:
     - name: Dump test logs
       uses: actions/upload-artifact@v3
       with:
-        name: Test suite log
+        name: ${{ matrix.container_tag }} test log
         path: test-suite.log
     - name: Install bzip2
       run: |
