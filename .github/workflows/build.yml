@@ -52,13 +52,17 @@ jobs:
     - name: Build collectd
       run: make -j$(nproc) -sk
     - name: Run make check
-      run: make -j$(nproc) -sk check
+      run: |
+        make $MAKEFLAGS check
+        echo "$?" >make-check.status
       continue-on-error: true
     - name: Dump test logs
       uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.container_tag }} test log
         path: test-suite.log
+    - name: Report check status
+      run: exit $(< make-check.status)
 
   experimental:
     runs-on: ubuntu-20.04
@@ -96,10 +100,14 @@ jobs:
     - name: Build collectd
       run: make -j$(nproc) -sk
     - name: Run make check
-      run: make -j$(nproc) -sk check
+      run: |
+        make $MAKEFLAGS check
+        echo "$?" >make-check.status
       continue-on-error: true
     - name: Dump test logs
       uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.container_tag }} test log
         path: test-suite.log
+    - name: Report check status
+      run: exit $(< make-check.status)
