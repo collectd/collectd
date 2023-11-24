@@ -499,7 +499,11 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
       proc_pids_free(rdt->ngroups[i].proc_pids, rdt->ngroups[i].num_names);
 
     rdt->ngroups[i].num_names = 0;
+#if PQOS_VERSION >= 40600
+    /* no op: memory is freed by pqos_mon_stop(). */
+#else
     sfree(rdt->pngroups[i]);
+#endif
   }
   if (rdt->proc_pids)
     sfree(rdt->proc_pids);
@@ -592,6 +596,10 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
     }
 
     rdt->ngroups[i].events = events;
+
+#if PQOS_VERSION >= 40600
+    /* no op: memory will be allocated by pqos_mon_start_pids(). */
+#else
     rdt->pngroups[i] = calloc(1, sizeof(*rdt->pngroups[i]));
     if (rdt->pngroups[i] == NULL) {
       rdt_free_ngroups(rdt);
@@ -599,6 +607,7 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
             ": Failed to allocate memory for process name monitoring data.");
       return -ENOMEM;
     }
+#endif
   }
 
   return 0;
@@ -619,7 +628,7 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
  *  0 on success. Negative number on error.
  */
 static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
-                              struct pqos_mon_data *group_mon_data) {
+                              struct pqos_mon_data **group_mon_data) {
 
   int result = 0;
 
@@ -664,9 +673,15 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     /* no pids are monitored for this group yet: start monitoring */
     if (0 == ngroup->monitored_pids_count) {
 
+#if PQOS_VERSION >= 40600
+      int start_result =
+          pqos_mon_start_pids2(added_pids.size, added_pids.pids, ngroup->events,
+                               (void *)ngroup->desc, group_mon_data);
+#else
       int start_result =
           pqos_mon_start_pids(added_pids.size, added_pids.pids, ngroup->events,
-                              (void *)ngroup->desc, group_mon_data);
+                              (void *)ngroup->desc, *group_mon_data);
+#endif
       if (PQOS_RETVAL_OK == start_result) {
         ngroup->monitored_pids_count = added_pids.size;
       } else {
@@ -680,7 +695,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     } else {
 
       int add_result =
-          pqos_mon_add_pids(added_pids.size, added_pids.pids, group_mon_data);
+          pqos_mon_add_pids(added_pids.size, added_pids.pids, *group_mon_data);
       if (PQOS_RETVAL_OK == add_result)
         ngroup->monitored_pids_count += added_pids.size;
       else {
@@ -698,7 +713,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     /* all pids are removed: stop monitoring */
     if (removed_pids.size == ngroup->monitored_pids_count) {
       /* all pids for this group are lost: stop monitoring */
-      int stop_result = pqos_mon_stop(group_mon_data);
+      int stop_result = pqos_mon_stop(*group_mon_data);
       if (PQOS_RETVAL_OK != stop_result) {
         ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Error [%d] while "
                          "STOPPING monitoring",
@@ -709,7 +724,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
       ngroup->monitored_pids_count = 0;
     } else {
       int remove_result = pqos_mon_remove_pids(
-          removed_pids.size, removed_pids.pids, group_mon_data);
+          removed_pids.size, removed_pids.pids, *group_mon_data);
       if (PQOS_RETVAL_OK == remove_result) {
         ngroup->monitored_pids_count -= removed_pids.size;
       } else {
@@ -739,7 +754,7 @@ pqos_error_recovery:
    */
   DEBUG(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\' group RESET after error.",
         ngroup->desc);
-  pqos_mon_stop(group_mon_data);
+  pqos_mon_stop(*group_mon_data);
   for (size_t i = 0; i < ngroup->num_names; ++i)
     if (ngroup->proc_pids[i]->curr)
       ngroup->proc_pids[i]->curr->size = 0;
@@ -818,7 +833,7 @@ groups_refresh:
 
   for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
     int refresh_result =
-        rdt_refresh_ngroup(&(g_rdt->ngroups[i]), g_rdt->pngroups[i]);
+        rdt_refresh_ngroup(&(g_rdt->ngroups[i]), &(g_rdt->pngroups[i]));
 
     if (0 != refresh_result) {
       ERROR(RDT_PLUGIN ": read_pids_data: NGroup %zu refresh failed. Error: %d",
@@ -885,7 +900,7 @@ static void rdt_init_pids_monitoring() {
 
   for (size_t group_idx = 0; group_idx < g_rdt->num_ngroups; group_idx++) {
     int refresh_result = rdt_refresh_ngroup(&(g_rdt->ngroups[group_idx]),
-                                            g_rdt->pngroups[group_idx]);
+                                            &(g_rdt->pngroups[group_idx]));
     if (0 != refresh_result)
       ERROR(RDT_PLUGIN ": Initial refresh of group %zu failed. Error: %d",
             group_idx, refresh_result);
@@ -1190,8 +1205,7 @@ static int read_cores_data() {
   }
   DEBUG(RDT_PLUGIN ": read_cores_data: Cores data poll");
 
-  int ret =
-      pqos_mon_poll(&g_rdt->pcgroups[0], (unsigned)g_rdt->cores.num_cgroups);
+  int ret = pqos_mon_poll(g_rdt->pcgroups, (unsigned)g_rdt->cores.num_cgroups);
   if (ret != PQOS_RETVAL_OK) {
     ERROR(RDT_PLUGIN ": read_cores_data: Failed to poll monitoring data for "
                      "cores. Error [%d].",
@@ -1290,8 +1304,10 @@ static int rdt_shutdown(void) {
 
 /* Stop pids monitoring */
 #ifdef LIBPQOS2
-  for (size_t i = 0; i < g_rdt->num_ngroups; i++)
+  for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
+    /* In pqos 4.6.0 and later this frees memory */
     pqos_mon_stop(g_rdt->pngroups[i]);
+  }
 #endif
 
   ret = pqos_fini();
