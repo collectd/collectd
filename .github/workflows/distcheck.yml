@@ -18,7 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     container: collectd/ci:bullseye_amd64
     env:
-      MAKEFLAGS: "-j$(nproc) -sk"
       # this env var picked up by valgrind during make check phase
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:

@@ -33,10 +33,10 @@ jobs:
           - bionic_amd64
           # RedHat family
           - el9_x86_64
-          - fedora36_x86_64
+          - fedora39
+          - fedora38_x86_64
         config_flags: ['']
     env:
-      MAKEFLAGS: "-j2 -sk"
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
       # this env var picked up by valgrind during make check phase
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
@@ -50,15 +50,19 @@ jobs:
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Build collectd
-      run: make $MAKEFLAGS
+      run: make -j$(nproc) -sk
     - name: Run make check
-      run: make $MAKEFLAGS check
+      run: |
+        make $MAKEFLAGS check
+        echo "$?" >make-check.status
       continue-on-error: true
     - name: Dump test logs
       uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.container_tag }} test log
         path: test-suite.log
+    - name: Report check status
+      run: exit $(< make-check.status)
 
   experimental:
     runs-on: ubuntu-20.04
@@ -80,7 +84,6 @@ jobs:
             cppflags: "-fPIE -Wno-deprecated-declarations"
             config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
     env:
-      MAKEFLAGS: "-j2 -sk"
       CFLAGS: ${{ matrix.cflags }}
       CPPFLAGS: ${{ matrix.cppflags }}
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
@@ -95,12 +98,16 @@ jobs:
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Build collectd
-      run: make $MAKEFLAGS
+      run: make -j$(nproc) -sk
     - name: Run make check
-      run: make $MAKEFLAGS check
+      run: |
+        make $MAKEFLAGS check
+        echo "$?" >make-check.status
       continue-on-error: true
     - name: Dump test logs
       uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.container_tag }} test log
         path: test-suite.log
+    - name: Report check status
+      run: exit $(< make-check.status)
