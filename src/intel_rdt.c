@@ -916,9 +916,13 @@ static void rdt_init_pids_monitoring() {
  */
 static void rdt_free_cgroups(void) {
   config_cores_cleanup(&g_rdt->cores);
+#if PQOS_VERSION >= 40600
+  /* no op: memory is freed by pqos_mon_stop(). */
+#else
   for (int i = 0; i < RDT_MAX_CORES; i++) {
     sfree(g_rdt->pcgroups[i]);
   }
+#endif
   g_rdt->cores.num_cgroups = 0;
 }
 
@@ -1029,12 +1033,17 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
     }
 
     g_rdt->events[i] = events;
+
+#if PQOS_VERSION >= 40600
+    /* no op: memory will be allocated by pqos_mon_start_cores(). */
+#else
     g_rdt->pcgroups[i] = calloc(1, sizeof(*g_rdt->pcgroups[i]));
     if (g_rdt->pcgroups[i] == NULL) {
       rdt_free_cgroups();
       ERROR(RDT_PLUGIN ": Failed to allocate memory for monitoring data.");
       return -ENOMEM;
     }
+#endif
   }
 
   return 0;
@@ -1252,9 +1261,15 @@ static void rdt_init_cores_monitoring() {
   for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
     core_group_t *cg = g_rdt->cores.cgroups + i;
 
+#if PQOS_VERSION >= 40600
+    int mon_start_result =
+        pqos_mon_start_cores(cg->num_cores, cg->cores, g_rdt->events[i],
+                             (void *)cg->desc, &g_rdt->pcgroups[i]);
+#else
     int mon_start_result =
         pqos_mon_start(cg->num_cores, cg->cores, g_rdt->events[i],
                        (void *)cg->desc, g_rdt->pcgroups[i]);
+#endif
 
     if (mon_start_result != PQOS_RETVAL_OK)
       ERROR(RDT_PLUGIN
@@ -1299,6 +1314,7 @@ static int rdt_shutdown(void) {
 
   /* Stop monitoring cores */
   for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
+    /* In pqos 4.6.0 and later this frees memory */
     pqos_mon_stop(g_rdt->pcgroups[i]);
   }
 
