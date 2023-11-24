@@ -16,7 +16,7 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: collectd/ci:bookworm_amd64
+    container: collectd/ci:bullseye_amd64
     env:
       MAKEFLAGS: "-j$(nproc) -sk"
       # this env var picked up by valgrind during make check phase
