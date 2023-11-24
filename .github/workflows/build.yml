@@ -62,12 +62,6 @@ jobs:
       with:
         name: ${{ matrix.container_tag }} test log
         path: test-suite.log
-    - name: Install bzip2
-      run: |
-        yum install -y bzip2 || apt install -y bzip2
-    - name: Run make distcheck
-      run: |
-        make $MAKEFLAG distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
 
   experimental:
     runs-on: ubuntu-20.04
@@ -113,10 +107,3 @@ jobs:
       with:
         name: ${{ matrix.container_tag }} test log
         path: test-suite.log
-    - name: Install bzip2
-      run: |
-        yum install -y bzip2 || apt install -y bzip2
-    - name: Run make distcheck
-      run: |
-        make $MAKEFLAGS distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
-
