@@ -35,6 +35,10 @@
 
 #include "cpython.h"
 
+#define PY_VERSION_ATLEAST(major, minor)                                       \
+  (PY_MAJOR_VERSION > major) ||                                                \
+      ((PY_MAJOR_VERSION == major) && (PY_MINOR_VERSION >= minor))
+
 typedef struct cpy_callback_s {
   char *name;
   PyObject *callback;
@@ -1255,22 +1259,36 @@ PyMODINIT_FUNC PyInit_collectd(void) {
 #endif
 
 static int cpy_init_python(void) {
-  PyOS_sighandler_t cur_sig;
   PyObject *sys, *errordict;
   PyObject *module;
 
 #ifdef IS_PY3K
-  wchar_t *argv = L"";
   /* Add a builtin module, before Py_Initialize */
   PyImport_AppendInittab("collectd", PyInit_collectd);
+#endif
+
+#if PY_VERSION_ATLEAST(3, 8)
+  PyConfig config = {0};
+  PyConfig_InitPythonConfig(&config);
+  PyConfig_SetBytesArgv(&config, 1, (char *[]){""});
+  PyStatus status = Py_InitializeFromConfig(&config);
+  if (PyStatus_IsError(status)) {
+    ERROR("python initialization: Py_InitializeFromConfig(): %s",
+          status.err_msg);
+    return 1;
+  } else if (PyStatus_IsExit(status)) {
+    ERROR("python initialization: Py_InitializeFromConfig() returned exit code "
+          "%d",
+          status.exitcode);
+    return 1;
+  }
 #else
-  char *argv = "";
+  Py_Initialize();
 #endif
 
   /* Chances are the current signal handler is already SIG_DFL, but let's make
    * sure. */
-  cur_sig = PyOS_setsig(SIGINT, SIG_DFL);
-  Py_Initialize();
+  PyOS_sighandler_t cur_sig = PyOS_setsig(SIGINT, SIG_DFL);
   python_sigint_handler = PyOS_setsig(SIGINT, cur_sig);
 
   if (PyType_Ready(&ConfigType) == -1) {
@@ -1306,6 +1324,7 @@ static int cpy_init_python(void) {
       errordict, "__doc__",
       cpy_string_to_unicode_or_bytes(CollectdError_doc)); /* New reference. */
   CollectdError = PyErr_NewException("collectd.CollectdError", NULL, errordict);
+
   sys = PyImport_ImportModule("sys"); /* New reference. */
   if (sys == NULL) {
     cpy_log_exception("python initialization");
@@ -1317,8 +1336,17 @@ static int cpy_init_python(void) {
     cpy_log_exception("python initialization");
     return 1;
   }
-  PySys_SetArgv(1, &argv);
   PyList_SetSlice(sys_path, 0, 1, NULL);
+
+#if PY_VERSION_ATLEAST(3, 8)
+  /* no op */
+#elif defined(IS_PY3K)
+  wchar_t *argv = L"";
+  PySys_SetArgv(1, &argv);
+#else
+  char *argv = "";
+  PySys_SetArgv(1, &argv);
+#endif
 
 #ifdef IS_PY3K
   module = PyImport_ImportModule("collectd");
