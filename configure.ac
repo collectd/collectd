@@ -5047,10 +5047,12 @@ if test "x$with_librabbitmq" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
 
-  AC_CHECK_HEADERS([amqp.h],
-    [with_librabbitmq="yes"],
-    [with_librabbitmq="no (amqp.h not found)"]
-  )
+  with_librabbitmq="no (amqp.h and rabbitmq-c/amqp.h not found)"
+  AC_CHECK_HEADERS([rabbitmq-c/amqp.h], [with_librabbitmq="yes"], [])
+  AC_CHECK_HEADERS([amqp.h], [with_librabbitmq="yes"], [])
+
+  AC_CHECK_HEADERS([rabbitmq-c/framing.h rabbitmq-c/ssl_socket.h rabbitmq-c/tcp_socket.h \
+                    amqp_framing.h amqp_ssl_socket.h amqp_tcp_socket.h])
 
   CPPFLAGS="$SAVE_CPPFLAGS"
 fi
@@ -5071,7 +5073,11 @@ if test "x$with_librabbitmq" = "xyes"; then
       #include <stdio.h>
       #include <stdint.h>
       #include <inttypes.h>
-      #include <amqp.h>
+      #if HAVE_RABBITMQ_C_AMQP_H
+      # include <rabbitmq-c/amqp.h>
+      #else
+      # include <amqp.h>
+      #endif
     ]]
   )
   CPPFLAGS="$SAVE_CPPFLAGS"
@@ -5085,41 +5091,6 @@ if test "x$with_librabbitmq" = "xyes"; then
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
-fi
-
-if test "x$with_librabbitmq" = "xyes"; then
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  SAVE_LDFLAGS="$LDFLAGS"
-  SAVE_LIBS="$LIBS"
-  CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
-  LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
-  LIBS="-lrabbitmq"
-
-  AC_CHECK_HEADERS([amqp_tcp_socket.h amqp_socket.h])
-  AC_CHECK_FUNC([amqp_tcp_socket_new],
-    [
-      AC_DEFINE([HAVE_AMQP_TCP_SOCKET], [1],
-        [Define if librabbitmq provides the new TCP socket interface.])
-    ]
-  )
-
-  AC_CHECK_DECLS([amqp_socket_close],
-    [],
-    [],
-    [[
-      #include <amqp.h>
-      #ifdef HAVE_AMQP_TCP_SOCKET_H
-      # include <amqp_tcp_socket.h>
-      #endif
-      #ifdef HAVE_AMQP_SOCKET_H
-      # include <amqp_socket.h>
-      #endif
-    ]]
-  )
-
-  CPPFLAGS="$SAVE_CPPFLAGS"
-  LDFLAGS="$SAVE_LDFLAGS"
-  LIBS="$SAVE_LIBS"
 fi
 
 if test "x$with_librabbitmq" = "xyes"; then
