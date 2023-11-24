@@ -36,27 +36,27 @@
 #include "utils_random.h"
 
 #if HAVE_RABBITMQ_C_AMQP_H
-#  include <rabbitmq-c/amqp.h>
-#  if HAVE_RABBITMQ_C_FRAMING_H
-#    include <rabbitmq-c/framing.h>
-#  endif
-#  if HAVE_RABBITMQ_C_TCP_SOCKET_H
-#    include <rabbitmq-c/tcp_socket.h>
-#  endif
-#  if HAVE_RABBITMQ_C_SSL_SOCKET_H
-#    include <rabbitmq-c/ssl_socket.h>
-#  endif
+#include <rabbitmq-c/amqp.h>
+#if HAVE_RABBITMQ_C_FRAMING_H
+#include <rabbitmq-c/framing.h>
+#endif
+#if HAVE_RABBITMQ_C_TCP_SOCKET_H
+#include <rabbitmq-c/tcp_socket.h>
+#endif
+#if HAVE_RABBITMQ_C_SSL_SOCKET_H
+#include <rabbitmq-c/ssl_socket.h>
+#endif
 #elif HAVE_AMQP_H
-#  include <amqp.h>
-#  if HAVE_AMQP_FRAMING_H
-#    include <amqp_framing.h>
-#  endif
-#  if HAVE_AMQP_TCP_SOCKET_H
-#    include <amqp_tcp_socket.h>
-#  endif
-#  if HAVE_AMQP_SSL_SOCKET_H
-#    include <amqp_ssl_socket.h>
-#  endif
+#include <amqp.h>
+#if HAVE_AMQP_FRAMING_H
+#include <amqp_framing.h>
+#endif
+#if HAVE_AMQP_TCP_SOCKET_H
+#include <amqp_tcp_socket.h>
+#endif
+#if HAVE_AMQP_SSL_SOCKET_H
+#include <amqp_ssl_socket.h>
+#endif
 #endif
 
 /* Defines for the delivery mode. I have no idea why they're not defined by the
@@ -467,7 +467,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
     }
     if (conf->tls_client_cert && conf->tls_client_key) {
       int status = amqp_ssl_socket_set_key(socket, conf->tls_client_cert,
-                                       conf->tls_client_key);
+                                           conf->tls_client_key);
       if (status < 0) {
         ERROR("amqp plugin: amqp_ssl_socket_set_key failed: %s",
               amqp_error_string2(status));
@@ -495,12 +495,13 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
     return status;
   }
 
-  amqp_rpc_reply_t reply = amqp_login(conf->connection, CONF(conf, vhost),
-                     /* channel max = */ 0,
-                     /* frame max   = */ 131072,
-                     /* heartbeat   = */ 0,
-                     /* authentication = */ AMQP_SASL_METHOD_PLAIN,
-                     CONF(conf, user), CONF(conf, password));
+  amqp_rpc_reply_t reply =
+      amqp_login(conf->connection, CONF(conf, vhost),
+                 /* channel max = */ 0,
+                 /* frame max   = */ 131072,
+                 /* heartbeat   = */ 0,
+                 /* authentication = */ AMQP_SASL_METHOD_PLAIN,
+                 CONF(conf, user), CONF(conf, password));
   if (reply.reply_type != AMQP_RESPONSE_NORMAL) {
     ERROR("amqp plugin: amqp_login (vhost = %s, user = %s) failed.",
           CONF(conf, vhost), CONF(conf, user));
