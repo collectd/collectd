@@ -3719,19 +3719,23 @@ settings and all the GPUs detected through Sysman API, and enables
 
 =item B<MetricsOutput>
 
-Set of "counter", "rate", and "ratio" values, separated by comma,
-colon, slash or space.
+Set of "base", "rate", and "ratio" strings, separated by comma, colon,
+slash or space.
 
-Several of the metric types support multiple variants for their
+Base metric can be either a counter (e.g. error count) that only
+increases, or one that can also decrease (e.g. temperature).  The
+other options are values derived from base metric value.
+
+Several of the metric types support multiple output variants for their
 values. This option specifies which ones of them are to be reported.
 
-Default is to report all variants ("counter:rate:ratio"). To reduce
+Default is to report all variants ("base:rate:ratio"). To reduce
 amount of data, it is better to configure just the relevant ones for
-given use (e.g. "counter:ratio" or "rate:ratio"). Note that some of
+given use (e.g. "base:ratio" or "rate:ratio"). Note that some of
 the metric types support only two of these variants, whereas metrics
 supporting only single variant ignore this option.
 
-Counter metric variant (e.g. HW energy usage as Joules counter) is
+Base metric variant (e.g. HW energy usage as Joules counter) is
 preferred by Prometheus as doing rate calculations in Prometheus is
 more flexible. However, because collectd stores counters internally as
 integers instead of floating point, counter metrics are given in
