@@ -1,4 +1,4 @@
-name: make distcheck
+name: Check the Distribution
 
 on:
   push:
@@ -14,7 +14,7 @@ defaults:
     shell: bash
 
 jobs:
-  build:
+  make_distcheck:
     runs-on: ubuntu-latest
     container: collectd/ci:bullseye_amd64
     env:
