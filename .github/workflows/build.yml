@@ -39,7 +39,7 @@ jobs:
           - fedora34_x86_64
         config_flags: ['']
     env:
-      MAKEFLAGS: "-j2 -sk"
+      MAKEFLAGS: "-j$(nproc) -sk"
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
       # this env var picked up by valgrind during make check phase
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
@@ -85,7 +85,7 @@ jobs:
             cppflags: "-fPIE -Wno-deprecated-declarations"
             config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
     env:
-      MAKEFLAGS: "-j2 -sk"
+      MAKEFLAGS: "-j$(nproc) -sk"
       CFLAGS: ${{ matrix.cflags }}
       CPPFLAGS: ${{ matrix.cppflags }}
       CONFIGURE_FLAGS: ${{ matrix.config_flags }}
