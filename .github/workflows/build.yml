@@ -31,7 +31,6 @@ jobs:
           - bionic_amd64
           # RedHat family
           - el9_x86_64
-          - el8_x86_64
           - fedora36_x86_64
         config_flags: ['']
     env:
