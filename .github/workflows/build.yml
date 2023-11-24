@@ -27,6 +27,8 @@ jobs:
           - bullseye_amd64
           - buster_amd64
           # Ubuntu
+          - mantic_amd64
+          - jammy_amd64
           - focal_amd64
           - bionic_amd64
           # RedHat family
