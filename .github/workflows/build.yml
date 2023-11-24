@@ -48,20 +48,22 @@ jobs:
     - run: type pkg-config
     - run: pkg-config --list-all | sort -u
     - name: Generate configure script
-      run:
-        ./build.sh
+      run: ./build.sh
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Build collectd
       run: make $MAKEFLAGS
     - name: Run make check
-      run: make $MAKEFLAGS check
-      continue-on-error: true
+      run: |
+        make $MAKEFLAGS check
+        echo "$?" >make-check.status
     - name: Dump test logs
       uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.container_tag }} test log
         path: test-suite.log
+    - name: Report check status
+      run: exit $(< make-check.status)
 
   experimental:
     runs-on: ubuntu-20.04
@@ -100,10 +102,13 @@ jobs:
     - name: Build collectd
       run: make $MAKEFLAGS
     - name: Run make check
-      run: make $MAKEFLAGS check
-      continue-on-error: true
+      run: |
+        make $MAKEFLAGS check
+        echo "$?" >make-check.status
     - name: Dump test logs
       uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.container_tag }} test log
         path: test-suite.log
+    - name: Report check status
+      run: exit $(< make-check.status)
