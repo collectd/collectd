@@ -2633,15 +2633,34 @@ if test "x$with_libganglia" = "xyes"; then
   fi
 fi
 
+AC_CHECK_HEADERS([rpc/types.h],
+  [have_rpc_types_h="yes"],
+  [have_rpc_types_h="no"]
+)
+AS_UNSET([ac_cv_header_rpc_types_h])
+if test "x$have_rpc_types_h" = "xno"; then
+  # SunRPC has been removed from glibc.
+  # Replacement headers are in the "tirpc" subdirectory.
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS -I/usr/include/tirpc"
+
+  AC_CHECK_HEADERS([rpc/types.h],
+    [GANGLIA_CPPFLAGS="$GANGLIA_CPPFLAGS -I/usr/include/tirpc"],
+    [with_libganglia="no (rpc/types.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
 CPPFLAGS="$CPPFLAGS $GANGLIA_CPPFLAGS"
 LDFLAGS="$LDFLAGS $GANGLIA_LDFLAGS"
 
 if test "x$with_libganglia" = "xyes"; then
-  AC_CHECK_HEADERS([gm_protocol.h],
+  AC_CHECK_HEADERS([ganglia.h],
     [with_libganglia="yes"],
-    [with_libganglia="no (gm_protocol.h not found)"]
+    [with_libganglia="no (ganglia.h not found)"]
   )
 fi
 
