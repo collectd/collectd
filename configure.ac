@@ -2639,9 +2639,9 @@ CPPFLAGS="$CPPFLAGS $GANGLIA_CPPFLAGS"
 LDFLAGS="$LDFLAGS $GANGLIA_LDFLAGS"
 
 if test "x$with_libganglia" = "xyes"; then
-  AC_CHECK_HEADERS([gm_protocol.h],
+  AC_CHECK_HEADERS([ganglia.h],
     [with_libganglia="yes"],
-    [with_libganglia="no (gm_protocol.h not found)"]
+    [with_libganglia="no (ganglia.h not found)"]
   )
 fi
 
