@@ -48,7 +48,7 @@ debian_default_toolchain_task:
   build_script:
     - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
     - /checks/check-built-plugins.sh
 
 ###
@@ -79,7 +79,7 @@ redhat_default_toolchain_task:
   build_script:
     - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
     - /checks/check-built-plugins.sh
 
 
@@ -111,7 +111,7 @@ non_standard_toolchains_task:
       build_script:
         - make -j$(nproc) -sk
       tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
 
     # build against libstatgrab, should always pass
     - env:
@@ -176,7 +176,7 @@ non_standard_toolchains_task:
       build_script:
         - make -j$(nproc) -sk
       tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -208,7 +208,7 @@ bleeding_edge_compilers_task:
   build_script:
     - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
 
 freebsd_task:
   freebsd_instance:
@@ -228,4 +228,4 @@ freebsd_task:
   build_script:
     - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log && false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
