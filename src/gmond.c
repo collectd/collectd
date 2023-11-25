@@ -43,7 +43,7 @@
 #include <poll.h>
 #endif
 
-#include <gm_protocol.h>
+#include <ganglia.h>
 
 #ifndef IPV6_ADD_MEMBERSHIP
 #ifdef IPV6_JOIN_GROUP
