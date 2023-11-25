@@ -17,7 +17,7 @@ release_ready_task:
     - ./build.sh
     - ./configure $DEFAULT_CONFIG_OPTS
   checks_script:
-    - make -j2 -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
+    - make -j$(nproc) -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
 
 ###
 # Default toolchain and build flags used in deb packages, on a range of Debian
@@ -46,9 +46,9 @@ debian_default_toolchain_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -j2 -sk
+    - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
     - /checks/check-built-plugins.sh
 
 ###
@@ -77,9 +77,9 @@ redhat_default_toolchain_task:
     - gcc --version
     - ./configure CC=gcc $DEFAULT_CONFIG_OPTS CFLAGS="$(rpm --eval '%optflags')"
   build_script:
-    - make -j2 -sk
+    - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
     - /checks/check-built-plugins.sh
 
 
@@ -109,9 +109,9 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -j2 -sk
+        - make -j$(nproc) -sk
       tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
 
     # build against libstatgrab, should always pass
     - env:
@@ -127,7 +127,7 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -j2 -sk
+        - make -j$(nproc) -sk
       tests_script:
         - >
           for i in cpu disk interface load memory swap users; do
@@ -174,9 +174,9 @@ non_standard_toolchains_task:
           -Wno-typedef-redefinition
           -Wno-gnu-variable-sized-type-not-at-end'
       build_script:
-        - make -j2 -sk
+        - make -j$(nproc) -sk
       tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -206,9 +206,9 @@ bleeding_edge_compilers_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -j2 -sk
+    - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log || false
 
 freebsd_task:
   freebsd_instance:
@@ -228,4 +228,4 @@ freebsd_task:
   build_script:
     - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log && false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || cat ./test-suite.log && false
