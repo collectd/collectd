@@ -9,7 +9,7 @@ env:
 #
 release_ready_task:
   container:
-    image: collectd/ci:buster_amd64
+    image: collectd/ci:bookworm_amd64
   lint_script:
     - /checks/check-bashisms.sh
     - /checks/check-pod.sh
@@ -27,22 +27,10 @@ release_ready_task:
 debian_default_toolchain_task:
   matrix:
     - container:
-        image: collectd/ci:buster_amd64
+        image: collectd/ci:bookworm_amd64
       allow_failures: false
     - container:
-        image: collectd/ci:stretch_amd64
-      allow_failures: false
-    - container:
-        image: collectd/ci:stretch_i386
-      allow_failures: false
-    - container:
-        image: collectd/ci:xenial_amd64
-      allow_failures: false
-    - container:
-        image: collectd/ci:bionic_amd64
-      allow_failures: false
-    - container:
-        image: collectd/ci:focal_amd64
+        image: collectd/ci:mantic_amd64
       allow_failures: false
     - container:
         image: collectd/ci:sid_amd64 # unstable
@@ -70,14 +58,14 @@ debian_default_toolchain_task:
 #
 redhat_default_toolchain_task:
   matrix:
-    - allow_failures: true
+    - container:
+        image: collectd/ci:el9_x86_64
+      allow_failures: true
       skip_notifications: true
-      container:
-        image: collectd/ci:el7_x86_64 # TODO: fix this platform
-    - allow_failures: true
+    - container:
+        image: collectd/ci:fedora39
+      allow_failures: true
       skip_notifications: true
-      container:
-        image: collectd/ci:fedora28_x86_64
     # fedora/rawhide is expected to fail
     - allow_failures: true
       skip_notifications: true
