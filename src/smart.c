@@ -383,13 +383,7 @@ static int smart_read_nvme_disk(const char *dev, char const *name) {
 }
 
 static int smart_read_nvme_intel_disk(const char *dev, char const *name) {
-
-  DEBUG("name = %s", name);
-  DEBUG("dev = %s", dev);
-
-  struct nvme_additional_smart_log intel_smart_log;
-  int fd, status;
-  fd = open(dev, O_RDWR);
+  int fd = open(dev, O_RDWR);
   if (fd < 0) {
     ERROR(PLUGIN_NAME ": open failed with %s\n", strerror(errno));
     return fd;
@@ -400,87 +394,85 @@ static int smart_read_nvme_intel_disk(const char *dev, char const *name) {
    * - Additional SMART Attributes (Log Identfiter CAh)
    */
 
-  status =
-      ioctl(fd, NVME_IOCTL_ADMIN_CMD,
-            &(struct nvme_admin_cmd){.opcode = NVME_ADMIN_GET_LOG_PAGE,
-                                     .nsid = NVME_NSID_ALL,
-                                     .addr = (unsigned long)&intel_smart_log,
-                                     .data_len = sizeof(intel_smart_log),
-                                     .cdw10 = NVME_SMART_INTEL_CDW10});
+  struct nvme_additional_smart_log intel_smart_log = {0};
+  int status = ioctl(fd, NVME_IOCTL_ADMIN_CMD,
+                     &(struct nvme_admin_cmd){
+                         .opcode = NVME_ADMIN_GET_LOG_PAGE,
+                         .nsid = NVME_NSID_ALL,
+                         .addr = (unsigned long)&intel_smart_log,
+                         .data_len = sizeof(intel_smart_log),
+                         .cdw10 = NVME_SMART_INTEL_CDW10,
+                     });
   if (status < 0) {
     ERROR(PLUGIN_NAME ": ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n",
           strerror(errno));
     close(fd);
     return status;
-  } else {
-
-    smart_submit(name, "nvme_program_fail_count", "norm",
-                 (double)intel_smart_log.program_fail_cnt.norm);
-    smart_submit(name, "nvme_program_fail_count", "raw",
-                 int48_to_double(intel_smart_log.program_fail_cnt.raw));
-    smart_submit(name, "nvme_erase_fail_count", "norm",
-                 (double)intel_smart_log.erase_fail_cnt.norm);
-    smart_submit(name, "nvme_erase_fail_count", "raw",
-                 int48_to_double(intel_smart_log.program_fail_cnt.raw));
-    smart_submit(name, "nvme_wear_leveling", "norm",
-                 (double)intel_smart_log.wear_leveling_cnt.norm);
-    smart_submit(
-        name, "nvme_wear_leveling", "min",
-        (double)le16_to_cpu(intel_smart_log.wear_leveling_cnt.wear_level.min));
-    smart_submit(
-        name, "nvme_wear_leveling", "max",
-        (double)le16_to_cpu(intel_smart_log.wear_leveling_cnt.wear_level.max));
-    smart_submit(
-        name, "nvme_wear_leveling", "avg",
-        (double)le16_to_cpu(intel_smart_log.wear_leveling_cnt.wear_level.avg));
-    smart_submit(name, "nvme_end_to_end_error_detection_count", "norm",
-                 (double)intel_smart_log.e2e_err_cnt.norm);
-    smart_submit(name, "nvme_end_to_end_error_detection_count", "raw",
-                 int48_to_double(intel_smart_log.e2e_err_cnt.raw));
-    smart_submit(name, "nvme_crc_error_count", "norm",
-                 (double)intel_smart_log.crc_err_cnt.norm);
-    smart_submit(name, "nvme_crc_error_count", "raw",
-                 int48_to_double(intel_smart_log.crc_err_cnt.raw));
-    smart_submit(name, "nvme_timed_workload_media_wear", "norm",
-                 (double)intel_smart_log.timed_workload_media_wear.norm);
-    smart_submit(
-        name, "nvme_timed_workload_media_wear", "raw",
-        int48_to_double(intel_smart_log.timed_workload_media_wear.raw));
-    smart_submit(name, "nvme_timed_workload_host_reads", "norm",
-                 (double)intel_smart_log.timed_workload_host_reads.norm);
-    smart_submit(
-        name, "nvme_timed_workload_host_reads", "raw",
-        int48_to_double(intel_smart_log.timed_workload_host_reads.raw));
-    smart_submit(name, "nvme_timed_workload_timer", "norm",
-                 (double)intel_smart_log.timed_workload_timer.norm);
-    smart_submit(name, "nvme_timed_workload_timer", "raw",
-                 int48_to_double(intel_smart_log.timed_workload_timer.raw));
-    smart_submit(name, "nvme_thermal_throttle_status", "norm",
-                 (double)intel_smart_log.thermal_throttle_status.norm);
-    smart_submit(
-        name, "nvme_thermal_throttle_status", "pct",
-        (double)intel_smart_log.thermal_throttle_status.thermal_throttle.pct);
-    smart_submit(
-        name, "nvme_thermal_throttle_status", "count",
-        (double)intel_smart_log.thermal_throttle_status.thermal_throttle.count);
-    smart_submit(name, "nvme_retry_buffer_overflow_count", "norm",
-                 (double)intel_smart_log.retry_buffer_overflow_cnt.norm);
-    smart_submit(
-        name, "nvme_retry_buffer_overflow_count", "raw",
-        int48_to_double(intel_smart_log.retry_buffer_overflow_cnt.raw));
-    smart_submit(name, "nvme_pll_lock_loss_count", "norm",
-                 (double)intel_smart_log.pll_lock_loss_cnt.norm);
-    smart_submit(name, "nvme_pll_lock_loss_count", "raw",
-                 int48_to_double(intel_smart_log.pll_lock_loss_cnt.raw));
-    smart_submit(name, "nvme_nand_bytes_written", "norm",
-                 (double)intel_smart_log.host_bytes_written.norm);
-    smart_submit(name, "nvme_nand_bytes_written", "raw",
-                 int48_to_double(intel_smart_log.host_bytes_written.raw));
-    smart_submit(name, "nvme_host_bytes_written", "norm",
-                 (double)intel_smart_log.host_bytes_written.norm);
-    smart_submit(name, "nvme_host_bytes_written", "raw",
-                 int48_to_double(intel_smart_log.host_bytes_written.raw));
   }
+
+  smart_submit(name, "nvme_program_fail_count", "norm",
+               (double)intel_smart_log.program_fail_cnt.norm);
+  smart_submit(name, "nvme_program_fail_count", "raw",
+               int48_to_double(intel_smart_log.program_fail_cnt.raw));
+  smart_submit(name, "nvme_erase_fail_count", "norm",
+               (double)intel_smart_log.erase_fail_cnt.norm);
+  smart_submit(name, "nvme_erase_fail_count", "raw",
+               int48_to_double(intel_smart_log.program_fail_cnt.raw));
+  smart_submit(name, "nvme_wear_leveling", "norm",
+               (double)intel_smart_log.wear_leveling_cnt.norm);
+  smart_submit(
+      name, "nvme_wear_leveling", "min",
+      (double)le16_to_cpu(intel_smart_log.wear_leveling_cnt.wear_level.min));
+  smart_submit(
+      name, "nvme_wear_leveling", "max",
+      (double)le16_to_cpu(intel_smart_log.wear_leveling_cnt.wear_level.max));
+  smart_submit(
+      name, "nvme_wear_leveling", "avg",
+      (double)le16_to_cpu(intel_smart_log.wear_leveling_cnt.wear_level.avg));
+  smart_submit(name, "nvme_end_to_end_error_detection_count", "norm",
+               (double)intel_smart_log.e2e_err_cnt.norm);
+  smart_submit(name, "nvme_end_to_end_error_detection_count", "raw",
+               int48_to_double(intel_smart_log.e2e_err_cnt.raw));
+  smart_submit(name, "nvme_crc_error_count", "norm",
+               (double)intel_smart_log.crc_err_cnt.norm);
+  smart_submit(name, "nvme_crc_error_count", "raw",
+               int48_to_double(intel_smart_log.crc_err_cnt.raw));
+  smart_submit(name, "nvme_timed_workload_media_wear", "norm",
+               (double)intel_smart_log.timed_workload_media_wear.norm);
+  smart_submit(name, "nvme_timed_workload_media_wear", "raw",
+               int48_to_double(intel_smart_log.timed_workload_media_wear.raw));
+  smart_submit(name, "nvme_timed_workload_host_reads", "norm",
+               (double)intel_smart_log.timed_workload_host_reads.norm);
+  smart_submit(name, "nvme_timed_workload_host_reads", "raw",
+               int48_to_double(intel_smart_log.timed_workload_host_reads.raw));
+  smart_submit(name, "nvme_timed_workload_timer", "norm",
+               (double)intel_smart_log.timed_workload_timer.norm);
+  smart_submit(name, "nvme_timed_workload_timer", "raw",
+               int48_to_double(intel_smart_log.timed_workload_timer.raw));
+  smart_submit(name, "nvme_thermal_throttle_status", "norm",
+               (double)intel_smart_log.thermal_throttle_status.norm);
+  smart_submit(
+      name, "nvme_thermal_throttle_status", "pct",
+      (double)intel_smart_log.thermal_throttle_status.thermal_throttle.pct);
+  smart_submit(
+      name, "nvme_thermal_throttle_status", "count",
+      (double)intel_smart_log.thermal_throttle_status.thermal_throttle.count);
+  smart_submit(name, "nvme_retry_buffer_overflow_count", "norm",
+               (double)intel_smart_log.retry_buffer_overflow_cnt.norm);
+  smart_submit(name, "nvme_retry_buffer_overflow_count", "raw",
+               int48_to_double(intel_smart_log.retry_buffer_overflow_cnt.raw));
+  smart_submit(name, "nvme_pll_lock_loss_count", "norm",
+               (double)intel_smart_log.pll_lock_loss_cnt.norm);
+  smart_submit(name, "nvme_pll_lock_loss_count", "raw",
+               int48_to_double(intel_smart_log.pll_lock_loss_cnt.raw));
+  smart_submit(name, "nvme_nand_bytes_written", "norm",
+               (double)intel_smart_log.host_bytes_written.norm);
+  smart_submit(name, "nvme_nand_bytes_written", "raw",
+               int48_to_double(intel_smart_log.host_bytes_written.raw));
+  smart_submit(name, "nvme_host_bytes_written", "norm",
+               (double)intel_smart_log.host_bytes_written.norm);
+  smart_submit(name, "nvme_host_bytes_written", "raw",
+               int48_to_double(intel_smart_log.host_bytes_written.raw));
 
   close(fd);
   return 0;
