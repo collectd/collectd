@@ -9,7 +9,7 @@ env:
 #
 release_ready_task:
   container:
-    image: collectd/ci:buster_amd64
+    image: collectd/ci:bookworm_amd64
   lint_script:
     - /checks/check-bashisms.sh
     - /checks/check-pod.sh
@@ -17,7 +17,7 @@ release_ready_task:
     - ./build.sh
     - ./configure $DEFAULT_CONFIG_OPTS
   checks_script:
-    - make -j2 -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
+    - make -j$(nproc) -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
 
 ###
 # Default toolchain and build flags used in deb packages, on a range of Debian
@@ -27,29 +27,16 @@ release_ready_task:
 debian_default_toolchain_task:
   matrix:
     - container:
-        image: collectd/ci:buster_amd64
+        image: collectd/ci:bookworm_amd64
       allow_failures: false
     - container:
-        image: collectd/ci:stretch_amd64
+        image: collectd/ci:mantic_amd64
       allow_failures: false
     - container:
-        image: collectd/ci:stretch_i386
-      allow_failures: false
-    - container:
-        image: collectd/ci:xenial_amd64
-      allow_failures: false
-    - container:
-        image: collectd/ci:bionic_amd64
-      allow_failures: false
-    - container:
-        image: collectd/ci:focal_amd64
-      allow_failures: false
-      # debian/unstable is expected to fail
-    - allow_failures: true
+        image: collectd/ci:sid_amd64 # unstable
+      allow_failures: true
       skip_notifications: true
-      only_if: $CIRRUS_BRANCH == 'master'
-      container:
-        image: collectd/ci:sid_amd64
+      only_if: $CIRRUS_BRANCH == 'main'
   configure_script:
     - ./build.sh
     - gcc --version
@@ -59,9 +46,9 @@ debian_default_toolchain_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -j2 -sk
+    - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
     - /checks/check-built-plugins.sh
 
 ###
@@ -71,28 +58,25 @@ debian_default_toolchain_task:
 #
 redhat_default_toolchain_task:
   matrix:
-    - allow_failures: true
-      skip_notifications: true
-      container:
-        image: collectd/ci:el7_x86_64 # TODO: fix this platform
-    - allow_failures: true
-      skip_notifications: true
-      container:
-        image: collectd/ci:fedora28_x86_64
-    # fedora/rawhide is expected to fail
-    - allow_failures: true
-      skip_notifications: true
-      only_if: $CIRRUS_BRANCH == 'master'
-      container:
+    - container:
+        image: collectd/ci:el9_x86_64
+      allow_failures: false
+    - container:
+        image: collectd/ci:fedora39
+      allow_failures: false
+    - container:
         image: collectd/ci:fedora_rawhide_x86_64
+      allow_failures: true
+      skip_notifications: true
+      only_if: $CIRRUS_BRANCH == 'main'
   configure_script:
     - ./build.sh
     - gcc --version
     - ./configure CC=gcc $DEFAULT_CONFIG_OPTS CFLAGS="$(rpm --eval '%optflags')"
   build_script:
-    - make -j2 -sk
+    - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
     - /checks/check-built-plugins.sh
 
 
@@ -102,7 +86,7 @@ redhat_default_toolchain_task:
 # Some are expected to fail, others should always pass
 non_standard_toolchains_task:
   container:
-    image: collectd/ci:stretch_amd64
+    image: collectd/ci:bookworm_amd64
   only_if: $CIRRUS_PR == ''
 
   matrix:
@@ -122,9 +106,9 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -j2 -sk
+        - make -j$(nproc) -sk
       tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
 
     # build against libstatgrab, should always pass
     - env:
@@ -140,7 +124,7 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -j2 -sk
+        - make -j$(nproc) -sk
       tests_script:
         - >
           for i in cpu disk interface load memory swap users; do
@@ -187,9 +171,9 @@ non_standard_toolchains_task:
           -Wno-typedef-redefinition
           -Wno-gnu-variable-sized-type-not-at-end'
       build_script:
-        - make -j2 -sk
+        - make -j$(nproc) -sk
       tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -198,7 +182,7 @@ non_standard_toolchains_task:
 bleeding_edge_compilers_task:
   container:
     image: collectd/ci:sid_amd64
-  only_if: $CIRRUS_BRANCH == 'master'
+  only_if: $CIRRUS_BRANCH == 'main'
   allow_failures: true
   skip_notifications: true
   env:
@@ -219,6 +203,26 @@ bleeding_edge_compilers_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -j2 -sk
+    - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j2 -sk check || cat ./test-suite.log || false
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+
+freebsd_task:
+  freebsd_instance:
+    matrix:
+      - image_family: freebsd-13-2
+  allow_failures: false
+  pkg_install_script:
+    - >
+      pkg install --yes
+      autotools
+      bison
+      flex
+      pkgconf
+  configure_script:
+    - ./build.sh
+    - ./configure --disable-perl
+  build_script:
+    - make -j$(nproc) -sk
+  tests_script:
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
