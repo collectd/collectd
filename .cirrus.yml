@@ -60,18 +60,15 @@ redhat_default_toolchain_task:
   matrix:
     - container:
         image: collectd/ci:el9_x86_64
-      allow_failures: true
-      skip_notifications: true
+      allow_failures: false
     - container:
         image: collectd/ci:fedora39
+      allow_failures: false
+    - container:
+        image: collectd/ci:fedora_rawhide_x86_64
       allow_failures: true
       skip_notifications: true
-    # fedora/rawhide is expected to fail
-    - allow_failures: true
-      skip_notifications: true
       only_if: $CIRRUS_BRANCH == 'main'
-      container:
-        image: collectd/ci:fedora_rawhide_x86_64
   configure_script:
     - ./build.sh
     - gcc --version
@@ -89,7 +86,7 @@ redhat_default_toolchain_task:
 # Some are expected to fail, others should always pass
 non_standard_toolchains_task:
   container:
-    image: collectd/ci:stretch_amd64
+    image: collectd/ci:bookworm_amd64
   only_if: $CIRRUS_PR == ''
 
   matrix:
