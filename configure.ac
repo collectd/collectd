@@ -5881,6 +5881,7 @@ if test "x$with_libupsclient" = "xyes"; then
     [[
       #include <stdlib.h>
       #include <stdio.h>
+      #include <time.h>
       #include <upsclient.h>
     ]]
   )
@@ -5923,6 +5924,7 @@ if test "x$with_libupsclient" = "xyes"; then
      for port_arg in 'uint16_t' 'int' ; do
         AC_COMPILE_IFELSE([
             AC_LANG_PROGRAM([
+#include <time.h>
 #include <upsclient.h>
 /* int upscli_splitname(const char *buf, char **upsname, char **hostname, <port_arg> *port); */
             ],[
@@ -5954,6 +5956,7 @@ return(res);
      for size_arg in 'size_t' 'unsigned int' 'int' ; do
         AC_COMPILE_IFELSE([
             AC_LANG_PROGRAM([
+#include <time.h>
 #include <upsclient.h>
 /* int upscli_list_next(UPSCONN_t *ups, <size_arg> numq, const char **query, <size_arg> *numa, char ***answer); */
 
