@@ -308,15 +308,16 @@ static int gpu_config_check(void) {
   }
 
   if (config.gpuinfo) {
-    double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
     INFO("\nPlugin settings for '" PLUGIN_NAME "':");
     INFO("- " KEY_SAMPLES ": %d", config.samples);
+
+    double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
     if (config.samples > 1) {
-      INFO("- internal sampling interval: %.2f", interval);
-      INFO("- query / aggregation submit interval: %.2f",
+      INFO("- internal sampling interval: %.2fs", interval);
+      INFO("- query / aggregation submit interval: %.2fs",
            config.samples * interval);
     } else {
-      INFO("- query / submit interval: %.2f", interval);
+      INFO("- query / submit interval: %.2fs", interval);
     }
 
     unsigned i;
