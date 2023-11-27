@@ -102,6 +102,22 @@
 #define PROCEVENT_VF_STATUS_NORMAL_VALUE "Active"
 
 /*
+ * Disable a clang warning about variable sized types in the middle of a struct.
+ *
+ * The below code uses temporary structs containing a `struct cn_msg` followed
+ * by another field. `struct cn_msg` includes a "flexible array member" and the
+ * struct is an elegant and convenient way of populating this "flexible" element
+ * via the other field in the temporary struct.
+ *
+ * Unfortunately, this is not supported by the C standard. GCC and clang both
+ * can deal with the situation though. Disable the warning to keep the well
+ * readable code.
+ */
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
+#endif
+
+/*
  * Private data types
  */
 
