@@ -187,12 +187,10 @@ bleeding_edge_compilers_task:
   skip_notifications: true
   env:
     matrix:
-      CC: gcc-7
-      CC: gcc-8
-      CC: clang-6.0
-      CC: clang-7
-      CC: clang-8
-      CC: clang-9
+      CC: gcc-10
+      CC: clang
+      CC: clang-18
+      CC: clang-17
   configure_script:
     - ./build.sh
     - $CC --version
