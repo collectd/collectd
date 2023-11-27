@@ -409,7 +409,7 @@ struct cmdline_config init_config(int argc, char **argv) {
   return config;
 }
 
-int run_loop(bool test_readall) {
+int run_loop(bool test_readall, void (*notify_func)(void)) {
   int exit_status = 0;
 
   if (do_init() != 0) {
@@ -423,6 +423,10 @@ int run_loop(bool test_readall) {
       exit_status = 1;
     }
   } else {
+    if (notify_func != NULL) {
+      /* notify upstart or systemd that initialization has completed. */
+      notify_func();
+    }
     INFO("Initialization complete, entering read-loop.");
     do_loop();
   }
