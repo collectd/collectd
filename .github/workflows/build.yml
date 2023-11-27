@@ -40,7 +40,9 @@ jobs:
           - container_tag: bookworm_amd64
             configure_flags: '--enable-debug'
           - container_tag: bookworm_amd64
-            configure_flags: 'CC=clang CXX=clang++'
+            # By default clang emits DWARF v5, which Valgrind cannot read yet.
+            # https://github.com/llvm/llvm-project/issues/56550
+            configure_flags: 'CC=clang CXX=clang++ CFLAGS=-gdwarf-4'
     env:
       CONFIGURE_FLAGS: ${{ matrix.configure_flags }}
       # this env var picked up by valgrind during make check phase
