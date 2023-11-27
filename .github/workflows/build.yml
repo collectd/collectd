@@ -35,9 +35,14 @@ jobs:
           - el9_x86_64
           - fedora39
           - fedora38_x86_64
-        config_flags: ['']
+        configure_flags: ['']
+        include:
+          - container_tag: bookworm_amd64
+            configure_flags: '--enable-debug'
+          - container_tag: bookworm_amd64
+            configure_flags: 'CC=clang CXX=clang++'
     env:
-      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+      CONFIGURE_FLAGS: ${{ matrix.configure_flags }}
       # this env var picked up by valgrind during make check phase
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
@@ -83,15 +88,15 @@ jobs:
         # Add additional per-distro vars here.
         include:
           - container_tag: debian_unstable
-            config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt"
+            configure_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt"
           - container_tag: fedora_rawhide_x86_64
             cflags: "-fPIE -Wno-deprecated-declarations"
             cppflags: "-fPIE -Wno-deprecated-declarations"
-            config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
+            configure_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
     env:
       CFLAGS: ${{ matrix.cflags }}
       CPPFLAGS: ${{ matrix.cppflags }}
-      CONFIGURE_FLAGS: ${{ matrix.config_flags }}
+      CONFIGURE_FLAGS: ${{ matrix.configure_flags }}
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v2
