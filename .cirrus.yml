@@ -33,7 +33,7 @@ debian_default_toolchain_task:
         image: collectd/ci:mantic_amd64
       allow_failures: false
     - container:
-        image: collectd/ci:sid_amd64 # unstable
+        image: collectd/ci:debian_unstable
       allow_failures: true
       skip_notifications: true
       only_if: $CIRRUS_BRANCH == 'main'
@@ -181,7 +181,7 @@ non_standard_toolchains_task:
 #
 bleeding_edge_compilers_task:
   container:
-    image: collectd/ci:sid_amd64
+    image: collectd/ci:debian_unstable
   only_if: $CIRRUS_BRANCH == 'main'
   allow_failures: true
   skip_notifications: true

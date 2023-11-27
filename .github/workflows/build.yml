@@ -78,11 +78,11 @@ jobs:
       matrix:
         # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
         container_tag:
-          - sid_amd64
+          - debian_unstable
           - fedora_rawhide_x86_64
         # Add additional per-distro vars here.
         include:
-          - container_tag: sid_amd64
+          - container_tag: debian_unstable
             config_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt"
           - container_tag: fedora_rawhide_x86_64
             cflags: "-fPIE -Wno-deprecated-declarations"
