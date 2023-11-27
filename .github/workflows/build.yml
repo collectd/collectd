@@ -63,6 +63,7 @@ jobs:
       run: make -j$(nproc) -sk
     - name: Run make check
       run: |
+        set +e
         make $MAKEFLAGS check
         echo "$?" >make-check.status
       continue-on-error: true
@@ -116,6 +117,7 @@ jobs:
       run: make -j$(nproc) -sk
     - name: Run make check
       run: |
+        set +e
         make $MAKEFLAGS check
         echo "$?" >make-check.status
       continue-on-error: true
