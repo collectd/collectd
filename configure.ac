@@ -7111,6 +7111,53 @@ AC_ARG_ENABLE([all-plugins],
   [enable_all_plugins="auto"]
 )
 
+################################################################################
+#                  Disable plugins not supported by collectd 6                 #
+################################################################################
+plugin_aggregation="no (collectd 6 support missing)"
+plugin_amqp="no (collectd 6 support missing)"
+plugin_amqp1="no (collectd 6 support missing)"
+plugin_barometer="no (collectd 6 support missing)"
+plugin_check_uptime="no (collectd 6 support missing)"
+plugin_csv="no (collectd 6 support missing)"
+plugin_curl_xml="no (collectd 6 support missing)"
+plugin_gmond="no (collectd 6 support missing)"
+plugin_grpc="no (collectd 6 support missing)"
+plugin_java="no (collectd 6 support missing)"
+plugin_lua="no (collectd 6 support missing)"
+plugin_match_empty_counter="no (collectd 6 support missing)"
+plugin_match_hashed="no (collectd 6 support missing)"
+plugin_match_regex="no (collectd 6 support missing)"
+plugin_match_timediff="no (collectd 6 support missing)"
+plugin_match_value="no (collectd 6 support missing)"
+plugin_modbus="no (collectd 6 support missing)"
+plugin_mqtt="no (collectd 6 support missing)"
+plugin_network="no (collectd 6 support missing)"
+plugin_openldap="no (collectd 6 support missing)"
+plugin_perl="no (collectd 6 support missing)"
+plugin_postgresql="no (collectd 6 support missing)"
+plugin_python="no (collectd 6 support missing)"
+plugin_redis="no (collectd 6 support missing)"
+plugin_rrdcached="no (collectd 6 support missing)"
+plugin_rrdtool="no (collectd 6 support missing)"
+plugin_snmp="no (collectd 6 support missing)"
+plugin_snmp_agent="no (collectd 6 support missing)"
+plugin_statsd="no (collectd 6 support missing)"
+plugin_target_notification="no (collectd 6 support missing)"
+plugin_target_replace="no (collectd 6 support missing)"
+plugin_target_scale="no (collectd 6 support missing)"
+plugin_target_set="no (collectd 6 support missing)"
+plugin_target_v5upgrade="no (collectd 6 support missing)"
+plugin_threshold="no (collectd 6 support missing)"
+plugin_write_graphite="no (collectd 6 support missing)"
+plugin_write_kafka="no (collectd 6 support missing)"
+plugin_write_mongodb="no (collectd 6 support missing)"
+plugin_write_redis="no (collectd 6 support missing)"
+plugin_write_riemann="no (collectd 6 support missing)"
+plugin_write_sensu="no (collectd 6 support missing)"
+plugin_write_syslog="no (collectd 6 support missing)"
+plugin_write_tsdb="no (collectd 6 support missing)"
+
 m4_divert_once([HELP_ENABLE], [])
 
 AC_PLUGIN([aggregation],         [$plugin_aggregation],       [Aggregation plugin])
