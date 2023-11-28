@@ -206,7 +206,7 @@ static MHD_RESULT cap_http_handler(void *cls, struct MHD_Connection *connection,
    * round. The docs are not very specific on the issue. */
   if (*connection_state == NULL) {
     /* set to a random non-NULL pointer. */
-    *connection_state = &(int){44};
+    *connection_state = (void *)1;
     return MHD_YES;
   }
   DEBUG(CAP_PLUGIN ": formatted response: %s", g_cap_json);
