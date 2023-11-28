@@ -6567,6 +6567,13 @@ AC_COLLECTD([werror],    [disable], [feature], [building with -Werror])
 dependency_warning="no"
 dependency_error="no"
 
+plugin_aggregation="yes"
+plugin_amqp="$with_librabbitmq"
+plugin_amqp1="$with_libqpid_proton"
+plugin_apache="$with_libcurl"
+plugin_apcups="yes"
+plugin_apple_sensors="$with_libiokit"
+plugin_aquaero="$with_libaquaero5"
 plugin_barometer="no"
 plugin_battery="no"
 plugin_bind="no"
@@ -6574,81 +6581,172 @@ plugin_buddyinfo="no"
 plugin_capabilities="no"
 plugin_ceph="no"
 plugin_cgroups="no"
+plugin_check_uptime="yes"
+plugin_chrony="yes"
 plugin_connectivity="no"
 plugin_conntrack="no"
 plugin_contextswitch="no"
-plugin_cpu="no"
 plugin_cpufreq="no"
+plugin_cpu="no"
 plugin_cpusleep="no"
+plugin_csv="yes"
+plugin_curl="$with_libcurl"
 plugin_curl_json="no"
 plugin_curl_xml="no"
+plugin_dbi="$with_libdbi"
+plugin_dcpmm="$with_libpmwapi"
 plugin_df="no"
 plugin_disk="no"
-plugin_drbd="no"
+plugin_dns="$with_libpcap"
 plugin_dpdkevents="no"
 plugin_dpdkstat="no"
 plugin_dpdk_telemetry="no"
+plugin_drbd="no"
+plugin_email="yes"
 plugin_entropy="no"
 plugin_ethstat="no"
+plugin_exec="yes"
 plugin_fhcount="no"
+plugin_filecount="yes"
 plugin_fscache="no"
+plugin_gmond="$with_libganglia"
 plugin_gps="no"
+plugin_gpu_nvidia="$with_cuda"
 plugin_gpu_nvidia="no"
+plugin_gpu_sysman="$with_sysman"
 plugin_gpu_sysman="no"
 plugin_grpc="no"
+plugin_hddtemp="yes"
 plugin_hugepages="no"
 plugin_infiniband="no"
+plugin_intel_pmu="$with_libjevents"
 plugin_intel_pmu="no"
+plugin_intel_rdt="$with_libpqos"
 plugin_intel_rdt="no"
 plugin_interface="no"
 plugin_ipc="no"
 plugin_ipmi="no"
 plugin_ipstats="no"
+plugin_iptables="$with_libiptc"
 plugin_ipvs="no"
 plugin_irq="no"
+plugin_java="$with_java"
 plugin_load="no"
+plugin_logfile="yes"
 plugin_log_logstash="no"
+plugin_logparser="yes"
+plugin_lpar="$with_perfstat"
+plugin_lua="$with_liblua"
+plugin_madwifi="$have_linux_wireless_h"
+plugin_match_empty_counter="yes"
+plugin_match_hashed="yes"
+plugin_match_regex="yes"
+plugin_match_timediff="yes"
+plugin_match_value="yes"
+plugin_mbmon="yes"
 plugin_mcelog="no"
+plugin_md="$have_linux_raid_md_u_h"
 plugin_mdevents="no"
+plugin_memcachec="$with_libmemcached"
+plugin_memcached="yes"
 plugin_memory="no"
+plugin_mic="$with_mic"
 plugin_mmc="no"
+plugin_modbus="$with_libmodbus"
+plugin_mqtt="$with_libmosquitto"
 plugin_multimeter="no"
+plugin_mysql="$with_libmysql"
+plugin_netapp="$with_libnetapp"
+plugin_netlink="$with_libmnl"
 plugin_netstat_udp="no"
+plugin_network="yes"
 plugin_nfs="no"
+plugin_nginx="$with_libcurl"
+plugin_notify_desktop="$with_libnotify"
+plugin_notify_email="$with_libesmtp"
+plugin_notify_nagios="yes"
+plugin_ntpd="yes"
 plugin_numa="no"
+plugin_nut="$with_libupsclient"
+plugin_olsrd="yes"
+plugin_onewire="$with_libowcapi"
+plugin_openldap="$with_libldap"
+plugin_openvpn="yes"
+plugin_oracle="$with_oracle"
 plugin_ovs_events="no"
 plugin_ovs_stats="no"
 plugin_pcie_errors="no"
 plugin_perl="no"
+plugin_pf="$have_net_pfvar_h"
 plugin_pinba="no"
+plugin_ping="$with_liboping"
+plugin_postgresql="$with_libpq"
+plugin_powerdns="yes"
 plugin_processes="no"
 plugin_procevent="no"
 plugin_protocols="no"
 plugin_python="no"
+plugin_redfish="$with_libredfish"
+plugin_redis="$with_libhiredis"
+plugin_routeros="$with_librouteros"
+plugin_rrdcached="$librrd_rrdc_update"
+plugin_rrdtool="$with_librrd"
+plugin_sensors="$with_libsensors"
 plugin_serial="no"
+plugin_sigrok="$with_libsigrok"
+plugin_slurm="$with_libslurm"
 plugin_smart="no"
+plugin_snmp="$with_libnetsnmp"
+plugin_snmp_agent="$with_libnetsnmpagent"
+plugin_statsd="yes"
 plugin_swap="no"
 plugin_synproxy="no"
 plugin_sysevent="no"
+plugin_syslog="$have_syslog"
+plugin_table="yes"
+plugin_tail_csv="yes"
+plugin_tail="yes"
 plugin_tape="no"
+plugin_target_notification="yes"
+plugin_target_replace="yes"
+plugin_target_scale="yes"
+plugin_target_set="yes"
+plugin_target_v5upgrade="yes"
 plugin_tcpconns="no"
+plugin_teamspeak2="yes"
 plugin_ted="no"
 plugin_thermal="no"
+plugin_threshold="yes"
+plugin_tokyotyrant="$with_libtokyotyrant"
 plugin_turbostat="no"
 plugin_ubi="no"
+plugin_unixsock="yes"
 plugin_uptime="no"
 plugin_users="no"
+plugin_uuid="yes"
+plugin_varnish="$with_libvarnish"
 plugin_virt="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
+plugin_write_graphite="yes"
+plugin_write_http="$with_libcurl"
+plugin_write_influxdb_udp="yes"
+plugin_write_kafka="$with_librdkafka"
 plugin_write_log="no"
+plugin_write_mongodb="$with_libmongoc"
 plugin_write_prometheus="no"
+plugin_write_redis="$with_libhiredis"
+plugin_write_riemann="$with_libriemann_client"
+plugin_write_sensu="yes"
 plugin_write_stackdriver="no"
+plugin_write_syslog="yes"
+plugin_write_tsdb="yes"
 plugin_xencpu="no"
 plugin_zfs_arc="no"
 plugin_zone="no"
 plugin_zookeeper="no"
+plugin_zookeeper="yes"
 
 # Linux
 if test "x$ac_system" = "xLinux"; then
@@ -7015,13 +7113,13 @@ AC_ARG_ENABLE([all-plugins],
 
 m4_divert_once([HELP_ENABLE], [])
 
-AC_PLUGIN([aggregation],         [yes],                       [Aggregation plugin])
-AC_PLUGIN([amqp],                [$with_librabbitmq],         [AMQP output plugin])
-AC_PLUGIN([amqp1],               [$with_libqpid_proton],      [AMQP 1.0 output plugin])
-AC_PLUGIN([apache],              [$with_libcurl],             [Apache httpd statistics])
-AC_PLUGIN([apcups],              [yes],                       [Statistics of UPSes by APC])
-AC_PLUGIN([apple_sensors],       [$with_libiokit],            [Apple hardware sensors])
-AC_PLUGIN([aquaero],             [$with_libaquaero5],         [Aquaero hardware sensors])
+AC_PLUGIN([aggregation],         [$plugin_aggregation],       [Aggregation plugin])
+AC_PLUGIN([amqp],                [$plugin_amqp],              [AMQP output plugin])
+AC_PLUGIN([amqp1],               [$plugin_amqp1],             [AMQP 1.0 output plugin])
+AC_PLUGIN([apache],              [$plugin_apache],            [Apache httpd statistics])
+AC_PLUGIN([apcups],              [$plugin_apcups],            [Statistics of UPSes by APC])
+AC_PLUGIN([apple_sensors],       [$plugin_apple_sensors],     [Apple hardware sensors])
+AC_PLUGIN([aquaero],             [$plugin_aquaero],           [Aquaero hardware sensors])
 AC_PLUGIN([barometer],           [$plugin_barometer],         [Barometer sensor on I2C])
 AC_PLUGIN([battery],             [$plugin_battery],           [Battery statistics])
 AC_PLUGIN([bind],                [$plugin_bind],              [ISC Bind nameserver statistics])
@@ -7029,168 +7127,168 @@ AC_PLUGIN([buddyinfo],           [$plugin_buddyinfo],         [buddyinfo statist
 AC_PLUGIN([capabilities],        [$plugin_capabilities],      [Platform static capabilities])
 AC_PLUGIN([ceph],                [$plugin_ceph],              [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],           [CGroups CPU usage accounting])
-AC_PLUGIN([chrony],              [yes],                       [Chrony statistics])
-AC_PLUGIN([check_uptime],        [yes],                       [Notify about uptime reset])
+AC_PLUGIN([chrony],              [$plugin_chrony],            [Chrony statistics])
+AC_PLUGIN([check_uptime],        [$plugin_check_uptime],      [Notify about uptime reset])
 AC_PLUGIN([connectivity],        [$plugin_connectivity],      [Network interface up/down events])
 AC_PLUGIN([conntrack],           [$plugin_conntrack],         [nf_conntrack statistics])
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],     [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],               [CPU usage statistics])
 AC_PLUGIN([cpufreq],             [$plugin_cpufreq],           [CPU frequency statistics])
 AC_PLUGIN([cpusleep],            [$plugin_cpusleep],          [CPU sleep statistics])
-AC_PLUGIN([csv],                 [yes],                       [CSV output plugin])
-AC_PLUGIN([curl],                [$with_libcurl],             [CURL generic web statistics])
+AC_PLUGIN([csv],                 [$plugin_csv],               [CSV output plugin])
+AC_PLUGIN([curl],                [$plugin_curl],              [CURL generic web statistics])
 AC_PLUGIN([curl_json],           [$plugin_curl_json],         [CouchDB statistics])
 AC_PLUGIN([curl_xml],            [$plugin_curl_xml],          [CURL generic xml statistics])
-AC_PLUGIN([dbi],                 [$with_libdbi],              [General database statistics])
-AC_PLUGIN([dcpmm],               [$with_libpmwapi],           [Intel(R) Optane(TM) DC Persistent Memory performance and health statistics])
+AC_PLUGIN([dbi],                 [$plugin_dbi],               [General database statistics])
+AC_PLUGIN([dcpmm],               [$plugin_dcpmm],             [Intel(R) Optane(TM) DC Persistent Memory performance and health statistics])
 AC_PLUGIN([df],                  [$plugin_df],                [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],              [Disk usage statistics])
-AC_PLUGIN([dns],                 [$with_libpcap],             [DNS traffic analysis])
+AC_PLUGIN([dns],                 [$plugin_dns],               [DNS traffic analysis])
 AC_PLUGIN([dpdkevents],          [$plugin_dpdkevents],        [Events from DPDK])
 AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],          [Stats from DPDK])
 AC_PLUGIN([dpdk_telemetry],      [$plugin_dpdk_telemetry],    [Metrics from DPDK Telemetry])
 AC_PLUGIN([drbd],                [$plugin_drbd],              [DRBD statistics])
-AC_PLUGIN([email],               [yes],                       [EMail statistics])
+AC_PLUGIN([email],               [$plugin_email],             [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],           [Entropy statistics])
 AC_PLUGIN([ethstat],             [$plugin_ethstat],           [Stats from NIC driver])
-AC_PLUGIN([exec],                [yes],                       [Execution of external programs])
+AC_PLUGIN([exec],                [$plugin_exec],              [Execution of external programs])
 AC_PLUGIN([fhcount],             [$plugin_fhcount],           [File handles statistics])
-AC_PLUGIN([filecount],           [yes],                       [Count files in directories])
+AC_PLUGIN([filecount],           [$plugin_filecount],         [Count files in directories])
 AC_PLUGIN([fscache],             [$plugin_fscache],           [fscache statistics])
-AC_PLUGIN([gmond],               [$with_libganglia],          [Ganglia plugin])
+AC_PLUGIN([gmond],               [$plugin_gmond],             [Ganglia plugin])
 AC_PLUGIN([gps],                 [$plugin_gps],               [GPS plugin])
-AC_PLUGIN([gpu_nvidia],          [$with_cuda],                [NVIDIA GPU plugin])
-AC_PLUGIN([gpu_sysman],          [$with_sysman],              [Level-Zero Sysman GPU plugin])
+AC_PLUGIN([gpu_nvidia],          [$plugin_gpu_nvidia],        [NVIDIA GPU plugin])
+AC_PLUGIN([gpu_sysman],          [$plugin_gpu_sysman],        [Level-Zero Sysman GPU plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],              [gRPC plugin])
-AC_PLUGIN([hddtemp],             [yes],                       [Query hddtempd])
+AC_PLUGIN([hddtemp],             [$plugin_hddtemp],           [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],         [Hugepages statistics])
 AC_PLUGIN([infiniband],          [$plugin_infiniband],        [Infiniband statistics])
-AC_PLUGIN([intel_pmu],           [$with_libjevents],          [Intel performance monitor plugin])
-AC_PLUGIN([intel_rdt],           [$with_libpqos],             [Intel RDT monitor plugin])
+AC_PLUGIN([intel_pmu],           [$plugin_intel_pmu],         [Intel performance monitor plugin])
+AC_PLUGIN([intel_rdt],           [$plugin_intel_rdt],         [Intel RDT monitor plugin])
 AC_PLUGIN([interface],           [$plugin_interface],         [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],               [IPC statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],              [IPMI sensor statistics])
-AC_PLUGIN([iptables],            [$with_libiptc],             [IPTables rule counters])
+AC_PLUGIN([iptables],            [$plugin_iptables],          [IPTables rule counters])
 AC_PLUGIN([ipstats],             [$plugin_ipstats],           [IP packet statistics])
 AC_PLUGIN([ipvs],                [$plugin_ipvs],              [IPVS connection statistics])
 AC_PLUGIN([irq],                 [$plugin_irq],               [IRQ statistics])
-AC_PLUGIN([java],                [$with_java],                [Embed the Java Virtual Machine])
+AC_PLUGIN([java],                [$plugin_java],              [Embed the Java Virtual Machine])
 AC_PLUGIN([load],                [$plugin_load],              [System load])
 AC_PLUGIN([log_logstash],        [$plugin_log_logstash],      [Logstash json_event compatible logging])
-AC_PLUGIN([logfile],             [yes],                       [File logging plugin])
-AC_PLUGIN([logparser],           [yes],                       [Log parsing plugin])
-AC_PLUGIN([lpar],                [$with_perfstat],            [AIX logical partitions statistics])
-AC_PLUGIN([lua],                 [$with_liblua],              [Lua plugin])
-AC_PLUGIN([madwifi],             [$have_linux_wireless_h],    [Madwifi wireless statistics])
-AC_PLUGIN([match_empty_counter], [yes],                       [The empty counter match])
-AC_PLUGIN([match_hashed],        [yes],                       [The hashed match])
-AC_PLUGIN([match_regex],         [yes],                       [The regex match])
-AC_PLUGIN([match_timediff],      [yes],                       [The timediff match])
-AC_PLUGIN([match_value],         [yes],                       [The value match])
-AC_PLUGIN([mbmon],               [yes],                       [Query mbmond])
+AC_PLUGIN([logfile],             [$plugin_logfile],           [File logging plugin])
+AC_PLUGIN([logparser],           [$plugin_logparser],         [Log parsing plugin])
+AC_PLUGIN([lpar],                [$plugin_lpar],              [AIX logical partitions statistics])
+AC_PLUGIN([lua],                 [$plugin_lua],               [Lua plugin])
+AC_PLUGIN([madwifi],             [$plugin_madwifi],           [Madwifi wireless statistics])
+AC_PLUGIN([match_empty_counter], [$plugin_match_empty_counter],[The empty counter match])
+AC_PLUGIN([match_hashed],        [$plugin_match_hashed],      [The hashed match])
+AC_PLUGIN([match_regex],         [$plugin_match_regex],       [The regex match])
+AC_PLUGIN([match_timediff],      [$plugin_match_timediff],    [The timediff match])
+AC_PLUGIN([match_value],         [$plugin_match_value],       [The value match])
+AC_PLUGIN([mbmon],               [$plugin_mbmon],             [Query mbmond])
 AC_PLUGIN([mcelog],              [$plugin_mcelog],            [Machine Check Exceptions notifications])
-AC_PLUGIN([md],                  [$have_linux_raid_md_u_h],   [md (Linux software RAID) devices])
+AC_PLUGIN([md],                  [$plugin_md],                [md (Linux software RAID) devices])
 AC_PLUGIN([mdevents],            [$plugin_mdevents],          [Events from md (Linux Software RAID) devices])
-AC_PLUGIN([memcachec],           [$with_libmemcached],        [memcachec statistics])
-AC_PLUGIN([memcached],           [yes],                       [memcached statistics])
+AC_PLUGIN([memcachec],           [$plugin_memcachec],         [memcachec statistics])
+AC_PLUGIN([memcached],           [$plugin_memcached],         [memcached statistics])
 AC_PLUGIN([memory],              [$plugin_memory],            [Memory usage])
-AC_PLUGIN([mic],                 [$with_mic],                 [Intel Many Integrated Core stats])
-AC_PLUGIN([modbus],              [$with_libmodbus],           [Modbus plugin])
-AC_PLUGIN([mqtt],                [$with_libmosquitto],        [MQTT output plugin])
+AC_PLUGIN([mic],                 [$plugin_mic],               [Intel Many Integrated Core stats])
+AC_PLUGIN([modbus],              [$plugin_modbus],            [Modbus plugin])
+AC_PLUGIN([mqtt],                [$plugin_mqtt],              [MQTT output plugin])
 AC_PLUGIN([mmc],                 [$plugin_mmc],               [MMC statistics])
 AC_PLUGIN([multimeter],          [$plugin_multimeter],        [Read multimeter values])
-AC_PLUGIN([mysql],               [$with_libmysql],            [MySQL statistics])
-AC_PLUGIN([netapp],              [$with_libnetapp],           [NetApp plugin])
-AC_PLUGIN([netlink],             [$with_libmnl],              [Enhanced Linux network statistics])
+AC_PLUGIN([mysql],               [$plugin_mysql],             [MySQL statistics])
+AC_PLUGIN([netapp],              [$plugin_netapp],            [NetApp plugin])
+AC_PLUGIN([netlink],             [$plugin_netlink],           [Enhanced Linux network statistics])
 AC_PLUGIN([netstat_udp],         [$plugin_netstat_udp],       [UDP network statistics])
-AC_PLUGIN([network],             [yes],                       [Network communication plugin])
+AC_PLUGIN([network],             [$plugin_network],           [Network communication plugin])
 AC_PLUGIN([nfs],                 [$plugin_nfs],               [NFS statistics])
-AC_PLUGIN([nginx],               [$with_libcurl],             [nginx statistics])
-AC_PLUGIN([notify_desktop],      [$with_libnotify],           [Desktop notifications])
-AC_PLUGIN([notify_email],        [$with_libesmtp],            [Email notifier])
-AC_PLUGIN([notify_nagios],       [yes],                       [Nagios notification plugin])
-AC_PLUGIN([ntpd],                [yes],                       [NTPd statistics])
+AC_PLUGIN([nginx],               [$plugin_nginx],             [nginx statistics])
+AC_PLUGIN([notify_desktop],      [$plugin_notify_desktop],    [Desktop notifications])
+AC_PLUGIN([notify_email],        [$plugin_notify_email],      [Email notifier])
+AC_PLUGIN([notify_nagios],       [$plugin_notify_nagios],     [Nagios notification plugin])
+AC_PLUGIN([ntpd],                [$plugin_ntpd],              [NTPd statistics])
 AC_PLUGIN([numa],                [$plugin_numa],              [NUMA virtual memory statistics])
-AC_PLUGIN([nut],                 [$with_libupsclient],        [Network UPS tools statistics])
-AC_PLUGIN([olsrd],               [yes],                       [olsrd statistics])
-AC_PLUGIN([onewire],             [$with_libowcapi],           [OneWire sensor statistics])
-AC_PLUGIN([openldap],            [$with_libldap],             [OpenLDAP statistics])
-AC_PLUGIN([openvpn],             [yes],                       [OpenVPN client statistics])
-AC_PLUGIN([oracle],              [$with_oracle],              [Oracle plugin])
+AC_PLUGIN([nut],                 [$plugin_nut],               [Network UPS tools statistics])
+AC_PLUGIN([olsrd],               [$plugin_olsrd],             [olsrd statistics])
+AC_PLUGIN([onewire],             [$plugin_onewire],           [OneWire sensor statistics])
+AC_PLUGIN([openldap],            [$plugin_openldap],          [OpenLDAP statistics])
+AC_PLUGIN([openvpn],             [$plugin_openvpn],           [OpenVPN client statistics])
+AC_PLUGIN([oracle],              [$plugin_oracle],            [Oracle plugin])
 AC_PLUGIN([ovs_events],          [$plugin_ovs_events],        [OVS events plugin])
 AC_PLUGIN([ovs_stats],           [$plugin_ovs_stats],         [OVS statistics plugin])
 AC_PLUGIN([pcie_errors],         [$plugin_pcie_errors],       [PCIe errors plugin])
 AC_PLUGIN([perl],                [$plugin_perl],              [Embed a Perl interpreter])
-AC_PLUGIN([pf],                  [$have_net_pfvar_h],         [BSD packet filter (PF) statistics])
+AC_PLUGIN([pf],                  [$plugin_pf],                [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
 AC_PLUGIN([pinba],               [$plugin_pinba],             [Pinba statistics])
-AC_PLUGIN([ping],                [$with_liboping],            [Network latency statistics])
-AC_PLUGIN([postgresql],          [$with_libpq],               [PostgreSQL database statistics])
-AC_PLUGIN([powerdns],            [yes],                       [PowerDNS statistics])
+AC_PLUGIN([ping],                [$plugin_ping],              [Network latency statistics])
+AC_PLUGIN([postgresql],          [$plugin_postgresql],        [PostgreSQL database statistics])
+AC_PLUGIN([powerdns],            [$plugin_powerdns],          [PowerDNS statistics])
 AC_PLUGIN([processes],           [$plugin_processes],         [Process statistics])
 AC_PLUGIN([procevent],           [$plugin_procevent],         [Process event (start, stop) statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],         [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],            [Embed a Python interpreter])
-AC_PLUGIN([redfish],             [$with_libredfish],          [Redfish plugin])
-AC_PLUGIN([redis],               [$with_libhiredis],          [Redis plugin])
-AC_PLUGIN([routeros],            [$with_librouteros],         [RouterOS plugin])
-AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],       [RRDTool output plugin])
-AC_PLUGIN([rrdtool],             [$with_librrd],              [RRDTool output plugin])
-AC_PLUGIN([sensors],             [$with_libsensors],          [lm_sensors statistics])
+AC_PLUGIN([redfish],             [$plugin_redfish],           [Redfish plugin])
+AC_PLUGIN([redis],               [$plugin_redis],             [Redis plugin])
+AC_PLUGIN([routeros],            [$plugin_routeros],          [RouterOS plugin])
+AC_PLUGIN([rrdcached],           [$plugin_rrdcached],         [RRDTool output plugin])
+AC_PLUGIN([rrdtool],             [$plugin_rrdtool],           [RRDTool output plugin])
+AC_PLUGIN([sensors],             [$plugin_sensors],           [lm_sensors statistics])
 AC_PLUGIN([serial],              [$plugin_serial],            [serial port traffic])
-AC_PLUGIN([sigrok],              [$with_libsigrok],           [sigrok acquisition sources])
-AC_PLUGIN([slurm],               [$with_libslurm],            [SLURM jobs and nodes status])
+AC_PLUGIN([sigrok],              [$plugin_sigrok],            [sigrok acquisition sources])
+AC_PLUGIN([slurm],               [$plugin_slurm],             [SLURM jobs and nodes status])
 AC_PLUGIN([smart],               [$plugin_smart],             [SMART statistics])
-AC_PLUGIN([snmp],                [$with_libnetsnmp],          [SNMP querying plugin])
-AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],     [SNMP agent plugin])
-AC_PLUGIN([statsd],              [yes],                       [StatsD plugin])
+AC_PLUGIN([snmp],                [$plugin_snmp],              [SNMP querying plugin])
+AC_PLUGIN([snmp_agent],          [$plugin_snmp_agent],        [SNMP agent plugin])
+AC_PLUGIN([statsd],              [$plugin_statsd],            [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],              [Swap usage statistics])
 AC_PLUGIN([synproxy],            [$plugin_synproxy],          [Synproxy stats plugin])
 AC_PLUGIN([sysevent],            [$plugin_sysevent],          [rsyslog events])
-AC_PLUGIN([syslog],              [$have_syslog],              [Syslog logging plugin])
-AC_PLUGIN([table],               [yes],                       [Parsing of tabular data])
-AC_PLUGIN([tail],                [yes],                       [Parsing of logfiles])
-AC_PLUGIN([tail_csv],            [yes],                       [Parsing of CSV files])
+AC_PLUGIN([syslog],              [$plugin_syslog],            [Syslog logging plugin])
+AC_PLUGIN([table],               [$plugin_table],             [Parsing of tabular data])
+AC_PLUGIN([tail],                [$plugin_tail],              [Parsing of logfiles])
+AC_PLUGIN([tail_csv],            [$plugin_tail_csv],          [Parsing of CSV files])
 AC_PLUGIN([tape],                [$plugin_tape],              [Tape drive statistics])
-AC_PLUGIN([target_notification], [yes],                       [The notification target])
-AC_PLUGIN([target_replace],      [yes],                       [The replace target])
-AC_PLUGIN([target_scale],        [yes],                       [The scale target])
-AC_PLUGIN([target_set],          [yes],                       [The set target])
-AC_PLUGIN([target_v5upgrade],    [yes],                       [The v5upgrade target])
+AC_PLUGIN([target_notification], [$plugin_target_notification],[The notification target])
+AC_PLUGIN([target_replace],      [$plugin_target_replace],    [The replace target])
+AC_PLUGIN([target_scale],        [$plugin_target_scale],      [The scale target])
+AC_PLUGIN([target_set],          [$plugin_target_set],        [The set target])
+AC_PLUGIN([target_v5upgrade],    [$plugin_target_v5upgrade],  [The v5upgrade target])
 AC_PLUGIN([tcpconns],            [$plugin_tcpconns],          [TCP connection statistics])
-AC_PLUGIN([teamspeak2],          [yes],                       [TeamSpeak2 server statistics])
+AC_PLUGIN([teamspeak2],          [$plugin_teamspeak2],        [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],                 [$plugin_ted],               [Read The Energy Detective values])
 AC_PLUGIN([thermal],             [$plugin_thermal],           [Linux ACPI thermal zone statistics])
-AC_PLUGIN([threshold],           [yes],                       [Threshold checking plugin])
-AC_PLUGIN([tokyotyrant],         [$with_libtokyotyrant],      [TokyoTyrant database statistics])
+AC_PLUGIN([threshold],           [$plugin_threshold],         [Threshold checking plugin])
+AC_PLUGIN([tokyotyrant],         [$plugin_tokyotyrant],       [TokyoTyrant database statistics])
 AC_PLUGIN([turbostat],           [$plugin_turbostat],         [Advanced statistic on Intel cpu states])
 AC_PLUGIN([ubi],                 [$plugin_ubi],               [UBIFS statistics])
-AC_PLUGIN([unixsock],            [yes],                       [Unixsock communication plugin])
+AC_PLUGIN([unixsock],            [$plugin_unixsock],          [Unixsock communication plugin])
 AC_PLUGIN([uptime],              [$plugin_uptime],            [Uptime statistics])
 AC_PLUGIN([users],               [$plugin_users],             [User statistics])
-AC_PLUGIN([uuid],                [yes],                       [UUID as hostname plugin])
-AC_PLUGIN([varnish],             [$with_libvarnish],          [Varnish cache statistics])
+AC_PLUGIN([uuid],                [$plugin_uuid],              [UUID as hostname plugin])
+AC_PLUGIN([varnish],             [$plugin_varnish],           [Varnish cache statistics])
 AC_PLUGIN([virt],                [$plugin_virt],              [Virtual machine statistics])
 AC_PLUGIN([vmem],                [$plugin_vmem],              [Virtual memory statistics])
 AC_PLUGIN([vserver],             [$plugin_vserver],           [Linux VServer statistics])
 AC_PLUGIN([wireless],            [$plugin_wireless],          [Wireless statistics])
-AC_PLUGIN([write_graphite],      [yes],                       [Graphite / Carbon output plugin])
-AC_PLUGIN([write_http],          [$with_libcurl],             [HTTP output plugin])
-AC_PLUGIN([write_influxdb_udp],  [yes],                       [Influxdb udp output plugin])
-AC_PLUGIN([write_kafka],         [$with_librdkafka],          [Kafka output plugin])
+AC_PLUGIN([write_graphite],      [$plugin_write_graphite],    [Graphite / Carbon output plugin])
+AC_PLUGIN([write_http],          [$plugin_write_http],        [HTTP output plugin])
+AC_PLUGIN([write_influxdb_udp],  [$plugin_write_influxdb_udp],[Influxdb udp output plugin])
+AC_PLUGIN([write_kafka],         [$plugin_write_kafka],       [Kafka output plugin])
 AC_PLUGIN([write_log],           [$plugin_write_log],         [Log output plugin])
-AC_PLUGIN([write_mongodb],       [$with_libmongoc],           [MongoDB output plugin])
+AC_PLUGIN([write_mongodb],       [$plugin_write_mongodb],     [MongoDB output plugin])
 AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus],  [Prometheus write plugin])
-AC_PLUGIN([write_redis],         [$with_libhiredis],          [Redis output plugin])
-AC_PLUGIN([write_riemann],       [$with_libriemann_client],   [Riemann output plugin])
-AC_PLUGIN([write_sensu],         [yes],                       [Sensu output plugin])
+AC_PLUGIN([write_redis],         [$plugin_write_redis],       [Redis output plugin])
+AC_PLUGIN([write_riemann],       [$plugin_write_riemann],     [Riemann output plugin])
+AC_PLUGIN([write_sensu],         [$plugin_write_sensu],       [Sensu output plugin])
 AC_PLUGIN([write_stackdriver],   [$plugin_write_stackdriver], [Google Stackdriver Monitoring output plugin])
-AC_PLUGIN([write_syslog],        [yes],                       [Syslog output plugin])
-AC_PLUGIN([write_tsdb],          [yes],                       [TSDB output plugin])
+AC_PLUGIN([write_syslog],        [$plugin_write_syslog],      [Syslog output plugin])
+AC_PLUGIN([write_tsdb],          [$plugin_write_tsdb],        [TSDB output plugin])
 AC_PLUGIN([xencpu],              [$plugin_xencpu],            [Xen Host CPU usage])
 AC_PLUGIN([zfs_arc],             [$plugin_zfs_arc],           [ZFS ARC statistics])
 AC_PLUGIN([zone],                [$plugin_zone],              [Solaris container statistics])
-AC_PLUGIN([zookeeper],           [yes],                       [Zookeeper statistics])
+AC_PLUGIN([zookeeper],           [$plugin_zookeeper],         [Zookeeper statistics])
 
 dnl Default configuration file
 # Load either syslog or logfile
@@ -7648,4 +7746,3 @@ if test "x$dependency_warning" = "xyes"; then
 fi
 
 # vim: set fdm=marker sw=2 sts=2 ts=2 et :
-
