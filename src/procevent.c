@@ -65,6 +65,7 @@
 #define RBUF_PROC_ID_INDEX 0
 #define RBUF_PROC_STATUS_INDEX 1
 #define RBUF_TIME_INDEX 2
+#define RING_BUFFER_DEFAULT_LENGTH 10
 
 #define PROCEVENT_DOMAIN_FIELD "domain"
 #define PROCEVENT_DOMAIN_VALUE "fault"
@@ -102,22 +103,6 @@
 #define PROCEVENT_VF_STATUS_NORMAL_VALUE "Active"
 
 /*
- * Disable a clang warning about variable sized types in the middle of a struct.
- *
- * The below code uses temporary structs containing a `struct cn_msg` followed
- * by another field. `struct cn_msg` includes a "flexible array member" and the
- * struct is an elegant and convenient way of populating this "flexible" element
- * via the other field in the temporary struct.
- *
- * Unfortunately, this is not supported by the C standard. GCC and clang both
- * can deal with the situation though. Disable the warning to keep the well
- * readable code.
- */
-#ifdef __clang__
-#pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
-#endif
-
-/*
  * Private data types
  */
 
@@ -152,7 +137,7 @@ static pthread_mutex_t procevent_thread_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t procevent_data_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t procevent_cond = PTHREAD_COND_INITIALIZER;
 static int nl_sock = -1;
-static int buffer_length;
+static int buffer_length = RING_BUFFER_DEFAULT_LENGTH;
 static circbuf_t ring;
 static processlist_t *processlist_head = NULL;
 static int event_id = 0;
@@ -687,13 +672,13 @@ static int nl_connect() {
 
   nl_sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
   if (nl_sock == -1) {
-    ERROR("procevent plugin: socket open failed: %d", errno);
+    ERROR("procevent plugin: socket open failed: %s", STRERRNO);
     return -1;
   }
 
   int rc = bind(nl_sock, (struct sockaddr *)&sa_nl, sizeof(sa_nl));
   if (rc == -1) {
-    ERROR("procevent plugin: socket bind failed: %d", errno);
+    ERROR("procevent plugin: socket bind failed: %s", STRERRNO);
     close(nl_sock);
     nl_sock = -1;
     return -1;
@@ -703,45 +688,49 @@ static int nl_connect() {
 }
 
 static int set_proc_ev_listen(bool enable) {
-  struct __attribute__((aligned(NLMSG_ALIGNTO))) {
-    struct nlmsghdr nl_hdr;
-    struct __attribute__((__packed__)) {
-      struct cn_msg cn_msg;
-      enum proc_cn_mcast_op cn_mcast;
-    };
-  } nlcn_msg;
+#define MSG_SIZE                                                               \
+  sizeof(struct nlmsghdr) + sizeof(struct cn_msg) +                            \
+      sizeof(enum proc_cn_mcast_op)
+  uint8_t msg[MSG_SIZE] = {0};
+  size_t offset = 0;
 
-  memset(&nlcn_msg, 0, sizeof(nlcn_msg));
-  nlcn_msg.nl_hdr.nlmsg_len = sizeof(nlcn_msg);
-  nlcn_msg.nl_hdr.nlmsg_pid = getpid();
-  nlcn_msg.nl_hdr.nlmsg_type = NLMSG_DONE;
+  memcpy(&msg[offset],
+         &(struct nlmsghdr){
+             .nlmsg_len = MSG_SIZE,
+             .nlmsg_pid = getpid(),
+             .nlmsg_type = NLMSG_DONE,
+         },
+         sizeof(struct nlmsghdr));
+  offset += sizeof(struct nlmsghdr);
 
-  nlcn_msg.cn_msg.id.idx = CN_IDX_PROC;
-  nlcn_msg.cn_msg.id.val = CN_VAL_PROC;
-  nlcn_msg.cn_msg.len = sizeof(enum proc_cn_mcast_op);
+  memcpy(&msg[offset],
+         &(struct cn_msg){
+             .id.idx = CN_IDX_PROC,
+             .id.val = CN_VAL_PROC,
+             .len = sizeof(enum proc_cn_mcast_op),
+         },
+         sizeof(struct cn_msg));
+  offset += sizeof(struct cn_msg);
 
-  nlcn_msg.cn_mcast = enable ? PROC_CN_MCAST_LISTEN : PROC_CN_MCAST_IGNORE;
+  memcpy(&msg[offset],
+         &(enum proc_cn_mcast_op){enable ? PROC_CN_MCAST_LISTEN
+                                         : PROC_CN_MCAST_IGNORE},
+         sizeof(enum proc_cn_mcast_op));
 
-  int rc = send(nl_sock, &nlcn_msg, sizeof(nlcn_msg), 0);
+  int rc = send(nl_sock, msg, MSG_SIZE, 0);
   if (rc == -1) {
-    ERROR("procevent plugin: subscribing to netlink process events failed: %d",
-          errno);
+    ERROR("procevent plugin: subscribing to netlink process events failed: %s",
+          STRERRNO);
     return -1;
   }
 
   return 0;
+#undef MSG_SIZE
 }
 
 // Read from netlink socket and write to ring buffer
 static int read_event() {
   int recv_flags = MSG_DONTWAIT;
-  struct __attribute__((aligned(NLMSG_ALIGNTO))) {
-    struct nlmsghdr nl_hdr;
-    struct __attribute__((__packed__)) {
-      struct cn_msg cn_msg;
-      struct proc_event proc_ev;
-    };
-  } nlcn_msg;
 
   if (nl_sock == -1)
     return 0;
@@ -756,11 +745,19 @@ static int read_event() {
 
     pthread_mutex_unlock(&procevent_thread_lock);
 
-    int status = recv(nl_sock, &nlcn_msg, sizeof(nlcn_msg), recv_flags);
+    // https://docs.kernel.org/userspace-api/netlink/intro.html#buffer-sizing
+    size_t msg_size = (size_t)sysconf(_SC_PAGESIZE);
+    if (msg_size < 8192) {
+      msg_size = 8192;
+    }
+    uint8_t msg[msg_size];
+    memset(msg, 0, msg_size);
 
+    int status = recv(nl_sock, msg, msg_size, recv_flags);
     if (status == 0) {
       return 0;
-    } else if (status < 0) {
+    }
+    if (status < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         pthread_mutex_lock(&procevent_data_lock);
 
@@ -778,12 +775,26 @@ static int read_event() {
         recv_flags = 0;
         continue;
       } else if (errno != EINTR) {
-        ERROR("procevent plugin: socket receive error: %d", errno);
+        ERROR("procevent plugin: socket receive error: %s", STRERRNO);
         return -1;
       } else {
         // Interrupt, so just continue and try again
         continue;
       }
+    }
+    msg_size = (size_t)status;
+    size_t expected_size = sizeof(struct nlmsghdr) + sizeof(struct cn_msg) +
+                           sizeof(struct proc_event);
+    if (msg_size < expected_size) {
+      ERROR("procevent plugin: received %zu, expected %zu bytes.", msg_size,
+            expected_size);
+      return -EPROTO;
+    }
+    if (msg_size > expected_size) {
+      DEBUG("procevent plugin: received %zu, expected %zu bytes. This may "
+            "indicate the we're receiving multiple responses per datagram, "
+            "leading to dropped metrics.",
+            msg_size, expected_size);
     }
 
     // We successfully received a message, so don't block on the next
@@ -791,16 +802,19 @@ static int read_event() {
     // handled above in the EWOULDBLOCK error-checking)
     recv_flags = MSG_DONTWAIT;
 
+    struct nlmsghdr *nl_hdr = (struct nlmsghdr *)&msg[0];
+    struct cn_msg *cn_hdr = (struct cn_msg *)NLMSG_DATA(nl_hdr);
+    struct proc_event *proc_ev = (struct proc_event *)&cn_hdr->data[0];
+
     int proc_id = -1;
     int proc_status = -1;
-
-    switch (nlcn_msg.proc_ev.what) {
+    switch (proc_ev->what) {
     case PROC_EVENT_EXEC:
       proc_status = PROCEVENT_STARTED;
-      proc_id = nlcn_msg.proc_ev.event_data.exec.process_pid;
+      proc_id = proc_ev->event_data.exec.process_pid;
       break;
     case PROC_EVENT_EXIT:
-      proc_id = nlcn_msg.proc_ev.event_data.exit.process_pid;
+      proc_id = proc_ev->event_data.exit.process_pid;
       proc_status = PROCEVENT_EXITED;
       break;
     default:
@@ -808,41 +822,42 @@ static int read_event() {
       break;
     }
 
+    if (proc_status == -1) {
+      continue;
+    }
+
     // If we're interested in this process status event, place the event
     // in the ring buffer for consumption by the dequeue (dispatch) thread.
+    pthread_mutex_lock(&procevent_data_lock);
 
-    if (proc_status != -1) {
-      pthread_mutex_lock(&procevent_data_lock);
+    int next = ring.head + 1;
+    if (next >= ring.maxLen)
+      next = 0;
 
-      int next = ring.head + 1;
-      if (next >= ring.maxLen)
-        next = 0;
+    if (next == ring.tail) {
+      // Buffer is full, signal the dequeue thread to process the buffer
+      // and clean it out, and then sleep
+      WARNING("procevent plugin: ring buffer full");
 
-      if (next == ring.tail) {
-        // Buffer is full, signal the dequeue thread to process the buffer
-        // and clean it out, and then sleep
-        WARNING("procevent plugin: ring buffer full");
-
-        pthread_cond_signal(&procevent_cond);
-        pthread_mutex_unlock(&procevent_data_lock);
-
-        usleep(1000);
-        continue;
-      } else {
-        DEBUG("procevent plugin: Process %d status is now %s at %llu", proc_id,
-              (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"),
-              (unsigned long long)cdtime());
-
-        ring.buffer[ring.head][RBUF_PROC_ID_INDEX] = proc_id;
-        ring.buffer[ring.head][RBUF_PROC_STATUS_INDEX] = proc_status;
-        ring.buffer[ring.head][RBUF_TIME_INDEX] = cdtime();
-
-        ring.head = next;
-      }
-
+      pthread_cond_signal(&procevent_cond);
       pthread_mutex_unlock(&procevent_data_lock);
+
+      usleep(1000);
+      continue;
+    } else {
+      DEBUG("procevent plugin: Process %d status is now %s at %llu", proc_id,
+            (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"),
+            (unsigned long long)cdtime());
+
+      ring.buffer[ring.head][RBUF_PROC_ID_INDEX] = proc_id;
+      ring.buffer[ring.head][RBUF_PROC_STATUS_INDEX] = proc_status;
+      ring.buffer[ring.head][RBUF_TIME_INDEX] = cdtime();
+
+      ring.head = next;
     }
-  }
+
+    pthread_mutex_unlock(&procevent_data_lock);
+  } // while true
 
   return 0;
 }
@@ -1092,7 +1107,7 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
     socket_status = close(nl_sock);
     if (socket_status != 0) {
       ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock,
-            socket_status, strerror(errno));
+            socket_status, STRERRNO);
     }
 
     nl_sock = -1;
@@ -1207,6 +1222,10 @@ static int procevent_init(void) /* {{{ */
   ring.tail = 0;
   ring.maxLen = buffer_length;
   ring.buffer = (cdtime_t **)calloc(buffer_length, sizeof(cdtime_t *));
+  if (ring.buffer == NULL) {
+    ERROR("procevent plugin: Allocating buffer failed.");
+    return ENOMEM;
+  }
 
   for (int i = 0; i < buffer_length; i++) {
     ring.buffer[i] = (cdtime_t *)calloc(PROCEVENT_FIELDS, sizeof(cdtime_t));
@@ -1237,7 +1256,13 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
   }
 
   if (strcasecmp(key, "BufferLength") == 0) {
-    buffer_length = atoi(value);
+    int l = atoi(value);
+    if (l <= 0) {
+      ERROR("procevent plugin: BufferLength is %d, must be a positive integer.",
+            l);
+      return ERANGE;
+    }
+    buffer_length = l;
   } else if (strcasecmp(key, "Process") == 0) {
     ignorelist_add(ignorelist, value);
   } else if (strcasecmp(key, "ProcessRegex") == 0) {
