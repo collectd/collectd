@@ -672,13 +672,13 @@ static int nl_connect() {
 
   nl_sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
   if (nl_sock == -1) {
-    ERROR("procevent plugin: socket open failed: %d", errno);
+    ERROR("procevent plugin: socket open failed: %s", STRERRNO);
     return -1;
   }
 
   int rc = bind(nl_sock, (struct sockaddr *)&sa_nl, sizeof(sa_nl));
   if (rc == -1) {
-    ERROR("procevent plugin: socket bind failed: %d", errno);
+    ERROR("procevent plugin: socket bind failed: %s", STRERRNO);
     close(nl_sock);
     nl_sock = -1;
     return -1;
@@ -774,7 +774,7 @@ static int read_event() {
         recv_flags = 0;
         continue;
       } else if (errno != EINTR) {
-        ERROR("procevent plugin: socket receive error: %d", errno);
+        ERROR("procevent plugin: socket receive error: %s", STRERRNO);
         return -1;
       } else {
         // Interrupt, so just continue and try again
@@ -1106,7 +1106,7 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
     socket_status = close(nl_sock);
     if (socket_status != 0) {
       ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock,
-            socket_status, strerror(errno));
+            socket_status, STRERRNO);
     }
 
     nl_sock = -1;
