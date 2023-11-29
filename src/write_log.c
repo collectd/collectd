@@ -56,7 +56,7 @@ static int wl_write_graphite(const data_set_t *ds, const value_list_t *vl) {
   if (status != 0) /* error message has been printed already. */
     return status;
 
-  INFO("write_log values:\n%s", buffer);
+  INFO("%s", buffer);
 
   return 0;
 } /* int wl_write_graphite */
@@ -76,7 +76,7 @@ static int wl_write_json(const data_set_t *ds, const value_list_t *vl) {
                          /* store rates = */ 0);
   format_json_finalize(buffer, &bfill, &bfree);
 
-  INFO("write_log values:\n%s", buffer);
+  INFO("%s", buffer);
 
   return 0;
 } /* int wl_write_json */
