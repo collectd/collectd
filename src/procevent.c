@@ -745,6 +745,7 @@ static int read_event() {
 
     pthread_mutex_unlock(&procevent_thread_lock);
 
+    // https://docs.kernel.org/userspace-api/netlink/intro.html#buffer-sizing
     size_t msg_size = (size_t)sysconf(_SC_PAGESIZE);
     if (msg_size < 8192) {
       msg_size = 8192;
