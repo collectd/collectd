@@ -203,10 +203,10 @@ static MHD_RESULT cap_http_handler(void *cls, struct MHD_Connection *connection,
 
   /* On the first call for each connection, return without anything further.
    * The first time only the headers are valid, do not respond in the first
-   * round. The docs are not very specific on the issue. */
+   * round. */
   if (*connection_state == NULL) {
-    /* set to a random non-NULL pointer. */
-    *connection_state = (void *)1;
+    /* keep track of connection state */
+    *connection_state = (void *)"called";
     return MHD_YES;
   }
   DEBUG(CAP_PLUGIN ": formatted response: %s", g_cap_json);
