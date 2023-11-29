@@ -616,16 +616,16 @@ static void wrr_free(void *p) /* {{{ */
     return;
 
   pthread_mutex_lock(&host->lock);
-
   host->reference_count--;
-  if (host->reference_count > 0) {
-    pthread_mutex_unlock(&host->lock);
+  int reference_count = host->reference_count;
+  pthread_mutex_unlock(&host->lock);
+
+  if (reference_count > 0) {
     return;
   }
 
   wrr_disconnect(host);
 
-  pthread_mutex_lock(&host->lock);
   pthread_mutex_destroy(&host->lock);
   sfree(host);
 } /* }}} void wrr_free */
@@ -636,7 +636,6 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   int status = 0;
   int i;
   oconfig_item_t *child;
-  char callback_name[DATA_MAX_NAME_LEN];
 
   if ((host = calloc(1, sizeof(*host))) == NULL) {
     ERROR("write_riemann plugin: calloc failed.");
@@ -644,7 +643,6 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   }
   pthread_mutex_init(&host->lock, NULL);
   C_COMPLAIN_INIT(&host->init_complaint);
-  host->reference_count = 1;
   host->node = NULL;
   host->port = 0;
   host->notifications = true;
@@ -764,28 +762,23 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
       if (tmp >= 2.0) {
         host->ttl_factor = tmp;
       } else if (tmp >= 1.0) {
-        NOTICE("write_riemann plugin: The configured "
-               "TTLFactor is very small "
-               "(%.1f). A value of 2.0 or "
-               "greater is recommended.",
+        NOTICE("write_riemann plugin: The configured TTLFactor is very small "
+               "(%.1f). A value of 2.0 or greater is recommended.",
                tmp);
         host->ttl_factor = tmp;
       } else if (tmp > 0.0) {
-        WARNING("write_riemann plugin: The configured "
-                "TTLFactor is too small to be "
-                "useful (%.1f). I'll use it "
-                "since the user knows best, "
+        WARNING("write_riemann plugin: The configured TTLFactor is too small "
+                "to be useful (%.1f). I'll use it since the user knows best, "
                 "but under protest.",
                 tmp);
         host->ttl_factor = tmp;
       } else { /* zero, negative and NAN */
-        ERROR("write_riemann plugin: The configured "
-              "TTLFactor is invalid (%.1f).",
-              tmp);
+        ERROR(
+            "write_riemann plugin: The configured TTLFactor is invalid (%.1f).",
+            tmp);
       }
     } else {
-      WARNING("write_riemann plugin: ignoring unknown config "
-              "option: \"%s\"",
+      WARNING("write_riemann plugin: ignoring unknown config option: \"%s\"",
               child->key);
     }
   }
@@ -794,37 +787,55 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     return status;
   }
 
+  char callback_name[DATA_MAX_NAME_LEN];
   ssnprintf(callback_name, sizeof(callback_name), "write_riemann/%s",
             host->name);
 
-  user_data_t ud = {.data = host, .free_func = wrr_free};
+  user_data_t ud = {
+      .data = host,
+      .free_func = wrr_free,
+  };
 
   pthread_mutex_lock(&host->lock);
 
+  host->reference_count++;
   status = plugin_register_write(callback_name, wrr_write, &ud);
+  if (status != 0) {
+    ERROR("write_riemann plugin: plugin_register_write (\"%s\") failed with "
+          "status %d.",
+          callback_name, status);
+    pthread_mutex_unlock(&host->lock);
+    wrr_free(host);
+    return -1;
+  }
 
   if (host->client_type != RIEMANN_CLIENT_UDP && host->batch_mode) {
-    ud.free_func = NULL;
-    plugin_register_flush(callback_name, wrr_batch_flush, &ud);
+    host->reference_count++;
+    int status = plugin_register_flush(callback_name, wrr_batch_flush, &ud);
+    if (status != 0) {
+      ERROR("write_riemann plugin: plugin_register_flush (\"%s\") failed with "
+            "status %d.",
+            callback_name, status);
+      pthread_mutex_unlock(&host->lock);
+      wrr_free(host);
+      return -1;
+    }
   }
-  if (status != 0)
-    WARNING("write_riemann plugin: plugin_register_write (\"%s\") "
-            "failed with status %i.",
-            callback_name, status);
-  else /* success */
-    host->reference_count++;
 
+  host->reference_count++;
   status = plugin_register_notification(callback_name, wrr_notification, &ud);
-  if (status != 0)
-    WARNING("write_riemann plugin: plugin_register_notification (\"%s\") "
-            "failed with status %i.",
-            callback_name, status);
-  else /* success */
-    host->reference_count++;
+  if (status != 0) {
+    ERROR("write_riemann plugin: plugin_register_notification (\"%s\") failed "
+          "with status %d.",
+          callback_name, status);
+    pthread_mutex_unlock(&host->lock);
+    wrr_free(host);
+    return -1;
+  }
 
-  if (host->reference_count <= 1) {
+  if (host->reference_count < 1) {
     /* Both callbacks failed => free memory.
-     * We need to unlock here, because riemann_free() will lock.
+     * We need to unlock here, because wrr_free() will lock.
      * This is not a race condition, because we're the only one
      * holding a reference. */
     pthread_mutex_unlock(&host->lock);
@@ -832,10 +843,8 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
-  host->reference_count--;
   pthread_mutex_unlock(&host->lock);
-
-  return status;
+  return 0;
 } /* }}} int wrr_config_node */
 
 static int wrr_config(oconfig_item_t *ci) /* {{{ */
