@@ -205,7 +205,7 @@ DEF_TEST(parse_events) {
 
 int main(void) {
   RUN_TEST(classify_event);
-  // RUN_TEST(compile_regex);
+  RUN_TEST(compile_regex);
   RUN_TEST(config);
   RUN_TEST(copy_match);
   RUN_TEST(dispatch_notification);
