@@ -65,6 +65,7 @@
 #define RBUF_PROC_ID_INDEX 0
 #define RBUF_PROC_STATUS_INDEX 1
 #define RBUF_TIME_INDEX 2
+#define RING_BUFFER_DEFAULT_LENGTH 10
 
 #define PROCEVENT_DOMAIN_FIELD "domain"
 #define PROCEVENT_DOMAIN_VALUE "fault"
@@ -136,7 +137,7 @@ static pthread_mutex_t procevent_thread_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t procevent_data_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t procevent_cond = PTHREAD_COND_INITIALIZER;
 static int nl_sock = -1;
-static int buffer_length;
+static int buffer_length = RING_BUFFER_DEFAULT_LENGTH;
 static circbuf_t ring;
 static processlist_t *processlist_head = NULL;
 static int event_id = 0;
@@ -1220,6 +1221,10 @@ static int procevent_init(void) /* {{{ */
   ring.tail = 0;
   ring.maxLen = buffer_length;
   ring.buffer = (cdtime_t **)calloc(buffer_length, sizeof(cdtime_t *));
+  if (ring.buffer == NULL) {
+    ERROR("procevent plugin: Allocating buffer failed.");
+    return ENOMEM;
+  }
 
   for (int i = 0; i < buffer_length; i++) {
     ring.buffer[i] = (cdtime_t *)calloc(PROCEVENT_FIELDS, sizeof(cdtime_t));
@@ -1250,7 +1255,13 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
   }
 
   if (strcasecmp(key, "BufferLength") == 0) {
-    buffer_length = atoi(value);
+    int l = atoi(value);
+    if (l <= 0) {
+      ERROR("procevent plugin: BufferLength is %d, must be a positive integer.",
+            l);
+      return ERANGE;
+    }
+    buffer_length = l;
   } else if (strcasecmp(key, "Process") == 0) {
     ignorelist_add(ignorelist, value);
   } else if (strcasecmp(key, "ProcessRegex") == 0) {
