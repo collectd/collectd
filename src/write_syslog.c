@@ -95,6 +95,8 @@ struct ws_callback {
   bool connect_failed_log_enabled;
   int connect_dns_failed_attempts_remaining;
   cdtime_t next_random_ttl;
+
+  int reference_count;
 };
 
 static cdtime_t resolve_interval;
@@ -264,14 +266,17 @@ static int ws_callback_init(struct ws_callback *cb) {
 }
 
 static void ws_callback_free(void *data) {
-  struct ws_callback *cb;
-
   if (data == NULL)
     return;
 
-  cb = data;
+  struct ws_callback *cb = data;
 
   pthread_mutex_lock(&cb->send_lock);
+  cb->reference_count--;
+  if (cb->reference_count > 0) {
+    pthread_mutex_unlock(&cb->send_lock);
+    return;
+  }
 
   ws_flush_nolock(0, cb);
 
@@ -597,11 +602,15 @@ static int ws_config_tsd(oconfig_item_t *ci) {
            cb->node != NULL ? cb->node : WS_DEFAULT_NODE,
            cb->service != NULL ? cb->service : WS_DEFAULT_SERVICE);
 
-  user_data_t user_data = {.data = cb, .free_func = ws_callback_free};
+  user_data_t user_data = {
+      .data = cb,
+      .free_func = ws_callback_free,
+  };
 
+  cb->reference_count++;
   plugin_register_write(callback_name, ws_write, &user_data);
 
-  user_data.free_func = NULL;
+  cb->reference_count++;
   plugin_register_flush(callback_name, ws_flush, &user_data);
 
   return 0;
