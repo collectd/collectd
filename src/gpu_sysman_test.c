@@ -1099,7 +1099,7 @@ static int test_config_keys(bool check_nonbool, bool enable_metrics,
     const char *value;
     bool success;
   } test[] = {
-      {"MetricsOutput", "counter", true},
+      {"MetricsOutput", "base", true},
       {"MetricsOutput", "rate", true},
       {"MetricsOutput", "RatiO", true},
       {"MetricsOutput", "RatiO/fooBAR", false},
@@ -1110,7 +1110,7 @@ static int test_config_keys(bool check_nonbool, bool enable_metrics,
       {"Samples", "-1", false},
       {"Samples", "8", true},
       /* set back to default */
-      {"MetricsOutput", "counter:rate:ratio", true},
+      {"MetricsOutput", "base:rate:ratio", true},
       {"Samples", "1", true},
   };
   unsigned int i, j;
