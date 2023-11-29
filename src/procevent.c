@@ -786,12 +786,12 @@ static int read_event() {
     size_t expected_size = sizeof(struct nlmsghdr) + sizeof(struct cn_msg) +
                            sizeof(struct proc_event);
     if (msg_size < expected_size) {
-      ERROR("procevent plugin: received %zu bytes, expected %zu", msg_size,
+      ERROR("procevent plugin: received %zu, expected %zu bytes.", msg_size,
             expected_size);
       return -EPROTO;
     }
     if (msg_size > expected_size) {
-      DEBUG("procevent plugin: received %zu bytes, expected %zu. This may "
+      DEBUG("procevent plugin: received %zu, expected %zu bytes. This may "
             "indicate the we're receiving multiple responses per datagram, "
             "leading to dropped metrics.",
             msg_size, expected_size);
