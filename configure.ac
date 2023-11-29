@@ -6741,17 +6741,13 @@ plugin_fscache="no"
 plugin_gmond="$with_libganglia"
 plugin_gps="no"
 plugin_gpu_nvidia="$with_cuda"
-plugin_gpu_nvidia="no"
 plugin_gpu_sysman="$with_sysman"
-plugin_gpu_sysman="no"
-plugin_grpc="no"
+plugin_grpc="yes"
 plugin_hddtemp="yes"
 plugin_hugepages="no"
 plugin_infiniband="no"
 plugin_intel_pmu="$with_libjevents"
-plugin_intel_pmu="no"
 plugin_intel_rdt="$with_libpqos"
-plugin_intel_rdt="no"
 plugin_interface="no"
 plugin_ipc="no"
 plugin_ipmi="no"
@@ -6874,7 +6870,6 @@ plugin_write_tsdb="yes"
 plugin_xencpu="no"
 plugin_zfs_arc="no"
 plugin_zone="no"
-plugin_zookeeper="no"
 plugin_zookeeper="yes"
 
 # Linux
@@ -7112,7 +7107,6 @@ if test "x$with_libgps" = "xyes"; then
   plugin_gps="yes"
 fi
 
-plugin_grpc="yes"
 if test "x$GRPC_CPP_PLUGIN" = "x"; then
   plugin_grpc="no (grpc_cpp_plugin not found)"
 fi
