@@ -57,7 +57,6 @@ static ignorelist_t *il_mountpoint;
 static ignorelist_t *il_fstype;
 static ignorelist_t *il_errors;
 
-static bool by_device;
 static bool report_inodes;
 static bool values_absolute = true;
 static bool values_percentage;
@@ -103,9 +102,7 @@ static int df_config(const char *key, const char *value) {
     }
     return 0;
   } else if (strcasecmp(key, "ReportByDevice") == 0) {
-    if (IS_TRUE(value))
-      by_device = true;
-
+    /* Not used anymore */
     return 0;
   } else if (strcasecmp(key, "ReportInodes") == 0) {
     if (IS_TRUE(value))
@@ -140,30 +137,75 @@ static int df_config(const char *key, const char *value) {
   return -1;
 }
 
-__attribute__((nonnull(2))) static void df_submit_one(char *plugin_instance,
-                                                      const char *type,
-                                                      const char *type_instance,
-                                                      gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "df", sizeof(vl.plugin));
-  if (plugin_instance != NULL)
-    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  if (type_instance != NULL)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-} /* void df_submit_one */
-
 static int df_read(void) {
 #if HAVE_STATVFS
   struct statvfs statbuf;
 #elif HAVE_STATFS
   struct statfs statbuf;
 #endif
+  metric_family_t fam_fs_free = {
+      .name = "filesystem_free_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_reserved = {
+      .name = "filesystem_reserved_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_used = {
+      .name = "filesystem_used_bytes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_free_pct = {
+      .name = "filesystem_free_percent",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_reserved_pct = {
+      .name = "filesystem_reserved_percent",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_used_pct = {
+      .name = "filesystem_used_percent",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_inodes_free_pct = {
+      .name = "filesystem_inodes_free_percent",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_inodes_reserved_pct = {
+      .name = "filesystem_inodes_reserved_percent",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_inodes_used_pct = {
+      .name = "filesystem_inodes_used_percent",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_inodes_free = {
+      .name = "filesystem_inodes_free",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_inodes_reserved = {
+      .name = "filesystem_inodes_reserved",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_fs_inodes_used = {
+      .name = "filesystem_inodes_used",
+      .type = METRIC_TYPE_GAUGE,
+  };
+
+  metric_family_t *fams[] = {&fam_fs_free,
+                             &fam_fs_reserved,
+                             &fam_fs_used,
+                             &fam_fs_free_pct,
+                             &fam_fs_reserved_pct,
+                             &fam_fs_used_pct,
+                             &fam_fs_inodes_free,
+                             &fam_fs_inodes_reserved,
+                             &fam_fs_inodes_used,
+                             &fam_fs_inodes_free_pct,
+                             &fam_fs_inodes_reserved_pct,
+                             &fam_fs_inodes_used_pct,
+                             NULL};
+
   int retval = 0;
   /* struct STATANYFS statbuf; */
   cu_mount_t *mnt_list;
@@ -177,8 +219,6 @@ static int df_read(void) {
   for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL;
        mnt_ptr = mnt_ptr->next) {
     unsigned long long blocksize;
-    char disk_name[256];
-    cu_mount_t *dup_ptr;
     uint64_t blk_free;
     uint64_t blk_reserved;
     uint64_t blk_used;
@@ -191,27 +231,6 @@ static int df_read(void) {
     if (ignorelist_match(il_mountpoint, mnt_ptr->dir))
       continue;
     if (ignorelist_match(il_fstype, mnt_ptr->type))
-      continue;
-
-    /* search for duplicates *in front of* the current mnt_ptr. */
-    for (dup_ptr = mnt_list; dup_ptr != NULL; dup_ptr = dup_ptr->next) {
-      /* No duplicate found: mnt_ptr is the first of its kind. */
-      if (dup_ptr == mnt_ptr) {
-        dup_ptr = NULL;
-        break;
-      }
-
-      /* Duplicate found: leave non-NULL dup_ptr. */
-      if (by_device && (mnt_ptr->spec_device != NULL) &&
-          (dup_ptr->spec_device != NULL) &&
-          (strcmp(mnt_ptr->spec_device, dup_ptr->spec_device) == 0))
-        break;
-      else if (!by_device && (strcmp(mnt_ptr->dir, dup_ptr->dir) == 0))
-        break;
-    }
-
-    /* ignore duplicates */
-    if (dup_ptr != NULL)
       continue;
 
     if (STATANYFS(mnt_ptr->dir, &statbuf) < 0) {
@@ -230,30 +249,6 @@ static int df_read(void) {
 
     if (!statbuf.f_blocks)
       continue;
-
-    if (by_device) {
-      /* eg, /dev/hda1  -- strip off the "/dev/" */
-      if (strncmp(dev, "/dev/", strlen("/dev/")) == 0)
-        sstrncpy(disk_name, dev + strlen("/dev/"), sizeof(disk_name));
-      else
-        sstrncpy(disk_name, dev, sizeof(disk_name));
-
-      if (strlen(disk_name) < 1) {
-        DEBUG("df: no device name for mountpoint %s, skipping", mnt_ptr->dir);
-        continue;
-      }
-    } else {
-      if (strcmp(mnt_ptr->dir, "/") == 0)
-        sstrncpy(disk_name, "root", sizeof(disk_name));
-      else {
-        sstrncpy(disk_name, mnt_ptr->dir + 1, sizeof(disk_name));
-        size_t len = strlen(disk_name);
-
-        for (size_t i = 0; i < len; i++)
-          if (disk_name[i] == '/')
-            disk_name[i] = '-';
-      }
-    }
 
     blocksize = BLOCKSIZE(statbuf);
 
@@ -284,25 +279,35 @@ static int df_read(void) {
     blk_reserved = (uint64_t)(statbuf.f_bfree - statbuf.f_bavail);
     blk_used = (uint64_t)(statbuf.f_blocks - statbuf.f_bfree);
 
+    metric_t m = {0};
+    metric_label_set(&m, "device", dev);
+    metric_label_set(&m, "fstype", mnt_ptr->type);
+    metric_label_set(&m, "mountpoint", mnt_ptr->dir);
+
     if (values_absolute) {
-      df_submit_one(disk_name, "df_complex", "free",
-                    (gauge_t)(blk_free * blocksize));
-      df_submit_one(disk_name, "df_complex", "reserved",
-                    (gauge_t)(blk_reserved * blocksize));
-      df_submit_one(disk_name, "df_complex", "used",
-                    (gauge_t)(blk_used * blocksize));
+      m.value.gauge = (gauge_t)(blk_free * blocksize);
+      metric_family_metric_append(&fam_fs_free, m);
+
+      m.value.gauge = (gauge_t)(blk_reserved * blocksize);
+      metric_family_metric_append(&fam_fs_reserved, m);
+
+      m.value.gauge = (gauge_t)(blk_used * blocksize);
+      metric_family_metric_append(&fam_fs_used, m);
     }
 
     if (values_percentage) {
       if (statbuf.f_blocks > 0) {
-        df_submit_one(disk_name, "percent_bytes", "free",
-                      (gauge_t)((float_t)(blk_free) / statbuf.f_blocks * 100));
-        df_submit_one(
-            disk_name, "percent_bytes", "reserved",
-            (gauge_t)((float_t)(blk_reserved) / statbuf.f_blocks * 100));
-        df_submit_one(disk_name, "percent_bytes", "used",
-                      (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100));
+        m.value.gauge = (gauge_t)((float_t)(blk_free) / statbuf.f_blocks * 100);
+        metric_family_metric_append(&fam_fs_free_pct, m);
+
+        m.value.gauge =
+            (gauge_t)((float_t)(blk_reserved) / statbuf.f_blocks * 100);
+        metric_family_metric_append(&fam_fs_reserved_pct, m);
+
+        m.value.gauge = (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100);
+        metric_family_metric_append(&fam_fs_used_pct, m);
       } else {
+        metric_reset(&m);
         retval = -1;
         break;
       }
@@ -326,30 +331,49 @@ static int df_read(void) {
 
       if (values_percentage) {
         if (statbuf.f_files > 0) {
-          df_submit_one(
-              disk_name, "percent_inodes", "free",
-              (gauge_t)((float_t)(inode_free) / statbuf.f_files * 100));
-          df_submit_one(
-              disk_name, "percent_inodes", "reserved",
-              (gauge_t)((float_t)(inode_reserved) / statbuf.f_files * 100));
-          df_submit_one(
-              disk_name, "percent_inodes", "used",
-              (gauge_t)((float_t)(inode_used) / statbuf.f_files * 100));
+          m.value.gauge =
+              (gauge_t)((float_t)(inode_free) / statbuf.f_files * 100);
+          metric_family_metric_append(&fam_fs_inodes_free_pct, m);
+
+          m.value.gauge =
+              (gauge_t)((float_t)(inode_reserved) / statbuf.f_files * 100);
+          metric_family_metric_append(&fam_fs_inodes_reserved_pct, m);
+
+          m.value.gauge =
+              (gauge_t)((float_t)(inode_used) / statbuf.f_files * 100);
+          metric_family_metric_append(&fam_fs_inodes_used_pct, m);
         } else {
+          metric_reset(&m);
           retval = -1;
           break;
         }
       }
       if (values_absolute) {
-        df_submit_one(disk_name, "df_inodes", "free", (gauge_t)inode_free);
-        df_submit_one(disk_name, "df_inodes", "reserved",
-                      (gauge_t)inode_reserved);
-        df_submit_one(disk_name, "df_inodes", "used", (gauge_t)inode_used);
+        m.value.gauge = (gauge_t)inode_free;
+        metric_family_metric_append(&fam_fs_inodes_free, m);
+
+        m.value.gauge = (gauge_t)inode_reserved;
+        metric_family_metric_append(&fam_fs_inodes_reserved, m);
+
+        m.value.gauge = (gauge_t)inode_used;
+        metric_family_metric_append(&fam_fs_inodes_used, m);
       }
     }
+
+    metric_reset(&m);
   }
 
   cu_mount_freelist(mnt_list);
+
+  for (size_t i = 0; fams[i] != NULL; i++) {
+    if (fams[i]->metric.num > 0) {
+      int status = plugin_dispatch_metric_family(fams[i]);
+      if (status != 0) {
+        ERROR("df: plugin_dispatch_metric_family failed: %s", STRERROR(status));
+      }
+      metric_family_metric_reset(fams[i]);
+    }
+  }
 
   return retval;
 } /* int df_read */
