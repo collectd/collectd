@@ -56,7 +56,7 @@ static int wl_write_graphite(metric_family_t const *fam) {
     if (status != 0) {
       ERROR("write_log plugin: format_graphite failed: %d", status);
     } else {
-      INFO("write_log values:\n%s", buf.ptr);
+      INFO("%s", buf.ptr);
     }
 
     strbuf_reset(&buf);
@@ -73,7 +73,7 @@ static int wl_write_json(metric_family_t const *fam) {
   if (status != 0) {
     ERROR("write_log plugin: format_json_metric_family failed: %d", status);
   } else {
-    INFO("write_log values:\n%s", buf.ptr);
+    INFO("%s", buf.ptr);
   }
 
   STRBUF_DESTROY(buf);
