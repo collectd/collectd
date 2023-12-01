@@ -7142,11 +7142,10 @@ if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"; then
   plugin_virt="yes"
 else
   plugin_virt="no"
-  if test "x$with_libxml2" != "xyes"; then
-    plugin_virt="$with_libxml2"
-  fi
   if test "x$with_libvirt" != "xyes"; then
     plugin_virt="$with_libvirt"
+  elif test "x$with_libxml2" != "xyes"; then
+    plugin_virt="$with_libxml2"
   fi
 fi
 
