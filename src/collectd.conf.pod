@@ -10936,7 +10936,7 @@ This plugin supports two output formats: I<Graphite> and I<JSON>.
 Synopsis:
 
  <Plugin write_log>
-   Format Graphite
+   Format "Graphite"
  </Plugin>
 
 =over 4

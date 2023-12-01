@@ -2047,6 +2047,10 @@
 #  </Topic>
 #</Plugin>
 
+#<Plugin write_log>
+#  Format "Graphite"
+#</Plugin>
+
 #<Plugin write_mongodb>
 #	<Node "example">
 #		Host "localhost"
