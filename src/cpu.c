@@ -530,8 +530,8 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
       if (!s->has_value)
         continue;
 
-      char cpu_num_str[16];
-      snprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
+      char cpu_num_str[32] = {0};
+      ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
       metric_label_set(&m, "cpu", cpu_num_str);
 
       m.value.derive = s->conv.last_value.derive;

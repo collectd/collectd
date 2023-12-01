@@ -5,3 +5,12 @@
    obj:*libnl.so.1.*
    ...
 }
+
+{
+  libvirt memory allocated at init
+  Memcheck:Leak
+  fun:calloc
+  fun:g_malloc0
+  ...
+  fun:virOnce
+}

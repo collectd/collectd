@@ -46,7 +46,7 @@ struct nut_ups_s {
   collectd_upsconn_t *conn;
   char *upsname;
   char *hostname;
-  int port;
+  NUT_PORT_TYPE port;
   nut_ups_t *next;
 };
 
@@ -250,7 +250,7 @@ static int nut_read(user_data_t *user_data) {
   const char *query[3] = {"VAR", ups->upsname, NULL};
   unsigned int query_num = 2;
   char **answer;
-  unsigned int answer_num;
+  NUT_SIZE_TYPE answer_num;
   int status;
 
   /* (Re-)Connect if we have no connection */

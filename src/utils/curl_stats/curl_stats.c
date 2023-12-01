@@ -70,6 +70,7 @@ static int dispatch_gauge(CURL *curl, CURLINFO info, value_list_t *vl) {
   return plugin_dispatch_values(vl);
 } /* dispatch_gauge */
 
+#if !CURL_AT_LEAST_VERSION(7, 55, 0)
 /* dispatch a speed, in bytes/second */
 static int dispatch_speed(CURL *curl, CURLINFO info, value_list_t *vl) {
   CURLcode code;
@@ -86,6 +87,7 @@ static int dispatch_speed(CURL *curl, CURLINFO info, value_list_t *vl) {
 
   return plugin_dispatch_values(vl);
 } /* dispatch_speed */
+#endif
 
 /* dispatch a size/count, reported as a long value */
 static int dispatch_size(CURL *curl, CURLINFO info, value_list_t *vl) {
@@ -104,6 +106,43 @@ static int dispatch_size(CURL *curl, CURLINFO info, value_list_t *vl) {
 
   return plugin_dispatch_values(vl);
 } /* dispatch_size */
+
+#if CURL_AT_LEAST_VERSION(7, 55, 0)
+/* dispatch_gauge_t dispatches an curl_off_t as a gauge metric. */
+static int dispatch_gauge_t(CURL *curl, CURLINFO info, value_list_t *vl) {
+  curl_off_t v = 0;
+
+  CURLcode code = curl_easy_getinfo(curl, info, &v);
+  if (code != CURLE_OK) {
+    return -1;
+  }
+
+  vl->values = &(value_t){
+      .gauge = (gauge_t)v,
+  };
+  vl->values_len = 1;
+
+  return plugin_dispatch_values(vl);
+}
+
+/* dispatch_speed_t dispatches an curl_off_t representing bytes/s as a gauge
+ * metric in bits/s. */
+static int dispatch_speed_t(CURL *curl, CURLINFO info, value_list_t *vl) {
+  curl_off_t v = 0;
+
+  CURLcode code = curl_easy_getinfo(curl, info, &v);
+  if (code != CURLE_OK) {
+    return -1;
+  }
+
+  vl->values = &(value_t){
+      .gauge = (gauge_t)(v * 8),
+  };
+  vl->values_len = 1;
+
+  return plugin_dispatch_values(vl);
+}
+#endif
 
 static struct {
   const char *name;
@@ -125,6 +164,24 @@ static struct {
          CURLINFO_CONNECT_TIME),
     SPEC(pretransfer_time, "PretransferTime", dispatch_gauge, "duration",
          CURLINFO_PRETRANSFER_TIME),
+#if CURL_AT_LEAST_VERSION(7, 55, 0)
+    SPEC(content_length_download, "ContentLengthDownload", dispatch_gauge_t,
+         "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD_T),
+    SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge_t,
+         "bytes", CURLINFO_CONTENT_LENGTH_UPLOAD_T),
+    SPEC(size_upload, "SizeUpload", dispatch_gauge_t, "bytes",
+         CURLINFO_SIZE_UPLOAD_T),
+    SPEC(size_download, "SizeDownload", dispatch_gauge_t, "bytes",
+         CURLINFO_SIZE_DOWNLOAD_T),
+    SPEC(speed_download, "SpeedDownload", dispatch_speed_t, "bitrate",
+         CURLINFO_SPEED_DOWNLOAD_T),
+    SPEC(speed_upload, "SpeedUpload", dispatch_speed_t, "bitrate",
+         CURLINFO_SPEED_UPLOAD_T),
+#else
+    SPEC(content_length_download, "ContentLengthDownload", dispatch_gauge,
+         "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
+    SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge, "bytes",
+         CURLINFO_CONTENT_LENGTH_UPLOAD),
     SPEC(size_upload, "SizeUpload", dispatch_gauge, "bytes",
          CURLINFO_SIZE_UPLOAD),
     SPEC(size_download, "SizeDownload", dispatch_gauge, "bytes",
@@ -133,14 +190,11 @@ static struct {
          CURLINFO_SPEED_DOWNLOAD),
     SPEC(speed_upload, "SpeedUpload", dispatch_speed, "bitrate",
          CURLINFO_SPEED_UPLOAD),
+#endif
     SPEC(header_size, "HeaderSize", dispatch_size, "bytes",
          CURLINFO_HEADER_SIZE),
     SPEC(request_size, "RequestSize", dispatch_size, "bytes",
          CURLINFO_REQUEST_SIZE),
-    SPEC(content_length_download, "ContentLengthDownload", dispatch_gauge,
-         "bytes", CURLINFO_CONTENT_LENGTH_DOWNLOAD),
-    SPEC(content_length_upload, "ContentLengthUpload", dispatch_gauge, "bytes",
-         CURLINFO_CONTENT_LENGTH_UPLOAD),
     SPEC(starttransfer_time, "StarttransferTime", dispatch_gauge, "duration",
          CURLINFO_STARTTRANSFER_TIME),
     SPEC(redirect_time, "RedirectTime", dispatch_gauge, "duration",
