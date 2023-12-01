@@ -2226,8 +2226,8 @@ virt_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML
 
 test_plugin_virt_SOURCES = src/virt_test.c src/daemon/configfile.c \
 	src/daemon/types_list.c
-test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
-	$(BUILD_WITH_LIBVIRT_CPPFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+test_plugin_virt_CFLAGS = $(AM_CFLAGS) \
+	$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBVIRT_LDFLAGS) $(BUILD_WITH_LIBXML2_LDFLAGS)
 test_plugin_virt_LDADD = liboconfig.la libplugin_mock.la \
