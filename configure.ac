@@ -6353,12 +6353,12 @@ fi
 if test "x$with_libvirt" = "xyes"; then
   with_libvirt_cflags="`$PKG_CONFIG --cflags libvirt`"
   if test $? -ne 0; then
-    with_libvirt="no"
+    with_libvirt="no (pkg-config --cflags failed)"
   fi
 
   with_libvirt_ldflags="`$PKG_CONFIG --libs libvirt`"
   if test $? -ne 0; then
-    with_libvirt="no"
+    with_libvirt="no (pkg-config --cflags failed)"
   fi
 fi
 
@@ -7140,6 +7140,13 @@ fi
 
 if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"; then
   plugin_virt="yes"
+else
+  plugin_virt="no"
+  if test "x$with_libvirt" != "xyes"; then
+    plugin_virt="$with_libvirt"
+  elif test "x$with_libxml2" != "xyes"; then
+    plugin_virt="$with_libxml2"
+  fi
 fi
 
 if test "x$with_libxenctrl" = "xyes"; then
