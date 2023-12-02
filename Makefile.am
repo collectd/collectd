@@ -132,6 +132,7 @@ noinst_LTLIBRARIES = \
 	libcommon.la \
 	libformat_graphite.la \
 	libformat_influxdb.la \
+	libformat_open_telemetry.la \
 	libheap.la \
 	libignorelist.la \
 	liblatency.la \
@@ -454,10 +455,6 @@ libplugin_mock_la_SOURCES = \
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libmetric.la liboconfig.la libcommon.la libignorelist.la $(COMMON_LIBS)
 
-libformat_influxdb_la_SOURCES = \
-	src/utils/format_influxdb/format_influxdb.c \
-	src/utils/format_influxdb/format_influxdb.h
-
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
 	src/utils/format_graphite/format_graphite.h
@@ -471,6 +468,28 @@ test_format_graphite_LDADD = \
 	libplugin_mock.la \
 	libstrbuf.la \
 	-lm
+
+libformat_influxdb_la_SOURCES = \
+	src/utils/format_influxdb/format_influxdb.c \
+	src/utils/format_influxdb/format_influxdb.h
+
+BUILT_SOURCES += \
+	src/opentelemetry/proto/common/v1/common.pb.cc \
+	src/opentelemetry/proto/common/v1/common.pb.h \
+	src/opentelemetry/proto/metrics/v1/metrics.pb.cc \
+	src/opentelemetry/proto/metrics/v1/metrics.pb.h \
+	src/opentelemetry/proto/resource/v1/resource.pb.cc \
+	src/opentelemetry/proto/resource/v1/resource.pb.h
+libformat_open_telemetry_la_SOURCES = \
+	src/utils/format_open_telemetry/format_open_telemetry.cc \
+	src/utils/format_open_telemetry/format_open_telemetry.h \
+	src/opentelemetry/proto/common/v1/common.pb.cc \
+	src/opentelemetry/proto/common/v1/common.pb.h \
+	src/opentelemetry/proto/metrics/v1/metrics.pb.cc \
+	src/opentelemetry/proto/metrics/v1/metrics.pb.h \
+	src/opentelemetry/proto/resource/v1/resource.pb.cc \
+	src/opentelemetry/proto/resource/v1/resource.pb.h
+libformat_open_telemetry_la_CPPFLAGS = $(AM_CPPFLAGS)
 
 if BUILD_WITH_LIBYAJL
 noinst_LTLIBRARIES += libformat_json.la

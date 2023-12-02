@@ -55,6 +55,10 @@ build()
     && $libtoolize --copy --force \
     && automake --add-missing --copy \
     && autoconf
+
+    for f in common/v1/common.proto metrics/v1/metrics.proto resource/v1/resource.proto; do
+      protoc -Iopentelemetry-proto --cpp_out src/ "opentelemetry-proto/opentelemetry/proto/${f}"
+    done
 }
 
 build_cygwin()
