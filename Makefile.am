@@ -2337,6 +2337,12 @@ write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 write_mongodb_la_LIBADD = $(BUILD_WITH_LIBMONGOC_LIBS)
 endif
 
+# TODO(octo): add configure guards
+pkglib_LTLIBRARIES += write_open_telemetry.la
+write_open_telemetry_la_SOURCES = src/write_open_telemetry.cc
+write_open_telemetry_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_open_telemetry_la_LIBADD = libformat_open_telemetry.la
+
 if BUILD_PLUGIN_WRITE_PROMETHEUS
 pkglib_LTLIBRARIES += write_prometheus.la
 write_prometheus_la_SOURCES = src/write_prometheus.c
