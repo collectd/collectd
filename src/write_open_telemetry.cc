@@ -35,6 +35,7 @@
  * </Plugin>
  */
 
+extern "C" {
 #include "collectd.h"
 
 #include "plugin.h"
@@ -46,6 +47,7 @@
 #include "utils_complain.h"
 
 #include <netdb.h>
+}
 
 #ifndef OT_DEFAULT_HOST
 #define OT_DEFAULT_HOST "localhost"
