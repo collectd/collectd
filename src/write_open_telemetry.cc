@@ -89,6 +89,7 @@ typedef struct {
   char *port;
   char *path;
 
+  cdtime_t staged_time;
   c_avl_tree_t *staged_metrics;         // char* metric_identity() -> NULL
   c_avl_tree_t *staged_metric_families; // char* fam->name -> metric_family_t*
 
@@ -134,25 +135,23 @@ static void ot_reset_buffer(ot_callback_t *cb) {
 
 /* NOTE: You must hold cb->send_lock when calling this function! */
 static int ot_flush_nolock(cdtime_t timeout, ot_callback_t *cb) {
-#if 0
+  int staged_num = c_avl_size(cb->staged_metrics);
+
   DEBUG("write_open_telemetry plugin: ot_flush_nolock: timeout = %.3f; "
-        "send_buf_fill = %" PRIsz ";",
-        (double)timeout, cb->send_buf_fill);
+        "send_buf_fill = %d;",
+        CDTIME_T_TO_DOUBLE(timeout), staged_num);
+
+  if (c_avl_size(cb->staged_metrics) == 0) {
+    cb->staged_time = cdtime();
+    return 0;
+  }
 
   /* timeout == 0  => flush unconditionally */
   if (timeout > 0) {
-    cdtime_t now;
-
-    now = cdtime();
-    if ((cb->send_buf_init_time + timeout) > now)
+    cdtime_t now = cdtime();
+    if ((cb->staged_time + timeout) > now)
       return 0;
   }
-
-  if (cb->send_buf_fill == 0) {
-    cb->send_buf_init_time = cdtime();
-    return 0;
-  }
-#endif
 
   int status = ot_send_buffer(cb);
   ot_reset_buffer(cb);
@@ -250,6 +249,10 @@ static int ot_mark_metric_staged(ot_callback_t *cb, metric_t const *m) {
           buf.ptr, status);
     STRBUF_DESTROY(buf);
     return status;
+  }
+
+  if (cb->staged_time == 0 || cb->staged_time > m->time) {
+    cb->staged_time = m->time;
   }
 
   DEBUG("write_open_telemetry plugin: Successfully marked metric \"%s\" as "
