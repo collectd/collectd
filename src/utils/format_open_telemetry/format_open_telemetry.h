@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_format_open_telemetry.h
+ * collectd - src/utils/format_open_telemetry/format_open_telemetry.h
  * Copyright (C) 2023       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a

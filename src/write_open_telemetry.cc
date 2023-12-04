@@ -1,5 +1,5 @@
 /**
- * collectd - src/write_open_telemetry.c
+ * collectd - src/write_open_telemetry.cc
  * Copyright (C) 2023       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
