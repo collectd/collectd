@@ -2067,6 +2067,13 @@
 #	</Node>
 #</Plugin>
 
+#<Plugin write_open_telemetry>
+#  <Node "example">
+#    Host "localhost"
+#    Port "4317"
+#  </Node>
+#</Plugin>
+
 #<Plugin write_prometheus>
 #	Port "9103"
 #</Plugin>
