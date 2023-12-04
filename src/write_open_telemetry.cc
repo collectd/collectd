@@ -61,10 +61,6 @@ extern "C" {
 #define OT_DEFAULT_PORT "4317"
 #endif
 
-#ifndef OT_DEFAULT_PATH
-#define OT_DEFAULT_PATH "/v1/metrics"
-#endif
-
 using opentelemetry::proto::collector::metrics::v1::
     ExportMetricsServiceResponse;
 using opentelemetry::proto::collector::metrics::v1::MetricsService;
@@ -78,7 +74,6 @@ typedef struct {
 
   char *host;
   char *port;
-  char *path;
 
   cdtime_t staged_time;
   c_avl_tree_t *staged_metrics;         // char* metric_identity() -> NULL
@@ -207,7 +202,6 @@ static void ot_callback_decref(void *data) {
 
   sfree(cb->host);
   sfree(cb->port);
-  sfree(cb->path);
 
   pthread_mutex_unlock(&cb->mu);
   pthread_mutex_destroy(&cb->mu);
@@ -351,7 +345,6 @@ static int ot_config_node(oconfig_item_t *ci) {
   cf_util_get_string(ci, &cb->name);
   cb->host = strdup(OT_DEFAULT_HOST);
   cb->port = strdup(OT_DEFAULT_PORT);
-  cb->path = strdup(OT_DEFAULT_PATH);
 
   cb->staged_metrics =
       c_avl_create((int (*)(const void *, const void *))strcmp);
@@ -368,8 +361,6 @@ static int ot_config_node(oconfig_item_t *ci) {
       status = cf_util_get_string(child, &cb->host);
     else if (strcasecmp("Port", child->key) == 0)
       status = cf_util_get_service(child, &cb->port);
-    else if (strcasecmp("Protocol", child->key) == 0)
-      status = cf_util_get_string(child, &cb->path);
     else {
       ERROR("write_open_telemetry plugin: Invalid configuration "
             "option: %s.",
