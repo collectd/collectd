@@ -55,11 +55,6 @@ build()
     && $libtoolize --copy --force \
     && automake --add-missing --copy \
     && autoconf
-
-    for f in common/v1/common.proto metrics/v1/metrics.proto resource/v1/resource.proto collector/metrics/v1/metrics_service.proto; do
-      protoc -Iopentelemetry-proto --cpp_out src/ "opentelemetry-proto/opentelemetry/proto/${f}"
-    done
-    protoc -Iopentelemetry-proto --grpc_out src/ --plugin="protoc-gen-grpc=$(which grpc_cpp_plugin)" "opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto"
 }
 
 build_cygwin()
