@@ -27,9 +27,29 @@
 #ifndef UTILS_FORMAT_OPEN_TELEMETRY_H
 #define UTILS_FORMAT_OPEN_TELEMETRY_H 1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "collectd.h"
 #include "metric.h"
 
-int format_open_telemetry(strbuf_t *sb, metric_family_t const *fam); // TODO: lacks return value
+int format_open_telemetry_resource_metrics_serialized(
+    strbuf_t *sb, metric_family_t const **fam, size_t fam_num);
+
+#ifdef __cplusplus
+}
+
+#include "opentelemetry/proto/metrics/v1/metrics.pb.h"
+#include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
+
+opentelemetry::proto::metrics::v1::ResourceMetrics *
+format_open_telemetry_resource_metrics_serialized(metric_family_t const **fam,
+                                                  size_t fam_num);
+
+opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest *
+format_open_telemetry_export_metrics_service_request(
+    metric_family_t const **fam, size_t fam_num);
+#endif
 
 #endif /* UTILS_FORMAT_OPEN_TELEMETRY_H */

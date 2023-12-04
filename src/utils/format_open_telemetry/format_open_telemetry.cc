@@ -27,14 +27,16 @@
 extern "C" {
 #include "collectd.h"
 #include "metric.h"
-
-#include "utils/format_open_telemetry/format_open_telemetry.h"
 }
 
+#include "utils/format_open_telemetry/format_open_telemetry.h"
+
+#include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
 #include "opentelemetry/proto/common/v1/common.pb.h"
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/resource/v1/resource.pb.h"
 
+using opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest;
 using opentelemetry::proto::common::v1::AnyValue;
 using opentelemetry::proto::common::v1::InstrumentationScope;
 using opentelemetry::proto::common::v1::KeyValue;
@@ -46,7 +48,8 @@ using opentelemetry::proto::metrics::v1::ResourceMetrics;
 using opentelemetry::proto::metrics::v1::ScopeMetrics;
 using opentelemetry::proto::metrics::v1::Sum;
 
-static void metric_to_number_data_point(NumberDataPoint *dp, metric_t const *m) {
+static void metric_to_number_data_point(NumberDataPoint *dp,
+                                        metric_t const *m) {
   for (size_t i = 0; i < m->label.num; i++) {
     label_pair_t *l = m->label.ptr + i;
 
@@ -61,19 +64,24 @@ static void metric_to_number_data_point(NumberDataPoint *dp, metric_t const *m) 
   // when we've seen a metric for the first time.
 
   switch (m->family->type) {
-    case METRIC_TYPE_COUNTER:
-      dp->set_as_int(m->value.derive);
-    case METRIC_TYPE_GAUGE:
-      dp->set_as_double(m->value.gauge);
-    case METRIC_TYPE_UNTYPED:
-      // TODO
-      assert(0);
+  case METRIC_TYPE_COUNTER:
+    dp->set_as_int(m->value.derive);
+    break;
+  case METRIC_TYPE_GAUGE:
+    dp->set_as_double(m->value.gauge);
+    break;
+  case METRIC_TYPE_UNTYPED:
+    // TODO
+    assert(0);
   }
 }
 
 static void set_sum(Metric *m, metric_family_t const *fam) {
   Sum *s = m->mutable_sum();
   for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t const *m = fam->metric.ptr + i;
+    assert(m->family == fam);
+
     NumberDataPoint *dp = s->add_data_points();
     metric_to_number_data_point(dp, fam->metric.ptr + i);
   }
@@ -99,15 +107,15 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
   }
 
   switch (fam->type) {
-    case METRIC_TYPE_COUNTER:
-      set_sum(m, fam);
-      return;
-    case METRIC_TYPE_GAUGE:
-      set_gauge(m, fam);
-      return;
-    case METRIC_TYPE_UNTYPED:
-      // TODO
-      assert(0);
+  case METRIC_TYPE_COUNTER:
+    set_sum(m, fam);
+    return;
+  case METRIC_TYPE_GAUGE:
+    set_gauge(m, fam);
+    return;
+  case METRIC_TYPE_UNTYPED:
+    // TODO
+    assert(0);
   }
 }
 
@@ -117,18 +125,31 @@ static void set_instrumentation_scope(ScopeMetrics *sm) {
   is->set_version(PACKAGE_VERSION);
 }
 
-static void set_scope_metrics(ResourceMetrics *rm, metric_family_t const *fam) {
+static void set_scope_metrics(ResourceMetrics *rm, metric_family_t const **fam,
+                              size_t fam_num) {
   ScopeMetrics *sm = rm->add_scope_metrics();
 
   set_instrumentation_scope(sm);
 
-  add_metric(sm, fam);
+  for (size_t i = 0; i < fam_num; i++) {
+    add_metric(sm, fam[i]);
+  }
 }
 
-int format_open_telemetry(strbuf_t *sb, metric_family_t const *fam) {
+ResourceMetrics *
+format_open_telemetry_resource_metrics_serialized(metric_family_t const **fam,
+                                                  size_t fam_num) {
+  ResourceMetrics *rm = new ResourceMetrics();
+
+  set_scope_metrics(rm, fam, fam_num);
+  return rm;
+}
+
+int format_open_telemetry_resource_metrics_serialized(
+    strbuf_t *sb, metric_family_t const **fam, size_t fam_num) {
   ResourceMetrics rm;
 
-  set_scope_metrics(&rm, fam);
+  set_scope_metrics(&rm, fam, fam_num);
 
   std::string serialization;
   bool ok = rm.SerializeToString(&serialization);
@@ -140,3 +161,13 @@ int format_open_telemetry(strbuf_t *sb, metric_family_t const *fam) {
   return 0;
 }
 
+ExportMetricsServiceRequest *
+format_open_telemetry_export_metrics_service_request(
+    metric_family_t const **fam, size_t fam_num) {
+  ExportMetricsServiceRequest *req = new ExportMetricsServiceRequest();
+
+  ResourceMetrics *rm = req->add_resource_metrics();
+  set_scope_metrics(rm, fam, fam_num);
+
+  return req;
+}

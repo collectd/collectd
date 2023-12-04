@@ -42,41 +42,32 @@ extern "C" {
 #include "utils/common/common.h"
 
 #include "utils/avltree/avltree.h"
-#include "utils/format_open_telemetry/format_open_telemetry.h"
 #include "utils/strbuf/strbuf.h"
 #include "utils_complain.h"
 
 #include <netdb.h>
 }
 
+#include <grpc++/grpc++.h>
+
+#include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
+#include "utils/format_open_telemetry/format_open_telemetry.h"
+
 #ifndef OT_DEFAULT_HOST
 #define OT_DEFAULT_HOST "localhost"
 #endif
 
 #ifndef OT_DEFAULT_PORT
-#define OT_DEFAULT_PORT "8080"
+#define OT_DEFAULT_PORT "4317"
 #endif
 
 #ifndef OT_DEFAULT_PATH
 #define OT_DEFAULT_PATH "/v1/metrics"
 #endif
 
-#ifndef OT_DEFAULT_LOG_SEND_ERRORS
-#define OT_DEFAULT_LOG_SEND_ERRORS true
-#endif
-
-#ifndef OT_DEFAULT_ESCAPE
-#define OT_DEFAULT_ESCAPE '_'
-#endif
-
-/* Ethernet - (IPv6 + TCP) = 1500 - (40 + 32) = 1428 */
-#ifndef OT_SEND_BUF_SIZE
-#define OT_SEND_BUF_SIZE 1428
-#endif
-
-#ifndef OT_MIN_RECONNECT_INTERVAL
-#define OT_MIN_RECONNECT_INTERVAL TIME_T_TO_CDTIME_T(1)
-#endif
+using opentelemetry::proto::collector::metrics::v1::
+    ExportMetricsServiceResponse;
+using opentelemetry::proto::collector::metrics::v1::MetricsService;
 
 /*
  * Private variables
@@ -93,12 +84,14 @@ typedef struct {
   c_avl_tree_t *staged_metrics;         // char* metric_identity() -> NULL
   c_avl_tree_t *staged_metric_families; // char* fam->name -> metric_family_t*
 
+  std::unique_ptr<MetricsService::Stub> stub;
+
   pthread_mutex_t mu;
 } ot_callback_t;
 
 static int ot_send_buffer(ot_callback_t *cb) {
   size_t families_num = (size_t)c_avl_size(cb->staged_metric_families);
-  metric_family_t *families[families_num];
+  metric_family_t const *families[families_num];
 
   memset(families, 0, sizeof(families));
 
@@ -115,8 +108,42 @@ static int ot_send_buffer(ot_callback_t *cb) {
     families[i] = fam;
   }
 
-  DEBUG("write_open_telemetry plugin: TODO(octo): send %zu metric families",
-        families_num);
+  if (cb->stub == NULL) {
+    strbuf_t buf = STRBUF_CREATE;
+    strbuf_printf(&buf, "%s:%s", cb->host, cb->port);
+
+    auto chan =
+        grpc::CreateChannel(buf.ptr, grpc::InsecureChannelCredentials());
+    cb->stub = MetricsService::NewStub(chan);
+
+    STRBUF_DESTROY(buf);
+  }
+
+  auto req = format_open_telemetry_export_metrics_service_request(families,
+                                                                  families_num);
+
+  grpc::ClientContext context;
+  ExportMetricsServiceResponse resp;
+  grpc::Status status = cb->stub->Export(&context, *req, &resp);
+
+  if (!status.ok()) {
+    ERROR("write_open_telemetry plugin: Exporting metrics failed: %s",
+          status.error_message().c_str());
+    return -1;
+  }
+
+  if (resp.has_partial_success() &&
+      resp.partial_success().rejected_data_points() > 0) {
+    auto ps = resp.partial_success();
+    NOTICE("write_open_telemetry plugin: %" PRId64
+           " data points were rejected: %s",
+           ps.rejected_data_points(), ps.error_message().c_str());
+  } else {
+    DEBUG("write_open_telemetry plugin: Successfully sent %zu metric families",
+          families_num);
+  }
+
+  delete req;
   return 0;
 }
 
@@ -172,6 +199,8 @@ static void ot_callback_decref(void *data) {
   }
 
   ot_flush_nolock(/* timeout = */ 0, cb);
+
+  cb->stub.reset();
 
   c_avl_destroy(cb->staged_metrics);
   c_avl_destroy(cb->staged_metric_families);
