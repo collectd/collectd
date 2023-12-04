@@ -163,7 +163,7 @@ static int ot_flush_nolock(cdtime_t timeout, ot_callback_t *cb) {
         "send_buf_fill = %d;",
         CDTIME_T_TO_DOUBLE(timeout), staged_num);
 
-  if (c_avl_size(cb->staged_metrics) == 0) {
+  if (staged_num == 0) {
     cb->staged_time = cdtime();
     return 0;
   }
