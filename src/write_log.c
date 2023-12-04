@@ -60,7 +60,7 @@ static int wl_write_graphite(metric_family_t const *fam) {
     }
 
     /* trim newlines emitted by format_graphite() */
-    while (buf.pos > 0 && isspace(buf.ptr[buf.pos-1])) {
+    while (buf.pos > 0 && isspace(buf.ptr[buf.pos - 1])) {
       buf.pos--;
       buf.ptr[buf.pos] = 0;
     }
