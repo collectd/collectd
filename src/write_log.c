@@ -55,10 +55,17 @@ static int wl_write_graphite(metric_family_t const *fam) {
     int status = format_graphite(&buf, m, prefix, suffix, escape_char, flags);
     if (status != 0) {
       ERROR("write_log plugin: format_graphite failed: %d", status);
-    } else {
-      INFO("%s", buf.ptr);
+      strbuf_reset(&buf);
+      continue;
     }
 
+    /* trim newlines emitted by format_graphite() */
+    while (buf.pos > 0 && isspace(buf.ptr[buf.pos - 1])) {
+      buf.pos--;
+      buf.ptr[buf.pos] = 0;
+    }
+
+    INFO("%s", buf.ptr);
     strbuf_reset(&buf);
   }
 
