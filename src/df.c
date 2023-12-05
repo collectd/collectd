@@ -143,86 +143,32 @@ static int df_read(void) {
 #elif HAVE_STATFS
   struct statfs statbuf;
 #endif
-  metric_family_t fam_fs_free = {
-      .name = "filesystem_free_bytes",
+  metric_family_t fam_usage = {
+      .name = "system.filesystem.usage",
       .type = METRIC_TYPE_GAUGE,
   };
-  metric_family_t fam_fs_reserved = {
-      .name = "filesystem_reserved_bytes",
+  metric_family_t fam_utilization = {
+      .name = "system.filesystem.utilization",
       .type = METRIC_TYPE_GAUGE,
   };
-  metric_family_t fam_fs_used = {
-      .name = "filesystem_used_bytes",
+  metric_family_t fam_inode_usage = {
+      .name = "system.filesystem.inodes.usage",
       .type = METRIC_TYPE_GAUGE,
   };
-  metric_family_t fam_fs_free_pct = {
-      .name = "filesystem_free_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_fs_reserved_pct = {
-      .name = "filesystem_reserved_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_fs_used_pct = {
-      .name = "filesystem_used_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_fs_inodes_free_pct = {
-      .name = "filesystem_inodes_free_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_fs_inodes_reserved_pct = {
-      .name = "filesystem_inodes_reserved_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_fs_inodes_used_pct = {
-      .name = "filesystem_inodes_used_percent",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_fs_inodes_free = {
-      .name = "filesystem_inodes_free",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_fs_inodes_reserved = {
-      .name = "filesystem_inodes_reserved",
-      .type = METRIC_TYPE_GAUGE,
-  };
-  metric_family_t fam_fs_inodes_used = {
-      .name = "filesystem_inodes_used",
+  metric_family_t fam_inode_utilization = {
+      .name = "system.filesystem.inodes.utilization",
       .type = METRIC_TYPE_GAUGE,
   };
 
-  metric_family_t *fams[] = {&fam_fs_free,
-                             &fam_fs_reserved,
-                             &fam_fs_used,
-                             &fam_fs_free_pct,
-                             &fam_fs_reserved_pct,
-                             &fam_fs_used_pct,
-                             &fam_fs_inodes_free,
-                             &fam_fs_inodes_reserved,
-                             &fam_fs_inodes_used,
-                             &fam_fs_inodes_free_pct,
-                             &fam_fs_inodes_reserved_pct,
-                             &fam_fs_inodes_used_pct,
-                             NULL};
-
-  int retval = 0;
-  /* struct STATANYFS statbuf; */
-  cu_mount_t *mnt_list;
-
-  mnt_list = NULL;
+  cu_mount_t *mnt_list = NULL;
   if (cu_mount_getlist(&mnt_list) == NULL) {
     ERROR("df plugin: cu_mount_getlist failed.");
     return -1;
   }
 
+  int retval = 0;
   for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL;
        mnt_ptr = mnt_ptr->next) {
-    unsigned long long blocksize;
-    uint64_t blk_free;
-    uint64_t blk_reserved;
-    uint64_t blk_used;
-
     char const *dev =
         (mnt_ptr->spec_device != NULL) ? mnt_ptr->spec_device : mnt_ptr->device;
 
@@ -250,7 +196,7 @@ static int df_read(void) {
     if (!statbuf.f_blocks)
       continue;
 
-    blocksize = BLOCKSIZE(statbuf);
+    gauge_t blocksize = (gauge_t)BLOCKSIZE(statbuf);
 
 /*
  * Sanity-check for the values in the struct
@@ -275,9 +221,9 @@ static int df_read(void) {
     if (statbuf.f_blocks < statbuf.f_bfree)
       statbuf.f_blocks = statbuf.f_bfree;
 
-    blk_free = (uint64_t)statbuf.f_bavail;
-    blk_reserved = (uint64_t)(statbuf.f_bfree - statbuf.f_bavail);
-    blk_used = (uint64_t)(statbuf.f_blocks - statbuf.f_bfree);
+    gauge_t blk_free = (gauge_t)statbuf.f_bavail;
+    gauge_t blk_reserved = (gauge_t)(statbuf.f_bfree - statbuf.f_bavail);
+    gauge_t blk_used = (gauge_t)(statbuf.f_blocks - statbuf.f_bfree);
 
     metric_t m = {0};
     metric_label_set(&m, "device", dev);
@@ -285,63 +231,54 @@ static int df_read(void) {
     metric_label_set(&m, "mountpoint", mnt_ptr->dir);
 
     if (values_absolute) {
-      m.value.gauge = (gauge_t)(blk_free * blocksize);
-      metric_family_metric_append(&fam_fs_free, m);
+      metric_family_append(&fam_usage, "state", "used",
+                           (value_t){.gauge = blk_used * blocksize}, &m);
 
-      m.value.gauge = (gauge_t)(blk_reserved * blocksize);
-      metric_family_metric_append(&fam_fs_reserved, m);
+      metric_family_append(&fam_usage, "state", "free",
+                           (value_t){.gauge = blk_free * blocksize}, &m);
 
-      m.value.gauge = (gauge_t)(blk_used * blocksize);
-      metric_family_metric_append(&fam_fs_used, m);
+      metric_family_append(&fam_usage, "state", "reserved",
+                           (value_t){.gauge = blk_reserved * blocksize}, &m);
     }
 
     if (values_percentage) {
-      if (statbuf.f_blocks > 0) {
-        m.value.gauge = (gauge_t)((float_t)(blk_free) / statbuf.f_blocks * 100);
-        metric_family_metric_append(&fam_fs_free_pct, m);
+      assert(statbuf.f_blocks != 0); // checked above
+      gauge_t f = 100.0 / (gauge_t)statbuf.f_blocks;
 
-        m.value.gauge =
-            (gauge_t)((float_t)(blk_reserved) / statbuf.f_blocks * 100);
-        metric_family_metric_append(&fam_fs_reserved_pct, m);
+      metric_family_append(&fam_utilization, "state", "used",
+                           (value_t){.gauge = blk_used * f}, &m);
 
-        m.value.gauge = (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100);
-        metric_family_metric_append(&fam_fs_used_pct, m);
-      } else {
-        metric_reset(&m);
-        retval = -1;
-        break;
-      }
+      metric_family_append(&fam_utilization, "state", "free",
+                           (value_t){.gauge = blk_free * f}, &m);
+
+      metric_family_append(&fam_utilization, "state", "reserved",
+                           (value_t){.gauge = blk_reserved * f}, &m);
     }
 
     /* inode handling */
     if (report_inodes && statbuf.f_files != 0 && statbuf.f_ffree != 0) {
-      uint64_t inode_free;
-      uint64_t inode_reserved;
-      uint64_t inode_used;
-
       /* Sanity-check for the values in the struct */
       if (statbuf.f_ffree < statbuf.f_favail)
         statbuf.f_ffree = statbuf.f_favail;
       if (statbuf.f_files < statbuf.f_ffree)
         statbuf.f_files = statbuf.f_ffree;
 
-      inode_free = (uint64_t)statbuf.f_favail;
-      inode_reserved = (uint64_t)(statbuf.f_ffree - statbuf.f_favail);
-      inode_used = (uint64_t)(statbuf.f_files - statbuf.f_ffree);
+      gauge_t inode_free = (gauge_t)statbuf.f_favail;
+      gauge_t inode_reserved = (gauge_t)(statbuf.f_ffree - statbuf.f_favail);
+      gauge_t inode_used = (gauge_t)(statbuf.f_files - statbuf.f_ffree);
 
       if (values_percentage) {
         if (statbuf.f_files > 0) {
-          m.value.gauge =
-              (gauge_t)((float_t)(inode_free) / statbuf.f_files * 100);
-          metric_family_metric_append(&fam_fs_inodes_free_pct, m);
+          gauge_t f = 100.0 / (gauge_t)statbuf.f_files;
 
-          m.value.gauge =
-              (gauge_t)((float_t)(inode_reserved) / statbuf.f_files * 100);
-          metric_family_metric_append(&fam_fs_inodes_reserved_pct, m);
+          metric_family_append(&fam_inode_usage, "state", "used",
+                               (value_t){.gauge = inode_used * f}, &m);
 
-          m.value.gauge =
-              (gauge_t)((float_t)(inode_used) / statbuf.f_files * 100);
-          metric_family_metric_append(&fam_fs_inodes_used_pct, m);
+          metric_family_append(&fam_inode_usage, "state", "free",
+                               (value_t){.gauge = inode_free * f}, &m);
+
+          metric_family_append(&fam_inode_usage, "state", "reserved",
+                               (value_t){.gauge = inode_reserved * f}, &m);
         } else {
           metric_reset(&m);
           retval = -1;
@@ -349,14 +286,14 @@ static int df_read(void) {
         }
       }
       if (values_absolute) {
-        m.value.gauge = (gauge_t)inode_free;
-        metric_family_metric_append(&fam_fs_inodes_free, m);
+        metric_family_append(&fam_inode_usage, "state", "used",
+                             (value_t){.gauge = inode_used}, &m);
 
-        m.value.gauge = (gauge_t)inode_reserved;
-        metric_family_metric_append(&fam_fs_inodes_reserved, m);
+        metric_family_append(&fam_inode_usage, "state", "free",
+                             (value_t){.gauge = inode_free}, &m);
 
-        m.value.gauge = (gauge_t)inode_used;
-        metric_family_metric_append(&fam_fs_inodes_used, m);
+        metric_family_append(&fam_inode_usage, "state", "reserved",
+                             (value_t){.gauge = inode_reserved}, &m);
       }
     }
 
@@ -365,14 +302,22 @@ static int df_read(void) {
 
   cu_mount_freelist(mnt_list);
 
-  for (size_t i = 0; fams[i] != NULL; i++) {
-    if (fams[i]->metric.num > 0) {
-      int status = plugin_dispatch_metric_family(fams[i]);
-      if (status != 0) {
-        ERROR("df: plugin_dispatch_metric_family failed: %s", STRERROR(status));
-      }
-      metric_family_metric_reset(fams[i]);
+  metric_family_t *families[] = {
+      &fam_usage, &fam_utilization, &fam_inode_usage, &fam_inode_utilization,
+      NULL,
+  };
+
+  for (size_t i = 0; families[i] != NULL; i++) {
+    if (families[i]->metric.num == 0) {
+      continue;
     }
+
+    int status = plugin_dispatch_metric_family(families[i]);
+    if (status != 0) {
+      ERROR("df: plugin_dispatch_metric_family failed: %s", STRERROR(status));
+      retval = status;
+    }
+    metric_family_metric_reset(families[i]);
   }
 
   return retval;
