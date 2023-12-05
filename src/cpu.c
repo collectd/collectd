@@ -442,7 +442,7 @@ static void aggregate(gauge_t *sum_by_state) /* {{{ */
 static void cpu_commit_one(int cpu_num, /* {{{ */
                            gauge_t rates[static COLLECTD_CPU_STATE_MAX]) {
   metric_family_t fam = {
-      .name = "cpu_usage_percent",
+      .name = "system.cpu.utilization",
       .type = METRIC_TYPE_GAUGE,
   };
 
@@ -450,8 +450,8 @@ static void cpu_commit_one(int cpu_num, /* {{{ */
   if (cpu_num == -1) {
     metric_label_set(&m, "cpu", "total");
   } else {
-    char cpu_num_str[16];
-    snprintf(cpu_num_str, sizeof(cpu_num_str), "%d", cpu_num);
+    char cpu_num_str[32];
+    ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%d", cpu_num);
     metric_label_set(&m, "cpu", cpu_num_str);
   }
 
@@ -515,7 +515,7 @@ static void cpu_reset(void) /* {{{ */
 static void cpu_commit_without_aggregation(void) /* {{{ */
 {
   metric_family_t fam = {
-      .name = "cpu_usage_total",
+      .name = "system.cpu.time",
       .type = METRIC_TYPE_COUNTER,
   };
 
