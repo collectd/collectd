@@ -6855,7 +6855,7 @@ plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_write_graphite="yes"
-plugin_write_http="$with_libcurl"
+plugin_write_http="yes"
 plugin_write_influxdb_udp="yes"
 plugin_write_kafka="$with_librdkafka"
 plugin_write_log="no"
@@ -7043,6 +7043,13 @@ if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
   if test "x$have_strptime" = "xyes"; then
     plugin_bind="yes"
   fi
+fi
+
+if test "x$with_libcurl" != "xyes"; then
+  plugin_write_http="no (libcurl not found)"
+fi
+if test "x$with_libyajl2" != "xyes"; then
+  plugin_write_http="no (libyajl2 not found)"
 fi
 
 if test "x$with_libyajl" = "xyes"; then
