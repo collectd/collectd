@@ -49,7 +49,7 @@ debian_default_toolchain_task:
     - make -j$(nproc) -sk
   tests_script:
     - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-    - /checks/check-built-plugins.sh
+    - '[[ -e /expected-plugins/$CIRRUS_BRANCH ]] && /checks/check-built-plugins.sh /expected-plugins/$CIRRUS_BRANCH'
 
 ###
 # Default toolchain and build flags used in RPM packages, on a range of RedHat
