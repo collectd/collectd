@@ -34,6 +34,7 @@
 #include "configfile.h"
 #include "filter_chain.h"
 #include "plugin.h"
+#include "resource.h"
 #include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 #include "utils/heap/heap.h"
@@ -2197,6 +2198,14 @@ static int plugin_dispatch_metric_internal(metric_family_t const *fam) {
   return 0;
 } /* int plugin_dispatch_values_internal */
 
+static void set_default_resource_attributes(metric_t *m) {
+  if (m->resource.num > 0) {
+    return;
+  }
+
+  label_set_clone(&m->resource, default_resource_attributes());
+}
+
 EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
   if ((fam == NULL) || (fam->metric.num == 0)) {
     return EINVAL;
@@ -2217,14 +2226,15 @@ EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
   cdtime_t interval = plugin_get_interval();
 
   for (size_t i = 0; i < fam_copy->metric.num; i++) {
-    if (fam_copy->metric.ptr[i].time == 0) {
-      fam_copy->metric.ptr[i].time = time;
+    metric_t *m = fam_copy->metric.ptr + i;
+    if (m->time == 0) {
+      m->time = time;
     }
-    if (fam_copy->metric.ptr[i].interval == 0) {
-      fam_copy->metric.ptr[i].interval = interval;
+    if (m->interval == 0) {
+      m->interval = interval;
     }
 
-    /* TODO(octo): set target labels here. */
+    set_default_resource_attributes(m);
   }
 
   int status = plugin_dispatch_metric_internal(fam_copy);

@@ -70,6 +70,19 @@ typedef struct {
   size_t num;
 } label_set_t;
 
+/* label_set_clone copies all the laels in src into dest. If dest contains
+ * any labels prior to calling label_set_clone, the associated memory is
+ * leaked. */
+int label_set_clone(label_set_t *dest, label_set_t src);
+
+/* label_set_add adds a label to the label set. If a label with name already
+ * exists, EEXIST is returned. The set of labels is sorted by label name. */
+int label_set_add(label_set_t *labels, char const *name, char const *value);
+
+/* label_set_reset frees all the memory referenced by the label set and
+ * initializes the label set to zero. */
+void label_set_reset(label_set_t *labels);
+
 /*
  * Metric
  */
@@ -83,10 +96,11 @@ typedef struct {
   metric_family_t *family; /* backreference for family->name and family->type */
 
   label_set_t label;
+  label_set_t resource;
+
   value_t value;
   cdtime_t time; /* TODO(octo): use ms or µs instead? */
   cdtime_t interval;
-  /* TODO(octo): target labels */
   meta_data_t *meta;
 } metric_t;
 
@@ -107,6 +121,12 @@ metric_t *metric_parse_identity(char const *s);
  * If "value" is NULL or the empty string, the label is removed. Removing a
  * label that does not exist is *not* an error. */
 int metric_label_set(metric_t *m, char const *name, char const *value);
+
+/* metric_resource_attribute_update adds, updates, or deleted a resource
+ * attribute. If "value" is NULL or the empty string, the attribute is removed.
+ * Removing an attribute that does not exist is *not* an error. */
+int metric_resource_attribute_update(metric_t *m, char const *name,
+                                     char const *value);
 
 /* metric_label_get efficiently looks up and returns the value of the "name"
  * label. If a label does not exist, NULL is returned and errno is set to

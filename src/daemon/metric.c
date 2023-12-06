@@ -38,9 +38,13 @@
 #define VALID_LABEL_CHARS                                                      \
   "abcdefghijklmnopqrstuvwxyz"                                                 \
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"                                                 \
-  "0123456789_"
+  "0123456789_.-"
+
 /* Metric names must match the regex `[a-zA-Z_:][a-zA-Z0-9_:]*` */
-#define VALID_NAME_CHARS VALID_LABEL_CHARS ":"
+// instrument-name = ALPHA 0*254 ("_" / "." / "-" / "/" / ALPHA / DIGIT)
+#define VALID_NAME_CHARS VALID_LABEL_CHARS "/"
+
+#define RESOURCE_LABEL_PREFIX "resource:"
 
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   switch (type) {
@@ -60,7 +64,8 @@ static int label_pair_compare(void const *a, void const *b) {
                 ((label_pair_t const *)b)->name);
 }
 
-static label_pair_t *label_set_read(label_set_t labels, char const *name) {
+static label_pair_t *label_set_read(label_set_t const *labels,
+                                    char const *name) {
   if (name == NULL) {
     errno = EINVAL;
     return NULL;
@@ -73,8 +78,8 @@ static label_pair_t *label_set_read(label_set_t labels, char const *name) {
       .name = name,
   };
 
-  label_pair_t *ret = bsearch(&label, labels.ptr, labels.num,
-                              sizeof(*labels.ptr), label_pair_compare);
+  label_pair_t *ret = bsearch(&label, labels->ptr, labels->num,
+                              sizeof(*labels->ptr), label_pair_compare);
   if (ret == NULL) {
     errno = ENOENT;
     return NULL;
@@ -83,8 +88,7 @@ static label_pair_t *label_set_read(label_set_t labels, char const *name) {
   return ret;
 }
 
-static int label_set_create(label_set_t *labels, char const *name,
-                            char const *value) {
+int label_set_add(label_set_t *labels, char const *name, char const *value) {
   if ((labels == NULL) || (name == NULL) || (value == NULL)) {
     return EINVAL;
   }
@@ -99,7 +103,7 @@ static int label_set_create(label_set_t *labels, char const *name,
     return EINVAL;
   }
 
-  if (label_set_read(*labels, name) != NULL) {
+  if (label_set_read(labels, name) != NULL) {
     return EEXIST;
   }
   errno = 0;
@@ -161,7 +165,41 @@ static int label_set_delete(label_set_t *labels, label_pair_t *elem) {
   return 0;
 }
 
-static void label_set_reset(label_set_t *labels) {
+static int label_set_update(label_set_t *labels, char const *name,
+                            char const *value) {
+  if ((labels == NULL) || (name == NULL)) {
+    return EINVAL;
+  }
+
+  label_pair_t *label = label_set_read(labels, name);
+  if ((label == NULL) && (errno != ENOENT)) {
+    return errno;
+  }
+  errno = 0;
+
+  if (label == NULL) {
+    if ((value == NULL) || strlen(value) == 0) {
+      return 0;
+    }
+    return label_set_add(labels, name, value);
+  }
+
+  if ((value == NULL) || strlen(value) == 0) {
+    return label_set_delete(labels, label);
+  }
+
+  char *new_value = strdup(value);
+  if (new_value == NULL) {
+    return errno;
+  }
+
+  free(label->value);
+  label->value = new_value;
+
+  return 0;
+}
+
+void label_set_reset(label_set_t *labels) {
   if (labels == NULL) {
     return;
   }
@@ -175,7 +213,7 @@ static void label_set_reset(label_set_t *labels) {
   labels->num = 0;
 }
 
-static int label_set_clone(label_set_t *dest, label_set_t src) {
+int label_set_clone(label_set_t *dest, label_set_t src) {
   if (src.num == 0) {
     return 0;
   }
@@ -207,11 +245,31 @@ int metric_reset(metric_t *m) {
   }
 
   label_set_reset(&m->label);
+  label_set_reset(&m->resource);
   meta_data_destroy(m->meta);
 
   memset(m, 0, sizeof(*m));
 
   return 0;
+}
+
+static int format_label_set(strbuf_t *buf, label_set_t const *labels,
+                            char const *prefix, bool first_label) {
+  int status = 0;
+  for (size_t i = 0; i < labels->num; i++) {
+    if (!first_label) {
+      status = status || strbuf_print(buf, ",");
+    }
+
+    status = status || strbuf_print(buf, prefix);
+    status = status || strbuf_print(buf, labels->ptr[i].name);
+    status = status || strbuf_print(buf, "=\"");
+    status = status || strbuf_print_escaped(buf, labels->ptr[i].value,
+                                            "\\\"\n\r\t", '\\');
+    status = status || strbuf_print(buf, "\"");
+    first_label = false;
+  }
+  return status;
 }
 
 int metric_identity(strbuf_t *buf, metric_t const *m) {
@@ -220,57 +278,37 @@ int metric_identity(strbuf_t *buf, metric_t const *m) {
   }
 
   int status = strbuf_print(buf, m->family->name);
-  if (m->label.num == 0) {
+  if (m->resource.num == 0 && m->label.num == 0) {
     return status;
   }
 
   status = status || strbuf_print(buf, "{");
-  for (size_t i = 0; i < m->label.num; i++) {
-    if (i != 0) {
-      status = status || strbuf_print(buf, ",");
-    }
 
-    status = status || strbuf_print(buf, m->label.ptr[i].name);
-    status = status || strbuf_print(buf, "=\"");
-    status = status || strbuf_print_escaped(buf, m->label.ptr[i].value,
-                                            "\\\"\n\r\t", '\\');
-    status = status || strbuf_print(buf, "\"");
-  }
+  bool first_label = true;
+  status = status || format_label_set(buf, &m->resource, RESOURCE_LABEL_PREFIX,
+                                      first_label);
+
+  first_label = (m->resource.num == 0);
+  status = status || format_label_set(buf, &m->label, "", first_label);
 
   return status || strbuf_print(buf, "}");
 }
 
 int metric_label_set(metric_t *m, char const *name, char const *value) {
-  if ((m == NULL) || (name == NULL)) {
+  if (m == NULL) {
     return EINVAL;
   }
 
-  label_pair_t *label = label_set_read(m->label, name);
-  if ((label == NULL) && (errno != ENOENT)) {
-    return errno;
-  }
-  errno = 0;
+  return label_set_update(&m->label, name, value);
+}
 
-  if (label == NULL) {
-    if ((value == NULL) || strlen(value) == 0) {
-      return 0;
-    }
-    return label_set_create(&m->label, name, value);
+int metric_resource_attribute_update(metric_t *m, char const *name,
+                                     char const *value) {
+  if (m == NULL) {
+    return EINVAL;
   }
 
-  if ((value == NULL) || strlen(value) == 0) {
-    return label_set_delete(&m->label, label);
-  }
-
-  char *new_value = strdup(value);
-  if (new_value == NULL) {
-    return errno;
-  }
-
-  free(label->value);
-  label->value = new_value;
-
-  return 0;
+  return label_set_update(&m->resource, name, value);
 }
 
 char const *metric_label_get(metric_t const *m, char const *name) {
@@ -279,7 +317,7 @@ char const *metric_label_get(metric_t const *m, char const *name) {
     return NULL;
   }
 
-  label_pair_t *set = label_set_read(m->label, name);
+  label_pair_t *set = label_set_read(&m->label, name);
   if (set == NULL) {
     return NULL;
   }
@@ -355,7 +393,13 @@ static int metric_list_clone(metric_list_t *dest, metric_list_t src,
         .interval = src.ptr[i].interval,
     };
 
-    int status = label_set_clone(&ret.ptr[i].label, src.ptr[i].label);
+    int status = label_set_clone(&ret.ptr[i].resource, src.ptr[i].resource);
+    if (status != 0) {
+      metric_list_reset(&ret);
+      return status;
+    }
+
+    status = label_set_clone(&ret.ptr[i].label, src.ptr[i].label);
     if (status != 0) {
       metric_list_reset(&ret);
       return status;
@@ -545,6 +589,12 @@ static int metric_family_unmarshal_identity(metric_family_t *fam,
   while ((ptr[0] == '{') || (ptr[0] == ',')) {
     ptr++;
 
+    bool is_resource_label =
+        strncmp(ptr, RESOURCE_LABEL_PREFIX, strlen(RESOURCE_LABEL_PREFIX)) == 0;
+    if (is_resource_label) {
+      ptr += strlen(RESOURCE_LABEL_PREFIX);
+    }
+
     size_t key_len = strspn(ptr, VALID_LABEL_CHARS);
     if (key_len == 0) {
       ret = EINVAL;
@@ -572,7 +622,11 @@ static int metric_family_unmarshal_identity(metric_family_t *fam,
     /* one metric is added to the family by metric_family_unmarshal_text. */
     assert(fam->metric.num >= 1);
 
-    status = metric_label_set(m, key, value.ptr);
+    if (is_resource_label) {
+      status = label_set_add(&m->resource, key, value.ptr);
+    } else {
+      status = metric_label_set(m, key, value.ptr);
+    }
     STRBUF_DESTROY(value);
     if (status != 0) {
       ret = status;
