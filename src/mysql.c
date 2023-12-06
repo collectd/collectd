@@ -657,14 +657,14 @@ static int mysql_read_wsrep_stats(mysql_database_t *db, MYSQL *con) {
     int ds_type;
   } metrics[] = {
 
-      {"wsrep_apply_oooe", "operations", DS_TYPE_DERIVE},
-      {"wsrep_apply_oool", "operations", DS_TYPE_DERIVE},
+      {"wsrep_apply_oooe", "operations", DS_TYPE_GAUGE},
+      {"wsrep_apply_oool", "operations", DS_TYPE_GAUGE},
       {"wsrep_causal_reads", "operations", DS_TYPE_DERIVE},
-      {"wsrep_commit_oooe", "operations", DS_TYPE_DERIVE},
-      {"wsrep_commit_oool", "operations", DS_TYPE_DERIVE},
+      {"wsrep_commit_oooe", "operations", DS_TYPE_GAUGE},
+      {"wsrep_commit_oool", "operations", DS_TYPE_GAUGE},
       {"wsrep_flow_control_recv", "operations", DS_TYPE_DERIVE},
       {"wsrep_flow_control_sent", "operations", DS_TYPE_DERIVE},
-      {"wsrep_flow_control_paused", "operations", DS_TYPE_DERIVE},
+      {"wsrep_flow_control_paused", "operations", DS_TYPE_GAUGE},
       {"wsrep_local_bf_aborts", "operations", DS_TYPE_DERIVE},
       {"wsrep_local_cert_failures", "operations", DS_TYPE_DERIVE},
       {"wsrep_local_commits", "operations", DS_TYPE_DERIVE},
