@@ -167,7 +167,7 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
 
 static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
   metric_family_t fam_absolute = {
-      .name = "memory_usage",
+      .name = "system.memory.usage",
       .type = METRIC_TYPE_GAUGE,
   };
   gauge_t total = 0;
@@ -180,7 +180,7 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     total += values[i];
 
     if (values_absolute) {
-      metric_family_append(&fam_absolute, "type", memory_type_names[i],
+      metric_family_append(&fam_absolute, "state", memory_type_names[i],
                            (value_t){.gauge = values[i]}, NULL);
     }
   }
@@ -205,7 +205,7 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
   }
 
   metric_family_t fam_percent = {
-      .name = "memory_usage_percent",
+      .name = "system.memory.utilization",
       .type = METRIC_TYPE_GAUGE,
   };
   for (size_t i = 0; i < COLLECTD_MEMORY_TYPE_MAX; i++) {
@@ -213,7 +213,7 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
       continue;
     }
 
-    metric_family_append(&fam_percent, "type", memory_type_names[i],
+    metric_family_append(&fam_percent, "state", memory_type_names[i],
                          (value_t){.gauge = 100.0 * values[i] / total}, NULL);
   }
 
