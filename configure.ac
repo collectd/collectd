@@ -4873,6 +4873,35 @@ if test "x$PROTOC" != "x"; then
 fi
 AM_CONDITIONAL([HAVE_PROTOC3], [test "x$have_protoc3" = "xyes"])
 
+protoc3_optional="no"
+if test "x$have_protoc3" = "xyes"; then
+  AC_MSG_CHECKING([whether protoc supports optional fields])
+  testfile=`mktemp`
+  cat <<EOF >"$testfile"
+syntax = "proto3";
+message Test {
+  optional bool support_optional = 1;
+}
+EOF
+  cpp_out=`mktemp -d`
+
+  protoc3_optional="no"
+  PROTOC_FLAGS=""
+  if $PROTOC -I`dirname $testfile` --cpp_out="$cpp_out" "$testfile"; then
+    protoc3_optional="yes"
+  elif $PROTOC -I`dirname $testfile` --cpp_out="$cpp_out" --experimental_allow_proto3_optional "$testfile"; then
+    protoc3_optional="yes (with --experimental_allow_proto3_optional)"
+    PROTOC_FLAGS="--experimental_allow_proto3_optional"
+  fi
+
+  # Clean up
+  rm "$testfile" "$cpp_out/`basename $testfile`.pb.cc" "$cpp_out/`basename $testfile`.pb.h"
+  rmdir "$cpp_out"
+
+  AC_MSG_RESULT([$protoc3_optional])
+  AC_SUBST(PROTOC_FLAGS)
+fi
+
 # --with-libprotobuf-c {{{
 AC_ARG_WITH([libprotobuf-c],
   [AS_HELP_STRING([--with-libprotobuf-c@<:@=PREFIX@:>@], [Path to libprotobuf-c.])],
@@ -7130,6 +7159,9 @@ fi
 if test "x$with_libgrpcpp" != "xyes"; then
   plugin_grpc="no (libgrpc++ not found)"
   plugin_write_open_telemetry="no (libgrpc++ not found)"
+fi
+if test "x$protoc3_optional" = "xno"; then
+  plugin_write_open_telemetry="no (protoc does not support optional fields)"
 fi
 
 if test "x$have_getifaddrs" = "xyes"; then

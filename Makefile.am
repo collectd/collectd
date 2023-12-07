@@ -2473,16 +2473,16 @@ if HAVE_GRPC_CPP
 BUILT_SOURCES += collectd.grpc.pb.cc types.grpc.pb.cc collectd.pb.cc types.pb.cc
 
 collectd.grpc.pb.cc types.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/proto \
 		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) \
 	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 collectd.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/proto --cpp_out=$(builddir) \
 	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 types.pb.cc: $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/proto --cpp_out=$(builddir) \
 	$(srcdir)/proto/types.proto
 
 BUILT_SOURCES += \
@@ -2492,22 +2492,21 @@ BUILT_SOURCES += \
 	opentelemetry/proto/metrics/v1/metrics.pb.cc \
 	opentelemetry/proto/resource/v1/resource.pb.cc
 
-
 opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc: $(srcdir)/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/opentelemetry-proto --grpc_out=$(builddir) \
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --grpc_out=$(builddir) \
 		--plugin="protoc-gen-grpc=$(GRPC_CPP_PLUGIN)" $<
 
 opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc: $(srcdir)/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 
 opentelemetry/proto/common/v1/common.pb.cc: $(srcdir)/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 
 opentelemetry/proto/metrics/v1/metrics.pb.cc: $(srcdir)/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 
 opentelemetry/proto/resource/v1/resource.pb.cc: $(srcdir)/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 
 endif
 endif
