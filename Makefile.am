@@ -2484,7 +2484,10 @@ collectd.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 types.pb.cc: $(srcdir)/proto/types.proto
 	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/proto --cpp_out=$(builddir) \
 	$(srcdir)/proto/types.proto
+endif
+endif
 
+if BUILD_PLUGIN_WRITE_OPEN_TELEMETRY
 BUILT_SOURCES += \
 	opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
 	opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc \
@@ -2507,8 +2510,6 @@ opentelemetry/proto/metrics/v1/metrics.pb.cc: $(srcdir)/opentelemetry-proto/open
 
 opentelemetry/proto/resource/v1/resource.pb.cc: $(srcdir)/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto
 	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
-
-endif
 endif
 
 install-exec-hook:
