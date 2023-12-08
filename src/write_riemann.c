@@ -617,15 +617,14 @@ static void wrr_free(void *p) /* {{{ */
 
   pthread_mutex_lock(&host->lock);
   host->reference_count--;
-  int reference_count = host->reference_count;
-  pthread_mutex_unlock(&host->lock);
-
-  if (reference_count > 0) {
+  if (host->reference_count > 0) {
+    pthread_mutex_unlock(&host->lock);
     return;
   }
 
   wrr_disconnect(host);
 
+  pthread_mutex_unlock(&host->lock);
   pthread_mutex_destroy(&host->lock);
   sfree(host);
 } /* }}} void wrr_free */
