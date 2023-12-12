@@ -60,6 +60,7 @@ struct wg_callback_s {
   size_t timeseries_count;
   cdtime_t send_buffer_init_time;
 
+  int reference_count;
   pthread_mutex_t lock;
 };
 typedef struct wg_callback_s wg_callback_t;
@@ -380,6 +381,13 @@ static void wg_callback_free(void *data) /* {{{ */
   if (cb == NULL)
     return;
 
+  pthread_mutex_lock(&cb->lock);
+  cb->reference_count--;
+  if (cb->reference_count > 0) {
+    pthread_mutex_unlock(&cb->lock);
+    return;
+  }
+
   sd_output_destroy(cb->formatter);
   cb->formatter = NULL;
 
@@ -391,6 +399,9 @@ static void wg_callback_free(void *data) /* {{{ */
   if (cb->curl) {
     curl_easy_cleanup(cb->curl);
   }
+
+  pthread_mutex_unlock(&cb->lock);
+  pthread_mutex_destroy(&cb->lock);
 
   sfree(cb);
 } /* }}} void wg_callback_free */
@@ -683,10 +694,13 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
 
   user_data_t user_data = {
       .data = cb,
+      .free_func = wg_callback_free,
   };
+
+  cb->reference_count++;
   plugin_register_flush("write_stackdriver", wg_flush, &user_data);
 
-  user_data.free_func = wg_callback_free;
+  cb->reference_count++;
   plugin_register_write("write_stackdriver", wg_write, &user_data);
 
   return 0;

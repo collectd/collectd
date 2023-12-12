@@ -92,6 +92,8 @@ struct wh_callback_s {
   char *metrics_prefix;
 
   char *unix_socket_path;
+
+  int reference_count;
 };
 typedef struct wh_callback_s wh_callback_t;
 
@@ -310,6 +312,19 @@ static void wh_callback_free(void *data) {
 
   wh_callback_t *cb = data;
 
+  /* cb is used as user_data in:
+   * - plugin_register_write
+   * - plugin_register_flush
+   * - plugin_register_notification
+   * We can not rely on them being torn down in a known order.
+   * Only actually free the structure when all references are dropped. */
+  pthread_mutex_lock(&cb->curl_lock);
+  cb->reference_count--;
+  if (cb->reference_count > 0) {
+    pthread_mutex_unlock(&cb->curl_lock);
+    return;
+  }
+
   wh_flush(/* timeout = */ 0, NULL, &(user_data_t){.data = cb});
 
   if (cb->curl != NULL) {
@@ -336,6 +351,10 @@ static void wh_callback_free(void *data) {
   sfree(cb->clientcert);
   sfree(cb->clientkeypass);
   sfree(cb->metrics_prefix);
+
+  pthread_mutex_unlock(&cb->curl_lock);
+  pthread_mutex_destroy(&cb->curl_lock);
+  pthread_mutex_destroy(&cb->send_buffer_lock);
 
   sfree(cb);
 } /* void wh_callback_free */
@@ -700,15 +719,16 @@ static int wh_config_node(oconfig_item_t *ci) {
     ctx.flush_interval = plugin_get_interval();
     plugin_set_ctx(ctx);
 
+    cb->reference_count++;
     plugin_register_write(callback_name, wh_write, &user_data);
-    user_data.free_func = NULL;
 
+    cb->reference_count++;
     plugin_register_flush(callback_name, wh_flush, &user_data);
   }
 
   if (cb->send_notifications) {
+    cb->reference_count++;
     plugin_register_notification(callback_name, wh_notify, &user_data);
-    user_data.free_func = NULL;
   }
 
   return 0;
