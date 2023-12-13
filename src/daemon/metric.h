@@ -70,6 +70,19 @@ typedef struct {
   size_t num;
 } label_set_t;
 
+/* label_set_clone copies all the labels in src into dest. dest must be an empty
+ * label set, i.e. it must not contain any prior labels, otherwise EINVAL is
+ * returned. */
+int label_set_clone(label_set_t *dest, label_set_t src);
+
+/* label_set_add adds a label to the label set. If a label with name already
+ * exists, EEXIST is returned. The set of labels is sorted by label name. */
+int label_set_add(label_set_t *labels, char const *name, char const *value);
+
+/* label_set_reset frees all the memory referenced by the label set and
+ * initializes the label set to zero. */
+void label_set_reset(label_set_t *labels);
+
 /*
  * Metric
  */
@@ -83,10 +96,10 @@ typedef struct {
   metric_family_t *family; /* backreference for family->name and family->type */
 
   label_set_t label;
+
   value_t value;
   cdtime_t time; /* TODO(octo): use ms or µs instead? */
   cdtime_t interval;
-  /* TODO(octo): target labels */
   meta_data_t *meta;
 } metric_t;
 
@@ -133,12 +146,21 @@ struct metric_family_s {
   char *help;
   metric_type_t type;
 
+  label_set_t resource;
   metric_list_t metric;
 };
 
 /* metric_family_metric_append appends a new metric to the metric family. This
  * allocates memory which must be freed using metric_family_metric_reset. */
 int metric_family_metric_append(metric_family_t *fam, metric_t m);
+
+/* metric_family_resource_attribute_update adds, updates, or deletes a
+ * resource attribute. If "value" is NULL or an empty string, the attribute
+ * is removed.
+ * Removing an attribute that does not exist is *not* an error. */
+int metric_family_resource_attribute_update(metric_family_t *fam,
+                                            char const *name,
+                                            char const *value);
 
 /* metric_family_append constructs a new metric_t and appends it to fam. It is
  * a convenience function that is funcitonally approximately equivalent to the

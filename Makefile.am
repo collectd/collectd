@@ -243,6 +243,8 @@ collectd_SOURCES = \
 	src/daemon/globals.h \
 	src/daemon/plugin.c \
 	src/daemon/plugin.h \
+	src/daemon/resource.c \
+	src/daemon/resource.h \
 	src/daemon/types_list.c \
 	src/daemon/types_list.h \
 	src/daemon/utils_cache.c \

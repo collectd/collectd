@@ -100,6 +100,8 @@ DEF_TEST(metric_identity) {
     char *name;
     label_pair_t *labels;
     size_t labels_num;
+    label_pair_t *rattr;
+    size_t rattr_num;
     char const *want;
   } cases[] = {
       {
@@ -129,6 +131,33 @@ DEF_TEST(metric_identity) {
           .want = "escape_sequences{cardridge_return=\"\\r\",newline=\"\\n\","
                   "quote=\"\\\"\",tab=\"\\t\"}",
       },
+      {
+          .name = "metric_with_resource",
+          .rattr =
+              (label_pair_t[]){
+                  {"host.name", "example.com"},
+              },
+          .rattr_num = 1,
+          .want = "metric_with_resource{resource:host.name=\"example.com\"}",
+      },
+      {
+          .name = "metric_with_resource_and_labels",
+          .rattr =
+              (label_pair_t[]){
+                  {"omega", "always"},
+                  {"alpha", "resources"},
+              },
+          .rattr_num = 2,
+          .labels =
+              (label_pair_t[]){
+                  {"gamma", "first"},
+                  {"beta", "come"},
+              },
+          .labels_num = 2,
+          .want =
+              "metric_with_resource_and_labels{resource:alpha=\"resources\","
+              "resource:omega=\"always\",beta=\"come\",gamma=\"first\"}",
+      },
   };
 
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
@@ -145,6 +174,10 @@ DEF_TEST(metric_identity) {
       CHECK_ZERO(metric_label_set(&m, cases[i].labels[j].name,
                                   cases[i].labels[j].value));
     }
+    for (size_t j = 0; j < cases[i].rattr_num; j++) {
+      CHECK_ZERO(metric_family_resource_attribute_update(
+          &fam, cases[i].rattr[j].name, cases[i].rattr[j].value));
+    }
 
     strbuf_t buf = STRBUF_CREATE;
     CHECK_ZERO(metric_identity(&buf, &m));
@@ -153,6 +186,7 @@ DEF_TEST(metric_identity) {
 
     STRBUF_DESTROY(buf);
     metric_family_metric_reset(&fam);
+    label_set_reset(&fam.resource);
     metric_reset(&m);
   }
 
