@@ -285,10 +285,11 @@ int metric_identity(strbuf_t *buf, metric_t const *m) {
   status = status || strbuf_print(buf, "{");
 
   bool first_label = true;
-  status = status || format_label_set(buf, &m->resource, RESOURCE_LABEL_PREFIX,
-                                      first_label);
-
-  first_label = (m->resource.num == 0);
+  if (m->resource.num == 0) {
+    status = status || format_label_set(buf, &m->resource,
+                                        RESOURCE_LABEL_PREFIX, first_label);
+    first_label = false;
+  }
   status = status || format_label_set(buf, &m->label, "", first_label);
 
   return status || strbuf_print(buf, "}");
