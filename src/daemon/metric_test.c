@@ -175,8 +175,8 @@ DEF_TEST(metric_identity) {
                                   cases[i].labels[j].value));
     }
     for (size_t j = 0; j < cases[i].rattr_num; j++) {
-      CHECK_ZERO(metric_resource_attribute_update(&m, cases[i].rattr[j].name,
-                                                  cases[i].rattr[j].value));
+      CHECK_ZERO(metric_family_resource_attribute_update(
+          &fam, cases[i].rattr[j].name, cases[i].rattr[j].value));
     }
 
     strbuf_t buf = STRBUF_CREATE;
@@ -186,6 +186,7 @@ DEF_TEST(metric_identity) {
 
     STRBUF_DESTROY(buf);
     metric_family_metric_reset(&fam);
+    label_set_reset(&fam.resource);
     metric_reset(&m);
   }
 

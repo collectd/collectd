@@ -249,7 +249,6 @@ int metric_reset(metric_t *m) {
   }
 
   label_set_reset(&m->label);
-  label_set_reset(&m->resource);
   meta_data_destroy(m->meta);
 
   memset(m, 0, sizeof(*m));
@@ -280,18 +279,19 @@ int metric_identity(strbuf_t *buf, metric_t const *m) {
   if ((buf == NULL) || (m == NULL) || (m->family == NULL)) {
     return EINVAL;
   }
+  label_set_t const *resource = &m->family->resource;
 
   int status = strbuf_print(buf, m->family->name);
-  if (m->resource.num == 0 && m->label.num == 0) {
+  if (resource->num == 0 && m->label.num == 0) {
     return status;
   }
 
   status = status || strbuf_print(buf, "{");
 
   bool first_label = true;
-  if (m->resource.num == 0) {
-    status = status || format_label_set(buf, &m->resource,
-                                        RESOURCE_LABEL_PREFIX, first_label);
+  if (resource->num != 0) {
+    status = status || format_label_set(buf, resource, RESOURCE_LABEL_PREFIX,
+                                        first_label);
     first_label = false;
   }
   status = status || format_label_set(buf, &m->label, "", first_label);
@@ -305,15 +305,6 @@ int metric_label_set(metric_t *m, char const *name, char const *value) {
   }
 
   return label_set_update(&m->label, name, value);
-}
-
-int metric_resource_attribute_update(metric_t *m, char const *name,
-                                     char const *value) {
-  if (m == NULL) {
-    return EINVAL;
-  }
-
-  return label_set_update(&m->resource, name, value);
 }
 
 char const *metric_label_get(metric_t const *m, char const *name) {
@@ -398,13 +389,7 @@ static int metric_list_clone(metric_list_t *dest, metric_list_t src,
         .interval = src.ptr[i].interval,
     };
 
-    int status = label_set_clone(&ret.ptr[i].resource, src.ptr[i].resource);
-    if (status != 0) {
-      metric_list_reset(&ret);
-      return status;
-    }
-
-    status = label_set_clone(&ret.ptr[i].label, src.ptr[i].label);
+    int status = label_set_clone(&ret.ptr[i].label, src.ptr[i].label);
     if (status != 0) {
       metric_list_reset(&ret);
       return status;
@@ -473,6 +458,7 @@ void metric_family_free(metric_family_t *fam) {
 
   free(fam->name);
   free(fam->help);
+  label_set_reset(&fam->resource);
   metric_list_reset(&fam->metric);
   free(fam);
 }
@@ -494,7 +480,14 @@ metric_family_t *metric_family_clone(metric_family_t const *fam) {
   }
   ret->type = fam->type;
 
-  int status = metric_list_clone(&ret->metric, fam->metric, ret);
+  int status = label_set_clone(&ret->resource, fam->resource);
+  if (status != 0) {
+    metric_family_free(ret);
+    errno = status;
+    return NULL;
+  }
+
+  status = metric_list_clone(&ret->metric, fam->metric, ret);
   if (status != 0) {
     metric_family_free(ret);
     errno = status;
@@ -551,6 +544,16 @@ static int parse_label_value(strbuf_t *buf, char const **inout) {
   ptr++;
   *inout = ptr;
   return 0;
+}
+
+int metric_family_resource_attribute_update(metric_family_t *fam,
+                                            char const *name,
+                                            char const *value) {
+  if (fam == NULL) {
+    return EINVAL;
+  }
+
+  return label_set_update(&fam->resource, name, value);
 }
 
 /* metric_family_unmarshal_identity parses the metric identity and updates
@@ -628,7 +631,7 @@ static int metric_family_unmarshal_identity(metric_family_t *fam,
     assert(fam->metric.num >= 1);
 
     if (is_resource_label) {
-      status = label_set_add(&m->resource, key, value.ptr);
+      status = metric_family_resource_attribute_update(fam, key, value.ptr);
     } else {
       status = metric_label_set(m, key, value.ptr);
     }

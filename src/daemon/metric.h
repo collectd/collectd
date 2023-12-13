@@ -96,7 +96,6 @@ typedef struct {
   metric_family_t *family; /* backreference for family->name and family->type */
 
   label_set_t label;
-  label_set_t resource;
 
   value_t value;
   cdtime_t time; /* TODO(octo): use ms or µs instead? */
@@ -121,12 +120,6 @@ metric_t *metric_parse_identity(char const *s);
  * If "value" is NULL or the empty string, the label is removed. Removing a
  * label that does not exist is *not* an error. */
 int metric_label_set(metric_t *m, char const *name, char const *value);
-
-/* metric_resource_attribute_update adds, updates, or deletes a resource
- * attribute. If "value" is NULL or an empty string, the attribute is removed.
- * Removing an attribute that does not exist is *not* an error. */
-int metric_resource_attribute_update(metric_t *m, char const *name,
-                                     char const *value);
 
 /* metric_label_get efficiently looks up and returns the value of the "name"
  * label. If a label does not exist, NULL is returned and errno is set to
@@ -153,12 +146,21 @@ struct metric_family_s {
   char *help;
   metric_type_t type;
 
+  label_set_t resource;
   metric_list_t metric;
 };
 
 /* metric_family_metric_append appends a new metric to the metric family. This
  * allocates memory which must be freed using metric_family_metric_reset. */
 int metric_family_metric_append(metric_family_t *fam, metric_t m);
+
+/* metric_family_resource_attribute_update adds, updates, or deletes a
+ * resource attribute. If "value" is NULL or an empty string, the attribute
+ * is removed.
+ * Removing an attribute that does not exist is *not* an error. */
+int metric_family_resource_attribute_update(metric_family_t *fam,
+                                            char const *name,
+                                            char const *value);
 
 /* metric_family_append constructs a new metric_t and appends it to fam. It is
  * a convenience function that is funcitonally approximately equivalent to the

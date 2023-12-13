@@ -2198,12 +2198,12 @@ static int plugin_dispatch_metric_internal(metric_family_t const *fam) {
   return 0;
 } /* int plugin_dispatch_values_internal */
 
-static void set_default_resource_attributes(metric_t *m) {
-  if (m->resource.num > 0) {
+static void set_default_resource_attributes(metric_family_t *fam) {
+  if (fam->resource.num > 0) {
     return;
   }
 
-  label_set_clone(&m->resource, default_resource_attributes());
+  label_set_clone(&fam->resource, default_resource_attributes());
 }
 
 EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
@@ -2222,6 +2222,8 @@ EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
     return status;
   }
 
+  set_default_resource_attributes(fam_copy);
+
   cdtime_t time = cdtime();
   cdtime_t interval = plugin_get_interval();
 
@@ -2233,8 +2235,6 @@ EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
     if (m->interval == 0) {
       m->interval = interval;
     }
-
-    set_default_resource_attributes(m);
   }
 
   int status = plugin_dispatch_metric_internal(fam_copy);

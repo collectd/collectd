@@ -96,7 +96,8 @@ static int graphite_print_escaped(strbuf_t *buf, char const *s,
   return 0;
 }
 
-static void gr_format_label_set(strbuf_t *buf, label_set_t const *labels, char const escape_char, unsigned int flags) {
+static void gr_format_label_set(strbuf_t *buf, label_set_t const *labels,
+                                char const escape_char, unsigned int flags) {
   for (size_t i = 0; i < labels->num; i++) {
     label_pair_t *l = labels->ptr + i;
     strbuf_print(buf, ".");
@@ -107,8 +108,8 @@ static void gr_format_label_set(strbuf_t *buf, label_set_t const *labels, char c
 }
 
 static void gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
-                          char const *suffix, char const escape_char,
-                          unsigned int flags) {
+                           char const *suffix, char const escape_char,
+                           unsigned int flags) {
   if (prefix != NULL) {
     strbuf_print(buf, prefix);
   }
@@ -117,7 +118,7 @@ static void gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
     strbuf_print(buf, suffix);
   }
 
-  gr_format_label_set(buf, &m->resource, escape_char, flags);
+  gr_format_label_set(buf, &m->family->resource, escape_char, flags);
   gr_format_label_set(buf, &m->label, escape_char, flags);
 }
 
