@@ -47,6 +47,7 @@ using opentelemetry::proto::metrics::v1::NumberDataPoint;
 using opentelemetry::proto::metrics::v1::ResourceMetrics;
 using opentelemetry::proto::metrics::v1::ScopeMetrics;
 using opentelemetry::proto::metrics::v1::Sum;
+using opentelemetry::proto::resource::v1::Resource;
 
 static void metric_to_number_data_point(NumberDataPoint *dp,
                                         metric_t const *m) {
@@ -134,7 +135,7 @@ static void add_scope_metrics(ResourceMetrics *rm, metric_family_t const *fam) {
 
 static void init_resource_metrics(ResourceMetrics *rm,
                                   metric_family_t const *fam) {
-  Resource *res = rm->resource();
+  Resource *res = rm->mutable_resource();
   for (size_t i = 0; i < fam->resource.num; i++) {
     label_pair_t *l = fam->resource.ptr + i;
 
