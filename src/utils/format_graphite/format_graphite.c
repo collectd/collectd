@@ -30,7 +30,7 @@
 #include "utils/format_graphite/format_graphite.h"
 #include "utils_cache.h"
 
-#define GRAPHITE_FORBIDDEN " \t\"\\:!,/()\n\r"
+#define GRAPHITE_FORBIDDEN ". \t\"\\:!,/()\n\r"
 
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
@@ -96,7 +96,17 @@ static int graphite_print_escaped(strbuf_t *buf, char const *s,
   return 0;
 }
 
-static int gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
+static void gr_format_label_set(strbuf_t *buf, label_set_t const *labels, char const escape_char, unsigned int flags) {
+  for (size_t i = 0; i < labels->num; i++) {
+    label_pair_t *l = labels->ptr + i;
+    strbuf_print(buf, ".");
+    graphite_print_escaped(buf, l->name, escape_char);
+    strbuf_print(buf, (flags & GRAPHITE_SEPARATE_INSTANCES) ? "." : "=");
+    graphite_print_escaped(buf, l->value, escape_char);
+  }
+}
+
+static void gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
                           char const *suffix, char const escape_char,
                           unsigned int flags) {
   if (prefix != NULL) {
@@ -107,15 +117,8 @@ static int gr_format_name(strbuf_t *buf, metric_t const *m, char const *prefix,
     strbuf_print(buf, suffix);
   }
 
-  for (size_t i = 0; i < m->label.num; i++) {
-    label_pair_t *l = m->label.ptr + i;
-    strbuf_print(buf, ".");
-    graphite_print_escaped(buf, l->name, escape_char);
-    strbuf_print(buf, (flags & GRAPHITE_SEPARATE_INSTANCES) ? "." : "=");
-    graphite_print_escaped(buf, l->value, escape_char);
-  }
-
-  return 0;
+  gr_format_label_set(buf, &m->resource, escape_char, flags);
+  gr_format_label_set(buf, &m->label, escape_char, flags);
 }
 
 int format_graphite(strbuf_t *buf, metric_t const *m, char const *prefix,
