@@ -214,6 +214,10 @@ void label_set_reset(label_set_t *labels) {
 }
 
 int label_set_clone(label_set_t *dest, label_set_t src) {
+  if (dest == NULL || dest->num != 0) {
+    return EINVAL;
+  }
+
   if (src.num == 0) {
     return 0;
   }

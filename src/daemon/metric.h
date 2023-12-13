@@ -70,9 +70,9 @@ typedef struct {
   size_t num;
 } label_set_t;
 
-/* label_set_clone copies all the labels in src into dest. If dest contains
- * any labels prior to calling label_set_clone, the associated memory is
- * leaked. */
+/* label_set_clone copies all the labels in src into dest. dest must be an empty
+ * label set, i.e. it must not contain any prior labels, otherwise EINVAL is
+ * returned. */
 int label_set_clone(label_set_t *dest, label_set_t src);
 
 /* label_set_add adds a label to the label set. If a label with name already
