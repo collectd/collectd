@@ -125,40 +125,26 @@ static void set_instrumentation_scope(ScopeMetrics *sm) {
   is->set_version(PACKAGE_VERSION);
 }
 
-static void set_scope_metrics(ResourceMetrics *rm, metric_family_t const **fam,
-                              size_t fam_num) {
+static void add_scope_metrics(ResourceMetrics *rm, metric_family_t const *fam) {
   ScopeMetrics *sm = rm->add_scope_metrics();
 
   set_instrumentation_scope(sm);
-
-  for (size_t i = 0; i < fam_num; i++) {
-    add_metric(sm, fam[i]);
-  }
+  add_metric(sm, fam);
 }
 
-ResourceMetrics *
-format_open_telemetry_resource_metrics_serialized(metric_family_t const **fam,
-                                                  size_t fam_num) {
-  ResourceMetrics *rm = new ResourceMetrics();
+static void init_resource_metrics(ResourceMetrics *rm,
+                                  metric_family_t const *fam) {
+  Resource *res = rm->resource();
+  for (size_t i = 0; i < fam->resource.num; i++) {
+    label_pair_t *l = fam->resource.ptr + i;
 
-  set_scope_metrics(rm, fam, fam_num);
-  return rm;
-}
-
-int format_open_telemetry_resource_metrics_serialized(
-    strbuf_t *sb, metric_family_t const **fam, size_t fam_num) {
-  ResourceMetrics rm;
-
-  set_scope_metrics(&rm, fam, fam_num);
-
-  std::string serialization;
-  bool ok = rm.SerializeToString(&serialization);
-  if (!ok) {
-    return -1;
+    KeyValue *kv = res->add_attributes();
+    kv->set_key(l->name);
+    AnyValue *v = kv->mutable_value();
+    v->set_string_value(l->value);
   }
 
-  strbuf_print(sb, serialization.c_str());
-  return 0;
+  add_scope_metrics(rm, fam);
 }
 
 ExportMetricsServiceRequest *
@@ -166,8 +152,10 @@ format_open_telemetry_export_metrics_service_request(
     metric_family_t const **fam, size_t fam_num) {
   ExportMetricsServiceRequest *req = new ExportMetricsServiceRequest();
 
-  ResourceMetrics *rm = req->add_resource_metrics();
-  set_scope_metrics(rm, fam, fam_num);
+  for (size_t i = 0; i < fam_num; i++) {
+    ResourceMetrics *rm = req->add_resource_metrics();
+    init_resource_metrics(rm, fam[i]);
+  }
 
   return req;
 }
