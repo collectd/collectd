@@ -122,8 +122,8 @@ metric_t *metric_parse_identity(char const *s);
  * label that does not exist is *not* an error. */
 int metric_label_set(metric_t *m, char const *name, char const *value);
 
-/* metric_resource_attribute_update adds, updates, or deleted a resource
- * attribute. If "value" is NULL or the empty string, the attribute is removed.
+/* metric_resource_attribute_update adds, updates, or deletes a resource
+ * attribute. If "value" is NULL or an empty string, the attribute is removed.
  * Removing an attribute that does not exist is *not* an error. */
 int metric_resource_attribute_update(metric_t *m, char const *name,
                                      char const *value);
