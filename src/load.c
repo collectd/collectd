@@ -118,7 +118,7 @@ static int load_read(void) {
   else {
     WARNING("load: getloadavg failed: %s", STRERRNO);
   }
-    /* #endif HAVE_GETLOADAVG */
+  /* #endif HAVE_GETLOADAVG */
 
 #elif defined(KERNEL_LINUX)
   char buffer[64] = {0};
