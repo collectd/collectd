@@ -234,7 +234,7 @@ static bool ot_metric_is_staged(ot_callback_t *cb, metric_t const *m) {
 }
 
 static bool ot_need_flush(ot_callback_t *cb, metric_family_t const *fam) {
-  int status = c_avl_get(cb->staged_metric_families, fam->name, NULL);
+  int status = c_avl_get(cb->staged_metric_families, fam, NULL);
   if (status != 0) {
     return false;
   }
@@ -288,7 +288,7 @@ static int ot_mark_metric_staged(ot_callback_t *cb, metric_t const *m) {
 static metric_family_t *ot_staged_metric_family(ot_callback_t *cb,
                                                 metric_family_t const *fam) {
   metric_family_t *ret = NULL;
-  int status = c_avl_get(cb->staged_metric_families, fam->name, (void **)&ret);
+  int status = c_avl_get(cb->staged_metric_families, fam, (void **)&ret);
   if (status == 0) {
     DEBUG("write_open_telemetry plugin: Found staged metric family \"%s\"",
           ret->name);
@@ -296,7 +296,7 @@ static metric_family_t *ot_staged_metric_family(ot_callback_t *cb,
   }
 
   ret = metric_family_clone_shallow(fam);
-  c_avl_insert(cb->staged_metric_families, ret->name, ret);
+  c_avl_insert(cb->staged_metric_families, ret, ret);
   DEBUG("write_open_telemetry plugin: Successfully staged metric family \"%s\"",
         ret->name);
   return ret;
@@ -349,7 +349,7 @@ static int ot_config_node(oconfig_item_t *ci) {
   cb->staged_metrics =
       c_avl_create((int (*)(const void *, const void *))strcmp);
   cb->staged_metric_families =
-      c_avl_create((int (*)(const void *, const void *))strcmp);
+      c_avl_create((int (*)(const void *, const void *))metric_family_compare);
 
   pthread_mutex_init(&cb->mu, /* attr = */ NULL);
 
