@@ -141,16 +141,12 @@ static int load_read(void) {
   /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBSTATGRAB
-  gauge_t snum, mnum, lnum;
   sg_load_stats *ls;
 
   if ((ls = sg_get_load_stats()) == NULL)
     return;
 
-  snum = ls->min1;
-  mnum = ls->min5;
-  lnum = ls->min15;
-  load_submit(snum, mnum, lnum);
+  load_submit(ls->min1, ls->min5, ls->min15);
   /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
