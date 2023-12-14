@@ -30,7 +30,6 @@ jobs:
           - mantic_amd64
           - jammy_amd64
           - focal_amd64
-          - bionic_amd64
           # RedHat family
           - el9_x86_64
           - fedora39
