@@ -2512,13 +2512,13 @@ opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc opentelemetr
 opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto
 	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 
-opentelemetry/proto/common/v1/common.pb.cc opentelemetry/proto/common/v1/common.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto
+opentelemetry/proto/common/v1/common.pb.cc opentelemetry/proto/common/v1/common.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto
 	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 
-opentelemetry/proto/metrics/v1/metrics.pb.cc opentelemetry/proto/metrics/v1/metrics.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto
+opentelemetry/proto/metrics/v1/metrics.pb.cc opentelemetry/proto/metrics/v1/metrics.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto
 	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 
-opentelemetry/proto/resource/v1/resource.pb.cc opentelemetry/proto/resource/v1/resource.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto
+opentelemetry/proto/resource/v1/resource.pb.cc opentelemetry/proto/resource/v1/resource.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto
 	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 endif
 
