@@ -73,7 +73,8 @@ static int load_config(const char *key, const char *value) {
   }
   return -1;
 }
-static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {
+
+static void load_submit(gauge_t l1, gauge_t l5, gauge_t l15) {
   int cores = 0;
 
 #ifdef _SC_NPROCESSORS_ONLN
@@ -83,30 +84,29 @@ static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {
     }
   }
 #endif
-  if (cores > 0) {
-    snum /= cores;
-    mnum /= cores;
-    lnum /= cores;
-  }
 
-  value_list_t vl = VALUE_LIST_INIT;
-  value_t values[] = {
-      {.gauge = snum},
-      {.gauge = mnum},
-      {.gauge = lnum},
+  metric_family_t fam = {
+      .name = "system.load",
+      .help = "System load average over a given duration",
+      .type = METRIC_TYPE_GAUGE,
   };
 
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-
-  sstrncpy(vl.plugin, "load", sizeof(vl.plugin));
-  sstrncpy(vl.type, "load", sizeof(vl.type));
-
   if (cores > 0) {
-    sstrncpy(vl.type_instance, "relative", sizeof(vl.type_instance));
+    fam.name = "system.load.scaled";
+    fam.help = "System load average over a given duration divided the by "
+               "number of CPU cores";
+
+    l1 /= cores;
+    l5 /= cores;
+    l15 /= cores;
   }
 
-  plugin_dispatch_values(&vl);
+  metric_family_append(&fam, "duration", "1m", (value_t){.gauge = l1}, NULL);
+  metric_family_append(&fam, "duration", "5m", (value_t){.gauge = l5}, NULL);
+  metric_family_append(&fam, "duration", "15m", (value_t){.gauge = l15}, NULL);
+
+  plugin_dispatch_metric_family(&fam);
+  metric_family_metric_reset(&fam);
 }
 
 static int load_read(void) {
