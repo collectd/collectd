@@ -11152,7 +11152,7 @@ B<Synopsis:>
    </Node>
  </Plugin>
 
-The plugin can export metrics to multiple collectord by specifying multiple
+The plugin can export metrics to multiple collectors by specifying multiple
 B<Node> blocks. Within the B<Node> blocks, the following options are available:
 
 =over 4
