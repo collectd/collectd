@@ -37,8 +37,8 @@ extern "C" {
 #ifdef __cplusplus
 }
 
-#include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
+#include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 
 opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest *
 format_open_telemetry_export_metrics_service_request(
