@@ -121,38 +121,23 @@ static int load_read(void) {
     /* #endif HAVE_GETLOADAVG */
 
 #elif defined(KERNEL_LINUX)
-  gauge_t snum, mnum, lnum;
-  FILE *loadavg;
-  char buffer[16];
+  char buffer[64] = {0};
 
-  char *fields[8];
-  int numfields;
-
-  if ((loadavg = fopen("/proc/loadavg", "r")) == NULL) {
-    WARNING("load: fopen: %s", STRERRNO);
-    return -1;
+  ssize_t status =
+      read_text_file_contents("/proc/loadavg", buffer, sizeof(buffer));
+  if (status < 0) {
+    ERROR("load plugin: Reading \"/proc/loadavg\" failed.");
+    return (int)status;
   }
 
-  if (fgets(buffer, 16, loadavg) == NULL) {
-    WARNING("load: fgets: %s", STRERRNO);
-    fclose(loadavg);
-    return -1;
+  char *fields[4] = {NULL};
+  int numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+  if (numfields < 3) {
+    ERROR("load plugin: strsplit returned %d field(s), want 3", numfields);
+    return EIO;
   }
 
-  if (fclose(loadavg)) {
-    WARNING("load: fclose: %s", STRERRNO);
-  }
-
-  numfields = strsplit(buffer, fields, 8);
-
-  if (numfields < 3)
-    return -1;
-
-  snum = atof(fields[0]);
-  mnum = atof(fields[1]);
-  lnum = atof(fields[2]);
-
-  load_submit(snum, mnum, lnum);
+  load_submit(atof(fields[0]), atof(fields[1]), atof(fields[2]));
   /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBSTATGRAB
