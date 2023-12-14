@@ -26,6 +26,7 @@
 #include "collectd.h"
 
 #include "plugin.h"
+#include "utils/avltree/avltree.h"
 #include "utils/cmds/putmetric.h"
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
@@ -71,6 +72,8 @@ struct wh_callback_s {
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
 #define WH_FORMAT_INFLUXDB 3
+#define WH_FORMAT_OTLP_PROTO 4
+#define WH_FORMAT_OTLP_JSON 5
   int format;
   bool send_metrics;
   bool send_notifications;
@@ -84,6 +87,9 @@ struct wh_callback_s {
   pthread_mutex_t send_buffer_lock;
   strbuf_t send_buffer;
   cdtime_t send_buffer_init_time;
+
+  c_avl_tree_t *staged_metrics;         // char* metric_identity() -> NULL
+  c_avl_tree_t *staged_metric_families; // char* fam->name -> metric_family_t*
 
   char response_buffer[WRITE_HTTP_RESPONSE_BUFFER_SIZE];
   unsigned int response_buffer_pos;
@@ -437,6 +443,16 @@ static int wh_write_influxdb(metric_family_t const *fam, wh_callback_t *cb) {
   return 0;
 } /* wh_write_influxdb */
 
+static int wh_write_otlp_proto(metric_family_t const *fam, wh_callback_t *cb) {
+  ERROR("wh_write_otlp_proto: Not implemented yet.");
+  return -1;
+}
+
+static int wh_write_otlp_json(metric_family_t const *fam, wh_callback_t *cb) {
+  ERROR("wh_write_otlp_json: Not implemented yet.");
+  return -1;
+}
+
 static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
   if ((fam == NULL) || (user_data == NULL)) {
     return EINVAL;
@@ -456,6 +472,12 @@ static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
     break;
   case WH_FORMAT_INFLUXDB:
     status = wh_write_influxdb(fam, cb);
+    break;
+  case WH_FORMAT_OTLP_PROTO:
+    status = wh_write_otlp_proto(fam, cb);
+    break;
+  case WH_FORMAT_OTLP_JSON:
+    status = wh_write_otlp_json(fam, cb);
     break;
   default:
     status = wh_write_command(fam, cb);
