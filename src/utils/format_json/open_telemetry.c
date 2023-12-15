@@ -77,6 +77,7 @@ static int number_data_point(yajl_gen g, metric_t const *m) {
   CHECK(yajl_gen_map_open(g)); /* BEGIN NumberDataPoint */
 
   CHECK(json_add_string(g, "attributes"));
+  CHECK(yajl_gen_array_open(g));
   for (size_t i = 0; i < m->label.num; i++) {
     CHECK(key_value(g, m->label.ptr[i]));
   }
