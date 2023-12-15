@@ -124,15 +124,29 @@ static int drbd_read(void) {
     fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
 
     /* ignore headers (first two iterations) */
-    if ((strcmp(fields[0], "version:") == 0) ||
+    /* ignore empty lines */
+    /* ignore ongoing sync operation */
+    if ((fields[0] == NULL) ||
+        (strcmp(fields[0], "version:") == 0) ||
         (strcmp(fields[0], "srcversion:") == 0) ||
-        (strcmp(fields[0], "GIT-hash:") == 0)) {
+        (strcmp(fields[0], "GIT-hash:") == 0) ||
+        (strlen(fields[0]) < 2) ||
+        (strcmp(fields[1], "sync'ed:") == 0) ||
+        (strcmp(fields[1], "finish:") == 0))
+    {
       continue;
     }
 
     if (isdigit(fields[0][0])) {
       /* parse the resource line, next loop iteration
-         will submit values for this resource */
+         will submit values for this resource 
+         2 digit resource */
+      resource = strtol(fields[0], NULL, 10);
+    } else if (isdigit(fields[0][1])) {
+      /* parse the resource line, next loop iteration
+         will submit values for this resource 
+         1 digit resource, put 0 as first digit */
+      fields[0][0] = 0;
       resource = strtol(fields[0], NULL, 10);
     } else {
       /* handle stats data for the resource defined in the
