@@ -288,10 +288,66 @@ DEF_TEST(metric_family_append) {
   return 0;
 }
 
+DEF_TEST(open_telemetry) {
+  metric_family_t *fams[2] = {
+      &(metric_family_t){
+          .name = "unit.tests",
+          .help = "Example gauge metric",
+          .type = METRIC_TYPE_GAUGE,
+      },
+      &(metric_family_t){
+          .name = "unit.test.count",
+          .help = "Example counter metric",
+          .type = METRIC_TYPE_COUNTER,
+      },
+  };
+
+  metric_family_resource_attribute_update(fams[0], "service.name", "unit test");
+  metric_family_resource_attribute_update(fams[1], "service.name", "unit test");
+
+  CHECK_ZERO(metric_family_append(fams[0], "metric.label", "test label",
+                                  (value_t){.gauge = 42}, NULL));
+  CHECK_ZERO(metric_family_append(fams[1], "metric.label", "bar",
+                                  (value_t){.counter = 31337}, NULL));
+
+  strbuf_t buf = STRBUF_CREATE;
+  CHECK_ZERO(
+      format_json_open_telemetry(&buf, (metric_family_t const **)fams, 2));
+
+  EXPECT_EQ_STR(
+      "{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"service."
+      "name\",\"value\":{\"stringValue\":\"unit "
+      "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":\"collectd\","
+      "\"version\":\"5.12.0.375.gc561e17+\"},\"metrics\":[{\"name\":\"unit."
+      "tests\",\"description\":\"Example gauge "
+      "metric\",\"gauge\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
+      "label\",\"value\":{\"stringValue\":\"test "
+      "label\"}}],\"timeUnixNano\":0,\"asDouble\":42}]}}]}]},{\"resource\":{"
+      "\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":"
+      "\"unit "
+      "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":\"collectd\","
+      "\"version\":\"5.12.0.375.gc561e17+\"},\"metrics\":[{\"name\":\"unit."
+      "test.count\",\"description\":\"Example counter "
+      "metric\",\"sum\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
+      "label\",\"value\":{\"stringValue\":\"bar\"}}],\"timeUnixNano\":0,"
+      "\"asInt\":31337}],\"aggregationTemporality\":\"2\",\"isMonotonic\":true}"
+      "}]}]}]}",
+      buf.ptr);
+
+  STRBUF_DESTROY(buf);
+  label_set_reset(&fams[0]->resource);
+  label_set_reset(&fams[1]->resource);
+  metric_family_metric_reset(fams[0]);
+  metric_family_metric_reset(fams[1]);
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(notification);
   RUN_TEST(metric_family);
   RUN_TEST(metric_family_append);
+  RUN_TEST(open_telemetry);
 
   END_TEST;
 }
