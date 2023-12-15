@@ -177,7 +177,7 @@ static int irq_read_data(metric_family_t *fam) {
     for (int i = 1; i <= irq_values_to_parse; i++) {
       /* Per-CPU value */
       value_t v;
-      int status = parse_value(fields[i], &v, DS_TYPE_COUNTER);
+      int status = parse_value(fields[i], &v, DS_TYPE_DERIVE);
       if (status != 0)
         break;
 
