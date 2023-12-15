@@ -197,50 +197,43 @@ static int irq_read_data(metric_family_t *fam) {
                       KERN_EVCNT_COUNT_NONZERO};
   size_t buflen = 0;
   void *buf = NULL;
-  const struct evcnt_sysctl *evs, *last_evs;
 
   for (;;) {
-    size_t newlen;
-    int error;
-
-    newlen = buflen;
-    if (buflen)
+    size_t newlen = buflen;
+    if (buflen) {
       buf = malloc(buflen);
-    error = sysctl(mib, __arraycount(mib), buf, &newlen, NULL, 0);
+    }
+    int error = sysctl(mib, __arraycount(mib), buf, &newlen, NULL, 0);
     if (error) {
-      ERROR("irq plugin: failed to get event count");
-      return -1;
+      ERROR("irq plugin: failed to get event count with status %d", error);
+      return error;
     }
     if (newlen <= buflen) {
       buflen = newlen;
       break;
     }
-    if (buf)
-      free(buf);
+    sfree(buf);
     buflen = newlen;
   }
-  evs = buf;
-  last_evs = (void *)((char *)buf + buflen);
+  const struct evcnt_sysctl *evs = buf;
+  const struct evcnt_sysctl *last_evs = (void *)((char *)buf + buflen);
   buflen /= sizeof(uint64_t);
-  metric_t m = {0};
   while (evs < last_evs && buflen > sizeof(*evs) / sizeof(uint64_t) &&
          buflen >= evs->ev_len) {
-    char irqname[80];
+    char irqname[128] = {0};
 
-    snprintf(irqname, 80, "%s-%s", evs->ev_strings,
-             evs->ev_strings + evs->ev_grouplen + 1);
+    ssnprintf(irqname, sizeof(irqname), "%s-%s", evs->ev_strings,
+              evs->ev_strings + evs->ev_grouplen + 1);
 
     if (ignorelist_match(ignorelist, irqname) == 0) {
-      metric_label_set(&m, "irq", irqname);
-      m.value.counter = evs->ev_count;
-      metric_family_metric_append(fam, m);
+      metric_family_append(fam, "id", irqname,
+                           (value_t){.counter = evs->ev_count}, NULL);
     }
 
     buflen -= evs->ev_len;
     evs = (const void *)((const uint64_t *)evs + evs->ev_len);
   }
   free(buf);
-  metric_reset(&m);
   return 0;
 }
 #endif /* KERNEL_NETBSD */
