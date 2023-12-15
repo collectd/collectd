@@ -314,25 +314,26 @@ DEF_TEST(open_telemetry) {
   CHECK_ZERO(
       format_json_open_telemetry(&buf, (metric_family_t const **)fams, 2));
 
-  EXPECT_EQ_STR(
-      "{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"service."
-      "name\",\"value\":{\"stringValue\":\"unit "
-      "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":\"collectd\","
-      "\"version\":\"5.12.0.375.gc561e17+\"},\"metrics\":[{\"name\":\"unit."
-      "tests\",\"description\":\"Example gauge "
-      "metric\",\"gauge\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
-      "label\",\"value\":{\"stringValue\":\"test "
-      "label\"}}],\"timeUnixNano\":0,\"asDouble\":42}]}}]}]},{\"resource\":{"
-      "\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":"
-      "\"unit "
-      "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":\"collectd\","
-      "\"version\":\"5.12.0.375.gc561e17+\"},\"metrics\":[{\"name\":\"unit."
-      "test.count\",\"description\":\"Example counter "
-      "metric\",\"sum\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
-      "label\",\"value\":{\"stringValue\":\"bar\"}}],\"timeUnixNano\":0,"
-      "\"asInt\":31337}],\"aggregationTemporality\":\"2\",\"isMonotonic\":true}"
-      "}]}]}]}",
-      buf.ptr);
+  EXPECT_EQ_STR("{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":"
+                "\"service.name\",\"value\":{\"stringValue\":\"unit "
+                "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":"
+                "\"collectd\",\"version\":\"" PACKAGE_VERSION
+                "\"},\"metrics\":[{\"name\":\"unit.tests\",\"description\":"
+                "\"Example gauge "
+                "metric\",\"gauge\":{\"dataPoints\":[{\"attributes\":[{\"key\":"
+                "\"metric.label\",\"value\":{\"stringValue\":\"test "
+                "label\"}}],\"timeUnixNano\":0,\"asDouble\":42.0}]}}]}]},{"
+                "\"resource\":{\"attributes\":[{\"key\":\"service.name\","
+                "\"value\":{\"stringValue\":\"unit "
+                "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":"
+                "\"collectd\",\"version\":\"" PACKAGE_VERSION
+                "\"},\"metrics\":[{\"name\":\"unit.test.count\","
+                "\"description\":\"Example counter "
+                "metric\",\"sum\":{\"dataPoints\":[{\"attributes\":[{\"key\":"
+                "\"metric.label\",\"value\":{\"stringValue\":\"bar\"}}],"
+                "\"timeUnixNano\":0,\"asInt\":31337}],"
+                "\"aggregationTemporality\":\"2\",\"isMonotonic\":true}}]}]}]}",
+                buf.ptr);
 
   STRBUF_DESTROY(buf);
   label_set_reset(&fams[0]->resource);

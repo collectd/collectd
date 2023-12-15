@@ -93,7 +93,7 @@ static int number_data_point(yajl_gen g, metric_t const *m) {
     break;
   case METRIC_TYPE_GAUGE:
     CHECK(json_add_string(g, "asDouble"));
-    CHECK(yajl_gen_integer(g, m->value.gauge));
+    CHECK(yajl_gen_double(g, m->value.gauge));
     break;
   case METRIC_TYPE_UNTYPED:
     // TODO
