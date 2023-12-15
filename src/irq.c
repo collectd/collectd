@@ -69,8 +69,9 @@ static int irq_config(const char *key, const char *value) {
 }
 
 #if KERNEL_LINUX
-/* irq_strsplit is a special split function for Linux' /proc/interrupts file. It
- * uses two or more spaces to separate fields. */
+/* irq_strsplit is a special split function for Linux' /proc/interrupts file.
+ * It uses two or more spaces to separate fields. Returns number of parsed
+ * fields. */
 static int irq_strsplit(char *string, char **fields, size_t fields_num) {
   for (size_t i = 0; i < fields_num; i++) {
     while (string[0] != 0 && isspace(string[0])) {
