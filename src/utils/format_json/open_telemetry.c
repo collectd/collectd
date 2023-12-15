@@ -34,7 +34,9 @@
   do {                                                                         \
     int status = (f);                                                          \
     if (status != 0) {                                                         \
-      ERROR("format_json: %s failed with status %d", #f, status);              \
+      if (strncmp(#f, "yajl_gen_", strlen("yajl_gen_")) == 0) {                \
+        ERROR("format_json: %s failed with status %d", #f, status);            \
+      }                                                                        \
       return status;                                                           \
     }                                                                          \
   } while (0)
