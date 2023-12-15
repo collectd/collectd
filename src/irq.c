@@ -69,6 +69,25 @@ static int irq_config(const char *key, const char *value) {
 }
 
 #if KERNEL_LINUX
+/* irq_strsplit is a special split function for Linux' /proc/interrupts file. It
+ * uses two or more spaces to separate fields. */
+static int irq_strsplit(char *string, char **fields, size_t fields_num) {
+  for (size_t i = 0; i < fields_num; i++) {
+    while (string[0] != 0 && isspace(string[0])) {
+      string[0] = 0;
+      string++;
+    }
+
+    fields[i] = string;
+    string = strstr(string, "  ");
+    if (string == NULL) {
+      return (int)i + 1;
+    }
+  }
+
+  return (int)fields_num;
+}
+
 static int irq_read_data(metric_family_t *fam) {
   /*
    * Example content:
@@ -84,62 +103,75 @@ static int irq_read_data(metric_family_t *fam) {
   }
 
   /* Get CPU count from the first line */
-  char cpu_buffer[1024];
-  char *cpu_fields[256];
-  int cpu_count;
-
-  if (fgets(cpu_buffer, sizeof(cpu_buffer), fh) != NULL) {
-    cpu_count = strsplit(cpu_buffer, cpu_fields, STATIC_ARRAY_SIZE(cpu_fields));
-    for (int i = 0; i < cpu_count; i++) {
-      if (strncmp(cpu_fields[i], "CPU", 3) == 0)
-        cpu_fields[i] += 3;
-    }
-  } else {
-    ERROR("irq plugin: unable to get CPU count from first line "
-          "of /proc/interrupts");
+  char cpu_buffer[1024] = {0};
+  if (fgets(cpu_buffer, sizeof(cpu_buffer), fh) == NULL) {
+    ERROR("irq plugin: unable to get CPU count from first line of "
+          "/proc/interrupts");
     fclose(fh);
-    return -1;
+    return EINVAL;
   }
 
-  metric_t m = {0};
-  char buffer[1024];
-  char *fields[256];
+  char *cpu_names[256] = {0};
+  int cpu_count = strsplit(cpu_buffer, cpu_names, STATIC_ARRAY_SIZE(cpu_names));
+  for (int i = 0; i < cpu_count; i++) {
+    if (strncmp(cpu_names[i], "CPU", 3) == 0) {
+      cpu_names[i] += 3;
+    }
+  }
 
+  char buffer[1024] = {0};
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    int fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+    strstripnewline(buffer);
+
+    /* There is one column with the interrupt ID before the CPU counters and
+     * there may be up to three columns after the counters. */
+    char *fields[cpu_count + 8];
+    memset(fields, 0, sizeof(fields));
+
+    int fields_num = irq_strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
     if (fields_num < 2)
       continue;
 
     /* Parse this many numeric fields, skip the rest
      * (+1 because first there is a name of irq in each line) */
-    int irq_values_to_parse;
-    if (fields_num >= cpu_count + 1)
-      irq_values_to_parse = cpu_count;
-    else
+    int irq_values_to_parse = cpu_count;
+    if (fields_num < cpu_count + 1) {
       irq_values_to_parse = fields_num - 1;
+    }
 
     /* First field is irq name and colon */
     char *irq_name = fields[0];
     size_t irq_name_len = strlen(irq_name);
-    if (irq_name_len < 2)
+    if ((irq_name_len < 2) || (irq_name[irq_name_len - 1] != ':')) {
       continue;
-
-    /* Check if irq name ends with colon.
-     * Otherwise it's a header. */
-    if (irq_name[irq_name_len - 1] != ':')
-      continue;
+    }
+    /* strip colon */
+    irq_name[irq_name_len - 1] = 0;
+    irq_name_len--;
 
     /* Is it the the ARM fast interrupt (FIQ)? */
-    if (irq_name_len == 4 && (strncmp(irq_name, "FIQ:", 4) == 0))
+    if (strcmp(irq_name, "FIQ") == 0)
       continue;
-
-    irq_name[irq_name_len - 1] = '\0';
-    irq_name_len--;
 
     if (ignorelist_match(ignorelist, irq_name) != 0)
       continue;
 
-    metric_label_set(&m, "irq", irq_name);
+    metric_t m = {0};
+    metric_label_set(&m, "id", irq_name);
+
+    if (fields_num == cpu_count + 4) {
+      metric_label_set(&m, "device", fields[fields_num - 3]);
+      metric_label_set(&m, "trigger", fields[fields_num - 2]);
+      metric_label_set(&m, "kernel_module", fields[fields_num - 1]);
+    } else if (fields_num == cpu_count + 2) {
+      // in this case, the last column is a human-readable name
+      metric_label_set(&m, "name", fields[fields_num - 1]);
+    } else if (fields_num <= cpu_count + 1) {
+      // no-op
+    } else {
+      DEBUG("irq plugin: got %d fields, want %d or %d", fields_num,
+            fields_num + 4, fields_num + 2);
+    }
 
     for (int i = 1; i <= irq_values_to_parse; i++) {
       /* Per-CPU value */
@@ -147,15 +179,14 @@ static int irq_read_data(metric_family_t *fam) {
       int status = parse_value(fields[i], &v, DS_TYPE_COUNTER);
       if (status != 0)
         break;
-      metric_label_set(&m, "cpu", cpu_fields[i - 1]);
-      m.value.counter = v.counter;
-      metric_family_metric_append(fam, m);
-    } /* for (i) */
-  }
-  metric_reset(&m);
+
+      metric_family_append(fam, "cpu", cpu_names[i - 1], v, &m);
+    }
+
+    metric_reset(&m);
+  } /* while(fgets) */
 
   fclose(fh);
-
   return 0;
 } /* int irq_read */
 #endif /* KERNEL_LINUX */
@@ -216,7 +247,7 @@ static int irq_read_data(metric_family_t *fam) {
 
 static int irq_read(void) {
   metric_family_t fam = {
-      .name = "interrupts_total",
+      .name = "system.interrupt.count",
       .type = METRIC_TYPE_COUNTER,
   };
 
