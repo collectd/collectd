@@ -68,28 +68,28 @@ static int irq_config(const char *key, const char *value) {
   return 0;
 }
 
-static void irq_submit(const char *irq_name, derive_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  if (ignorelist_match(ignorelist, irq_name) != 0)
-    return;
-
-  vl.values = &(value_t){.derive = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "irq", sizeof(vl.plugin));
-  sstrncpy(vl.type, "irq", sizeof(vl.type));
-  sstrncpy(vl.type_instance, irq_name, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-} /* void irq_submit */
-
 #if KERNEL_LINUX
-static int irq_read(void) {
-  FILE *fh;
-  char buffer[1024];
-  int cpu_count;
-  char *fields[256];
+/* irq_strsplit is a special split function for Linux' /proc/interrupts file.
+ * It uses two or more spaces to separate fields, in contrast to strsplit()
+ * which splits on individual spaces. Returns number of parsed fields. */
+static int irq_strsplit(char *string, char **fields, size_t fields_num) {
+  for (size_t i = 0; i < fields_num; i++) {
+    while (string[0] != 0 && isspace(string[0])) {
+      string[0] = 0;
+      string++;
+    }
 
+    fields[i] = string;
+    string = strstr(string, "  ");
+    if (string == NULL) {
+      return (int)i + 1;
+    }
+  }
+
+  return (int)fields_num;
+}
+
+static int irq_read_data(metric_family_t *fam) {
   /*
    * Example content:
    *         CPU0       CPU1       CPU2       CPU3
@@ -97,124 +97,135 @@ static int irq_read(void) {
    * 1:     102553     158669     218062      70587   IO-APIC-edge      i8042
    * 8:          0          0          0          1   IO-APIC-edge      rtc0
    */
-  fh = fopen("/proc/interrupts", "r");
+  FILE *fh = fopen("/proc/interrupts", "r");
   if (fh == NULL) {
     ERROR("irq plugin: fopen (/proc/interrupts): %s", STRERRNO);
     return -1;
   }
 
   /* Get CPU count from the first line */
-  if (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    cpu_count = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
-  } else {
-    ERROR("irq plugin: unable to get CPU count from first line "
-          "of /proc/interrupts");
+  char cpu_buffer[1024] = {0};
+  if (fgets(cpu_buffer, sizeof(cpu_buffer), fh) == NULL) {
+    ERROR("irq plugin: unable to get CPU count from first line of "
+          "/proc/interrupts");
     fclose(fh);
-    return -1;
+    return EINVAL;
   }
 
-  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    char *irq_name;
-    size_t irq_name_len;
-    derive_t irq_value;
-    int i;
-    int fields_num;
-    int irq_values_to_parse;
+  char *cpu_names[256] = {0};
+  int cpu_count = strsplit(cpu_buffer, cpu_names, STATIC_ARRAY_SIZE(cpu_names));
+  for (int i = 0; i < cpu_count; i++) {
+    if (strncmp(cpu_names[i], "CPU", 3) == 0) {
+      cpu_names[i] += 3;
+    }
+  }
 
-    fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+  char buffer[1024] = {0};
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    strstripnewline(buffer);
+
+    /* There is one column with the interrupt ID before the CPU counters and
+     * there may be up to three columns after the counters. */
+    char *fields[cpu_count + 8];
+    memset(fields, 0, sizeof(fields));
+
+    int fields_num = irq_strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
     if (fields_num < 2)
       continue;
 
     /* Parse this many numeric fields, skip the rest
      * (+1 because first there is a name of irq in each line) */
-    if (fields_num >= cpu_count + 1)
-      irq_values_to_parse = cpu_count;
-    else
+    int irq_values_to_parse = cpu_count;
+    if (fields_num < cpu_count + 1) {
       irq_values_to_parse = fields_num - 1;
+    }
 
     /* First field is irq name and colon */
-    irq_name = fields[0];
-    irq_name_len = strlen(irq_name);
-    if (irq_name_len < 2)
+    char *irq_name = fields[0];
+    size_t irq_name_len = strlen(irq_name);
+    if ((irq_name_len < 2) || (irq_name[irq_name_len - 1] != ':')) {
       continue;
-
-    /* Check if irq name ends with colon.
-     * Otherwise it's a header. */
-    if (irq_name[irq_name_len - 1] != ':')
-      continue;
-
-    /* Is it the the ARM fast interrupt (FIQ)? */
-    if (irq_name_len == 4 && (strncmp(irq_name, "FIQ:", 4) == 0))
-      continue;
-
-    irq_name[irq_name_len - 1] = '\0';
+    }
+    /* strip colon */
+    irq_name[irq_name_len - 1] = 0;
     irq_name_len--;
 
-    irq_value = 0;
-    for (i = 1; i <= irq_values_to_parse; i++) {
+    if (ignorelist_match(ignorelist, irq_name) != 0)
+      continue;
+
+    metric_t m = {0};
+    metric_label_set(&m, "id", irq_name);
+
+    if (fields_num == cpu_count + 4) {
+      metric_label_set(&m, "device", fields[fields_num - 3]);
+      metric_label_set(&m, "trigger", fields[fields_num - 2]);
+      metric_label_set(&m, "kernel_module", fields[fields_num - 1]);
+    } else if (fields_num == cpu_count + 2) {
+      // in this case, the last column is a human-readable name
+      metric_label_set(&m, "name", fields[fields_num - 1]);
+    } else if (fields_num <= cpu_count + 1) {
+      // no-op
+    } else {
+      DEBUG("irq plugin: got %d fields, want %d or %d", fields_num,
+            fields_num + 4, fields_num + 2);
+    }
+
+    for (int i = 1; i <= irq_values_to_parse; i++) {
       /* Per-CPU value */
       value_t v;
-      int status;
-
-      status = parse_value(fields[i], &v, DS_TYPE_DERIVE);
+      int status = parse_value(fields[i], &v, DS_TYPE_DERIVE);
       if (status != 0)
         break;
 
-      irq_value += v.derive;
-    } /* for (i) */
+      metric_family_append(fam, "cpu", cpu_names[i - 1], v, &m);
+    }
 
-    /* No valid fields -> do not submit anything. */
-    if (i <= 1)
-      continue;
-
-    irq_submit(irq_name, irq_value);
-  }
+    metric_reset(&m);
+  } /* while(fgets) */
 
   fclose(fh);
-
   return 0;
 } /* int irq_read */
 #endif /* KERNEL_LINUX */
 
 #if KERNEL_NETBSD
-static int irq_read(void) {
+static int irq_read_data(metric_family_t *fam) {
   const int mib[4] = {CTL_KERN, KERN_EVCNT, EVCNT_TYPE_INTR,
                       KERN_EVCNT_COUNT_NONZERO};
   size_t buflen = 0;
   void *buf = NULL;
-  const struct evcnt_sysctl *evs, *last_evs;
 
   for (;;) {
-    size_t newlen;
-    int error;
-
-    newlen = buflen;
-    if (buflen)
+    size_t newlen = buflen;
+    if (buflen) {
       buf = malloc(buflen);
-    error = sysctl(mib, __arraycount(mib), buf, &newlen, NULL, 0);
+    }
+    int error = sysctl(mib, __arraycount(mib), buf, &newlen, NULL, 0);
     if (error) {
-      ERROR("irq plugin: failed to get event count");
-      return -1;
+      ERROR("irq plugin: failed to get event count with status %d", error);
+      return error;
     }
     if (newlen <= buflen) {
       buflen = newlen;
       break;
     }
-    if (buf)
-      free(buf);
+    sfree(buf);
     buflen = newlen;
   }
-  evs = buf;
-  last_evs = (void *)((char *)buf + buflen);
+  const struct evcnt_sysctl *evs = buf;
+  const struct evcnt_sysctl *last_evs = (void *)((char *)buf + buflen);
   buflen /= sizeof(uint64_t);
   while (evs < last_evs && buflen > sizeof(*evs) / sizeof(uint64_t) &&
          buflen >= evs->ev_len) {
-    char irqname[80];
+    char irqname[128] = {0};
 
-    snprintf(irqname, 80, "%s-%s", evs->ev_strings,
-             evs->ev_strings + evs->ev_grouplen + 1);
+    ssnprintf(irqname, sizeof(irqname), "%s-%s", evs->ev_strings,
+              evs->ev_strings + evs->ev_grouplen + 1);
 
-    irq_submit(irqname, evs->ev_count);
+    if (ignorelist_match(ignorelist, irqname) == 0) {
+      metric_family_append(fam, "id", irqname,
+                           (value_t){.counter = evs->ev_count}, NULL);
+    }
 
     buflen -= evs->ev_len;
     evs = (const void *)((const uint64_t *)evs + evs->ev_len);
@@ -223,6 +234,27 @@ static int irq_read(void) {
   return 0;
 }
 #endif /* KERNEL_NETBSD */
+
+static int irq_read(void) {
+  metric_family_t fam = {
+      .name = "system.interrupt.count",
+      .type = METRIC_TYPE_COUNTER,
+  };
+
+  int ret = irq_read_data(&fam);
+
+  if (fam.metric.num > 0) {
+    int status = plugin_dispatch_metric_family(&fam);
+    if (status != 0) {
+      ERROR("irq plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
+      ret = -1;
+    }
+    metric_family_metric_reset(&fam);
+  }
+
+  return ret;
+}
 
 void module_register(void) {
   plugin_register_config("irq", irq_config, config_keys, config_keys_num);
