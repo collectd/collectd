@@ -150,10 +150,6 @@ static int irq_read_data(metric_family_t *fam) {
     irq_name[irq_name_len - 1] = 0;
     irq_name_len--;
 
-    /* Is it the the ARM fast interrupt (FIQ)? */
-    if (strcmp(irq_name, "FIQ") == 0)
-      continue;
-
     if (ignorelist_match(ignorelist, irq_name) != 0)
       continue;
 
