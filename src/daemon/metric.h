@@ -170,6 +170,9 @@ int metric_family_resource_attribute_update(metric_family_t *fam,
  *   m.value = v;
  *   metric_label_set(&m, lname, lvalue);
  *   metric_family_metric_append(fam, m);
+ *
+ * templ may be NULL. In that case the function behaves as if &(metric_t){0} had
+ * been passed in.
  */
 int metric_family_append(metric_family_t *fam, char const *lname,
                          char const *lvalue, value_t v, metric_t const *templ);
