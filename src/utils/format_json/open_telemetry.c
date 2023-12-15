@@ -30,13 +30,18 @@
 
 #include <yajl/yajl_gen.h>
 
+static void log_yajl_gen_error(int line, const char *fname, int status) {
+  if (strncmp(fname, "yajl_gen_", strlen("yajl_gen_")) != 0) {
+    return;
+  }
+  ERROR("open_telemetry.c:%d: %s failed with status %d", line, fname, status);
+}
+
 #define CHECK(f)                                                               \
   do {                                                                         \
     int status = (f);                                                          \
     if (status != 0) {                                                         \
-      if (strncmp(#f, "yajl_gen_", strlen("yajl_gen_")) == 0) {                \
-        ERROR("format_json: %s failed with status %d", #f, status);            \
-      }                                                                        \
+      log_yajl_gen_error(__LINE__, #f, status);                                \
       return status;                                                           \
     }                                                                          \
   } while (0)
