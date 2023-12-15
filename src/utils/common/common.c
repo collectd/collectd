@@ -350,13 +350,9 @@ int swrite(int fd, const void *buf, size_t count) {
 }
 
 int strsplit(char *string, char **fields, size_t size) {
-  size_t i;
-  char *ptr;
-  char *saveptr;
-
-  i = 0;
-  ptr = string;
-  saveptr = NULL;
+  size_t i = 0;
+  char *ptr = string;
+  char *saveptr = NULL;
   while ((fields[i] = strtok_r(ptr, " \t\r\n", &saveptr)) != NULL) {
     ptr = NULL;
     i++;
