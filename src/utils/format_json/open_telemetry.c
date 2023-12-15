@@ -48,8 +48,12 @@ static int json_add_string(yajl_gen g, char const *str) /* {{{ */
     return 0;
   }
 
-  CHECK(yajl_gen_string(g, (const unsigned char *)str,
-                        (unsigned int)strlen(str)));
+  int status = yajl_gen_string(g, (unsigned char const *)str, strlen(str));
+  if (status != yajl_gen_status_ok) {
+    ERROR("format_json: yajl_gen_string(\"%s\") failed with status %d", str,
+          status);
+    return status;
+  }
   return 0;
 } /* }}} int json_add_string */
 
