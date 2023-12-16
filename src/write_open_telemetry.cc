@@ -234,6 +234,11 @@ static int ot_config_node(oconfig_item_t *ci) {
       .free_func = ot_callback_decref,
   };
 
+  /* Call ot_flush periodically. */
+  plugin_ctx_t ctx = plugin_get_ctx();
+  ctx.flush_interval = plugin_get_interval();
+  plugin_set_ctx(ctx);
+
   cb->reference_count++;
   plugin_register_write(callback_name.ptr, ot_write, &user_data);
 
