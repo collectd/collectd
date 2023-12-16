@@ -482,6 +482,8 @@ noinst_LTLIBRARIES += libformat_open_telemetry.la
 libformat_open_telemetry_la_SOURCES = \
 	src/utils/format_open_telemetry/format_open_telemetry.cc \
 	src/utils/format_open_telemetry/format_open_telemetry.h \
+	src/utils/resource_metrics/resource_metrics.c \
+	src/utils/resource_metrics/resource_metrics.h \
 	opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc \
 	opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h \
 	opentelemetry/proto/common/v1/common.pb.cc \

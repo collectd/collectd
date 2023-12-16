@@ -32,7 +32,8 @@ extern "C" {
 #endif
 
 #include "collectd.h"
-#include "metric.h"
+#include "daemon/metric.h"
+#include "utils/resource_metrics/resource_metrics.h"
 
 #ifdef __cplusplus
 }
@@ -42,7 +43,7 @@ extern "C" {
 
 opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest *
 format_open_telemetry_export_metrics_service_request(
-    metric_family_t const **fam, size_t fam_num);
+    resource_metrics_set_t set);
 #endif
 
 #endif /* UTILS_FORMAT_OPEN_TELEMETRY_H */

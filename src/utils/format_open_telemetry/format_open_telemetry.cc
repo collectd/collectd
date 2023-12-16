@@ -126,18 +126,21 @@ static void set_instrumentation_scope(ScopeMetrics *sm) {
   is->set_version(PACKAGE_VERSION);
 }
 
-static void add_scope_metrics(ResourceMetrics *rm, metric_family_t const *fam) {
-  ScopeMetrics *sm = rm->add_scope_metrics();
+static void add_scope_metrics(ResourceMetrics *rmpb,
+                              resource_metrics_t const *rm) {
+  ScopeMetrics *sm = rmpb->add_scope_metrics();
 
   set_instrumentation_scope(sm);
-  add_metric(sm, fam);
+  for (size_t i = 0; i < rm->families_num; i++) {
+    add_metric(sm, rm->families[i]);
+  }
 }
 
-static void init_resource_metrics(ResourceMetrics *rm,
-                                  metric_family_t const *fam) {
-  Resource *res = rm->mutable_resource();
-  for (size_t i = 0; i < fam->resource.num; i++) {
-    label_pair_t *l = fam->resource.ptr + i;
+static void init_resource_metrics(ResourceMetrics *rmpb,
+                                  resource_metrics_t const *rm) {
+  Resource *res = rmpb->mutable_resource();
+  for (size_t i = 0; i < rm->resource.num; i++) {
+    label_pair_t *l = rm->resource.ptr + i;
 
     KeyValue *kv = res->add_attributes();
     kv->set_key(l->name);
@@ -145,17 +148,17 @@ static void init_resource_metrics(ResourceMetrics *rm,
     v->set_string_value(l->value);
   }
 
-  add_scope_metrics(rm, fam);
+  add_scope_metrics(rmpb, rm);
 }
 
 ExportMetricsServiceRequest *
 format_open_telemetry_export_metrics_service_request(
-    metric_family_t const **fam, size_t fam_num) {
+    resource_metrics_set_t set) {
   ExportMetricsServiceRequest *req = new ExportMetricsServiceRequest();
 
-  for (size_t i = 0; i < fam_num; i++) {
+  for (size_t i = 0; i < set.num; i++) {
     ResourceMetrics *rm = req->add_resource_metrics();
-    init_resource_metrics(rm, fam[i]);
+    init_resource_metrics(rm, set.ptr + i);
   }
 
   return req;
