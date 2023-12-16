@@ -24,9 +24,9 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#include "utils/resource_metrics/resource_metrics.h"
 #include "daemon/plugin.h"
 #include "utils/common/common.h"
+#include "utils/resource_metrics/resource_metrics.h"
 
 static int resource_metrics_compare(resource_metrics_t const *a,
                                     resource_metrics_t const *b) {
@@ -78,7 +78,9 @@ lookup_or_insert_resource(resource_metrics_set_t *set, label_set_t resource) {
     return NULL;
   }
 
-  return lookup_resource(set, resource);
+  ret = lookup_resource(set, resource);
+  assert(ret != NULL);
+  return ret;
 }
 
 static int compare_family_by_name(metric_family_t **a, metric_family_t **b) {
@@ -87,8 +89,13 @@ static int compare_family_by_name(metric_family_t **a, metric_family_t **b) {
 
 static metric_family_t *lookup_family(resource_metrics_t *rm,
                                       metric_family_t const *fam) {
-  return bsearch(&fam, rm->families, rm->families_num, sizeof(*rm->families),
-                 (void *)compare_family_by_name);
+  metric_family_t **ret =
+      bsearch(&fam, rm->families, rm->families_num, sizeof(*rm->families),
+              (void *)compare_family_by_name);
+  if (ret == NULL) {
+    return NULL;
+  }
+  return *ret;
 }
 
 static int insert_family(resource_metrics_t *rm, metric_family_t const *fam) {
@@ -108,8 +115,14 @@ static int insert_family(resource_metrics_t *rm, metric_family_t const *fam) {
   if (rm->families[rm->families_num] == NULL) {
     return errno;
   }
+
+  metric_family_metric_reset(rm->families[rm->families_num]);
+  label_set_reset(&rm->families[rm->families_num]->resource);
+
   rm->families_num++;
 
+  qsort(rm->families, rm->families_num, sizeof(*rm->families),
+        (void *)compare_family_by_name);
   return 0;
 }
 
@@ -126,7 +139,9 @@ static metric_family_t *lookup_or_insert_family(resource_metrics_t *rm,
     return NULL;
   }
 
-  return lookup_family(rm, fam);
+  ret = lookup_family(rm, fam);
+  assert(ret != NULL);
+  return ret;
 }
 
 static int compare_metrics(metric_t const *a, metric_t const *b) {
@@ -151,7 +166,8 @@ static int insert_metrics(metric_family_t *fam, metric_list_t metrics) {
   for (size_t i = 0; i < metrics.num; i++) {
     int status = metric_family_metric_append(fam, metrics.ptr[i]);
     if (status != 0) {
-      ERROR("resource_metrics: metric_family_metric_append failed: %s", STRERROR(status));
+      ERROR("resource_metrics: metric_family_metric_append failed: %s",
+            STRERROR(status));
       /* DO NOT RETURN: the metric list may be unsorted */
       last_err = status;
     }
