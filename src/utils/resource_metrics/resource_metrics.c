@@ -213,6 +213,7 @@ void resource_metrics_reset(resource_metrics_set_t *set) {
   for (size_t i = 0; i < set->num; i++) {
     resource_reset(&set->ptr[i]);
   }
+  free(set->ptr);
   set->ptr = NULL;
   set->num = 0;
 }
