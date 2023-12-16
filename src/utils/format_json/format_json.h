@@ -30,6 +30,7 @@
 #include "collectd.h"
 
 #include "plugin.h"
+#include "utils/resource_metrics/resource_metrics.h"
 #include "utils/strbuf/strbuf.h"
 
 #ifndef JSON_GAUGE_FORMAT
@@ -48,7 +49,7 @@ int format_json_metric_family(strbuf_t *buf, metric_family_t const *fam,
 int format_json_notification(char *buffer, size_t buffer_size,
                              notification_t const *n);
 
-int format_json_open_telemetry(strbuf_t *buf, metric_family_t const **families,
-                               size_t families_num);
+int format_json_open_telemetry(strbuf_t *buf,
+                               resource_metrics_set_t const *set);
 
 #endif /* UTILS_FORMAT_JSON_H */

@@ -477,7 +477,9 @@ noinst_LTLIBRARIES += libformat_json.la
 libformat_json_la_SOURCES = \
 	src/utils/format_json/format_json.c \
 	src/utils/format_json/format_json.h \
-	src/utils/format_json/open_telemetry.c
+	src/utils/format_json/open_telemetry.c \
+	src/utils/resource_metrics/resource_metrics.c \
+	src/utils/resource_metrics/resource_metrics.h
 libformat_json_la_CPPFLAGS  = $(AM_CPPFLAGS)
 libformat_json_la_LDFLAGS   = $(AM_LDFLAGS)
 libformat_json_la_LIBADD    = libmetric.la

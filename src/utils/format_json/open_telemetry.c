@@ -219,25 +219,27 @@ static int resource(yajl_gen g, label_set_t res) {
   return 0;
 }
 
-static int add_resource_metric(yajl_gen g, metric_family_t const *fam) {
+static int add_resource_metric(yajl_gen g, resource_metrics_t const *rm) {
   CHECK(yajl_gen_map_open(g)); /* BEGIN ResourceMetrics */
 
-  if (fam->resource.num > 0) {
+  if (rm->resource.num > 0) {
     CHECK(json_add_string(g, "resource"));
-    CHECK(resource(g, fam->resource));
+    CHECK(resource(g, rm->resource));
   }
 
   CHECK(json_add_string(g, "scopeMetrics"));
   CHECK(yajl_gen_array_open(g));
-  CHECK(scope_metrics(g, fam));
+  for (size_t i = 0; i < rm->families_num; i++) {
+    CHECK(scope_metrics(g, rm->families[i]));
+  }
   CHECK(yajl_gen_array_close(g));
 
   CHECK(yajl_gen_map_close(g)); /* END ResourceMetrics */
   return 0;
 }
 
-int format_json_open_telemetry(strbuf_t *buf, metric_family_t const **families,
-                               size_t families_num) {
+int format_json_open_telemetry(strbuf_t *buf,
+                               resource_metrics_set_t const *set) {
   if (buf->pos != 0) {
     ERROR("format_json_open_telemetry: buffer is not empty.");
     return EINVAL;
@@ -258,9 +260,9 @@ int format_json_open_telemetry(strbuf_t *buf, metric_family_t const **families,
   CHECK(yajl_gen_array_open(g));
 
   unsigned char const *out = NULL;
-  for (size_t i = 0; i < families_num; i++) {
-    metric_family_t const *fam = families[i];
-    add_resource_metric(g, fam);
+  for (size_t i = 0; i < set->num; i++) {
+    resource_metrics_t const *rm = set->ptr + i;
+    add_resource_metric(g, rm);
   }
 
   CHECK(yajl_gen_array_close(g));
