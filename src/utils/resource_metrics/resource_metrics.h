@@ -37,15 +37,20 @@ typedef struct {
   size_t families_num;
 } resource_metrics_t;
 
+/* resource_metrics_set_t is a set of metric families, grouped by resource
+ * attributes. Because the resource attributes are kept track of in
+ * resource_metrics_t, the metric_family_t.resource field is cleared and cannot
+ * be used. */
 typedef struct {
   resource_metrics_t *ptr;
   size_t num;
 } resource_metrics_set_t;
 
-/* resource_metrics_add adds a metric family to the resource metrics set.
+/* resource_metrics_add copies a metric family to the resource metrics set.
  * If any metric within the metric family is already part of the resource
  * metrics set, the function will return EEXIST and rm remains unmodified. */
-int resource_metrics_add(resource_metrics_set_t *rm, metric_family_t const *fam);
+int resource_metrics_add(resource_metrics_set_t *rm,
+                         metric_family_t const *fam);
 
 /* resource_metrics_reset frees all the memory held inside the set. set itself
  * is not freed and can be reused afterwards. */
