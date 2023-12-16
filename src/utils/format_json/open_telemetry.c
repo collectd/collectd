@@ -190,7 +190,7 @@ static int instrumentation_scope(yajl_gen g) {
   return 0;
 }
 
-static int scope_metrics(yajl_gen g, metric_family_t const *fam) {
+static int scope_metrics(yajl_gen g, resource_metrics_t const *rm) {
   CHECK(yajl_gen_map_open(g)); /* BEGIN ScopeMetrics */
 
   CHECK(json_add_string(g, "scope"));
@@ -198,7 +198,9 @@ static int scope_metrics(yajl_gen g, metric_family_t const *fam) {
 
   CHECK(json_add_string(g, "metrics"));
   CHECK(yajl_gen_array_open(g));
-  CHECK(metric(g, fam));
+  for (size_t i = 0; i < rm->families_num; i++) {
+    CHECK(metric(g, rm->families[i]));
+  }
   CHECK(yajl_gen_array_close(g));
 
   CHECK(yajl_gen_map_close(g)); /* END ScopeMetrics */
@@ -229,9 +231,7 @@ static int add_resource_metric(yajl_gen g, resource_metrics_t const *rm) {
 
   CHECK(json_add_string(g, "scopeMetrics"));
   CHECK(yajl_gen_array_open(g));
-  for (size_t i = 0; i < rm->families_num; i++) {
-    CHECK(scope_metrics(g, rm->families[i]));
-  }
+  CHECK(scope_metrics(g, rm));
   CHECK(yajl_gen_array_close(g));
 
   CHECK(yajl_gen_map_close(g)); /* END ResourceMetrics */
@@ -254,7 +254,6 @@ int format_json_open_telemetry(strbuf_t *buf,
   yajl_gen_config(g, yajl_gen_validate_utf8, 1);
 #endif
 
-  // TODO
   CHECK(yajl_gen_map_open(g)); /* BEGIN ExportMetricsServiceRequest */
   CHECK(json_add_string(g, "resourceMetrics"));
   CHECK(yajl_gen_array_open(g));

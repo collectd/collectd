@@ -310,32 +310,30 @@ DEF_TEST(open_telemetry) {
   CHECK_ZERO(metric_family_append(fams[1], "metric.label", "bar",
                                   (value_t){.counter = 31337}, NULL));
 
-  strbuf_t buf = STRBUF_CREATE;
-  CHECK_ZERO(
-      format_json_open_telemetry(&buf, (metric_family_t const **)fams, 2));
+  resource_metrics_set_t set = {0};
+  CHECK_ZERO(resource_metrics_add(&set, fams[0]));
+  CHECK_ZERO(resource_metrics_add(&set, fams[1]));
 
-  EXPECT_EQ_STR("{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":"
-                "\"service.name\",\"value\":{\"stringValue\":\"unit "
-                "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":"
-                "\"collectd\",\"version\":\"" PACKAGE_VERSION
-                "\"},\"metrics\":[{\"name\":\"unit.tests\",\"description\":"
-                "\"Example gauge "
-                "metric\",\"gauge\":{\"dataPoints\":[{\"attributes\":[{\"key\":"
-                "\"metric.label\",\"value\":{\"stringValue\":\"test "
-                "label\"}}],\"timeUnixNano\":0,\"asDouble\":42.0}]}}]}]},{"
-                "\"resource\":{\"attributes\":[{\"key\":\"service.name\","
-                "\"value\":{\"stringValue\":\"unit "
-                "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":"
-                "\"collectd\",\"version\":\"" PACKAGE_VERSION
-                "\"},\"metrics\":[{\"name\":\"unit.test.count\","
-                "\"description\":\"Example counter "
-                "metric\",\"sum\":{\"dataPoints\":[{\"attributes\":[{\"key\":"
-                "\"metric.label\",\"value\":{\"stringValue\":\"bar\"}}],"
-                "\"timeUnixNano\":0,\"asInt\":31337}],"
-                "\"aggregationTemporality\":\"2\",\"isMonotonic\":true}}]}]}]}",
-                buf.ptr);
+  strbuf_t buf = STRBUF_CREATE;
+  CHECK_ZERO(format_json_open_telemetry(&buf, &set));
+
+  EXPECT_EQ_STR(
+      "{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"service."
+      "name\",\"value\":{\"stringValue\":\"unit "
+      "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":\"collectd\","
+      "\"version\":\"5.12.0.383.ge714589+\"},\"metrics\":[{\"name\":\"unit."
+      "test.count\",\"description\":\"Example counter "
+      "metric\",\"sum\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
+      "label\",\"value\":{\"stringValue\":\"bar\"}}],\"timeUnixNano\":0,"
+      "\"asInt\":31337}],\"aggregationTemporality\":\"2\",\"isMonotonic\":true}"
+      "},{\"name\":\"unit.tests\",\"description\":\"Example gauge "
+      "metric\",\"gauge\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
+      "label\",\"value\":{\"stringValue\":\"test "
+      "label\"}}],\"timeUnixNano\":0,\"asDouble\":42.0}]}}]}]}]}",
+      buf.ptr);
 
   STRBUF_DESTROY(buf);
+  resource_metrics_reset(&set);
   label_set_reset(&fams[0]->resource);
   label_set_reset(&fams[1]->resource);
   metric_family_metric_reset(fams[0]);
