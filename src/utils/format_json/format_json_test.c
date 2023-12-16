@@ -321,7 +321,7 @@ DEF_TEST(open_telemetry) {
       "{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"service."
       "name\",\"value\":{\"stringValue\":\"unit "
       "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":\"collectd\","
-      "\"version\":\"5.12.0.383.ge714589+\"},\"metrics\":[{\"name\":\"unit."
+      "\"version\":\"" PACKAGE_VERSION "\"},\"metrics\":[{\"name\":\"unit."
       "test.count\",\"description\":\"Example counter "
       "metric\",\"sum\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
       "label\",\"value\":{\"stringValue\":\"bar\"}}],\"timeUnixNano\":0,"
