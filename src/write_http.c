@@ -585,6 +585,8 @@ static int config_set_format(wh_callback_t *cb, oconfig_item_t *ci) {
     cb->format = WH_FORMAT_KAIROSDB;
   else if (strcasecmp("INFLUXDB", string) == 0)
     cb->format = WH_FORMAT_INFLUXDB;
+  else if (strcasecmp("OTLP_JSON", string) == 0)
+    cb->format = WH_FORMAT_OTLP_JSON;
   else {
     ERROR("write_http plugin: Invalid format string: %s", string);
     return -1;

@@ -11257,7 +11257,8 @@ Password required to load the private key in B<ClientKey>.
 
 =item B<Header> I<Header>
 
-A HTTP header to add to the request.  Multiple headers are added if this option is specified more than once.  Example:
+A HTTP header to add to the request. Multiple headers are added if this option
+is specified more than once. Example:
 
   Header "X-Custom-Header: custom_value"
 
@@ -11267,14 +11268,36 @@ Define which SSL protocol version must be used. By default C<libcurl> will
 attempt to figure out the remote SSL protocol version. See
 L<curl_easy_setopt(3)> for more details.
 
-=item B<Format> B<Command>|B<JSON>|B<KAIROSDB>
+=item B<Format> B<Command>|B<JSON>|B<KairosDB>|B<InfluxDB>|B<OTLP_JSON>
 
-Format of the output to generate. If set to B<Command>, will create output that
-is understood by the I<Exec> and I<UnixSock> plugins. When set to B<JSON>, will
-create output in the I<JavaScript Object Notation> (JSON). When set to KAIROSDB
-, will create output in the KairosDB format.
+Choses the format in which to export data. Possible values are:
 
-Defaults to B<Command>.
+=over 4
+
+=item B<Command> (default)
+
+Output that is understood by the I<Exec> and I<UnixSock> plugins.
+
+=item B<JSON>
+
+collectd specific I<JavaScript Object Notation> (JSON) format.
+
+=item B<KairosDB>
+
+KairosDB is a Time Series Database based on Cassandra. This produces its JSON
+format.
+
+=item B<InfluxDB>
+
+InfluxDB is an open-source time series database. This produces its line
+protocol.
+
+=item B<OTLP_JSON>
+
+Producs OpenTelemetry's JSON format.
+L<https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding>
+
+=back
 
 =item B<Attribute> I<String> I<String>
 
