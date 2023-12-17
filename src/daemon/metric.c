@@ -458,6 +458,7 @@ void metric_family_free(metric_family_t *fam) {
 
   free(fam->name);
   free(fam->help);
+  free(fam->unit);
   label_set_reset(&fam->resource);
   metric_list_reset(&fam->metric);
   free(fam);
@@ -477,6 +478,9 @@ metric_family_t *metric_family_clone(metric_family_t const *fam) {
   ret->name = strdup(fam->name);
   if (fam->help != NULL) {
     ret->help = strdup(fam->help);
+  }
+  if (fam->unit != NULL) {
+    ret->unit = strdup(fam->unit);
   }
   ret->type = fam->type;
 
