@@ -495,7 +495,7 @@ static int wh_write_resource_metrics(metric_family_t const *fam,
   int status = resource_metrics_add(&cb->resource_metrics, fam);
   pthread_mutex_unlock(&cb->send_buffer_lock);
 
-  if (status != 0) {
+  if (status < 0) {
     ERROR("write_http plugin: resource_metrics_add failed: %s",
           STRERROR(status));
     return status;
