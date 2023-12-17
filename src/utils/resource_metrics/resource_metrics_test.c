@@ -27,8 +27,8 @@
 #include "testing.h"
 #include "utils/resource_metrics/resource_metrics.h"
 
-static metric_family_t *make_metric_family(int resource, int family,
-                                           int metric) {
+static metric_family_t *make_metric_family(int resource, int family, int metric,
+                                           int time) {
   metric_family_t *fam = calloc(1, sizeof(*fam));
 
   char name[64] = {0};
@@ -40,6 +40,8 @@ static metric_family_t *make_metric_family(int resource, int family,
 
   snprintf(name, sizeof(name), "metric%d", metric);
   metric_family_append(fam, "metric.name", name, (value_t){.gauge = 42}, NULL);
+
+  fam->metric.ptr[0].time = (cdtime_t)time;
 
   return fam;
 }
@@ -59,7 +61,7 @@ DEF_TEST(resource_metrics_add) {
   resource_metrics_set_t set = {0};
   metric_family_t *fam;
 
-  CHECK_NOT_NULL(fam = make_metric_family(1, 1, 1));
+  CHECK_NOT_NULL(fam = make_metric_family(1, 1, 1, 1));
   CHECK_ZERO(resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(1, set.num);
   EXPECT_EQ_INT(1, count_metrics(set));
@@ -71,7 +73,7 @@ DEF_TEST(resource_metrics_add) {
 
   /* adding the same metric (but with a different resource attribute) should
    * succeed. */
-  CHECK_NOT_NULL(fam = make_metric_family(2, 1, 1));
+  CHECK_NOT_NULL(fam = make_metric_family(2, 1, 1, 1));
   CHECK_ZERO(resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(2, count_metrics(set));
@@ -82,7 +84,7 @@ DEF_TEST(resource_metrics_add) {
   metric_family_free(fam);
 
   /* adding a different metric family to an existing resource should work. */
-  CHECK_NOT_NULL(fam = make_metric_family(1, 2, 1));
+  CHECK_NOT_NULL(fam = make_metric_family(1, 2, 1, 1));
   CHECK_ZERO(resource_metrics_add(&set, fam));
   /* reuses existing resource */
   EXPECT_EQ_INT(2, set.num);
@@ -94,7 +96,7 @@ DEF_TEST(resource_metrics_add) {
   metric_family_free(fam);
 
   /* adding a different metric to an existing metric family should work. */
-  CHECK_NOT_NULL(fam = make_metric_family(1, 1, 2));
+  CHECK_NOT_NULL(fam = make_metric_family(1, 1, 2, 1));
   CHECK_ZERO(resource_metrics_add(&set, fam));
   /* reuses existing resource */
   EXPECT_EQ_INT(2, set.num);
@@ -105,6 +107,18 @@ DEF_TEST(resource_metrics_add) {
   EXPECT_EQ_INT(4, count_metrics(set));
   metric_family_free(fam);
 
+  /* adding a the same metric with a different time stamp should work. */
+  CHECK_NOT_NULL(fam = make_metric_family(1, 1, 1, 2));
+  CHECK_ZERO(resource_metrics_add(&set, fam));
+  /* reuses existing resource */
+  EXPECT_EQ_INT(2, set.num);
+  EXPECT_EQ_INT(5, count_metrics(set));
+  /* adding the same metric twice should return EEXIST. */
+  EXPECT_EQ_INT(EEXIST, resource_metrics_add(&set, fam));
+  EXPECT_EQ_INT(2, set.num);
+  EXPECT_EQ_INT(5, count_metrics(set));
+  metric_family_free(fam);
+
   resource_metrics_reset(&set);
 
   /* adding 1000 distinct metrics. */
@@ -113,8 +127,8 @@ DEF_TEST(resource_metrics_add) {
     for (int j = 0; j < 10; j++) {
       for (int k = 0; k < 10; k++) {
         /* add metrics in "random" order */
-        CHECK_NOT_NULL(
-            fam = make_metric_family((i * 7) % 10, (j * 7) % 10, (k * 7) % 10));
+        CHECK_NOT_NULL(fam = make_metric_family((i * 7) % 10, (j * 7) % 10,
+                                                (k * 7) % 10, 1));
         EXPECT_EQ_INT(0, resource_metrics_add(&set, fam));
         want_metrics_count++;
         EXPECT_EQ_INT(want_metrics_count, count_metrics(set));

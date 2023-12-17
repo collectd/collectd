@@ -145,7 +145,18 @@ static metric_family_t *lookup_or_insert_family(resource_metrics_t *rm,
 }
 
 static int compare_metrics(metric_t const *a, metric_t const *b) {
-  return label_set_compare(a->label, b->label);
+  int cmp = label_set_compare(a->label, b->label);
+  if (cmp != 0) {
+    return cmp;
+  }
+
+  if (a->time < b->time) {
+    return -1;
+  } else if (a->time > b->time) {
+    return 1;
+  }
+
+  return 0;
 }
 
 static bool metric_exists(metric_family_t const *fam, metric_t const *m) {
