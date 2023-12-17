@@ -149,6 +149,7 @@ static void wh_log_http_error(wh_callback_t *cb) {
 static int wh_post(wh_callback_t *cb, char const *data, long size) {
   pthread_mutex_lock(&cb->curl_lock);
 
+  cb->response_buffer_pos = 0;
   curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDSIZE, size);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
