@@ -188,7 +188,10 @@ static int ot_write(metric_family_t const *fam, user_data_t *user_data) {
   int status = resource_metrics_add(&cb->resource_metrics, fam);
   pthread_mutex_unlock(&cb->mu);
 
-  return status;
+  if (status < 0) {
+    return status;
+  }
+  return 0;
 }
 
 static int ot_config_node(oconfig_item_t *ci) {
