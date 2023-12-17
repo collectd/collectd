@@ -36,6 +36,7 @@
 #include "filter_chain.h"
 #include "plugin.h"
 #include "resource.h"
+#include "unit.h"
 #include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 #include "utils/heap/heap.h"
@@ -2109,6 +2110,7 @@ EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
   }
 
   set_default_resource_attributes(fam_copy);
+  fam_copy->unit = default_unit(fam_copy);
 
   cdtime_t time = cdtime();
   cdtime_t interval = plugin_get_interval();
