@@ -440,33 +440,33 @@ static void aggregate(gauge_t *sum_by_state) /* {{{ */
  * current rate; each rate may be NAN. Calculates the percentage of each state
  * and dispatches the metric. */
 static void cpu_commit_one(int cpu_num, /* {{{ */
-                           gauge_t rates[static COLLECTD_CPU_STATE_MAX]) {
+                           gauge_t rates[static COLLECTD_CPU_STATE_MAX],
+                           gauge_t global_rate_sum) {
   metric_family_t fam = {
       .name = "system.cpu.utilization",
+      .help = "Difference in system.cpu.time since the last measurement, "
+              "divided by the elapsed time and number of logical CPUs",
+      .unit = "1",
       .type = METRIC_TYPE_GAUGE,
   };
 
   metric_t m = {0};
-  if (cpu_num == -1) {
-    metric_label_set(&m, "cpu", "total");
-  } else {
+  if (cpu_num != -1) {
     char cpu_num_str[32];
     ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%d", cpu_num);
-    metric_label_set(&m, "cpu", cpu_num_str);
+    metric_label_set(&m, "system.cpu.logical_number", cpu_num_str);
   }
 
-  gauge_t sum = rates[COLLECTD_CPU_STATE_ACTIVE];
-  RATE_ADD(sum, rates[COLLECTD_CPU_STATE_IDLE]);
-
   if (!report_by_state) {
-    m.value.gauge = 100.0 * rates[COLLECTD_CPU_STATE_ACTIVE] / sum;
-    metric_label_set(&m, "state", cpu_state_names[COLLECTD_CPU_STATE_ACTIVE]);
-    metric_family_metric_append(&fam, m);
+    metric_family_append(
+        &fam, "system.cpu.state", cpu_state_names[COLLECTD_CPU_STATE_ACTIVE],
+        (value_t){.gauge = rates[COLLECTD_CPU_STATE_ACTIVE] / global_rate_sum},
+        &m);
   } else {
     for (size_t state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
-      m.value.gauge = 100.0 * rates[state] / sum;
-      metric_label_set(&m, "state", cpu_state_names[state]);
-      metric_family_metric_append(&fam, m);
+      metric_family_append(&fam, "system.cpu.state", cpu_state_names[state],
+                           (value_t){.gauge = rates[state] / global_rate_sum},
+                           &m);
     }
   }
 
@@ -485,7 +485,10 @@ static void cpu_commit_one(int cpu_num, /* {{{ */
 static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
 {
   metric_family_t fam = {
-      .name = "cpu_count",
+      .name = "system.cpu.logical.count",
+      .help = "Reports the number of logical (virtual) processor cores created "
+              "by the operating system to manage multitasking",
+      .unit = "{cpu}",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_metric_append(&fam, (metric_t){
@@ -516,6 +519,8 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 {
   metric_family_t fam = {
       .name = "system.cpu.time",
+      .help = "Seconds each logical CPU spent on each mode",
+      .unit = "s",
       .type = METRIC_TYPE_COUNTER,
   };
 
@@ -526,17 +531,14 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 
     for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
       cpu_state_t *s = get_cpu_state(cpu_num, state);
-
       if (!s->has_value)
         continue;
 
       char cpu_num_str[32] = {0};
       ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
-      metric_label_set(&m, "cpu", cpu_num_str);
 
-      m.value.derive = s->conv.last_value.derive;
-
-      metric_family_metric_append(&fam, m);
+      metric_family_append(&fam, "cpu", cpu_num_str,
+                           (value_t){.derive = s->conv.last_value.derive}, &m);
     }
   }
 
@@ -566,8 +568,11 @@ static void cpu_commit(void) /* {{{ */
 
   aggregate(global_rates);
 
+  gauge_t global_rate_sum = global_rates[COLLECTD_CPU_STATE_ACTIVE];
+  RATE_ADD(global_rate_sum, global_rates[COLLECTD_CPU_STATE_IDLE]);
+
   if (!report_by_cpu) {
-    cpu_commit_one(-1, global_rates);
+    cpu_commit_one(-1, global_rates, global_rate_sum);
     return;
   }
 
@@ -580,7 +585,7 @@ static void cpu_commit(void) /* {{{ */
       if (this_cpu_states[state].has_value)
         local_rates[state] = this_cpu_states[state].rate;
 
-    cpu_commit_one((int)cpu_num, local_rates);
+    cpu_commit_one((int)cpu_num, local_rates, global_rate_sum);
   }
 } /* }}} void cpu_commit */
 
