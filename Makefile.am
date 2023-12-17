@@ -250,6 +250,8 @@ collectd_SOURCES = \
 	src/daemon/resource.h \
 	src/daemon/types_list.c \
 	src/daemon/types_list.h \
+	src/daemon/unit.c \
+	src/daemon/unit.h \
 	src/daemon/utils_cache.c \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
