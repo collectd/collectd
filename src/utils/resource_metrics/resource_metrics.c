@@ -167,32 +167,42 @@ static bool metric_exists(metric_family_t const *fam, metric_t const *m) {
 }
 
 static int insert_metrics(metric_family_t *fam, metric_list_t metrics) {
+  int skipped = 0;
   for (size_t i = 0; i < metrics.num; i++) {
-    if (metric_exists(fam, metrics.ptr + i)) {
-      return EEXIST;
-    }
-  }
+    metric_t const *m = metrics.ptr + i;
 
-  int last_err = 0;
-  for (size_t i = 0; i < metrics.num; i++) {
-    int status = metric_family_metric_append(fam, metrics.ptr[i]);
+    if (metric_exists(fam, m)) {
+#if COLLECT_DEBUG
+      strbuf_t buf = STRBUF_CREATE;
+      metric_identity(&buf, m);
+      DEBUG("resource_metrics: Skipping duplicate of metric %s", buf.ptr);
+      STRBUF_DESTROY(buf);
+#endif
+      skipped++;
+      continue;
+    }
+
+    int status = metric_family_metric_append(fam, *m);
     if (status != 0) {
       ERROR("resource_metrics: metric_family_metric_append failed: %s",
             STRERROR(status));
       /* DO NOT RETURN: the metric list may be unsorted */
-      last_err = status;
+      skipped++;
     }
   }
 
-  qsort(fam->metric.ptr, fam->metric.num, sizeof(*fam->metric.ptr),
-        (void *)compare_metrics);
-  return last_err;
+  if (((size_t)skipped) != metrics.num) {
+    qsort(fam->metric.ptr, fam->metric.num, sizeof(*fam->metric.ptr),
+          (void *)compare_metrics);
+  }
+
+  return skipped;
 }
 
 int resource_metrics_add(resource_metrics_set_t *set,
                          metric_family_t const *fam) {
   if (set == NULL || fam == NULL) {
-    return EINVAL;
+    return -1;
   }
 
   resource_metrics_t *rm = lookup_or_insert_resource(set, fam->resource);

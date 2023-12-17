@@ -47,8 +47,14 @@ typedef struct {
 } resource_metrics_set_t;
 
 /* resource_metrics_add copies a metric family to the resource metrics set.
- * If any metric within the metric family is already part of the resource
- * metrics set, the function will return EEXIST and rm remains unmodified. */
+ * Identical metrics are skipped and not added to the set. Metrics are
+ * identical, if their resource attributes, metric family name, metric labels,
+ * and time stamp are equal.
+ * Returns the number of metrics that were skipped or -1 on error. That means
+ * that zero indicates complete success, a positive number indicates partial
+ * success, and a negative number indicates an error condition. The number of
+ * skipped entries may be equal to the total number of metrics provided; this is
+ * not indicated as an error. */
 int resource_metrics_add(resource_metrics_set_t *rm,
                          metric_family_t const *fam);
 

@@ -65,20 +65,20 @@ DEF_TEST(resource_metrics_add) {
   CHECK_ZERO(resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(1, set.num);
   EXPECT_EQ_INT(1, count_metrics(set));
-  /* adding the same familiy twice should return EEXIST. */
-  EXPECT_EQ_INT(EEXIST, resource_metrics_add(&set, fam));
+  /* adding the same metric twice should return one skipped metric. */
+  EXPECT_EQ_INT(1, resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(1, set.num);
   EXPECT_EQ_INT(1, count_metrics(set));
   metric_family_free(fam);
 
-  /* adding the same metric (but with a different resource attribute) should
+  /* adding the same metric family with different resource attributes should
    * succeed. */
   CHECK_NOT_NULL(fam = make_metric_family(2, 1, 1, 1));
   CHECK_ZERO(resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(2, count_metrics(set));
-  /* adding the same familiy twice should return EEXIST. */
-  EXPECT_EQ_INT(EEXIST, resource_metrics_add(&set, fam));
+  /* adding the same metric twice should return one skipped metric. */
+  EXPECT_EQ_INT(1, resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(2, count_metrics(set));
   metric_family_free(fam);
@@ -89,8 +89,8 @@ DEF_TEST(resource_metrics_add) {
   /* reuses existing resource */
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(3, count_metrics(set));
-  /* adding the same familiy twice should return EEXIST. */
-  EXPECT_EQ_INT(EEXIST, resource_metrics_add(&set, fam));
+  /* adding the same metric twice should return one skipped metric. */
+  EXPECT_EQ_INT(1, resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(3, count_metrics(set));
   metric_family_free(fam);
@@ -101,8 +101,8 @@ DEF_TEST(resource_metrics_add) {
   /* reuses existing resource */
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(4, count_metrics(set));
-  /* adding the same familiy twice should return EEXIST. */
-  EXPECT_EQ_INT(EEXIST, resource_metrics_add(&set, fam));
+  /* adding the same metric twice should return one skipped metric. */
+  EXPECT_EQ_INT(1, resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(4, count_metrics(set));
   metric_family_free(fam);
@@ -113,8 +113,8 @@ DEF_TEST(resource_metrics_add) {
   /* reuses existing resource */
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(5, count_metrics(set));
-  /* adding the same metric twice should return EEXIST. */
-  EXPECT_EQ_INT(EEXIST, resource_metrics_add(&set, fam));
+  /* adding the same metric twice should return one skipped metric. */
+  EXPECT_EQ_INT(1, resource_metrics_add(&set, fam));
   EXPECT_EQ_INT(2, set.num);
   EXPECT_EQ_INT(5, count_metrics(set));
   metric_family_free(fam);
