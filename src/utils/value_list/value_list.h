@@ -128,4 +128,6 @@ metric_family_t *plugin_value_list_to_metric_family(value_list_t const *vl,
                                                     data_set_t const *ds,
                                                     size_t index);
 
+int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
+
 #endif

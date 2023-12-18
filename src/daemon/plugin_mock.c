@@ -119,8 +119,6 @@ DECLARE_UNREGISTER(data_set)
 DECLARE_UNREGISTER(log)
 DECLARE_UNREGISTER(notification)
 
-int plugin_dispatch_values(value_list_t const *vl) { return ENOTSUP; }
-
 int plugin_dispatch_metric_family(metric_family_t const *fam) {
   return ENOTSUP;
 }

@@ -331,7 +331,6 @@ int format_name(char *ret, int ret_len, const char *hostname,
 int format_values(strbuf_t *buf, metric_t const *m, bool store_rates);
 
 int parse_value(const char *value, value_t *ret_value, int ds_type);
-int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
 
 /* parse_value_file reads "path" and parses its content as an integer or
  * floating point, depending on "ds_type". On success, the value is stored in
