@@ -24,8 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "utils/value_list/value_list.h"
 #include "testing.h"
+#include "utils/value_list/value_list.h"
 
 DEF_TEST(parse_values) {
   struct {
