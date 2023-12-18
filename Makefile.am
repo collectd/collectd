@@ -259,7 +259,9 @@ collectd_SOURCES = \
 	src/daemon/utils_threshold.c \
 	src/daemon/utils_threshold.h \
 	src/daemon/utils_time.c \
-	src/daemon/utils_time.h
+	src/daemon/utils_time.h \
+	src/utils/value_list/value_list.c \
+	src/utils/value_list/value_list.h
 
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_CPPFLAGS = $(AM_CPPFLAGS)
