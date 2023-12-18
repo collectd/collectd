@@ -238,6 +238,8 @@ collectd_SOURCES = \
 	src/daemon/collectd.h \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
+	src/daemon/data_set.c \
+	src/daemon/data_set.h \
 	src/daemon/filter_chain.c \
 	src/daemon/filter_chain.h \
 	src/daemon/globals.c \

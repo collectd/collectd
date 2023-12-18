@@ -86,21 +86,6 @@ struct identifier_s {
 };
 typedef struct identifier_s identifier_t;
 
-struct data_source_s {
-  char name[DATA_MAX_NAME_LEN];
-  int type;
-  double min;
-  double max;
-};
-typedef struct data_source_s data_source_t;
-
-struct data_set_s {
-  char type[DATA_MAX_NAME_LEN];
-  size_t ds_num;
-  data_source_t *ds;
-};
-typedef struct data_set_s data_set_t;
-
 enum notification_meta_type_e {
   NM_TYPE_STRING,
   NM_TYPE_SIGNED_INT,
@@ -276,7 +261,6 @@ int plugin_register_cache_event(const char *name,
                                 plugin_cache_event_cb callback,
                                 user_data_t const *ud);
 int plugin_register_shutdown(const char *name, plugin_shutdown_cb callback);
-int plugin_register_data_set(const data_set_t *ds);
 int plugin_register_log(const char *name, plugin_log_cb callback,
                         user_data_t const *user_data);
 int plugin_register_notification(const char *name,
@@ -293,7 +277,6 @@ int plugin_unregister_flush(const char *name);
 int plugin_unregister_missing(const char *name);
 int plugin_unregister_cache_event(const char *name);
 int plugin_unregister_shutdown(const char *name);
-int plugin_unregister_data_set(const char *name);
 int plugin_unregister_log(const char *name);
 int plugin_unregister_notification(const char *name);
 
@@ -358,8 +341,6 @@ void daemon_log(int level, const char *format, ...)
 #define P_WARNING(...) daemon_log(LOG_WARNING, __VA_ARGS__)
 #define P_NOTICE(...) daemon_log(LOG_NOTICE, __VA_ARGS__)
 #define P_INFO(...) daemon_log(LOG_INFO, __VA_ARGS__)
-
-const data_set_t *plugin_get_ds(const char *name);
 
 int plugin_notification_meta_add_string(notification_t *n, const char *name,
                                         const char *value);

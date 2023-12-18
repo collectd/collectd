@@ -1,5 +1,5 @@
 /**
- * collectd - src/plugin.c
+ * collectd - src/daemon/plugin.c
  * Copyright (C) 2005-2014  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -32,6 +32,7 @@
 #include "collectd.h"
 
 #include "configfile.h"
+#include "daemon/data_set.h"
 #include "filter_chain.h"
 #include "plugin.h"
 #include "resource.h"
@@ -149,8 +150,6 @@ static cache_event_func_t list_cache_event[32];
 
 static fc_chain_t *pre_cache_chain;
 static fc_chain_t *post_cache_chain;
-
-static c_avl_tree_t *data_sets;
 
 static char *plugindir;
 
@@ -1409,54 +1408,6 @@ EXPORT int plugin_register_shutdown(const char *name, int (*callback)(void)) {
   return create_register_callback(&list_shutdown, name, (void *)callback, NULL);
 } /* int plugin_register_shutdown */
 
-static void plugin_free_data_sets(void) {
-  void *key;
-  void *value;
-
-  if (data_sets == NULL)
-    return;
-
-  while (c_avl_pick(data_sets, &key, &value) == 0) {
-    data_set_t *ds = value;
-    /* key is a pointer to ds->type */
-
-    sfree(ds->ds);
-    sfree(ds);
-  }
-
-  c_avl_destroy(data_sets);
-  data_sets = NULL;
-} /* void plugin_free_data_sets */
-
-EXPORT int plugin_register_data_set(const data_set_t *ds) {
-  data_set_t *ds_copy;
-
-  if ((data_sets != NULL) && (c_avl_get(data_sets, ds->type, NULL) == 0)) {
-    NOTICE("Replacing DS `%s' with another version.", ds->type);
-    plugin_unregister_data_set(ds->type);
-  } else if (data_sets == NULL) {
-    data_sets = c_avl_create((int (*)(const void *, const void *))strcmp);
-    if (data_sets == NULL)
-      return -1;
-  }
-
-  ds_copy = malloc(sizeof(*ds_copy));
-  if (ds_copy == NULL)
-    return -1;
-  memcpy(ds_copy, ds, sizeof(data_set_t));
-
-  ds_copy->ds = malloc(sizeof(*ds_copy->ds) * ds->ds_num);
-  if (ds_copy->ds == NULL) {
-    sfree(ds_copy);
-    return -1;
-  }
-
-  for (size_t i = 0; i < ds->ds_num; i++)
-    memcpy(ds_copy->ds + i, ds->ds + i, sizeof(data_source_t));
-
-  return c_avl_insert(data_sets, (void *)ds_copy->type, (void *)ds_copy);
-} /* int plugin_register_data_set */
-
 EXPORT int plugin_register_log(const char *name, plugin_log_cb callback,
                                user_data_t const *ud) {
   return create_register_callback(&list_log, name, (void *)callback, ud);
@@ -1732,21 +1683,6 @@ static void destroy_cache_event_callbacks() {
 EXPORT int plugin_unregister_shutdown(const char *name) {
   return plugin_unregister(list_shutdown, name);
 }
-
-EXPORT int plugin_unregister_data_set(const char *name) {
-  data_set_t *ds;
-
-  if (data_sets == NULL)
-    return -1;
-
-  if (c_avl_remove(data_sets, name, NULL, (void *)&ds) != 0)
-    return -1;
-
-  sfree(ds->ds);
-  sfree(ds);
-
-  return 0;
-} /* int plugin_unregister_data_set */
 
 EXPORT int plugin_unregister_log(const char *name) {
   return plugin_unregister(list_log, name);
@@ -2320,22 +2256,6 @@ EXPORT int parse_notif_severity(const char *severity) {
 
   return notif_severity;
 } /* int parse_notif_severity */
-
-EXPORT const data_set_t *plugin_get_ds(const char *name) {
-  data_set_t *ds;
-
-  if (data_sets == NULL) {
-    P_ERROR("plugin_get_ds: No data sets are defined yet.");
-    return NULL;
-  }
-
-  if (c_avl_get(data_sets, name, (void *)&ds) != 0) {
-    DEBUG("No such dataset registered: %s", name);
-    return NULL;
-  }
-
-  return ds;
-} /* data_set_t *plugin_get_ds */
 
 static int plugin_notification_meta_add(notification_t *n, const char *name,
                                         enum notification_meta_type_e type,
