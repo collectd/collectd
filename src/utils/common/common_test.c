@@ -361,6 +361,27 @@ DEF_TEST(format_values) {
   return 0;
 }
 
+DEF_TEST(string_has_suffix) {
+  struct {
+    char const *s;
+    char const *suffix;
+    bool want;
+  } cases[] = {
+    {"foo.bar", "bar", true},
+    {"foo.qux", "bar", false},
+    {"foo.Bar", "bar", false},
+    {"foo", "foo", true},
+    {"foo", "foo.bar", false},
+    {"foo", NULL, false},
+    {NULL, "foo", false},
+  };
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    EXPECT_EQ_INT(cases[i].want, string_has_suffix(cases[i].s, cases[i].suffix));
+  }
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(sstrncpy);
   RUN_TEST(sstrdup);
@@ -371,6 +392,7 @@ int main(void) {
   RUN_TEST(strunescape);
   RUN_TEST(value_to_rate);
   RUN_TEST(format_values);
+  RUN_TEST(string_has_suffix);
 
   END_TEST;
 }

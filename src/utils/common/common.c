@@ -423,6 +423,21 @@ int strjoin(char *buffer, size_t buffer_size, char **fields, size_t fields_num,
   return (int)buffer_req;
 }
 
+bool string_has_suffix(char const *s, char const *suffix) {
+  if (s == NULL || suffix == NULL) {
+    return false;
+  }
+
+  size_t s_len = strlen(s);
+  size_t suffix_len = strlen(suffix);
+  if (s_len < suffix_len) {
+    return false;
+  }
+
+  s += (s_len - suffix_len);
+  return strcmp(s, suffix) == 0;
+}
+
 int escape_string(char *buffer, size_t buffer_size) {
   char *temp;
   size_t j;
