@@ -179,7 +179,6 @@ int strsplit(char *string, char **fields, size_t size);
 int strjoin(char *dst, size_t dst_len, char **fields, size_t fields_num,
             const char *sep);
 
-
 /* string_has_suffix returns true if s ends with suffix. If either s or suffix
  * are NULL, false is returned. */
 bool string_has_suffix(char const *s, char const *suffix);

@@ -367,16 +367,14 @@ DEF_TEST(string_has_suffix) {
     char const *suffix;
     bool want;
   } cases[] = {
-    {"foo.bar", "bar", true},
-    {"foo.qux", "bar", false},
-    {"foo.Bar", "bar", false},
-    {"foo", "foo", true},
-    {"foo", "foo.bar", false},
-    {"foo", NULL, false},
-    {NULL, "foo", false},
+      {"foo.bar", "bar", true},  {"foo.qux", "bar", false},
+      {"foo.Bar", "bar", false}, {"foo", "foo", true},
+      {"foo", "foo.bar", false}, {"foo", NULL, false},
+      {NULL, "foo", false},
   };
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
-    EXPECT_EQ_INT(cases[i].want, string_has_suffix(cases[i].s, cases[i].suffix));
+    EXPECT_EQ_INT(cases[i].want,
+                  string_has_suffix(cases[i].s, cases[i].suffix));
   }
 
   return 0;
