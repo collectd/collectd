@@ -159,6 +159,7 @@ check_PROGRAMS = \
 	test_utils_latency \
 	test_utils_message_parser \
 	test_utils_mount \
+	test_utils_resource_metrics \
 	test_utils_strbuf \
 	test_utils_subst \
 	test_utils_time \
@@ -382,6 +383,13 @@ test_utils_message_parser_SOURCES = \
 	src/utils/latency/latency_config.c src/utils/latency/latency_config.h
 test_utils_message_parser_CPPFLAGS = $(AM_CPPFLAGS)
 test_utils_message_parser_LDADD = liboconfig.la libplugin_mock.la -lm
+
+test_utils_resource_metrics_SOURCES = \
+	src/utils/resource_metrics/resource_metrics_test.c \
+	src/utils/resource_metrics/resource_metrics.c \
+	src/utils/resource_metrics/resource_metrics.h \
+	src/testing.h
+test_utils_resource_metrics_LDADD = libmetric.la libplugin_mock.la
 
 test_utils_time_SOURCES = \
 	src/daemon/utils_time_test.c \

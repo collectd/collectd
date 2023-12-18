@@ -83,6 +83,15 @@ int label_set_add(label_set_t *labels, char const *name, char const *value);
  * initializes the label set to zero. */
 void label_set_reset(label_set_t *labels);
 
+/* label_set_compare compares two label sets. It returns an integer indicating
+ * the result of the comparison, as follows:
+ *
+ *   - 0, if the a and b are equal;
+ *   - a negative value if a is less than b;
+ *   - a positive value if a is greater than b.
+ */
+int label_set_compare(label_set_t a, label_set_t b);
+
 /*
  * Metric
  */
@@ -189,5 +198,15 @@ void metric_family_free(metric_family_t *fam);
  * errno is set and NULL is returned. The returned pointer must be freed with
  * metric_family_free(). */
 metric_family_t *metric_family_clone(metric_family_t const *fam);
+
+/* metric_family_compare compares two metric families, taking into account the
+ * metric family name and any resource attributes. It returns an integer
+ * indicating the result of the comparison, as follows:
+ *
+ *   - 0, if the a and b are equal;
+ *   - a negative value if a is less than b;
+ *   - a positive value if a is greater than b.
+ */
+int metric_family_compare(metric_family_t const *a, metric_family_t const *b);
 
 #endif

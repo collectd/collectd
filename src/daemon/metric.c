@@ -59,7 +59,7 @@ int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   }
 }
 
-static int label_pair_compare(void const *a, void const *b) {
+static int label_name_compare(void const *a, void const *b) {
   return strcmp(((label_pair_t const *)a)->name,
                 ((label_pair_t const *)b)->name);
 }
@@ -79,7 +79,7 @@ static label_pair_t *label_set_read(label_set_t const *labels,
   };
 
   label_pair_t *ret = bsearch(&label, labels->ptr, labels->num,
-                              sizeof(*labels->ptr), label_pair_compare);
+                              sizeof(*labels->ptr), label_name_compare);
   if (ret == NULL) {
     errno = ENOENT;
     return NULL;
@@ -132,7 +132,7 @@ int label_set_add(label_set_t *labels, char const *name, char const *value) {
   labels->ptr[labels->num] = pair;
   labels->num++;
 
-  qsort(labels->ptr, labels->num, sizeof(*labels->ptr), label_pair_compare);
+  qsort(labels->ptr, labels->num, sizeof(*labels->ptr), label_name_compare);
   return 0;
 }
 
@@ -687,4 +687,37 @@ metric_t *metric_parse_identity(char const *buf) {
   }
 
   return fam->metric.ptr;
+}
+
+static int label_pair_compare(label_pair_t a, label_pair_t b) {
+  int cmp = strcmp(a.name, b.name);
+  if (cmp != 0) {
+    return cmp;
+  }
+
+  return strcmp(a.value, b.value);
+}
+
+int label_set_compare(label_set_t a, label_set_t b) {
+  if (a.num != b.num) {
+    return a.num < b.num ? -1 : 1;
+  }
+
+  for (size_t i = 0; i < a.num; i++) {
+    int cmp = label_pair_compare(a.ptr[i], b.ptr[i]);
+    if (cmp != 0) {
+      return cmp;
+    }
+  }
+
+  return 0;
+}
+
+int metric_family_compare(metric_family_t const *a, metric_family_t const *b) {
+  int cmp = strcmp(a->name, b->name);
+  if (cmp != 0) {
+    return cmp;
+  }
+
+  return label_set_compare(a->resource, b->resource);
 }
