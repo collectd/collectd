@@ -408,6 +408,9 @@ plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
     }
     status = status || metric_label_set(&m, name, vl->type_instance);
   }
+  if (strlen(vl->plugin_instance) == 0 && strlen(vl->type_instance) == 0) {
+    status = status || metric_label_set(&m, "plugin", vl->plugin);
+  }
 
   status = status || metric_family_metric_append(fam, m);
   if (status != 0) {
