@@ -384,8 +384,7 @@ test_utils_message_parser_SOURCES = \
 	src/utils/tail/tail.c src/utils/tail/tail.h \
 	src/utils/match/match.c src/utils/match/match.h \
 	src/utils/latency/latency.c src/utils/latency/latency.h \
-	src/utils/latency/latency_config.c src/utils/latency/latency_config.h \
-	src/utils/value_list/value_list.c src/utils/value_list/value_list.h
+	src/utils/latency/latency_config.c src/utils/latency/latency_config.h
 test_utils_message_parser_CPPFLAGS = $(AM_CPPFLAGS)
 test_utils_message_parser_LDADD = liboconfig.la libplugin_mock.la -lm
 
@@ -448,7 +447,9 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
 	src/daemon/utils_time.c \
-	src/daemon/utils_time.h
+	src/daemon/utils_time.h \
+	src/utils/value_list/value_list.c \
+	src/utils/value_list/value_list.h
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libcommon.la libignorelist.la libmetadata.la $(COMMON_LIBS)
@@ -498,9 +499,7 @@ test_format_json_LDADD = \
 endif
 
 if BUILD_PLUGIN_CEPH
-test_plugin_ceph_SOURCES = src/ceph_test.c \
-			   src/utils/value_list/value_list.c \
-			   src/utils/value_list/value_list.h
+test_plugin_ceph_SOURCES = src/ceph_test.c
 test_plugin_ceph_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 test_plugin_ceph_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 test_plugin_ceph_LDADD = libplugin_mock.la $(BUILD_WITH_LIBYAJL_LIBS)
@@ -547,8 +546,6 @@ libcmds_la_LIBADD = -lm
 
 test_utils_cmds_SOURCES = \
 	src/utils/cmds/cmds_test.c \
-	src/utils/value_list/value_list.c \
-	src/utils/value_list/value_list.h \
 	src/testing.h
 test_utils_cmds_LDADD = \
 	libcmds.la \
@@ -953,9 +950,7 @@ curl_json_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
 test_plugin_curl_json_SOURCES = src/curl_json_test.c \
 				src/daemon/configfile.c \
 				src/daemon/types_list.c \
-				src/utils/curl_stats/curl_stats.c \
-				src/utils/value_list/value_list.c \
-				src/utils/value_list/value_list.h
+				src/utils/curl_stats/curl_stats.c
 test_plugin_curl_json_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 test_plugin_curl_json_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 test_plugin_curl_json_LDADD = libavltree.la liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
@@ -1227,9 +1222,7 @@ test_plugin_intel_rdt_SOURCES = \
 	src/daemon/configfile.c \
 	src/daemon/types_list.c \
 	src/utils/config_cores/config_cores.c \
-	src/utils/proc_pids/proc_pids.c \
-	src/utils/value_list/value_list.c \
-	src/utils/value_list/value_list.h
+	src/utils/proc_pids/proc_pids.c
 test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
 test_plugin_intel_rdt_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBPQOS_LIBS)
@@ -1356,9 +1349,7 @@ test_plugin_logparser_SOURCES = src/logparser_test.c \
        src/utils/match/match.c src/utils/match/match.h \
        src/utils/message_parser/message_parser.c \
        src/utils_tail_match.c src/utils_tail_match.h \
-       src/utils/tail/tail.c src/utils/tail/tail.h \
-       src/utils/value_list/value_list.c \
-       src/utils/value_list/value_list.h
+       src/utils/tail/tail.c src/utils/tail/tail.h
 test_plugin_logparser_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_logparser_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_logparser_LDADD = liboconfig.la libplugin_mock.la liblatency.la
