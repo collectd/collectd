@@ -26,18 +26,7 @@
 
 #include "collectd.h"
 #include "daemon/unit.h"
-
-static bool string_has_suffix(char const *s, char const *suffix) {
-  size_t s_len = strlen(s);
-  size_t suffix_len = strlen(suffix);
-
-  if (s_len < suffix_len) {
-    return false;
-  }
-
-  s += (s_len - suffix_len);
-  return strcmp(s, suffix) == 0;
-}
+#include "utils/common/common.h"
 
 static char const *default_unit_static(metric_family_t const *fam) {
   // Determine units for some well-known name suffixes, see:
