@@ -28,8 +28,8 @@
 
 #include "collectd.h"
 #include "daemon/plugin.h"
-#include "utils/value_list/value_list.h"
 #include "utils/common/common.h"
+#include "utils/value_list/value_list.h"
 
 #ifdef WIN32
 #define EXPORT __declspec(dllexport)
@@ -187,3 +187,244 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
   return failed;
 } /* }}} int plugin_dispatch_multivalue */
 
+static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
+                              data_source_t const *dsrc) {
+  int status = strbuf_print(buf, "collectd");
+
+  if (strcmp(vl->plugin, vl->type) != 0) {
+    status = status || strbuf_print(buf, "_");
+    status = status || strbuf_print(buf, vl->plugin);
+  }
+
+  status = status || strbuf_print(buf, "_");
+  status = status || strbuf_print(buf, vl->type);
+
+  if (strcmp("value", dsrc->name) != 0) {
+    status = status || strbuf_print(buf, "_");
+    status = status || strbuf_print(buf, dsrc->name);
+  }
+
+  if ((dsrc->type == DS_TYPE_COUNTER) || (dsrc->type == DS_TYPE_DERIVE)) {
+    status = status || strbuf_print(buf, "_total");
+  }
+
+  return status;
+}
+
+int parse_identifier(char *str, char **ret_host, char **ret_plugin,
+                     char **ret_type, char **ret_data_source,
+                     char *default_host) {
+  char *fields[5];
+  size_t fields_num = 0;
+
+  do {
+    fields[fields_num] = str;
+    fields_num++;
+
+    char *ptr = strchr(str, '/');
+    if (ptr == NULL) {
+      break;
+    }
+
+    *ptr = 0;
+    str = ptr + 1;
+  } while (fields_num < STATIC_ARRAY_SIZE(fields));
+
+  switch (fields_num) {
+  case 4:
+    *ret_data_source = fields[3];
+    /* fall-through */
+  case 3:
+    *ret_type = fields[2];
+    *ret_plugin = fields[1];
+    *ret_host = fields[0];
+    break;
+  case 2:
+    if ((default_host == NULL) || (strlen(default_host) == 0)) {
+      return EINVAL;
+    }
+    *ret_type = fields[1];
+    *ret_plugin = fields[0];
+    *ret_host = default_host;
+    break;
+  default:
+    return EINVAL;
+  }
+
+  return 0;
+} /* int parse_identifier */
+
+int parse_identifier_vl(const char *str, value_list_t *vl,
+                        char **ret_data_source) {
+  if ((str == NULL) || (vl == NULL))
+    return EINVAL;
+
+  char str_copy[6 * DATA_MAX_NAME_LEN];
+  sstrncpy(str_copy, str, sizeof(str_copy));
+
+  char *default_host = NULL;
+  if (strlen(vl->host) != 0) {
+    default_host = vl->host;
+  }
+
+  char *host = NULL;
+  char *plugin = NULL;
+  char *type = NULL;
+  char *data_source = NULL;
+  int status = parse_identifier(str_copy, &host, &plugin, &type, &data_source,
+                                default_host);
+  if (status != 0) {
+    return status;
+  }
+
+  if (data_source != NULL) {
+    if (ret_data_source == NULL) {
+      return EINVAL;
+    }
+    *ret_data_source = strdup(data_source);
+  }
+
+  char *plugin_instance = strchr(plugin, '-');
+  if (plugin_instance != NULL) {
+    *plugin_instance = 0;
+    plugin_instance++;
+  }
+  char *type_instance = strchr(type, '-');
+  if (type_instance != NULL) {
+    *type_instance = 0;
+    type_instance++;
+  }
+
+  if (host != vl->host) {
+    sstrncpy(vl->host, host, sizeof(vl->host));
+  }
+  sstrncpy(vl->plugin, plugin, sizeof(vl->plugin));
+  if (plugin_instance != NULL) {
+    sstrncpy(vl->plugin_instance, plugin_instance, sizeof(vl->plugin_instance));
+  }
+  sstrncpy(vl->type, type, sizeof(vl->type));
+  if (type_instance != NULL) {
+    sstrncpy(vl->type_instance, type_instance, sizeof(vl->type_instance));
+  }
+
+  return 0;
+} /* }}} int parse_identifier_vl */
+
+metric_t *parse_legacy_identifier(char const *s) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  char *data_source = NULL;
+  int status = parse_identifier_vl(s, &vl, &data_source);
+  if (status != 0) {
+    errno = status;
+    return NULL;
+  }
+
+  data_set_t const *ds = plugin_get_ds(vl.type);
+  if (ds == NULL) {
+    errno = ENOENT;
+    return NULL;
+  }
+
+  if ((ds->ds_num != 1) && (data_source == NULL)) {
+    DEBUG("parse_legacy_identifier: data set \"%s\" has multiple data sources, "
+          "but \"%s\" does not specify a data source",
+          ds->type, s);
+    errno = EINVAL;
+    return NULL;
+  }
+
+  value_t values[ds->ds_num];
+  memset(values, 0, sizeof(values));
+  vl.values = values;
+  vl.values_len = ds->ds_num;
+
+  size_t ds_index = 0;
+  if (data_source != NULL) {
+    bool found = 0;
+    for (size_t i = 0; i < ds->ds_num; i++) {
+      if (strcasecmp(data_source, ds->ds[i].name) == 0) {
+        ds_index = i;
+        found = true;
+      }
+    }
+
+    if (!found) {
+      DEBUG("parse_legacy_identifier: data set \"%s\" does not have a \"%s\" "
+            "data source",
+            ds->type, data_source);
+      free(data_source);
+      errno = EINVAL;
+      return NULL;
+    }
+  }
+  free(data_source);
+  data_source = NULL;
+
+  metric_family_t *fam = plugin_value_list_to_metric_family(&vl, ds, ds_index);
+  if (fam == NULL) {
+    return NULL;
+  }
+
+  return fam->metric.ptr;
+}
+
+EXPORT metric_family_t *
+plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
+                                   size_t index) {
+  if ((vl == NULL) || (ds == NULL)) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  metric_family_t *fam = calloc(1, sizeof(*fam));
+  if (fam == NULL) {
+    return NULL;
+  }
+
+  data_source_t const *dsrc = ds->ds + index;
+  strbuf_t name = STRBUF_CREATE;
+  int status = metric_family_name(&name, vl, dsrc);
+  if (status != 0) {
+    STRBUF_DESTROY(name);
+    metric_family_free(fam);
+    errno = status;
+    return NULL;
+  }
+  fam->name = name.ptr;
+  name = (strbuf_t){0};
+
+  fam->type =
+      (dsrc->type == DS_TYPE_GAUGE) ? METRIC_TYPE_GAUGE : METRIC_TYPE_COUNTER;
+
+  metric_t m = {
+      .family = fam,
+      .value = vl->values[index],
+      .time = vl->time,
+      .interval = vl->interval,
+  };
+
+  status = metric_label_set(&m, "instance",
+                            (strlen(vl->host) != 0) ? vl->host : hostname_g);
+  if (strlen(vl->plugin_instance) != 0) {
+    status = status || metric_label_set(&m, vl->plugin, vl->plugin_instance);
+  }
+  if (strlen(vl->type_instance) != 0) {
+    char const *name = "type";
+    if (strlen(vl->plugin_instance) == 0) {
+      name = vl->plugin;
+    }
+    status = status || metric_label_set(&m, name, vl->type_instance);
+  }
+
+  status = status || metric_family_metric_append(fam, m);
+  if (status != 0) {
+    metric_reset(&m);
+    metric_family_free(fam);
+    errno = status;
+    return NULL;
+  }
+
+  metric_reset(&m);
+  return fam;
+}
