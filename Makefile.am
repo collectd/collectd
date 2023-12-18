@@ -1224,10 +1224,12 @@ intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
 
 test_plugin_intel_rdt_SOURCES = \
 	src/intel_rdt_test.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c \
 	src/utils/config_cores/config_cores.c \
 	src/utils/proc_pids/proc_pids.c \
-	src/daemon/configfile.c \
-	src/daemon/types_list.c
+	src/utils/value_list/value_list.c \
+	src/utils/value_list/value_list.h
 test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
 test_plugin_intel_rdt_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBPQOS_LIBS)
