@@ -238,6 +238,8 @@ collectd_SOURCES = \
 	src/daemon/collectd.h \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
+	src/daemon/data_set.c \
+	src/daemon/data_set.h \
 	src/daemon/filter_chain.c \
 	src/daemon/filter_chain.h \
 	src/daemon/globals.c \
@@ -259,7 +261,9 @@ collectd_SOURCES = \
 	src/daemon/utils_threshold.c \
 	src/daemon/utils_threshold.h \
 	src/daemon/utils_time.c \
-	src/daemon/utils_time.h
+	src/daemon/utils_time.h \
+	src/utils/value_list/value_list.c \
+	src/utils/value_list/value_list.h
 
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_CPPFLAGS = $(AM_CPPFLAGS)
@@ -443,7 +447,9 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
 	src/daemon/utils_time.c \
-	src/daemon/utils_time.h
+	src/daemon/utils_time.h \
+	src/utils/value_list/value_list.c \
+	src/utils/value_list/value_list.h
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libcommon.la libignorelist.la libmetadata.la $(COMMON_LIBS)
@@ -940,9 +946,9 @@ curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 curl_json_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
 
 test_plugin_curl_json_SOURCES = src/curl_json_test.c \
-				src/utils/curl_stats/curl_stats.c \
 				src/daemon/configfile.c \
-				src/daemon/types_list.c
+				src/daemon/types_list.c \
+				src/utils/curl_stats/curl_stats.c
 test_plugin_curl_json_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 test_plugin_curl_json_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 test_plugin_curl_json_LDADD = libavltree.la liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
@@ -1211,10 +1217,10 @@ intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
 
 test_plugin_intel_rdt_SOURCES = \
 	src/intel_rdt_test.c \
-	src/utils/config_cores/config_cores.c \
-	src/utils/proc_pids/proc_pids.c \
 	src/daemon/configfile.c \
-	src/daemon/types_list.c
+	src/daemon/types_list.c \
+	src/utils/config_cores/config_cores.c \
+	src/utils/proc_pids/proc_pids.c
 test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
 test_plugin_intel_rdt_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBPQOS_LIBS)
@@ -1336,12 +1342,12 @@ logparser_la_CPPFLAGS = $(AM_CPPFLAGS)
 logparser_la_LDFLAGS = $(PLUGIN_LDFLAGS) -lm
 
 test_plugin_logparser_SOURCES = src/logparser_test.c \
+       src/daemon/configfile.c \
+       src/daemon/types_list.c \
+       src/utils/match/match.c src/utils/match/match.h \
        src/utils/message_parser/message_parser.c \
        src/utils_tail_match.c src/utils_tail_match.h \
-       src/utils/tail/tail.c src/utils/tail/tail.h \
-       src/utils/match/match.c src/utils/match/match.h \
-       src/daemon/configfile.c \
-       src/daemon/types_list.c
+       src/utils/tail/tail.c src/utils/tail/tail.h
 test_plugin_logparser_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_logparser_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_logparser_LDADD = liboconfig.la libplugin_mock.la liblatency.la

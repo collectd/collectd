@@ -34,6 +34,7 @@
 #include "configfile.h"
 #include "metric.h"
 #include "utils/metadata/meta_data.h"
+#include "utils/value_list/value_list.h" /* for legacy plugins */
 #include "utils_time.h"
 
 #include <inttypes.h>
@@ -44,10 +45,10 @@
 #define DS_TYPE_DERIVE VALUE_TYPE_DERIVE
 
 #define DS_TYPE_TO_STRING(t)                                                   \
-  (t == DS_TYPE_COUNTER)                                                       \
-      ? "counter"                                                              \
-      : (t == DS_TYPE_GAUGE) ? "gauge"                                         \
-                             : (t == DS_TYPE_DERIVE) ? "derive" : "unknown"
+  (t == DS_TYPE_COUNTER)  ? "counter"                                          \
+  : (t == DS_TYPE_GAUGE)  ? "gauge"                                            \
+  : (t == DS_TYPE_DERIVE) ? "derive"                                           \
+                          : "unknown"
 
 #ifndef LOG_ERR
 #define LOG_ERR 3
@@ -84,38 +85,6 @@ struct identifier_s {
   char *type_instance;
 };
 typedef struct identifier_s identifier_t;
-
-struct value_list_s {
-  value_t *values;
-  size_t values_len;
-  cdtime_t time;
-  cdtime_t interval;
-  char host[DATA_MAX_NAME_LEN];
-  char plugin[DATA_MAX_NAME_LEN];
-  char plugin_instance[DATA_MAX_NAME_LEN];
-  char type[DATA_MAX_NAME_LEN];
-  char type_instance[DATA_MAX_NAME_LEN];
-  meta_data_t *meta;
-};
-typedef struct value_list_s value_list_t;
-
-#define VALUE_LIST_INIT                                                        \
-  { .values = NULL, .meta = NULL }
-
-struct data_source_s {
-  char name[DATA_MAX_NAME_LEN];
-  int type;
-  double min;
-  double max;
-};
-typedef struct data_source_s data_source_t;
-
-struct data_set_s {
-  char type[DATA_MAX_NAME_LEN];
-  size_t ds_num;
-  data_source_t *ds;
-};
-typedef struct data_set_s data_set_t;
 
 enum notification_meta_type_e {
   NM_TYPE_STRING,
@@ -292,7 +261,6 @@ int plugin_register_cache_event(const char *name,
                                 plugin_cache_event_cb callback,
                                 user_data_t const *ud);
 int plugin_register_shutdown(const char *name, plugin_shutdown_cb callback);
-int plugin_register_data_set(const data_set_t *ds);
 int plugin_register_log(const char *name, plugin_log_cb callback,
                         user_data_t const *user_data);
 int plugin_register_notification(const char *name,
@@ -309,7 +277,6 @@ int plugin_unregister_flush(const char *name);
 int plugin_unregister_missing(const char *name);
 int plugin_unregister_cache_event(const char *name);
 int plugin_unregister_shutdown(const char *name);
-int plugin_unregister_data_set(const char *name);
 int plugin_unregister_log(const char *name);
 int plugin_unregister_notification(const char *name);
 
@@ -327,21 +294,6 @@ void plugin_log_available_writers(void);
 
 /*
  * NAME
- *  plugin_dispatch_values
- *
- * DESCRIPTION
- *  This function is called by reading processes with the values they've
- *  aquired. The function fetches the data-set definition (that has been
- *  registered using `plugin_register_data_set') and calls _all_ registered
- *  write-functions.
- *
- * ARGUMENTS
- *  `vl'        Value list of the values that have been read by a `read'
- *              function.
- */
-int plugin_dispatch_values(value_list_t const *vl);
-/*
- * NAME
  *  plugin_dispatch_metric_list
  *
  * DESCRIPTION
@@ -356,41 +308,6 @@ int plugin_dispatch_values(value_list_t const *vl);
  *              function.
  */
 int plugin_dispatch_metric_family(metric_family_t const *fam);
-
-/*
- * NAME
- *  plugin_dispatch_multivalue
- *
- * SYNOPSIS
- *  plugin_dispatch_multivalue (vl, true, DS_TYPE_GAUGE,
- *                              "free", 42.0,
- *                              "used", 58.0,
- *                              NULL);
- *
- * DESCRIPTION
- *  Takes a list of type instances and values and dispatches that in a batch,
- *  making sure that all values have the same time stamp. If "store_percentage"
- *  is set to true, the "type" is set to "percent" and a percentage is
- *  calculated and dispatched, rather than the absolute values. Values that are
- *  NaN are dispatched as NaN and will not influence the total.
- *
- *  The variadic arguments is a list of type_instance / type pairs, that are
- *  interpreted as type "char const *" and type, encoded by their corresponding
- *  "store_type":
- *
- *     - "gauge_t"    when "DS_TYPE_GAUGE"
- *     - "derive_t"   when "DS_TYPE_DERIVE"
- *     - "counter_t"  when "DS_TYPE_COUNTER"
- *
- *  The last argument must be
- *  a NULL pointer to signal end-of-list.
- *
- * RETURNS
- *  The number of values it failed to dispatch (zero on success).
- */
-__attribute__((sentinel)) int plugin_dispatch_multivalue(value_list_t const *vl,
-                                                         bool store_percentage,
-                                                         int store_type, ...);
 
 int plugin_dispatch_missing(metric_family_t const *fam);
 void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
@@ -424,8 +341,6 @@ void daemon_log(int level, const char *format, ...)
 #define P_WARNING(...) daemon_log(LOG_WARNING, __VA_ARGS__)
 #define P_NOTICE(...) daemon_log(LOG_NOTICE, __VA_ARGS__)
 #define P_INFO(...) daemon_log(LOG_INFO, __VA_ARGS__)
-
-const data_set_t *plugin_get_ds(const char *name);
 
 int plugin_notification_meta_add_string(notification_t *n, const char *name,
                                         const char *value);

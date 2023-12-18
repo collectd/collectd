@@ -1,5 +1,5 @@
 /**
- * collectd - src/plugin.c
+ * collectd - src/daemon/plugin.c
  * Copyright (C) 2005-2014  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -32,6 +32,7 @@
 #include "collectd.h"
 
 #include "configfile.h"
+#include "daemon/data_set.h"
 #include "filter_chain.h"
 #include "plugin.h"
 #include "resource.h"
@@ -149,8 +150,6 @@ static cache_event_func_t list_cache_event[32];
 
 static fc_chain_t *pre_cache_chain;
 static fc_chain_t *post_cache_chain;
-
-static c_avl_tree_t *data_sets;
 
 static char *plugindir;
 
@@ -672,56 +671,6 @@ static void stop_read_threads(void) {
   sfree(read_threads);
   read_threads_num = 0;
 } /* void stop_read_threads */
-
-static void plugin_value_list_free(value_list_t *vl) /* {{{ */
-{
-  if (vl == NULL)
-    return;
-
-  meta_data_destroy(vl->meta);
-  sfree(vl->values);
-  sfree(vl);
-} /* }}} void plugin_value_list_free */
-
-static value_list_t *
-plugin_value_list_clone(value_list_t const *vl_orig) /* {{{ */
-{
-  value_list_t *vl;
-
-  if (vl_orig == NULL)
-    return NULL;
-
-  vl = malloc(sizeof(*vl));
-  if (vl == NULL)
-    return NULL;
-  memcpy(vl, vl_orig, sizeof(*vl));
-
-  if (vl->host[0] == 0)
-    sstrncpy(vl->host, hostname_g, sizeof(vl->host));
-
-  vl->values = calloc(vl_orig->values_len, sizeof(*vl->values));
-  if (vl->values == NULL) {
-    plugin_value_list_free(vl);
-    return NULL;
-  }
-  memcpy(vl->values, vl_orig->values,
-         vl_orig->values_len * sizeof(*vl->values));
-
-  vl->meta = meta_data_clone(vl->meta);
-  if ((vl_orig->meta != NULL) && (vl->meta == NULL)) {
-    plugin_value_list_free(vl);
-    return NULL;
-  }
-
-  if (vl->time == 0)
-    vl->time = cdtime();
-
-  /* Fill in the interval from the thread context, if it is zero. */
-  if (vl->interval == 0)
-    vl->interval = plugin_get_interval();
-
-  return vl;
-} /* }}} value_list_t *plugin_value_list_clone */
 
 static void write_queue_ref_single(write_queue_elem_t *elem, long dir) {
   elem->ref_count += dir;
@@ -1459,54 +1408,6 @@ EXPORT int plugin_register_shutdown(const char *name, int (*callback)(void)) {
   return create_register_callback(&list_shutdown, name, (void *)callback, NULL);
 } /* int plugin_register_shutdown */
 
-static void plugin_free_data_sets(void) {
-  void *key;
-  void *value;
-
-  if (data_sets == NULL)
-    return;
-
-  while (c_avl_pick(data_sets, &key, &value) == 0) {
-    data_set_t *ds = value;
-    /* key is a pointer to ds->type */
-
-    sfree(ds->ds);
-    sfree(ds);
-  }
-
-  c_avl_destroy(data_sets);
-  data_sets = NULL;
-} /* void plugin_free_data_sets */
-
-EXPORT int plugin_register_data_set(const data_set_t *ds) {
-  data_set_t *ds_copy;
-
-  if ((data_sets != NULL) && (c_avl_get(data_sets, ds->type, NULL) == 0)) {
-    NOTICE("Replacing DS `%s' with another version.", ds->type);
-    plugin_unregister_data_set(ds->type);
-  } else if (data_sets == NULL) {
-    data_sets = c_avl_create((int (*)(const void *, const void *))strcmp);
-    if (data_sets == NULL)
-      return -1;
-  }
-
-  ds_copy = malloc(sizeof(*ds_copy));
-  if (ds_copy == NULL)
-    return -1;
-  memcpy(ds_copy, ds, sizeof(data_set_t));
-
-  ds_copy->ds = malloc(sizeof(*ds_copy->ds) * ds->ds_num);
-  if (ds_copy->ds == NULL) {
-    sfree(ds_copy);
-    return -1;
-  }
-
-  for (size_t i = 0; i < ds->ds_num; i++)
-    memcpy(ds_copy->ds + i, ds->ds + i, sizeof(data_source_t));
-
-  return c_avl_insert(data_sets, (void *)ds_copy->type, (void *)ds_copy);
-} /* int plugin_register_data_set */
-
 EXPORT int plugin_register_log(const char *name, plugin_log_cb callback,
                                user_data_t const *ud) {
   return create_register_callback(&list_log, name, (void *)callback, ud);
@@ -1782,21 +1683,6 @@ static void destroy_cache_event_callbacks() {
 EXPORT int plugin_unregister_shutdown(const char *name) {
   return plugin_unregister(list_shutdown, name);
 }
-
-EXPORT int plugin_unregister_data_set(const char *name) {
-  data_set_t *ds;
-
-  if (data_sets == NULL)
-    return -1;
-
-  if (c_avl_remove(data_sets, name, NULL, (void *)&ds) != 0)
-    return -1;
-
-  sfree(ds->ds);
-  sfree(ds);
-
-  return 0;
-} /* int plugin_unregister_data_set */
 
 EXPORT int plugin_unregister_log(const char *name) {
   return plugin_unregister(list_log, name);
@@ -2250,104 +2136,6 @@ EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
   return status;
 }
 
-EXPORT int plugin_dispatch_values(value_list_t const *vl) {
-  data_set_t const *ds = plugin_get_ds(vl->type);
-  if (ds == NULL) {
-    return EINVAL;
-  }
-
-  for (size_t i = 0; i < vl->values_len; i++) {
-    metric_family_t *fam = plugin_value_list_to_metric_family(vl, ds, i);
-    if (fam == NULL) {
-      int status = errno;
-      ERROR("plugin_dispatch_values: plugin_value_list_to_metric_family "
-            "failed: %s",
-            STRERROR(status));
-      return status;
-    }
-
-    int status = plugin_dispatch_metric_family(fam);
-    metric_family_free(fam);
-    if (status != 0) {
-      return status;
-    }
-  }
-
-  return 0;
-}
-
-__attribute__((sentinel)) int
-plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
-                           bool store_percentage, int store_type, ...) {
-  value_list_t *vl;
-  int failed = 0;
-  gauge_t sum = 0.0;
-  va_list ap;
-
-  assert(template->values_len == 1);
-
-  /* Calculate sum for Gauge to calculate percent if needed */
-  if (DS_TYPE_GAUGE == store_type) {
-    va_start(ap, store_type);
-    while (42) {
-      char const *name;
-      gauge_t value;
-
-      name = va_arg(ap, char const *);
-      if (name == NULL)
-        break;
-
-      value = va_arg(ap, gauge_t);
-      if (!isnan(value))
-        sum += value;
-    }
-    va_end(ap);
-  }
-
-  vl = plugin_value_list_clone(template);
-  /* plugin_value_list_clone makes sure vl->time is set to non-zero. */
-  if (store_percentage)
-    sstrncpy(vl->type, "percent", sizeof(vl->type));
-
-  va_start(ap, store_type);
-  while (42) {
-    char const *name;
-    int status;
-
-    /* Set the type instance. */
-    name = va_arg(ap, char const *);
-    if (name == NULL)
-      break;
-    sstrncpy(vl->type_instance, name, sizeof(vl->type_instance));
-
-    /* Set the value. */
-    switch (store_type) {
-    case DS_TYPE_GAUGE:
-      vl->values[0].gauge = va_arg(ap, gauge_t);
-      if (store_percentage)
-        vl->values[0].gauge *= sum ? (100.0 / sum) : NAN;
-      break;
-    case DS_TYPE_COUNTER:
-      vl->values[0].counter = va_arg(ap, counter_t);
-      break;
-    case DS_TYPE_DERIVE:
-      vl->values[0].derive = va_arg(ap, derive_t);
-      break;
-    default:
-      ERROR("plugin_dispatch_multivalue: given store_type is incorrect.");
-      failed++;
-    }
-
-    status = plugin_dispatch_values(vl);
-    if (status != 0)
-      failed++;
-  }
-  va_end(ap);
-
-  plugin_value_list_free(vl);
-  return failed;
-} /* }}} int plugin_dispatch_multivalue */
-
 EXPORT int plugin_dispatch_notification(const notification_t *notif) {
   llentry_t *le;
   /* Possible TODO: Add flap detection here */
@@ -2468,22 +2256,6 @@ EXPORT int parse_notif_severity(const char *severity) {
 
   return notif_severity;
 } /* int parse_notif_severity */
-
-EXPORT const data_set_t *plugin_get_ds(const char *name) {
-  data_set_t *ds;
-
-  if (data_sets == NULL) {
-    P_ERROR("plugin_get_ds: No data sets are defined yet.");
-    return NULL;
-  }
-
-  if (c_avl_get(data_sets, name, (void *)&ds) != 0) {
-    DEBUG("No such dataset registered: %s", name);
-    return NULL;
-  }
-
-  return ds;
-} /* data_set_t *plugin_get_ds */
 
 static int plugin_notification_meta_add(notification_t *n, const char *name,
                                         enum notification_meta_type_e type,
