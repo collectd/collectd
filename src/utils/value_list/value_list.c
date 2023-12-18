@@ -345,11 +345,27 @@ metric_t *parse_legacy_identifier(char const *s) {
   return fam->metric.ptr;
 }
 
+static bool is_directional_metric(data_set_t const *ds) {
+  return ds->ds_num == 2 &&
+         (strcmp(ds->ds[0].name, "read") == 0 ||
+          strcmp(ds->ds[0].name, "rx") == 0) &&
+         (strcmp(ds->ds[0].name, "write") == 0 ||
+          strcmp(ds->ds[0].name, "tx") == 0);
+}
+
 static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
                               data_set_t const *ds, size_t index) {
-  int status = strbuf_printf(buf, "collectd.v5.%s", vl->type);
+  int status = strbuf_print(buf, "collectd.v5");
+  if (strcmp(ds->type, "percent") == 0) {
+    strbuf_printf(buf, ".%s.utilization", vl->plugin);
+  } else if (is_directional_metric(ds) &&
+             string_has_suffix(ds->type, "_octets")) {
+    strbuf_printf(buf, ".%s.io", vl->plugin);
+  } else {
+    strbuf_printf(buf, ".%s", vl->type);
+  }
 
-  if (ds->ds_num > 1) {
+  if (ds->ds_num > 1 && !is_directional_metric(ds)) {
     status = status || strbuf_printf(buf, ".%s", ds->ds[index].name);
   }
 
@@ -380,8 +396,8 @@ plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
   fam->name = strdup(buf.ptr);
   STRBUF_DESTROY(buf);
 
-  fam->type =
-      (ds->ds[index].type == DS_TYPE_GAUGE) ? METRIC_TYPE_GAUGE : METRIC_TYPE_COUNTER;
+  fam->type = (ds->ds[index].type == DS_TYPE_GAUGE) ? METRIC_TYPE_GAUGE
+                                                    : METRIC_TYPE_COUNTER;
 
   metric_t m = {
       .family = fam,
@@ -394,8 +410,14 @@ plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
    * emulate this behavior by not setting any resource attributes, which will
    * also trigger the default behavior. */
   if (strlen(vl->host) != 0) {
-    status = status || metric_family_resource_attribute_update(fam, "service.name", "collectd 5");
-    status = status || metric_family_resource_attribute_update(fam, "host.name", vl->host);
+    status = status || metric_family_resource_attribute_update(
+                           fam, "service.name", "collectd 5");
+    status = status || metric_family_resource_attribute_update(fam, "host.name",
+                                                               vl->host);
+  }
+
+  if (is_directional_metric(ds)) {
+    status = status || metric_label_set(&m, "direction", ds->ds[index].name);
   }
 
   if (strlen(vl->plugin_instance) != 0) {
