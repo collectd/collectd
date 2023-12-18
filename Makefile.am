@@ -939,9 +939,7 @@ pkglib_LTLIBRARIES += curl_json.la
 curl_json_la_SOURCES = \
 	src/curl_json.c \
 	src/utils/curl_stats/curl_stats.c \
-	src/utils/curl_stats/curl_stats.h \
-	src/utils/value_list/value_list.c \
-	src/utils/value_list/value_list.h
+	src/utils/curl_stats/curl_stats.h
 curl_json_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_json_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
