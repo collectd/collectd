@@ -40,6 +40,8 @@ static bool string_has_suffix(char const *s, char const *suffix) {
 }
 
 static char const *default_unit_static(metric_family_t const *fam) {
+  // Determine units for some well-known name suffixes, see:
+  // https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-naming
   if (string_has_suffix(fam->name, ".utilization")) {
     return "1";
   }
