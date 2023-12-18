@@ -75,6 +75,9 @@
 #include <sys/protosw.h>
 #endif
 
+static char const *const device_label = "system.device";
+static char const *const direction_label = "disk.io.direction";
+
 #if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000) // Before macOS 12 Monterey
 #define IOMainPort IOMasterPort
 #endif
@@ -382,54 +385,70 @@ static signed long long dict_get_value(CFDictionaryRef dict, const char *key) {
 static int disk_read(void) {
   metric_family_t fam_io = {
       .name = "system.disk.io",
+      .help = "Bytes read from and written to disk.",
+      .unit = "By",
       .type = METRIC_TYPE_COUNTER,
   };
   metric_family_t fam_ops = {
       .name = "system.disk.operations",
+      .help = "Read and write operations performed by the disk. If multiple "
+              "operations are merged into one by the disk, they will be "
+              "accounted for separately.",
+      .unit = "{operation}",
       .type = METRIC_TYPE_COUNTER,
   };
-  metric_family_t fam_time = {
-      .name = "system.disk.time",
+  metric_family_t fam_ops_time = {
+      .name = "system.disk.operation_time",
+      .help = "Sum of the time each operation took to complete",
+      .unit = "s",
       .type = METRIC_TYPE_COUNTER,
   };
   metric_family_t fam_merged = {
       .name = "system.disk.merged",
+      .help = "I/O operations that were merged into reduce load on the disk.",
+      .unit = "{operation}",
       .type = METRIC_TYPE_COUNTER,
   };
-
   metric_family_t fam_disk_io_time = {
-      .name = "disk_io_time_total",
+      .name = "system.disk.io_time",
+      .help = "Time disk spent activated",
+      .unit = "s",
       .type = METRIC_TYPE_COUNTER,
   };
   metric_family_t fam_disk_io_weighted_time = {
-      .name = "disk_io_weighted_time_total",
+      .name = "system.disk.weighted_io_time",
+      .help = "This metric is incremented at each I/O start, I/O completion, "
+              "or I/O merge by the number of I/Os in progress times the number "
+              "of milliseconds spent doing I/O since the last update of this "
+              "field.  This can provide an easy measure of both I/O completion "
+              "time and the backlog that may be accumulating.",
+      .unit = "ms",
       .type = METRIC_TYPE_COUNTER,
   };
   metric_family_t fam_disk_pending_operations = {
-      .name = "disk_pending_operations",
+      .name = "system.disk.pending_operations",
+      .help = "Number of I/O operations currently in progress.",
+      .unit = "{operation}",
       .type = METRIC_TYPE_GAUGE,
   };
-
-#if KERNEL_LINUX
-  metric_family_t fam_disk_utilization = {
-      .name = "disk_utilization",
+  metric_family_t fam_utilization = {
+      .name = "system.disk.utilization",
+      .help = "The ratio of time the device had one or more transactions "
+              "outstanding.",
+      .unit = "1",
       .type = METRIC_TYPE_GAUGE,
   };
-#endif
 
   metric_family_t *fams[] = {
-    &fam_io,
-    &fam_ops,
-    &fam_time,
-    &fam_merged,
-
-    &fam_disk_io_time,
-    &fam_disk_io_weighted_time,
-    &fam_disk_pending_operations,
-#if KERNEL_LINUX
-    &fam_disk_utilization,
-#endif
-    NULL
+      &fam_io,
+      &fam_ops,
+      &fam_ops_time,
+      &fam_merged,
+      &fam_disk_io_time,
+      &fam_disk_io_weighted_time,
+      &fam_disk_pending_operations,
+      &fam_utilization,
+      NULL,
   };
 
 #if HAVE_IOKIT_IOKITLIB_H
@@ -569,23 +588,23 @@ static int disk_read(void) {
 
     /* and submit */
     metric_t m = {0};
-    metric_label_set(&m, "device", disk_name);
+    metric_label_set(&m, device_label, disk_name);
     if ((read_byt != -1LL) || (write_byt != -1LL)) {
-      metric_family_append(&fam_io, "direction", "read",
+      metric_family_append(&fam_io, direction_label, "read",
                            (value_t){.counter = read_byt}, &m);
-      metric_family_append(&fam_io, "direction", "write",
+      metric_family_append(&fam_io, direction_label, "write",
                            (value_t){.counter = write_byt}, &m);
     }
     if ((read_ops != -1LL) || (write_ops != -1LL)) {
-      metric_family_append(&fam_ops, "direction", "read",
+      metric_family_append(&fam_ops, direction_label, "read",
                            (value_t){.counter = read_ops}, &m);
-      metric_family_append(&fam_ops, "direction", "write",
+      metric_family_append(&fam_ops, direction_label, "write",
                            (value_t){.counter = write_ops}, &m);
     }
     if ((read_tme != -1LL) || (write_tme != -1LL)) {
-      metric_family_append(&fam_time, "direction", "read",
+      metric_family_append(&fam_ops_time, direction_label, "read",
                            (value_t){.counter = read_tme / 1000}, &m);
-      metric_family_append(&fam_time, "direction", "write",
+      metric_family_append(&fam_ops_time, direction_label, "write",
                            (value_t){.counter = write_tme / 1000}, &m);
     }
     metric_reset(&m);
@@ -602,8 +621,6 @@ static int disk_read(void) {
   struct gident *geom_id;
 
   const char *disk_name;
-  long double read_time, write_time, busy_time, total_duration;
-  uint64_t queue_length;
 
   for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
     if (snap != NULL)
@@ -684,49 +701,56 @@ static int disk_read(void) {
       continue;
 
     metric_t m = {0};
-    metric_label_set(&m, "device", disk_name);
+    metric_label_set(&m, device_label, disk_name);
 
     if ((snap_iter->bytes[DEVSTAT_READ] != 0) ||
         (snap_iter->bytes[DEVSTAT_WRITE] != 0)) {
       metric_family_append(
-          &fam_io, "direction", "read",
+          &fam_io, direction_label, "read",
           (value_t){.counter = (counter_t)snap_iter->bytes[DEVSTAT_READ]}, &m);
       metric_family_append(
-          &fam_io, "direction", "write",
+          &fam_io, direction_label, "write",
           (value_t){.counter = (counter_t)snap_iter->bytes[DEVSTAT_WRITE]}, &m);
     }
 
     if ((snap_iter->operations[DEVSTAT_READ] != 0) ||
         (snap_iter->operations[DEVSTAT_WRITE] != 0)) {
       metric_family_append(
-          &fam_ops, "direction", "read",
+          &fam_ops, direction_label, "read",
           (value_t){.counter = (counter_t)snap_iter->operations[DEVSTAT_READ]},
           &m);
       metric_family_append(
-          &fam_ops, "direction", "write",
+          &fam_ops, direction_label, "write",
           (value_t){.counter = (counter_t)snap_iter->operations[DEVSTAT_WRITE]},
           &m);
     }
 
-    read_time = devstat_compute_etime(&snap_iter->duration[DEVSTAT_READ], NULL);
-    write_time =
+    long double read_time =
+        devstat_compute_etime(&snap_iter->duration[DEVSTAT_READ], NULL);
+    long double write_time =
         devstat_compute_etime(&snap_iter->duration[DEVSTAT_WRITE], NULL);
     if ((read_time != 0) || (write_time != 0)) {
-      metric_family_append(&fam_time, "direction", "read",
+      metric_family_append(&fam_ops_time, direction_label, "read",
                            (value_t){.counter = (counter_t)(read_time * 1000)},
                            &m);
-      metric_family_append(&fam_time, "direction", "write",
+      metric_family_append(&fam_ops_time, direction_label, "write",
                            (value_t){.counter = (counter_t)(write_time * 1000)},
                            &m);
     }
-    if (devstat_compute_statistics(snap_iter, NULL, 1.0, DSM_TOTAL_BUSY_TIME,
-                                   &busy_time, DSM_TOTAL_DURATION,
-                                   &total_duration, DSM_QUEUE_LENGTH,
-                                   &queue_length, DSM_NONE) != 0) {
+
+    long double busy_time = 0, utilization = 0, total_duration = 0;
+    uint64_t queue_length = 0;
+    if (devstat_compute_statistics(
+            snap_iter, NULL, 1.0, DSM_TOTAL_BUSY_TIME, &busy_time, DSM_BUSY_PCT,
+            &utilization, DSM_TOTAL_DURATION, &total_duration, DSM_QUEUE_LENGTH,
+            &queue_length, DSM_NONE) != 0) {
       WARNING("%s", devstat_errbuf);
     } else {
       m.value.counter = (counter_t)busy_time;
       metric_family_metric_append(&fam_disk_io_time, m);
+
+      m.value.gauge = (gauge)utilization;
+      metric_family_metric_append(&fam_utilization, m);
 
       m.value.counter = (counter_t)total_duration;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
@@ -936,37 +960,35 @@ static int disk_read(void) {
       continue;
     }
     metric_t m = {0};
-    metric_label_set(&m, "device", output_name);
+    metric_label_set(&m, device_label, output_name);
 
     if ((ds->read_bytes != 0) || (ds->write_bytes != 0)) {
-      metric_family_append(&fam_io, "direction", "read",
+      metric_family_append(&fam_io, direction_label, "read",
                            (value_t){.counter = (counter_t)ds->read_bytes}, &m);
-      metric_family_append(&fam_io, "direction", "write",
+      metric_family_append(&fam_io, direction_label, "write",
                            (value_t){.counter = (counter_t)ds->write_bytes},
                            &m);
     }
 
     if ((ds->read_ops != 0) || (ds->write_ops != 0)) {
-      metric_family_append(&fam_ops, "direction", "read",
+      metric_family_append(&fam_ops, direction_label, "read",
                            (value_t){.counter = (counter_t)ds->read_ops}, &m);
-      metric_family_append(&fam_ops, "direction", "write",
+      metric_family_append(&fam_ops, direction_label, "write",
                            (value_t){.counter = (counter_t)ds->write_ops}, &m);
     }
 
-    if ((ds->avg_read_time != 0) || (ds->avg_write_time != 0)) {
-      metric_family_append(&fam_time, "direction", "read",
-                           (value_t){.counter = (counter_t)ds->avg_read_time},
-                           &m);
-      metric_family_append(&fam_time, "direction", "write",
-                           (value_t){.counter = (counter_t)ds->avg_write_time},
-                           &m);
+    if ((ds->read_time != 0) || (ds->write_time != 0)) {
+      metric_family_append(&fam_ops_time, direction_label, "read",
+                           (value_t){.counter = (counter_t)ds->read_time}, &m);
+      metric_family_append(&fam_ops_time, direction_label, "write",
+                           (value_t){.counter = (counter_t)ds->write_time}, &m);
     }
 
     if (is_disk) {
       if (ds->has_merged) {
-        metric_family_append(&fam_merged, "direction", "read",
+        metric_family_append(&fam_merged, direction_label, "read",
                              (value_t){.counter = (counter_t)read_merged}, &m);
-        metric_family_append(&fam_merged, "direction", "write",
+        metric_family_append(&fam_merged, direction_label, "write",
                              (value_t){.counter = (counter_t)write_merged}, &m);
       }
       if (ds->has_in_progress) {
@@ -981,12 +1003,8 @@ static int disk_read(void) {
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
 
       long interval = CDTIME_T_TO_MS(plugin_get_interval());
-      if (interval == 0) {
-        DEBUG("disk plugin: got zero plugin interval");
-      }
-
-      m.value.gauge = ((diff_io_time / (double)interval) * 100.0);
-      metric_family_metric_append(&fam_disk_utilization, m);
+      m.value.gauge = ((gauge_t)diff_io_time) / ((gauge_t)interval);
+      metric_family_metric_append(&fam_utilization, m);
     } /* if (is_disk) */
 
     metric_reset(&m);
@@ -1059,23 +1077,23 @@ static int disk_read(void) {
     }
 
     metric_t m = {0};
-    metric_label_set(&m, "device", ksp[i]->ks_name);
+    metric_label_set(&m, device_label, ksp[i]->ks_name);
 
-    metric_family_append(&fam_io, "direction", "read",
+    metric_family_append(&fam_io, direction_label, "read",
                          (value_t){.counter = kio.KIO_ROCTETS}, &m);
-    metric_family_append(&fam_io, "direction", "write",
+    metric_family_append(&fam_io, direction_label, "write",
                          (value_t){.counter = kio.KIO_WOCTETS}, &m);
 
-    metric_family_append(&fam_ops, "direction", "read",
+    metric_family_append(&fam_ops, direction_label, "read",
                          (value_t){.counter = kio.KIO_ROPS}, &m);
-    metric_family_append(&fam_ops, "direction", "write",
+    metric_family_append(&fam_ops, direction_label, "write",
                          (value_t){.counter = kio.KIO_WOPS}, &m);
 
     if (strncmp(ksp[i]->ks_class, "disk", 4) == 0) {
       /* FIXME: Convert this to microseconds if necessary */
-      metric_family_append(&fam_time, "direction", "read",
+      metric_family_append(&fam_ops_time, direction_label, "read",
                            (value_t){.counter = kio.KIO_RTIME}, &m);
-      metric_family_append(&fam_time, "direction", "write",
+      metric_family_append(&fam_ops_time, direction_label, "write",
                            (value_t){.counter = kio.KIO_WTIME}, &m);
     }
 
@@ -1100,11 +1118,11 @@ static int disk_read(void) {
       continue;
     }
     metric_t m = {0};
-    metric_label_set(&m, "device", ds->disk_name);
+    metric_label_set(&m, device_label, ds->disk_name);
 
-    metric_family_append(&fam_io, "direction", "read",
+    metric_family_append(&fam_io, direction_label, "read",
                          (value_t){.counter = ds->read_bytes}, &m);
-    metric_family_append(&fam_io, "direction", "write",
+    metric_family_append(&fam_io, direction_label, "write",
                          (value_t){.counter = ds->write_bytes}, &m);
 
     metric_reset(&m);
@@ -1138,21 +1156,21 @@ static int disk_read(void) {
     if (ignorelist_match(ignorelist, stat_disk[i].name) != 0)
       continue;
     metric_t m = {0};
-    metric_label_set(&m, "device", stat_disk[i].name);
+    metric_label_set(&m, device_label, stat_disk[i].name);
 
-    metric_family_append(&fam_io, "direction", "read",
+    metric_family_append(&fam_io, direction_label, "read",
                          (value_t){.counter = (counter_t)(stat_disk[i].rblks *
                                                           stat_disk[i].bsize)},
                          &m);
-    metric_family_append(&fam_io, "direction", "write",
+    metric_family_append(&fam_io, direction_label, "write",
                          (value_t){.counter = (counter_t)(stat_disk[i].wblks *
                                                           stat_disk[i].bsize)},
                          &m);
 
-    metric_family_append(&fam_ops, "direction", "read",
+    metric_family_append(&fam_ops, direction_label, "read",
                          (value_t){.counter = (counter_t)stat_disk[i].xrate},
                          &m);
-    metric_family_append(&fam_ops, "direction", "write",
+    metric_family_append(&fam_ops, direction_label, "write",
                          (value_t){.counter = (counter_t)(stat_disk[i].xfers -
                                                           stat_disk[i].xrate)},
                          &m);
@@ -1165,9 +1183,9 @@ static int disk_read(void) {
     write_time *= ((double)(_system_configuration.Xint) /
                    (double)(_system_configuration.Xfrac)) /
                   1000000.0;
-    metric_family_append(&fam_time, "direction", "read",
+    metric_family_append(&fam_ops_time, direction_label, "read",
                          (value_t){.counter = (counter_t)read_time}, &m);
-    metric_family_append(&fam_time, "direction", "write",
+    metric_family_append(&fam_ops_time, direction_label, "write",
                          (value_t){.counter = (counter_t)} write_time, &m);
 
     metric_reset(&m);
@@ -1217,20 +1235,20 @@ static int disk_read(void) {
       continue;
 
     metric_t m = {0};
-    metric_label_set(&m, "device", drives[i].name);
+    metric_label_set(&m, device_label, drives[i].name);
 
-    metric_family_append(&fam_io, "direction", "read",
+    metric_family_append(&fam_io, direction_label, "read",
                          (value_t){.counter = drives[i].rbytes}, &m);
-    metric_family_append(&fam_io, "direction", "write",
+    metric_family_append(&fam_io, direction_label, "write",
                          (value_t){.counter = drives[i].wbytes}, &m);
 
-    metric_family_append(&fam_ops, "direction", "read",
+    metric_family_append(&fam_ops, direction_label, "read",
                          (value_t){.counter = drives[i].rxfer}, &m);
-    metric_family_append(&fam_ops, "direction", "write",
+    metric_family_append(&fam_ops, direction_label, "write",
                          (value_t){.counter = drives[i].wxfer}, &m);
 
-    m.value.counter = drives[i].time_sec * 1000 + drives[i].time_usec / 1000;
-    metric_family_metric_append(&fam_disk_io_time, m);
+    m.value.counter = drives[i].time_sec + drives[i].time_usec / 1000000;
+    metric_family_metric_append(&fam_ops_time, m);
 
     metric_reset(&m);
   }
