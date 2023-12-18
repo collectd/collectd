@@ -153,6 +153,9 @@ typedef struct {
 struct metric_family_s {
   char *name;
   char *help;
+  /* unit is a case sensitive "Unified Code for Units of Measure" (UCUM)
+   * denoting the unit of the metric, e.g. "By" for bytes, and "1" for
+   * dimensionless metrics, such as "utilization". */
   char *unit;
   metric_type_t type;
 
