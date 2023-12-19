@@ -104,7 +104,7 @@ static int machine_id(void) {
   return ENOENT;
 }
 
-static void init_default_resource(void) {
+static void resource_host_init(void) {
   if (default_resource.num != 0) {
     return;
   }
@@ -115,8 +115,34 @@ static void init_default_resource(void) {
   machine_id();
 }
 
+static void resource_generic_init(void) {
+  if (default_resource.num != 0) {
+    return;
+  }
+
+  otel_service_name();
+  otel_resource_attributes();
+}
+
+int resource_attributes_init(char const *type) {
+  if (strcasecmp("Host", type) == 0) {
+    resource_host_init();
+    return 0;
+  } else if (strcasecmp("Generic", type) == 0) {
+    resource_generic_init();
+    return 0;
+  }
+  ERROR("resource: The resource type \"%s\" is unknown.", type);
+  return ENOENT;
+}
+
+int resource_attribute_update(char const *key, char const *value) {
+  resource_host_init();
+  return label_set_add(&default_resource, key, value);
+}
+
 label_set_t default_resource_attributes(void) {
-  init_default_resource();
+  resource_host_init();
 
   return default_resource;
 }

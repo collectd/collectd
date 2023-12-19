@@ -17,6 +17,10 @@
 #PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 
+#<Resource "host">
+#	Attribute "custom.key" "custom.value"
+#</Resource>
+
 #----------------------------------------------------------------------------#
 # When enabled, plugins are loaded automatically with the default options    #
 # when an appropriate <Plugin ...> block is encountered.                     #

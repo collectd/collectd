@@ -328,6 +328,51 @@ the daemon should try to figure out the "fully qualified domain name", FQDN.
 This is done using a lookup of the name returned by C<gethostname>. This option
 is enabled by default.
 
+=item B<Resource> I<Type>
+
+The B<Resource> block defined the I<Resource Attributes> to use for local
+metrics such as CPU usage, i.e. metrics that were not received from a remote
+system or service.
+
+The recommended way to configure resource attributes is by following the
+OpenTelemetry Semantic Conventions,
+L<https://opentelemetry.io/docs/specs/semconv/resource/>.
+
+The I<Type> argument determines which default attributes are automatically
+populated. B<Attribute> options inside the block can be used to add additional
+attributes or overwrite existing ones.
+
+Valid values for I<Type> are:
+
+=over 4
+
+=item B<Host> (default)
+
+For use with computing instances (e.g. physical and virtual machines). Will
+automatically populate the C<service.name>, C<host.name>, and C<host.id>
+attributes.
+
+For more information, refer to
+L<https://opentelemetry.io/docs/specs/semconv/resource/host/>.
+
+=item B<Generic>
+
+Minimal defaults for maximum flexibility. Only the C<service.name> attribute is
+populated.
+
+=back
+
+Inside the B<Resource> block, the following configuration options are valid:
+
+=over 4
+
+=item B<Attribute> I<Name> I<Value>
+
+Adds a resource attribute or updates an existing one. If I<Value> is the empty
+string, the attribute is deleted.
+
+=back
+
 =item B<PreCacheChain> I<ChainName>
 
 =item B<PostCacheChain> I<ChainName>
