@@ -420,17 +420,16 @@ plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
     status = status || metric_label_set(&m, "direction", ds->ds[index].name);
   }
 
-  if (strlen(vl->plugin_instance) != 0) {
+  bool have_plugin_instance = strlen(vl->plugin_instance) != 0;
+  bool have_type_instance = strlen(vl->type_instance) != 0;
+  if (have_plugin_instance && have_type_instance) {
     status = status || metric_label_set(&m, vl->plugin, vl->plugin_instance);
-  }
-  if (strlen(vl->type_instance) != 0) {
-    char const *name = "type";
-    if (strlen(vl->plugin_instance) == 0) {
-      name = vl->plugin;
-    }
-    status = status || metric_label_set(&m, name, vl->type_instance);
-  }
-  if (strlen(vl->plugin_instance) == 0 && strlen(vl->type_instance) == 0) {
+    status = status || metric_label_set(&m, "type", vl->type_instance);
+  } else if (have_plugin_instance && !have_type_instance) {
+    status = status || metric_label_set(&m, vl->plugin, vl->plugin_instance);
+  } else if (!have_plugin_instance && have_type_instance) {
+    status = status || metric_label_set(&m, vl->plugin, vl->type_instance);
+  } else if (!have_plugin_instance && !have_type_instance) {
     status = status || metric_label_set(&m, "plugin", vl->plugin);
   }
 
