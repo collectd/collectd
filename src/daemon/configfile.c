@@ -337,13 +337,13 @@ static int format_config_value(strbuf_t *buf, oconfig_value_t v) {
 }
 
 static int dispatch_resource(oconfig_item_t *ci) {
-  char type[128] = {0};
-  int status = cf_util_get_string_buffer(ci, type, sizeof(type));
-  if (status != 0) {
-    return status;
+  if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING) {
+    ERROR("configfile: The \"%s\" option requires one string argument.",
+          ci->key);
+    return EINVAL;
   }
 
-  status = resource_attributes_init(type);
+  int status = resource_attributes_init(ci->values[0].value.string);
   if (status != 0) {
     return status;
   }
