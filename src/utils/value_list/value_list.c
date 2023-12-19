@@ -355,14 +355,14 @@ static bool is_directional_metric(data_set_t const *ds) {
 
 static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
                               data_set_t const *ds, size_t index) {
-  int status = strbuf_print(buf, "collectd.v5");
+  int status = strbuf_print(buf, "collectd.v5.");
   if (strcmp(ds->type, "percent") == 0) {
-    strbuf_printf(buf, ".%s.utilization", vl->plugin);
+    strbuf_printf(buf, "%s.utilization", vl->plugin);
   } else if (is_directional_metric(ds) &&
              string_has_suffix(ds->type, "_octets")) {
-    strbuf_printf(buf, ".%s.io", vl->plugin);
+    strbuf_printf(buf, "%s.io", vl->plugin);
   } else {
-    strbuf_printf(buf, ".%s", vl->type);
+    strbuf_print(buf, vl->type);
   }
 
   if (ds->ds_num > 1 && !is_directional_metric(ds)) {
