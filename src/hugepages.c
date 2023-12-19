@@ -125,6 +125,14 @@ static int read_hugepage_entry(const char *path, const char *entry,
   struct entry_info *info = e_info;
   double value;
 
+  /**
+   * Since demote is a write-only file, do not attempt to open it.
+   * https://docs.kernel.org/admin-guide/mm/hugetlbpage.html
+   */
+  if (strcmp(entry, "demote") == 0) {
+    return -1;
+  }
+
   snprintf(path2, sizeof(path2), "%s/%s", path, entry);
 
   FILE *fh = fopen(path2, "rt");
