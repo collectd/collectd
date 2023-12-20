@@ -101,15 +101,12 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
                               cmd_error_handler_t *err) {
   cmd_status_t result;
 
-  char *identifier;
   char *hostname;
   char *plugin;
   char *plugin_instance;
   char *type;
   char *type_instance;
   int status;
-
-  char *identifier_copy;
 
   const data_set_t *ds;
   value_list_t vl = VALUE_LIST_INIT;
@@ -125,19 +122,19 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     return CMD_PARSE_ERROR;
   }
 
-  identifier = argv[0];
+  char const *identifier = argv[0];
 
   /* parse_identifier() modifies its first argument, returning pointers into
-   * it; retain the old value for later. */
-  identifier_copy = sstrdup(identifier);
+   * it; create a copy so that argv remains unmodified. */
+  char *identifier_copy = sstrdup(argv[0]);
 
   status =
-      parse_identifier(identifier, &hostname, &plugin, &plugin_instance, &type,
-                       &type_instance, opts->identifier_default_host);
+      parse_identifier(identifier_copy, &hostname, &plugin, &plugin_instance,
+                       &type, &type_instance, opts->identifier_default_host);
   if (status != 0) {
-    DEBUG("cmd_handle_putval: Cannot parse identifier `%s'.", identifier_copy);
+    DEBUG("cmd_handle_putval: Cannot parse identifier `%s'.", identifier);
     cmd_error(CMD_PARSE_ERROR, err, "Cannot parse identifier `%s'.",
-              identifier_copy);
+              identifier);
     sfree(identifier_copy);
     return CMD_PARSE_ERROR;
   }
@@ -168,13 +165,14 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     return CMD_PARSE_ERROR;
   }
 
+  sfree(identifier_copy);
   hostname = NULL;
   plugin = NULL;
   plugin_instance = NULL;
   type = NULL;
   type_instance = NULL;
 
-  ret_putval->raw_identifier = identifier_copy;
+  ret_putval->raw_identifier = sstrdup(identifier);
   if (ret_putval->raw_identifier == NULL) {
     cmd_error(CMD_ERROR, err, "malloc failed.");
     cmd_destroy_putval(ret_putval);
@@ -187,22 +185,30 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   for (size_t i = 1; i < argc; ++i) {
     value_list_t *tmp;
 
+    /* Copy option because cmd_parse_option modifies its argument. */
+    char *option = sstrdup(argv[i]);
     char *key = NULL;
     char *value = NULL;
 
-    status = cmd_parse_option(argv[i], &key, &value, err);
+    status = cmd_parse_option(option, &key, &value, err);
     if (status == CMD_OK) {
       int option_err;
 
       assert(key != NULL);
       assert(value != NULL);
       option_err = set_option(&vl, key, value, err);
+      key = NULL;
+      value = NULL;
+      sfree(option);
       if (option_err != CMD_OK && option_err != CMD_NO_OPTION) {
         result = option_err;
         break;
       }
       continue;
-    } else if (status != CMD_NO_OPTION) {
+    }
+    sfree(option);
+
+    if (status != CMD_NO_OPTION) {
       /* parse_option failed, buffer has been modified.
        * => we need to abort */
       result = status;
