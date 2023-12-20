@@ -157,6 +157,7 @@ check_PROGRAMS = \
 	test_meta_data \
 	test_utils_avltree \
 	test_utils_cmds \
+	test_utils_cmds_putval \
 	test_utils_heap \
 	test_utils_latency \
 	test_utils_message_parser \
@@ -521,6 +522,13 @@ test_utils_cmds_SOURCES = \
 	src/utils/cmds/cmds_test.c \
 	src/testing.h
 test_utils_cmds_LDADD = \
+	libcmds.la \
+	libplugin_mock.la
+
+test_utils_cmds_putval_SOURCES = \
+	src/utils/cmds/putval_test.c \
+	src/testing.h
+test_utils_cmds_putval_LDADD = \
 	libcmds.la \
 	libplugin_mock.la
 
