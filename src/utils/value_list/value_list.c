@@ -187,30 +187,6 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
   return failed;
 } /* }}} int plugin_dispatch_multivalue */
 
-static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
-                              data_source_t const *dsrc) {
-  int status = strbuf_print(buf, "collectd");
-
-  if (strcmp(vl->plugin, vl->type) != 0) {
-    status = status || strbuf_print(buf, "_");
-    status = status || strbuf_print(buf, vl->plugin);
-  }
-
-  status = status || strbuf_print(buf, "_");
-  status = status || strbuf_print(buf, vl->type);
-
-  if (strcmp("value", dsrc->name) != 0) {
-    status = status || strbuf_print(buf, "_");
-    status = status || strbuf_print(buf, dsrc->name);
-  }
-
-  if ((dsrc->type == DS_TYPE_COUNTER) || (dsrc->type == DS_TYPE_DERIVE)) {
-    status = status || strbuf_print(buf, "_total");
-  }
-
-  return status;
-}
-
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
                      char **ret_type, char **ret_data_source,
                      char *default_host) {
@@ -369,10 +345,37 @@ metric_t *parse_legacy_identifier(char const *s) {
   return fam->metric.ptr;
 }
 
+static bool is_directional_metric(data_set_t const *ds) {
+  return ds->ds_num == 2 &&
+         (strcmp(ds->ds[0].name, "read") == 0 ||
+          strcmp(ds->ds[0].name, "rx") == 0) &&
+         (strcmp(ds->ds[0].name, "write") == 0 ||
+          strcmp(ds->ds[0].name, "tx") == 0);
+}
+
+static int metric_family_name(strbuf_t *buf, value_list_t const *vl,
+                              data_set_t const *ds, size_t index) {
+  int status = strbuf_print(buf, "collectd.v5.");
+  if (strcmp(ds->type, "percent") == 0) {
+    strbuf_printf(buf, "%s.utilization", vl->plugin);
+  } else if (is_directional_metric(ds) &&
+             string_has_suffix(ds->type, "_octets")) {
+    strbuf_printf(buf, "%s.io", vl->plugin);
+  } else {
+    strbuf_print(buf, vl->type);
+  }
+
+  if (ds->ds_num > 1 && !is_directional_metric(ds)) {
+    status = status || strbuf_printf(buf, ".%s", ds->ds[index].name);
+  }
+
+  return status;
+}
+
 EXPORT metric_family_t *
 plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
                                    size_t index) {
-  if ((vl == NULL) || (ds == NULL)) {
+  if ((vl == NULL) || (ds == NULL) || ds->ds_num <= index) {
     errno = EINVAL;
     return NULL;
   }
@@ -382,20 +385,19 @@ plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
     return NULL;
   }
 
-  data_source_t const *dsrc = ds->ds + index;
-  strbuf_t name = STRBUF_CREATE;
-  int status = metric_family_name(&name, vl, dsrc);
+  strbuf_t buf = STRBUF_CREATE;
+  int status = metric_family_name(&buf, vl, ds, index);
   if (status != 0) {
-    STRBUF_DESTROY(name);
+    STRBUF_DESTROY(buf);
     metric_family_free(fam);
     errno = status;
     return NULL;
   }
-  fam->name = name.ptr;
-  name = (strbuf_t){0};
+  fam->name = strdup(buf.ptr);
+  STRBUF_DESTROY(buf);
 
-  fam->type =
-      (dsrc->type == DS_TYPE_GAUGE) ? METRIC_TYPE_GAUGE : METRIC_TYPE_COUNTER;
+  fam->type = (ds->ds[index].type == DS_TYPE_GAUGE) ? METRIC_TYPE_GAUGE
+                                                    : METRIC_TYPE_COUNTER;
 
   metric_t m = {
       .family = fam,
@@ -404,17 +406,31 @@ plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
       .interval = vl->interval,
   };
 
-  status = metric_label_set(&m, "instance",
-                            (strlen(vl->host) != 0) ? vl->host : hostname_g);
-  if (strlen(vl->plugin_instance) != 0) {
-    status = status || metric_label_set(&m, vl->plugin, vl->plugin_instance);
+  /* If host is empty, this triggered the "use local default value" behavior. We
+   * emulate this behavior by not setting any resource attributes, which will
+   * also trigger the default behavior. */
+  if (strlen(vl->host) != 0) {
+    status = status || metric_family_resource_attribute_update(
+                           fam, "service.name", "collectd 5");
+    status = status || metric_family_resource_attribute_update(fam, "host.name",
+                                                               vl->host);
   }
-  if (strlen(vl->type_instance) != 0) {
-    char const *name = "type";
-    if (strlen(vl->plugin_instance) == 0) {
-      name = vl->plugin;
-    }
-    status = status || metric_label_set(&m, name, vl->type_instance);
+
+  if (is_directional_metric(ds)) {
+    status = status || metric_label_set(&m, "direction", ds->ds[index].name);
+  }
+
+  bool have_plugin_instance = strlen(vl->plugin_instance) != 0;
+  bool have_type_instance = strlen(vl->type_instance) != 0;
+  if (have_plugin_instance && have_type_instance) {
+    status = status || metric_label_set(&m, vl->plugin, vl->plugin_instance);
+    status = status || metric_label_set(&m, "type", vl->type_instance);
+  } else if (have_plugin_instance && !have_type_instance) {
+    status = status || metric_label_set(&m, vl->plugin, vl->plugin_instance);
+  } else if (!have_plugin_instance && have_type_instance) {
+    status = status || metric_label_set(&m, vl->plugin, vl->type_instance);
+  } else if (!have_plugin_instance && !have_type_instance) {
+    status = status || metric_label_set(&m, "plugin", vl->plugin);
   }
 
   status = status || metric_family_metric_append(fam, m);
