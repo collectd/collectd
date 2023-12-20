@@ -1553,7 +1553,6 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
-        metric_family_metric_append(&fam_freq, metric);
         if ((config.output & OUTPUT_RATIO) && maxfreq > 0) {
           metric.value.gauge = req_max / maxfreq;
           metric_family_metric_append(&fam_ratio, metric);
