@@ -95,7 +95,8 @@ static int export_metrics(ot_callback_t *cb) {
     STRBUF_DESTROY(buf);
   }
 
-  auto req = format_open_telemetry_export_metrics_service_request(cb->resource_metrics);
+  auto req = format_open_telemetry_export_metrics_service_request(
+      cb->resource_metrics);
 
   grpc::ClientContext context;
   ExportMetricsServiceResponse resp;
