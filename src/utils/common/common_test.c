@@ -311,7 +311,7 @@ DEF_TEST(parse_values) {
         .meta = NULL,
     };
 
-    size_t buf_sz = strlen(cases[i].buffer)+1;
+    size_t buf_sz = strlen(cases[i].buffer) + 1;
     char buf[buf_sz];
     strncpy(buf, cases[i].buffer, buf_sz);
 
