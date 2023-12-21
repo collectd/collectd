@@ -29,14 +29,20 @@ debian_default_toolchain_task:
     - container:
         image: collectd/ci:debian12
       allow_failures: false
+      env:
+        CONTAINER_IMAGE: debian12
     - container:
         image: collectd/ci:ubuntu23.10
       allow_failures: false
+      env:
+        CONTAINER_IMAGE: ubuntu23.10
     - container:
         image: collectd/ci:debian_unstable
       allow_failures: true
       skip_notifications: true
       only_if: $CIRRUS_BRANCH == 'main'
+      env:
+        CONTAINER_IMAGE: debian_unstable
   configure_script:
     - ./build.sh
     - gcc --version
@@ -49,7 +55,12 @@ debian_default_toolchain_task:
     - make -j$(nproc) -sk
   tests_script:
     - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-    - /checks/check-built-plugins.sh
+    - |
+      if [[ -e ".expected-plugins/$CONTAINER_IMAGE" ]]; then
+        /checks/check-built-plugins.sh ".expected-plugins/$CONTAINER_IMAGE"
+      else
+        /checks/check-built-plugins.sh
+      fi
 
 ###
 # Default toolchain and build flags used in RPM packages, on a range of RedHat
@@ -66,6 +77,8 @@ redhat_default_toolchain_task:
     - container:
         image: collectd/ci:fedora39
       allow_failures: false
+      env:
+        CONTAINER_IMAGE: fedora39
     - container:
         image: collectd/ci:fedora_main
       allow_failures: true
@@ -81,7 +94,12 @@ redhat_default_toolchain_task:
     - make -j$(nproc) -sk
   tests_script:
     - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-    - /checks/check-built-plugins.sh
+    - |
+      if [[ -e ".expected-plugins/$CONTAINER_IMAGE" ]]; then
+        /checks/check-built-plugins.sh ".expected-plugins/$CONTAINER_IMAGE"
+      else
+        /checks/check-built-plugins.sh
+      fi
 
 
 ###
