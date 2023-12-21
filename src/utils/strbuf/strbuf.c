@@ -290,7 +290,7 @@ int strbuf_print_escaped(strbuf_t *buf, char const *s, char const *need_escape,
   return 0;
 }
 
-static void bitmap_set(uint64_t b[static 4] , uint8_t v) {
+static void bitmap_set(uint64_t b[static 4], uint8_t v) {
   uint8_t index = v / 64;
   uint8_t bit = v % 64;
   b[index] |= 1 << bit;
