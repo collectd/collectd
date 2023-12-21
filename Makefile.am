@@ -378,8 +378,6 @@ test_utils_heap_LDADD = libheap.la $(COMMON_LIBS)
 test_utils_message_parser_SOURCES = \
 	src/utils/message_parser/message_parser_test.c \
 	src/testing.h \
-	src/daemon/configfile.c \
-	src/daemon/types_list.c \
 	src/utils_tail_match.c src/utils_tail_match.h \
 	src/utils/tail/tail.c src/utils/tail/tail.h \
 	src/utils/match/match.c src/utils/match/match.h \
@@ -443,6 +441,10 @@ libmetric_la_LIBADD = libmetadata.la $(COMMON_LIBS)
 
 libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
+	src/daemon/configfile.c \
+	src/daemon/configfile.h \
+	src/daemon/types_list.c \
+	src/daemon/types_list.h \
 	src/daemon/utils_cache_mock.c \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
@@ -809,9 +811,7 @@ capabilities_la_LIBADD = $(BUILD_WITH_LIBMICROHTTPD_LIBS) \
 	$(BUILD_WITH_LIBJANSSON_LIBS)
 
 test_plugin_capabilities_SOURCES = \
-        src/capabilities_test.c \
-        src/daemon/configfile.c \
-        src/daemon/types_list.c
+        src/capabilities_test.c
 test_plugin_capabilities_CPPFLAGS = $(AM_CPPFLAGS) \
         $(BUILD_WITH_LIBJANSSON_CPPFLAGS)
 test_plugin_capabilities_LDFLAGS = $(PLUGIN_LDFLAGS) \
@@ -939,8 +939,6 @@ curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 curl_json_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
 
 test_plugin_curl_json_SOURCES = src/curl_json_test.c \
-				src/daemon/configfile.c \
-				src/daemon/types_list.c \
 				src/utils/curl_stats/curl_stats.c
 test_plugin_curl_json_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 test_plugin_curl_json_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
@@ -1086,11 +1084,10 @@ ethstat_la_SOURCES = src/ethstat.c
 ethstat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ethstat_la_LIBADD = libignorelist.la
 
-test_plugin_ethstat_SOURCES = src/ethstat_test.c src/daemon/configfile.c src/daemon/types_list.c
+test_plugin_ethstat_SOURCES = src/ethstat_test.c
 test_plugin_ethstat_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_ethstat_LDADD = libplugin_mock.la libavltree.la
 check_PROGRAMS += test_plugin_ethstat
-
 endif
 
 if BUILD_PLUGIN_FHCOUNT
@@ -1210,8 +1207,6 @@ intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
 
 test_plugin_intel_rdt_SOURCES = \
 	src/intel_rdt_test.c \
-	src/daemon/configfile.c \
-	src/daemon/types_list.c \
 	src/utils/config_cores/config_cores.c \
 	src/utils/proc_pids/proc_pids.c
 test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
@@ -1335,8 +1330,6 @@ logparser_la_CPPFLAGS = $(AM_CPPFLAGS)
 logparser_la_LDFLAGS = $(PLUGIN_LDFLAGS) -lm
 
 test_plugin_logparser_SOURCES = src/logparser_test.c \
-       src/daemon/configfile.c \
-       src/daemon/types_list.c \
        src/utils/match/match.c src/utils/match/match.h \
        src/utils/message_parser/message_parser.c \
        src/utils_tail_match.c src/utils_tail_match.h \
@@ -1554,10 +1547,7 @@ netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
 netlink_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 netlink_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
 
-test_plugin_netlink_SOURCES = \
-	src/netlink_test.c \
-	src/daemon/configfile.c \
-	src/daemon/types_list.c
+test_plugin_netlink_SOURCES = src/netlink_test.c
 test_plugin_netlink_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
 test_plugin_netlink_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_netlink_LDADD = \
@@ -1588,9 +1578,7 @@ endif
 
 test_plugin_network_SOURCES = \
 	src/network_test.c \
-	src/utils_fbhash.c \
-	src/daemon/configfile.c \
-	src/daemon/types_list.c
+	src/utils_fbhash.c
 test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CPPFLAGS)
 test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS) $(GCRYPT_LDFLAGS)
 test_plugin_network_LDADD = \
@@ -1739,9 +1727,7 @@ pcie_errors_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 
 test_plugin_pcie_errors_SOURCES = \
 	src/pcie_errors_test.c \
-	src/daemon/utils_llist.c \
-	src/daemon/configfile.c \
-	src/daemon/types_list.c
+	src/daemon/utils_llist.c
 test_plugin_pcie_errors_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_pcie_errors_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_pcie_errors_LDADD = \
@@ -1868,9 +1854,7 @@ redfish_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
 redfish_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
 redfish_la_LIBADD = $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish
 
-test_plugin_redfish_SOURCES = src/redfish_test.c \
-                              src/daemon/configfile.c \
-                              src/daemon/types_list.c
+test_plugin_redfish_SOURCES = src/redfish_test.c
 test_plugin_redfish_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
 test_plugin_redfish_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
 test_plugin_redfish_LDADD = libplugin_mock.la libavltree.la libllist.la \
@@ -1982,15 +1966,12 @@ snmp_agent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
 snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
 snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
 
-test_plugin_snmp_agent_SOURCES = src/snmp_agent_test.c \
-                                 src/utils/avltree/avltree.c \
-                                 src/daemon/configfile.c \
-                                 src/daemon/types_list.c
+test_plugin_snmp_agent_SOURCES = src/snmp_agent_test.c
 test_plugin_snmp_agent_CPPFLAGS = $(AM_CPPFLAGS) \
 	$(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
 test_plugin_snmp_agent_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
-test_plugin_snmp_agent_LDADD = libplugin_mock.la libllist.la \
+test_plugin_snmp_agent_LDADD = libavltree.la libplugin_mock.la libllist.la \
 	$(BUILD_WITH_LIBNETSNMPAGENT_LIBS) $(BUILD_WITH_LIBNETSNMP_LIBS)
 
 check_PROGRAMS += test_plugin_snmp_agent
@@ -2233,8 +2214,7 @@ virt_la_CFLAGS = $(AM_CFLAGS) \
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 virt_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 
-test_plugin_virt_SOURCES = src/virt_test.c src/daemon/configfile.c \
-	src/daemon/types_list.c
+test_plugin_virt_SOURCES = src/virt_test.c
 test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
 	$(BUILD_WITH_LIBVIRT_CPPFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS) \
