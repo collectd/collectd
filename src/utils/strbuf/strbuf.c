@@ -290,6 +290,18 @@ int strbuf_print_escaped(strbuf_t *buf, char const *s, char const *need_escape,
   return 0;
 }
 
+static void bitmap_set(uint64_t b[static 4] , uint8_t v) {
+  uint8_t index = v / 64;
+  uint8_t bit = v % 64;
+  b[index] |= 1 << bit;
+}
+
+static bool bitmap_lookup(uint64_t b[static 4], uint8_t v) {
+  uint8_t index = v / 64;
+  uint8_t bit = v % 64;
+  return (b[index] & (1 << bit)) != 0;
+}
+
 int strbuf_print_restricted(strbuf_t *buf, char const *s, char const *accept,
                             char replace_char) {
   if (buf == NULL || s == NULL || accept == NULL || accept[0] == 0 ||
@@ -300,35 +312,28 @@ int strbuf_print_restricted(strbuf_t *buf, char const *s, char const *accept,
     return EINVAL;
   }
 
-  size_t s_len = strlen(s);
-  if (s_len == 0) {
-    return strbuf_print(buf, s);
+  /* Create a bitmap so we can do an efficient "accept" lookup without
+   * branching/looping. */
+  uint64_t bitmap[4] = {0};
+  for (size_t i = 0; accept[i] != 0; i++) {
+    bitmap_set(bitmap, (uint8_t)accept[i]);
   }
 
-  while (s_len > 0) {
-    size_t valid_len = strspn(s, accept);
-    if (valid_len == s_len) {
-      return strbuf_print(buf, s);
-    }
-    if (valid_len != 0) {
-      int status = strbuf_printn(buf, s, valid_len);
-      if (status != 0) {
-        return status;
-      }
+  size_t start_pos = buf->pos;
 
-      s += valid_len;
-      s_len -= valid_len;
-      continue;
-    }
+  int status = strbuf_print(buf, s);
+  if (status != 0) {
+    return status;
+  }
 
-    char tmp[] = {replace_char, 0};
-    int status = strbuf_print(buf, tmp);
-    if (status != 0) {
-      return status;
-    }
+  size_t s_len = strlen(s);
+  char conv[s_len + 1];
+  memcpy(conv, s, sizeof(conv));
 
-    s++;
-    s_len--;
+  for (size_t i = start_pos; buf->ptr[i] != 0; i++) {
+    if (!bitmap_lookup(bitmap, (uint8_t)buf->ptr[i])) {
+      buf->ptr[i] = replace_char;
+    }
   }
 
   return 0;
