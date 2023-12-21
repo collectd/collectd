@@ -326,10 +326,6 @@ int strbuf_print_restricted(strbuf_t *buf, char const *s, char const *accept,
     return status;
   }
 
-  size_t s_len = strlen(s);
-  char conv[s_len + 1];
-  memcpy(conv, s, sizeof(conv));
-
   for (size_t i = start_pos; buf->ptr[i] != 0; i++) {
     if (!bitmap_lookup(bitmap, (uint8_t)buf->ptr[i])) {
       buf->ptr[i] = replace_char;
