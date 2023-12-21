@@ -292,7 +292,8 @@ int strbuf_print_escaped(strbuf_t *buf, char const *s, char const *need_escape,
 
 int strbuf_print_restricted(strbuf_t *buf, char const *s, char const *accept,
                             char replace_char) {
-  if (buf == NULL || s == NULL || accept == NULL || accept[0] == 0 || replace_char == 0) {
+  if (buf == NULL || s == NULL || accept == NULL || accept[0] == 0 ||
+      replace_char == 0) {
     return EINVAL;
   }
   if (strchr(accept, replace_char) == NULL) {
