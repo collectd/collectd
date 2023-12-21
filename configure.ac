@@ -7145,6 +7145,8 @@ fi
 
 if test "x$with_libmicrohttpd" = "xyes"; then
   plugin_write_prometheus="yes"
+else
+  plugin_write_prometheus="no (libmicrohttpd not found)"
 fi
 
 # Mac OS X memory interface
