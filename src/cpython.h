@@ -26,7 +26,7 @@
 
 /* Some python versions don't include this by default. */
 
-#include <longintrepr.h>
+//#include <longintrepr.h>
 
 /* These two macros are basically Py_BEGIN_ALLOW_THREADS and
  * Py_BEGIN_ALLOW_THREADS
