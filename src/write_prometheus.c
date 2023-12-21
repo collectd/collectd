@@ -59,17 +59,10 @@ static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
-static void format_text(strbuf_t *buf) {
-  pthread_mutex_lock(&prom_metrics_lock);
-
-  char *unused_name;
-  metric_family_t *prom_fam;
-
-  c_avl_iterator_t *iter = c_avl_get_iterator(prom_metrics);
-  while (c_avl_iterator_next(iter, (void *)&unused_name, (void *)&prom_fam) ==
-         0) {
+/* visible for testing */
+void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
     if (prom_fam->metric.num == 0)
-      continue;
+      return;
 
     char *type = NULL;
     switch (prom_fam->type) {
@@ -84,7 +77,7 @@ static void format_text(strbuf_t *buf) {
       break;
     }
     if (type == NULL) {
-      continue;
+      return;
     }
 
     if (prom_fam->help == NULL)
@@ -109,6 +102,17 @@ static void format_text(strbuf_t *buf) {
         strbuf_printf(buf, "\n");
       }
     }
+}
+
+static void format_text(strbuf_t *buf) {
+  pthread_mutex_lock(&prom_metrics_lock);
+
+  char *unused;
+  metric_family_t *prom_fam;
+
+  c_avl_iterator_t *iter = c_avl_get_iterator(prom_metrics);
+  while (c_avl_iterator_next(iter, (void *)&unused, (void *)&prom_fam) == 0) {
+    format_metric_family(buf, prom_fam);
   }
   c_avl_iterator_destroy(iter);
 
