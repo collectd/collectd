@@ -353,17 +353,17 @@ endif
 test_common_SOURCES = \
 	src/utils/common/common_test.c \
 	src/testing.h
-test_common_LDADD = libmetric.la libplugin_mock.la
+test_common_LDADD = libplugin_mock.la
 
 test_meta_data_SOURCES = \
 	src/utils/metadata/meta_data_test.c \
 	src/testing.h
-test_meta_data_LDADD = libmetadata.la libplugin_mock.la
+test_meta_data_LDADD = libplugin_mock.la
 
 test_metric_SOURCES = \
 	src/daemon/metric_test.c \
 	src/testing.h
-test_metric_LDADD = libmetric.la libplugin_mock.la
+test_metric_LDADD = libplugin_mock.la
 
 test_utils_avltree_SOURCES = \
 	src/utils/avltree/avltree_test.c \
@@ -386,14 +386,14 @@ test_utils_message_parser_SOURCES = \
 	src/utils/latency/latency.c src/utils/latency/latency.h \
 	src/utils/latency/latency_config.c src/utils/latency/latency_config.h
 test_utils_message_parser_CPPFLAGS = $(AM_CPPFLAGS)
-test_utils_message_parser_LDADD = liboconfig.la libplugin_mock.la -lm
+test_utils_message_parser_LDADD = libplugin_mock.la -lm
 
 test_utils_resource_metrics_SOURCES = \
 	src/utils/resource_metrics/resource_metrics_test.c \
 	src/utils/resource_metrics/resource_metrics.c \
 	src/utils/resource_metrics/resource_metrics.h \
 	src/testing.h
-test_utils_resource_metrics_LDADD = libmetric.la libplugin_mock.la
+test_utils_resource_metrics_LDADD = libplugin_mock.la
 
 test_utils_time_SOURCES = \
 	src/daemon/utils_time_test.c \
@@ -450,9 +450,8 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/utils_time.h \
 	src/utils/value_list/value_list.c \
 	src/utils/value_list/value_list.h
-
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
-libplugin_mock_la_LIBADD = libcommon.la libignorelist.la libmetadata.la $(COMMON_LIBS)
+libplugin_mock_la_LIBADD = libmetric.la liboconfig.la libcommon.la libignorelist.la $(COMMON_LIBS)
 
 libformat_influxdb_la_SOURCES = \
 	src/utils/format_influxdb/format_influxdb.c \
@@ -468,8 +467,6 @@ test_format_graphite_SOURCES = \
 	src/testing.h
 test_format_graphite_LDADD = \
 	libformat_graphite.la \
-	libmetadata.la \
-	libmetric.la \
 	libplugin_mock.la \
 	libstrbuf.la \
 	-lm
@@ -493,7 +490,6 @@ test_format_json_SOURCES = \
 	src/testing.h
 test_format_json_LDADD = \
 	libformat_json.la \
-	libmetadata.la \
 	libplugin_mock.la \
 	-lm
 endif
@@ -549,7 +545,6 @@ test_utils_cmds_SOURCES = \
 	src/testing.h
 test_utils_cmds_LDADD = \
 	libcmds.la \
-	libmetric.la \
 	libplugin_mock.la
 
 liblookup_la_SOURCES = \
@@ -659,7 +654,6 @@ test_utils_oauth_SOURCES = \
 	src/utils/oauth/oauth_test.c
 test_utils_oauth_LDADD = \
 	liboauth.la \
-	libcommon.la \
 	libplugin_mock.la
 
 noinst_LTLIBRARIES += libgce.la
@@ -695,7 +689,6 @@ test_format_stackdriver_SOURCES = \
 	src/testing.h
 test_format_stackdriver_LDADD = \
 	libformat_stackdriver.la \
-	libmetric.la \
 	libplugin_mock.la \
 	-lm
 endif
@@ -823,7 +816,7 @@ test_plugin_capabilities_CPPFLAGS = $(AM_CPPFLAGS) \
         $(BUILD_WITH_LIBJANSSON_CPPFLAGS)
 test_plugin_capabilities_LDFLAGS = $(PLUGIN_LDFLAGS) \
         $(BUILD_WITH_LIBJANSSON_LDFLAGS)
-test_plugin_capabilities_LDADD = liboconfig.la libplugin_mock.la \
+test_plugin_capabilities_LDADD = libplugin_mock.la \
         $(BUILD_WITH_LIBJANSSON_LIBS)
 check_PROGRAMS += test_plugin_capabilities
 TESTS += test_plugin_capabilities
@@ -951,7 +944,7 @@ test_plugin_curl_json_SOURCES = src/curl_json_test.c \
 				src/utils/curl_stats/curl_stats.c
 test_plugin_curl_json_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 test_plugin_curl_json_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
-test_plugin_curl_json_LDADD = libavltree.la liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
+test_plugin_curl_json_LDADD = libavltree.la libplugin_mock.la $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
 check_PROGRAMS += test_plugin_curl_json
 endif
 
@@ -1095,7 +1088,7 @@ ethstat_la_LIBADD = libignorelist.la
 
 test_plugin_ethstat_SOURCES = src/ethstat_test.c src/daemon/configfile.c src/daemon/types_list.c
 test_plugin_ethstat_LDFLAGS = $(PLUGIN_LDFLAGS)
-test_plugin_ethstat_LDADD = libplugin_mock.la libignorelist.la libavltree.la liboconfig.la
+test_plugin_ethstat_LDADD = libplugin_mock.la libavltree.la
 check_PROGRAMS += test_plugin_ethstat
 
 endif
@@ -1223,7 +1216,7 @@ test_plugin_intel_rdt_SOURCES = \
 	src/utils/proc_pids/proc_pids.c
 test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
 test_plugin_intel_rdt_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
-test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBPQOS_LIBS)
+test_plugin_intel_rdt_LDADD = libplugin_mock.la $(BUILD_WITH_LIBPQOS_LIBS)
 check_PROGRAMS += test_plugin_intel_rdt
 TESTS += test_plugin_intel_rdt
 
@@ -1350,7 +1343,7 @@ test_plugin_logparser_SOURCES = src/logparser_test.c \
        src/utils/tail/tail.c src/utils/tail/tail.h
 test_plugin_logparser_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_logparser_LDFLAGS = $(PLUGIN_LDFLAGS)
-test_plugin_logparser_LDADD = liboconfig.la libplugin_mock.la liblatency.la
+test_plugin_logparser_LDADD = libplugin_mock.la liblatency.la
 check_PROGRAMS += test_plugin_logparser
 TESTS += test_plugin_logparser
 endif
@@ -1568,7 +1561,6 @@ test_plugin_netlink_SOURCES = \
 test_plugin_netlink_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
 test_plugin_netlink_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_netlink_LDADD = \
-	liboconfig.la \
 	libplugin_mock.la \
 	$(BUILD_WITH_LIBMNL_LIBS)
 check_PROGRAMS += test_plugin_netlink
@@ -1603,9 +1595,7 @@ test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CPPFLAGS)
 test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS) $(GCRYPT_LDFLAGS)
 test_plugin_network_LDADD = \
 	libavltree.la \
-	liboconfig.la \
 	libplugin_mock.la \
-	libmetadata.la \
 	$(GCRYPT_LIBS)
 if BUILD_WITH_LIBSOCKET
 test_plugin_network_LDADD += -lsocket
@@ -1756,7 +1746,6 @@ test_plugin_pcie_errors_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_pcie_errors_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_pcie_errors_LDADD = \
 	libllist.la \
-	liboconfig.la \
 	libplugin_mock.la
 check_PROGRAMS += test_plugin_pcie_errors
 TESTS += test_plugin_pcie_errors
@@ -1880,12 +1869,11 @@ redfish_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
 redfish_la_LIBADD = $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish
 
 test_plugin_redfish_SOURCES = src/redfish_test.c \
-                              src/utils/avltree/avltree.c \
                               src/daemon/configfile.c \
                               src/daemon/types_list.c
 test_plugin_redfish_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBREDFISH_CPPFLAGS)
 test_plugin_redfish_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
-test_plugin_redfish_LDADD = liboconfig.la libplugin_mock.la libllist.la \
+test_plugin_redfish_LDADD = libplugin_mock.la libavltree.la libllist.la \
                             $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish -ljansson
 check_PROGRAMS += test_plugin_redfish
 TESTS += test_plugin_redfish
@@ -2002,7 +1990,7 @@ test_plugin_snmp_agent_CPPFLAGS = $(AM_CPPFLAGS) \
 	$(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
 test_plugin_snmp_agent_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
-test_plugin_snmp_agent_LDADD = liboconfig.la libplugin_mock.la libllist.la \
+test_plugin_snmp_agent_LDADD = libplugin_mock.la libllist.la \
 	$(BUILD_WITH_LIBNETSNMPAGENT_LIBS) $(BUILD_WITH_LIBNETSNMP_LIBS)
 
 check_PROGRAMS += test_plugin_snmp_agent
@@ -2251,7 +2239,7 @@ test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
 	$(BUILD_WITH_LIBVIRT_CPPFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBVIRT_LDFLAGS) $(BUILD_WITH_LIBXML2_LDFLAGS)
-test_plugin_virt_LDADD = liboconfig.la libplugin_mock.la \
+test_plugin_virt_LDADD = libplugin_mock.la \
 	$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 check_PROGRAMS += test_plugin_virt
 TESTS += test_plugin_virt
