@@ -50,6 +50,22 @@
 #define MHD_RESULT int
 #endif
 
+/* Label names must match the regex `[a-zA-Z_][a-zA-Z0-9_]*`. Label names
+ * beginning with __ are reserved for internal use.
+ *
+ * Source:
+ * https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels */
+#define VALID_LABEL_CHARS                                                      \
+  "abcdefghijklmnopqrstuvwxyz"                                                 \
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"                                                 \
+  "0123456789_"
+
+/* Metric names must match the regex `[a-zA-Z_:][a-zA-Z0-9_:]*` */
+// instrument-name = ALPHA 0*254 ("_" / "." / "-" / "/" / ALPHA / DIGIT)
+#define VALID_NAME_CHARS VALID_LABEL_CHARS ":"
+
+#define RESOURCE_LABEL_PREFIX "resource_"
+
 static c_avl_tree_t *prom_metrics;
 static pthread_mutex_t prom_metrics_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -59,49 +75,100 @@ static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
+static int format_label_set(strbuf_t *buf, label_set_t const *labels,
+                            char const *prefix, bool first_label) {
+  int status = 0;
+  for (size_t i = 0; i < labels->num; i++) {
+    if (!first_label) {
+      status = status || strbuf_print(buf, ",");
+    }
+
+    status =
+        status || strbuf_print_restricted(buf, prefix, VALID_LABEL_CHARS, '_');
+    status = status || strbuf_print_restricted(buf, labels->ptr[i].name,
+                                               VALID_LABEL_CHARS, '_');
+    status = status || strbuf_print(buf, "=\"");
+    status = status || strbuf_print_escaped(buf, labels->ptr[i].value,
+                                            "\\\"\n\r\t", '\\');
+    status = status || strbuf_print(buf, "\"");
+    first_label = false;
+  }
+  return status;
+}
+
+static int format_metric(strbuf_t *buf, metric_t const *m) {
+  if ((buf == NULL) || (m == NULL) || (m->family == NULL)) {
+    return EINVAL;
+  }
+  label_set_t const *resource = &m->family->resource;
+
+  int status =
+      strbuf_print_restricted(buf, m->family->name, VALID_NAME_CHARS, '_');
+  if (resource->num == 0 && m->label.num == 0) {
+    return status;
+  }
+
+  status = status || strbuf_print(buf, "{");
+
+  bool first_label = true;
+  if (resource->num != 0) {
+    status = status || format_label_set(buf, resource, RESOURCE_LABEL_PREFIX,
+                                        first_label);
+    first_label = false;
+  }
+  status = status || format_label_set(buf, &m->label, "", first_label);
+
+  return status || strbuf_print(buf, "}");
+}
+
 /* visible for testing */
 void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
-    if (prom_fam->metric.num == 0)
-      return;
+  if (prom_fam->metric.num == 0)
+    return;
 
-    char *type = NULL;
-    switch (prom_fam->type) {
-    case METRIC_TYPE_GAUGE:
-      type = "gauge";
-      break;
-    case METRIC_TYPE_COUNTER:
-      type = "counter";
-      break;
-    case METRIC_TYPE_UNTYPED:
-      type = "untyped";
-      break;
-    }
-    if (type == NULL) {
-      return;
-    }
+  char *type = NULL;
+  switch (prom_fam->type) {
+  case METRIC_TYPE_GAUGE:
+    type = "gauge";
+    break;
+  case METRIC_TYPE_COUNTER:
+    type = "counter";
+    break;
+  case METRIC_TYPE_UNTYPED:
+    type = "untyped";
+    break;
+  }
+  if (type == NULL) {
+    return;
+  }
 
-    if (prom_fam->help == NULL)
-      strbuf_printf(buf, "# HELP %s\n", prom_fam->name);
+  strbuf_t family_name = STRBUF_CREATE;
+  strbuf_print_restricted(&family_name, prom_fam->name, VALID_NAME_CHARS, '_');
+
+  if (prom_fam->help == NULL)
+    strbuf_printf(buf, "# HELP %s\n", family_name.ptr);
+  else
+    strbuf_printf(buf, "# HELP %s %s\n", family_name.ptr, prom_fam->help);
+  strbuf_printf(buf, "# TYPE %s %s\n", family_name.ptr, type);
+
+  STRBUF_DESTROY(family_name);
+
+  for (size_t i = 0; i < prom_fam->metric.num; i++) {
+    metric_t *m = &prom_fam->metric.ptr[i];
+
+    format_metric(buf, m);
+
+    if (prom_fam->type == METRIC_TYPE_COUNTER)
+      strbuf_printf(buf, " %" PRIu64, m->value.counter);
     else
-      strbuf_printf(buf, "# HELP %s %s\n", prom_fam->name, prom_fam->help);
-    strbuf_printf(buf, "# TYPE %s %s\n", prom_fam->name, type);
+      strbuf_printf(buf, " " GAUGE_FORMAT, m->value.gauge);
 
-    for (size_t i = 0; i < prom_fam->metric.num; i++) {
-      metric_t *m = &prom_fam->metric.ptr[i];
-
-      metric_identity(buf, m);
-
-      if (prom_fam->type == METRIC_TYPE_COUNTER)
-        strbuf_printf(buf, " %" PRIu64, m->value.counter);
-      else
-        strbuf_printf(buf, " " GAUGE_FORMAT, m->value.gauge);
-
-      if (m->time > 0) {
-        strbuf_printf(buf, " %" PRIi64 "\n", CDTIME_T_TO_MS(m->time));
-      } else {
-        strbuf_printf(buf, "\n");
-      }
+    if (m->time > 0) {
+      strbuf_printf(buf, " %" PRIi64 "\n", CDTIME_T_TO_MS(m->time));
+    } else {
+      strbuf_printf(buf, "\n");
     }
+  }
 }
 
 static void format_text(strbuf_t *buf) {

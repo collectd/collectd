@@ -50,22 +50,23 @@ DEF_TEST(format_metric_family) {
           .name = "metric without labels",
           .fam =
               {
-                  .name = "unittest",
+                  .name = "unit.test",
                   .type = METRIC_TYPE_COUNTER,
                   .metric =
                       {
                           .ptr =
                               &(metric_t){
-                                  .value = (value_t){
-                                    .counter = 42,
-                                  },
+                                  .value =
+                                      (value_t){
+                                          .counter = 42,
+                                      },
                               },
                           .num = 1,
                       },
               },
-          .want = "# HELP unittest\n"
-              "# TYPE unittest counter\n"
-              "unittest 42\n",
+          .want = "# HELP unit_test\n"
+                  "# TYPE unit_test counter\n"
+                  "unit_test 42\n",
       },
       {
           .name = "metric with one label",
@@ -86,16 +87,48 @@ DEF_TEST(format_metric_family) {
                                               },
                                           .num = 1,
                                       },
-                                  .value = (value_t){
-                                    .counter = 42,
-                                  },
+                                  .value =
+                                      (value_t){
+                                          .counter = 42,
+                                      },
                               },
                           .num = 1,
                       },
               },
           .want = "# HELP unittest\n"
-              "# TYPE unittest counter\n"
-              "unittest{foo=\"bar\"} 42\n",
+                  "# TYPE unittest counter\n"
+                  "unittest{foo=\"bar\"} 42\n",
+      },
+      {
+          .name = "invalid characters are replaced",
+          .fam =
+              {
+                  .name = "unit.test",
+                  .type = METRIC_TYPE_COUNTER,
+                  .metric =
+                      {
+                          .ptr =
+                              &(metric_t){
+                                  .label =
+                                      {
+                                          .ptr =
+                                              &(label_pair_t){
+                                                  .name = "metric.name",
+                                                  .value = "unit.test",
+                                              },
+                                          .num = 1,
+                                      },
+                                  .value =
+                                      (value_t){
+                                          .counter = 42,
+                                      },
+                              },
+                          .num = 1,
+                      },
+              },
+          .want = "# HELP unit_test\n"
+                  "# TYPE unit_test counter\n"
+                  "unit_test{metric_name=\"unit.test\"} 42\n",
       },
   };
 
