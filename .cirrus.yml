@@ -9,7 +9,7 @@ env:
 #
 release_ready_task:
   container:
-    image: collectd/ci:bookworm_amd64
+    image: collectd/ci:debian12
   lint_script:
     - /checks/check-bashisms.sh
     - /checks/check-pod.sh
@@ -27,10 +27,10 @@ release_ready_task:
 debian_default_toolchain_task:
   matrix:
     - container:
-        image: collectd/ci:bookworm_amd64
+        image: collectd/ci:debian12
       allow_failures: false
     - container:
-        image: collectd/ci:mantic_amd64
+        image: collectd/ci:ubuntu23.10
       allow_failures: false
     - container:
         image: collectd/ci:debian_unstable
@@ -59,16 +59,20 @@ debian_default_toolchain_task:
 redhat_default_toolchain_task:
   matrix:
     - container:
-        image: collectd/ci:el9_x86_64
+        image: collectd/ci:centos9
       allow_failures: false
+      env:
+        CONTAINER_IMAGE: centos9
     - container:
         image: collectd/ci:fedora39
       allow_failures: false
     - container:
-        image: collectd/ci:fedora_rawhide_x86_64
+        image: collectd/ci:fedora_main
       allow_failures: true
       skip_notifications: true
       only_if: $CIRRUS_BRANCH == 'main'
+      env:
+        CONTAINER_IMAGE: fedora_main
   configure_script:
     - ./build.sh
     - gcc --version
@@ -86,7 +90,7 @@ redhat_default_toolchain_task:
 # Some are expected to fail, others should always pass
 non_standard_toolchains_task:
   container:
-    image: collectd/ci:bookworm_amd64
+    image: collectd/ci:debian12
   only_if: $CIRRUS_PR == ''
 
   matrix:
