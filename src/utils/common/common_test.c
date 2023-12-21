@@ -313,7 +313,7 @@ DEF_TEST(parse_values) {
 
     size_t buf_sz = strlen(cases[i].buffer) + 1;
     char buf[buf_sz];
-    strncpy(buf, cases[i].buffer, buf_sz);
+    strncpy(buf, cases[i].buffer, sizeof(buf));
 
     int status = parse_values(cases[i].buffer, &vl, &ds);
     EXPECT_EQ_INT(cases[i].status, status);
