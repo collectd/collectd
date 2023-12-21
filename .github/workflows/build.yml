@@ -75,6 +75,11 @@ jobs:
         path: "*.log"
     - name: Report check status
       run: exit $(< make-check.status)
+    - name: Check expected plugins
+      run: |
+        if [[ -e ".expected-plugins/${{ matrix.container_tag }}" ]]; then
+          /checks/check-built-plugins.sh ".expected-plugins/${{ matrix.container_tag }}"
+        fi
 
   experimental:
     runs-on: ubuntu-latest
