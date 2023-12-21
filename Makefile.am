@@ -2307,6 +2307,15 @@ write_prometheus_la_SOURCES = src/write_prometheus.c
 write_prometheus_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
 write_prometheus_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
 write_prometheus_la_LIBADD = $(BUILD_WITH_LIBMICROHTTPD_LIBS)
+
+test_plugin_write_prometheus_SOURCES = src/write_prometheus_test.c \
+				       src/write_prometheus.c
+test_plugin_write_prometheus_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
+test_plugin_write_prometheus_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
+test_plugin_write_prometheus_LDADD = libplugin_mock.la libavltree.la \
+				     $(BUILD_WITH_LIBMICROHTTPD_LIBS)
+check_PROGRAMS += test_plugin_write_prometheus
+TESTS += test_plugin_write_prometheus
 endif
 
 if BUILD_PLUGIN_WRITE_REDIS

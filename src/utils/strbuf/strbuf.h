@@ -104,4 +104,10 @@ int strbuf_printn(strbuf_t *buf, char const *s, size_t n);
 int strbuf_print_escaped(strbuf_t *buf, char const *s, char const *need_escape,
                          char escape_char);
 
+/* strbuf_print_restricted adds a copy of "s" to the buffer, that only consists
+ * of characters in "accept". All other characters are replaced with
+ * "replace_char". "replace_char" has to be in "accept". */
+int strbuf_print_restricted(strbuf_t *buf, char const *s, char const *accept,
+                            char replace_char);
+
 #endif
