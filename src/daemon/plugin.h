@@ -43,13 +43,11 @@
 #define DS_TYPE_ABSOLUTE 3
 
 #define DS_TYPE_TO_STRING(t)                                                   \
-  (t == DS_TYPE_COUNTER)                                                       \
-      ? "counter"                                                              \
-      : (t == DS_TYPE_GAUGE)                                                   \
-            ? "gauge"                                                          \
-            : (t == DS_TYPE_DERIVE)                                            \
-                  ? "derive"                                                   \
-                  : (t == DS_TYPE_ABSOLUTE) ? "absolute" : "unknown"
+  (t == DS_TYPE_COUNTER)    ? "counter"                                        \
+  : (t == DS_TYPE_GAUGE)    ? "gauge"                                          \
+  : (t == DS_TYPE_DERIVE)   ? "derive"                                         \
+  : (t == DS_TYPE_ABSOLUTE) ? "absolute"                                       \
+                            : "unknown"
 
 #ifndef LOG_ERR
 #define LOG_ERR 3
@@ -448,6 +446,9 @@ int plugin_notification_meta_copy(notification_t *dst,
                                   const notification_t *src);
 
 int plugin_notification_meta_free(notification_meta_t *n);
+
+int plugin_notification_meta_get_boolean(notification_meta_t *n,
+                                         const char *name, bool *value);
 
 /*
  * Plugin context management.
