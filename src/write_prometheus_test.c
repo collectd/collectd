@@ -26,22 +26,94 @@
 
 #include "collectd.h"
 
-#include "testing.h"
 #include "daemon/metric.h"
+#include "testing.h"
+#include "utils/common/common.h"
 
 void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam);
 
 DEF_TEST(format_metric_family) {
-  strbuf_t got = STRBUF_CREATE;
-
-  metric_family_t fam = {
-    .name = "unit.test",
+  struct {
+    char const *name;
+    metric_family_t fam;
+    char const *want;
+  } cases[] = {
+      {
+          .name = "metrics is empty",
+          .fam =
+              {
+                  .name = "unit.test",
+              },
+          .want = NULL,
+      },
+      {
+          .name = "metric without labels",
+          .fam =
+              {
+                  .name = "unittest",
+                  .type = METRIC_TYPE_COUNTER,
+                  .metric =
+                      {
+                          .ptr =
+                              &(metric_t){
+                                  .value = (value_t){
+                                    .counter = 42,
+                                  },
+                              },
+                          .num = 1,
+                      },
+              },
+          .want = "# HELP unittest\n"
+              "# TYPE unittest counter\n"
+              "unittest 42\n",
+      },
+      {
+          .name = "metric with one label",
+          .fam =
+              {
+                  .name = "unittest",
+                  .type = METRIC_TYPE_COUNTER,
+                  .metric =
+                      {
+                          .ptr =
+                              &(metric_t){
+                                  .label =
+                                      {
+                                          .ptr =
+                                              &(label_pair_t){
+                                                  .name = "foo",
+                                                  .value = "bar",
+                                              },
+                                          .num = 1,
+                                      },
+                                  .value = (value_t){
+                                    .counter = 42,
+                                  },
+                              },
+                          .num = 1,
+                      },
+              },
+          .want = "# HELP unittest\n"
+              "# TYPE unittest counter\n"
+              "unittest{foo=\"bar\"} 42\n",
+      },
   };
 
-  format_metric_family(&got, &fam);
-  EXPECT_EQ_INT(0, got.pos);
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("# Case %zu: %s\n", i, cases[i].name);
+    strbuf_t got = STRBUF_CREATE;
 
-  STRBUF_DESTROY(got);
+    metric_family_t *fam = &cases[i].fam;
+    for (size_t j = 0; j < fam->metric.num; j++) {
+      fam->metric.ptr[j].family = fam;
+    }
+
+    format_metric_family(&got, &cases[i].fam);
+    EXPECT_EQ_STR(cases[i].want, got.ptr);
+
+    STRBUF_DESTROY(got);
+  }
+
   return 0;
 }
 
