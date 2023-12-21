@@ -177,6 +177,100 @@ DEF_TEST(print_escaped) {
   return 0;
 }
 
+DEF_TEST(print_restricted) {
+  struct {
+    char const *name;
+    char const *s;
+    char const *accept;
+    char replace_char;
+    char const *want;
+    int want_err;
+  } cases[] = {
+      {
+          .name = "no replacement",
+          .s = "normal string",
+          .accept = "abcdefghijklmnopqrstuvwxyz ",
+          .replace_char = ' ',
+          .want = "normal string",
+      },
+      {
+          .name = "single replacement",
+          .s = "normal string",
+          .accept = "abcdefghijklmnopqrstuvwxyz_",
+          .replace_char = '_',
+          .want = "normal_string",
+      },
+      {
+          .name = "double replacement",
+          .s = "normal, string",
+          .accept = "abcdefghijklmnopqrstuvwxyz_",
+          .replace_char = '_',
+          .want = "normal__string",
+      },
+      {
+          .name = "empty string",
+          .s = "",
+          .accept = "abcdefghijklmnopqrstuvwxyz_",
+          .replace_char = '_',
+          .want = "",
+      },
+      {
+          .name = "s is NULL",
+          .s = NULL,
+          .accept = "abcdefghijklmnopqrstuvwxyz_",
+          .replace_char = '_',
+          .want_err = EINVAL,
+      },
+      {
+          .name = "accept is empty",
+          .s = "normal string",
+          .accept = "",
+          .replace_char = '_',
+          .want_err = EINVAL,
+      },
+      {
+          .name = "accept is NULL",
+          .s = "normal string",
+          .accept = NULL,
+          .replace_char = '_',
+          .want_err = EINVAL,
+      },
+      {
+          .name = "replace char is not in accept",
+          .s = "normal string",
+          .accept = "abcdefghijklmnopqrstuvwxyz_",
+          .replace_char = '@',
+          .want_err = EINVAL,
+      },
+      {
+          .name = "replace char is zero",
+          .s = "normal string",
+          .accept = "abcdefghijklmnopqrstuvwxyz",
+          .replace_char = 0,
+          .want_err = EINVAL,
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
+    printf("# Case %zu: %s\n", i, cases[i].name);
+    strbuf_t buf = STRBUF_CREATE;
+
+    EXPECT_EQ_INT(cases[i].want_err,
+                  strbuf_print_restricted(&buf, cases[i].s, cases[i].accept,
+                                          cases[i].replace_char));
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
+    if (cases[i].want_err == 0) {
+      /* The string in buf has to have the same length as "s" and must entirely
+       * consist of characters in "accept". */
+      EXPECT_EQ_UINT64(strlen(cases[i].s), strspn(buf.ptr, cases[i].accept));
+    }
+
+    STRBUF_DESTROY(buf);
+  }
+
+  return 0;
+}
+
 int main(int argc, char **argv) /* {{{ */
 {
   RUN_TEST(dynamic_heap);
@@ -185,6 +279,7 @@ int main(int argc, char **argv) /* {{{ */
   RUN_TEST(fixed_stack);
   RUN_TEST(static_stack);
   RUN_TEST(print_escaped);
+  RUN_TEST(print_restricted);
 
   END_TEST;
 } /* }}} int main */

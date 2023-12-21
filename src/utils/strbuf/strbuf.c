@@ -289,3 +289,46 @@ int strbuf_print_escaped(strbuf_t *buf, char const *s, char const *need_escape,
 
   return 0;
 }
+
+int strbuf_print_restricted(strbuf_t *buf, char const *s, char const *accept,
+                            char replace_char) {
+  if (buf == NULL || s == NULL || accept == NULL || accept[0] == 0 || replace_char == 0) {
+    return EINVAL;
+  }
+  if (strchr(accept, replace_char) == NULL) {
+    return EINVAL;
+  }
+
+  size_t s_len = strlen(s);
+  if (s_len == 0) {
+    return strbuf_print(buf, s);
+  }
+
+  while (s_len > 0) {
+    size_t valid_len = strspn(s, accept);
+    if (valid_len == s_len) {
+      return strbuf_print(buf, s);
+    }
+    if (valid_len != 0) {
+      int status = strbuf_printn(buf, s, valid_len);
+      if (status != 0) {
+        return status;
+      }
+
+      s += valid_len;
+      s_len -= valid_len;
+      continue;
+    }
+
+    char tmp[] = {replace_char, 0};
+    int status = strbuf_print(buf, tmp);
+    if (status != 0) {
+      return status;
+    }
+
+    s++;
+    s_len--;
+  }
+
+  return 0;
+}
