@@ -49,7 +49,7 @@ Description:
 
 Second database layout is done on postgresql 15, by Georg Gast.
 
-It has some advantages over first one: The data has much higher data locality as it stays in one table and much less unneeded text columns.
+It has some advantages over first one: The data has much higher data locality as it stays in one table and has fewer text columns.
 This leads to much smaller table spaces. In my case the first setup created about 300 MB per day. The new setup about 50 MB with the advantage of depending data near each other.
 You can also think about changing the datatype of the plugin_$plugin table to real. Consider whether you really need the double precision compared to real as latter would cut the needed space in half.
 
