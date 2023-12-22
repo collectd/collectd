@@ -77,17 +77,27 @@ static struct MHD_Daemon *httpd;
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
 static int format_label_set(strbuf_t *buf, label_set_t const *labels,
-                            char const *prefix, bool first_label) {
+                            char const *prefix, bool translate,
+                            bool first_label) {
   int status = 0;
   for (size_t i = 0; i < labels->num; i++) {
     if (!first_label) {
       status = status || strbuf_print(buf, ",");
     }
 
+    char const *name = labels->ptr[i].name;
+    if (translate) {
+      if (strcmp("service.name", name) == 0) {
+        name = "job";
+      } else if (strcmp("service.instance.id", name) == 0) {
+        name = "instance";
+      }
+    }
+
     status =
         status || strbuf_print_restricted(buf, prefix, VALID_LABEL_CHARS, '_');
-    status = status || strbuf_print_restricted(buf, labels->ptr[i].name,
-                                               VALID_LABEL_CHARS, '_');
+    status =
+        status || strbuf_print_restricted(buf, name, VALID_LABEL_CHARS, '_');
     status = status || strbuf_print(buf, "=\"");
     status = status || strbuf_print_escaped(buf, labels->ptr[i].value,
                                             "\\\"\n\r\t", '\\');
@@ -114,10 +124,10 @@ static int format_metric(strbuf_t *buf, metric_t const *m) {
   bool first_label = true;
   if (resource->num != 0) {
     status = status || format_label_set(buf, resource, RESOURCE_LABEL_PREFIX,
-                                        first_label);
+                                        true, first_label);
     first_label = false;
   }
-  status = status || format_label_set(buf, &m->label, "", first_label);
+  status = status || format_label_set(buf, &m->label, "", false, first_label);
 
   return status || strbuf_print(buf, "}");
 }
@@ -186,16 +196,9 @@ void target_info(strbuf_t *buf, label_set_t resource) {
   strbuf_print(buf, "# TYPE target info\n");
   strbuf_print(buf, "# HELP target Target metadata\n");
 
-  metric_t m = {
-      .family =
-          &(metric_family_t){
-              .name = "target_info",
-          },
-      .label = resource,
-  };
-  format_metric(buf, &m);
-
-  strbuf_print(buf, " 1\n");
+  strbuf_print(buf, "target_info{");
+  format_label_set(buf, &resource, "", true, true);
+  strbuf_print(buf, "} 1\n");
 }
 
 static void format_text(strbuf_t *buf) {
