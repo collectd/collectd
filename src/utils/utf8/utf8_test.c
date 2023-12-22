@@ -42,6 +42,11 @@ DEF_TEST(utf8_valid) {
           .want = true,
       },
       {
+          .name = "null string",
+          .input = NULL,
+          .want = false,
+      },
+      {
           .name = "The greek work \"kosme\"",
           .input = (char[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce,
                             0xbc, 0xce, 0xb5, 0},

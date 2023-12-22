@@ -52,6 +52,10 @@ static uint32_t decode(uint32_t state, uint32_t byte) {
 }
 
 bool utf8_valid(char const *s) {
+  if (s == NULL) {
+    return false;
+  }
+
   uint32_t state = 0;
   for (size_t i = 0; s[i] != 0; i++) {
     state = decode(state, (uint8_t)s[i]);
