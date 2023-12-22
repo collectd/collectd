@@ -94,7 +94,7 @@ Please make sure that your database user (in this collector) has the rights to c
 Function description:
 ---------------------
 There is one sad thing about collectd. The times that are submitted do not match 100%, so there is an epsilon (0.5 sec) that is used to check to what row a value belongs to.
-1. The procedure collectd_insert() inserts the values into the incoming table and realign the timestamps. It also creates the instances in the instance table.
+1. The procedure collectd_insert() inserts the values into the incoming table and realigns the timestamps. It also creates the instances in the instance table.
 2. The collected data gets moved from the incoming table to the destination tables by the procedure move_data_to_table().
 
 The function impl_location() removes some data anomalies that are there when the data get submitted. There is a default that matches most cases. The plugins cpufreq, ping and memory get their names, plugin_inst get adjusted.
