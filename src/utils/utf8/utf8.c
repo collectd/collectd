@@ -56,7 +56,7 @@ static uint32_t decode(uint32_t *state, uint32_t *codep, uint32_t byte) {
   return *state;
 }
 
-int IsUTF8(uint8_t *s) {
+int utf8_valid(uint8_t *s) {
   uint32_t codepoint, state = 0;
 
   while (*s)

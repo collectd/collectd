@@ -25,80 +25,80 @@
 #include "utils/common/common.h"
 #include "utils/utf8/utf8.h"
 
-DEF_TEST(IsUTF8) {
+DEF_TEST(utf8_valid) {
   struct {
     char const *name;
     char *input;
     bool want;
   } cases[] = {
-    {
-        .name = "simple string",
-        .input = "Hello, World!",
-        .want = true,
-    },
-    {
-        .name = "empty string",
-        .input = "",
-        .want = true,
-    },
-    {
-        .name = "The greek work \"kosme\"",
-        .input = (char[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce, 0xbc,
-                          0xce, 0xb5, 0},
-        .want = true,
-    },
-    {
-        .name = "First possible sequence of three bytes",
-        .input = (char[]){0xe0, 0xa0, 0x80, 0},
-        .want = true,
-    },
-    {
-        .name = "First possible sequence of four bytes",
-        .input = (char[]){0xf0, 0x90, 0x80, 0x80, 0},
-        .want = true,
-    },
-    {
-        .name = "U-0000D7F",
-        .input = (char[]){0xed, 0x9f, 0xbf, 0},
-        .want = true,
-    },
-    {
-        .name = "0xFE (invalid byte)",
-        .input = (char[]){'H', 0xfe, 'l', 'l', 'o', 0},
-        .want = false,
-    },
-    {
-        .name = "0xFF (invalid byte)",
-        .input = (char[]){'C', 'o', 0xff, 'e', 'e', 0},
-        .want = false,
-    },
-    {
-        .name = "Continuation byte at end of string",
-        .input = (char[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce, 0xbc,
-                          0xce, 0},
-        .want = false,
-    },
-    {
-        .name = "U+002F (overlong ASCII character, 2 bytes)",
-        .input = (char[]){0xc0, 0xaf, 0},
-        .want = false,
-    },
-    {
-        .name = "U+002F (overlong ASCII character, 3 bytes)",
-        .input = (char[]){0xe0, 0x80, 0xaf, 0},
-        .want = false,
-    },
+      {
+          .name = "simple string",
+          .input = "Hello, World!",
+          .want = true,
+      },
+      {
+          .name = "empty string",
+          .input = "",
+          .want = true,
+      },
+      {
+          .name = "The greek work \"kosme\"",
+          .input = (char[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce,
+                            0xbc, 0xce, 0xb5, 0},
+          .want = true,
+      },
+      {
+          .name = "First possible sequence of three bytes",
+          .input = (char[]){0xe0, 0xa0, 0x80, 0},
+          .want = true,
+      },
+      {
+          .name = "First possible sequence of four bytes",
+          .input = (char[]){0xf0, 0x90, 0x80, 0x80, 0},
+          .want = true,
+      },
+      {
+          .name = "U-0000D7F",
+          .input = (char[]){0xed, 0x9f, 0xbf, 0},
+          .want = true,
+      },
+      {
+          .name = "0xFE (invalid byte)",
+          .input = (char[]){'H', 0xfe, 'l', 'l', 'o', 0},
+          .want = false,
+      },
+      {
+          .name = "0xFF (invalid byte)",
+          .input = (char[]){'C', 'o', 0xff, 'e', 'e', 0},
+          .want = false,
+      },
+      {
+          .name = "Continuation byte at end of string",
+          .input = (char[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce,
+                            0xbc, 0xce, 0},
+          .want = false,
+      },
+      {
+          .name = "U+002F (overlong ASCII character, 2 bytes)",
+          .input = (char[]){0xc0, 0xaf, 0},
+          .want = false,
+      },
+      {
+          .name = "U+002F (overlong ASCII character, 3 bytes)",
+          .input = (char[]){0xe0, 0x80, 0xaf, 0},
+          .want = false,
+      },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     printf("Case #%zu: %s\n", i, cases[i].name);
-    EXPECT_EQ_INT(cases[i].want, IsUTF8((uint8_t *)cases[i].input));
+    EXPECT_EQ_INT(cases[i].want, utf8_valid((uint8_t *)cases[i].input));
   }
   return 0;
 }
 
 int main(void) {
-  RUN_TEST(IsUTF8);
+  RUN_TEST(utf8_valid);
 
   END_TEST;
 }
