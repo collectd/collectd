@@ -636,7 +636,7 @@ liboconfig_la_SOURCES = \
 liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
-libutf8_la_SOURCES = src/utils/utf8/utf8.c
+libutf8_la_SOURCES = src/utils/utf8/utf8.c src/utils/utf8/utf8.h
 
 if BUILD_WITH_LIBCURL
 if BUILD_WITH_LIBSSL

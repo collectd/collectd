@@ -22,7 +22,7 @@
 
 // See http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for details.
 
-#include "collectd.h"
+#include "utils/utf8/utf8.h"
 
 #define UTF8_ACCEPT 0
 #define UTF8_REJECT 1
