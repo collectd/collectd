@@ -1169,10 +1169,10 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       /* find min & max values for memory free from
        * (the configured number of) samples
        */
-      uint64_t free_min = (uint64_t)0xffffffff;
-      uint64_t free_max = 0, mem_free;
+      uint64_t free_max = 0;
+      uint64_t free_min = mem_size;
       for (uint32_t j = 0; j < config.samples; j++) {
-        mem_free = gpu->memory[j][i].free;
+        uint64_t mem_free = gpu->memory[j][i].free;
         if (mem_free < free_min) {
           free_min = mem_free;
         }
