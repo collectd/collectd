@@ -362,6 +362,13 @@ L<https://opentelemetry.io/docs/specs/semconv/resource/host/>.
 Minimal defaults for maximum flexibility. Only the C<service.name> attribute is
 populated.
 
+To also remove the C<service.name> resource attribute, set it to an empty
+string:
+
+  <Resource Generic>
+    Attribute "service.name" ""
+  </Resource>
+
 =back
 
 Inside the B<Resource> block, the following configuration options are valid:

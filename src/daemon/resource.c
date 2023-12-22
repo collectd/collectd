@@ -29,6 +29,7 @@
 
 #include "utils/common/common.h"
 
+static bool default_resource_initialized = false;
 static label_set_t default_resource;
 
 static void otel_service_name(void) {
@@ -105,7 +106,7 @@ static int machine_id(void) {
 }
 
 static void resource_host_init(void) {
-  if (default_resource.num != 0) {
+  if (default_resource_initialized) {
     return;
   }
 
@@ -113,15 +114,17 @@ static void resource_host_init(void) {
   otel_resource_attributes();
   host_name();
   machine_id();
+  default_resource_initialized = true;
 }
 
 static void resource_generic_init(void) {
-  if (default_resource.num != 0) {
+  if (default_resource_initialized) {
     return;
   }
 
   otel_service_name();
   otel_resource_attributes();
+  default_resource_initialized = true;
 }
 
 int resource_attributes_init(char const *type) {
