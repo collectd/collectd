@@ -330,9 +330,11 @@ is enabled by default.
 
 =item B<Resource> I<Type>
 
-The B<Resource> block defined the I<Resource Attributes> to use for local
+The B<Resource> block defines the I<Resource Attributes> to use for local
 metrics such as CPU usage, i.e. metrics that were not received from a remote
-system or service.
+system or service. The resource attributes describe the resource being
+monitored. A common case for collectd is that the monitored resource is a
+(physical or virtual) I<Host>.
 
 The recommended way to configure resource attributes is by following the
 OpenTelemetry Semantic Conventions,
