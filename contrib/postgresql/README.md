@@ -66,7 +66,7 @@ You can also think about changing the datatype of the plugin_$plugin table to re
 +--------------------+  +--------------------+
 ```
 
-The instance ID get reused. The plugin data get its own table. All relevant measurement values are on one line. Get out the data is much easier.
+The instance ID get reused. The plugin data get its own table. All relevant measurement values are on one line. Getting the data out is much easier.
 
 The type, type_inst and value_name get used to create the name of the value column. The impl_location() function handles this "data anomalies" like the ping plugin.
 
