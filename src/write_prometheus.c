@@ -26,7 +26,8 @@
 
 #include "collectd.h"
 
-#include "plugin.h"
+#include "daemon/plugin.h"
+#include "daemon/resource.h"
 #include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 #include "utils_complain.h"
@@ -171,7 +172,36 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
   }
 }
 
+/* target_info prints a special "info" metric that contains all the "target
+ * labels" aka. resource attributes.
+ * See
+ * https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#supporting-target-metadata-in-both-push-based-and-pull-based-systems
+ * for more details. */
+/* visible for testing */
+void target_info(strbuf_t *buf, label_set_t resource) {
+  if (resource.num == 0) {
+    return;
+  }
+
+  strbuf_print(buf, "# TYPE target info\n");
+  strbuf_print(buf, "# HELP target Target metadata\n");
+
+  metric_t m = {
+      .family =
+          &(metric_family_t){
+              .name = "target_info",
+          },
+      .label = resource,
+  };
+  format_metric(buf, &m);
+
+  strbuf_print(buf, " 1\n");
+}
+
 static void format_text(strbuf_t *buf) {
+  label_set_t resource = default_resource_attributes();
+  target_info(buf, resource);
+
   pthread_mutex_lock(&prom_metrics_lock);
 
   char *unused;

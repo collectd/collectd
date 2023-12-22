@@ -150,8 +150,43 @@ DEF_TEST(format_metric_family) {
   return 0;
 }
 
+void target_info(strbuf_t *buf, label_set_t resource);
+
+DEF_TEST(target_info) {
+  struct {
+    char const *name;
+    label_set_t resource;
+    char const *want;
+  } cases[] = {
+      {
+          .name = "single resource attribute",
+          .resource =
+              {
+                  .ptr = &(label_pair_t){"foo", "bar"},
+                  .num = 1,
+              },
+          .want = "# TYPE target info\n"
+                  "# HELP target Target metadata\n"
+                  "target_info{foo=\"bar\"} 1\n",
+      },
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("# Case %zu: %s\n", i, cases[i].name);
+    strbuf_t got = STRBUF_CREATE;
+
+    target_info(&got, cases[i].resource);
+    EXPECT_EQ_STR(cases[i].want, got.ptr);
+
+    STRBUF_DESTROY(got);
+  }
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(format_metric_family);
+  RUN_TEST(target_info);
 
   END_TEST;
 }
