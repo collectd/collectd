@@ -58,8 +58,9 @@ static void decode(uint32_t *state, uint32_t *codep, uint32_t byte) {
 bool utf8_valid(char const *s) {
   uint32_t codepoint, state = 0;
 
-  while (*s)
-    decode(&state, &codepoint, (uint8_t)*s++);
+  for (size_t i = 0; s[i] != 0; i++) {
+    decode(&state, &codepoint, (uint8_t)s[i]);
+  }
 
   return state == UTF8_ACCEPT;
 }
