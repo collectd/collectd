@@ -141,7 +141,8 @@ noinst_LTLIBRARIES = \
 	libmetric.la \
 	libmount.la \
 	liboconfig.la \
-	libstrbuf.la
+	libstrbuf.la \
+	libutf8.la
 
 
 check_LTLIBRARIES = \
@@ -634,6 +635,8 @@ liboconfig_la_SOURCES = \
 	src/liboconfig/parser.y
 liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
+
+libutf8_la_SOURCES = src/utils/utf8/utf8.c
 
 if BUILD_WITH_LIBCURL
 if BUILD_WITH_LIBSSL
