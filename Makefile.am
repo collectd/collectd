@@ -637,6 +637,10 @@ liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
 libutf8_la_SOURCES = src/utils/utf8/utf8.c src/utils/utf8/utf8.h
+check_PROGRAMS += test_utils_utf8
+TESTS += test_utils_utf8
+test_utils_utf8_SOURCES = src/utils/utf8/utf8_test.c
+test_utils_utf8_LDADD = libutf8.la
 
 if BUILD_WITH_LIBCURL
 if BUILD_WITH_LIBSSL
