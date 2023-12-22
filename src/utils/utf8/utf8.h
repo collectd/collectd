@@ -25,6 +25,6 @@
 
 #include "collectd.h"
 
-int utf8_valid(uint8_t *s);
+int utf8_valid(char const *s);
 
 #endif

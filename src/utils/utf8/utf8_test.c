@@ -92,7 +92,7 @@ DEF_TEST(utf8_valid) {
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     printf("Case #%zu: %s\n", i, cases[i].name);
-    EXPECT_EQ_INT(cases[i].want, utf8_valid((uint8_t *)cases[i].input));
+    EXPECT_EQ_INT(cases[i].want, utf8_valid(cases[i].input));
   }
   return 0;
 }
