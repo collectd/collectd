@@ -253,6 +253,23 @@ DEF_TEST(metric_identity) {
               "metric_with_resource_and_labels{resource:alpha=\"resources\","
               "resource:omega=\"always\",beta=\"come\",gamma=\"first\"}",
       },
+      {
+          .name = "complex_names.are.quoted",
+          .rattr =
+              (label_pair_t[]){
+                  {"with space", "gets quotes"},
+              },
+          .rattr_num = 1,
+          .labels =
+              (label_pair_t[]){
+                  {"and \"quotes\" are", "escaped"},
+              },
+          .labels_num = 1,
+          .want = "complex_names.are.quoted{"
+                  "\"resource:with space\"=\"gets quotes\","
+                  "\"and \\\"quotes\\\" are\"=\"escaped\""
+                  "}",
+      },
   };
 
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
@@ -368,6 +385,34 @@ DEF_TEST(metric_parse_identity) {
                                   .ptr =
                                       (label_pair_t[]){
                                           {"host.name", "example.com"},
+                                      },
+                                  .num = 1,
+                              },
+                      },
+              },
+      },
+      {
+          .name = "complex names are quoted",
+          .input = "complex_names.are.quoted{\"resource:with space\"=\"gets "
+                   "quotes\",\"and \\\"quotes\\\" are\"=\"escaped\"}",
+          .want =
+              {
+                  .label =
+                      {
+                          .ptr =
+                              (label_pair_t[]){
+                                  {"and \"quotes\" are", "escaped"},
+                              },
+                          .num = 1,
+                      },
+                  .family =
+                      &(metric_family_t){
+                          .name = "complex_names.are.quoted",
+                          .resource =
+                              {
+                                  .ptr =
+                                      (label_pair_t[]){
+                                          {"with space", "gets quotes"},
                                       },
                                   .num = 1,
                               },

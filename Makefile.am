@@ -438,7 +438,7 @@ libmetadata_la_SOURCES = \
 libmetric_la_SOURCES = \
 		       src/daemon/metric.c \
 		       src/daemon/metric.h
-libmetric_la_LIBADD = libmetadata.la $(COMMON_LIBS)
+libmetric_la_LIBADD = libmetadata.la libutf8.la $(COMMON_LIBS)
 
 libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
