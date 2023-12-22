@@ -93,7 +93,7 @@ Please make sure that your database user (in this collector) has the rights to c
 
 Function description:
 ---------------------
-There is one sad thing about collectd. The times that are submitted dont match 100%, so there is an epsilon (0.5 sec) that is used to check to what row a value belongs.
+There is one sad thing about collectd. The times that are submitted do not match 100%, so there is an epsilon (0.5 sec) that is used to check to what row a value belongs to.
 1. The procedure collectd_insert() inserts the values into the incoming table and realign the timestamps. It also creates the instances in the instance table.
 2. The collected data gets moved from the incoming table to the destination tables by the procedure move_data_to_table().
 
