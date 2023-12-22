@@ -46,20 +46,17 @@ static const uint8_t utf8d[] = {
 };
 // clang-format on
 
-static void decode(uint32_t *state, uint32_t *codep, uint32_t byte) {
+static void decode(uint32_t *state, uint32_t byte) {
   uint32_t type = utf8d[byte];
-
-  *codep = (*state != UTF8_ACCEPT) ? (byte & 0x3fu) | (*codep << 6)
-                                   : (0xff >> type) & (byte);
 
   *state = utf8d[256 + (*state) * 16 + type];
 }
 
 bool utf8_valid(char const *s) {
-  uint32_t codepoint, state = 0;
+  uint32_t state = 0;
 
   for (size_t i = 0; s[i] != 0; i++) {
-    decode(&state, &codepoint, (uint8_t)s[i]);
+    decode(&state, (uint8_t)s[i]);
   }
 
   return state == UTF8_ACCEPT;
