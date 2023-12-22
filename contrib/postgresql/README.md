@@ -41,7 +41,7 @@ Let's take the ping plugin as an example. It collects 3 values: ping, ping_stdde
 
 The current structure creates 3 identifiers and 3 lines for each entry. The identifiers get reused. It reports "192.168.200.123" as type.
 
-To draw a diagram with e.g. grafana I would like all 3 values near each other for that host that i am pinging. See the graph in the wiki. The current setup must join through all collected values to scrap the ping values out of it. Each value must do the same again because it has another identifier.
+To draw a diagram with e.g. grafana I would like all 3 values near each other for that host that I am pinging. See the graph in the wiki. The current setup must join through all collected values to scrap the ping values out of it. Each value must do the same again because it has another identifier.
 
 
 Description:
