@@ -749,7 +749,7 @@ static int disk_read(void) {
       m.value.counter = (counter_t)busy_time;
       metric_family_metric_append(&fam_disk_io_time, m);
 
-      m.value.gauge = (gauge)utilization;
+      m.value.gauge = (gauge_t)utilization;
       metric_family_metric_append(&fam_utilization, m);
 
       m.value.counter = (counter_t)total_duration;
