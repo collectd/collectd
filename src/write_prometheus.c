@@ -111,19 +111,20 @@ static int format_metric(strbuf_t *buf, metric_t const *m) {
   if ((buf == NULL) || (m == NULL) || (m->family == NULL)) {
     return EINVAL;
   }
-  label_set_t const *resource = &m->family->resource;
+  label_set_t resource = m->family->resource;
 
   int status =
       strbuf_print_restricted(buf, m->family->name, VALID_NAME_CHARS, '_');
-  if (resource->num == 0 && m->label.num == 0) {
+  if (resource.num == 0 && m->label.num == 0) {
     return status;
   }
 
   status = status || strbuf_print(buf, "{");
 
   bool first_label = true;
-  if (resource->num != 0) {
-    status = status || format_label_set(buf, resource, RESOURCE_LABEL_PREFIX,
+  if (resource.num != 0 &&
+      label_set_compare(resource, default_resource_attributes()) != 0) {
+    status = status || format_label_set(buf, &resource, RESOURCE_LABEL_PREFIX,
                                         true, first_label);
     first_label = false;
   }
