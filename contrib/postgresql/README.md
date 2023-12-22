@@ -99,7 +99,7 @@ There is one sad thing about collectd. The times that are submitted do not match
 
 The function impl_location() removes some data anomalies that are there when the data get submitted. There is a default that matches most cases. The plugins cpufreq, ping and memory get their names, plugin_inst get adjusted.
 
-The plugin_$plugin table (e.g. plugin_apache) then contain all data for that plugin.  If the column is not yet present it is added by this function.
+The plugin_$plugin table (e.g. plugin_apache) then contains all the data for that plugin.  If the column is not yet present it is added by this function.
 The procedure move_data_to_table() must be called periodically. In my case by a cron job.
 
 ```
