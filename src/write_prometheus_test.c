@@ -30,6 +30,33 @@
 #include "testing.h"
 #include "utils/common/common.h"
 
+int format_label_name(strbuf_t *buf, char const *name);
+
+DEF_TEST(format_label_name) {
+  // Test cases are based on:
+  // https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/translator/prometheus/README.md
+  struct {
+    char *name;
+    char *want;
+  } cases[] = {
+      {"name", "name"},           {"host.name", "host_name"},
+      {"host_name", "host_name"}, {"name (of the host)", "name__of_the_host_"},
+      {"2 cents", "key_2_cents"}, {"__name", "__name"},
+      {"_name", "key_name"},      {"(name)", "key_name_"},
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("# Case %zu: %s\n", i, cases[i].name);
+    strbuf_t got = STRBUF_CREATE;
+
+    EXPECT_EQ_INT(0, format_label_name(&got, cases[i].name));
+    EXPECT_EQ_STR(cases[i].want, got.ptr);
+
+    STRBUF_DESTROY(got);
+  }
+
+  return 0;
+}
 void format_metric_family_name(strbuf_t *buf, metric_family_t const *fam);
 
 DEF_TEST(format_metric_family_name) {
@@ -164,6 +191,48 @@ DEF_TEST(format_metric_family) {
                   "# TYPE unit_test untyped\n"
                   "unit_test{metric_name=\"unit.test\"} 42\n",
       },
+      {
+          .name = "most resource attributes are ignored",
+          .fam =
+              {
+                  .name = "unit.test",
+                  .type = METRIC_TYPE_UNTYPED,
+                  .resource =
+                      {
+                          .ptr =
+                              (label_pair_t[]){
+                                  {"service.instance.id",
+                                   "service instance id"},
+                                  {"service.name", "service name"},
+                                  {"zzz.all.other.attributes", "are ignored"},
+                              },
+                          .num = 3,
+                      },
+                  .metric =
+                      {
+                          .ptr =
+                              &(metric_t){
+                                  .label =
+                                      {
+                                          .ptr =
+                                              (label_pair_t[]){
+                                                  {"metric.name", "unit.test"},
+                                              },
+                                          .num = 1,
+                                      },
+                                  .value =
+                                      (value_t){
+                                          .gauge = 42,
+                                      },
+                              },
+                          .num = 1,
+                      },
+              },
+          .want = "# HELP unit_test\n"
+                  "# TYPE unit_test untyped\n"
+                  "unit_test{job=\"service name\",instance=\"service instance "
+                  "id\",metric_name=\"unit.test\"} 42\n",
+      },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
@@ -241,6 +310,7 @@ DEF_TEST(target_info) {
 }
 
 int main(void) {
+  RUN_TEST(format_label_name);
   RUN_TEST(format_metric_family_name);
   RUN_TEST(format_metric_family);
   RUN_TEST(target_info);
