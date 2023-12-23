@@ -64,8 +64,8 @@ static int label_name_compare(void const *a, void const *b) {
                 ((label_pair_t const *)b)->name);
 }
 
-static label_pair_t *label_set_read(label_set_t const *labels,
-                                    char const *name) {
+static label_pair_t *label_set_lookup(label_set_t const *labels,
+                                      char const *name) {
   if (name == NULL) {
     errno = EINVAL;
     return NULL;
@@ -88,6 +88,15 @@ static label_pair_t *label_set_read(label_set_t const *labels,
   return ret;
 }
 
+char const *label_set_get(label_set_t labels, char const *name) {
+  label_pair_t *l = label_set_lookup(&labels, name);
+  if (l == NULL) {
+    return NULL;
+  }
+
+  return l->value;
+}
+
 int label_set_add(label_set_t *labels, char const *name, char const *value) {
   if ((labels == NULL) || (name == NULL) || (value == NULL)) {
     return EINVAL;
@@ -103,7 +112,7 @@ int label_set_add(label_set_t *labels, char const *name, char const *value) {
     return EINVAL;
   }
 
-  if (label_set_read(labels, name) != NULL) {
+  if (label_set_get(*labels, name) != NULL) {
     return EEXIST;
   }
   errno = 0;
@@ -166,13 +175,12 @@ static int label_set_delete(label_set_t *labels, label_pair_t *elem) {
   return 0;
 }
 
-static int label_set_update(label_set_t *labels, char const *name,
-                            char const *value) {
+int label_set_update(label_set_t *labels, char const *name, char const *value) {
   if ((labels == NULL) || (name == NULL)) {
     return EINVAL;
   }
 
-  label_pair_t *label = label_set_read(labels, name);
+  label_pair_t *label = label_set_lookup(labels, name);
   if ((label == NULL) && (errno != ENOENT)) {
     return errno;
   }
@@ -318,12 +326,7 @@ char const *metric_label_get(metric_t const *m, char const *name) {
     return NULL;
   }
 
-  label_pair_t *set = label_set_read(&m->label, name);
-  if (set == NULL) {
-    return NULL;
-  }
-
-  return set->value;
+  return label_set_get(m->label, name);
 }
 
 static int metric_list_add(metric_list_t *metrics, metric_t m) {
