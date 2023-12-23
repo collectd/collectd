@@ -30,6 +30,40 @@
 #include "testing.h"
 #include "utils/common/common.h"
 
+void format_metric_family_name(strbuf_t *buf, metric_family_t const *fam);
+
+DEF_TEST(format_metric_family_name) {
+  // Test cases are based on:
+  // https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/translator/prometheus/README.md
+  struct {
+    char *name;
+    metric_type_t type;
+    char *want;
+  } cases[] = {
+      {"(lambda).function.executions(#)", METRIC_TYPE_UNTYPED,
+       "lambda_function_executions"},
+      {"system.processes.created", METRIC_TYPE_COUNTER,
+       "system_processes_created_total"},
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("# Case %zu: %s\n", i, cases[i].name);
+    strbuf_t got = STRBUF_CREATE;
+
+    metric_family_t fam = {
+        .name = cases[i].name,
+        .type = cases[i].type,
+    };
+
+    format_metric_family_name(&got, &fam);
+    EXPECT_EQ_STR(cases[i].want, got.ptr);
+
+    STRBUF_DESTROY(got);
+  }
+
+  return 0;
+}
+
 void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam);
 
 DEF_TEST(format_metric_family) {
@@ -64,16 +98,16 @@ DEF_TEST(format_metric_family) {
                           .num = 1,
                       },
               },
-          .want = "# HELP unit_test\n"
-                  "# TYPE unit_test counter\n"
-                  "unit_test 42\n",
+          .want = "# HELP unit_test_total\n"
+                  "# TYPE unit_test_total counter\n"
+                  "unit_test_total 42\n",
       },
       {
           .name = "metric with one label",
           .fam =
               {
                   .name = "unittest",
-                  .type = METRIC_TYPE_COUNTER,
+                  .type = METRIC_TYPE_GAUGE,
                   .metric =
                       {
                           .ptr =
@@ -89,14 +123,14 @@ DEF_TEST(format_metric_family) {
                                       },
                                   .value =
                                       (value_t){
-                                          .counter = 42,
+                                          .gauge = 42,
                                       },
                               },
                           .num = 1,
                       },
               },
           .want = "# HELP unittest\n"
-                  "# TYPE unittest counter\n"
+                  "# TYPE unittest gauge\n"
                   "unittest{foo=\"bar\"} 42\n",
       },
       {
@@ -104,7 +138,7 @@ DEF_TEST(format_metric_family) {
           .fam =
               {
                   .name = "unit.test",
-                  .type = METRIC_TYPE_COUNTER,
+                  .type = METRIC_TYPE_UNTYPED,
                   .metric =
                       {
                           .ptr =
@@ -120,14 +154,14 @@ DEF_TEST(format_metric_family) {
                                       },
                                   .value =
                                       (value_t){
-                                          .counter = 42,
+                                          .gauge = 42,
                                       },
                               },
                           .num = 1,
                       },
               },
           .want = "# HELP unit_test\n"
-                  "# TYPE unit_test counter\n"
+                  "# TYPE unit_test untyped\n"
                   "unit_test{metric_name=\"unit.test\"} 42\n",
       },
   };
@@ -207,6 +241,7 @@ DEF_TEST(target_info) {
 }
 
 int main(void) {
+  RUN_TEST(format_metric_family_name);
   RUN_TEST(format_metric_family);
   RUN_TEST(target_info);
 

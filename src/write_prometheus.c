@@ -107,14 +107,17 @@ static int format_label_set(strbuf_t *buf, label_set_t const *labels,
   return status;
 }
 
-static int format_metric(strbuf_t *buf, metric_t const *m) {
+static int format_metric(strbuf_t *buf, metric_t const *m,
+                         char const *metric_family_name) {
   if ((buf == NULL) || (m == NULL) || (m->family == NULL)) {
     return EINVAL;
   }
   label_set_t resource = m->family->resource;
 
+  /* metric_family_name is already escaped, so strbuf_print_restricted should
+   * not replace any characters. */
   int status =
-      strbuf_print_restricted(buf, m->family->name, VALID_NAME_CHARS, '_');
+      strbuf_print_restricted(buf, metric_family_name, VALID_NAME_CHARS, '_');
   if (resource.num == 0 && m->label.num == 0) {
     return status;
   }
@@ -131,6 +134,46 @@ static int format_metric(strbuf_t *buf, metric_t const *m) {
   status = status || format_label_set(buf, &m->label, "", false, first_label);
 
   return status || strbuf_print(buf, "}");
+}
+
+/* format_metric_family_name creates a Prometheus compatible metric name by
+ * replacing all characters that are invalid in Prometheus with underscores,
+ * drop any leading and trailing underscores, and collapses a sequence of
+ * multiple underscores into one underscore.
+ *
+ * Visible for testing */
+void format_metric_family_name(strbuf_t *buf, metric_family_t const *fam) {
+  size_t name_len = strlen(fam->name);
+  char name[name_len + 1];
+  memset(name, 0, sizeof(name));
+
+  strbuf_t namebuf = STRBUF_CREATE_FIXED(name, sizeof(name));
+  strbuf_print_restricted(&namebuf, fam->name, VALID_NAME_CHARS, '_');
+  STRBUF_DESTROY(namebuf);
+
+  bool skip_underscore = true;
+  size_t out = 0;
+  for (size_t in = 0; in < name_len; in++) {
+    if (skip_underscore && name[in] == '_') {
+      continue;
+    }
+    skip_underscore = (name[in] == '_');
+    name[out] = name[in];
+    out++;
+  }
+  name_len = out;
+  name[name_len] = 0;
+
+  while (name_len > 0 && name[name_len - 1] == '_') {
+    name_len--;
+    name[name_len] = 0;
+  }
+
+  strbuf_print(buf, name);
+
+  if (fam->type == METRIC_TYPE_COUNTER) {
+    strbuf_print(buf, "_total");
+  }
 }
 
 /* visible for testing */
@@ -155,7 +198,7 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
   }
 
   strbuf_t family_name = STRBUF_CREATE;
-  strbuf_print_restricted(&family_name, prom_fam->name, VALID_NAME_CHARS, '_');
+  format_metric_family_name(&family_name, prom_fam);
 
   if (prom_fam->help == NULL)
     strbuf_printf(buf, "# HELP %s\n", family_name.ptr);
@@ -163,12 +206,10 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
     strbuf_printf(buf, "# HELP %s %s\n", family_name.ptr, prom_fam->help);
   strbuf_printf(buf, "# TYPE %s %s\n", family_name.ptr, type);
 
-  STRBUF_DESTROY(family_name);
-
   for (size_t i = 0; i < prom_fam->metric.num; i++) {
     metric_t *m = &prom_fam->metric.ptr[i];
 
-    format_metric(buf, m);
+    format_metric(buf, m, family_name.ptr);
 
     if (prom_fam->type == METRIC_TYPE_COUNTER)
       strbuf_printf(buf, " %" PRIu64, m->value.counter);
@@ -181,6 +222,8 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
       strbuf_printf(buf, "\n");
     }
   }
+
+  STRBUF_DESTROY(family_name);
 }
 
 /* target_info prints a special "info" metric that contains all the "target
