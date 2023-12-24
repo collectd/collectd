@@ -160,9 +160,8 @@ static int compare_metrics(metric_t const *a, metric_t const *b) {
 }
 
 static bool metric_exists(metric_family_t const *fam, metric_t const *m) {
-  metric_family_t *found =
-      bsearch(m, fam->metric.ptr, fam->metric.num, sizeof(*fam->metric.ptr),
-              (void *)compare_metrics);
+  metric_t *found = bsearch(m, fam->metric.ptr, fam->metric.num,
+                            sizeof(*fam->metric.ptr), (void *)compare_metrics);
   return found != NULL;
 }
 
@@ -170,7 +169,6 @@ static int insert_metrics(metric_family_t *fam, metric_list_t metrics) {
   int skipped = 0;
   for (size_t i = 0; i < metrics.num; i++) {
     metric_t const *m = metrics.ptr + i;
-
     if (metric_exists(fam, m)) {
 #if COLLECT_DEBUG
       strbuf_t buf = STRBUF_CREATE;
