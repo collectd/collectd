@@ -268,8 +268,8 @@ DEF_TEST(target_info) {
                   .ptr = &(label_pair_t){"foo", "bar"},
                   .num = 1,
               },
-          .want = "# TYPE target info\n"
-                  "# HELP target Target metadata\n"
+          .want = "# HELP target_info Target metadata\n"
+                  "# TYPE target_info gauge\n"
                   "target_info{foo=\"bar\"} 1\n",
       },
       {
@@ -279,8 +279,8 @@ DEF_TEST(target_info) {
                   .ptr = &(label_pair_t){"service.name", "unittest"},
                   .num = 1,
               },
-          .want = "# TYPE target info\n"
-                  "# HELP target Target metadata\n"
+          .want = "# HELP target_info Target metadata\n"
+                  "# TYPE target_info gauge\n"
                   "target_info{job=\"unittest\"} 1\n",
       },
       {
@@ -290,8 +290,8 @@ DEF_TEST(target_info) {
                   .ptr = &(label_pair_t){"service.instance.id", "42"},
                   .num = 1,
               },
-          .want = "# TYPE target info\n"
-                  "# HELP target Target metadata\n"
+          .want = "# HELP target_info Target metadata\n"
+                  "# TYPE target_info gauge\n"
                   "target_info{instance=\"42\"} 1\n",
       },
   };

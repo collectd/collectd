@@ -271,8 +271,13 @@ void target_info(strbuf_t *buf, label_set_t resource) {
   label_set_update(&rattr, "service.name", NULL);
   label_set_update(&rattr, "service.instance.id", NULL);
 
+#ifdef EXPOSE_OPEN_METRICS
   strbuf_print(buf, "# TYPE target info\n");
   strbuf_print(buf, "# HELP target Target metadata\n");
+#else
+  strbuf_print(buf, "# HELP target_info Target metadata\n");
+  strbuf_print(buf, "# TYPE target_info gauge\n");
+#endif
 
   strbuf_print(buf, "target_info{");
   format_label_set(buf, rattr, job, instance);
