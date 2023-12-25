@@ -151,9 +151,10 @@ static int label_set_delete(label_set_t *labels, label_pair_t *elem) {
   free(elem->name);
   free(elem->value);
 
-  if (index != (labels->num - 1)) {
+  size_t pairs_to_move = labels->num - (index + 1);
+  if (pairs_to_move != 0) {
     memmove(labels->ptr + index, labels->ptr + (index + 1),
-            labels->num - (index + 1));
+            sizeof(*labels->ptr) * pairs_to_move);
   }
   labels->num--;
 
