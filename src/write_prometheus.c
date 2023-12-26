@@ -253,24 +253,75 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
   strbuf_printf(buf, "\n");
 }
 
+typedef struct {
+  label_set_t *resources;
+  size_t resources_num;
+} target_info_t;
+
+static int target_info_compare(void const *a, void const *b) {
+  label_set_t const *lsa = a;
+  label_set_t const *lsb = b;
+
+  return label_set_compare(*lsa, *lsb);
+}
+
+static int target_info_add(target_info_t *ti, label_set_t resource) {
+  label_set_t *found = bsearch(&resource, ti->resources, ti->resources_num,
+                               sizeof(*ti->resources), target_info_compare);
+  if (found != NULL) {
+    return 0;
+  }
+
+  label_set_t *ls =
+      realloc(ti->resources, sizeof(*ti->resources) * (ti->resources_num + 1));
+  if (ls == NULL) {
+    ERROR("write_prometheus plugin: realloc failed.");
+    return ENOMEM;
+  }
+  ti->resources = ls;
+
+  ls = ti->resources + ti->resources_num;
+  memset(ls, 0, sizeof(*ls));
+  int status = label_set_clone(ls, resource);
+  if (status != 0) {
+    ERROR("write_prometheus plugin: label_set_clone failed.");
+    return status;
+  }
+
+  ti->resources_num++;
+  qsort(ti->resources, ti->resources_num, sizeof(*ti->resources),
+        target_info_compare);
+
+  return 0;
+}
+
+static void target_info_reset(target_info_t *ti) {
+  for (size_t i = 0; i < ti->resources_num; i++) {
+    label_set_reset(ti->resources + i);
+  }
+  free(ti->resources);
+  ti->resources = NULL;
+  ti->resources_num = 0;
+}
+
 /* target_info prints a special "info" metric that contains all the "target
  * labels" aka. resource attributes.
  * See
  * https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#supporting-target-metadata-in-both-push-based-and-pull-based-systems
  * for more details. */
 /* visible for testing */
-void target_info(strbuf_t *buf, label_set_t resource) {
-  if (resource.num == 0) {
-    return;
+void target_info(strbuf_t *buf, metric_family_t const **families,
+                 size_t families_num) {
+  target_info_t ti = {0};
+
+  for (size_t i = 0; i < families_num; i++) {
+    metric_family_t const *fam = families[i];
+    target_info_add(&ti, fam->resource);
   }
 
-  char const *job = label_set_get(resource, "service.name");
-  char const *instance = label_set_get(resource, "service.instance.id");
-
-  label_set_t rattr = {0};
-  label_set_clone(&rattr, resource);
-  label_set_update(&rattr, "service.name", NULL);
-  label_set_update(&rattr, "service.instance.id", NULL);
+  if (ti.resources_num == 0) {
+    return;
+  }
 
 #ifdef EXPOSE_OPEN_METRICS
   strbuf_print(buf, "# TYPE target info\n");
@@ -280,27 +331,65 @@ void target_info(strbuf_t *buf, label_set_t resource) {
   strbuf_print(buf, "# TYPE target_info gauge\n");
 #endif
 
-  strbuf_print(buf, "target_info{");
-  format_label_set(buf, rattr, job, instance);
-  strbuf_print(buf, "} 1\n");
+  for (size_t i = 0; i < ti.resources_num; i++) {
+    label_set_t *resource = ti.resources + i;
 
-  label_set_reset(&rattr);
+    char *job = NULL;
+    char *instance = NULL;
+
+    char const *v;
+    if ((v = label_set_get(*resource, "service.name")) != NULL) {
+      job = strdup(v);
+      label_set_update(resource, "service.name", NULL);
+    }
+
+    if ((v = label_set_get(*resource, "service.instance.id")) != NULL) {
+      instance = strdup(v);
+      label_set_update(resource, "service.instance.id", NULL);
+    }
+
+    strbuf_print(buf, "target_info{");
+    format_label_set(buf, *resource, job, instance);
+    strbuf_print(buf, "} 1\n");
+
+    free(job);
+    free(instance);
+  }
+
+  strbuf_print(buf, "\n");
+  target_info_reset(&ti);
+}
+
+static void format_metric_families(strbuf_t *buf,
+                                   metric_family_t const **families,
+                                   size_t families_num) {
+  target_info(buf, families, families_num);
+
+  for (size_t i = 0; i < families_num; i++) {
+    metric_family_t const *fam = families[i];
+    format_metric_family(buf, fam);
+  }
 }
 
 static void format_text(strbuf_t *buf) {
-  label_set_t resource = default_resource_attributes();
-  target_info(buf, resource);
-
   pthread_mutex_lock(&prom_metrics_lock);
 
-  char *unused;
-  metric_family_t *prom_fam;
+  size_t families_num = (size_t)c_avl_size(prom_metrics);
+  metric_family_t const *families[families_num];
+  memset(families, 0, sizeof(families));
 
+  char *unused = NULL;
+  metric_family_t *prom_fam = NULL;
   c_avl_iterator_t *iter = c_avl_get_iterator(prom_metrics);
-  while (c_avl_iterator_next(iter, (void *)&unused, (void *)&prom_fam) == 0) {
-    format_metric_family(buf, prom_fam);
+  for (size_t i = 0;
+       c_avl_iterator_next(iter, (void *)&unused, (void *)&prom_fam) == 0;
+       i++) {
+    assert(i < families_num);
+    families[i] = prom_fam;
   }
   c_avl_iterator_destroy(iter);
+
+  format_metric_families(buf, families, families_num);
 
   strbuf_printf(buf, "# collectd/write_prometheus %s at %s\n", PACKAGE_VERSION,
                 hostname_g);

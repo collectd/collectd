@@ -257,54 +257,133 @@ DEF_TEST(format_metric_family) {
   return 0;
 }
 
-void target_info(strbuf_t *buf, label_set_t resource);
+void target_info(strbuf_t *buf, metric_family_t const **families,
+                 size_t families_num);
 
 DEF_TEST(target_info) {
   struct {
     char const *name;
-    label_set_t resource;
+    label_set_t *resources;
+    size_t resources_num;
     char const *want;
   } cases[] = {
       {
           .name = "single resource attribute",
-          .resource =
-              {
-                  .ptr = &(label_pair_t){"foo", "bar"},
-                  .num = 1,
+          .resources =
+              (label_set_t[]){
+                  {
+                      .ptr = &(label_pair_t){"foo", "bar"},
+                      .num = 1,
+                  },
               },
+          .resources_num = 1,
           .want = "# HELP target_info Target metadata\n"
                   "# TYPE target_info gauge\n"
-                  "target_info{foo=\"bar\"} 1\n",
+                  "target_info{foo=\"bar\"} 1\n\n",
+      },
+      {
+          .name = "identical resources get deduplicated",
+          .resources =
+              (label_set_t[]){
+                  {
+                      .ptr = &(label_pair_t){"foo", "bar"},
+                      .num = 1,
+                  },
+                  {
+                      .ptr = &(label_pair_t){"foo", "bar"},
+                      .num = 1,
+                  },
+              },
+          .resources_num = 2,
+          .want = "# HELP target_info Target metadata\n"
+                  "# TYPE target_info gauge\n"
+                  "target_info{foo=\"bar\"} 1\n\n",
       },
       {
           .name = "service.name gets translated to job",
-          .resource =
-              {
-                  .ptr = &(label_pair_t){"service.name", "unittest"},
-                  .num = 1,
+          .resources =
+              (label_set_t[]){
+                  {
+                      .ptr = &(label_pair_t){"service.name", "unittest"},
+                      .num = 1,
+                  },
               },
+          .resources_num = 1,
           .want = "# HELP target_info Target metadata\n"
                   "# TYPE target_info gauge\n"
-                  "target_info{job=\"unittest\"} 1\n",
+                  "target_info{job=\"unittest\"} 1\n\n",
       },
       {
           .name = "service.instance.id gets translated to instance",
-          .resource =
-              {
-                  .ptr = &(label_pair_t){"service.instance.id", "42"},
-                  .num = 1,
+          .resources =
+              (label_set_t[]){
+                  {
+                      .ptr = &(label_pair_t){"service.instance.id", "42"},
+                      .num = 1,
+                  },
               },
+          .resources_num = 1,
           .want = "# HELP target_info Target metadata\n"
                   "# TYPE target_info gauge\n"
-                  "target_info{instance=\"42\"} 1\n",
+                  "target_info{instance=\"42\"} 1\n\n",
+      },
+      {
+          .name = "multiple resources",
+          .resources =
+              (label_set_t[]){
+                  {
+                      .ptr =
+                          (label_pair_t[]){
+                              {"additional", "label"},
+                              {"service.instance.id", "id:0"},
+                              {"service.name", "unit.test"},
+                          },
+                      .num = 3,
+                  },
+                  {
+                      .ptr =
+                          (label_pair_t[]){
+                              {"(additional)", "\"label\""},
+                              {"service.instance.id", "id:1"},
+                              {"service.name", "unit.test"},
+                          },
+                      .num = 3,
+                  },
+                  {
+                      .ptr =
+                          (label_pair_t[]){
+                              {"42 additional", "label\n"},
+                              {"service.instance.id", "id:2"},
+                              {"service.name", "unit.test"},
+                          },
+                      .num = 3,
+                  },
+              },
+          .resources_num = 3,
+          // clang-format off
+          .want =
+"# HELP target_info Target metadata\n"
+"# TYPE target_info gauge\n"
+"target_info{job=\"unit.test\",instance=\"id:1\",key_additional_=\"\\\"label\\\"\"} 1\n"
+"target_info{job=\"unit.test\",instance=\"id:2\",key_42_additional=\"label\\n\"} 1\n"
+"target_info{job=\"unit.test\",instance=\"id:0\",additional=\"label\"} 1\n"
+"\n",
+          // clang-format on
       },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     printf("# Case %zu: %s\n", i, cases[i].name);
-    strbuf_t got = STRBUF_CREATE;
 
-    target_info(&got, cases[i].resource);
+    metric_family_t families[cases[i].resources_num];
+    metric_family_t const *family_ptrs[cases[i].resources_num];
+    for (size_t j = 0; j < cases[i].resources_num; j++) {
+      families[j].resource = cases[i].resources[j];
+      family_ptrs[j] = &families[j];
+    }
+
+    strbuf_t got = STRBUF_CREATE;
+    target_info(&got, family_ptrs, cases[i].resources_num);
     EXPECT_EQ_STR(cases[i].want, got.ptr);
 
     STRBUF_DESTROY(got);
