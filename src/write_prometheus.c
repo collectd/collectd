@@ -248,8 +248,9 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
       strbuf_printf(buf, "\n");
     }
   }
-
   STRBUF_DESTROY(family_name);
+
+  strbuf_printf(buf, "\n");
 }
 
 /* target_info prints a special "info" metric that contains all the "target
@@ -301,8 +302,8 @@ static void format_text(strbuf_t *buf) {
   }
   c_avl_iterator_destroy(iter);
 
-  strbuf_printf(buf, "\n# collectd/write_prometheus %s at %s\n",
-                PACKAGE_VERSION, hostname_g);
+  strbuf_printf(buf, "# collectd/write_prometheus %s at %s\n", PACKAGE_VERSION,
+                hostname_g);
 
   pthread_mutex_unlock(&prom_metrics_lock);
 }

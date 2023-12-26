@@ -127,7 +127,8 @@ DEF_TEST(format_metric_family) {
               },
           .want = "# HELP unit_test_total\n"
                   "# TYPE unit_test_total counter\n"
-                  "unit_test_total 42\n",
+                  "unit_test_total 42\n"
+                  "\n",
       },
       {
           .name = "metric with one label",
@@ -158,7 +159,8 @@ DEF_TEST(format_metric_family) {
               },
           .want = "# HELP unittest\n"
                   "# TYPE unittest gauge\n"
-                  "unittest{foo=\"bar\"} 42\n",
+                  "unittest{foo=\"bar\"} 42\n"
+                  "\n",
       },
       {
           .name = "invalid characters are replaced",
@@ -189,7 +191,8 @@ DEF_TEST(format_metric_family) {
               },
           .want = "# HELP unit_test\n"
                   "# TYPE unit_test untyped\n"
-                  "unit_test{metric_name=\"unit.test\"} 42\n",
+                  "unit_test{metric_name=\"unit.test\"} 42\n"
+                  "\n",
       },
       {
           .name = "most resource attributes are ignored",
@@ -231,7 +234,8 @@ DEF_TEST(format_metric_family) {
           .want = "# HELP unit_test\n"
                   "# TYPE unit_test untyped\n"
                   "unit_test{job=\"service name\",instance=\"service instance "
-                  "id\",metric_name=\"unit.test\"} 42\n",
+                  "id\",metric_name=\"unit.test\"} 42\n"
+                  "\n",
       },
   };
 
