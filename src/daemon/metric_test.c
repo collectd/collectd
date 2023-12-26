@@ -29,63 +29,170 @@
 #include "metric.h"
 #include "testing.h"
 
+static void format_label_set(strbuf_t *buf, label_set_t labels) {
+  for (size_t i = 0; i < labels.num; i++) {
+    strbuf_printf(buf, "[i=%zu]", i);
+    if (i != 0) {
+      strbuf_print(buf, ",");
+    }
+    strbuf_print_escaped(buf, labels.ptr[i].name, "\\\"\n\r\t", '\\');
+    strbuf_print(buf, "=\"");
+    strbuf_print_escaped(buf, labels.ptr[i].value, "\\\"\n\r\t", '\\');
+    strbuf_print(buf, "\"");
+  }
+}
+
 DEF_TEST(metric_label_set) {
   struct {
-    char const *key;
-    char const *value;
+    char const *name;
+    label_set_t state;
+    char const *label_name;
+    char const *label_value;
+    label_set_t want;
     int want_err;
-    char const *want_get;
   } cases[] = {
       {
-          .key = "foo",
-          .value = "bar",
-          .want_get = "bar",
+          .name = "Add a label",
+          .state =
+              {
+                  .ptr =
+                      (label_pair_t[]){
+                          {"a", "1"},
+                          {"c", "3"},
+                          {"d", "4"},
+                      },
+                  .num = 3,
+              },
+          .label_name = "b",
+          .label_value = "2",
+          .want =
+              {
+                  .ptr =
+                      (label_pair_t[]){
+                          {"a", "1"},
+                          {"b", "2"},
+                          {"c", "3"},
+                          {"d", "4"},
+                      },
+                  .num = 4,
+              },
       },
       {
-          .key = NULL,
-          .value = "bar",
+          .name = "Change a label",
+          .state =
+              {
+                  .ptr =
+                      (label_pair_t[]){
+                          {"a", "1"},
+                          {"b", "<to be replaced>"},
+                          {"c", "3"},
+                          {"d", "4"},
+                      },
+                  .num = 4,
+              },
+          .label_name = "b",
+          .label_value = "2",
+          .want =
+              {
+                  .ptr =
+                      (label_pair_t[]){
+                          {"a", "1"},
+                          {"b", "2"},
+                          {"c", "3"},
+                          {"d", "4"},
+                      },
+                  .num = 4,
+              },
+      },
+      {
+          .name = "Use empty string to delete a label",
+          .state =
+              {
+                  .ptr =
+                      (label_pair_t[]){
+                          {"a", "1"},
+                          {"b", "2"},
+                          {"c", "3"},
+                          {"d", "4"},
+                      },
+                  .num = 4,
+              },
+          .label_name = "d",
+          .label_value = NULL,
+          .want =
+              {
+                  .ptr =
+                      (label_pair_t[]){
+                          {"a", "1"},
+                          {"b", "2"},
+                          {"c", "3"},
+                      },
+                  .num = 3,
+              },
+      },
+      {
+          .name = "Use NULL to delete a label",
+          .state =
+              {
+                  .ptr =
+                      (label_pair_t[]){
+                          {"a", "1"},
+                          {"b", "2"},
+                          {"c", "3"},
+                          {"d", "4"},
+                      },
+                  .num = 4,
+              },
+          .label_name = "b",
+          .label_value = NULL,
+          .want =
+              {
+                  .ptr =
+                      (label_pair_t[]){
+                          {"a", "1"},
+                          {"c", "3"},
+                          {"d", "4"},
+                      },
+                  .num = 3,
+              },
+      },
+      {
+          .name = "NULL name",
+          .label_name = NULL,
+          .label_value = "bar",
           .want_err = EINVAL,
       },
       {
-          .key = "foo",
-          .value = NULL,
-      },
-      {
-          .key = "",
-          .value = "bar",
-          .want_err = EINVAL,
-      },
-      {
-          .key = "valid",
-          .value = "",
-      },
-      {
-          .key = "1nvalid",
-          .value = "bar",
-          .want_err = EINVAL,
-      },
-      {
-          .key = "val1d",
-          .value = "bar",
-          .want_get = "bar",
-      },
-      {
-          .key = "inva!id",
-          .value = "bar",
+          .name = "empty name",
+          .label_name = "",
+          .label_value = "bar",
           .want_err = EINVAL,
       },
   };
 
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
-    printf("## Case %zu: %s=\"%s\"\n", i,
-           cases[i].key ? cases[i].key : "(null)",
-           cases[i].value ? cases[i].value : "(null)");
+    printf("## Case %zu: %s\n", i, cases[i].name);
 
     metric_t m = {0};
+    CHECK_ZERO(label_set_clone(&m.label, cases[i].state));
 
-    EXPECT_EQ_INT(cases[i].want_err,
-                  metric_label_set(&m, cases[i].key, cases[i].value));
-    EXPECT_EQ_STR(cases[i].want_get, metric_label_get(&m, cases[i].key));
+    EXPECT_EQ_INT(cases[i].want_err, metric_label_set(&m, cases[i].label_name,
+                                                      cases[i].label_value));
+    if (cases[i].want_err) {
+      metric_reset(&m);
+      continue;
+    }
+
+    strbuf_t got = STRBUF_CREATE;
+    strbuf_t want = STRBUF_CREATE;
+
+    format_label_set(&want, cases[i].want);
+    format_label_set(&got, m.label);
+
+    EXPECT_EQ_STR(want.ptr, got.ptr);
+
+    STRBUF_DESTROY(got);
+    STRBUF_DESTROY(want);
 
     metric_reset(&m);
     EXPECT_EQ_PTR(NULL, m.label.ptr);
