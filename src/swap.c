@@ -121,6 +121,7 @@ static bool report_io = true;
 enum {
   FAM_SWAP_USAGE = 0,
   FAM_SWAP_UTILIZATION,
+  FAM_SWAP_OPS,
   FAM_SWAP_IO,
   FAM_SWAP_MAX,
 };
@@ -251,14 +252,28 @@ static void swap_submit_usage(metric_family_t *fams, char *device, gauge_t used,
 }
 
 #if KERNEL_LINUX || HAVE_PERFSTAT || KERNEL_NETBSD
-static void swap_submit_io(metric_family_t *fams, counter_t in, counter_t out) {
-  metric_family_t *fam_io = &fams[FAM_SWAP_IO];
-  metric_t m = {0};
+static char const *const label_direction = "system.paging.direction";
 
-  metric_family_append(fam_io, "system.paging.direction", "in",
-                       (value_t){.counter = in}, &m);
-  metric_family_append(fam_io, "system.paging.direction", "out",
-                       (value_t){.counter = out}, &m);
+static char const *const direction_in = "in";
+static char const *const direction_out = "out";
+
+static void swap_submit_io(metric_family_t *fams, counter_t in, counter_t out,
+                           derive_t pagesize) {
+  if (!report_io) {
+    return;
+  }
+
+  metric_family_t *fam = &fams[FAM_SWAP_OPS];
+  if (report_bytes) {
+    fam = &fams[FAM_SWAP_IO];
+    in = in * (counter_t)pagesize;
+    out = out * (counter_t)pagesize;
+  }
+
+  metric_family_append(fam, label_direction, direction_in,
+                       (value_t){.counter = in}, NULL);
+  metric_family_append(fam, label_direction, direction_out,
+                       (value_t){.counter = out}, NULL);
 } /* void swap_submit_io */
 #endif
 
@@ -397,15 +412,11 @@ static int swap_read_io(metric_family_t *fams) /* {{{ */
 
   fclose(fh);
 
-  if (have_data != 0x03)
+  if (have_data != 0x03) {
     return ENOENT;
-
-  if (report_bytes) {
-    swap_in = swap_in * pagesize;
-    swap_out = swap_out * pagesize;
   }
 
-  swap_submit_io(fams, swap_in, swap_out);
+  swap_submit_io(fams, swap_in, swap_out, pagesize);
 
   return 0;
 } /* }}} int swap_read_io */
@@ -589,10 +600,8 @@ static int swap_read_io(metric_family_t *fams) /* {{{ */
 {
   static int uvmexp_mib[] = {CTL_VM, VM_UVMEXP2};
   struct uvmexp_sysctl uvmexp;
-  size_t ssize;
-  counter_t swap_in, swap_out;
 
-  ssize = sizeof(uvmexp);
+  size_t ssize = sizeof(uvmexp);
   memset(&uvmexp, 0, ssize);
   if (sysctl(uvmexp_mib, __arraycount(uvmexp_mib), &uvmexp, &ssize, NULL, 0) ==
       -1) {
@@ -602,15 +611,10 @@ static int swap_read_io(metric_family_t *fams) /* {{{ */
     return (-1);
   }
 
-  swap_in = uvmexp.pgswapin;
-  swap_out = uvmexp.pgswapout;
+  counter_t swap_in = uvmexp.pgswapin;
+  counter_t swap_out = uvmexp.pgswapout;
 
-  if (report_bytes) {
-    swap_in = swap_in * pagesize;
-    swap_out = swap_out * pagesize;
-  }
-
-  swap_submit_io(fams, swap_in, swap_out);
+  swap_submit_io(fams, swap_in, swap_out, pagesize);
 
   return (0);
 } /* }}} */
@@ -782,10 +786,10 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
 
   swap_submit_usage3(fams, NULL, total - free, free, "reserved", reserved);
 
-  if (report_io) {
-    swap_submit_io(fams, (counter_t)(pmemory.pgspins * pagesize),
-                   (counter_t)(pmemory.pgspouts * pagesize));
-  }
+  counter_t swap_in = pmemory.pgspins;
+  counter_t swap_out = pmemory.pgspouts;
+
+  swap_submit_io(fams, swap_in, swap_out, pagesize);
 
   return 0;
 } /* }}} int swap_read_fam */
@@ -803,8 +807,15 @@ static int swap_read(void) {
               .name = "system.paging.utilization",
               .type = METRIC_TYPE_GAUGE,
           },
+      [FAM_SWAP_OPS] =
+          {
+              /* used when report_io && !report_bytes */
+              .name = "system.paging.operations",
+              .type = METRIC_TYPE_COUNTER,
+          },
       [FAM_SWAP_IO] =
           {
+              /* used when report_io && report_bytes */
               .name = "system.paging.io",
               .type = METRIC_TYPE_COUNTER,
           },
