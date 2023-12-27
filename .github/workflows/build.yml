@@ -23,22 +23,22 @@ jobs:
       matrix:
         container_tag:
           # debian family
-          - bookworm_amd64
-          - bullseye_amd64
-          - buster_amd64
+          - debian12
+          - debian11
+          - debian10
           # Ubuntu
-          - mantic_amd64
-          - jammy_amd64
-          - focal_amd64
+          - ubuntu23.10
+          - ubuntu22.04
+          - ubuntu20.04
           # RedHat family
-          - el9_x86_64
+          - centos9
           - fedora39
-          - fedora38_x86_64
+          - fedora38
         configure_flags: ['']
         include:
-          - container_tag: bookworm_amd64
+          - container_tag: debian12
             configure_flags: '--enable-debug'
-          - container_tag: bookworm_amd64
+          - container_tag: debian12
             # By default clang emits DWARF v5, which Valgrind cannot read yet.
             # https://github.com/llvm/llvm-project/issues/56550
             configure_flags: 'CC=clang CXX=clang++ CFLAGS=-gdwarf-4'
@@ -75,9 +75,14 @@ jobs:
         path: "*.log"
     - name: Report check status
       run: exit $(< make-check.status)
+    - name: Check expected plugins
+      run: |
+        if [[ -e ".expected-plugins/${{ matrix.container_tag }}" ]]; then
+          /checks/check-built-plugins.sh ".expected-plugins/${{ matrix.container_tag }}"
+        fi
 
   experimental:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     container: collectd/ci:${{ matrix.container_tag }}
     continue-on-error: true
     strategy:
@@ -86,12 +91,12 @@ jobs:
         # for tasks that are optional, use the continue-on-error option, to prevent a workflow from failing when the task fails
         container_tag:
           - debian_unstable
-          - fedora_rawhide_x86_64
+          - fedora_main
         # Add additional per-distro vars here.
         include:
           - container_tag: debian_unstable
             configure_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt"
-          - container_tag: fedora_rawhide_x86_64
+          - container_tag: fedora_main
             cflags: "-fPIE -Wno-deprecated-declarations"
             cppflags: "-fPIE -Wno-deprecated-declarations"
             configure_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
@@ -129,3 +134,8 @@ jobs:
         path: "*.log"
     - name: Report check status
       run: exit $(< make-check.status)
+    - name: Check expected plugins
+      run: |
+        if [[ -e ".expected-plugins/${{ matrix.container_tag }}" ]]; then
+          /checks/check-built-plugins.sh ".expected-plugins/${{ matrix.container_tag }}"
+        fi
