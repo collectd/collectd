@@ -145,18 +145,22 @@ static int df_read(void) {
 #endif
   metric_family_t fam_usage = {
       .name = "system.filesystem.usage",
+      .unit = "By",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_utilization = {
       .name = "system.filesystem.utilization",
+      .unit = "1",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_inode_usage = {
       .name = "system.filesystem.inodes.usage",
+      .unit = "{inode}",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_inode_utilization = {
       .name = "system.filesystem.inodes.utilization",
+      .unit = "1",
       .type = METRIC_TYPE_GAUGE,
   };
 
@@ -243,7 +247,7 @@ static int df_read(void) {
 
     if (values_percentage) {
       assert(statbuf.f_blocks != 0); // checked above
-      gauge_t f = 100.0 / (gauge_t)statbuf.f_blocks;
+      gauge_t f = 1.0 / (gauge_t)statbuf.f_blocks;
 
       metric_family_append(&fam_utilization, "state", "used",
                            (value_t){.gauge = blk_used * f}, &m);
@@ -269,7 +273,7 @@ static int df_read(void) {
 
       if (values_percentage) {
         if (statbuf.f_files > 0) {
-          gauge_t f = 100.0 / (gauge_t)statbuf.f_files;
+          gauge_t f = 1.0 / (gauge_t)statbuf.f_files;
 
           metric_family_append(&fam_inode_utilization, "state", "used",
                                (value_t){.gauge = inode_used * f}, &m);
