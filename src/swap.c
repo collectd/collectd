@@ -806,11 +806,13 @@ static int swap_read(void) {
       [FAM_SWAP_USAGE] =
           {
               .name = "system.paging.usage",
+              .help = "Unix swap usage",
               .type = METRIC_TYPE_GAUGE,
           },
       [FAM_SWAP_UTILIZATION] =
           {
               .name = "system.paging.utilization",
+              .help = "Unix swap utilization",
               .type = METRIC_TYPE_GAUGE,
           },
       [FAM_SWAP_OPS] =
