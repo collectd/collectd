@@ -271,13 +271,13 @@ static int df_read(void) {
         if (statbuf.f_files > 0) {
           gauge_t f = 100.0 / (gauge_t)statbuf.f_files;
 
-          metric_family_append(&fam_inode_usage, "state", "used",
+          metric_family_append(&fam_inode_utilization, "state", "used",
                                (value_t){.gauge = inode_used * f}, &m);
 
-          metric_family_append(&fam_inode_usage, "state", "free",
+          metric_family_append(&fam_inode_utilization, "state", "free",
                                (value_t){.gauge = inode_free * f}, &m);
 
-          metric_family_append(&fam_inode_usage, "state", "reserved",
+          metric_family_append(&fam_inode_utilization, "state", "reserved",
                                (value_t){.gauge = inode_reserved * f}, &m);
         } else {
           metric_reset(&m);
