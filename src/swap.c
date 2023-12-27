@@ -118,6 +118,12 @@ static bool values_absolute = true;
 static bool values_percentage;
 static bool report_io = true;
 
+static char const *const label_device = "system.device";
+static char const *const label_state = "system.paging.state";
+
+static char const *const state_free = "free";
+static char const *const state_used = "used";
+
 enum {
   FAM_SWAP_USAGE = 0,
   FAM_SWAP_UTILIZATION,
@@ -211,20 +217,20 @@ static void swap_submit_usage3(metric_family_t *fams, char const *device,
 
   metric_t m = {0};
   if (device != NULL) {
-    metric_label_set(&m, "device", device);
+    metric_label_set(&m, label_device, device);
   }
 
   bool have_other = (other_name != NULL) && !isnan(other);
 
   if (values_absolute) {
     if (have_other) {
-      metric_family_append(fam_usage, "system.paging.state", other_name,
+      metric_family_append(fam_usage, label_state, other_name,
                            (value_t){.gauge = other}, &m);
     }
 
-    metric_family_append(fam_usage, "system.paging.state", "used",
+    metric_family_append(fam_usage, label_state, state_used,
                          (value_t){.gauge = used}, &m);
-    metric_family_append(fam_usage, "system.paging.state", "free",
+    metric_family_append(fam_usage, label_state, state_free,
                          (value_t){.gauge = free}, &m);
   }
 
@@ -233,13 +239,13 @@ static void swap_submit_usage3(metric_family_t *fams, char const *device,
     if (have_other) {
       total += other;
 
-      metric_family_append(fam_utilization, "system.paging.state", other_name,
+      metric_family_append(fam_utilization, label_state, other_name,
                            (value_t){.gauge = 100.0 * other / total}, &m);
     }
 
-    metric_family_append(fam_utilization, "system.paging.state", "used",
+    metric_family_append(fam_utilization, label_state, state_used,
                          (value_t){.gauge = 100.0 * used / total}, &m);
-    metric_family_append(fam_utilization, "system.paging.state", "free",
+    metric_family_append(fam_utilization, label_state, state_free,
                          (value_t){.gauge = 100.0 * free / total}, &m);
   }
 
