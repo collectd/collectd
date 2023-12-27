@@ -312,11 +312,13 @@ static int df_read(void) {
   cu_mount_freelist(mnt_list);
 
   metric_family_t *families[] = {
-      &fam_usage, &fam_utilization, &fam_inode_usage, &fam_inode_utilization,
-      NULL,
+      &fam_usage,
+      &fam_utilization,
+      &fam_inode_usage,
+      &fam_inode_utilization,
   };
 
-  for (size_t i = 0; families[i] != NULL; i++) {
+  for (size_t i = 0; STATIC_ARRAY_SIZE(families); i++) {
     if (families[i]->metric.num == 0) {
       continue;
     }
