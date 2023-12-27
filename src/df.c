@@ -47,9 +47,13 @@
 #endif
 
 static char const *const device_label = "system.device";
+static char const *const mode_label = "system.filesystem.mode";
 static char const *const mountpoint_label = "system.filesystem.mountpoint";
 static char const *const state_label = "system.filesystem.state";
 static char const *const type_label = "system.filesystem.type";
+
+static char const *const mode_ro = "ro";
+static char const *const mode_rw = "rw";
 
 static const char *config_keys[] = {
     "Device",         "MountPoint",       "FSType",
@@ -234,8 +238,11 @@ static int df_read(void) {
     gauge_t blk_reserved = (gauge_t)(statbuf.f_bfree - statbuf.f_bavail);
     gauge_t blk_used = (gauge_t)(statbuf.f_blocks - statbuf.f_bfree);
 
+    bool read_only = (statbuf.f_flag & ST_RDONLY) != 0;
+
     metric_t m = {0};
     metric_label_set(&m, device_label, dev);
+    metric_label_set(&m, mode_label, read_only ? mode_ro : mode_rw);
     metric_label_set(&m, mountpoint_label, mnt_ptr->dir);
     metric_label_set(&m, type_label, mnt_ptr->type);
 
