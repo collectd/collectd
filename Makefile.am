@@ -142,7 +142,7 @@ noinst_LTLIBRARIES = \
 	libmount.la \
 	liboconfig.la \
 	libresource_metrics.la \
-  libstrbuf.la \
+	libstrbuf.la \
 	libutf8.la
 
 
