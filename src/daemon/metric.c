@@ -29,20 +29,23 @@
 
 #include "metric.h"
 #include "plugin.h"
+#include "utils/utf8/utf8.h"
 
-/* Label names must match the regex `[a-zA-Z_][a-zA-Z0-9_]*`. Label names
- * beginning with __ are reserved for internal use.
- *
- * Source:
- * https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels */
-#define VALID_LABEL_CHARS                                                      \
+/* If these characters are used in resource attribute names or metric label
+ * names, they will not cause quotes to be printed when formatting the metric
+ * name. Resource attribute values and metric label values are always printed in
+ * quotes. */
+#define UNQUOTED_LABEL_CHARS                                                   \
   "abcdefghijklmnopqrstuvwxyz"                                                 \
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"                                                 \
-  "0123456789_.-"
+  "0123456789_.-:"
 
 /* Metric names must match the regex `[a-zA-Z_:][a-zA-Z0-9_:]*` */
 // instrument-name = ALPHA 0*254 ("_" / "." / "-" / "/" / ALPHA / DIGIT)
-#define VALID_NAME_CHARS VALID_LABEL_CHARS "/"
+#define VALID_NAME_CHARS                                                       \
+  "abcdefghijklmnopqrstuvwxyz"                                                 \
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"                                                 \
+  "0123456789_.-/"
 
 #define RESOURCE_LABEL_PREFIX "resource:"
 
@@ -107,8 +110,7 @@ int label_set_add(label_set_t *labels, char const *name, char const *value) {
     return EINVAL;
   }
 
-  size_t valid_len = strspn(name, VALID_LABEL_CHARS);
-  if ((valid_len != name_len) || isdigit((int)name[0])) {
+  if (!utf8_valid(name) || !utf8_valid(value)) {
     return EINVAL;
   }
 
@@ -273,8 +275,18 @@ static int internal_label_set_format(strbuf_t *buf, label_set_t const *labels,
       status = status || strbuf_print(buf, ",");
     }
 
-    status = status || strbuf_print(buf, prefix);
-    status = status || strbuf_print(buf, labels->ptr[i].name);
+    bool needs_quotes = strlen(labels->ptr[i].name) !=
+                        strspn(labels->ptr[i].name, UNQUOTED_LABEL_CHARS);
+    if (needs_quotes) {
+      status = status || strbuf_print(buf, "\"");
+      status = status || strbuf_print(buf, prefix);
+      status = status || strbuf_print_escaped(buf, labels->ptr[i].name,
+                                              "\\\"\n\r\t", '\\');
+      status = status || strbuf_print(buf, "\"");
+    } else {
+      status = status || strbuf_print(buf, prefix);
+      status = status || strbuf_print(buf, labels->ptr[i].name);
+    }
     status = status || strbuf_print(buf, "=\"");
     status = status || strbuf_print_escaped(buf, labels->ptr[i].value,
                                             "\\\"\n\r\t", '\\');
@@ -505,11 +517,11 @@ metric_family_t *metric_family_clone(metric_family_t const *fam) {
   return ret;
 }
 
-/* parse_label_value reads a label value, unescapes it and prints it to buf. On
- * success, inout is updated to point to the character just *after* the label
- * value, i.e. the character *following* the ending quotes - either a comma or
- * closing curlies. */
-static int parse_label_value(strbuf_t *buf, char const **inout) {
+/* parse_quoted_string reads a label value, unescapes it and prints it to buf.
+ * On success, inout is updated to point to the character just *after* the
+ * string value, i.e. the character *following* the ending quotes - either an
+ * equal sign, a comma, or closing curlies. */
+static int parse_quoted_string(strbuf_t *buf, char const **inout) {
   char const *ptr = *inout;
 
   if (ptr[0] != '"') {
@@ -605,21 +617,19 @@ static int metric_family_unmarshal_identity(metric_family_t *fam,
   while ((ptr[0] == '{') || (ptr[0] == ',')) {
     ptr++;
 
-    bool is_resource_label =
-        strncmp(ptr, RESOURCE_LABEL_PREFIX, strlen(RESOURCE_LABEL_PREFIX)) == 0;
-    if (is_resource_label) {
-      ptr += strlen(RESOURCE_LABEL_PREFIX);
+    strbuf_t key = STRBUF_CREATE;
+    if (ptr[0] == '"') {
+      int status = parse_quoted_string(&key, &ptr);
+      if (status != 0) {
+        ret = status;
+        STRBUF_DESTROY(key);
+        break;
+      }
+    } else {
+      size_t key_len = strspn(ptr, UNQUOTED_LABEL_CHARS);
+      strbuf_printn(&key, ptr, key_len);
+      ptr += key_len;
     }
-
-    size_t key_len = strspn(ptr, VALID_LABEL_CHARS);
-    if (key_len == 0) {
-      ret = EINVAL;
-      break;
-    }
-    char key[key_len + 1];
-    strncpy(key, ptr, key_len);
-    key[key_len] = 0;
-    ptr += key_len;
 
     if (ptr[0] != '=') {
       ret = EINVAL;
@@ -628,9 +638,10 @@ static int metric_family_unmarshal_identity(metric_family_t *fam,
     ptr++;
 
     strbuf_t value = STRBUF_CREATE;
-    int status = parse_label_value(&value, &ptr);
+    int status = parse_quoted_string(&value, &ptr);
     if (status != 0) {
       ret = status;
+      STRBUF_DESTROY(key);
       STRBUF_DESTROY(value);
       break;
     }
@@ -638,11 +649,15 @@ static int metric_family_unmarshal_identity(metric_family_t *fam,
     /* one metric is added to the family by metric_family_unmarshal_text. */
     assert(fam->metric.num >= 1);
 
+    bool is_resource_label = strncmp(key.ptr, RESOURCE_LABEL_PREFIX,
+                                     strlen(RESOURCE_LABEL_PREFIX)) == 0;
     if (is_resource_label) {
-      status = metric_family_resource_attribute_update(fam, key, value.ptr);
+      status = metric_family_resource_attribute_update(
+          fam, key.ptr + strlen(RESOURCE_LABEL_PREFIX), value.ptr);
     } else {
-      status = metric_label_set(m, key, value.ptr);
+      status = metric_label_set(m, key.ptr, value.ptr);
     }
+    STRBUF_DESTROY(key);
     STRBUF_DESTROY(value);
     if (status != 0) {
       ret = status;

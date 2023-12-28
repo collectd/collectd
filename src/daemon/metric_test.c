@@ -26,8 +26,9 @@
 
 #include "collectd.h"
 
-#include "metric.h"
+#include "daemon/metric.h"
 #include "testing.h"
+#include "utils/common/common.h"
 
 DEF_TEST(metric_label_set) {
   struct {
@@ -252,6 +253,23 @@ DEF_TEST(metric_identity) {
               "metric_with_resource_and_labels{resource:alpha=\"resources\","
               "resource:omega=\"always\",beta=\"come\",gamma=\"first\"}",
       },
+      {
+          .name = "complex_names.are.quoted",
+          .rattr =
+              (label_pair_t[]){
+                  {"with space", "gets quotes"},
+              },
+          .rattr_num = 1,
+          .labels =
+              (label_pair_t[]){
+                  {"and \"quotes\" are", "escaped"},
+              },
+          .labels_num = 1,
+          .want = "complex_names.are.quoted{"
+                  "\"resource:with space\"=\"gets quotes\","
+                  "\"and \\\"quotes\\\" are\"=\"escaped\""
+                  "}",
+      },
   };
 
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
@@ -282,6 +300,156 @@ DEF_TEST(metric_identity) {
     metric_family_metric_reset(&fam);
     label_set_reset(&fam.resource);
     metric_reset(&m);
+  }
+
+  return 0;
+}
+
+static int metric_compare(metric_t const *got, metric_t const *want) {
+  EXPECT_EQ_INT(0, metric_family_compare(got->family, want->family));
+  EXPECT_EQ_INT(0, label_set_compare(got->label, want->label));
+  return 0;
+}
+
+DEF_TEST(metric_parse_identity) {
+  struct {
+    char const *name;
+    char const *input;
+    metric_t want;
+    int want_err;
+  } cases[] = {
+      {
+          .name = "metric without labels",
+          .input = "metric_without_labels",
+          .want =
+              {
+                  .family =
+                      &(metric_family_t){
+                          .name = "metric_without_labels",
+                      },
+              },
+      },
+      {
+          .name = "metric with labels",
+          .input = "metric_with_labels{alphabetically=\"true\",sorted=\"yes\"}",
+          .want =
+              {
+                  .label =
+                      {
+                          .ptr =
+                              (label_pair_t[]){
+                                  {"alphabetically", "true"},
+                                  {"sorted", "yes"},
+                              },
+                          .num = 2,
+                      },
+                  .family =
+                      &(metric_family_t){
+                          .name = "metric_with_labels",
+                      },
+              },
+      },
+      {
+          .name = "escape sequences",
+          .input = "escape_sequences{cardridge_return=\"\\r\",newline=\"\\n\","
+                   "quote=\"\\\"\",tab=\"\\t\"}",
+          .want =
+              {
+                  .label =
+                      {
+                          .ptr =
+                              (label_pair_t[]){
+                                  {"cardridge_return", "\r"},
+                                  {"newline", "\n"},
+                                  {"quote", "\""},
+                                  {"tab", "\t"},
+                              },
+                          .num = 4,
+                      },
+                  .family =
+                      &(metric_family_t){
+                          .name = "escape_sequences",
+                      },
+              },
+      },
+      {
+          .name = "metric with resource",
+          .input = "metric_with_resource{resource:host.name=\"example.com\"}",
+          .want =
+              {
+                  .family =
+                      &(metric_family_t){
+                          .name = "metric_with_resource",
+                          .resource =
+                              {
+                                  .ptr =
+                                      (label_pair_t[]){
+                                          {"host.name", "example.com"},
+                                      },
+                                  .num = 1,
+                              },
+                      },
+              },
+      },
+      {
+          .name = "complex names are quoted",
+          .input = "complex_names.are.quoted{\"resource:with space\"=\"gets "
+                   "quotes\",\"and \\\"quotes\\\" are\"=\"escaped\"}",
+          .want =
+              {
+                  .label =
+                      {
+                          .ptr =
+                              (label_pair_t[]){
+                                  {"and \"quotes\" are", "escaped"},
+                              },
+                          .num = 1,
+                      },
+                  .family =
+                      &(metric_family_t){
+                          .name = "complex_names.are.quoted",
+                          .resource =
+                              {
+                                  .ptr =
+                                      (label_pair_t[]){
+                                          {"with space", "gets quotes"},
+                                      },
+                                  .num = 1,
+                              },
+                      },
+              },
+      },
+      {
+          .name = "invalid character in metric name",
+          .input = "example@metric{label=\"value\"}",
+          .want_err = EINVAL,
+      },
+      {
+          .name = "curly not closed",
+          .input = "example_metric{label=\"value\"",
+          .want_err = EINVAL,
+      },
+      {
+          .name = "trailing curly",
+          .input = "example_metric{label=\"value\"}}",
+          .want_err = EINVAL,
+      },
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("## Case %zu: %s\n", i, cases[i].name);
+
+    errno = 0;
+    metric_t *got = metric_parse_identity(cases[i].input);
+    OK1((got == NULL) == (errno != 0), "iff \"got\" is NULL, \"errno\" is set");
+    EXPECT_EQ_INT(cases[i].want_err, errno);
+    if (cases[i].want_err != 0) {
+      continue;
+    }
+
+    EXPECT_EQ_INT(0, metric_compare(got, &cases[i].want));
+
+    metric_family_free(got->family);
   }
 
   return 0;
@@ -391,6 +559,7 @@ DEF_TEST(metric_family_append) {
 int main(void) {
   RUN_TEST(metric_label_set);
   RUN_TEST(metric_identity);
+  RUN_TEST(metric_parse_identity);
   RUN_TEST(metric_family_append);
 
   END_TEST;

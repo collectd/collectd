@@ -142,7 +142,8 @@ noinst_LTLIBRARIES = \
 	libmount.la \
 	liboconfig.la \
 	libresource_metrics.la \
-	libstrbuf.la
+	libstrbuf.la \
+	libutf8.la
 
 
 check_LTLIBRARIES = \
@@ -431,7 +432,7 @@ libmetadata_la_SOURCES = \
 libmetric_la_SOURCES = \
 		       src/daemon/metric.c \
 		       src/daemon/metric.h
-libmetric_la_LIBADD = libmetadata.la $(COMMON_LIBS)
+libmetric_la_LIBADD = libmetadata.la libutf8.la $(COMMON_LIBS)
 
 libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
@@ -637,6 +638,12 @@ liboconfig_la_SOURCES = \
 	src/liboconfig/parser.y
 liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
+
+libutf8_la_SOURCES = src/utils/utf8/utf8.c src/utils/utf8/utf8.h
+check_PROGRAMS += test_utils_utf8
+TESTS += test_utils_utf8
+test_utils_utf8_SOURCES = src/utils/utf8/utf8_test.c
+test_utils_utf8_LDADD = libutf8.la
 
 if BUILD_WITH_LIBCURL
 if BUILD_WITH_LIBSSL
