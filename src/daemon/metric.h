@@ -75,9 +75,18 @@ typedef struct {
  * returned. */
 int label_set_clone(label_set_t *dest, label_set_t src);
 
+/* label_set_get looks up the label pair by name, and returns the associated
+ * value. Returns NULL and sets errno to ENOENT if the label doesn't exist. */
+char const *label_set_get(label_set_t labels, char const *name);
+
 /* label_set_add adds a label to the label set. If a label with name already
  * exists, EEXIST is returned. The set of labels is sorted by label name. */
 int label_set_add(label_set_t *labels, char const *name, char const *value);
+
+/* label_set_update adds, updates, or deletes a label pair. If "value" is NULL
+ * or an empty string, the label is removed.
+ * Removing a label that does not exist is *not* an error. */
+int label_set_update(label_set_t *labels, char const *name, char const *value);
 
 /* label_set_reset frees all the memory referenced by the label set and
  * initializes the label set to zero. */

@@ -26,7 +26,8 @@
 
 #include "collectd.h"
 
-#include "plugin.h"
+#include "daemon/plugin.h"
+#include "daemon/resource.h"
 #include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 #include "utils_complain.h"
@@ -75,50 +76,126 @@ static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
-static int format_label_set(strbuf_t *buf, label_set_t const *labels,
-                            char const *prefix, bool first_label) {
+/* Visible for testing */
+int format_label_name(strbuf_t *buf, char const *name) {
   int status = 0;
-  for (size_t i = 0; i < labels->num; i++) {
-    if (!first_label) {
-      status = status || strbuf_print(buf, ",");
-    }
 
-    status =
-        status || strbuf_print_restricted(buf, prefix, VALID_LABEL_CHARS, '_');
-    status = status || strbuf_print_restricted(buf, labels->ptr[i].name,
-                                               VALID_LABEL_CHARS, '_');
-    status = status || strbuf_print(buf, "=\"");
-    status = status || strbuf_print_escaped(buf, labels->ptr[i].value,
-                                            "\\\"\n\r\t", '\\');
-    status = status || strbuf_print(buf, "\"");
-    first_label = false;
+  strbuf_t namebuf = STRBUF_CREATE;
+  status =
+      status || strbuf_print_restricted(&namebuf, name, VALID_LABEL_CHARS, '_');
+
+  if (strncmp("__", namebuf.ptr, 2) == 0) {
+    /* no prefix */
+  } else if (namebuf.ptr[0] == '_') {
+    status = status || strbuf_print(buf, "key");
+  } else if (isdigit(namebuf.ptr[0])) {
+    status = status || strbuf_print(buf, "key_");
   }
+
+  status = status || strbuf_print(buf, namebuf.ptr);
+
+  STRBUF_DESTROY(namebuf);
   return status;
 }
 
-static int format_metric(strbuf_t *buf, metric_t const *m) {
-  if ((buf == NULL) || (m == NULL) || (m->family == NULL)) {
+static int format_label_pair(strbuf_t *buf, label_pair_t l, bool *first_label) {
+  int status = 0;
+
+  if (!*first_label) {
+    status = status || strbuf_print(buf, ",");
+  }
+  status = status || format_label_name(buf, l.name);
+  status = status || strbuf_print(buf, "=\"");
+  status = status || strbuf_print_escaped(buf, l.value, "\\\"\n\r\t", '\\');
+  status = status || strbuf_print(buf, "\"");
+  *first_label = false;
+
+  return status;
+}
+
+static int format_label_set(strbuf_t *buf, label_set_t labels, char const *job,
+                            char const *instance) {
+  bool first_label = true;
+  int status = 0;
+
+  if (job != NULL) {
+    status =
+        status || format_label_pair(buf, (label_pair_t){"job", (char *)job},
+                                    &first_label);
+  }
+  if (instance != NULL) {
+    status = status || format_label_pair(
+                           buf, (label_pair_t){"instance", (char *)instance},
+                           &first_label);
+  }
+
+  for (size_t i = 0; i < labels.num; i++) {
+    status = status || format_label_pair(buf, labels.ptr[i], &first_label);
+  }
+
+  return status;
+}
+
+static int format_metric(strbuf_t *buf, metric_t const *m,
+                         char const *metric_family_name, char const *job,
+                         char const *instance) {
+  if ((buf == NULL) || (m == NULL)) {
     return EINVAL;
   }
-  label_set_t const *resource = &m->family->resource;
 
+  /* metric_family_name is already escaped, so strbuf_print_restricted should
+   * not replace any characters. */
   int status =
-      strbuf_print_restricted(buf, m->family->name, VALID_NAME_CHARS, '_');
-  if (resource->num == 0 && m->label.num == 0) {
+      strbuf_print_restricted(buf, metric_family_name, VALID_NAME_CHARS, '_');
+  if (m->label.num == 0) {
     return status;
   }
 
   status = status || strbuf_print(buf, "{");
+  status = status || format_label_set(buf, m->label, job, instance);
+  status = status || strbuf_print(buf, "}");
 
-  bool first_label = true;
-  if (resource->num != 0) {
-    status = status || format_label_set(buf, resource, RESOURCE_LABEL_PREFIX,
-                                        first_label);
-    first_label = false;
+  return status;
+}
+
+/* format_metric_family_name creates a Prometheus compatible metric name by
+ * replacing all characters that are invalid in Prometheus with underscores,
+ * drop any leading and trailing underscores, and collapses a sequence of
+ * multiple underscores into one underscore.
+ *
+ * Visible for testing */
+void format_metric_family_name(strbuf_t *buf, metric_family_t const *fam) {
+  size_t name_len = strlen(fam->name);
+  char name[name_len + 1];
+  memset(name, 0, sizeof(name));
+
+  strbuf_t namebuf = STRBUF_CREATE_FIXED(name, sizeof(name));
+  strbuf_print_restricted(&namebuf, fam->name, VALID_NAME_CHARS, '_');
+  STRBUF_DESTROY(namebuf);
+
+  bool skip_underscore = true;
+  size_t out = 0;
+  for (size_t in = 0; in < name_len; in++) {
+    if (skip_underscore && name[in] == '_') {
+      continue;
+    }
+    skip_underscore = (name[in] == '_');
+    name[out] = name[in];
+    out++;
   }
-  status = status || format_label_set(buf, &m->label, "", first_label);
+  name_len = out;
+  name[name_len] = 0;
 
-  return status || strbuf_print(buf, "}");
+  while (name_len > 0 && name[name_len - 1] == '_') {
+    name_len--;
+    name[name_len] = 0;
+  }
+
+  strbuf_print(buf, name);
+
+  if (fam->type == METRIC_TYPE_COUNTER) {
+    strbuf_print(buf, "_total");
+  }
 }
 
 /* visible for testing */
@@ -143,7 +220,7 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
   }
 
   strbuf_t family_name = STRBUF_CREATE;
-  strbuf_print_restricted(&family_name, prom_fam->name, VALID_NAME_CHARS, '_');
+  format_metric_family_name(&family_name, prom_fam);
 
   if (prom_fam->help == NULL)
     strbuf_printf(buf, "# HELP %s\n", family_name.ptr);
@@ -151,12 +228,14 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
     strbuf_printf(buf, "# HELP %s %s\n", family_name.ptr, prom_fam->help);
   strbuf_printf(buf, "# TYPE %s %s\n", family_name.ptr, type);
 
-  STRBUF_DESTROY(family_name);
+  char const *job = label_set_get(prom_fam->resource, "service.name");
+  char const *instance =
+      label_set_get(prom_fam->resource, "service.instance.id");
 
   for (size_t i = 0; i < prom_fam->metric.num; i++) {
     metric_t *m = &prom_fam->metric.ptr[i];
 
-    format_metric(buf, m);
+    format_metric(buf, m, family_name.ptr, job, instance);
 
     if (prom_fam->type == METRIC_TYPE_COUNTER)
       strbuf_printf(buf, " %" PRIu64, m->value.counter);
@@ -169,22 +248,151 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
       strbuf_printf(buf, "\n");
     }
   }
+  STRBUF_DESTROY(family_name);
+
+  strbuf_printf(buf, "\n");
+}
+
+typedef struct {
+  label_set_t *resources;
+  size_t resources_num;
+} target_info_t;
+
+static int target_info_compare(void const *a, void const *b) {
+  label_set_t const *lsa = a;
+  label_set_t const *lsb = b;
+
+  return label_set_compare(*lsa, *lsb);
+}
+
+static int target_info_add(target_info_t *ti, label_set_t resource) {
+  label_set_t *found = bsearch(&resource, ti->resources, ti->resources_num,
+                               sizeof(*ti->resources), target_info_compare);
+  if (found != NULL) {
+    return 0;
+  }
+
+  label_set_t *ls =
+      realloc(ti->resources, sizeof(*ti->resources) * (ti->resources_num + 1));
+  if (ls == NULL) {
+    ERROR("write_prometheus plugin: realloc failed.");
+    return ENOMEM;
+  }
+  ti->resources = ls;
+
+  ls = ti->resources + ti->resources_num;
+  memset(ls, 0, sizeof(*ls));
+  int status = label_set_clone(ls, resource);
+  if (status != 0) {
+    ERROR("write_prometheus plugin: label_set_clone failed.");
+    return status;
+  }
+
+  ti->resources_num++;
+  qsort(ti->resources, ti->resources_num, sizeof(*ti->resources),
+        target_info_compare);
+
+  return 0;
+}
+
+static void target_info_reset(target_info_t *ti) {
+  for (size_t i = 0; i < ti->resources_num; i++) {
+    label_set_reset(ti->resources + i);
+  }
+  free(ti->resources);
+  ti->resources = NULL;
+  ti->resources_num = 0;
+}
+
+/* target_info prints a special "info" metric that contains all the "target
+ * labels" aka. resource attributes.
+ * See
+ * https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#supporting-target-metadata-in-both-push-based-and-pull-based-systems
+ * for more details. */
+/* visible for testing */
+void target_info(strbuf_t *buf, metric_family_t const **families,
+                 size_t families_num) {
+  target_info_t ti = {0};
+
+  for (size_t i = 0; i < families_num; i++) {
+    metric_family_t const *fam = families[i];
+    target_info_add(&ti, fam->resource);
+  }
+
+  if (ti.resources_num == 0) {
+    return;
+  }
+
+#ifdef EXPOSE_OPEN_METRICS
+  strbuf_print(buf, "# TYPE target info\n");
+  strbuf_print(buf, "# HELP target Target metadata\n");
+#else
+  strbuf_print(buf, "# HELP target_info Target metadata\n");
+  strbuf_print(buf, "# TYPE target_info gauge\n");
+#endif
+
+  for (size_t i = 0; i < ti.resources_num; i++) {
+    label_set_t *resource = ti.resources + i;
+
+    char *job = NULL;
+    char *instance = NULL;
+
+    char const *v;
+    if ((v = label_set_get(*resource, "service.name")) != NULL) {
+      job = strdup(v);
+      label_set_update(resource, "service.name", NULL);
+    }
+
+    if ((v = label_set_get(*resource, "service.instance.id")) != NULL) {
+      instance = strdup(v);
+      label_set_update(resource, "service.instance.id", NULL);
+    }
+
+    strbuf_print(buf, "target_info{");
+    format_label_set(buf, *resource, job, instance);
+    strbuf_print(buf, "} 1\n");
+
+    free(job);
+    free(instance);
+  }
+
+  strbuf_print(buf, "\n");
+  target_info_reset(&ti);
+}
+
+static void format_metric_families(strbuf_t *buf,
+                                   metric_family_t const **families,
+                                   size_t families_num) {
+  target_info(buf, families, families_num);
+
+  for (size_t i = 0; i < families_num; i++) {
+    metric_family_t const *fam = families[i];
+    format_metric_family(buf, fam);
+  }
 }
 
 static void format_text(strbuf_t *buf) {
   pthread_mutex_lock(&prom_metrics_lock);
 
-  char *unused;
-  metric_family_t *prom_fam;
+  size_t families_num = (size_t)c_avl_size(prom_metrics);
+  metric_family_t const *families[families_num];
+  memset(families, 0, sizeof(families));
 
+  char *unused = NULL;
+  metric_family_t *prom_fam = NULL;
   c_avl_iterator_t *iter = c_avl_get_iterator(prom_metrics);
-  while (c_avl_iterator_next(iter, (void *)&unused, (void *)&prom_fam) == 0) {
-    format_metric_family(buf, prom_fam);
+  for (size_t i = 0;
+       c_avl_iterator_next(iter, (void *)&unused, (void *)&prom_fam) == 0;
+       i++) {
+    assert(i < families_num);
+    families[i] = prom_fam;
   }
   c_avl_iterator_destroy(iter);
 
-  strbuf_printf(buf, "\n# collectd/write_prometheus %s at %s\n",
-                PACKAGE_VERSION, hostname_g);
+  format_metric_families(buf, families, families_num);
+
+  strbuf_printf(buf, "# collectd/write_prometheus %s at %s\n", PACKAGE_VERSION,
+                hostname_g);
 
   pthread_mutex_unlock(&prom_metrics_lock);
 }
