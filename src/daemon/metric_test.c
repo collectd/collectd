@@ -419,6 +419,21 @@ DEF_TEST(metric_parse_identity) {
                       },
               },
       },
+      {
+          .name = "invalid character in metric name",
+          .input = "example@metric{label=\"value\"}",
+          .want_err = EINVAL,
+      },
+      {
+          .name = "curly not closed",
+          .input = "example_metric{label=\"value\"",
+          .want_err = EINVAL,
+      },
+      {
+          .name = "trailing curly",
+          .input = "example_metric{label=\"value\"}}",
+          .want_err = EINVAL,
+      },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
