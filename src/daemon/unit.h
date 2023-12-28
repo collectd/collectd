@@ -35,8 +35,8 @@
  * tries to heuristically determine a unit for the metric family, based on known
  * OpenTelemetry metric names:
  * https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-naming
- * If successful, a new string is allocated on the heap and returned. This string must
- * be freed using free(). If unsuccessful, NULL is returned.
+ * If successful, a new string is allocated on the heap and returned. This
+ * string must be freed using free(). If unsuccessful, NULL is returned.
  *
  * This is designed to be used like this:
  *   fam->unit = default_unit(fam);
