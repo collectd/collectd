@@ -130,8 +130,8 @@ noinst_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
-	libformat_influxdb.la \
 	libformat_graphite.la \
+	libformat_influxdb.la \
 	libheap.la \
 	libignorelist.la \
 	liblatency.la \
@@ -141,6 +141,7 @@ noinst_LTLIBRARIES = \
 	libmetric.la \
 	libmount.la \
 	liboconfig.la \
+	libresource_metrics.la \
 	libstrbuf.la
 
 
@@ -386,13 +387,6 @@ test_utils_message_parser_SOURCES = \
 test_utils_message_parser_CPPFLAGS = $(AM_CPPFLAGS)
 test_utils_message_parser_LDADD = libplugin_mock.la -lm
 
-test_utils_resource_metrics_SOURCES = \
-	src/utils/resource_metrics/resource_metrics_test.c \
-	src/utils/resource_metrics/resource_metrics.c \
-	src/utils/resource_metrics/resource_metrics.h \
-	src/testing.h
-test_utils_resource_metrics_LDADD = libplugin_mock.la
-
 test_utils_time_SOURCES = \
 	src/daemon/utils_time_test.c \
 	src/testing.h
@@ -579,6 +573,15 @@ test_utils_mount_LDADD = \
 if BUILD_WITH_LIBKSTAT
 test_utils_mount_LDADD += -lkstat
 endif
+
+libresource_metrics_la_SOURCES = src/utils/resource_metrics/resource_metrics.c \
+				 src/utils/resource_metrics/resource_metrics.h
+libresource_metrics_la_LIBADD = libcommon.la
+
+test_utils_resource_metrics_SOURCES = \
+	src/utils/resource_metrics/resource_metrics_test.c \
+	src/testing.h
+test_utils_resource_metrics_LDADD = libresource_metrics.la libplugin_mock.la
 
 libstrbuf_la_SOURCES = \
 		       src/utils/strbuf/strbuf.c \
