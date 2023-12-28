@@ -443,6 +443,8 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
+	src/daemon/resource.c \
+	src/daemon/resource.h \
 	src/daemon/types_list.c \
 	src/daemon/types_list.h \
 	src/daemon/utils_cache_mock.c \

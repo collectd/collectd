@@ -30,6 +30,14 @@
 #include "collectd.h"
 #include "daemon/metric.h"
 
+/* resource_attributes_init sets default resource attributes depending on
+ * "type". Returns ENOENT if type is not known. */
+int resource_attributes_init(char const *type);
+
+/* resource_attribute_update adds a gobal resource attribute. If an
+ * attribute of the same name already exists, it is overwritten. */
+int resource_attribute_update(char const *key, char const *value);
+
 label_set_t default_resource_attributes(void);
 
 #endif

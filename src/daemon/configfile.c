@@ -29,11 +29,13 @@
 
 #include "liboconfig/oconfig.h"
 
-#include "configfile.h"
-#include "filter_chain.h"
-#include "plugin.h"
-#include "types_list.h"
+#include "daemon/configfile.h"
+#include "daemon/filter_chain.h"
+#include "daemon/plugin.h"
+#include "daemon/resource.h"
+#include "daemon/types_list.h"
 #include "utils/common/common.h"
+#include "utils/strbuf/strbuf.h"
 
 #if HAVE_WORDEXP_H
 #include <wordexp.h>
@@ -87,6 +89,7 @@ static int dispatch_value_typesdb(oconfig_item_t *ci);
 static int dispatch_value_plugindir(oconfig_item_t *ci);
 static int dispatch_loadplugin(oconfig_item_t *ci);
 static int dispatch_block_plugin(oconfig_item_t *ci);
+static int dispatch_resource(oconfig_item_t *ci);
 
 /*
  * Private variables
@@ -94,10 +97,13 @@ static int dispatch_block_plugin(oconfig_item_t *ci);
 static cf_callback_t *first_callback;
 static cf_complex_callback_t *complex_callback_head;
 
-static cf_value_map_t cf_value_map[] = {{"TypesDB", dispatch_value_typesdb},
-                                        {"PluginDir", dispatch_value_plugindir},
-                                        {"LoadPlugin", dispatch_loadplugin},
-                                        {"Plugin", dispatch_block_plugin}};
+static cf_value_map_t cf_value_map[] = {
+    {"TypesDB", dispatch_value_typesdb},
+    {"PluginDir", dispatch_value_plugindir},
+    {"LoadPlugin", dispatch_loadplugin},
+    {"Plugin", dispatch_block_plugin},
+    {"Resource", dispatch_resource},
+};
 static int cf_value_map_num = STATIC_ARRAY_SIZE(cf_value_map);
 
 static cf_global_option_t cf_global_options[] = {
@@ -315,6 +321,74 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   return ret_val;
 } /* int dispatch_value_loadplugin */
+
+static int format_config_value(strbuf_t *buf, oconfig_value_t v) {
+  switch (v.type) {
+  case OCONFIG_TYPE_STRING:
+    return strbuf_print(buf, v.value.string);
+  case OCONFIG_TYPE_NUMBER:
+    return strbuf_printf(buf, "%g", v.value.number);
+  case OCONFIG_TYPE_BOOLEAN:
+    return strbuf_print(buf, v.value.boolean ? "true" : "false");
+  default:
+    ERROR("configfile: Unexpected value type: %d", v.type);
+    return -1;
+  }
+}
+
+static int dispatch_resource(oconfig_item_t *ci) {
+  if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING) {
+    ERROR("configfile: The \"%s\" option requires one string argument.",
+          ci->key);
+    return EINVAL;
+  }
+
+  int status = resource_attributes_init(ci->values[0].value.string);
+  if (status != 0) {
+    return status;
+  }
+
+  for (int i = 0; i < ci->children_num; ++i) {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp("Attribute", child->key) == 0) {
+      if (child->values_num != 2) {
+        ERROR("configfile: The \"%s\" option requires two values, got %d.",
+              child->key, child->values_num);
+        return EINVAL;
+      }
+      if (child->values[0].type != OCONFIG_TYPE_STRING) {
+        ERROR("configfile: The first value of the \"%s\" option (the attribute "
+              "name) must be a string.",
+              child->key);
+        return EINVAL;
+      }
+      char const *key = child->values[0].value.string;
+
+      strbuf_t value = STRBUF_CREATE;
+      int status = format_config_value(&value, ci->values[1]);
+      if (status != 0) {
+        STRBUF_DESTROY(value);
+        return status;
+      }
+
+      status = resource_attribute_update(key, value.ptr);
+      if (status != 0) {
+        ERROR("configfile: default_resource_attributes_update failed: %s",
+              STRERROR(status));
+        STRBUF_DESTROY(value);
+        return status;
+      }
+
+      STRBUF_DESTROY(value);
+    } else {
+      ERROR("configfile: The option \"%s\" is not valid within \"%s\" blocks.",
+            child->key, ci->key);
+      return EINVAL;
+    }
+  }
+  return 0;
+} /* int dispatch_resource */
 
 static int dispatch_value(oconfig_item_t *ci) {
   int ret = 0;

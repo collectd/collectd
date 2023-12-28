@@ -29,6 +29,7 @@
 
 #include "utils/common/common.h"
 
+static bool default_resource_initialized = false;
 static label_set_t default_resource;
 
 static void otel_service_name(void) {
@@ -104,8 +105,8 @@ static int machine_id(void) {
   return ENOENT;
 }
 
-static void init_default_resource(void) {
-  if (default_resource.num != 0) {
+static void resource_host_init(void) {
+  if (default_resource_initialized) {
     return;
   }
 
@@ -113,10 +114,38 @@ static void init_default_resource(void) {
   otel_resource_attributes();
   host_name();
   machine_id();
+  default_resource_initialized = true;
+}
+
+static void resource_generic_init(void) {
+  if (default_resource_initialized) {
+    return;
+  }
+
+  otel_service_name();
+  otel_resource_attributes();
+  default_resource_initialized = true;
+}
+
+int resource_attributes_init(char const *type) {
+  if (strcasecmp("Host", type) == 0) {
+    resource_host_init();
+    return 0;
+  } else if (strcasecmp("Generic", type) == 0) {
+    resource_generic_init();
+    return 0;
+  }
+  ERROR("resource: The resource type \"%s\" is unknown.", type);
+  return ENOENT;
+}
+
+int resource_attribute_update(char const *key, char const *value) {
+  resource_host_init();
+  return label_set_add(&default_resource, key, value);
 }
 
 label_set_t default_resource_attributes(void) {
-  init_default_resource();
+  resource_host_init();
 
   return default_resource;
 }
