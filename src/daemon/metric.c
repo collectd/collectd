@@ -151,9 +151,10 @@ static int label_set_delete(label_set_t *labels, label_pair_t *elem) {
   free(elem->name);
   free(elem->value);
 
-  if (index != (labels->num - 1)) {
+  size_t pairs_to_move = labels->num - (index + 1);
+  if (pairs_to_move != 0) {
     memmove(labels->ptr + index, labels->ptr + (index + 1),
-            labels->num - (index + 1));
+            sizeof(*labels->ptr) * pairs_to_move);
   }
   labels->num--;
 
@@ -256,8 +257,8 @@ int metric_reset(metric_t *m) {
   return 0;
 }
 
-static int format_label_set(strbuf_t *buf, label_set_t const *labels,
-                            char const *prefix, bool first_label) {
+static int internal_label_set_format(strbuf_t *buf, label_set_t const *labels,
+                                     char const *prefix, bool first_label) {
   int status = 0;
   for (size_t i = 0; i < labels->num; i++) {
     if (!first_label) {
@@ -275,6 +276,10 @@ static int format_label_set(strbuf_t *buf, label_set_t const *labels,
   return status;
 }
 
+int label_set_format(strbuf_t *buf, label_set_t labels) {
+  return internal_label_set_format(buf, &labels, "", true);
+}
+
 int metric_identity(strbuf_t *buf, metric_t const *m) {
   if ((buf == NULL) || (m == NULL) || (m->family == NULL)) {
     return EINVAL;
@@ -290,11 +295,11 @@ int metric_identity(strbuf_t *buf, metric_t const *m) {
 
   bool first_label = true;
   if (resource->num != 0) {
-    status = status || format_label_set(buf, resource, RESOURCE_LABEL_PREFIX,
-                                        first_label);
+    status = status || internal_label_set_format(
+                           buf, resource, RESOURCE_LABEL_PREFIX, first_label);
     first_label = false;
   }
-  status = status || format_label_set(buf, &m->label, "", first_label);
+  status = status || internal_label_set_format(buf, &m->label, "", first_label);
 
   return status || strbuf_print(buf, "}");
 }

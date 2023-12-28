@@ -92,6 +92,10 @@ void label_set_reset(label_set_t *labels);
  */
 int label_set_compare(label_set_t a, label_set_t b);
 
+/* label_set_format formats a label set as a string, returned in "buf".
+ * Returns zero on success and non-zero on failure. */
+int label_set_format(strbuf_t *buf, label_set_t labels);
+
 /*
  * Metric
  */
