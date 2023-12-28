@@ -29,19 +29,6 @@
 #include "metric.h"
 #include "testing.h"
 
-static void format_label_set(strbuf_t *buf, label_set_t labels) {
-  for (size_t i = 0; i < labels.num; i++) {
-    strbuf_printf(buf, "[i=%zu]", i);
-    if (i != 0) {
-      strbuf_print(buf, ",");
-    }
-    strbuf_print_escaped(buf, labels.ptr[i].name, "\\\"\n\r\t", '\\');
-    strbuf_print(buf, "=\"");
-    strbuf_print_escaped(buf, labels.ptr[i].value, "\\\"\n\r\t", '\\');
-    strbuf_print(buf, "\"");
-  }
-}
-
 DEF_TEST(metric_label_set) {
   struct {
     char const *name;
@@ -186,8 +173,8 @@ DEF_TEST(metric_label_set) {
     strbuf_t got = STRBUF_CREATE;
     strbuf_t want = STRBUF_CREATE;
 
-    format_label_set(&want, cases[i].want);
-    format_label_set(&got, m.label);
+    label_set_format(&want, cases[i].want);
+    label_set_format(&got, m.label);
 
     EXPECT_EQ_STR(want.ptr, got.ptr);
 
