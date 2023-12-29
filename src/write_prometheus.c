@@ -126,7 +126,8 @@ static int unit_map_compare(void const *a, void const *b) {
 static unit_map_t const *unit_map_lookup(char const *unit) {
   static bool is_sorted;
   if (!is_sorted) {
-    qsort(unit_map, STATIC_ARRAY_SIZE(unit_map), sizeof(unit_map[0]), unit_map_compare);
+    qsort(unit_map, STATIC_ARRAY_SIZE(unit_map), sizeof(unit_map[0]),
+          unit_map_compare);
     is_sorted = true;
   }
 
@@ -135,9 +136,10 @@ static unit_map_t const *unit_map_lookup(char const *unit) {
   }
 
   unit_map_t key = {
-    .open_telemetry = unit,
+      .open_telemetry = unit,
   };
-  return bsearch(&key, unit_map, STATIC_ARRAY_SIZE(unit_map), sizeof(unit_map[0]), unit_map_compare);
+  return bsearch(&key, unit_map, STATIC_ARRAY_SIZE(unit_map),
+                 sizeof(unit_map[0]), unit_map_compare);
 }
 
 /* Visible for testing */
