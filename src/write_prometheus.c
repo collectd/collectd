@@ -76,6 +76,70 @@ static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
+typedef struct {
+  char const *open_telemetry;
+  char const *prometheus;
+} unit_map_t;
+
+/* The list is sorted at runtime (in `unit_map_lookup`) to avoid issues with
+ * different locales sorting the list in a different order. */
+static unit_map_t unit_map[] = {
+    // Time
+    {"d", "days"},
+    {"h", "hours"},
+    {"min", "minutes"},
+    {"s", "seconds"},
+    {"ms", "milliseconds"},
+    {"us", "microseconds"},
+    {"ns", "nanoseconds"},
+    // Bytes
+    {"By", "bytes"},
+    {"KiBy", "kibibytes"},
+    {"MiBy", "mebibytes"},
+    {"GiBy", "gibibytes"},
+    {"TiBy", "tibibytes"},
+    {"KBy", "kilobytes"},
+    {"MBy", "megabytes"},
+    {"GBy", "gigabytes"},
+    {"TBy", "terabytes"},
+    // SI units
+    {"m", "meters"},
+    {"V", "volts"},
+    {"A", "amperes"},
+    {"J", "joules"},
+    {"W", "watts"},
+    {"g", "grams"},
+    // Misc
+    {"1", "ratio"},
+    {"%", "percent"},
+    {"Cel", "celsius"},
+    {"Hz", "hertz"},
+};
+
+static int unit_map_compare(void const *a, void const *b) {
+  unit_map_t const *ma = a;
+  unit_map_t const *mb = b;
+
+  return strcmp(ma->open_telemetry, mb->open_telemetry);
+}
+
+static unit_map_t const *unit_map_lookup(char const *unit) {
+  static bool is_sorted;
+  if (!is_sorted) {
+    qsort(unit_map, STATIC_ARRAY_SIZE(unit_map), sizeof(unit_map[0]), unit_map_compare);
+    is_sorted = true;
+  }
+
+  if (unit == NULL) {
+    return NULL;
+  }
+
+  unit_map_t key = {
+    .open_telemetry = unit,
+  };
+  return bsearch(&key, unit_map, STATIC_ARRAY_SIZE(unit_map), sizeof(unit_map[0]), unit_map_compare);
+}
+
 /* Visible for testing */
 int format_label_name(strbuf_t *buf, char const *name) {
   int status = 0;
@@ -192,6 +256,13 @@ void format_metric_family_name(strbuf_t *buf, metric_family_t const *fam) {
   }
 
   strbuf_print(buf, name);
+
+  unit_map_t const *unit = unit_map_lookup(fam->unit);
+  if (unit != NULL) {
+    strbuf_printf(buf, "_%s", unit->prometheus);
+  } else if (fam->unit != NULL && fam->unit[0] != '{') {
+    strbuf_printf(buf, "_%s", fam->unit);
+  }
 
   if (fam->type == METRIC_TYPE_COUNTER) {
     strbuf_print(buf, "_total");
