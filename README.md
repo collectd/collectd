@@ -149,6 +149,10 @@ Features
     - entropy
       Amount of entropy available to the system.
 
+    - epics
+      Collect data from EPICS message bus.
+      <https://epics-controls.org>
+
     - ethstat
       Network interface card statistics.
 

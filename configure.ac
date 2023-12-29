@@ -2079,6 +2079,35 @@ AC_SUBST([BUILD_WITH_CUDA_LIBS])
 
 # }}}
 
+# --with-epics-base {{{
+AC_ARG_WITH([epics-base],
+  [AS_HELP_STRING([--with-epics-base@<:@=PREFIX@:>@], [Path to epics-base.])],
+  [
+    with_epics_base="$withval"
+    if test "x$withval" = "xno"; then
+      with_epics_base="no (disabled on command line)"
+    fi
+  ],
+  [with_epics_base="yes"]
+)
+
+if test "x$with_epics_base" = "xyes"; then
+PKG_CHECK_MODULES([EPICS_BASE], [epics-base],
+  [with_epics_base="yes"],
+  [with_epics_base="no (pkg-config could not find epics-base)"]
+)
+fi
+
+if test "x$with_epics_base" = "xyes"; then
+  BUILD_WITH_EPICS_BASE_CFLAGS="$EPICS_BASE_CFLAGS"
+  BUILD_WITH_EPICS_BASE_LIBS="$EPICS_BASE_LIBS -lca"
+fi
+
+AC_SUBST([BUILD_WITH_EPICS_BASE_CFLAGS])
+AC_SUBST([BUILD_WITH_EPICS_BASE_LIBS])
+
+# }}}
+
 # --with-libaquaero5 {{{
 AC_ARG_WITH([libaquaero5],
   [AS_HELP_STRING([--with-libaquaero5@<:@=PREFIX@:>@], [Path to aquatools-ng source code.])],
@@ -6740,6 +6769,7 @@ plugin_dpdkevents="no"
 plugin_dpdkstat="no"
 plugin_dpdk_telemetry="no"
 plugin_entropy="no"
+plugin_epics="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
@@ -7219,6 +7249,7 @@ AC_PLUGIN([dpdk_telemetry],      [$plugin_dpdk_telemetry],    [Metrics from DPDK
 AC_PLUGIN([drbd],                [$plugin_drbd],              [DRBD statistics])
 AC_PLUGIN([email],               [yes],                       [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],           [Entropy statistics])
+AC_PLUGIN([epics],               [$with_epics_base],          [EPICS CA plugin])
 AC_PLUGIN([ethstat],             [$plugin_ethstat],           [Stats from NIC driver])
 AC_PLUGIN([exec],                [yes],                       [Execution of external programs])
 AC_PLUGIN([fhcount],             [$plugin_fhcount],           [File handles statistics])
@@ -7552,6 +7583,7 @@ AC_MSG_RESULT([    YACC  . . . . . . . . $YACC])
 AC_MSG_RESULT([    YFLAGS  . . . . . . . $YFLAGS])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Libraries:])
+AC_MSG_RESULT([    epics . . . . . . . . $with_epics_base])
 AC_MSG_RESULT([    intel mic . . . . . . $with_mic])
 AC_MSG_RESULT([    libaquaero5 . . . . . $with_libaquaero5])
 AC_MSG_RESULT([    libatasmart . . . . . $with_libatasmart])
@@ -7669,6 +7701,7 @@ AC_MSG_RESULT([    drbd  . . . . . . . . $enable_drbd])
 AC_MSG_RESULT([    email . . . . . . . . $enable_email])
 AC_MSG_RESULT([    entropy . . . . . . . $enable_entropy])
 AC_MSG_RESULT([    ethstat . . . . . . . $enable_ethstat])
+AC_MSG_RESULT([    epics . . . . . . . . $enable_epics])
 AC_MSG_RESULT([    exec  . . . . . . . . $enable_exec])
 AC_MSG_RESULT([    fhcount . . . . . . . $enable_fhcount])
 AC_MSG_RESULT([    filecount . . . . . . $enable_filecount])
