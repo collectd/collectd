@@ -65,12 +65,58 @@ DEF_TEST(format_metric_family_name) {
   struct {
     char *name;
     metric_type_t type;
+    char *unit;
     char *want;
   } cases[] = {
-      {"(lambda).function.executions(#)", METRIC_TYPE_UNTYPED,
-       "lambda_function_executions"},
-      {"system.processes.created", METRIC_TYPE_COUNTER,
-       "system_processes_created_total"},
+      {
+          .name = "(lambda).function.executions(#)",
+          .type = METRIC_TYPE_UNTYPED,
+          .want = "lambda_function_executions",
+      },
+      {
+          .name = "system.processes.created",
+          .type = METRIC_TYPE_COUNTER,
+          .want = "system_processes_created_total",
+      },
+      {
+          .name = "system.filesystem.usage",
+          .type = METRIC_TYPE_GAUGE,
+          .unit = "By",
+          .want = "system_filesystem_usage_bytes",
+      },
+      {
+          .name = "system.network.dropped",
+          .type = METRIC_TYPE_GAUGE,
+          .unit = "{packets}",
+          .want = "system_network_dropped",
+      },
+      {
+          .name = "system.network.dropped",
+          .type = METRIC_TYPE_GAUGE,
+          .unit = "packets",
+          .want = "system_network_dropped_packets",
+      },
+      {
+          .name = "system.memory.utilization",
+          .type = METRIC_TYPE_GAUGE,
+          .unit = "1",
+          .want = "system_memory_utilization_ratio",
+      },
+      {
+          .name = "storage.filesystem.utilization",
+          .type = METRIC_TYPE_GAUGE,
+          .unit = "%",
+          .want = "storage_filesystem_utilization_percent",
+      },
+      {
+          .name = "astro.light.speed",
+          .type = METRIC_TYPE_GAUGE,
+          .unit = "m/s",
+          .want = "astro_light_speed_m_s",
+          /* Not yet supported. Should be:
+          .want = "astro_light_speed_meters_per_second",
+          */
+      },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
@@ -80,6 +126,7 @@ DEF_TEST(format_metric_family_name) {
     metric_family_t fam = {
         .name = cases[i].name,
         .type = cases[i].type,
+        .unit = cases[i].unit,
     };
 
     format_metric_family_name(&got, &fam);
