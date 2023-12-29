@@ -108,14 +108,15 @@ DEF_TEST(format_metric_family_name) {
           .unit = "%",
           .want = "storage_filesystem_utilization_percent",
       },
-      /* Not yet supported:
       {
           .name = "astro.light.speed",
           .type = METRIC_TYPE_GAUGE,
           .unit = "m/s",
+          .want = "astro_light_speed_m_s",
+          /* Not yet supported. Should be:
           .want = "astro_light_speed_meters_per_second",
+          */
       },
-      */
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {

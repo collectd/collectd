@@ -263,7 +263,8 @@ void format_metric_family_name(strbuf_t *buf, metric_family_t const *fam) {
   if (unit != NULL) {
     strbuf_printf(buf, "_%s", unit->prometheus);
   } else if (fam->unit != NULL && fam->unit[0] != '{') {
-    strbuf_printf(buf, "_%s", fam->unit);
+    strbuf_print(buf, "_");
+    strbuf_print_restricted(buf, fam->unit, VALID_NAME_CHARS, '_');
   }
 
   if (fam->type == METRIC_TYPE_COUNTER) {
