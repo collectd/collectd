@@ -176,6 +176,9 @@ struct metric_family_s {
   metric_list_t metric;
 };
 
+/* metric_family_append_list appends a metric_list_t to the metric family. */
+int metric_family_append_list(metric_family_t *fam, metric_list_t list);
+
 /* metric_family_metric_append appends a new metric to the metric family. This
  * allocates memory which must be freed using metric_family_metric_reset. */
 int metric_family_metric_append(metric_family_t *fam, metric_t m);
@@ -215,6 +218,11 @@ void metric_family_free(metric_family_t *fam);
  * errno is set and NULL is returned. The returned pointer must be freed with
  * metric_family_free(). */
 metric_family_t *metric_family_clone(metric_family_t const *fam);
+
+/* metric_family_clone_shallow returns a copy of the provided metric family
+ * without any metrics. On error, errno is set and NULL is returned. The
+ * returned pointer must be freed with metric_family_free(). */
+metric_family_t *metric_family_clone_shallow(metric_family_t const *fam);
 
 /* metric_family_compare compares two metric families, taking into account the
  * metric family name and any resource attributes. It returns an integer

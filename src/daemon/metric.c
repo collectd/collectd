@@ -254,6 +254,28 @@ int label_set_clone(label_set_t *dest, label_set_t src) {
   return 0;
 }
 
+static int metric_clone_into(metric_t *dest, metric_t src) {
+  *dest = (metric_t){
+      .family = src.family,
+      .value = src.value,
+      .time = src.time,
+      .interval = src.interval,
+      .meta = meta_data_clone(src.meta),
+  };
+  if ((src.meta != NULL) && (dest->meta == NULL)) {
+    return ENOMEM;
+  }
+
+  int status = label_set_clone(&dest->label, src.label);
+  if (status != 0) {
+    label_set_reset(&dest->label);
+    meta_data_destroy(dest->meta);
+    return status;
+  }
+
+  return 0;
+}
+
 int metric_reset(metric_t *m) {
   if (m == NULL) {
     return EINVAL;
@@ -353,22 +375,34 @@ static int metric_list_add(metric_list_t *metrics, metric_t m) {
   }
   metrics->ptr = tmp;
 
-  metric_t copy = {
-      .family = m.family,
-      .value = m.value,
-      .time = m.time,
-      .interval = m.interval,
-      .meta = meta_data_clone(m.meta),
-  };
-  int status = label_set_clone(&copy.label, m.label);
-  if (((m.meta != NULL) && (copy.meta == NULL)) || (status != 0)) {
-    label_set_reset(&copy.label);
-    meta_data_destroy(copy.meta);
+  int status = metric_clone_into(&metrics->ptr[metrics->num], m);
+  if (status != 0) {
     return status;
   }
 
-  metrics->ptr[metrics->num] = copy;
   metrics->num++;
+  return 0;
+}
+
+static int metric_list_append_list(metric_list_t *dest, metric_list_t src) {
+  if (dest == NULL) {
+    return EINVAL;
+  }
+
+  metric_t *tmp =
+      realloc(dest->ptr, sizeof(*dest->ptr) * (dest->num + src.num));
+  if (tmp == NULL) {
+    return errno;
+  }
+  dest->ptr = tmp;
+
+  for (size_t i = 0; i < src.num; i++) {
+    int status = metric_clone_into(&dest->ptr[dest->num], src.ptr[i]);
+    if (status != 0) {
+      return status;
+    }
+    dest->num++;
+  }
 
   return 0;
 }
@@ -417,6 +451,20 @@ static int metric_list_clone(metric_list_t *dest, metric_list_t src,
   }
 
   *dest = ret;
+  return 0;
+}
+
+int metric_family_append_list(metric_family_t *fam, metric_list_t list) {
+  size_t offset = fam->metric.num;
+  int status = metric_list_append_list(&fam->metric, list);
+  if (status != 0) {
+    return status;
+  }
+
+  for (size_t i = offset; i < fam->metric.num; i++) {
+    fam->metric.ptr[i].family = fam;
+  }
+
   return 0;
 }
 
@@ -484,7 +532,7 @@ void metric_family_free(metric_family_t *fam) {
   free(fam);
 }
 
-metric_family_t *metric_family_clone(metric_family_t const *fam) {
+metric_family_t *metric_family_clone_shallow(metric_family_t const *fam) {
   if (fam == NULL) {
     errno = EINVAL;
     return NULL;
@@ -511,7 +559,16 @@ metric_family_t *metric_family_clone(metric_family_t const *fam) {
     return NULL;
   }
 
-  status = metric_list_clone(&ret->metric, fam->metric, ret);
+  return ret;
+}
+
+metric_family_t *metric_family_clone(metric_family_t const *fam) {
+  metric_family_t *ret = metric_family_clone_shallow(fam);
+  if (ret == NULL) {
+    return NULL;
+  }
+
+  int status = metric_list_clone(&ret->metric, fam->metric, ret);
   if (status != 0) {
     metric_family_free(ret);
     errno = status;

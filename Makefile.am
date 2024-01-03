@@ -47,6 +47,11 @@ EXTRA_DIST = \
 	bindings/perl/lib/Collectd/Unixsock.pm \
 	bindings/perl/uninstall_mod.pl \
 	contrib \
+	opentelemetry-proto/LICENSE \
+	opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto \
+	opentelemetry-proto/opentelemetry/proto/common/v1/common.proto \
+	opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto \
+	opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto \
 	proto/collectd.proto \
 	proto/types.proto \
 	src/collectd-email.pod \
@@ -454,10 +459,6 @@ libplugin_mock_la_SOURCES = \
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libmetric.la liboconfig.la libcommon.la libignorelist.la $(COMMON_LIBS)
 
-libformat_influxdb_la_SOURCES = \
-	src/utils/format_influxdb/format_influxdb.c \
-	src/utils/format_influxdb/format_influxdb.h
-
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
 	src/utils/format_graphite/format_graphite.h
@@ -471,6 +472,30 @@ test_format_graphite_LDADD = \
 	libplugin_mock.la \
 	libstrbuf.la \
 	-lm
+
+libformat_influxdb_la_SOURCES = \
+	src/utils/format_influxdb/format_influxdb.c \
+	src/utils/format_influxdb/format_influxdb.h
+
+if BUILD_PLUGIN_WRITE_OPEN_TELEMETRY
+noinst_LTLIBRARIES += libformat_open_telemetry.la
+libformat_open_telemetry_la_SOURCES = \
+	src/utils/format_open_telemetry/format_open_telemetry.cc \
+	src/utils/format_open_telemetry/format_open_telemetry.h \
+	src/utils/resource_metrics/resource_metrics.c \
+	src/utils/resource_metrics/resource_metrics.h \
+	opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc \
+	opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h \
+	opentelemetry/proto/common/v1/common.pb.cc \
+	opentelemetry/proto/common/v1/common.pb.h \
+	opentelemetry/proto/metrics/v1/metrics.pb.cc \
+	opentelemetry/proto/metrics/v1/metrics.pb.h \
+	opentelemetry/proto/resource/v1/resource.pb.cc \
+	opentelemetry/proto/resource/v1/resource.pb.h
+libformat_open_telemetry_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS)
+libformat_open_telemetry_la_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS)
+libformat_open_telemetry_la_LIBADD = $(BUILD_WITH_LIBPROTOBUF_LIBS)
+endif
 
 if BUILD_WITH_LIBYAJL
 noinst_LTLIBRARIES += libformat_json.la
@@ -2318,6 +2343,16 @@ write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 write_mongodb_la_LIBADD = $(BUILD_WITH_LIBMONGOC_LIBS)
 endif
 
+if BUILD_PLUGIN_WRITE_OPEN_TELEMETRY
+pkglib_LTLIBRARIES += write_open_telemetry.la
+write_open_telemetry_la_SOURCES = src/write_open_telemetry.cc \
+				  opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
+				  opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h
+write_open_telemetry_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS)
+write_open_telemetry_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS)
+write_open_telemetry_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) libformat_open_telemetry.la
+endif
+
 if BUILD_PLUGIN_WRITE_PROMETHEUS
 pkglib_LTLIBRARIES += write_prometheus.la
 write_prometheus_la_SOURCES = src/write_prometheus.c
@@ -2445,18 +2480,48 @@ if HAVE_GRPC_CPP
 BUILT_SOURCES += collectd.grpc.pb.cc types.grpc.pb.cc collectd.pb.cc types.pb.cc
 
 collectd.grpc.pb.cc types.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/proto \
 		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) \
 	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 collectd.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/proto --cpp_out=$(builddir) \
 	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 types.pb.cc: $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/proto --cpp_out=$(builddir) \
 	$(srcdir)/proto/types.proto
 endif
+endif
+
+if BUILD_PLUGIN_WRITE_OPEN_TELEMETRY
+BUILT_SOURCES += \
+	opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
+	opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h \
+	opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc \
+	opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h \
+	opentelemetry/proto/common/v1/common.pb.cc \
+	opentelemetry/proto/common/v1/common.pb.h \
+	opentelemetry/proto/metrics/v1/metrics.pb.cc \
+	opentelemetry/proto/metrics/v1/metrics.pb.h \
+	opentelemetry/proto/resource/v1/resource.pb.cc \
+	opentelemetry/proto/resource/v1/resource.pb.h
+
+opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --grpc_out=$(builddir) \
+		--plugin="protoc-gen-grpc=$(GRPC_CPP_PLUGIN)" $<
+
+opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
+
+opentelemetry/proto/common/v1/common.pb.cc opentelemetry/proto/common/v1/common.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
+
+opentelemetry/proto/metrics/v1/metrics.pb.cc opentelemetry/proto/metrics/v1/metrics.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
+
+opentelemetry/proto/resource/v1/resource.pb.cc opentelemetry/proto/resource/v1/resource.pb.h: $(srcdir)/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto
+	$(V_PROTOC)$(PROTOC) $(PROTOC_FLAGS) -I$(srcdir)/opentelemetry-proto --cpp_out=$(builddir) $<
 endif
 
 install-exec-hook:

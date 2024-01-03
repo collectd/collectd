@@ -4873,6 +4873,35 @@ if test "x$PROTOC" != "x"; then
 fi
 AM_CONDITIONAL([HAVE_PROTOC3], [test "x$have_protoc3" = "xyes"])
 
+protoc3_optional="no"
+if test "x$have_protoc3" = "xyes"; then
+  AC_MSG_CHECKING([whether protoc supports optional fields])
+  testfile=`mktemp`
+  cat <<EOF >"$testfile"
+syntax = "proto3";
+message Test {
+  optional bool support_optional = 1;
+}
+EOF
+  cpp_out=`mktemp -d`
+
+  protoc3_optional="no"
+  PROTOC_FLAGS=""
+  if $PROTOC -I`dirname $testfile` --cpp_out="$cpp_out" "$testfile"; then
+    protoc3_optional="yes"
+  elif $PROTOC -I`dirname $testfile` --cpp_out="$cpp_out" --experimental_allow_proto3_optional "$testfile"; then
+    protoc3_optional="yes (with --experimental_allow_proto3_optional)"
+    PROTOC_FLAGS="--experimental_allow_proto3_optional"
+  fi
+
+  # Clean up
+  rm "$testfile" "$cpp_out/`basename $testfile`.pb.cc" "$cpp_out/`basename $testfile`.pb.h"
+  rmdir "$cpp_out"
+
+  AC_MSG_RESULT([$protoc3_optional])
+  AC_SUBST(PROTOC_FLAGS)
+fi
+
 # --with-libprotobuf-c {{{
 AC_ARG_WITH([libprotobuf-c],
   [AS_HELP_STRING([--with-libprotobuf-c@<:@=PREFIX@:>@], [Path to libprotobuf-c.])],
@@ -6860,6 +6889,7 @@ plugin_write_influxdb_udp="yes"
 plugin_write_kafka="$with_librdkafka"
 plugin_write_log="no"
 plugin_write_mongodb="$with_libmongoc"
+plugin_write_open_telemetry="yes"
 plugin_write_prometheus="no"
 plugin_write_redis="$with_libhiredis"
 plugin_write_riemann="$with_libriemann_client"
@@ -7116,15 +7146,22 @@ fi
 
 if test "x$GRPC_CPP_PLUGIN" = "x"; then
   plugin_grpc="no (grpc_cpp_plugin not found)"
+  plugin_write_open_telemetry="no (grpc_cpp_plugin not found)"
 fi
 if test "x$have_protoc3" != "xyes"; then
   plugin_grpc="no (protoc3 not found)"
+  plugin_write_open_telemetry="no (protoc3 not found)"
 fi
 if test "x$with_libprotobuf" != "xyes"; then
   plugin_grpc="no (libprotobuf not found)"
+  plugin_write_open_telemetry="no (libprotobuf not found)"
 fi
 if test "x$with_libgrpcpp" != "xyes"; then
   plugin_grpc="no (libgrpc++ not found)"
+  plugin_write_open_telemetry="no (libgrpc++ not found)"
+fi
+if test "x$protoc3_optional" = "xno"; then
+  plugin_write_open_telemetry="no (protoc does not support optional fields)"
 fi
 
 if test "x$have_getifaddrs" = "xyes"; then
@@ -7457,6 +7494,7 @@ AC_PLUGIN([write_influxdb_udp],  [$plugin_write_influxdb_udp],[Influxdb udp outp
 AC_PLUGIN([write_kafka],         [$plugin_write_kafka],       [Kafka output plugin])
 AC_PLUGIN([write_log],           [$plugin_write_log],         [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$plugin_write_mongodb],     [MongoDB output plugin])
+AC_PLUGIN([write_open_telemetry],[$plugin_write_open_telemetry],[Write OpenTelemetry plugin])
 AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus],  [Prometheus write plugin])
 AC_PLUGIN([write_redis],         [$plugin_write_redis],       [Redis output plugin])
 AC_PLUGIN([write_riemann],       [$plugin_write_riemann],     [Riemann output plugin])
@@ -7903,6 +7941,7 @@ AC_MSG_RESULT([    write_influxdb_udp. . $enable_write_influxdb_udp])
 AC_MSG_RESULT([    write_kafka . . . . . $enable_write_kafka])
 AC_MSG_RESULT([    write_log . . . . . . $enable_write_log])
 AC_MSG_RESULT([    write_mongodb . . . . $enable_write_mongodb])
+AC_MSG_RESULT([    write_open_telemetry  $enable_write_open_telemetry])
 AC_MSG_RESULT([    write_prometheus. . . $enable_write_prometheus])
 AC_MSG_RESULT([    write_redis . . . . . $enable_write_redis])
 AC_MSG_RESULT([    write_riemann . . . . $enable_write_riemann])

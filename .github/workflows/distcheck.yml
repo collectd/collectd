@@ -22,6 +22,8 @@ jobs:
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: Install bzip2
       run: apt install -y bzip2
     - name: Print available packages

@@ -1,6 +1,7 @@
 env:
   LANG: C
   CIRRUS_CLONE_DEPTH: 1
+  CIRRUS_CLONE_SUBMODULES: true
   DEFAULT_CONFIG_OPTS: --enable-debug --without-libstatgrab --disable-dependency-tracking
 
 

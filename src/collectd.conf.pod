@@ -11138,6 +11138,35 @@ want to use authentication all three fields must be set.
 
 =back
 
+=head2 Plugin C<write_open_telemetry>
+
+The I<write_open_telemetry plugin> will export metrics to an I<OpenTelemetry
+collector> using the gRPC based OTLP protocol.
+
+B<Synopsis:>
+
+ <Plugin "write_open_telemetry">
+   <Node "default">
+     Host "localhost"
+     Port "4317"
+   </Node>
+ </Plugin>
+
+The plugin can export metrics to multiple collectors by specifying multiple
+B<Node> blocks. Within the B<Node> blocks, the following options are available:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<4317>.
+
+=back
+
 =head2 Plugin C<write_prometheus>
 
 The I<write_prometheus plugin> implements a tiny webserver that can be scraped
