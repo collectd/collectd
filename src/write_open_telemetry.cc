@@ -156,6 +156,7 @@ static void ot_callback_decref(void *data) {
 
   cb->stub.reset();
 
+  sfree(cb->name);
   sfree(cb->host);
   sfree(cb->port);
 
