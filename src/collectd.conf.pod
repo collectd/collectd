@@ -11270,7 +11270,7 @@ L<curl_easy_setopt(3)> for more details.
 
 =item B<Format> B<Command>|B<JSON>|B<KairosDB>|B<InfluxDB>|B<OTLP_JSON>
 
-Choses the format in which to export data. Possible values are:
+Set the format in which to export data. Possible values are:
 
 =over 4
 
