@@ -130,7 +130,7 @@ static int ot_flush_nolock(cdtime_t timeout, ot_callback_t *cb) {
   /* timeout == 0  => flush unconditionally */
   if (timeout > 0) {
     cdtime_t now = cdtime();
-    if ((cb->staged_time + timeout) > now)
+    if (now < (cb->staged_time + timeout))
       return 0;
   }
 
