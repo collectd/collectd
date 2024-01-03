@@ -26,6 +26,7 @@
 #include "collectd.h"
 
 #include "plugin.h"
+#include "utils/avltree/avltree.h"
 #include "utils/cmds/putmetric.h"
 #include "utils/common/common.h"
 #include "utils/curl_stats/curl_stats.h"
@@ -71,6 +72,7 @@ struct wh_callback_s {
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
 #define WH_FORMAT_INFLUXDB 3
+#define WH_FORMAT_OTLP_JSON 5
   int format;
   bool send_metrics;
   bool send_notifications;
@@ -84,6 +86,10 @@ struct wh_callback_s {
   pthread_mutex_t send_buffer_lock;
   strbuf_t send_buffer;
   cdtime_t send_buffer_init_time;
+  resource_metrics_set_t resource_metrics;
+
+  c_avl_tree_t *staged_metrics;         // char* metric_identity() -> NULL
+  c_avl_tree_t *staged_metric_families; // char* fam->name -> metric_family_t*
 
   char response_buffer[WRITE_HTTP_RESPONSE_BUFFER_SIZE];
   unsigned int response_buffer_pos;
@@ -142,6 +148,7 @@ static void wh_log_http_error(wh_callback_t *cb) {
 static int wh_post(wh_callback_t *cb, char const *data, long size) {
   pthread_mutex_lock(&cb->curl_lock);
 
+  cb->response_buffer_pos = 0;
   curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDSIZE, size);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
@@ -200,11 +207,16 @@ static int wh_callback_init(wh_callback_t *cb) {
   curl_easy_setopt(cb->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
 
   cb->headers = curl_slist_append(cb->headers, "Accept:  */*");
-  if (cb->format == WH_FORMAT_JSON || cb->format == WH_FORMAT_KAIROSDB)
+  switch (cb->format) {
+  case WH_FORMAT_JSON:
+  case WH_FORMAT_KAIROSDB:
+  case WH_FORMAT_OTLP_JSON:
     cb->headers =
         curl_slist_append(cb->headers, "Content-Type: application/json");
-  else
+
+  default:
     cb->headers = curl_slist_append(cb->headers, "Content-Type: text/plain");
+  }
   cb->headers = curl_slist_append(cb->headers, "Expect:");
   curl_easy_setopt(cb->curl, CURLOPT_HTTPHEADER, cb->headers);
 
@@ -263,6 +275,40 @@ static int wh_callback_init(wh_callback_t *cb) {
   return 0;
 } /* int wh_callback_init */
 
+static int flush_resource_metrics(wh_callback_t *cb) {
+  /* You must hold cb->send_buffer_lock when calling. */
+  strbuf_t buf = STRBUF_CREATE;
+  int status = 0;
+  switch (cb->format) {
+  case WH_FORMAT_OTLP_JSON:
+    status = format_json_open_telemetry(&buf, &cb->resource_metrics);
+    if (status != 0) {
+      ERROR("write_http plugin: format_json_open_telemetry failed: %s",
+            STRERROR(status));
+    }
+    break;
+
+  default:
+    ERROR("write_http plugin: Unexpected format: %d", cb->format);
+    status = EINVAL;
+  }
+
+  if (status != 0) {
+    pthread_mutex_unlock(&cb->send_buffer_lock);
+    STRBUF_DESTROY(buf);
+    return status;
+  }
+
+  resource_metrics_reset(&cb->resource_metrics);
+  cb->send_buffer_init_time = cdtime();
+
+  pthread_mutex_unlock(&cb->send_buffer_lock);
+
+  status = wh_post(cb, buf.ptr, buf.pos);
+  STRBUF_DESTROY(buf);
+  return status;
+}
+
 static int wh_flush(cdtime_t timeout,
                     const char *identifier __attribute__((unused)),
                     user_data_t *user_data) {
@@ -285,6 +331,11 @@ static int wh_flush(cdtime_t timeout,
       pthread_mutex_unlock(&cb->send_buffer_lock);
       return 0;
     }
+  }
+
+  if (cb->format == WH_FORMAT_OTLP_JSON) {
+    /* cb->send_buffer_lock is unlocked in flush_resource_metrics. */
+    return flush_resource_metrics(cb);
   }
 
   if (cb->send_buffer.pos == 0) {
@@ -437,6 +488,20 @@ static int wh_write_influxdb(metric_family_t const *fam, wh_callback_t *cb) {
   return 0;
 } /* wh_write_influxdb */
 
+static int wh_write_resource_metrics(metric_family_t const *fam,
+                                     wh_callback_t *cb) {
+  pthread_mutex_lock(&cb->send_buffer_lock);
+  int status = resource_metrics_add(&cb->resource_metrics, fam);
+  pthread_mutex_unlock(&cb->send_buffer_lock);
+
+  if (status < 0) {
+    ERROR("write_http plugin: resource_metrics_add failed: %s",
+          STRERROR(status));
+    return status;
+  }
+  return 0;
+}
+
 static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
   if ((fam == NULL) || (user_data == NULL)) {
     return EINVAL;
@@ -456,6 +521,9 @@ static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
     break;
   case WH_FORMAT_INFLUXDB:
     status = wh_write_influxdb(fam, cb);
+    break;
+  case WH_FORMAT_OTLP_JSON:
+    status = wh_write_resource_metrics(fam, cb);
     break;
   default:
     status = wh_write_command(fam, cb);
@@ -513,6 +581,8 @@ static int config_set_format(wh_callback_t *cb, oconfig_item_t *ci) {
     cb->format = WH_FORMAT_KAIROSDB;
   else if (strcasecmp("INFLUXDB", string) == 0)
     cb->format = WH_FORMAT_INFLUXDB;
+  else if (strcasecmp("OTLP_JSON", string) == 0)
+    cb->format = WH_FORMAT_OTLP_JSON;
   else {
     ERROR("write_http plugin: Invalid format string: %s", string);
     return -1;
