@@ -106,6 +106,9 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
   if (fam->help != NULL) {
     m->set_description(fam->help);
   }
+  if (fam->unit != NULL) {
+    m->set_unit(fam->unit);
+  }
 
   switch (fam->type) {
   case METRIC_TYPE_COUNTER:
