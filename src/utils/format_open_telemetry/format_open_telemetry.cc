@@ -132,6 +132,7 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
     return;
   case METRIC_TYPE_UNTYPED:
     // never reached, only here to make the compiler happy
+    return;
   }
 }
 
