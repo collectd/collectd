@@ -94,8 +94,11 @@ static void set_sum(Metric *m, metric_family_t const *fam) {
 static void set_gauge(Metric *m, metric_family_t const *fam) {
   Gauge *g = m->mutable_gauge();
   for (size_t i = 0; i < fam->metric.num; i++) {
+    metric_t const *m = fam->metric.ptr + i;
+    assert(m->family == fam);
+
     NumberDataPoint *dp = g->add_data_points();
-    metric_to_number_data_point(dp, fam->metric.ptr + i);
+    metric_to_number_data_point(dp, m);
   }
 }
 
