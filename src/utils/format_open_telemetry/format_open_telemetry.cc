@@ -84,7 +84,7 @@ static void set_sum(Metric *m, metric_family_t const *fam) {
     assert(m->family == fam);
 
     NumberDataPoint *dp = s->add_data_points();
-    metric_to_number_data_point(dp, fam->metric.ptr + i);
+    metric_to_number_data_point(dp, m);
   }
 
   s->set_aggregation_temporality(AGGREGATION_TEMPORALITY_CUMULATIVE);
