@@ -150,9 +150,10 @@ static int metric(yajl_gen g, metric_family_t const *fam) {
   CHECK(json_add_string(g, "name"));
   CHECK(json_add_string(g, fam->name));
 
-  // TODO(octo): populate the "unit" field.
-  // CHECK(json_add_string(g, "unit"));
-  // CHECK(json_add_string(g, "1"));
+  if (fam->unit != NULL) {
+    CHECK(json_add_string(g, "unit"));
+    CHECK(json_add_string(g, fam->unit));
+  }
 
   if (fam->help != NULL) {
     CHECK(json_add_string(g, "description"));

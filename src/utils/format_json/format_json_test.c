@@ -293,11 +293,13 @@ DEF_TEST(open_telemetry) {
       &(metric_family_t){
           .name = "unit.tests",
           .help = "Example gauge metric",
+          .unit = "1",
           .type = METRIC_TYPE_GAUGE,
       },
       &(metric_family_t){
           .name = "unit.test.count",
           .help = "Example counter metric",
+          .unit = "{test}",
           .type = METRIC_TYPE_COUNTER,
       },
   };
@@ -321,12 +323,14 @@ DEF_TEST(open_telemetry) {
       "{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"service."
       "name\",\"value\":{\"stringValue\":\"unit "
       "test\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":\"collectd\","
-      "\"version\":\"" PACKAGE_VERSION "\"},\"metrics\":[{\"name\":\"unit."
-      "test.count\",\"description\":\"Example counter "
+      "\"version\":\"" PACKAGE_VERSION
+      "\"},\"metrics\":[{\"name\":\"unit.test.count\",\"unit\":\"{test}\","
+      "\"description\":\"Example counter "
       "metric\",\"sum\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
       "label\",\"value\":{\"stringValue\":\"bar\"}}],\"timeUnixNano\":0,"
       "\"asInt\":31337}],\"aggregationTemporality\":\"2\",\"isMonotonic\":true}"
-      "},{\"name\":\"unit.tests\",\"description\":\"Example gauge "
+      "},{\"name\":\"unit.tests\",\"unit\":\"1\",\"description\":\"Example "
+      "gauge "
       "metric\",\"gauge\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"metric."
       "label\",\"value\":{\"stringValue\":\"test "
       "label\"}}],\"timeUnixNano\":0,\"asDouble\":42.0}]}}]}]}]}",
