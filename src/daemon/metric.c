@@ -563,11 +563,6 @@ metric_family_t *metric_family_clone_shallow(metric_family_t const *fam) {
 }
 
 metric_family_t *metric_family_clone(metric_family_t const *fam) {
-  if (fam == NULL) {
-    errno = EINVAL;
-    return NULL;
-  }
-
   metric_family_t *ret = metric_family_clone_shallow(fam);
   if (ret == NULL) {
     return NULL;
