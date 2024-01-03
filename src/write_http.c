@@ -72,7 +72,6 @@ struct wh_callback_s {
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
 #define WH_FORMAT_INFLUXDB 3
-#define WH_FORMAT_OTLP_PROTO 4
 #define WH_FORMAT_OTLP_JSON 5
   int format;
   bool send_metrics;
@@ -334,7 +333,7 @@ static int wh_flush(cdtime_t timeout,
     }
   }
 
-  if (cb->format == WH_FORMAT_OTLP_PROTO || cb->format == WH_FORMAT_OTLP_JSON) {
+  if (cb->format == WH_FORMAT_OTLP_JSON) {
     /* cb->send_buffer_lock is unlocked in flush_resource_metrics. */
     return flush_resource_metrics(cb);
   }
@@ -522,10 +521,6 @@ static int wh_write(metric_family_t const *fam, user_data_t *user_data) {
     break;
   case WH_FORMAT_INFLUXDB:
     status = wh_write_influxdb(fam, cb);
-    break;
-  case WH_FORMAT_OTLP_PROTO:
-    status = -1;
-    ERROR("wh_write_otlp_proto: Not implemented yet.");
     break;
   case WH_FORMAT_OTLP_JSON:
     status = wh_write_resource_metrics(fam, cb);
