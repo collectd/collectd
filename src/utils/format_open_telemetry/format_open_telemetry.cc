@@ -26,7 +26,8 @@
 
 extern "C" {
 #include "collectd.h"
-#include "metric.h"
+#include "daemon/metric.h"
+#include "daemon/plugin.h"
 }
 
 #include "utils/format_open_telemetry/format_open_telemetry.h"
@@ -64,6 +65,9 @@ static void metric_to_number_data_point(NumberDataPoint *dp,
   // TODO(): also set "start time". We may need to use the cache to determine
   // when we've seen a metric for the first time.
 
+  // A valid metric type is guaranteed by add_metric().
+  assert(m->family->type == METRIC_TYPE_COUNTER ||
+         m->family->type == METRIC_TYPE_GAUGE);
   switch (m->family->type) {
   case METRIC_TYPE_COUNTER:
     dp->set_as_int(m->value.derive);
@@ -72,8 +76,8 @@ static void metric_to_number_data_point(NumberDataPoint *dp,
     dp->set_as_double(m->value.gauge);
     break;
   case METRIC_TYPE_UNTYPED:
-    // TODO
-    assert(0);
+    // never reached, only here to make the compiler happy
+    break;
   }
 }
 
@@ -103,8 +107,14 @@ static void set_gauge(Metric *m, metric_family_t const *fam) {
 }
 
 static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
-  Metric *m = sm->add_metrics();
+  if (fam->type != METRIC_TYPE_COUNTER && fam->type != METRIC_TYPE_GAUGE) {
+    WARNING("format_open_telemetry: metric family \"%s\" with type %d is not "
+            "supported.",
+            fam->name, fam->type);
+    return;
+  }
 
+  Metric *m = sm->add_metrics();
   m->set_name(fam->name);
   if (fam->help != NULL) {
     m->set_description(fam->help);
@@ -121,8 +131,7 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
     set_gauge(m, fam);
     return;
   case METRIC_TYPE_UNTYPED:
-    // TODO
-    assert(0);
+    // never reached, only here to make the compiler happy
   }
 }
 
