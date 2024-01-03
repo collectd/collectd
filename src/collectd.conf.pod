@@ -11284,7 +11284,7 @@ collectd specific I<JavaScript Object Notation> (JSON) format.
 
 =item B<KairosDB>
 
-KairosDB is a Time Series Database based on Cassandra. This produces its JSON
+KairosDB is a time series database based on Cassandra. This produces its JSON
 format.
 
 =item B<InfluxDB>
