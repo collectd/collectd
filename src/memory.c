@@ -149,15 +149,16 @@ static int pagesize;
 #include <uvm/uvm_extern.h>
 #endif
 
-static bool values_absolute = true;
+static bool report_usage = true;
 static bool values_percentage;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
-    if (strcasecmp("ValuesAbsolute", child->key) == 0)
-      cf_util_get_boolean(child, &values_absolute);
+    if (strcasecmp("ReportUsage", child->key) == 0 ||
+        strcasecmp("ValuesAbsolute", child->key) == 0)
+      cf_util_get_boolean(child, &report_usage);
     else if (strcasecmp("ValuesPercentage", child->key) == 0)
       cf_util_get_boolean(child, &values_percentage);
     else
@@ -168,7 +169,7 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
 } /* }}} int memory_config */
 
 static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
-  metric_family_t fam_absolute = {
+  metric_family_t fam_usage = {
       .name = "system.memory.usage",
       .help = "Reports memory in use by state",
       .unit = "By",
@@ -183,22 +184,22 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
 
     total += values[i];
 
-    if (values_absolute) {
-      metric_family_append(&fam_absolute, label_state, memory_type_names[i],
+    if (report_usage) {
+      metric_family_append(&fam_usage, label_state, memory_type_names[i],
                            (value_t){.gauge = values[i]}, NULL);
     }
   }
 
   int ret = 0;
-  if (values_absolute) {
-    int status = plugin_dispatch_metric_family(&fam_absolute);
+  if (report_usage) {
+    int status = plugin_dispatch_metric_family(&fam_usage);
     if (status != 0) {
       ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
             STRERROR(status));
     }
     ret = status;
   }
-  metric_family_metric_reset(&fam_absolute);
+  metric_family_metric_reset(&fam_usage);
 
   if (!values_percentage) {
     return ret;

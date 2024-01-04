@@ -1056,7 +1056,7 @@
 #</Plugin>
 
 #<Plugin memory>
-#	ValuesAbsolute true
+#	ReportUsage true
 #	ValuesPercentage false
 #</Plugin>
 

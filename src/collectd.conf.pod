@@ -5269,7 +5269,7 @@ The I<memory plugin> provides the following configuration options:
 
 =over 4
 
-=item B<ValuesAbsolute> B<true>|B<false>
+=item B<ReportUsage> B<true>|B<false>
 
 Enables or disables reporting of physical memory usage in absolute numbers,
 i.e. bytes. Defaults to B<true>.
