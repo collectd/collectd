@@ -150,7 +150,7 @@ static int pagesize;
 #endif
 
 static bool report_usage = true;
-static bool report_utilization;
+static bool report_utilization = true;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
