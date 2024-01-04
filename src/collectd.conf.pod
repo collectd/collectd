@@ -1760,8 +1760,10 @@ F</proc/sys/net/ipv4/netfilter> instead of F</proc/sys/net/netfilter/>.
 
 =head2 Plugin C<cpu>
 
-The I<CPU plugin> collects CPU usage metrics. By default, CPU usage is reported
-as Jiffies, using the C<cpu> type. Two aggregations are available:
+The I<CPU plugin> collects CPU usage and utilization metrics.
+By default, both CPU usage and utilization are reported.
+
+For CPU utilization, two aggregations are available:
 
 =over 4
 
@@ -1776,34 +1778,38 @@ Sum, per-CPU, over all non-idle states of a CPU, creating an "active" state.
 =back
 
 The two aggregations can be combined, leading to I<collectd> only emitting a
-single "active" metric for the entire system. As soon as one of these
-aggregations (or both) is enabled, the I<cpu plugin> will report a percentage,
-rather than Jiffies. In addition, you can request individual, per-state,
-per-CPU metrics to be reported as percentage.
+single "active" metric for the entire system.
 
 The following configuration options are available:
 
 =over 4
 
+=item B<ReportUsage> B<true>|B<false>
+
+Sets whether CPU usage (in jiffies/seconds) is reported. Defaults to B<true>.
+
+=item B<ReportUtilization> B<true>|B<false>
+
+Sets whether CPU utilization (a ratio) is reported. Defaults to B<true>.
+
+When enabled, the B<ReportByState> and B<ReportByCpu> options can be used to
+report aggregated data.
+
 =item B<ReportByState> B<true>|B<false>
 
 When set to B<true>, the default, reports per-state metrics, e.g. "system",
-"user" and "idle".
-When set to B<false>, aggregates (sums) all I<non-idle> states into one
-"active" metric.
+"user" and "idle". When set to B<false>, aggregates (sums) all I<non-idle>
+states into one "active" metric.
+
+This option only has an effect if B<ReportUtilization> is true.
 
 =item B<ReportByCpu> B<true>|B<false>
 
-When set to B<true>, the default, reports per-CPU (per-core) metrics.
-When set to B<false>, instead of reporting metrics for individual CPUs, only a
-global sum of CPU states is emitted.
+When set to B<true>, the default, reports per-CPU (per-core) metrics. When set
+to B<false>, instead of reporting metrics for individual CPUs, only a global
+sum of CPU states is emitted.
 
-=item B<ValuesPercentage> B<false>|B<true>
-
-This option is only considered when both, B<ReportByCpu> and B<ReportByState>
-are set to B<true>. In this case, by default, metrics will be reported as
-Jiffies. By setting this option to B<true>, you can request percentage values
-in the un-aggregated (per-CPU, per-state) mode as well.
+This option only has an effect if B<ReportUtilization> is true.
 
 =item B<ReportNumCpu> B<false>|B<true>
 

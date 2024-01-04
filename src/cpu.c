@@ -203,22 +203,28 @@ static size_t global_cpu_num;
 
 static bool report_by_cpu = true;
 static bool report_by_state = true;
-static bool report_percent;
+static bool report_usage = true;
+static bool report_utilization = true;
 static bool report_num_cpu;
 static bool report_guest;
 static bool subtract_guest = true;
 
-static const char *config_keys[] = {"ReportByCpu",      "ReportByState",
-                                    "ReportNumCpu",     "ValuesPercentage",
-                                    "ReportGuestState", "SubtractGuestState"};
+static const char *config_keys[] = {
+    "ReportByCpu",        "ReportByState",    "ReportNumCpu",
+    "ReportUtilization",  "ValuesPercentage", "ReportGuestState",
+    "SubtractGuestState",
+};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static int cpu_config(char const *key, char const *value) /* {{{ */
 {
   if (strcasecmp(key, "ReportByCpu") == 0)
     report_by_cpu = IS_TRUE(value);
-  else if (strcasecmp(key, "ValuesPercentage") == 0)
-    report_percent = IS_TRUE(value);
+  else if (strcasecmp(key, "ReportUsage") == 0)
+    report_usage = IS_TRUE(value);
+  else if (strcasecmp(key, "ReportUtilization") == 0 ||
+           strcasecmp(key, "ValuesPercentage") == 0)
+    report_utilization = IS_TRUE(value);
   else if (strcasecmp(key, "ReportByState") == 0)
     report_by_state = IS_TRUE(value);
   else if (strcasecmp(key, "ReportNumCpu") == 0)
@@ -518,7 +524,7 @@ static void cpu_reset(void) /* {{{ */
 } /* }}} void cpu_reset */
 
 /* Legacy behavior: Dispatches the raw derive values without any aggregation. */
-static void cpu_commit_without_aggregation(void) /* {{{ */
+static void cpu_commit_usage(void) /* {{{ */
 {
   metric_family_t fam = {
       .name = "system.cpu.time",
@@ -552,23 +558,12 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 
   metric_reset(&m);
   metric_family_metric_reset(&fam);
-} /* }}} void cpu_commit_without_aggregation */
+} /* }}} void cpu_commit_usage */
 
-/* Aggregates the internal state and dispatches the metrics. */
-static void cpu_commit(void) /* {{{ */
-{
+static void cpu_commit_utilization(void) {
   gauge_t global_rates[STATE_MAX] = {
       NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
   };
-
-  if (report_num_cpu)
-    cpu_commit_num_cpu((gauge_t)global_cpu_num);
-
-  if (report_by_state && report_by_cpu && !report_percent) {
-    cpu_commit_without_aggregation();
-    return;
-  }
-
   aggregate(global_rates);
 
   gauge_t global_rate_sum = global_rates[STATE_ACTIVE];
@@ -589,6 +584,22 @@ static void cpu_commit(void) /* {{{ */
         local_rates[state] = this_cpu_states[state].rate;
 
     cpu_commit_one((int)cpu_num, local_rates, global_rate_sum);
+  }
+}
+
+/* Aggregates the internal state and dispatches the metrics. */
+static void cpu_commit(void) /* {{{ */
+{
+  if (report_num_cpu) {
+    cpu_commit_num_cpu((gauge_t)global_cpu_num);
+  }
+
+  if (report_usage) {
+    cpu_commit_usage();
+  }
+
+  if (report_utilization) {
+    cpu_commit_utilization();
   }
 } /* }}} void cpu_commit */
 
