@@ -69,9 +69,6 @@ typedef enum {
   STATE_FREE,
   STATE_BUFFERS,
   STATE_CACHED,
-  STATE_SLAB_TOTAL,
-  STATE_SLAB_RECL,
-  STATE_SLAB_UNRECL,
   STATE_WIRED,
   STATE_ACTIVE,
   STATE_INACTIVE,
@@ -79,30 +76,15 @@ typedef enum {
   STATE_LOCKED,
   STATE_ARC,
   STATE_UNUSED,
-  STATE_AVAILABLE,
   STATE_USER_WIRE,
   STATE_LAUNDRY,
   STATE_MAX, /* #states */
 } memory_type_t;
 
 static char const *memory_type_names[STATE_MAX] = {
-    "used",
-    "free",
-    "buffers",
-    "cached",
-    "slab",
-    "slab_reclaimable",
-    "slab_unreclaimable",
-    "wired",
-    "active",
-    "inactive",
-    "kernel",
-    "locked",
-    "arc",
-    "unusable",
-    "available",
-    "user_wire",
-    "laundry",
+    "used",     "free",      "buffers", "cached", "wired",
+    "active",   "inactive",  "kernel",  "locked", "arc",
+    "unusable", "user_wire", "laundry",
 };
 
 /* vm_statistics_data_t */
@@ -463,28 +445,11 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     } else if (strcmp(fields[0], "Cached:") == 0) {
       values[STATE_CACHED] = v;
       mem_not_used += v;
-    } else if (strcmp(fields[0], "Slab:") == 0) {
-      values[STATE_SLAB_TOTAL] = v;
-    } else if (strcmp(fields[0], "SReclaimable:") == 0) {
-      values[STATE_SLAB_RECL] = v;
-    } else if (strcmp(fields[0], "SUnreclaim:") == 0) {
-      values[STATE_SLAB_UNRECL] = v;
-    } else if (strcmp(fields[0], "MemAvailable:") == 0) {
-      values[STATE_AVAILABLE] = v;
     }
   }
 
   if (fclose(fh)) {
     WARNING("memory plugin: fclose failed: %s", STRERRNO);
-  }
-
-  /* If SReclaimable (introduced in kernel 2.6.19) is available count it
-   * (but not SUnreclaim) towards the unused memory.
-   * If we do not have detailed slab info count the total as unused. */
-  if (!isnan(values[STATE_SLAB_RECL])) {
-    mem_not_used += values[STATE_SLAB_RECL];
-  } else if (!isnan(values[STATE_SLAB_TOTAL])) {
-    mem_not_used += values[STATE_SLAB_TOTAL];
   }
 
   if (isnan(mem_total) || (mem_total == 0) || (mem_total < mem_not_used)) {
@@ -494,14 +459,6 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
   /* "used" is not explicitly reported. It is calculated as everything that is
    * not "not used", e.g. cached, buffers, ... */
   values[STATE_USED] = mem_total - mem_not_used;
-
-  /* SReclaimable and SUnreclaim were introduced in kernel 2.6.19
-   * They sum up to the value of Slab, which is available on older & newer
-   * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
-   * if not. */
-  if (!isnan(values[STATE_SLAB_RECL]) || !isnan(values[STATE_SLAB_UNRECL])) {
-    values[STATE_SLAB_TOTAL] = NAN;
-  }
   /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
