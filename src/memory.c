@@ -151,6 +151,7 @@ static int pagesize;
 
 static bool report_usage = true;
 static bool report_utilization = true;
+static bool report_limit;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -162,6 +163,8 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("ReportUtilization", child->key) == 0 ||
              strcasecmp("ValuesPercentage", child->key) == 0)
       cf_util_get_boolean(child, &report_utilization);
+    else if (strcasecmp("ReportLimit", child->key) == 0)
+      cf_util_get_boolean(child, &report_limit);
     else
       ERROR("memory plugin: Invalid configuration option: \"%s\".", child->key);
   }
@@ -202,12 +205,32 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
   }
   metric_family_metric_reset(&fam_usage);
 
-  if (!report_utilization) {
-    return ret;
-  }
-
   if (total == 0) {
     return EINVAL;
+  }
+
+  if (report_limit) {
+    metric_family_t fam_limit = {
+        .name = "system.memory.limit",
+        .help = "Total memory available in the system.",
+        .unit = "By",
+        .type = METRIC_TYPE_COUNTER, // [sic] should be UpDownCounter
+    };
+    metric_t m = {
+        .value = (value_t){.derive = (derive_t)total},
+    };
+    metric_family_metric_append(&fam_limit, m);
+
+    int status = plugin_dispatch_metric_family(&fam_limit);
+    if (status != 0) {
+      ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
+    }
+    ret = ret ? ret : status;
+  }
+
+  if (!report_utilization) {
+    return ret;
   }
 
   metric_family_t fam_util = {

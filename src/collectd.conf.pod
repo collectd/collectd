@@ -5282,6 +5282,11 @@ memory, e.g. the fraction of physical memory used. Defaults to B<true>.
 This is useful for deploying I<collectd> in a heterogeneous environment in
 which the sizes of physical memory vary.
 
+=item B<ReportLimit> B<false>|B<true>
+
+Controls reporting of the total amount of physical memory available to the
+system. Defaults to B<true>.
+
 =back
 
 =head2 Plugin C<modbus>

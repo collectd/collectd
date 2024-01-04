@@ -1058,6 +1058,7 @@
 #<Plugin memory>
 #	ReportUsage true
 #	ReportUtilization true
+#	ReportLimit false
 #</Plugin>
 
 #<Plugin mmc>
