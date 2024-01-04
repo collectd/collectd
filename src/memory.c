@@ -62,6 +62,8 @@
 #include <sys/protosw.h>
 #endif /* HAVE_PERFSTAT */
 
+static char const *const label_state = "system.memory.state";
+
 typedef enum {
   COLLECTD_MEMORY_TYPE_USED,
   COLLECTD_MEMORY_TYPE_FREE,
@@ -182,9 +184,8 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     total += values[i];
 
     if (values_absolute) {
-      metric_family_append(&fam_absolute, "system.memory.state",
-                           memory_type_names[i], (value_t){.gauge = values[i]},
-                           NULL);
+      metric_family_append(&fam_absolute, label_state, memory_type_names[i],
+                           (value_t){.gauge = values[i]}, NULL);
     }
   }
 
@@ -218,8 +219,7 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
       continue;
     }
 
-    metric_family_append(&fam_percent, "system.memory.state",
-                         memory_type_names[i],
+    metric_family_append(&fam_percent, label_state, memory_type_names[i],
                          (value_t){.gauge = 100.0 * values[i] / total}, NULL);
   }
 
