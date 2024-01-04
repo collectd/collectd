@@ -123,6 +123,9 @@ static const char *cpu_state_names[] = {
     "user",    "system", "wait",  "nice",       "swap", "interrupt",
     "softirq", "steal",  "guest", "guest_nice", "idle", "active"};
 
+static char const *const label_state = "system.cpu.state";
+static char const *const label_number = "system.cpu.logical_number";
+
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
 static processor_port_array_t cpu_list;
@@ -454,17 +457,17 @@ static void cpu_commit_one(int cpu_num, /* {{{ */
   if (cpu_num != -1) {
     char cpu_num_str[32];
     ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%d", cpu_num);
-    metric_label_set(&m, "system.cpu.logical_number", cpu_num_str);
+    metric_label_set(&m, label_number, cpu_num_str);
   }
 
   if (!report_by_state) {
     metric_family_append(
-        &fam, "system.cpu.state", cpu_state_names[COLLECTD_CPU_STATE_ACTIVE],
+        &fam, label_state, cpu_state_names[COLLECTD_CPU_STATE_ACTIVE],
         (value_t){.gauge = rates[COLLECTD_CPU_STATE_ACTIVE] / global_rate_sum},
         &m);
   } else {
     for (size_t state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
-      metric_family_append(&fam, "system.cpu.state", cpu_state_names[state],
+      metric_family_append(&fam, label_state, cpu_state_names[state],
                            (value_t){.gauge = rates[state] / global_rate_sum},
                            &m);
     }
@@ -527,7 +530,7 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
   metric_t m = {0};
 
   for (int state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
-    metric_label_set(&m, "state", cpu_state_names[state]);
+    metric_label_set(&m, label_state, cpu_state_names[state]);
 
     for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
       cpu_state_t *s = get_cpu_state(cpu_num, state);
@@ -537,7 +540,7 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
       char cpu_num_str[32] = {0};
       ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
 
-      metric_family_append(&fam, "cpu", cpu_num_str,
+      metric_family_append(&fam, label_number, cpu_num_str,
                            (value_t){.derive = s->conv.last_value.derive}, &m);
     }
   }
