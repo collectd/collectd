@@ -90,19 +90,21 @@
 #define CAN_USE_SYSCTL 0
 #endif /* HAVE_SYSCTL_H && HAVE_SYSCTLBYNAME || __OpenBSD__ */
 
-#define COLLECTD_CPU_STATE_USER 0
-#define COLLECTD_CPU_STATE_SYSTEM 1
-#define COLLECTD_CPU_STATE_WAIT 2
-#define COLLECTD_CPU_STATE_NICE 3
-#define COLLECTD_CPU_STATE_SWAP 4
-#define COLLECTD_CPU_STATE_INTERRUPT 5
-#define COLLECTD_CPU_STATE_SOFTIRQ 6
-#define COLLECTD_CPU_STATE_STEAL 7
-#define COLLECTD_CPU_STATE_GUEST 8
-#define COLLECTD_CPU_STATE_GUEST_NICE 9
-#define COLLECTD_CPU_STATE_IDLE 10
-#define COLLECTD_CPU_STATE_ACTIVE 11 /* sum of (!idle) */
-#define COLLECTD_CPU_STATE_MAX 12    /* #states */
+typedef enum {
+  STATE_USER,
+  STATE_SYSTEM,
+  STATE_WAIT,
+  STATE_NICE,
+  STATE_SWAP,
+  STATE_INTERRUPT,
+  STATE_SOFTIRQ,
+  STATE_STEAL,
+  STATE_GUEST,
+  STATE_GUEST_NICE,
+  STATE_IDLE,
+  STATE_ACTIVE, /* sum of (!idle) */
+  STATE_MAX,    /* #states */
+} state_t;
 
 #if HAVE_STATGRAB_H
 #include <statgrab.h>
@@ -119,7 +121,7 @@
 #error "No applicable input method."
 #endif
 
-static const char *cpu_state_names[] = {
+static const char *cpu_state_names[STATE_MAX] = {
     "user",    "system", "wait",  "nice",       "swap", "interrupt",
     "softirq", "steal",  "guest", "guest_nice", "idle", "active"};
 
@@ -334,7 +336,7 @@ static int cpu_states_alloc(size_t cpu_num) /* {{{ */
   cpu_state_t *tmp;
   size_t sz;
 
-  sz = (((size_t)cpu_num) + 1) * COLLECTD_CPU_STATE_MAX;
+  sz = (((size_t)cpu_num) + 1) * STATE_MAX;
   assert(sz > 0);
 
   /* We already have enough space. */
@@ -354,9 +356,9 @@ static int cpu_states_alloc(size_t cpu_num) /* {{{ */
   return 0;
 } /* }}} cpu_states_alloc */
 
-static cpu_state_t *get_cpu_state(size_t cpu_num, size_t state) /* {{{ */
+static cpu_state_t *get_cpu_state(size_t cpu_num, state_t state) /* {{{ */
 {
-  size_t index = ((cpu_num * COLLECTD_CPU_STATE_MAX) + state);
+  size_t index = ((cpu_num * STATE_MAX) + state);
 
   if (index >= cpu_states_num)
     return NULL;
@@ -366,7 +368,7 @@ static cpu_state_t *get_cpu_state(size_t cpu_num, size_t state) /* {{{ */
 
 #if defined(HAVE_PERFSTAT) /* {{{ */
 /* populate global aggregate cpu rate */
-static int total_rate(gauge_t *sum_by_state, size_t state, derive_t d,
+static int total_rate(gauge_t *sum_by_state, state_t state, derive_t d,
                       value_to_rate_state_t *conv, cdtime_t now) {
   gauge_t rate = NAN;
   int status =
@@ -376,40 +378,39 @@ static int total_rate(gauge_t *sum_by_state, size_t state, derive_t d,
 
   sum_by_state[state] = rate;
 
-  if (state != COLLECTD_CPU_STATE_IDLE)
-    RATE_ADD(sum_by_state[COLLECTD_CPU_STATE_ACTIVE], sum_by_state[state]);
+  if (state != STATE_IDLE)
+    RATE_ADD(sum_by_state[STATE_ACTIVE], sum_by_state[state]);
   return 0;
 }
 #endif /* }}} HAVE_PERFSTAT */
 
-/* Populates the per-CPU COLLECTD_CPU_STATE_ACTIVE rate and the global
+/* Populates the per-CPU STATE_ACTIVE rate and the global
  * rate_by_state
  * array. */
 static void aggregate(gauge_t *sum_by_state) /* {{{ */
 {
-  for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
+  for (state_t state = 0; state < STATE_MAX; state++)
     sum_by_state[state] = NAN;
 
   for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
     cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
 
-    this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate = NAN;
+    this_cpu_states[STATE_ACTIVE].rate = NAN;
 
-    for (size_t state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
+    for (size_t state = 0; state < STATE_ACTIVE; state++) {
       if (!this_cpu_states[state].has_value)
         continue;
 
       RATE_ADD(sum_by_state[state], this_cpu_states[state].rate);
-      if (state != COLLECTD_CPU_STATE_IDLE)
-        RATE_ADD(this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate,
+      if (state != STATE_IDLE)
+        RATE_ADD(this_cpu_states[STATE_ACTIVE].rate,
                  this_cpu_states[state].rate);
     }
 
-    if (!isnan(this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate))
-      this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].has_value = true;
+    if (!isnan(this_cpu_states[STATE_ACTIVE].rate))
+      this_cpu_states[STATE_ACTIVE].has_value = true;
 
-    RATE_ADD(sum_by_state[COLLECTD_CPU_STATE_ACTIVE],
-             this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate);
+    RATE_ADD(sum_by_state[STATE_ACTIVE], this_cpu_states[STATE_ACTIVE].rate);
   }
 
 #if defined(HAVE_PERFSTAT) /* {{{ */
@@ -421,29 +422,29 @@ static void aggregate(gauge_t *sum_by_state) /* {{{ */
     return;
   }
 
-  /* Reset COLLECTD_CPU_STATE_ACTIVE */
-  sum_by_state[COLLECTD_CPU_STATE_ACTIVE] = NAN;
+  /* Reset STATE_ACTIVE */
+  sum_by_state[STATE_ACTIVE] = NAN;
 
   /* Physical Processor Utilization */
-  total_rate(sum_by_state, COLLECTD_CPU_STATE_IDLE, (derive_t)cputotal.pidle,
+  total_rate(sum_by_state, STATE_IDLE, (derive_t)cputotal.pidle,
              &total_conv[TOTAL_IDLE], now);
-  total_rate(sum_by_state, COLLECTD_CPU_STATE_USER, (derive_t)cputotal.puser,
+  total_rate(sum_by_state, STATE_USER, (derive_t)cputotal.puser,
              &total_conv[TOTAL_USER], now);
-  total_rate(sum_by_state, COLLECTD_CPU_STATE_SYSTEM, (derive_t)cputotal.psys,
+  total_rate(sum_by_state, STATE_SYSTEM, (derive_t)cputotal.psys,
              &total_conv[TOTAL_SYS], now);
-  total_rate(sum_by_state, COLLECTD_CPU_STATE_WAIT, (derive_t)cputotal.pwait,
+  total_rate(sum_by_state, STATE_WAIT, (derive_t)cputotal.pwait,
              &total_conv[TOTAL_WAIT], now);
 #endif /* }}} HAVE_PERFSTAT */
 } /* }}} void aggregate */
 
 /* Commits (dispatches) the values for one CPU or the global aggregation.
  * cpu_num is the index of the CPU to be committed or -1 in case of the global
- * aggregation. rates is a pointer to COLLECTD_CPU_STATE_MAX gauge_t values
+ * aggregation. rates is a pointer to STATE_MAX gauge_t values
  * holding the
  * current rate; each rate may be NAN. Calculates the percentage of each state
  * and dispatches the metric. */
 static void cpu_commit_one(int cpu_num, /* {{{ */
-                           gauge_t rates[static COLLECTD_CPU_STATE_MAX],
+                           gauge_t rates[static STATE_MAX],
                            gauge_t global_rate_sum) {
   metric_family_t fam = {
       .name = "system.cpu.utilization",
@@ -462,11 +463,10 @@ static void cpu_commit_one(int cpu_num, /* {{{ */
 
   if (!report_by_state) {
     metric_family_append(
-        &fam, label_state, cpu_state_names[COLLECTD_CPU_STATE_ACTIVE],
-        (value_t){.gauge = rates[COLLECTD_CPU_STATE_ACTIVE] / global_rate_sum},
-        &m);
+        &fam, label_state, cpu_state_names[STATE_ACTIVE],
+        (value_t){.gauge = rates[STATE_ACTIVE] / global_rate_sum}, &m);
   } else {
-    for (size_t state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
+    for (size_t state = 0; state < STATE_ACTIVE; state++) {
       metric_family_append(&fam, label_state, cpu_state_names[state],
                            (value_t){.gauge = rates[state] / global_rate_sum},
                            &m);
@@ -529,7 +529,7 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 
   metric_t m = {0};
 
-  for (int state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++) {
+  for (state_t state = 0; state < STATE_ACTIVE; state++) {
     metric_label_set(&m, label_state, cpu_state_names[state]);
 
     for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
@@ -557,7 +557,7 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 /* Aggregates the internal state and dispatches the metrics. */
 static void cpu_commit(void) /* {{{ */
 {
-  gauge_t global_rates[COLLECTD_CPU_STATE_MAX] = {
+  gauge_t global_rates[STATE_MAX] = {
       NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
   };
 
@@ -571,8 +571,8 @@ static void cpu_commit(void) /* {{{ */
 
   aggregate(global_rates);
 
-  gauge_t global_rate_sum = global_rates[COLLECTD_CPU_STATE_ACTIVE];
-  RATE_ADD(global_rate_sum, global_rates[COLLECTD_CPU_STATE_IDLE]);
+  gauge_t global_rate_sum = global_rates[STATE_ACTIVE];
+  RATE_ADD(global_rate_sum, global_rates[STATE_IDLE]);
 
   if (!report_by_cpu) {
     cpu_commit_one(-1, global_rates, global_rate_sum);
@@ -581,10 +581,10 @@ static void cpu_commit(void) /* {{{ */
 
   for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
     cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
-    gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {
-        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
+    gauge_t local_rates[STATE_MAX] = {NAN, NAN, NAN, NAN, NAN, NAN,
+                                      NAN, NAN, NAN, NAN, NAN, NAN};
 
-    for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
+    for (state_t state = 0; state < STATE_MAX; state++)
       if (this_cpu_states[state].has_value)
         local_rates[state] = this_cpu_states[state].rate;
 
@@ -595,7 +595,7 @@ static void cpu_commit(void) /* {{{ */
 /* Adds a derive value to the internal state. This should be used by each read
  * function for each state. At the end of the iteration, the read function
  * should call cpu_commit(). */
-static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
+static int cpu_stage(size_t cpu_num, state_t state, derive_t d,
                      cdtime_t now) /* {{{ */
 {
   int status;
@@ -603,7 +603,7 @@ static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
   gauge_t rate = NAN;
   value_t val = {.derive = d};
 
-  if (state >= COLLECTD_CPU_STATE_ACTIVE)
+  if (state >= STATE_ACTIVE)
     return EINVAL;
 
   status = cpu_states_alloc(cpu_num);
@@ -653,14 +653,14 @@ static int cpu_read(void) {
       continue;
     }
 
-    cpu_stage(cpu, COLLECTD_CPU_STATE_USER,
-              (derive_t)cpu_info.cpu_ticks[CPU_STATE_USER], now);
-    cpu_stage(cpu, COLLECTD_CPU_STATE_NICE,
-              (derive_t)cpu_info.cpu_ticks[CPU_STATE_NICE], now);
-    cpu_stage(cpu, COLLECTD_CPU_STATE_SYSTEM,
-              (derive_t)cpu_info.cpu_ticks[CPU_STATE_SYSTEM], now);
-    cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE,
-              (derive_t)cpu_info.cpu_ticks[CPU_STATE_IDLE], now);
+    cpu_stage(cpu, STATE_USER, (derive_t)cpu_info.cpu_ticks[CPU_STATE_USER],
+              now);
+    cpu_stage(cpu, STATE_NICE, (derive_t)cpu_info.cpu_ticks[CPU_STATE_NICE],
+              now);
+    cpu_stage(cpu, STATE_SYSTEM, (derive_t)cpu_info.cpu_ticks[CPU_STATE_SYSTEM],
+              now);
+    cpu_stage(cpu, STATE_IDLE, (derive_t)cpu_info.cpu_ticks[CPU_STATE_IDLE],
+              now);
   }
   /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
 
@@ -693,25 +693,23 @@ static int cpu_read(void) {
      */
     long long user_value = atoll(fields[1]);
     long long nice_value = atoll(fields[2]);
-    cpu_stage(cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
-    cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE, (derive_t)atoll(fields[4]), now);
+    cpu_stage(cpu, STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
+    cpu_stage(cpu, STATE_IDLE, (derive_t)atoll(fields[4]), now);
 
     if (numfields >= 8) {
-      cpu_stage(cpu, COLLECTD_CPU_STATE_WAIT, (derive_t)atoll(fields[5]), now);
-      cpu_stage(cpu, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)atoll(fields[6]),
-                now);
-      cpu_stage(cpu, COLLECTD_CPU_STATE_SOFTIRQ, (derive_t)atoll(fields[7]),
-                now);
+      cpu_stage(cpu, STATE_WAIT, (derive_t)atoll(fields[5]), now);
+      cpu_stage(cpu, STATE_INTERRUPT, (derive_t)atoll(fields[6]), now);
+      cpu_stage(cpu, STATE_SOFTIRQ, (derive_t)atoll(fields[7]), now);
     }
 
     if (numfields >= 9) { /* Steal (since Linux 2.6.11) */
-      cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]), now);
+      cpu_stage(cpu, STATE_STEAL, (derive_t)atoll(fields[8]), now);
     }
 
     if (numfields >= 10) { /* Guest (since Linux 2.6.24) */
       if (report_guest) {
         long long value = atoll(fields[9]);
-        cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST, (derive_t)value, now);
+        cpu_stage(cpu, STATE_GUEST, (derive_t)value, now);
         /* Guest is included in User; optionally subtract Guest from User: */
         if (subtract_guest) {
           user_value -= value;
@@ -724,7 +722,7 @@ static int cpu_read(void) {
     if (numfields >= 11) { /* Guest_nice (since Linux 2.6.33) */
       if (report_guest) {
         long long value = atoll(fields[10]);
-        cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST_NICE, (derive_t)value, now);
+        cpu_stage(cpu, STATE_GUEST_NICE, (derive_t)value, now);
         /* Guest_nice is included in Nice; optionally subtract Guest_nice from
            Nice: */
         if (subtract_guest) {
@@ -736,8 +734,8 @@ static int cpu_read(void) {
     }
 
     /* Eventually stage User and Nice: */
-    cpu_stage(cpu, COLLECTD_CPU_STATE_USER, (derive_t)user_value, now);
-    cpu_stage(cpu, COLLECTD_CPU_STATE_NICE, (derive_t)nice_value, now);
+    cpu_stage(cpu, STATE_USER, (derive_t)user_value, now);
+    cpu_stage(cpu, STATE_NICE, (derive_t)nice_value, now);
   }
   fclose(fh);
   /* }}} #endif defined(KERNEL_LINUX) */
@@ -752,13 +750,13 @@ static int cpu_read(void) {
     if (kstat_read(kc, ksp[cpu], &cs) == -1)
       continue; /* error message? */
 
-    cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_IDLE,
+    cpu_stage(ksp[cpu]->ks_instance, STATE_IDLE,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_IDLE], now);
-    cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_USER,
+    cpu_stage(ksp[cpu]->ks_instance, STATE_USER,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_USER], now);
-    cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_SYSTEM,
+    cpu_stage(ksp[cpu]->ks_instance, STATE_SYSTEM,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_KERNEL], now);
-    cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_WAIT,
+    cpu_stage(ksp[cpu]->ks_instance, STATE_WAIT,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_WAIT], now);
   }
   /* }}} #endif defined(HAVE_LIBKSTAT) */
@@ -831,12 +829,11 @@ static int cpu_read(void) {
 #endif /* defined(KERN_CP_TIME) && defined(KERNEL_NETBSD) */
 
   for (int i = 0; i < numcpu; i++) {
-    cpu_stage(i, COLLECTD_CPU_STATE_USER, (derive_t)cpuinfo[i][CP_USER], now);
-    cpu_stage(i, COLLECTD_CPU_STATE_NICE, (derive_t)cpuinfo[i][CP_NICE], now);
-    cpu_stage(i, COLLECTD_CPU_STATE_SYSTEM, (derive_t)cpuinfo[i][CP_SYS], now);
-    cpu_stage(i, COLLECTD_CPU_STATE_IDLE, (derive_t)cpuinfo[i][CP_IDLE], now);
-    cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
-              now);
+    cpu_stage(i, STATE_USER, (derive_t)cpuinfo[i][CP_USER], now);
+    cpu_stage(i, STATE_NICE, (derive_t)cpuinfo[i][CP_NICE], now);
+    cpu_stage(i, STATE_SYSTEM, (derive_t)cpuinfo[i][CP_SYS], now);
+    cpu_stage(i, STATE_IDLE, (derive_t)cpuinfo[i][CP_IDLE], now);
+    cpu_stage(i, STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR], now);
   }
   /* }}} #endif CAN_USE_SYSCTL */
 
@@ -855,12 +852,11 @@ static int cpu_read(void) {
   }
 
   for (int i = 0; i < numcpu; i++) {
-    cpu_stage(i, COLLECTD_CPU_STATE_USER, (derive_t)cpuinfo[i][CP_USER], now);
-    cpu_stage(i, COLLECTD_CPU_STATE_NICE, (derive_t)cpuinfo[i][CP_NICE], now);
-    cpu_stage(i, COLLECTD_CPU_STATE_SYSTEM, (derive_t)cpuinfo[i][CP_SYS], now);
-    cpu_stage(i, COLLECTD_CPU_STATE_IDLE, (derive_t)cpuinfo[i][CP_IDLE], now);
-    cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
-              now);
+    cpu_stage(i, STATE_USER, (derive_t)cpuinfo[i][CP_USER], now);
+    cpu_stage(i, STATE_NICE, (derive_t)cpuinfo[i][CP_NICE], now);
+    cpu_stage(i, STATE_SYSTEM, (derive_t)cpuinfo[i][CP_SYS], now);
+    cpu_stage(i, STATE_IDLE, (derive_t)cpuinfo[i][CP_IDLE], now);
+    cpu_stage(i, STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR], now);
   }
   /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
@@ -876,11 +872,11 @@ static int cpu_read(void) {
     return -1;
   }
 
-  cpu_stage(0, COLLECTD_CPU_STATE_USER, (derive_t)cpuinfo[CP_USER], now);
-  cpu_stage(0, COLLECTD_CPU_STATE_NICE, (derive_t)cpuinfo[CP_NICE], now);
-  cpu_stage(0, COLLECTD_CPU_STATE_SYSTEM, (derive_t)cpuinfo[CP_SYS], now);
-  cpu_stage(0, COLLECTD_CPU_STATE_IDLE, (derive_t)cpuinfo[CP_IDLE], now);
-  cpu_stage(0, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[CP_INTR], now);
+  cpu_stage(0, STATE_USER, (derive_t)cpuinfo[CP_USER], now);
+  cpu_stage(0, STATE_NICE, (derive_t)cpuinfo[CP_NICE], now);
+  cpu_stage(0, STATE_SYSTEM, (derive_t)cpuinfo[CP_SYS], now);
+  cpu_stage(0, STATE_IDLE, (derive_t)cpuinfo[CP_IDLE], now);
+  cpu_stage(0, STATE_INTERRUPT, (derive_t)cpuinfo[CP_INTR], now);
   /* }}} #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB) /* {{{ */
@@ -892,12 +888,12 @@ static int cpu_read(void) {
     return -1;
   }
 
-  cpu_state(0, COLLECTD_CPU_STATE_IDLE, (derive_t)cs->idle);
-  cpu_state(0, COLLECTD_CPU_STATE_NICE, (derive_t)cs->nice);
-  cpu_state(0, COLLECTD_CPU_STATE_SWAP, (derive_t)cs->swap);
-  cpu_state(0, COLLECTD_CPU_STATE_SYSTEM, (derive_t)cs->kernel);
-  cpu_state(0, COLLECTD_CPU_STATE_USER, (derive_t)cs->user);
-  cpu_state(0, COLLECTD_CPU_STATE_WAIT, (derive_t)cs->iowait);
+  cpu_state(0, STATE_IDLE, (derive_t)cs->idle);
+  cpu_state(0, STATE_NICE, (derive_t)cs->nice);
+  cpu_state(0, STATE_SWAP, (derive_t)cs->swap);
+  cpu_state(0, STATE_SYSTEM, (derive_t)cs->kernel);
+  cpu_state(0, STATE_USER, (derive_t)cs->user);
+  cpu_state(0, STATE_WAIT, (derive_t)cs->iowait);
   /* }}} #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT) /* {{{ */
@@ -923,10 +919,10 @@ static int cpu_read(void) {
   }
 
   for (int i = 0; i < cpus; i++) {
-    cpu_stage(i, COLLECTD_CPU_STATE_IDLE, (derive_t)perfcpu[i].idle, now);
-    cpu_stage(i, COLLECTD_CPU_STATE_SYSTEM, (derive_t)perfcpu[i].sys, now);
-    cpu_stage(i, COLLECTD_CPU_STATE_USER, (derive_t)perfcpu[i].user, now);
-    cpu_stage(i, COLLECTD_CPU_STATE_WAIT, (derive_t)perfcpu[i].wait, now);
+    cpu_stage(i, STATE_IDLE, (derive_t)perfcpu[i].idle, now);
+    cpu_stage(i, STATE_SYSTEM, (derive_t)perfcpu[i].sys, now);
+    cpu_stage(i, STATE_USER, (derive_t)perfcpu[i].user, now);
+    cpu_stage(i, STATE_WAIT, (derive_t)perfcpu[i].wait, now);
   }
 #endif                       /* }}} HAVE_PERFSTAT */
 
