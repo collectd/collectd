@@ -67,6 +67,7 @@ static char const *const label_state = "system.memory.state";
 typedef enum {
   STATE_USED,
   STATE_FREE,
+  STATE_SHARED,
   STATE_BUFFERS,
   STATE_CACHED,
   STATE_WIRED,
@@ -82,9 +83,9 @@ typedef enum {
 } memory_type_t;
 
 static char const *memory_type_names[STATE_MAX] = {
-    "used",     "free",      "buffers", "cached", "wired",
-    "active",   "inactive",  "kernel",  "locked", "arc",
-    "unusable", "user_wire", "laundry",
+    "used",  "free",     "shared",    "buffers", "cached",
+    "wired", "active",   "inactive",  "kernel",  "locked",
+    "arc",   "unusable", "user_wire", "laundry",
 };
 
 /* vm_statistics_data_t */
@@ -444,6 +445,9 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
       mem_not_used += v;
     } else if (strcmp(fields[0], "Cached:") == 0) {
       values[STATE_CACHED] = v;
+      mem_not_used += v;
+    } else if (strcmp(fields[0], "Shmem:") == 0) {
+      values[STATE_SHARED] = v;
       mem_not_used += v;
     }
   }
