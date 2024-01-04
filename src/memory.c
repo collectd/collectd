@@ -208,7 +208,7 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     return EINVAL;
   }
 
-  metric_family_t fam_percent = {
+  metric_family_t fam_util = {
       .name = "system.memory.utilization",
       .help = "Reports memory in use by state",
       .unit = "1",
@@ -219,17 +219,17 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
       continue;
     }
 
-    metric_family_append(&fam_percent, label_state, memory_type_names[i],
-                         (value_t){.gauge = 100.0 * values[i] / total}, NULL);
+    metric_family_append(&fam_util, label_state, memory_type_names[i],
+                         (value_t){.gauge = values[i] / total}, NULL);
   }
 
-  int status = plugin_dispatch_metric_family(&fam_percent);
+  int status = plugin_dispatch_metric_family(&fam_util);
   if (status != 0) {
     ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
           STRERROR(status));
     ret = ret ? ret : status;
   }
-  metric_family_metric_reset(&fam_percent);
+  metric_family_metric_reset(&fam_util);
 
   return ret;
 }
