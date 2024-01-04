@@ -150,7 +150,7 @@ static int pagesize;
 #endif
 
 static bool report_usage = true;
-static bool values_percentage;
+static bool report_utilization;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -159,8 +159,9 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
     if (strcasecmp("ReportUsage", child->key) == 0 ||
         strcasecmp("ValuesAbsolute", child->key) == 0)
       cf_util_get_boolean(child, &report_usage);
-    else if (strcasecmp("ValuesPercentage", child->key) == 0)
-      cf_util_get_boolean(child, &values_percentage);
+    else if (strcasecmp("ReportUtilization", child->key) == 0 ||
+             strcasecmp("ValuesPercentage", child->key) == 0)
+      cf_util_get_boolean(child, &report_utilization);
     else
       ERROR("memory plugin: Invalid configuration option: \"%s\".", child->key);
   }
@@ -201,7 +202,7 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
   }
   metric_family_metric_reset(&fam_usage);
 
-  if (!values_percentage) {
+  if (!report_utilization) {
     return ret;
   }
 

@@ -5274,10 +5274,10 @@ The I<memory plugin> provides the following configuration options:
 Enables or disables reporting of physical memory usage in absolute numbers,
 i.e. bytes. Defaults to B<true>.
 
-=item B<ValuesPercentage> B<false>|B<true>
+=item B<ReportUtilization> B<false>|B<true>
 
-Enables or disables reporting of physical memory usage in percentages, e.g.
-percent of physical memory used. Defaults to B<false>.
+Enables or disables reporting of physical memory usage as a ratio of total
+memory, e.g. the fraction of physical memory used. Defaults to B<false>.
 
 This is useful for deploying I<collectd> in a heterogeneous environment in
 which the sizes of physical memory vary.
