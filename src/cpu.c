@@ -343,8 +343,13 @@ typedef struct {
 
 typedef struct {
   cdtime_t time;
+  cdtime_t interval;
+  bool finalized;
+
   usage_state_t *states;
   size_t states_num;
+
+  usage_state_t global[STATE_MAX];
 } usage_t;
 
 __attribute__((unused)) static int usage_init(usage_t *u, cdtime_t now) {
@@ -352,10 +357,20 @@ __attribute__((unused)) static int usage_init(usage_t *u, cdtime_t now) {
     return EINVAL;
   }
 
+  if (u->time != 0 && u->time < now) {
+    u->interval = now - u->time;
+  }
   u->time = now;
+  u->finalized = false;
   for (size_t i = 0; i < u->states_num; i++) {
+    u->states[i].rate = 0;
     u->states[i].has_value = false;
   }
+  for (state_t s = 0; s < STATE_MAX; s++) {
+    u->global[s].rate = 0;
+    u->global[s].has_value = false;
+  }
+
   return 0;
 }
 
@@ -402,61 +417,66 @@ __attribute__((unused)) static int usage_record(usage_t *u, size_t cpu,
   return 0;
 }
 
-static gauge_t usage_rate(usage_t u, size_t cpu, state_t state);
-
-static gauge_t usage_active_rate(usage_t u, size_t cpu) {
-  size_t index = (cpu * STATE_MAX) + STATE_ACTIVE;
-  if (index >= u.states_num) {
-    return NAN;
+static void usage_finalize(usage_t *u) {
+  if (u->finalized) {
+    return;
   }
 
-  usage_state_t us = u.states[index];
-  if (us.has_value) {
-    return us.rate;
-  }
+  size_t cpu_num = u->states_num / STATE_MAX;
+  for (size_t cpu = 0; cpu < cpu_num; cpu++) {
+    size_t active_index = (cpu * STATE_MAX) + STATE_ACTIVE;
+    usage_state_t *active = u->states + active_index;
 
-  us.rate = 0;
-  for (state_t s = 0; s < STATE_IDLE; s++) {
-    gauge_t rate = usage_rate(u, cpu, s);
-    if (isnan(rate)) {
-      continue;
+    active->rate = 0;
+    active->has_value = false;
+
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      size_t index = (cpu * STATE_MAX) + s;
+      usage_state_t *us = u->states + index;
+
+      if (!us->has_value) {
+        continue;
+      }
+
+      u->global[s].rate += us->rate;
+      u->global[s].has_value = true;
+
+      if (s != STATE_IDLE) {
+        active->rate += us->rate;
+        active->has_value = true;
+      }
     }
 
-    us.rate += rate;
-    us.has_value = true;
-  }
-
-  return us.has_value ? us.rate : NAN;
-}
-
-static gauge_t usage_global_rate(usage_t u, state_t state) {
-  size_t cpu_num = u.states_num / STATE_MAX;
-  usage_state_t us = {0};
-  for (size_t i = 0; i < cpu_num; i++) {
-    gauge_t rate = usage_rate(u, i, state);
-    if (isnan(rate)) {
-      continue;
+    if (active->has_value) {
+      u->global[STATE_ACTIVE].rate += active->rate;
+      u->global[STATE_ACTIVE].has_value = true;
     }
-
-    us.rate += rate;
-    us.has_value = true;
   }
 
-  return us.has_value ? us.rate : NAN;
+  u->finalized = true;
 }
 
-static gauge_t usage_rate(usage_t u, size_t cpu, state_t state) {
-  if (state == STATE_ACTIVE) {
-    return usage_active_rate(u, cpu);
-  }
+static gauge_t usage_rate(usage_t *u, size_t cpu, state_t state) {
+  usage_finalize(u);
 
   size_t index = (cpu * STATE_MAX) + state;
-  if (index >= u.states_num) {
+  if (index >= u->states_num) {
     return NAN;
   }
 
-  usage_state_t us = u.states[index];
+  usage_state_t us = u->states[index];
   return us.has_value ? us.rate : NAN;
+}
+
+__attribute__((unused)) static gauge_t usage_active_rate(usage_t *u,
+                                                         size_t cpu) {
+  return usage_rate(u, cpu, STATE_ACTIVE);
+}
+
+static gauge_t usage_global_rate(usage_t *u, state_t state) {
+  usage_finalize(u);
+
+  return u->global[state].has_value ? u->global[state].rate : NAN;
 }
 
 __attribute__((unused)) static void usage_reset(usage_t *u) {
@@ -464,18 +484,18 @@ __attribute__((unused)) static void usage_reset(usage_t *u) {
     return;
   }
   free(u->states);
-  u->states = NULL;
-  u->states_num = 0;
+  memset(u, 0, sizeof(*u));
 }
 
-__attribute__((unused)) static gauge_t usage_ratio(usage_t u, size_t cpu,
+__attribute__((unused)) static gauge_t usage_ratio(usage_t *u, size_t cpu,
                                                    state_t state) {
   gauge_t global_rate =
       usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
   return usage_rate(u, cpu, state) / global_rate;
 }
 
-__attribute__((unused)) static gauge_t usage_global_ratio(usage_t u, state_t state) {
+__attribute__((unused)) static gauge_t usage_global_ratio(usage_t *u,
+                                                          state_t state) {
   gauge_t global_rate =
       usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
   return usage_global_rate(u, state) / global_rate;

@@ -32,8 +32,8 @@ DEF_TEST(usage_rate) {
   usage_record(&usage, 0, STATE_USER, count_t0);
 
   // Unable to calculate a rate with a single data point.
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_USER));
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_ACTIVE));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_USER));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_ACTIVE));
 
   cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
   derive_t count_t1 = count_t0 + 100;
@@ -42,15 +42,15 @@ DEF_TEST(usage_rate) {
   usage_init(&usage, t1);
   usage_record(&usage, 0, STATE_USER, count_t1);
 
-  EXPECT_EQ_DOUBLE(want_rate, usage_rate(usage, 0, STATE_USER));
-  EXPECT_EQ_DOUBLE(want_rate, usage_rate(usage, 0, STATE_ACTIVE));
+  EXPECT_EQ_DOUBLE(want_rate, usage_rate(&usage, 0, STATE_USER));
+  EXPECT_EQ_DOUBLE(want_rate, usage_rate(&usage, 0, STATE_ACTIVE));
 
   // States that we have not set should be NAN
   for (state_t s = 0; s < STATE_ACTIVE; s++) {
     if (s == STATE_USER) {
       continue;
     }
-    EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, s));
+    EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, s));
   }
 
   usage_reset(&usage);
@@ -87,17 +87,17 @@ DEF_TEST(usage_ratio) {
         active_increment += increment;
       }
       gauge_t want_ratio = ((gauge_t)increment) / ((gauge_t)global_increment);
-      EXPECT_EQ_DOUBLE(want_ratio, usage_ratio(usage, cpu, s));
+      EXPECT_EQ_DOUBLE(want_ratio, usage_ratio(&usage, cpu, s));
     }
     gauge_t want_active_ratio =
         ((gauge_t)active_increment) / ((gauge_t)global_increment);
-    EXPECT_EQ_DOUBLE(want_active_ratio, usage_ratio(usage, cpu, STATE_ACTIVE));
+    EXPECT_EQ_DOUBLE(want_active_ratio, usage_ratio(&usage, cpu, STATE_ACTIVE));
   }
 
   gauge_t sum = 0;
   for (size_t cpu = 0; cpu < 4; cpu++) {
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
-      gauge_t rate = usage_ratio(usage, cpu, s);
+      gauge_t rate = usage_ratio(&usage, cpu, s);
       sum += rate;
     }
   }
@@ -121,11 +121,11 @@ DEF_TEST(usage_active_rate) {
   usage_record(&usage, 0, STATE_IDLE, idle_t0);
 
   // Unable to calculate a rate with a single data point.
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_USER));
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_SYSTEM));
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_IDLE));
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_ACTIVE));
-  EXPECT_EQ_DOUBLE(NAN, usage_active_rate(usage, 0));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_USER));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_SYSTEM));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_IDLE));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_ACTIVE));
+  EXPECT_EQ_DOUBLE(NAN, usage_active_rate(&usage, 0));
 
   cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
   derive_t user_t1 = user_t0 + 200;
@@ -142,11 +142,11 @@ DEF_TEST(usage_active_rate) {
   usage_record(&usage, 0, STATE_SYSTEM, syst_t1);
   usage_record(&usage, 0, STATE_IDLE, idle_t1);
 
-  EXPECT_EQ_DOUBLE(want_user_rate, usage_rate(usage, 0, STATE_USER));
-  EXPECT_EQ_DOUBLE(want_syst_rate, usage_rate(usage, 0, STATE_SYSTEM));
-  EXPECT_EQ_DOUBLE(want_idle_rate, usage_rate(usage, 0, STATE_IDLE));
-  EXPECT_EQ_DOUBLE(want_active_rate, usage_rate(usage, 0, STATE_ACTIVE));
-  EXPECT_EQ_DOUBLE(want_active_rate, usage_active_rate(usage, 0));
+  EXPECT_EQ_DOUBLE(want_user_rate, usage_rate(&usage, 0, STATE_USER));
+  EXPECT_EQ_DOUBLE(want_syst_rate, usage_rate(&usage, 0, STATE_SYSTEM));
+  EXPECT_EQ_DOUBLE(want_idle_rate, usage_rate(&usage, 0, STATE_IDLE));
+  EXPECT_EQ_DOUBLE(want_active_rate, usage_rate(&usage, 0, STATE_ACTIVE));
+  EXPECT_EQ_DOUBLE(want_active_rate, usage_active_rate(&usage, 0));
 
   usage_reset(&usage);
   return 0;
@@ -164,10 +164,10 @@ DEF_TEST(usage_global_rate) {
   usage_record(&usage, 1, STATE_USER, cpu1_t0);
 
   // Unable to calculate a rate with a single data point.
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_USER));
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 1, STATE_USER));
-  EXPECT_EQ_DOUBLE(NAN, usage_global_rate(usage, STATE_USER));
-  EXPECT_EQ_DOUBLE(NAN, usage_global_rate(usage, STATE_ACTIVE));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_USER));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 1, STATE_USER));
+  EXPECT_EQ_DOUBLE(NAN, usage_global_rate(&usage, STATE_USER));
+  EXPECT_EQ_DOUBLE(NAN, usage_global_rate(&usage, STATE_ACTIVE));
 
   cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
   derive_t cpu0_t1 = cpu0_t0 + 300;
@@ -181,10 +181,10 @@ DEF_TEST(usage_global_rate) {
   usage_record(&usage, 0, STATE_USER, cpu0_t1);
   usage_record(&usage, 1, STATE_USER, cpu1_t1);
 
-  EXPECT_EQ_DOUBLE(want_cpu0_rate, usage_rate(usage, 0, STATE_USER));
-  EXPECT_EQ_DOUBLE(want_cpu1_rate, usage_rate(usage, 1, STATE_USER));
-  EXPECT_EQ_DOUBLE(want_global_rate, usage_global_rate(usage, STATE_USER));
-  EXPECT_EQ_DOUBLE(want_global_rate, usage_global_rate(usage, STATE_ACTIVE));
+  EXPECT_EQ_DOUBLE(want_cpu0_rate, usage_rate(&usage, 0, STATE_USER));
+  EXPECT_EQ_DOUBLE(want_cpu1_rate, usage_rate(&usage, 1, STATE_USER));
+  EXPECT_EQ_DOUBLE(want_global_rate, usage_global_rate(&usage, STATE_USER));
+  EXPECT_EQ_DOUBLE(want_global_rate, usage_global_rate(&usage, STATE_ACTIVE));
 
   usage_reset(&usage);
   return 0;
@@ -221,7 +221,7 @@ DEF_TEST(usage_global_ratio) {
     }
     gauge_t want_state_ratio =
         ((gauge_t)state_increment) / ((gauge_t)global_increment);
-    EXPECT_EQ_DOUBLE(want_state_ratio, usage_global_ratio(usage, s));
+    EXPECT_EQ_DOUBLE(want_state_ratio, usage_global_ratio(&usage, s));
 
     if (s != STATE_IDLE) {
       global_active_increment += state_increment;
@@ -230,10 +230,10 @@ DEF_TEST(usage_global_ratio) {
   gauge_t want_global_active_ratio =
       ((gauge_t)global_active_increment) / ((gauge_t)global_increment);
   EXPECT_EQ_DOUBLE(want_global_active_ratio,
-                   usage_global_ratio(usage, STATE_ACTIVE));
+                   usage_global_ratio(&usage, STATE_ACTIVE));
 
   EXPECT_EQ_DOUBLE(1.0 - want_global_active_ratio,
-                   usage_global_ratio(usage, STATE_IDLE));
+                   usage_global_ratio(&usage, STATE_IDLE));
 
   usage_reset(&usage);
   return 0;
