@@ -402,6 +402,33 @@ __attribute__((unused)) static int usage_record(usage_t *u, size_t cpu,
   return 0;
 }
 
+static gauge_t usage_rate(usage_t u, size_t cpu, state_t state);
+
+static gauge_t usage_active_rate(usage_t u, size_t cpu) {
+  size_t index = (cpu * STATE_MAX) + STATE_ACTIVE;
+  if (index >= u.states_num) {
+    return NAN;
+  }
+
+  usage_state_t us = u.states[index];
+  if (us.has_value) {
+    return us.rate;
+  }
+
+  us.rate = 0;
+  for (state_t s = 0; s < STATE_IDLE; s++) {
+    gauge_t rate = usage_rate(u, cpu, s);
+    if (isnan(rate)) {
+      continue;
+    }
+
+    us.rate += rate;
+    us.has_value = true;
+  }
+
+  return us.has_value ? us.rate : NAN;
+}
+
 __attribute__((unused)) static gauge_t usage_rate(usage_t u, size_t cpu,
                                                   state_t state) {
   size_t index = (cpu * STATE_MAX) + state;
@@ -409,10 +436,12 @@ __attribute__((unused)) static gauge_t usage_rate(usage_t u, size_t cpu,
     return NAN;
   }
 
-  if (!u.states[index].has_value) {
-    return NAN;
+  if (state == STATE_ACTIVE) {
+    return usage_active_rate(u, cpu);
   }
-  return u.states[index].rate;
+
+  usage_state_t us = u.states[index];
+  return us.has_value ? us.rate : NAN;
 }
 
 __attribute__((unused)) static void usage_reset(usage_t *u) {
