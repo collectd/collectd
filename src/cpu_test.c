@@ -22,7 +22,7 @@
 #include "cpu.c" /* sic */
 #include "testing.h"
 
-DEF_TEST(usage) {
+DEF_TEST(usage_simple_rate) {
   usage_t usage = {0};
 
   cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
@@ -43,12 +43,20 @@ DEF_TEST(usage) {
 
   EXPECT_EQ_DOUBLE(want_rate, usage_rate(usage, 0, STATE_USER));
 
+  // States that we have not set should be NAN
+  for (state_t s = 0; s < STATE_MAX; s++) {
+    if (s == STATE_USER) {
+      continue;
+    }
+    EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, s));
+  }
+
   usage_reset(&usage);
   return 0;
 }
 
 int main(void) {
-  RUN_TEST(usage);
+  RUN_TEST(usage_simple_rate);
 
   END_TEST;
 }
