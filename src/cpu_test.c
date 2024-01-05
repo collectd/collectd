@@ -100,9 +100,48 @@ DEF_TEST(usage_active) {
   return 0;
 }
 
+DEF_TEST(usage_global_rate) {
+  usage_t usage = {0};
+
+  cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
+  derive_t cpu0_t0 = 1000;
+  derive_t cpu1_t0 = 2000;
+
+  usage_init(&usage, t0);
+  usage_record(&usage, 0, STATE_USER, cpu0_t0);
+  usage_record(&usage, 1, STATE_USER, cpu1_t0);
+
+  // Unable to calculate a rate with a single data point.
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_USER));
+  EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 1, STATE_USER));
+  EXPECT_EQ_DOUBLE(NAN, usage_global_rate(usage, STATE_USER));
+  EXPECT_EQ_DOUBLE(NAN, usage_global_rate(usage, STATE_ACTIVE));
+
+  cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
+  derive_t cpu0_t1 = cpu0_t0 + 300;
+  derive_t cpu1_t1 = cpu1_t0 + 700;
+
+  gauge_t want_cpu0_rate = 300.0 / 10.0;
+  gauge_t want_cpu1_rate = 700.0 / 10.0;
+  gauge_t want_global_rate = want_cpu0_rate + want_cpu1_rate;
+
+  usage_init(&usage, t1);
+  usage_record(&usage, 0, STATE_USER, cpu0_t1);
+  usage_record(&usage, 1, STATE_USER, cpu1_t1);
+
+  EXPECT_EQ_DOUBLE(want_cpu0_rate, usage_rate(usage, 0, STATE_USER));
+  EXPECT_EQ_DOUBLE(want_cpu1_rate, usage_rate(usage, 1, STATE_USER));
+  EXPECT_EQ_DOUBLE(want_global_rate, usage_global_rate(usage, STATE_USER));
+  EXPECT_EQ_DOUBLE(want_global_rate, usage_global_rate(usage, STATE_ACTIVE));
+
+  usage_reset(&usage);
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(usage_simple_rate);
   RUN_TEST(usage_active);
+  RUN_TEST(usage_global_rate);
 
   END_TEST;
 }

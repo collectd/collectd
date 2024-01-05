@@ -429,15 +429,31 @@ static gauge_t usage_active_rate(usage_t u, size_t cpu) {
   return us.has_value ? us.rate : NAN;
 }
 
+static gauge_t usage_global_rate(usage_t u, state_t state) {
+  size_t cpu_num = u.states_num / STATE_MAX;
+  usage_state_t us = {0};
+  for (size_t i = 0; i < cpu_num; i++) {
+    gauge_t rate = usage_rate(u, i, state);
+    if (isnan(rate)) {
+      continue;
+    }
+
+    us.rate += rate;
+    us.has_value = true;
+  }
+
+  return us.has_value ? us.rate : NAN;
+}
+
 __attribute__((unused)) static gauge_t usage_rate(usage_t u, size_t cpu,
                                                   state_t state) {
+  if (state == STATE_ACTIVE) {
+    return usage_active_rate(u, cpu);
+  }
+
   size_t index = (cpu * STATE_MAX) + state;
   if (index >= u.states_num) {
     return NAN;
-  }
-
-  if (state == STATE_ACTIVE) {
-    return usage_active_rate(u, cpu);
   }
 
   usage_state_t us = u.states[index];
