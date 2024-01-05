@@ -22,7 +22,7 @@
 #include "cpu.c" /* sic */
 #include "testing.h"
 
-DEF_TEST(usage_simple_rate) {
+DEF_TEST(usage_rate) {
   usage_t usage = {0};
 
   cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
@@ -57,7 +57,57 @@ DEF_TEST(usage_simple_rate) {
   return 0;
 }
 
-DEF_TEST(usage_active) {
+DEF_TEST(usage_ratio) {
+  usage_t usage = {0};
+
+  cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
+  usage_init(&usage, t0);
+  for (size_t cpu = 0; cpu < 4; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      usage_record(&usage, cpu, s, 1000);
+    }
+  }
+
+  cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
+  usage_init(&usage, t1);
+  derive_t global_increment = 0;
+  for (size_t cpu = 0; cpu < 4; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
+      global_increment += increment;
+      usage_record(&usage, cpu, s, 1000 + increment);
+    }
+  }
+
+  for (size_t cpu = 0; cpu < 4; cpu++) {
+    derive_t active_increment = 0;
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
+      if (s != STATE_IDLE) {
+        active_increment += increment;
+      }
+      gauge_t want_ratio = ((gauge_t)increment) / ((gauge_t)global_increment);
+      EXPECT_EQ_DOUBLE(want_ratio, usage_ratio(usage, cpu, s));
+    }
+    gauge_t want_active_ratio =
+        ((gauge_t)active_increment) / ((gauge_t)global_increment);
+    EXPECT_EQ_DOUBLE(want_active_ratio, usage_ratio(usage, cpu, STATE_ACTIVE));
+  }
+
+  gauge_t sum = 0;
+  for (size_t cpu = 0; cpu < 4; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      gauge_t rate = usage_ratio(usage, cpu, s);
+      sum += rate;
+    }
+  }
+  EXPECT_EQ_DOUBLE(1.0, sum);
+
+  usage_reset(&usage);
+  return 0;
+}
+
+DEF_TEST(usage_active_rate) {
   usage_t usage = {0};
 
   cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
@@ -139,8 +189,9 @@ DEF_TEST(usage_global_rate) {
 }
 
 int main(void) {
-  RUN_TEST(usage_simple_rate);
-  RUN_TEST(usage_active);
+  RUN_TEST(usage_rate);
+  RUN_TEST(usage_ratio);
+  RUN_TEST(usage_active_rate);
   RUN_TEST(usage_global_rate);
 
   END_TEST;

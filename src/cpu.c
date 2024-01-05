@@ -445,8 +445,7 @@ static gauge_t usage_global_rate(usage_t u, state_t state) {
   return us.has_value ? us.rate : NAN;
 }
 
-__attribute__((unused)) static gauge_t usage_rate(usage_t u, size_t cpu,
-                                                  state_t state) {
+static gauge_t usage_rate(usage_t u, size_t cpu, state_t state) {
   if (state == STATE_ACTIVE) {
     return usage_active_rate(u, cpu);
   }
@@ -467,6 +466,13 @@ __attribute__((unused)) static void usage_reset(usage_t *u) {
   free(u->states);
   u->states = NULL;
   u->states_num = 0;
+}
+
+__attribute__((unused)) static gauge_t usage_ratio(usage_t u, size_t cpu,
+                                                   state_t state) {
+  gauge_t global_rate =
+      usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
+  return usage_rate(u, cpu, state) / global_rate;
 }
 
 /* Takes the zero-index number of a CPU and makes sure that the module-global
