@@ -125,6 +125,7 @@ DEF_TEST(usage_active_rate) {
   EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_SYSTEM));
   EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_IDLE));
   EXPECT_EQ_DOUBLE(NAN, usage_rate(usage, 0, STATE_ACTIVE));
+  EXPECT_EQ_DOUBLE(NAN, usage_active_rate(usage, 0));
 
   cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
   derive_t user_t1 = user_t0 + 200;
@@ -145,6 +146,7 @@ DEF_TEST(usage_active_rate) {
   EXPECT_EQ_DOUBLE(want_syst_rate, usage_rate(usage, 0, STATE_SYSTEM));
   EXPECT_EQ_DOUBLE(want_idle_rate, usage_rate(usage, 0, STATE_IDLE));
   EXPECT_EQ_DOUBLE(want_active_rate, usage_rate(usage, 0, STATE_ACTIVE));
+  EXPECT_EQ_DOUBLE(want_active_rate, usage_active_rate(usage, 0));
 
   usage_reset(&usage);
   return 0;
