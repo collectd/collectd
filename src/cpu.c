@@ -335,6 +335,95 @@ static int init(void) {
   return 0;
 } /* int init */
 
+typedef struct {
+  value_to_rate_state_t conv;
+  gauge_t rate;
+  bool has_value;
+} usage_state_t;
+
+typedef struct {
+  cdtime_t time;
+  usage_state_t *states;
+  size_t states_num;
+} usage_t;
+
+__attribute__((unused)) static int usage_init(usage_t *u, cdtime_t now) {
+  if (u == NULL || now == 0) {
+    return EINVAL;
+  }
+
+  u->time = now;
+  for (size_t i = 0; i < u->states_num; i++) {
+    u->states[i].has_value = false;
+  }
+  return 0;
+}
+
+static int usage_resize(usage_t *u, size_t cpu) {
+  size_t num = (cpu + 1) * STATE_MAX;
+  if (u->states_num >= num) {
+    return 0;
+  }
+
+  usage_state_t *ptr = realloc(u->states, sizeof(*u->states) * num);
+  if (ptr == NULL) {
+    return ENOMEM;
+  }
+  u->states = ptr;
+  ptr = u->states + u->states_num;
+  memset(ptr, 0, sizeof(*ptr) * (num - u->states_num));
+  u->states_num = num;
+
+  return 0;
+}
+
+__attribute__((unused)) static int usage_record(usage_t *u, size_t cpu,
+                                                state_t state, derive_t count) {
+  if (u == NULL || state >= STATE_ACTIVE) {
+    return EINVAL;
+  }
+
+  int status = usage_resize(u, cpu);
+  if (status != 0) {
+    return status;
+  }
+
+  size_t index = (cpu * STATE_MAX) + state;
+  assert(index < u->states_num);
+  usage_state_t *us = u->states + index;
+
+  status = value_to_rate(&us->rate, (value_t){.derive = count}, DS_TYPE_DERIVE,
+                         u->time, &us->conv);
+  if (status != 0) {
+    return status;
+  }
+
+  us->has_value = true;
+  return 0;
+}
+
+__attribute__((unused)) static gauge_t usage_rate(usage_t u, size_t cpu,
+                                                  state_t state) {
+  size_t index = (cpu * STATE_MAX) + state;
+  if (index >= u.states_num) {
+    return NAN;
+  }
+
+  if (!u.states[index].has_value) {
+    return NAN;
+  }
+  return u.states[index].rate;
+}
+
+__attribute__((unused)) static void usage_reset(usage_t *u) {
+  if (u == NULL) {
+    return;
+  }
+  free(u->states);
+  u->states = NULL;
+  u->states_num = 0;
+}
+
 /* Takes the zero-index number of a CPU and makes sure that the module-global
  * cpu_states buffer is large enough. Returne ENOMEM on erorr. */
 static int cpu_states_alloc(size_t cpu_num) /* {{{ */
