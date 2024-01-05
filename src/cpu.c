@@ -475,6 +475,12 @@ __attribute__((unused)) static gauge_t usage_ratio(usage_t u, size_t cpu,
   return usage_rate(u, cpu, state) / global_rate;
 }
 
+__attribute__((unused)) static gauge_t usage_global_ratio(usage_t u, state_t state) {
+  gauge_t global_rate =
+      usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
+  return usage_global_rate(u, state) / global_rate;
+}
+
 /* Takes the zero-index number of a CPU and makes sure that the module-global
  * cpu_states buffer is large enough. Returne ENOMEM on erorr. */
 static int cpu_states_alloc(size_t cpu_num) /* {{{ */

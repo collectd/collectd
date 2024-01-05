@@ -190,11 +190,61 @@ DEF_TEST(usage_global_rate) {
   return 0;
 }
 
+DEF_TEST(usage_global_ratio) {
+  usage_t usage = {0};
+
+  cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
+  usage_init(&usage, t0);
+  for (size_t cpu = 0; cpu < 4; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      usage_record(&usage, cpu, s, 1000);
+    }
+  }
+
+  cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
+  usage_init(&usage, t1);
+  derive_t global_increment = 0;
+  for (size_t cpu = 0; cpu < 4; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
+      global_increment += increment;
+      usage_record(&usage, cpu, s, 1000 + increment);
+    }
+  }
+
+  derive_t global_active_increment = 0;
+  for (state_t s = 0; s < STATE_ACTIVE; s++) {
+    derive_t state_increment = 0;
+    for (size_t cpu = 0; cpu < 4; cpu++) {
+      derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
+      state_increment += increment;
+    }
+    gauge_t want_state_ratio =
+        ((gauge_t)state_increment) / ((gauge_t)global_increment);
+    EXPECT_EQ_DOUBLE(want_state_ratio, usage_global_ratio(usage, s));
+
+    if (s != STATE_IDLE) {
+      global_active_increment += state_increment;
+    }
+  }
+  gauge_t want_global_active_ratio =
+      ((gauge_t)global_active_increment) / ((gauge_t)global_increment);
+  EXPECT_EQ_DOUBLE(want_global_active_ratio,
+                   usage_global_ratio(usage, STATE_ACTIVE));
+
+  EXPECT_EQ_DOUBLE(1.0 - want_global_active_ratio,
+                   usage_global_ratio(usage, STATE_IDLE));
+
+  usage_reset(&usage);
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(usage_rate);
   RUN_TEST(usage_ratio);
   RUN_TEST(usage_active_rate);
   RUN_TEST(usage_global_rate);
+  RUN_TEST(usage_global_ratio);
 
   END_TEST;
 }
