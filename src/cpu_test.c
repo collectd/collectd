@@ -107,6 +107,84 @@ DEF_TEST(usage_ratio) {
   return 0;
 }
 
+static bool expect_usage_count(derive_t want, derive_t got, size_t cpu,
+                               state_t state) {
+  bool ok = true;
+  char msg[1024] = {0};
+  snprintf(msg, sizeof(msg), "usage_count(cpu=%zu, state=\"%s\") = %" PRId64,
+           cpu, cpu_state_names[state], got);
+
+  derive_t diff = got - want;
+  if (diff < -1 || diff > 1) {
+    snprintf(msg, sizeof(msg),
+             "usage_count(cpu=%zu, state=\"%s\") = %" PRId64 ", want %" PRId64,
+             cpu, cpu_state_names[state], got, want);
+    ok = false;
+  }
+
+  LOG(ok, msg);
+  return ok;
+}
+
+DEF_TEST(usage_count) {
+  int ret = 0;
+  usage_t usage = {0};
+#define CPU_NUM 2
+
+  cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
+  usage_init(&usage, t0);
+  for (size_t cpu = 0; cpu < CPU_NUM; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      usage_record(&usage, cpu, s, 1000);
+    }
+  }
+  usage_finalize(&usage);
+
+  cdtime_t interval = TIME_T_TO_CDTIME_T(300);
+  cdtime_t t1 = t0 + interval;
+  usage_init(&usage, t1);
+  derive_t cpu_increment[CPU_NUM] = {0};
+  for (size_t cpu = 0; cpu < CPU_NUM; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
+      cpu_increment[cpu] += increment;
+      usage_record(&usage, cpu, s, 1000 + increment);
+    }
+  }
+
+  gauge_t sum_time = 0;
+  for (size_t cpu = 0; cpu < CPU_NUM; cpu++) {
+    derive_t active_increment = 0;
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
+      if (s != STATE_IDLE) {
+        active_increment += increment;
+      }
+
+      gauge_t want_time = 1000000.0 * CDTIME_T_TO_DOUBLE(interval) *
+                          ((gauge_t)increment) / ((gauge_t)cpu_increment[cpu]);
+      sum_time += want_time;
+
+      bool ok = expect_usage_count((derive_t)want_time,
+                                   usage_count(&usage, cpu, s), cpu, s);
+      ret = ret || !ok;
+    }
+
+    gauge_t want_active_time = 1000000.0 * CDTIME_T_TO_DOUBLE(interval) *
+                               ((gauge_t)active_increment) /
+                               ((gauge_t)cpu_increment[cpu]);
+    bool ok = expect_usage_count((derive_t)want_active_time,
+                                 usage_count(&usage, cpu, STATE_ACTIVE), cpu,
+                                 STATE_ACTIVE);
+    ret = ret || !ok;
+  }
+  EXPECT_EQ_DOUBLE(CPU_NUM * 1000000.0 * CDTIME_T_TO_DOUBLE(interval),
+                   sum_time);
+
+  usage_reset(&usage);
+  return ret;
+}
+
 DEF_TEST(usage_active_rate) {
   usage_t usage = {0};
 
@@ -242,6 +320,7 @@ DEF_TEST(usage_global_ratio) {
 int main(void) {
   RUN_TEST(usage_rate);
   RUN_TEST(usage_ratio);
+  RUN_TEST(usage_count);
   RUN_TEST(usage_active_rate);
   RUN_TEST(usage_global_rate);
   RUN_TEST(usage_global_ratio);

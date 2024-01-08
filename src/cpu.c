@@ -336,9 +336,15 @@ static int init(void) {
 } /* int init */
 
 typedef struct {
-  value_to_rate_state_t conv;
   gauge_t rate;
   bool has_value;
+  value_to_rate_state_t conv;
+
+  /* count is a scaled counter, so that all states in sum increase by 1000000
+   * per second. */
+  derive_t count;
+  bool has_count;
+  rate_to_value_state_t to_count;
 } usage_state_t;
 
 typedef struct {
@@ -409,6 +415,9 @@ __attribute__((unused)) static int usage_record(usage_t *u, size_t cpu,
 
   status = value_to_rate(&us->rate, (value_t){.derive = count}, DS_TYPE_DERIVE,
                          u->time, &us->conv);
+  if (status == EAGAIN) {
+    return 0;
+  }
   if (status != 0) {
     return status;
   }
@@ -422,6 +431,7 @@ static void usage_finalize(usage_t *u) {
     return;
   }
 
+  gauge_t global_rate = 0;
   size_t cpu_num = u->states_num / STATE_MAX;
   for (size_t cpu = 0; cpu < cpu_num; cpu++) {
     size_t active_index = (cpu * STATE_MAX) + STATE_ACTIVE;
@@ -429,6 +439,8 @@ static void usage_finalize(usage_t *u) {
 
     active->rate = 0;
     active->has_value = false;
+
+    gauge_t cpu_rate = 0;
 
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
       size_t index = (cpu * STATE_MAX) + s;
@@ -438,8 +450,15 @@ static void usage_finalize(usage_t *u) {
         continue;
       }
 
+      // aggregate by cpu
+      cpu_rate += us->rate;
+
+      // aggregate by state
       u->global[s].rate += us->rate;
       u->global[s].has_value = true;
+
+      // global aggregate
+      global_rate += us->rate;
 
       if (s != STATE_IDLE) {
         active->rate += us->rate;
@@ -447,9 +466,52 @@ static void usage_finalize(usage_t *u) {
       }
     }
 
+    /* With cpu_rate available, calculate a counter for each state that is
+     * normalized to microseconds. I.e. all states of one CPU sum up to 1000000
+     * us per second. */
+    for (state_t s = 0; s < STATE_MAX; s++) {
+      size_t index = (cpu * STATE_MAX) + s;
+      usage_state_t *us = u->states + index;
+
+      us->count = -1;
+      if (!us->has_value) {
+        /* Ensure that us->to_count is initialized. */
+        rate_to_value(&(value_t){0}, 0.0, &us->to_count, DS_TYPE_DERIVE,
+                      u->time);
+        continue;
+      }
+
+      gauge_t rate = 1000000.0 * us->rate / cpu_rate;
+      value_t v = {0};
+      int status =
+          rate_to_value(&v, rate, &us->to_count, DS_TYPE_DERIVE, u->time);
+      if (status == 0) {
+        us->count = v.derive;
+        us->has_count = true;
+      }
+    }
+
     if (active->has_value) {
       u->global[STATE_ACTIVE].rate += active->rate;
       u->global[STATE_ACTIVE].has_value = true;
+    }
+  }
+
+  for (state_t s = 0; s < STATE_MAX; s++) {
+    usage_state_t *us = &u->global[s];
+
+    us->count = -1;
+    if (!us->has_value) {
+      continue;
+    }
+
+    gauge_t rate = CDTIME_T_TO_DOUBLE(u->interval) * us->rate / global_rate;
+    value_t v = {0};
+    int status =
+        rate_to_value(&v, rate, &us->to_count, DS_TYPE_DERIVE, u->time);
+    if (status == 0) {
+      us->count = v.derive;
+      us->has_count = true;
     }
   }
 
@@ -499,6 +561,19 @@ __attribute__((unused)) static gauge_t usage_global_ratio(usage_t *u,
   gauge_t global_rate =
       usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
   return usage_global_rate(u, state) / global_rate;
+}
+
+__attribute__((unused)) static derive_t usage_count(usage_t *u, size_t cpu,
+                                                    state_t state) {
+  usage_finalize(u);
+
+  size_t index = (cpu * STATE_MAX) + state;
+  if (index >= u->states_num) {
+    return -1;
+  }
+  usage_state_t *us = u->states + index;
+
+  return us->count;
 }
 
 /* Takes the zero-index number of a CPU and makes sure that the module-global
