@@ -433,6 +433,7 @@ static void usage_finalize(usage_t *u) {
 
   gauge_t global_rate = 0;
   size_t cpu_num = u->states_num / STATE_MAX;
+  gauge_t state_ratio[STATE_MAX] = {0};
   for (size_t cpu = 0; cpu < cpu_num; cpu++) {
     size_t active_index = (cpu * STATE_MAX) + STATE_ACTIVE;
     usage_state_t *active = u->states + active_index;
@@ -466,6 +467,11 @@ static void usage_finalize(usage_t *u) {
       }
     }
 
+    if (active->has_value) {
+      u->global[STATE_ACTIVE].rate += active->rate;
+      u->global[STATE_ACTIVE].has_value = true;
+    }
+
     /* With cpu_rate available, calculate a counter for each state that is
      * normalized to microseconds. I.e. all states of one CPU sum up to 1000000
      * us per second. */
@@ -481,19 +487,16 @@ static void usage_finalize(usage_t *u) {
         continue;
       }
 
-      gauge_t rate = 1000000.0 * us->rate / cpu_rate;
+      gauge_t ratio = us->rate / cpu_rate;
       value_t v = {0};
-      int status =
-          rate_to_value(&v, rate, &us->to_count, DS_TYPE_DERIVE, u->time);
+      int status = rate_to_value(&v, 1000000.0 * ratio, &us->to_count,
+                                 DS_TYPE_DERIVE, u->time);
       if (status == 0) {
         us->count = v.derive;
         us->has_count = true;
       }
-    }
 
-    if (active->has_value) {
-      u->global[STATE_ACTIVE].rate += active->rate;
-      u->global[STATE_ACTIVE].has_value = true;
+      state_ratio[s] += ratio;
     }
   }
 
@@ -502,13 +505,14 @@ static void usage_finalize(usage_t *u) {
 
     us->count = -1;
     if (!us->has_value) {
+      /* Ensure that us->to_count is initialized. */
+      rate_to_value(&(value_t){0}, 0.0, &us->to_count, DS_TYPE_DERIVE, u->time);
       continue;
     }
 
-    gauge_t rate = CDTIME_T_TO_DOUBLE(u->interval) * us->rate / global_rate;
     value_t v = {0};
-    int status =
-        rate_to_value(&v, rate, &us->to_count, DS_TYPE_DERIVE, u->time);
+    int status = rate_to_value(&v, 1000000.0 * state_ratio[s], &us->to_count,
+                               DS_TYPE_DERIVE, u->time);
     if (status == 0) {
       us->count = v.derive;
       us->has_count = true;
@@ -574,6 +578,13 @@ __attribute__((unused)) static derive_t usage_count(usage_t *u, size_t cpu,
   usage_state_t *us = u->states + index;
 
   return us->count;
+}
+
+__attribute__((unused)) static derive_t usage_global_count(usage_t *u,
+                                                           state_t state) {
+  usage_finalize(u);
+
+  return u->global[state].count;
 }
 
 /* Takes the zero-index number of a CPU and makes sure that the module-global

@@ -109,16 +109,20 @@ DEF_TEST(usage_ratio) {
 
 static bool expect_usage_count(derive_t want, derive_t got, size_t cpu,
                                state_t state) {
+  char prefix[510] = "usage_global_count(";
+  if (cpu != SIZE_MAX) {
+    snprintf(prefix, sizeof(prefix), "usage_count(cpu=%zu, ", cpu);
+  }
+
   bool ok = true;
   char msg[1024] = {0};
-  snprintf(msg, sizeof(msg), "usage_count(cpu=%zu, state=\"%s\") = %" PRId64,
-           cpu, cpu_state_names[state], got);
+  snprintf(msg, sizeof(msg), "%sstate=\"%s\") = %" PRId64, prefix,
+           cpu_state_names[state], got);
 
   derive_t diff = got - want;
   if (diff < -1 || diff > 1) {
-    snprintf(msg, sizeof(msg),
-             "usage_count(cpu=%zu, state=\"%s\") = %" PRId64 ", want %" PRId64,
-             cpu, cpu_state_names[state], got, want);
+    snprintf(msg, sizeof(msg), "%sstate=\"%s\") = %" PRId64 ", want %" PRId64,
+             prefix, cpu_state_names[state], got, want);
     ok = false;
   }
 
@@ -317,6 +321,70 @@ DEF_TEST(usage_global_ratio) {
   return 0;
 }
 
+/* sumup returns the sum of 1 + 2 + ... + n */
+static derive_t sumup(derive_t n) { return n * (n + 1) / 2; }
+
+DEF_TEST(usage_global_count) {
+  int ret = 0;
+  usage_t usage = {0};
+#define CPU_NUM 2
+
+  cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
+  usage_init(&usage, t0);
+  for (size_t cpu = 0; cpu < CPU_NUM; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      usage_record(&usage, cpu, s, 1000);
+    }
+  }
+  usage_finalize(&usage);
+
+  cdtime_t interval = TIME_T_TO_CDTIME_T(300);
+
+  cdtime_t t1 = t0 + interval;
+  usage_init(&usage, t1);
+  for (size_t cpu = 0; cpu < CPU_NUM; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
+      usage_record(&usage, cpu, s, 1000 + increment);
+    }
+  }
+
+  derive_t cpu_increment[CPU_NUM] = {
+      sumup(10),
+      sumup(21) - sumup(10),
+  };
+
+  gauge_t state_ratio[STATE_MAX] = {0};
+  for (size_t cpu = 0; cpu < CPU_NUM; cpu++) {
+    for (state_t s = 0; s < STATE_ACTIVE; s++) {
+      derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
+      gauge_t ratio = ((gauge_t)increment) / ((gauge_t)cpu_increment[cpu]);
+
+      state_ratio[s] += ratio;
+      if (s != STATE_IDLE) {
+        state_ratio[STATE_ACTIVE] += ratio;
+      }
+    }
+  }
+
+  for (state_t s = 0; s < STATE_MAX; s++) {
+    gauge_t want_time =
+        1000000.0 * CDTIME_T_TO_DOUBLE(interval) * state_ratio[s];
+    bool ok = expect_usage_count((derive_t)want_time,
+                                 usage_global_count(&usage, s), SIZE_MAX, s);
+    ret = ret || !ok;
+  }
+
+  gauge_t sum_ratio = 0;
+  for (state_t s = 0; s < STATE_ACTIVE; s++) {
+    sum_ratio += state_ratio[s];
+  }
+  EXPECT_EQ_DOUBLE(CPU_NUM, sum_ratio);
+
+  usage_reset(&usage);
+  return ret;
+}
+
 int main(void) {
   RUN_TEST(usage_rate);
   RUN_TEST(usage_ratio);
@@ -324,6 +392,7 @@ int main(void) {
   RUN_TEST(usage_active_rate);
   RUN_TEST(usage_global_rate);
   RUN_TEST(usage_global_ratio);
+  RUN_TEST(usage_global_count);
 
   END_TEST;
 }
