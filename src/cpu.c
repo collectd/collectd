@@ -426,7 +426,6 @@ static void usage_finalize(usage_t *u) {
     return;
   }
 
-  gauge_t global_rate = 0;
   size_t cpu_num = u->states_num / STATE_MAX;
   gauge_t state_ratio[STATE_MAX] = {0};
   for (size_t cpu = 0; cpu < cpu_num; cpu++) {
@@ -452,9 +451,6 @@ static void usage_finalize(usage_t *u) {
       // aggregate by state
       u->global[s].rate += us->rate;
       u->global[s].has_value = true;
-
-      // global aggregate
-      global_rate += us->rate;
 
       if (s != STATE_IDLE) {
         active->rate += us->rate;
