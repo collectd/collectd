@@ -630,6 +630,9 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
   if (report_by_state) {
     for (state_t state = 0; state < STATE_ACTIVE; state++) {
       derive_t usage = usage_count(u, cpu_num, state);
+      if (usage == -1) {
+        continue;
+      }
       metric_family_append(&fam, label_state, cpu_state_names[state],
                            (value_t){.derive = usage}, &m);
     }
@@ -689,6 +692,9 @@ static void commit_cpu_utilization(usage_t *u, size_t cpu_num) {
   } else {
     for (state_t state = 0; state < STATE_ACTIVE; state++) {
       gauge_t ratio = usage_ratio(u, cpu_num, state);
+      if (isnan(ratio)) {
+        continue;
+      }
       metric_family_append(&fam, label_state, cpu_state_names[state],
                            (value_t){.gauge = ratio}, &m);
     }
