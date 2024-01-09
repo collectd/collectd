@@ -142,6 +142,7 @@ typedef struct {
 typedef struct {
   cdtime_t time;
   cdtime_t interval;
+  size_t cpu_num;
   bool finalized;
 
   usage_state_t *states;
@@ -361,6 +362,7 @@ static int usage_init(usage_t *u, cdtime_t now) {
     u->interval = now - u->time;
   }
   u->time = now;
+  u->cpu_num = 0;
   u->finalized = false;
   for (size_t i = 0; i < u->states_num; i++) {
     u->states[i].rate = 0;
@@ -400,6 +402,10 @@ static int usage_record(usage_t *u, size_t cpu, state_t state, derive_t count) {
   int status = usage_resize(u, cpu);
   if (status != 0) {
     return status;
+  }
+
+  if (u->cpu_num < (cpu + 1)) {
+    u->cpu_num = cpu + 1;
   }
 
   size_t index = (cpu * STATE_MAX) + state;
