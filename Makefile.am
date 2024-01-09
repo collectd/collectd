@@ -939,7 +939,12 @@ endif
 
 check_PROGRAMS += test_plugin_cpu
 test_plugin_cpu_SOURCES = src/cpu_test.c
+test_plugin_cpu_CFLAGS = $(AM_CFLAGS)
 test_plugin_cpu_LDADD = libplugin_mock.la
+if BUILD_WITH_LIBSTATGRAB
+test_plugin_cpu_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
+test_plugin_cpu_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+endif
 endif
 
 if BUILD_PLUGIN_CPUFREQ
