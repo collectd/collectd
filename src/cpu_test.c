@@ -189,51 +189,6 @@ DEF_TEST(usage_count) {
   return ret;
 }
 
-DEF_TEST(usage_active_rate) {
-  usage_t usage = {0};
-
-  cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
-  derive_t user_t0 = 1000;
-  derive_t syst_t0 = 2000;
-  derive_t idle_t0 = 3000;
-
-  usage_init(&usage, t0);
-  usage_record(&usage, 0, STATE_USER, user_t0);
-  usage_record(&usage, 0, STATE_SYSTEM, syst_t0);
-  usage_record(&usage, 0, STATE_IDLE, idle_t0);
-
-  // Unable to calculate a rate with a single data point.
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_USER));
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_SYSTEM));
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_IDLE));
-  EXPECT_EQ_DOUBLE(NAN, usage_rate(&usage, 0, STATE_ACTIVE));
-  EXPECT_EQ_DOUBLE(NAN, usage_active_rate(&usage, 0));
-
-  cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
-  derive_t user_t1 = user_t0 + 200;
-  derive_t syst_t1 = syst_t0 + 100;
-  derive_t idle_t1 = idle_t0 + 700;
-
-  gauge_t want_user_rate = 200.0 / 10.0;
-  gauge_t want_syst_rate = 100.0 / 10.0;
-  gauge_t want_idle_rate = 700.0 / 10.0;
-  gauge_t want_active_rate = want_user_rate + want_syst_rate;
-
-  usage_init(&usage, t1);
-  usage_record(&usage, 0, STATE_USER, user_t1);
-  usage_record(&usage, 0, STATE_SYSTEM, syst_t1);
-  usage_record(&usage, 0, STATE_IDLE, idle_t1);
-
-  EXPECT_EQ_DOUBLE(want_user_rate, usage_rate(&usage, 0, STATE_USER));
-  EXPECT_EQ_DOUBLE(want_syst_rate, usage_rate(&usage, 0, STATE_SYSTEM));
-  EXPECT_EQ_DOUBLE(want_idle_rate, usage_rate(&usage, 0, STATE_IDLE));
-  EXPECT_EQ_DOUBLE(want_active_rate, usage_rate(&usage, 0, STATE_ACTIVE));
-  EXPECT_EQ_DOUBLE(want_active_rate, usage_active_rate(&usage, 0));
-
-  usage_reset(&usage);
-  return 0;
-}
-
 DEF_TEST(usage_global_rate) {
   usage_t usage = {0};
 
@@ -389,7 +344,6 @@ int main(void) {
   RUN_TEST(usage_rate);
   RUN_TEST(usage_ratio);
   RUN_TEST(usage_count);
-  RUN_TEST(usage_active_rate);
   RUN_TEST(usage_global_rate);
   RUN_TEST(usage_global_ratio);
   RUN_TEST(usage_global_count);

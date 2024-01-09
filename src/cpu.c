@@ -105,6 +105,8 @@
 #error "No applicable input method."
 #endif
 
+#define CPU_ALL SIZE_MAX
+
 typedef enum {
   STATE_USER,
   STATE_SYSTEM,
@@ -147,6 +149,8 @@ typedef struct {
 
   usage_state_t global[STATE_MAX];
 } usage_t;
+
+static usage_t usage = {0};
 
 static char const *const label_state = "system.cpu.state";
 static char const *const label_number = "system.cpu.logical_number";
@@ -209,16 +213,6 @@ static int pnumcpu;
     else if (!isnan(val))                                                      \
       (sum) += (val);                                                          \
   } while (0)
-
-struct cpu_state_s {
-  value_to_rate_state_t conv;
-  gauge_t rate;
-  bool has_value;
-};
-typedef struct cpu_state_s cpu_state_t;
-
-static cpu_state_t *cpu_states;
-static size_t cpu_states_num; /* #cpu_states allocated */
 
 /* Highest CPU number in the current iteration. Used by the dispatch logic to
  * determine how many CPUs there were. Reset to 0 by cpu_reset(). */
@@ -358,7 +352,7 @@ static int init(void) {
   return 0;
 } /* int init */
 
-__attribute__((unused)) static int usage_init(usage_t *u, cdtime_t now) {
+static int usage_init(usage_t *u, cdtime_t now) {
   if (u == NULL || now == 0) {
     return EINVAL;
   }
@@ -398,8 +392,7 @@ static int usage_resize(usage_t *u, size_t cpu) {
   return 0;
 }
 
-__attribute__((unused)) static int usage_record(usage_t *u, size_t cpu,
-                                                state_t state, derive_t count) {
+static int usage_record(usage_t *u, size_t cpu, state_t state, derive_t count) {
   if (u == NULL || state >= STATE_ACTIVE) {
     return EINVAL;
   }
@@ -522,8 +515,26 @@ static void usage_finalize(usage_t *u) {
   u->finalized = true;
 }
 
+static void usage_reset(usage_t *u) {
+  if (u == NULL) {
+    return;
+  }
+  free(u->states);
+  memset(u, 0, sizeof(*u));
+}
+
+static gauge_t usage_global_rate(usage_t *u, state_t state) {
+  usage_finalize(u);
+
+  return u->global[state].has_value ? u->global[state].rate : NAN;
+}
+
 static gauge_t usage_rate(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
+
+  if (cpu == CPU_ALL) {
+    return usage_global_rate(u, state);
+  }
 
   size_t index = (cpu * STATE_MAX) + state;
   if (index >= u->states_num) {
@@ -534,42 +545,38 @@ static gauge_t usage_rate(usage_t *u, size_t cpu, state_t state) {
   return us.has_value ? us.rate : NAN;
 }
 
-__attribute__((unused)) static gauge_t usage_active_rate(usage_t *u,
-                                                         size_t cpu) {
-  return usage_rate(u, cpu, STATE_ACTIVE);
-}
-
-static gauge_t usage_global_rate(usage_t *u, state_t state) {
+static gauge_t usage_global_ratio(usage_t *u, state_t state) {
   usage_finalize(u);
 
-  return u->global[state].has_value ? u->global[state].rate : NAN;
-}
-
-__attribute__((unused)) static void usage_reset(usage_t *u) {
-  if (u == NULL) {
-    return;
-  }
-  free(u->states);
-  memset(u, 0, sizeof(*u));
-}
-
-__attribute__((unused)) static gauge_t usage_ratio(usage_t *u, size_t cpu,
-                                                   state_t state) {
-  gauge_t global_rate =
-      usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
-  return usage_rate(u, cpu, state) / global_rate;
-}
-
-__attribute__((unused)) static gauge_t usage_global_ratio(usage_t *u,
-                                                          state_t state) {
   gauge_t global_rate =
       usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
   return usage_global_rate(u, state) / global_rate;
 }
 
-__attribute__((unused)) static derive_t usage_count(usage_t *u, size_t cpu,
-                                                    state_t state) {
+static gauge_t usage_ratio(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
+
+  if (cpu == CPU_ALL) {
+    return usage_global_ratio(u, state);
+  }
+
+  gauge_t global_rate =
+      usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
+  return usage_rate(u, cpu, state) / global_rate;
+}
+
+static derive_t usage_global_count(usage_t *u, state_t state) {
+  usage_finalize(u);
+
+  return u->global[state].count;
+}
+
+static derive_t usage_count(usage_t *u, size_t cpu, state_t state) {
+  usage_finalize(u);
+
+  if (cpu == CPU_ALL) {
+    return usage_global_count(u, state);
+  }
 
   size_t index = (cpu * STATE_MAX) + state;
   if (index >= u->states_num) {
@@ -579,168 +586,6 @@ __attribute__((unused)) static derive_t usage_count(usage_t *u, size_t cpu,
 
   return us->count;
 }
-
-__attribute__((unused)) static derive_t usage_global_count(usage_t *u,
-                                                           state_t state) {
-  usage_finalize(u);
-
-  return u->global[state].count;
-}
-
-/* Takes the zero-index number of a CPU and makes sure that the module-global
- * cpu_states buffer is large enough. Returne ENOMEM on erorr. */
-static int cpu_states_alloc(size_t cpu_num) /* {{{ */
-{
-  cpu_state_t *tmp;
-  size_t sz;
-
-  sz = (((size_t)cpu_num) + 1) * STATE_MAX;
-  assert(sz > 0);
-
-  /* We already have enough space. */
-  if (cpu_states_num >= sz)
-    return 0;
-
-  tmp = realloc(cpu_states, sz * sizeof(*cpu_states));
-  if (tmp == NULL) {
-    ERROR("cpu plugin: realloc failed.");
-    return ENOMEM;
-  }
-  cpu_states = tmp;
-  tmp = cpu_states + cpu_states_num;
-
-  memset(tmp, 0, (sz - cpu_states_num) * sizeof(*cpu_states));
-  cpu_states_num = sz;
-  return 0;
-} /* }}} cpu_states_alloc */
-
-static cpu_state_t *get_cpu_state(size_t cpu_num, state_t state) /* {{{ */
-{
-  size_t index = ((cpu_num * STATE_MAX) + state);
-
-  if (index >= cpu_states_num)
-    return NULL;
-
-  return &cpu_states[index];
-} /* }}} cpu_state_t *get_cpu_state */
-
-#if defined(HAVE_PERFSTAT) /* {{{ */
-/* populate global aggregate cpu rate */
-static int total_rate(gauge_t *sum_by_state, state_t state, derive_t d,
-                      value_to_rate_state_t *conv, cdtime_t now) {
-  gauge_t rate = NAN;
-  int status =
-      value_to_rate(&rate, (value_t){.derive = d}, DS_TYPE_DERIVE, now, conv);
-  if (status != 0)
-    return status;
-
-  sum_by_state[state] = rate;
-
-  if (state != STATE_IDLE)
-    RATE_ADD(sum_by_state[STATE_ACTIVE], sum_by_state[state]);
-  return 0;
-}
-#endif /* }}} HAVE_PERFSTAT */
-
-/* Populates the per-CPU STATE_ACTIVE rate and the global
- * rate_by_state
- * array. */
-static void aggregate(gauge_t *sum_by_state) /* {{{ */
-{
-  for (state_t state = 0; state < STATE_MAX; state++)
-    sum_by_state[state] = NAN;
-
-  for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
-    cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
-
-    this_cpu_states[STATE_ACTIVE].rate = NAN;
-
-    for (size_t state = 0; state < STATE_ACTIVE; state++) {
-      if (!this_cpu_states[state].has_value)
-        continue;
-
-      RATE_ADD(sum_by_state[state], this_cpu_states[state].rate);
-      if (state != STATE_IDLE)
-        RATE_ADD(this_cpu_states[STATE_ACTIVE].rate,
-                 this_cpu_states[state].rate);
-    }
-
-    if (!isnan(this_cpu_states[STATE_ACTIVE].rate))
-      this_cpu_states[STATE_ACTIVE].has_value = true;
-
-    RATE_ADD(sum_by_state[STATE_ACTIVE], this_cpu_states[STATE_ACTIVE].rate);
-  }
-
-#if defined(HAVE_PERFSTAT) /* {{{ */
-  cdtime_t now = cdtime();
-  perfstat_cpu_total_t cputotal = {0};
-
-  if (!perfstat_cpu_total(NULL, &cputotal, sizeof(cputotal), 1)) {
-    WARNING("cpu plugin: perfstat_cpu_total: %s", STRERRNO);
-    return;
-  }
-
-  /* Reset STATE_ACTIVE */
-  sum_by_state[STATE_ACTIVE] = NAN;
-
-  /* Physical Processor Utilization */
-  total_rate(sum_by_state, STATE_IDLE, (derive_t)cputotal.pidle,
-             &total_conv[TOTAL_IDLE], now);
-  total_rate(sum_by_state, STATE_USER, (derive_t)cputotal.puser,
-             &total_conv[TOTAL_USER], now);
-  total_rate(sum_by_state, STATE_SYSTEM, (derive_t)cputotal.psys,
-             &total_conv[TOTAL_SYS], now);
-  total_rate(sum_by_state, STATE_WAIT, (derive_t)cputotal.pwait,
-             &total_conv[TOTAL_WAIT], now);
-#endif /* }}} HAVE_PERFSTAT */
-} /* }}} void aggregate */
-
-/* Commits (dispatches) the values for one CPU or the global aggregation.
- * cpu_num is the index of the CPU to be committed or -1 in case of the global
- * aggregation. rates is a pointer to STATE_MAX gauge_t values
- * holding the
- * current rate; each rate may be NAN. Calculates the percentage of each state
- * and dispatches the metric. */
-static void cpu_commit_one(int cpu_num, /* {{{ */
-                           gauge_t rates[static STATE_MAX],
-                           gauge_t global_rate_sum) {
-  metric_family_t fam = {
-      .name = "system.cpu.utilization",
-      .help = "Difference in system.cpu.time since the last measurement, "
-              "divided by the elapsed time and number of logical CPUs",
-      .unit = "1",
-      .type = METRIC_TYPE_GAUGE,
-  };
-
-  metric_t m = {0};
-  if (cpu_num != -1) {
-    char cpu_num_str[32];
-    ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%d", cpu_num);
-    metric_label_set(&m, label_number, cpu_num_str);
-  }
-
-  if (!report_by_state) {
-    metric_family_append(
-        &fam, label_state, cpu_state_names[STATE_ACTIVE],
-        (value_t){.gauge = rates[STATE_ACTIVE] / global_rate_sum}, &m);
-  } else {
-    for (size_t state = 0; state < STATE_ACTIVE; state++) {
-      metric_family_append(&fam, label_state, cpu_state_names[state],
-                           (value_t){.gauge = rates[state] / global_rate_sum},
-                           &m);
-    }
-  }
-
-  int status = plugin_dispatch_metric_family(&fam);
-  if (status != 0) {
-    ERROR("cpu plugin: plugin_dispatch_metric_family failed: %s",
-          STRERROR(status));
-  }
-
-  metric_reset(&m);
-  metric_family_metric_reset(&fam);
-  return;
-} /* }}} void cpu_commit_one */
 
 /* Commits the number of cores */
 static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
@@ -765,130 +610,128 @@ static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
   return;
 } /* }}} void cpu_commit_num_cpu */
 
-/* Resets the internal aggregation. This is called by the read callback after
- * each iteration / after each call to cpu_commit(). */
-static void cpu_reset(void) /* {{{ */
-{
-  for (size_t i = 0; i < cpu_states_num; i++)
-    cpu_states[i].has_value = false;
-
-  global_cpu_num = 0;
-} /* }}} void cpu_reset */
-
-/* Legacy behavior: Dispatches the raw derive values without any aggregation. */
-static void cpu_commit_usage(void) /* {{{ */
-{
+static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
   metric_family_t fam = {
       .name = "system.cpu.time",
-      .help = "Seconds each logical CPU spent on each mode",
-      .unit = "s",
+      .help = "Microseconds each logical CPU spent in each state",
+      .unit = "us",
       .type = METRIC_TYPE_COUNTER,
   };
 
   metric_t m = {0};
+  if (cpu_num != CPU_ALL) {
+    char cpu_num_str[64];
+    ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
+    metric_label_set(&m, label_number, cpu_num_str);
+  }
 
-  for (state_t state = 0; state < STATE_ACTIVE; state++) {
-    metric_label_set(&m, label_state, cpu_state_names[state]);
+  if (report_by_state) {
+    for (state_t state = 0; state < STATE_ACTIVE; state++) {
+      derive_t usage = usage_count(u, cpu_num, state);
+      metric_family_append(&fam, label_state, cpu_state_names[state],
+                           (value_t){.derive = usage}, &m);
+    }
+  } else {
+    derive_t usage = usage_count(u, cpu_num, STATE_ACTIVE);
+    metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
+                         (value_t){.derive = usage}, &m);
+  }
 
-    for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
-      cpu_state_t *s = get_cpu_state(cpu_num, state);
-      if (!s->has_value)
-        continue;
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("cpu plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+  }
 
-      char cpu_num_str[32] = {0};
-      ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
+  metric_reset(&m);
+  metric_family_metric_reset(&fam);
+}
 
-      metric_family_append(&fam, label_number, cpu_num_str,
-                           (value_t){.derive = s->conv.last_value.derive}, &m);
+static void commit_usage(usage_t *u) {
+  if (!report_by_cpu) {
+    commit_cpu_usage(u, CPU_ALL);
+    return;
+  }
+
+  for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
+    commit_cpu_usage(u, cpu_num);
+  }
+}
+
+/* Commits (dispatches) the values for one CPU or the global aggregation.
+ * cpu_num is the index of the CPU to be committed or -1 in case of the global
+ * aggregation. rates is a pointer to STATE_MAX gauge_t values
+ * holding the
+ * current rate; each rate may be NAN. Calculates the percentage of each state
+ * and dispatches the metric. */
+static void commit_cpu_utilization(usage_t *u, size_t cpu_num) {
+  metric_family_t fam = {
+      .name = "system.cpu.utilization",
+      .help = "Difference in system.cpu.time since the last measurement, "
+              "divided by the elapsed time and number of logical CPUs",
+      .unit = "1",
+      .type = METRIC_TYPE_GAUGE,
+  };
+
+  metric_t m = {0};
+  if (cpu_num != CPU_ALL) {
+    char cpu_num_str[64];
+    ssnprintf(cpu_num_str, sizeof(cpu_num_str), "%zu", cpu_num);
+    metric_label_set(&m, label_number, cpu_num_str);
+  }
+
+  if (!report_by_state) {
+    gauge_t ratio = usage_ratio(u, cpu_num, STATE_ACTIVE);
+    metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
+                         (value_t){.gauge = ratio}, &m);
+  } else {
+    for (state_t state = 0; state < STATE_ACTIVE; state++) {
+      gauge_t ratio = usage_ratio(u, cpu_num, state);
+      metric_family_append(&fam, label_state, cpu_state_names[state],
+                           (value_t){.gauge = ratio}, &m);
     }
   }
 
   int status = plugin_dispatch_metric_family(&fam);
   if (status != 0) {
-    ERROR("plugin_dispatch_metric_family failed: %s", STRERROR(status));
+    ERROR("cpu plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
   }
 
   metric_reset(&m);
   metric_family_metric_reset(&fam);
-} /* }}} void cpu_commit_usage */
+}
 
-static void cpu_commit_utilization(void) {
-  gauge_t global_rates[STATE_MAX] = {
-      NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
-  };
-  aggregate(global_rates);
-
-  gauge_t global_rate_sum = global_rates[STATE_ACTIVE];
-  RATE_ADD(global_rate_sum, global_rates[STATE_IDLE]);
-
+static void commit_utilization(usage_t *u) {
   if (!report_by_cpu) {
-    cpu_commit_one(-1, global_rates, global_rate_sum);
+    commit_cpu_utilization(u, CPU_ALL);
     return;
   }
 
   for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
-    cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
-    gauge_t local_rates[STATE_MAX] = {NAN, NAN, NAN, NAN, NAN, NAN,
-                                      NAN, NAN, NAN, NAN, NAN, NAN};
-
-    for (state_t state = 0; state < STATE_MAX; state++)
-      if (this_cpu_states[state].has_value)
-        local_rates[state] = this_cpu_states[state].rate;
-
-    cpu_commit_one((int)cpu_num, local_rates, global_rate_sum);
+    commit_cpu_utilization(u, cpu_num);
   }
 }
 
 /* Aggregates the internal state and dispatches the metrics. */
-static void cpu_commit(void) /* {{{ */
+static void cpu_commit(usage_t *u) /* {{{ */
 {
   if (report_num_cpu) {
     cpu_commit_num_cpu((gauge_t)global_cpu_num);
   }
 
   if (report_usage) {
-    cpu_commit_usage();
+    commit_usage(u);
   }
 
   if (report_utilization) {
-    cpu_commit_utilization();
+    commit_utilization(u);
   }
 } /* }}} void cpu_commit */
 
-/* Adds a derive value to the internal state. This should be used by each read
- * function for each state. At the end of the iteration, the read function
- * should call cpu_commit(). */
-static int cpu_stage(size_t cpu_num, state_t state, derive_t d,
-                     cdtime_t now) /* {{{ */
-{
-  int status;
-  cpu_state_t *s;
-  gauge_t rate = NAN;
-  value_t val = {.derive = d};
-
-  if (state >= STATE_ACTIVE)
-    return EINVAL;
-
-  status = cpu_states_alloc(cpu_num);
-  if (status != 0)
-    return status;
-
-  if (global_cpu_num <= cpu_num)
-    global_cpu_num = cpu_num + 1;
-
-  s = get_cpu_state(cpu_num, state);
-
-  status = value_to_rate(&rate, val, DS_TYPE_DERIVE, now, &s->conv);
-  if (status != 0)
-    return status;
-
-  s->rate = rate;
-  s->has_value = true;
-  return 0;
-} /* }}} int cpu_stage */
-
 static int cpu_read(void) {
   cdtime_t now = cdtime();
+  usage_init(&usage, now);
 
 #if PROCESSOR_CPU_LOAD_INFO /* {{{ */
   kern_return_t status;
@@ -916,19 +759,18 @@ static int cpu_read(void) {
       continue;
     }
 
-    cpu_stage(cpu, STATE_USER, (derive_t)cpu_info.cpu_ticks[CPU_STATE_USER],
-              now);
-    cpu_stage(cpu, STATE_NICE, (derive_t)cpu_info.cpu_ticks[CPU_STATE_NICE],
-              now);
-    cpu_stage(cpu, STATE_SYSTEM, (derive_t)cpu_info.cpu_ticks[CPU_STATE_SYSTEM],
-              now);
-    cpu_stage(cpu, STATE_IDLE, (derive_t)cpu_info.cpu_ticks[CPU_STATE_IDLE],
-              now);
+    usage_record(&usage, (size_t)cpu, STATE_USER,
+                 (derive_t)cpu_info.cpu_ticks[CPU_STATE_USER]);
+    usage_record(&usage, (size_t)cpu, STATE_NICE,
+                 (derive_t)cpu_info.cpu_ticks[CPU_STATE_NICE]);
+    usage_record(&usage, (size_t)cpu, STATE_SYSTEM,
+                 (derive_t)cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
+    usage_record(&usage, (size_t)cpu, STATE_IDLE,
+                 (derive_t)cpu_info.cpu_ticks[CPU_STATE_IDLE]);
   }
   /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX) /* {{{ */
-  int cpu;
   FILE *fh;
   char buf[1024];
 
@@ -950,29 +792,29 @@ static int cpu_read(void) {
     if (numfields < 5)
       continue;
 
-    cpu = atoi(fields[0] + 3);
+    size_t cpu = (size_t)strtoul(fields[0] + 3, NULL, 10);
 
     /* Do not stage User and Nice immediately: we may need to alter them later:
      */
     long long user_value = atoll(fields[1]);
     long long nice_value = atoll(fields[2]);
-    cpu_stage(cpu, STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
-    cpu_stage(cpu, STATE_IDLE, (derive_t)atoll(fields[4]), now);
+    usage_record(&usage, cpu, STATE_SYSTEM, (derive_t)atoll(fields[3]));
+    usage_record(&usage, cpu, STATE_IDLE, (derive_t)atoll(fields[4]));
 
     if (numfields >= 8) {
-      cpu_stage(cpu, STATE_WAIT, (derive_t)atoll(fields[5]), now);
-      cpu_stage(cpu, STATE_INTERRUPT, (derive_t)atoll(fields[6]), now);
-      cpu_stage(cpu, STATE_SOFTIRQ, (derive_t)atoll(fields[7]), now);
+      usage_record(&usage, cpu, STATE_WAIT, (derive_t)atoll(fields[5]));
+      usage_record(&usage, cpu, STATE_INTERRUPT, (derive_t)atoll(fields[6]));
+      usage_record(&usage, cpu, STATE_SOFTIRQ, (derive_t)atoll(fields[7]));
     }
 
     if (numfields >= 9) { /* Steal (since Linux 2.6.11) */
-      cpu_stage(cpu, STATE_STEAL, (derive_t)atoll(fields[8]), now);
+      usage_record(&usage, cpu, STATE_STEAL, (derive_t)atoll(fields[8]));
     }
 
     if (numfields >= 10) { /* Guest (since Linux 2.6.24) */
       if (report_guest) {
         long long value = atoll(fields[9]);
-        cpu_stage(cpu, STATE_GUEST, (derive_t)value, now);
+        usage_record(&usage, cpu, STATE_GUEST, (derive_t)value);
         /* Guest is included in User; optionally subtract Guest from User: */
         if (subtract_guest) {
           user_value -= value;
@@ -985,7 +827,7 @@ static int cpu_read(void) {
     if (numfields >= 11) { /* Guest_nice (since Linux 2.6.33) */
       if (report_guest) {
         long long value = atoll(fields[10]);
-        cpu_stage(cpu, STATE_GUEST_NICE, (derive_t)value, now);
+        usage_record(&usage, cpu, STATE_GUEST_NICE, (derive_t)value);
         /* Guest_nice is included in Nice; optionally subtract Guest_nice from
            Nice: */
         if (subtract_guest) {
@@ -997,8 +839,8 @@ static int cpu_read(void) {
     }
 
     /* Eventually stage User and Nice: */
-    cpu_stage(cpu, STATE_USER, (derive_t)user_value, now);
-    cpu_stage(cpu, STATE_NICE, (derive_t)nice_value, now);
+    usage_record(&usage, cpu, STATE_USER, (derive_t)user_value);
+    usage_record(&usage, cpu, STATE_NICE, (derive_t)nice_value);
   }
   fclose(fh);
   /* }}} #endif defined(KERNEL_LINUX) */
@@ -1013,14 +855,14 @@ static int cpu_read(void) {
     if (kstat_read(kc, ksp[cpu], &cs) == -1)
       continue; /* error message? */
 
-    cpu_stage(ksp[cpu]->ks_instance, STATE_IDLE,
-              (derive_t)cs.cpu_sysinfo.cpu[CPU_IDLE], now);
-    cpu_stage(ksp[cpu]->ks_instance, STATE_USER,
-              (derive_t)cs.cpu_sysinfo.cpu[CPU_USER], now);
-    cpu_stage(ksp[cpu]->ks_instance, STATE_SYSTEM,
-              (derive_t)cs.cpu_sysinfo.cpu[CPU_KERNEL], now);
-    cpu_stage(ksp[cpu]->ks_instance, STATE_WAIT,
-              (derive_t)cs.cpu_sysinfo.cpu[CPU_WAIT], now);
+    usage_record(&usage, ksp[cpu]->ks_instance, STATE_IDLE,
+                 (derive_t)cs.cpu_sysinfo.cpu[CPU_IDLE]);
+    usage_record(&usage, ksp[cpu]->ks_instance, STATE_USER,
+                 (derive_t)cs.cpu_sysinfo.cpu[CPU_USER]);
+    usage_record(&usage, ksp[cpu]->ks_instance, STATE_SYSTEM,
+                 (derive_t)cs.cpu_sysinfo.cpu[CPU_KERNEL]);
+    usage_record(&usage, ksp[cpu]->ks_instance, STATE_WAIT,
+                 (derive_t)cs.cpu_sysinfo.cpu[CPU_WAIT]);
   }
   /* }}} #endif defined(HAVE_LIBKSTAT) */
 
@@ -1092,11 +934,11 @@ static int cpu_read(void) {
 #endif /* defined(KERN_CP_TIME) && defined(KERNEL_NETBSD) */
 
   for (int i = 0; i < numcpu; i++) {
-    cpu_stage(i, STATE_USER, (derive_t)cpuinfo[i][CP_USER], now);
-    cpu_stage(i, STATE_NICE, (derive_t)cpuinfo[i][CP_NICE], now);
-    cpu_stage(i, STATE_SYSTEM, (derive_t)cpuinfo[i][CP_SYS], now);
-    cpu_stage(i, STATE_IDLE, (derive_t)cpuinfo[i][CP_IDLE], now);
-    cpu_stage(i, STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR], now);
+    usage_record(&usage, i, STATE_USER, (derive_t)cpuinfo[i][CP_USER]);
+    usage_record(&usage, i, STATE_NICE, (derive_t)cpuinfo[i][CP_NICE]);
+    usage_record(&usage, i, STATE_SYSTEM, (derive_t)cpuinfo[i][CP_SYS]);
+    usage_record(&usage, i, STATE_IDLE, (derive_t)cpuinfo[i][CP_IDLE]);
+    usage_record(&usage, i, STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR]);
   }
   /* }}} #endif CAN_USE_SYSCTL */
 
@@ -1115,11 +957,11 @@ static int cpu_read(void) {
   }
 
   for (int i = 0; i < numcpu; i++) {
-    cpu_stage(i, STATE_USER, (derive_t)cpuinfo[i][CP_USER], now);
-    cpu_stage(i, STATE_NICE, (derive_t)cpuinfo[i][CP_NICE], now);
-    cpu_stage(i, STATE_SYSTEM, (derive_t)cpuinfo[i][CP_SYS], now);
-    cpu_stage(i, STATE_IDLE, (derive_t)cpuinfo[i][CP_IDLE], now);
-    cpu_stage(i, STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR], now);
+    usage_record(&usage, i, STATE_USER, (derive_t)cpuinfo[i][CP_USER]);
+    usage_record(&usage, i, STATE_NICE, (derive_t)cpuinfo[i][CP_NICE]);
+    usage_record(&usage, i, STATE_SYSTEM, (derive_t)cpuinfo[i][CP_SYS]);
+    usage_record(&usage, i, STATE_IDLE, (derive_t)cpuinfo[i][CP_IDLE]);
+    usage_record(&usage, i, STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR]);
   }
   /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
@@ -1135,11 +977,11 @@ static int cpu_read(void) {
     return -1;
   }
 
-  cpu_stage(0, STATE_USER, (derive_t)cpuinfo[CP_USER], now);
-  cpu_stage(0, STATE_NICE, (derive_t)cpuinfo[CP_NICE], now);
-  cpu_stage(0, STATE_SYSTEM, (derive_t)cpuinfo[CP_SYS], now);
-  cpu_stage(0, STATE_IDLE, (derive_t)cpuinfo[CP_IDLE], now);
-  cpu_stage(0, STATE_INTERRUPT, (derive_t)cpuinfo[CP_INTR], now);
+  usage_record(&usage, 0, STATE_USER, (derive_t)cpuinfo[CP_USER]);
+  usage_record(&usage, 0, STATE_NICE, (derive_t)cpuinfo[CP_NICE]);
+  usage_record(&usage, 0, STATE_SYSTEM, (derive_t)cpuinfo[CP_SYS]);
+  usage_record(&usage, 0, STATE_IDLE, (derive_t)cpuinfo[CP_IDLE]);
+  usage_record(&usage, 0, STATE_INTERRUPT, (derive_t)cpuinfo[CP_INTR]);
   /* }}} #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB) /* {{{ */
@@ -1151,12 +993,12 @@ static int cpu_read(void) {
     return -1;
   }
 
-  cpu_state(0, STATE_IDLE, (derive_t)cs->idle);
-  cpu_state(0, STATE_NICE, (derive_t)cs->nice);
-  cpu_state(0, STATE_SWAP, (derive_t)cs->swap);
-  cpu_state(0, STATE_SYSTEM, (derive_t)cs->kernel);
-  cpu_state(0, STATE_USER, (derive_t)cs->user);
-  cpu_state(0, STATE_WAIT, (derive_t)cs->iowait);
+  usage_record(&usage, 0, STATE_IDLE, (derive_t)cs->idle);
+  usage_record(&usage, 0, STATE_NICE, (derive_t)cs->nice);
+  usage_record(&usage, 0, STATE_SWAP, (derive_t)cs->swap);
+  usage_record(&usage, 0, STATE_SYSTEM, (derive_t)cs->kernel);
+  usage_record(&usage, 0, STATE_USER, (derive_t)cs->user);
+  usage_record(&usage, 0, STATE_WAIT, (derive_t)cs->iowait);
   /* }}} #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT) /* {{{ */
@@ -1182,15 +1024,19 @@ static int cpu_read(void) {
   }
 
   for (int i = 0; i < cpus; i++) {
-    cpu_stage(i, STATE_IDLE, (derive_t)perfcpu[i].idle, now);
-    cpu_stage(i, STATE_SYSTEM, (derive_t)perfcpu[i].sys, now);
-    cpu_stage(i, STATE_USER, (derive_t)perfcpu[i].user, now);
-    cpu_stage(i, STATE_WAIT, (derive_t)perfcpu[i].wait, now);
+    usage_record(&usage, i, STATE_IDLE, (derive_t)perfcpu[i].idle);
+    usage_record(&usage, i, STATE_SYSTEM, (derive_t)perfcpu[i].sys);
+    usage_record(&usage, i, STATE_USER, (derive_t)perfcpu[i].user);
+    usage_record(&usage, i, STATE_WAIT, (derive_t)perfcpu[i].wait);
   }
 #endif                       /* }}} HAVE_PERFSTAT */
 
-  cpu_commit();
-  cpu_reset();
+  cpu_commit(&usage);
+  return 0;
+}
+
+static int cpu_shutdown(void) {
+  usage_reset(&usage);
   return 0;
 }
 
@@ -1198,4 +1044,5 @@ void module_register(void) {
   plugin_register_init("cpu", init);
   plugin_register_config("cpu", cpu_config, config_keys, config_keys_num);
   plugin_register_read("cpu", cpu_read);
+  plugin_register_shutdown("cpu", cpu_shutdown);
 } /* void module_register */
