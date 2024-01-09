@@ -215,10 +215,6 @@ static int pnumcpu;
       (sum) += (val);                                                          \
   } while (0)
 
-/* Highest CPU number in the current iteration. Used by the dispatch logic to
- * determine how many CPUs there were. Reset to 0 by cpu_reset(). */
-static size_t global_cpu_num;
-
 static bool report_by_cpu = true;
 static bool report_by_state = true;
 static bool report_usage = true;
@@ -659,8 +655,8 @@ static void commit_usage(usage_t *u) {
     return;
   }
 
-  for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
-    commit_cpu_usage(u, cpu_num);
+  for (size_t cpu = 0; cpu < u->cpu_num; cpu++) {
+    commit_cpu_usage(u, cpu);
   }
 }
 
@@ -714,8 +710,8 @@ static void commit_utilization(usage_t *u) {
     return;
   }
 
-  for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
-    commit_cpu_utilization(u, cpu_num);
+  for (size_t cpu = 0; cpu < u->cpu_num; cpu++) {
+    commit_cpu_utilization(u, cpu);
   }
 }
 
@@ -723,7 +719,7 @@ static void commit_utilization(usage_t *u) {
 static void cpu_commit(usage_t *u) /* {{{ */
 {
   if (report_num_cpu) {
-    cpu_commit_num_cpu((gauge_t)global_cpu_num);
+    cpu_commit_num_cpu((gauge_t)u->cpu_num);
   }
 
   if (report_usage) {
