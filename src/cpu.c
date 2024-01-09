@@ -90,6 +90,21 @@
 #define CAN_USE_SYSCTL 0
 #endif /* HAVE_SYSCTL_H && HAVE_SYSCTLBYNAME || __OpenBSD__ */
 
+#if HAVE_STATGRAB_H
+#include <statgrab.h>
+#endif
+
+#ifdef HAVE_PERFSTAT
+#include <libperfstat.h>
+#include <sys/protosw.h>
+#endif /* HAVE_PERFSTAT */
+
+#if !PROCESSOR_CPU_LOAD_INFO && !KERNEL_LINUX && !HAVE_LIBKSTAT &&             \
+    !CAN_USE_SYSCTL && !HAVE_SYSCTLBYNAME && !HAVE_LIBSTATGRAB &&              \
+    !HAVE_PERFSTAT
+#error "No applicable input method."
+#endif
+
 typedef enum {
   STATE_USER,
   STATE_SYSTEM,
@@ -106,24 +121,32 @@ typedef enum {
   STATE_MAX,    /* #states */
 } state_t;
 
-#if HAVE_STATGRAB_H
-#include <statgrab.h>
-#endif
-
-#ifdef HAVE_PERFSTAT
-#include <libperfstat.h>
-#include <sys/protosw.h>
-#endif /* HAVE_PERFSTAT */
-
-#if !PROCESSOR_CPU_LOAD_INFO && !KERNEL_LINUX && !HAVE_LIBKSTAT &&             \
-    !CAN_USE_SYSCTL && !HAVE_SYSCTLBYNAME && !HAVE_LIBSTATGRAB &&              \
-    !HAVE_PERFSTAT
-#error "No applicable input method."
-#endif
-
 static const char *cpu_state_names[STATE_MAX] = {
     "user",    "system", "wait",  "nice",       "swap", "interrupt",
     "softirq", "steal",  "guest", "guest_nice", "idle", "active"};
+
+typedef struct {
+  gauge_t rate;
+  bool has_value;
+  value_to_rate_state_t conv;
+
+  /* count is a scaled counter, so that all states in sum increase by 1000000
+   * per second. */
+  derive_t count;
+  bool has_count;
+  rate_to_value_state_t to_count;
+} usage_state_t;
+
+typedef struct {
+  cdtime_t time;
+  cdtime_t interval;
+  bool finalized;
+
+  usage_state_t *states;
+  size_t states_num;
+
+  usage_state_t global[STATE_MAX];
+} usage_t;
 
 static char const *const label_state = "system.cpu.state";
 static char const *const label_number = "system.cpu.logical_number";
@@ -334,29 +357,6 @@ static int init(void) {
 
   return 0;
 } /* int init */
-
-typedef struct {
-  gauge_t rate;
-  bool has_value;
-  value_to_rate_state_t conv;
-
-  /* count is a scaled counter, so that all states in sum increase by 1000000
-   * per second. */
-  derive_t count;
-  bool has_count;
-  rate_to_value_state_t to_count;
-} usage_state_t;
-
-typedef struct {
-  cdtime_t time;
-  cdtime_t interval;
-  bool finalized;
-
-  usage_state_t *states;
-  size_t states_num;
-
-  usage_state_t global[STATE_MAX];
-} usage_t;
 
 __attribute__((unused)) static int usage_init(usage_t *u, cdtime_t now) {
   if (u == NULL || now == 0) {
