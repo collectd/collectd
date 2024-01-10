@@ -185,7 +185,7 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
 
     if (values_absolute) {
       metric_family_append(&fam_absolute, label_state, memory_type_names[i],
-                           (value_t){.gauge = values[i]}, NULL);
+                           VALUE_T(values[i]), NULL);
     }
   }
 
@@ -220,7 +220,7 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     }
 
     metric_family_append(&fam_percent, label_state, memory_type_names[i],
-                         (value_t){.gauge = 100.0 * values[i] / total}, NULL);
+                         VALUE_T(100.0 * values[i] / total), NULL);
   }
 
   int status = plugin_dispatch_metric_family(&fam_percent);
