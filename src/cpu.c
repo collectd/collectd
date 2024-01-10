@@ -521,25 +521,20 @@ static void usage_reset(usage_t *u) {
   memset(u, 0, sizeof(*u));
 }
 
-static gauge_t usage_global_rate(usage_t *u, state_t state) {
-  usage_finalize(u);
-
-  return u->global[state].has_rate ? u->global[state].rate : NAN;
-}
-
 static gauge_t usage_rate(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
 
+  usage_state_t us;
   if (cpu == CPU_ALL) {
-    return usage_global_rate(u, state);
+    us = u->global[state];
+  } else {
+    size_t index = (cpu * STATE_MAX) + state;
+    if (index >= u->states_num) {
+      return -1;
+    }
+    us = u->states[index];
   }
 
-  size_t index = (cpu * STATE_MAX) + state;
-  if (index >= u->states_num) {
-    return NAN;
-  }
-
-  usage_state_t us = u->states[index];
   return us.has_rate ? us.rate : NAN;
 }
 
@@ -547,7 +542,7 @@ static gauge_t usage_ratio(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
 
   gauge_t global_rate =
-      usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
+      usage_rate(u, CPU_ALL, STATE_ACTIVE) + usage_rate(u, CPU_ALL, STATE_IDLE);
   return usage_rate(u, cpu, state) / global_rate;
 }
 
