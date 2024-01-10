@@ -71,8 +71,8 @@ static ignorelist_t *il_fstype;
 static ignorelist_t *il_errors;
 
 static bool report_inodes;
-static bool values_absolute = true;
-static bool values_percentage;
+static bool report_usage = true;
+static bool report_utilization;
 static bool log_once;
 
 static int df_init(void) {
@@ -124,18 +124,20 @@ static int df_config(const char *key, const char *value) {
       report_inodes = false;
 
     return 0;
-  } else if (strcasecmp(key, "ValuesAbsolute") == 0) {
+  } else if (strcasecmp(key, "ReportUsage") == 0 ||
+             strcasecmp(key, "ValuesAbsolute") == 0) {
     if (IS_TRUE(value))
-      values_absolute = true;
+      report_usage = true;
     else
-      values_absolute = false;
+      report_usage = false;
 
     return 0;
-  } else if (strcasecmp(key, "ValuesPercentage") == 0) {
+  } else if (strcasecmp(key, "ReportUtilization") == 0 ||
+             strcasecmp(key, "ValuesPercentage") == 0) {
     if (IS_TRUE(value))
-      values_percentage = true;
+      report_utilization = true;
     else
-      values_percentage = false;
+      report_utilization = false;
 
     return 0;
   } else if (strcasecmp(key, "LogOnce") == 0) {
@@ -250,7 +252,7 @@ static int df_read(void) {
     metric_label_set(&m, mountpoint_label, mnt_ptr->dir);
     metric_label_set(&m, type_label, mnt_ptr->type);
 
-    if (values_absolute) {
+    if (report_usage) {
       metric_family_append(&fam_usage, state_label, state_used,
                            (value_t){.gauge = blk_used * blocksize}, &m);
 
@@ -261,7 +263,7 @@ static int df_read(void) {
                            (value_t){.gauge = blk_reserved * blocksize}, &m);
     }
 
-    if (values_percentage) {
+    if (report_utilization) {
       assert(statbuf.f_blocks != 0); // checked above
       gauge_t f = 1.0 / (gauge_t)statbuf.f_blocks;
 
@@ -287,7 +289,7 @@ static int df_read(void) {
       gauge_t inode_reserved = (gauge_t)(statbuf.f_ffree - statbuf.f_favail);
       gauge_t inode_used = (gauge_t)(statbuf.f_files - statbuf.f_ffree);
 
-      if (values_percentage) {
+      if (report_utilization) {
         if (statbuf.f_files > 0) {
           gauge_t f = 1.0 / (gauge_t)statbuf.f_files;
 
@@ -306,7 +308,7 @@ static int df_read(void) {
           break;
         }
       }
-      if (values_absolute) {
+      if (report_usage) {
         metric_family_append(&fam_inode_usage, state_label, state_used,
                              (value_t){.gauge = inode_used}, &m);
 

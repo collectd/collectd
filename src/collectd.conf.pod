@@ -2945,14 +2945,14 @@ Enable this option if inodes are a scarce resource for you, usually because
 many small files are stored on the disk. This is a usual scenario for mail
 transfer agents and web caches.
 
-=item B<ValuesAbsolute> B<true>|B<false>
+=item B<ReportUsage> B<true>|B<false>
 
-Enables or disables reporting of free and used disk space in 1K-blocks.
+Enables or disables reporting of free and used disk space in bytes.
 Defaults to B<true>.
 
-=item B<ValuesPercentage> B<false>|B<true>
+=item B<ReportUtilization> B<false>|B<true>
 
-Enables or disables reporting of free and used disk space in percentage.
+Enables or disables reporting of free and used disk space as ratio.
 Defaults to B<false>.
 
 This is useful for deploying I<collectd> on the cloud, where machines with
