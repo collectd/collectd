@@ -129,7 +129,7 @@ static const char *cpu_state_names[STATE_MAX] = {
 
 typedef struct {
   gauge_t rate;
-  bool has_value;
+  bool has_rate;
   value_to_rate_state_t conv;
 
   /* count is a scaled counter, so that all states in sum increase by 1000000
@@ -362,11 +362,11 @@ static int usage_init(usage_t *u, cdtime_t now) {
   u->finalized = false;
   for (size_t i = 0; i < u->states_num; i++) {
     u->states[i].rate = 0;
-    u->states[i].has_value = false;
+    u->states[i].has_rate = false;
   }
   for (state_t s = 0; s < STATE_MAX; s++) {
     u->global[s].rate = 0;
-    u->global[s].has_value = false;
+    u->global[s].has_rate = false;
   }
 
   return 0;
@@ -417,7 +417,7 @@ static int usage_record(usage_t *u, size_t cpu, state_t state, derive_t count) {
     return status;
   }
 
-  us->has_value = true;
+  us->has_rate = true;
   return 0;
 }
 
@@ -433,7 +433,7 @@ static void usage_finalize(usage_t *u) {
     usage_state_t *active = u->states + active_index;
 
     active->rate = 0;
-    active->has_value = false;
+    active->has_rate = false;
 
     gauge_t cpu_rate = 0;
 
@@ -441,7 +441,7 @@ static void usage_finalize(usage_t *u) {
       size_t index = (cpu * STATE_MAX) + s;
       usage_state_t *us = u->states + index;
 
-      if (!us->has_value) {
+      if (!us->has_rate) {
         continue;
       }
 
@@ -450,17 +450,17 @@ static void usage_finalize(usage_t *u) {
 
       // aggregate by state
       u->global[s].rate += us->rate;
-      u->global[s].has_value = true;
+      u->global[s].has_rate = true;
 
       if (s != STATE_IDLE) {
         active->rate += us->rate;
-        active->has_value = true;
+        active->has_rate = true;
       }
     }
 
-    if (active->has_value) {
+    if (active->has_rate) {
       u->global[STATE_ACTIVE].rate += active->rate;
-      u->global[STATE_ACTIVE].has_value = true;
+      u->global[STATE_ACTIVE].has_rate = true;
     }
 
     /* With cpu_rate available, calculate a counter for each state that is
@@ -471,7 +471,7 @@ static void usage_finalize(usage_t *u) {
       usage_state_t *us = u->states + index;
 
       us->count = -1;
-      if (!us->has_value) {
+      if (!us->has_rate) {
         /* Ensure that us->to_count is initialized. */
         rate_to_value(&(value_t){0}, 0.0, &us->to_count, DS_TYPE_DERIVE,
                       u->time);
@@ -495,7 +495,7 @@ static void usage_finalize(usage_t *u) {
     usage_state_t *us = &u->global[s];
 
     us->count = -1;
-    if (!us->has_value) {
+    if (!us->has_rate) {
       /* Ensure that us->to_count is initialized. */
       rate_to_value(&(value_t){0}, 0.0, &us->to_count, DS_TYPE_DERIVE, u->time);
       continue;
@@ -524,7 +524,7 @@ static void usage_reset(usage_t *u) {
 static gauge_t usage_global_rate(usage_t *u, state_t state) {
   usage_finalize(u);
 
-  return u->global[state].has_value ? u->global[state].rate : NAN;
+  return u->global[state].has_rate ? u->global[state].rate : NAN;
 }
 
 static gauge_t usage_rate(usage_t *u, size_t cpu, state_t state) {
@@ -540,7 +540,7 @@ static gauge_t usage_rate(usage_t *u, size_t cpu, state_t state) {
   }
 
   usage_state_t us = u->states[index];
-  return us.has_value ? us.rate : NAN;
+  return us.has_rate ? us.rate : NAN;
 }
 
 static gauge_t usage_global_ratio(usage_t *u, state_t state) {
