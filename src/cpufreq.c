@@ -37,7 +37,7 @@ static int num_cpu;
 
 struct cpu_data_t {
   value_to_rate_state_t *time_state;
-} * cpu_data;
+} *cpu_data;
 
 /* Flags denoting capability of reporting CPU frequency statistics. */
 static bool report_p_stats = false;
