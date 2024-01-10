@@ -71,11 +71,21 @@ DEF_TEST(usage_ratio) {
   cdtime_t t1 = t0 + TIME_T_TO_CDTIME_T(10);
   usage_init(&usage, t1);
   derive_t global_increment = 0;
+  derive_t state_increment[STATE_MAX] = {0};
+
   for (size_t cpu = 0; cpu < 4; cpu++) {
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
       derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
-      global_increment += increment;
       usage_record(&usage, cpu, s, 1000 + increment);
+
+      // aggregate by state
+      state_increment[s] += increment;
+      if (s != STATE_IDLE) {
+        state_increment[STATE_ACTIVE] += increment;
+      }
+
+      // global aggregate
+      global_increment += increment;
     }
   }
 
@@ -94,6 +104,12 @@ DEF_TEST(usage_ratio) {
     EXPECT_EQ_DOUBLE(want_active_ratio, usage_ratio(&usage, cpu, STATE_ACTIVE));
   }
 
+  for (state_t s = 0; s < STATE_MAX; s++) {
+    gauge_t want_ratio =
+        ((gauge_t)state_increment[s]) / ((gauge_t)global_increment);
+    EXPECT_EQ_DOUBLE(want_ratio, usage_ratio(&usage, CPU_ALL, s));
+  }
+
   gauge_t sum = 0;
   for (size_t cpu = 0; cpu < 4; cpu++) {
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
@@ -109,20 +125,21 @@ DEF_TEST(usage_ratio) {
 
 static bool expect_usage_count(derive_t want, derive_t got, size_t cpu,
                                state_t state) {
-  char prefix[510] = "usage_global_count(";
+  char cpu_str[64] = "CPU_ALL";
   if (cpu != SIZE_MAX) {
-    snprintf(prefix, sizeof(prefix), "usage_count(cpu=%zu, ", cpu);
+    snprintf(cpu_str, sizeof(cpu_str), "%zu", cpu);
   }
 
   bool ok = true;
   char msg[1024] = {0};
-  snprintf(msg, sizeof(msg), "%sstate=\"%s\") = %" PRId64, prefix,
-           cpu_state_names[state], got);
+  snprintf(msg, sizeof(msg), "usage_count(cpu=%s, state=\"%s\") = %" PRId64,
+           cpu_str, cpu_state_names[state], got);
 
   derive_t diff = got - want;
   if (diff < -1 || diff > 1) {
-    snprintf(msg, sizeof(msg), "%sstate=\"%s\") = %" PRId64 ", want %" PRId64,
-             prefix, cpu_state_names[state], got, want);
+    snprintf(msg, sizeof(msg),
+             "usage_count(cpu=%s, state=\"%s\") = %" PRId64 ", want %" PRId64,
+             cpu_str, cpu_state_names[state], got, want);
     ok = false;
   }
 
@@ -156,6 +173,7 @@ DEF_TEST(usage_count) {
     }
   }
 
+  gauge_t state_time[STATE_MAX] = {0};
   gauge_t sum_time = 0;
   for (size_t cpu = 0; cpu < CPU_NUM; cpu++) {
     derive_t active_increment = 0;
@@ -167,6 +185,7 @@ DEF_TEST(usage_count) {
 
       gauge_t want_time = 1000000.0 * CDTIME_T_TO_DOUBLE(interval) *
                           ((gauge_t)increment) / ((gauge_t)cpu_increment[cpu]);
+      state_time[s] += want_time;
       sum_time += want_time;
 
       bool ok = expect_usage_count((derive_t)want_time,
@@ -177,11 +196,19 @@ DEF_TEST(usage_count) {
     gauge_t want_active_time = 1000000.0 * CDTIME_T_TO_DOUBLE(interval) *
                                ((gauge_t)active_increment) /
                                ((gauge_t)cpu_increment[cpu]);
+    state_time[STATE_ACTIVE] += want_active_time;
     bool ok = expect_usage_count((derive_t)want_active_time,
                                  usage_count(&usage, cpu, STATE_ACTIVE), cpu,
                                  STATE_ACTIVE);
     ret = ret || !ok;
   }
+
+  for (state_t s = 0; s < STATE_MAX; s++) {
+    bool ok = expect_usage_count((derive_t)state_time[s],
+                                 usage_count(&usage, CPU_ALL, s), CPU_ALL, s);
+    ret = ret || !ok;
+  }
+
   EXPECT_EQ_DOUBLE(CPU_NUM * 1000000.0 * CDTIME_T_TO_DOUBLE(interval),
                    sum_time);
 
