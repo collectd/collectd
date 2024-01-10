@@ -543,20 +543,8 @@ static gauge_t usage_rate(usage_t *u, size_t cpu, state_t state) {
   return us.has_rate ? us.rate : NAN;
 }
 
-static gauge_t usage_global_ratio(usage_t *u, state_t state) {
-  usage_finalize(u);
-
-  gauge_t global_rate =
-      usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
-  return usage_global_rate(u, state) / global_rate;
-}
-
 static gauge_t usage_ratio(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
-
-  if (cpu == CPU_ALL) {
-    return usage_global_ratio(u, state);
-  }
 
   gauge_t global_rate =
       usage_global_rate(u, STATE_ACTIVE) + usage_global_rate(u, STATE_IDLE);
