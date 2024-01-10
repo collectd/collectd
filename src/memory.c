@@ -65,28 +65,41 @@
 static char const *const label_state = "system.memory.state";
 
 typedef enum {
-  STATE_USED,
-  STATE_FREE,
-  STATE_SHARED,
+  STATE_ACTIVE,
+  STATE_ARC,
   STATE_BUFFERS,
   STATE_CACHED,
-  STATE_WIRED,
-  STATE_ACTIVE,
+  STATE_FREE,
   STATE_INACTIVE,
   STATE_KERNEL,
-  STATE_LOCKED,
-  STATE_ARC,
-  STATE_UNUSED,
-  STATE_USER_WIRE,
   STATE_LAUNDRY,
+  STATE_LOCKED,
+  STATE_SHARED,
+  STATE_UNUSED,
+  STATE_USED,
+  STATE_USER_WIRE,
+  STATE_WIRED,
   STATE_MAX, /* #states */
 } memory_type_t;
 
+// clang-format off
 static char const *memory_type_names[STATE_MAX] = {
-    "used",  "free",     "shared",    "buffers", "cached",
-    "wired", "active",   "inactive",  "kernel",  "locked",
-    "arc",   "unusable", "user_wire", "laundry",
+  [STATE_ACTIVE]    = "active",
+  [STATE_ARC]       = "arc",
+  [STATE_BUFFERS]   = "buffers",
+  [STATE_CACHED]    = "cached",
+  [STATE_FREE]      = "free",
+  [STATE_INACTIVE]  = "inactive",
+  [STATE_KERNEL]    = "kernel",
+  [STATE_LAUNDRY]   = "laundry",
+  [STATE_LOCKED]    = "locked",
+  [STATE_SHARED]    = "shared",
+  [STATE_UNUSED]    = "unusable",
+  [STATE_USED]      = "used",
+  [STATE_USER_WIRE] = "user_wire",
+  [STATE_WIRED]     = "wired",
 };
+// clang-format on
 
 /* vm_statistics_data_t */
 #if HAVE_HOST_STATISTICS
