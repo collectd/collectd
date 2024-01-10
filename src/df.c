@@ -52,6 +52,10 @@ static char const *const mountpoint_label = "system.filesystem.mountpoint";
 static char const *const state_label = "system.filesystem.state";
 static char const *const type_label = "system.filesystem.type";
 
+static char const *const state_free = "free";
+static char const *const state_used = "used";
+static char const *const state_reserved = "reserved";
+
 static char const *const mode_ro = "ro";
 static char const *const mode_rw = "rw";
 
@@ -247,13 +251,13 @@ static int df_read(void) {
     metric_label_set(&m, type_label, mnt_ptr->type);
 
     if (values_absolute) {
-      metric_family_append(&fam_usage, state_label, "used",
+      metric_family_append(&fam_usage, state_label, state_used,
                            (value_t){.gauge = blk_used * blocksize}, &m);
 
-      metric_family_append(&fam_usage, state_label, "free",
+      metric_family_append(&fam_usage, state_label, state_free,
                            (value_t){.gauge = blk_free * blocksize}, &m);
 
-      metric_family_append(&fam_usage, state_label, "reserved",
+      metric_family_append(&fam_usage, state_label, state_reserved,
                            (value_t){.gauge = blk_reserved * blocksize}, &m);
     }
 
@@ -261,13 +265,13 @@ static int df_read(void) {
       assert(statbuf.f_blocks != 0); // checked above
       gauge_t f = 1.0 / (gauge_t)statbuf.f_blocks;
 
-      metric_family_append(&fam_utilization, state_label, "used",
+      metric_family_append(&fam_utilization, state_label, state_used,
                            (value_t){.gauge = blk_used * f}, &m);
 
-      metric_family_append(&fam_utilization, state_label, "free",
+      metric_family_append(&fam_utilization, state_label, state_free,
                            (value_t){.gauge = blk_free * f}, &m);
 
-      metric_family_append(&fam_utilization, state_label, "reserved",
+      metric_family_append(&fam_utilization, state_label, state_reserved,
                            (value_t){.gauge = blk_reserved * f}, &m);
     }
 
@@ -287,13 +291,14 @@ static int df_read(void) {
         if (statbuf.f_files > 0) {
           gauge_t f = 1.0 / (gauge_t)statbuf.f_files;
 
-          metric_family_append(&fam_inode_utilization, state_label, "used",
+          metric_family_append(&fam_inode_utilization, state_label, state_used,
                                (value_t){.gauge = inode_used * f}, &m);
 
-          metric_family_append(&fam_inode_utilization, state_label, "free",
+          metric_family_append(&fam_inode_utilization, state_label, state_free,
                                (value_t){.gauge = inode_free * f}, &m);
 
-          metric_family_append(&fam_inode_utilization, state_label, "reserved",
+          metric_family_append(&fam_inode_utilization, state_label,
+                               state_reserved,
                                (value_t){.gauge = inode_reserved * f}, &m);
         } else {
           metric_reset(&m);
@@ -302,13 +307,13 @@ static int df_read(void) {
         }
       }
       if (values_absolute) {
-        metric_family_append(&fam_inode_usage, state_label, "used",
+        metric_family_append(&fam_inode_usage, state_label, state_used,
                              (value_t){.gauge = inode_used}, &m);
 
-        metric_family_append(&fam_inode_usage, state_label, "free",
+        metric_family_append(&fam_inode_usage, state_label, state_free,
                              (value_t){.gauge = inode_free}, &m);
 
-        metric_family_append(&fam_inode_usage, state_label, "reserved",
+        metric_family_append(&fam_inode_usage, state_label, state_reserved,
                              (value_t){.gauge = inode_reserved}, &m);
       }
     }
