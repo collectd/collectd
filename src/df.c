@@ -232,13 +232,13 @@ static int df_read(void) {
 
     if (values_absolute) {
       metric_family_append(&fam_usage, "state", "used",
-                           (value_t){.gauge = blk_used * blocksize}, &m);
+                           VALUE_T(blk_used * blocksize), &m);
 
       metric_family_append(&fam_usage, "state", "free",
-                           (value_t){.gauge = blk_free * blocksize}, &m);
+                           VALUE_T(blk_free * blocksize), &m);
 
       metric_family_append(&fam_usage, "state", "reserved",
-                           (value_t){.gauge = blk_reserved * blocksize}, &m);
+                           VALUE_T(blk_reserved * blocksize), &m);
     }
 
     if (values_percentage) {
@@ -246,13 +246,13 @@ static int df_read(void) {
       gauge_t f = 100.0 / (gauge_t)statbuf.f_blocks;
 
       metric_family_append(&fam_utilization, "state", "used",
-                           (value_t){.gauge = blk_used * f}, &m);
+                           VALUE_T(blk_used * f), &m);
 
       metric_family_append(&fam_utilization, "state", "free",
-                           (value_t){.gauge = blk_free * f}, &m);
+                           VALUE_T(blk_free * f), &m);
 
       metric_family_append(&fam_utilization, "state", "reserved",
-                           (value_t){.gauge = blk_reserved * f}, &m);
+                           VALUE_T(blk_reserved * f), &m);
     }
 
     /* inode handling */
@@ -272,13 +272,13 @@ static int df_read(void) {
           gauge_t f = 100.0 / (gauge_t)statbuf.f_files;
 
           metric_family_append(&fam_inode_usage, "state", "used",
-                               (value_t){.gauge = inode_used * f}, &m);
+                               VALUE_T(inode_used * f), &m);
 
           metric_family_append(&fam_inode_usage, "state", "free",
-                               (value_t){.gauge = inode_free * f}, &m);
+                               VALUE_T(inode_free * f), &m);
 
           metric_family_append(&fam_inode_usage, "state", "reserved",
-                               (value_t){.gauge = inode_reserved * f}, &m);
+                               VALUE_T(inode_reserved * f), &m);
         } else {
           metric_reset(&m);
           retval = -1;
@@ -287,13 +287,13 @@ static int df_read(void) {
       }
       if (values_absolute) {
         metric_family_append(&fam_inode_usage, "state", "used",
-                             (value_t){.gauge = inode_used}, &m);
+                             VALUE_T(inode_used), &m);
 
         metric_family_append(&fam_inode_usage, "state", "free",
-                             (value_t){.gauge = inode_free}, &m);
+                             VALUE_T(inode_free), &m);
 
         metric_family_append(&fam_inode_usage, "state", "reserved",
-                             (value_t){.gauge = inode_reserved}, &m);
+                             VALUE_T(inode_reserved), &m);
       }
     }
 
