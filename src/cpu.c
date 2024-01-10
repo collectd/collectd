@@ -563,26 +563,21 @@ static gauge_t usage_ratio(usage_t *u, size_t cpu, state_t state) {
   return usage_rate(u, cpu, state) / global_rate;
 }
 
-static derive_t usage_global_count(usage_t *u, state_t state) {
-  usage_finalize(u);
-
-  return u->global[state].count;
-}
-
 static derive_t usage_count(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
 
+  usage_state_t us;
   if (cpu == CPU_ALL) {
-    return usage_global_count(u, state);
+    us = u->global[state];
+  } else {
+    size_t index = (cpu * STATE_MAX) + state;
+    if (index >= u->states_num) {
+      return -1;
+    }
+    us = u->states[index];
   }
 
-  size_t index = (cpu * STATE_MAX) + state;
-  if (index >= u->states_num) {
-    return -1;
-  }
-  usage_state_t *us = u->states + index;
-
-  return us->count;
+  return us.has_count ? us.count : -1;
 }
 
 /* Commits the number of cores */
