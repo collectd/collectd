@@ -810,24 +810,28 @@ static int swap_read(void) {
           {
               .name = "system.paging.usage",
               .help = "Unix swap usage",
+              .unit = "By",
               .type = METRIC_TYPE_GAUGE,
           },
       [FAM_SWAP_UTILIZATION] =
           {
               .name = "system.paging.utilization",
               .help = "Unix swap utilization",
+              .unit = "1",
               .type = METRIC_TYPE_GAUGE,
           },
       [FAM_SWAP_OPS] =
           {
               /* used when report_io && !report_bytes */
               .name = "system.paging.operations",
+              .unit = "{operation}",
               .type = METRIC_TYPE_COUNTER,
           },
       [FAM_SWAP_IO] =
           {
               /* used when report_io && report_bytes */
               .name = "system.paging.io",
+              .unit = "By",
               .type = METRIC_TYPE_COUNTER,
           },
   };
