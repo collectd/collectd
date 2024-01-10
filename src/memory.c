@@ -140,6 +140,8 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
+    /* "ValuesAbsolute" & "ValuesPercentage" are for compatibility with the v5
+     * version */
     if (strcasecmp("ReportUsage", child->key) == 0 ||
         strcasecmp("ValuesAbsolute", child->key) == 0)
       cf_util_get_boolean(child, &report_usage);
