@@ -114,8 +114,8 @@ static int pagesize;
 #error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
-static bool values_absolute = true;
-static bool values_percentage;
+static bool report_usage = true;
+static bool report_utilization;
 static bool report_io = true;
 
 static char const *const label_device = "system.device";
@@ -152,10 +152,13 @@ static int swap_config(oconfig_item_t *ci) /* {{{ */
               "is not supported on this platform. "
               "The option is going to be ignored.");
 #endif /* SWAP_HAVE_REPORT_BY_DEVICE */
-    else if (strcasecmp("ValuesAbsolute", child->key) == 0)
-      cf_util_get_boolean(child, &values_absolute);
-    else if (strcasecmp("ValuesPercentage", child->key) == 0)
-      cf_util_get_boolean(child, &values_percentage);
+    /* ValuesAbsolute and ValuesPercentage are for collectd 5 compatibility. */
+    else if (strcasecmp("ReportUsage", child->key) == 0 ||
+             strcasecmp("ValuesAbsolute", child->key) == 0)
+      cf_util_get_boolean(child, &report_usage);
+    else if (strcasecmp("ReportUtilization", child->key) == 0 ||
+             strcasecmp("ValuesPercentage", child->key) == 0)
+      cf_util_get_boolean(child, &report_utilization);
     else if (strcasecmp("ReportIO", child->key) == 0)
       cf_util_get_boolean(child, &report_io);
     else
@@ -222,7 +225,7 @@ static void swap_submit_usage3(metric_family_t *fams, char const *device,
 
   bool have_other = (other_name != NULL) && !isnan(other);
 
-  if (values_absolute) {
+  if (report_usage) {
     if (have_other) {
       metric_family_append(fam_usage, label_state, other_name,
                            (value_t){.gauge = other}, &m);
@@ -234,7 +237,7 @@ static void swap_submit_usage3(metric_family_t *fams, char const *device,
                          (value_t){.gauge = free}, &m);
   }
 
-  if (values_percentage) {
+  if (report_utilization) {
     gauge_t total = used + free;
     if (have_other) {
       total += other;

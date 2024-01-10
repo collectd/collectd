@@ -1748,10 +1748,10 @@
 
 #<Plugin swap>
 #	ReportByDevice false
-#	ReportBytes true
-#	ValuesAbsolute true
-#	ValuesPercentage false
+#	ReportUsage true
+#	ReportUtilization false
 #	ReportIO true
+#	ReportBytes true
 #</Plugin>
 
 #<Plugin sysevent>
