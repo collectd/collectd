@@ -22,8 +22,10 @@ jobs:
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v4
-      with:
-        submodules: true
+    - run: |
+        git config --global --add safe.directory "$(pwd)"
+        git submodule init -- opentelemetry-proto
+        git submodule update -- opentelemetry-proto
     - name: Install bzip2
       run: apt install -y bzip2
     - name: Print available packages

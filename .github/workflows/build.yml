@@ -48,8 +48,10 @@ jobs:
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v4
-      with:
-        submodules: true
+    - run: |
+        git config --global --add safe.directory "$(pwd)"
+        git submodule init -- opentelemetry-proto
+        git submodule update -- opentelemetry-proto
     - run: type pkg-config
     - run: pkg-config --list-all | sort -u
     - name: Generate configure script
@@ -109,8 +111,10 @@ jobs:
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
     - uses: actions/checkout@v4
-      with:
-        submodules: true
+    - run: |
+        git config --global --add safe.directory "$(pwd)"
+        git submodule init -- opentelemetry-proto
+        git submodule update -- opentelemetry-proto
     - run: type pkg-config
     - run: pkg-config --list-all | sort -u
     - name: Generate configure script
