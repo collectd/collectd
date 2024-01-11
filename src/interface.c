@@ -293,12 +293,12 @@ static int if_read_internal(metric_family_t fams[static FAM_MAX]) {
       value_t value;
     } metrics[] = {
         // clang-format off
-        {&fam[FAM_IO],      rx_direction, VALUE_T(if_data->IFA_RX_BYTES)},
-        {&fam[FAM_PACKETS], rx_direction, VALUE_T(if_data->IFA_RX_PACKT)},
-        {&fam[FAM_ERRORS],  rx_direction, VALUE_T(if_data->IFA_RX_ERROR)},
-        {&fam[FAM_IO],      tx_direction, VALUE_T(if_data->IFA_TX_BYTES)},
-        {&fam[FAM_PACKETS], tx_direction, VALUE_T(if_data->IFA_TX_PACKT)},
-        {&fam[FAM_ERRORS],  tx_direction, VALUE_T(if_data->IFA_TX_ERROR)},
+        {&fams[FAM_IO],      rx_direction, VALUE_T(if_data->IFA_RX_BYTES)},
+        {&fams[FAM_PACKETS], rx_direction, VALUE_T(if_data->IFA_RX_PACKT)},
+        {&fams[FAM_ERRORS],  rx_direction, VALUE_T(if_data->IFA_RX_ERROR)},
+        {&fams[FAM_IO],      tx_direction, VALUE_T(if_data->IFA_TX_BYTES)},
+        {&fams[FAM_PACKETS], tx_direction, VALUE_T(if_data->IFA_TX_PACKT)},
+        {&fams[FAM_ERRORS],  tx_direction, VALUE_T(if_data->IFA_TX_ERROR)},
         // clang-format on
     };
 #undef VALUE_T
@@ -342,12 +342,12 @@ static int if_read_internal(metric_family_t fams[static FAM_MAX]) {
       char const *fallback_name;
     } metrics[] = {
         // clang-format off
-        {&fam[FAM_IO],      rx_direction, "rbytes64",   "rbytes"},
-        {&fam[FAM_PACKETS], rx_direction, "ipackets64", "ipackets"},
-        {&fam[FAM_ERRORS],  rx_direction, "ierrors"},
-        {&fam[FAM_IO],      tx_direction, "obytes64",   "obytes"},
-        {&fam[FAM_PACKETS], tx_direction, "opackets64", "opackets"},
-        {&fam[FAM_ERRORS],  tx_direction, "oerrors"},
+        {&fams[FAM_IO],      rx_direction, "rbytes64",   "rbytes"},
+        {&fams[FAM_PACKETS], rx_direction, "ipackets64", "ipackets"},
+        {&fams[FAM_ERRORS],  rx_direction, "ierrors"},
+        {&fams[FAM_IO],      tx_direction, "obytes64",   "obytes"},
+        {&fams[FAM_PACKETS], tx_direction, "opackets64", "opackets"},
+        {&fams[FAM_ERRORS],  tx_direction, "oerrors"},
         // clang-format on
     };
 
@@ -383,9 +383,9 @@ static int if_read_internal(metric_family_t fams[static FAM_MAX]) {
     metric_t m = {0};
     metric_label_set(&m, device_label, ios[i].interface_name);
 
-    metric_family_append(&fam[FAM_IO], direction_label, rx_direction,
+    metric_family_append(&fams[FAM_IO], direction_label, rx_direction,
                          (value_t){.counter = (counter_t)ios[i].rx}, &m);
-    metric_family_append(&fam[FAM_IO], direction_label, tx_direction,
+    metric_family_append(&fams[FAM_IO], direction_label, tx_direction,
                          (value_t){.counter = (counter_t)ios[i].tx}, &m);
 
     metric_reset(&m);
@@ -435,12 +435,12 @@ static int if_read_internal(metric_family_t fams[static FAM_MAX]) {
       counter_t value;
     } metrics[] = {
         // clang-format off
-        {&fam[FAM_IO],      rx_direction, VALUE_T(ifstat[i].ibytes)},
-        {&fam[FAM_PACKETS], rx_direction, VALUE_T(ifstat[i].ipackets)},
-        {&fam[FAM_ERRORS],  rx_direction, VALUE_T(ifstat[i].ierrors)},
-        {&fam[FAM_IO],      tx_direction, VALUE_T(ifstat[i].obytes)},
-        {&fam[FAM_PACKETS], tx_direction, VALUE_T(ifstat[i].opackets)},
-        {&fam[FAM_ERRORS],  tx_direction, VALUE_T(ifstat[i].oerrors)},
+        {&fams[FAM_IO],      rx_direction, VALUE_T(ifstat[i].ibytes)},
+        {&fams[FAM_PACKETS], rx_direction, VALUE_T(ifstat[i].ipackets)},
+        {&fams[FAM_ERRORS],  rx_direction, VALUE_T(ifstat[i].ierrors)},
+        {&fams[FAM_IO],      tx_direction, VALUE_T(ifstat[i].obytes)},
+        {&fams[FAM_PACKETS], tx_direction, VALUE_T(ifstat[i].opackets)},
+        {&fams[FAM_ERRORS],  tx_direction, VALUE_T(ifstat[i].oerrors)},
         // clang-format on
     };
 #undef VALUE_T
