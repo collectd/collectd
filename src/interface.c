@@ -97,47 +97,19 @@ static size_t numif;
 static bool unique_name;
 #endif /* HAVE_LIBKSTAT */
 
-metric_family_t receive_bytes = {
-    .name = "node_network_receive_bytes_total",
-    .help = "Network device statistic receive_bytes.",
-    .type = METRIC_TYPE_COUNTER,
-};
-metric_family_t receive_drop = {
-    .name = "node_network_receive_drop_total",
-    .help = "Network device statistic receive_drop.",
-    .type = METRIC_TYPE_COUNTER,
-};
-metric_family_t receive_errs = {
-    .name = "node_network_receive_errs_total",
-    .help = "Network device statistic receive_errs.",
-    .type = METRIC_TYPE_COUNTER,
-};
-metric_family_t receive_packets = {
-    .name = "node_network_receive_packets_total",
-    .help = "Network device statistic receive_packets.",
-    .type = METRIC_TYPE_COUNTER,
+enum {
+  FAM_DROPPED,
+  FAM_PACKETS,
+  FAM_ERRORS,
+  FAM_IO,
+  FAM_MAX,
 };
 
-metric_family_t transmit_bytes = {
-    .name = "node_network_transmit_bytes_total",
-    .help = "Network device statistic transmit_bytes.",
-    .type = METRIC_TYPE_COUNTER,
-};
-metric_family_t transmit_drop = {
-    .name = "node_network_transmit_drop_total",
-    .help = "Network device statistic transmit_drop.",
-    .type = METRIC_TYPE_COUNTER,
-};
-metric_family_t transmit_errs = {
-    .name = "node_network_transmit_errs_total",
-    .help = "Network device statistic transmit_errs.",
-    .type = METRIC_TYPE_COUNTER,
-};
-metric_family_t transmit_packets = {
-    .name = "node_network_transmit_packets_total",
-    .help = "Network device statistic transmit_packets.",
-    .type = METRIC_TYPE_COUNTER,
-};
+static char const *const direction_label = "network.io.direction";
+static char const *const device_label = "system.device";
+
+static char const *const rx_direction = "receive";
+static char const *const tx_direction = "transmit";
 
 static int interface_config(const char *key, const char *value) {
   if (ignorelist == NULL)
@@ -194,7 +166,7 @@ static int interface_init(void) {
 } /* int interface_init */
 #endif /* HAVE_LIBKSTAT */
 
-static int if_read_internal(void) {
+static int if_read_internal(metric_family_t fams[static FAM_MAX]) {
 #if KERNEL_LINUX
   FILE *fh = fopen("/proc/net/dev", "r");
   if (fh == NULL) {
@@ -234,24 +206,36 @@ static int if_read_internal(void) {
 
     struct {
       metric_family_t *fam;
+      char const *direction;
       char const *value;
     } metrics[] = {
-        {&receive_bytes, fields[0]},  {&receive_packets, fields[1]},
-        {&receive_errs, fields[2]},   {&receive_drop, fields[3]},
-        {&transmit_bytes, fields[8]}, {&transmit_packets, fields[9]},
-        {&transmit_errs, fields[10]}, {&transmit_drop, fields[11]},
+        // clang-format off
+        {&fams[FAM_IO],      rx_direction, fields[0]},
+        {&fams[FAM_PACKETS], rx_direction, fields[1]},
+        {&fams[FAM_ERRORS],  rx_direction, fields[2]},
+        {&fams[FAM_DROPPED], rx_direction, fields[3]},
+        {&fams[FAM_IO],      tx_direction, fields[8]},
+        {&fams[FAM_PACKETS], tx_direction, fields[9]},
+        {&fams[FAM_ERRORS],  tx_direction, fields[10]},
+        {&fams[FAM_DROPPED], tx_direction, fields[11]},
+        // clang-format on
     };
+
+    metric_t m = {0};
+    metric_label_set(&m, device_label, device);
 
     for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
       errno = 0;
-      counter_t v = (counter_t)strtoull(metrics[i].value, NULL, 0);
+      value_t v = (value_t){.counter = strtoull(metrics[i].value, NULL, 0)};
       if (errno != 0) {
         continue;
       }
 
-      metric_family_append(metrics[i].fam, "device", device,
-                           (value_t){.counter = v}, NULL);
+      metric_family_append(metrics[i].fam, direction_label,
+                           metrics[i].direction, v, &m);
     }
+
+    metric_reset(&m);
   }
 
   fclose(fh);
@@ -301,22 +285,33 @@ static int if_read_internal(void) {
       continue;
     }
 
+#define VALUE_T(x)                                                             \
+  (value_t) { .counter = (counter_t)(x) }
     struct {
       metric_family_t *fam;
-      counter_t value;
+      char const *direction;
+      value_t value;
     } metrics[] = {
-        {&receive_bytes, (counter_t)if_data->IFA_RX_BYTES},
-        {&receive_packets, (counter_t)if_data->IFA_RX_PACKT},
-        {&receive_errs, (counter_t)if_data->IFA_RX_ERROR},
-        {&transmit_bytes, (counter_t)if_data->IFA_TX_BYTES},
-        {&transmit_packets, (counter_t)if_data->IFA_TX_PACKT},
-        {&transmit_errs, (counter_t)if_data->IFA_TX_ERROR},
+        // clang-format off
+        {&fam[FAM_IO],      rx_direction, VALUE_T(if_data->IFA_RX_BYTES)},
+        {&fam[FAM_PACKETS], rx_direction, VALUE_T(if_data->IFA_RX_PACKT)},
+        {&fam[FAM_ERRORS],  rx_direction, VALUE_T(if_data->IFA_RX_ERROR)},
+        {&fam[FAM_IO],      tx_direction, VALUE_T(if_data->IFA_TX_BYTES)},
+        {&fam[FAM_PACKETS], tx_direction, VALUE_T(if_data->IFA_TX_PACKT)},
+        {&fam[FAM_ERRORS],  tx_direction, VALUE_T(if_data->IFA_TX_ERROR)},
+        // clang-format on
     };
+#undef VALUE_T
+
+    metric_t m = {0};
+    metric_label_set(&m, device_label, if_ptr->ifa_name);
 
     for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
-      metric_family_append(metrics[i].fam, "device", if_ptr->ifa_name,
-                           (value_t){.counter = metrics[i].value}, NULL);
+      metric_family_append(metrics[i].fam, direction_label,
+                           metrics[i].direction, metrics[i].value, &m);
     }
+
+    metric_reset(&m);
   }
 
   freeifaddrs(if_list);
@@ -342,16 +337,22 @@ static int if_read_internal(void) {
 
     struct {
       metric_family_t *fam;
+      char const *direction;
       char const *name;
       char const *fallback_name;
     } metrics[] = {
-        {&receive_bytes, "rbytes64", "rbytes"},
-        {&receive_packets, "ipackets64", "ipackets"},
-        {&receive_errs, "ierrors"},
-        {&transmit_bytes, "obytes64", "obytes"},
-        {&transmit_packets, "opackets64", "opackets"},
-        {&transmit_errs, "oerrors"},
+        // clang-format off
+        {&fam[FAM_IO],      rx_direction, "rbytes64",   "rbytes"},
+        {&fam[FAM_PACKETS], rx_direction, "ipackets64", "ipackets"},
+        {&fam[FAM_ERRORS],  rx_direction, "ierrors"},
+        {&fam[FAM_IO],      tx_direction, "obytes64",   "obytes"},
+        {&fam[FAM_PACKETS], tx_direction, "opackets64", "opackets"},
+        {&fam[FAM_ERRORS],  tx_direction, "oerrors"},
+        // clang-format on
     };
+
+    metric_t m = {0};
+    metric_label_set(&m, device_label, iname);
 
     for (size_t j = 0; j < STATIC_ARRAY_SIZE(metrics); j++) {
       long long value = get_kstat_value(ksp[i], metrics[j].name);
@@ -361,9 +362,12 @@ static int if_read_internal(void) {
       if (value == -1) {
         continue;
       }
-      metric_family_append(metrics[i].fam, "device", iname,
-                           (value_t){.counter = (counter_t)value}, NULL);
+      metric_family_append(metrics[i].fam, direction_label,
+                           metrics[i].direction,
+                           (value_t){.counter = (counter_t)value}, &m);
     }
+
+    metric_reset(&m);
   }
   /* #endif HAVE_LIBKSTAT */
 
@@ -376,10 +380,15 @@ static int if_read_internal(void) {
       continue;
     }
 
-    metric_family_append(&receive_bytes, "device", ios[i].interface_name,
-                         (value_t){.counter = (counter_t)ios[i].rx}, NULL);
-    metric_family_append(&transmit_bytes, "device", ios[i].interface_name,
-                         (value_t){.counter = (counter_t)ios[i].tx}, NULL);
+    metric_t m = {0};
+    metric_label_set(&m, device_label, ios[i].interface_name);
+
+    metric_family_append(&fam[FAM_IO], direction_label, rx_direction,
+                         (value_t){.counter = (counter_t)ios[i].rx}, &m);
+    metric_family_append(&fam[FAM_IO], direction_label, tx_direction,
+                         (value_t){.counter = (counter_t)ios[i].tx}, &m);
+
+    metric_reset(&m);
   }
   /* #endif HAVE_LIBSTATGRAB */
 
@@ -418,22 +427,33 @@ static int if_read_internal(void) {
       continue;
     }
 
+#define VALUE_T(x)                                                             \
+  (value_t) { .counter = (counter_t)(x) }
     struct {
       metric_family_t *fam;
+      char const *direction;
       counter_t value;
     } metrics[] = {
-        {&receive_bytes, (counter_t)ifstat[i].ibytes},
-        {&receive_packets, (counter_t)ifstat[i].ipackets},
-        {&receive_errs, (counter_t)ifstat[i].ierrors},
-        {&transmit_bytes, (counter_t)ifstat[i].obytes},
-        {&transmit_packets, (counter_t)ifstat[i].opackets},
-        {&transmit_errs, (counter_t)ifstat[i].oerrors},
+        // clang-format off
+        {&fam[FAM_IO],      rx_direction, VALUE_T(ifstat[i].ibytes)},
+        {&fam[FAM_PACKETS], rx_direction, VALUE_T(ifstat[i].ipackets)},
+        {&fam[FAM_ERRORS],  rx_direction, VALUE_T(ifstat[i].ierrors)},
+        {&fam[FAM_IO],      tx_direction, VALUE_T(ifstat[i].obytes)},
+        {&fam[FAM_PACKETS], tx_direction, VALUE_T(ifstat[i].opackets)},
+        {&fam[FAM_ERRORS],  tx_direction, VALUE_T(ifstat[i].oerrors)},
+        // clang-format on
     };
+#undef VALUE_T
 
-    for (size_t j = 0; j < STATIC_ARRAY_SIZE(metrics); j++) {
-      metric_family_append(metrics[j].fam, "device", ifstat[i].name,
-                           (value_t){.counter = metrics[j].value}, NULL);
+    metric_t m = {0};
+    metric_label_set(&m, device_label, ifstat[i].name);
+
+    for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
+      metric_family_append(metrics[i].fam, direction_label,
+                           metrics[i].direction, metrics[i].value, &m);
     }
+
+    metric_reset(&m);
   }
 
   sfree(ifstat);
@@ -443,19 +463,47 @@ static int if_read_internal(void) {
 } /* int if_read_internal */
 
 static int if_read(void) {
-  metric_family_t *families[] = {
-      &receive_bytes,  &receive_drop,  &receive_errs,  &receive_packets,
-      &transmit_bytes, &transmit_drop, &transmit_errs, &transmit_packets,
+  metric_family_t fams[] = {
+      [FAM_DROPPED] =
+          {
+              .name = "system.network.dropped",
+              .help =
+                  "Count of packets that are dropped or discarded even though "
+                  "there was no error.",
+              .unit = "{packet}",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_PACKETS] =
+          {
+              .name = "system.network.packets",
+              .unit = "{packet}",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_ERRORS] =
+          {
+              .name = "system.network.errors",
+              .help = "Count of network errors detected.",
+              .unit = "{error}",
+              .type = METRIC_TYPE_COUNTER,
+          },
+      [FAM_IO] =
+          {
+              .name = "system.network.io",
+              .help =
+                  "Bytes transmitted and received by the network interface.",
+              .unit = "By",
+              .type = METRIC_TYPE_COUNTER,
+          },
   };
 
-  int status = if_read_internal();
+  int status = if_read_internal(fams);
 
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(families); i++) {
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(fams); i++) {
     if (status == 0) {
-      plugin_dispatch_metric_family(families[i]);
+      plugin_dispatch_metric_family(&fams[i]);
     }
 
-    metric_family_metric_reset(families[i]);
+    metric_family_metric_reset(&fams[i]);
   }
 
   return status;
