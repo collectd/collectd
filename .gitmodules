@@ -1,6 +1,8 @@
 [submodule "gnulib"]
 	path = gnulib
 	url = git://git.savannah.gnu.org/gnulib.git
+	shallow = true
 [submodule "opentelemetry-proto"]
 	path = opentelemetry-proto
 	url = https://github.com/open-telemetry/opentelemetry-proto/
+	shallow = true
