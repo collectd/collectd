@@ -22,6 +22,12 @@ collectd-lua - Documentation of collectd's C<Lua plugin>
     BasePath "/path/to/your/lua/scripts"
     Script "script1.lua"
     Script "script2.lua"
+    <Module "script1.lua">
+      Key1 Value1
+    </Module>
+    <Module "script2.lua">
+      Key2 Value2
+    </Module>
   </Plugin>
 
 =head1 DESCRIPTION
@@ -52,6 +58,16 @@ If set, this is also prepended to B<package.path>.
 The script the C<Lua plugin> is going to run.
 If B<BasePath> is not specified, this needs to be an absolute path.
 
+=item B<Module> I<Name>
+
+The definition of module variables which will be passed to Script I<Name> config function.
+The concept is similar to L<collectd-python(5)> C<Module>.
+The matched B<Script> I<Name> must be placed before this B<Module> block.
+
+B<Module> I<Name> must match existing B<Script> I<Name>, but if you specify only B<Module>,
+the module variables are applied to any existing B<Script> I<Name>. This mean that you can
+define common module variables in B<Module> and the rest of changed variables in B<Module> I<Name> block.
+
 =back
 
 =head1 WRITING YOUR OWN PLUGINS
@@ -80,6 +96,21 @@ does not return 0, interval between its calls will grow until function returns
 These are used to write the dispatched values. They are called
 once for every value that was dispatched by any plugin.
 
+=item init functions
+
+These are used to initialize the internal state.  They are called once
+for every startup phase.
+
+=item config functions
+
+These are used to configure the dispatched values. They are called
+once for every after B<init functions>.
+
+=item shutdown functions
+
+These are used to clean-up the internal state. They are called once for
+ every shutting down phase.
+
 =back
 
 =head1 FUNCTIONS
@@ -102,6 +133,22 @@ The callback function will be called with one argument passed, which will be a
 table of values.
 If this callback function does not return 0 next call will be delayed by
 an increasing interval.
+
+=item register_init(callback)
+
+Function to register init callbacks.
+The callback function will be called without arguments.
+
+=item register_config(callback)
+
+Function to register config callbacks.
+The callback function will be called with one argument passed, which will be a
+table of values.
+
+=item register_shutdown(callback)
+
+Function to register shutdown callbacks.
+The callback function will be called without arguments.
 
 =item log_error, log_warning, log_notice, log_info, log_debug(I<message>)
 
