@@ -42,28 +42,55 @@ kstat_ctl_t *kc;
 #endif /* HAVE_LIBKSTAT */
 
 DEF_TEST(sstrncpy) {
-  char buffer[16] = "";
-  char *ptr = &buffer[4];
-  char *ret;
+  struct {
+    char const *name;
+    char const *src;
+    size_t size;
+    char const *want;
+  } cases[] = {
+      {
+          .name = "normal copy",
+          .src = "Hello, world!",
+          .size = 16,
+          .want = "Hello, world!",
+      },
+      {
+          .name = "truncated copy",
+          .src = "Hello, world!",
+          .size = 8,
+          .want = "Hello, ",
+      },
+      {
+          .name = "NULL source is treated like an empty string",
+          .src = NULL,
+          .size = 8,
+          .want = "",
+      },
+      {
+          .name = "size is zero",
+          .src = "test",
+          .size = 0,
+          .want = NULL,
+      },
+  };
 
-  buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0xff;
-  buffer[12] = buffer[13] = buffer[14] = buffer[15] = 0xff;
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("## Case %zu: %s\n", i + 1, cases[i].name);
 
-  ret = sstrncpy(ptr, "foobar", 8);
-  OK(ret == ptr);
-  EXPECT_EQ_STR("foobar", ptr);
-  OK(buffer[3] == buffer[12]);
+    char dest[cases[i].size + 1];
+    memset(dest, 0xff, sizeof(dest));
 
-  ret = sstrncpy(ptr, "abc", 8);
-  OK(ret == ptr);
-  EXPECT_EQ_STR("abc", ptr);
-  OK(buffer[3] == buffer[12]);
+    char *want_ret = (cases[i].size == 0) ? NULL : dest;
+    EXPECT_EQ_PTR(want_ret, sstrncpy(dest, cases[i].src, cases[i].size));
+    EXPECT_EQ_INT((char)0xff, dest[sizeof(dest) - 1]);
+    if (cases[i].want == NULL) {
+      continue;
+    }
+    EXPECT_EQ_STR(cases[i].want, dest);
+  }
 
-  ret = sstrncpy(ptr, "collectd", 8);
-  OK(ret == ptr);
-  OK(ptr[7] == 0);
-  EXPECT_EQ_STR("collect", ptr);
-  OK(buffer[3] == buffer[12]);
+  printf("## Case %zu: dest is NULL\n", STATIC_ARRAY_SIZE(cases) + 1);
+  EXPECT_EQ_PTR(NULL, sstrncpy(NULL, "test", 23));
 
   return 0;
 }

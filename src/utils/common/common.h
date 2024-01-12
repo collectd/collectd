@@ -64,6 +64,13 @@ struct value_to_rate_state_s {
 };
 typedef struct value_to_rate_state_s value_to_rate_state_t;
 
+/* sstrncpy is a safe alternative to strncpy(3). It differs from strncpy(3) in
+ * the following ways:
+ * - If dest is NULL or n is zero, NULL is returned and no writes will take
+ *   place.
+ * - If src is NULL it behaves as if an empty string ("") was provided.
+ * - A null byte is written to dest[n-1] unconditionally. That means the return
+ *   value is either NULL or a null terminated string. */
 char *sstrncpy(char *dest, const char *src, size_t n);
 
 __attribute__((format(printf, 3, 4))) int ssnprintf(char *str, size_t size,
