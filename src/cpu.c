@@ -366,8 +366,7 @@ static cpu_state_t *get_cpu_state(size_t cpu_num, size_t state) /* {{{ */
 static int total_rate(gauge_t *sum_by_state, size_t state, derive_t d,
                       value_to_rate_state_t *conv, cdtime_t now) {
   gauge_t rate = NAN;
-  int status =
-      value_to_rate(&rate, (value_t){.derive = d}, DS_TYPE_DERIVE, now, conv);
+  int status = value_to_rate(&rate, VALUE_T(d), DS_TYPE_DERIVE, now, conv);
   if (status != 0)
     return status;
 
@@ -593,7 +592,6 @@ static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
   int status;
   cpu_state_t *s;
   gauge_t rate = NAN;
-  value_t val = {.derive = d};
 
   if (state >= COLLECTD_CPU_STATE_ACTIVE)
     return EINVAL;
@@ -607,7 +605,7 @@ static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
 
   s = get_cpu_state(cpu_num, state);
 
-  status = value_to_rate(&rate, val, DS_TYPE_DERIVE, now, &s->conv);
+  status = value_to_rate(&rate, VALUE_T(d), DS_TYPE_DERIVE, now, &s->conv);
   if (status != 0)
     return status;
 

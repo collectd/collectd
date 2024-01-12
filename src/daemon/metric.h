@@ -52,6 +52,12 @@ union value_u {
 };
 typedef union value_u value_t;
 
+#define VALUE_T(x)                                                             \
+  _Generic((x),                                                                \
+      counter_t: (value_t){.counter = (x)},                                    \
+      gauge_t: (value_t){.gauge = (x)},                                        \
+      derive_t: (value_t){.derive = (x)})
+
 /* value_marshal_text prints a text representation of v to buf. */
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type);
 
