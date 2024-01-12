@@ -51,13 +51,42 @@ the mailing list have a tendency to fall through the cracks.
     entries to `src/types.db`, you should talk to us early in the design
     process.
 
+### Labels
+
+PRs need to be categorized into one of three categories:
+
+*   **Feature**
+
+    The code has new behavior. Performance and documentation improvements are
+    considered features. These changes would typically go into a "feature
+    release".
+*   **Bug**
+
+    The code fixes a bug, regression, or otherwise unintended behavior. These
+    changes would typically go into a "patch" release.
+*   **Unlisted Change**
+
+    The change is not relevant for end users of collectd. This includes changes
+    to the CI system, style changes, and refactorings. These changes are not
+    documented in the release notes.
+
+If you don't have access to modify labels yourself, you can trigger our bot to
+apply the right label for you by adding a prefix to the PR title:
+
+*   Feature: `feat`, `docs`, or `perf`.
+*   Bug: `fix`.
+*   Unlisted Change: `build`, `chore`, `ci`, `style`, `refactor`, `test`.
+
+You are encouraged to use those prefixes together with the plugin you're
+modifying. A new feature in the CPU plugin would have the `feat(cpu): ` prefix.
+
 ### ChangeLog
 
-PRs need to have a one-line summary in the *PR description*. This information
-is used to automatically generate release notes. If you got here after creating
-the PR, you need to go to the *PR description* (shown as the first "comment" on
-the PR, made by yourself) and *edit* that description. Editing a PR will
-trigger the "ChangeLog" status to be updated.
+Feature and Bug PRs need to have a one-line summary in the *PR description*.
+This information is used to automatically generate release notes. If you got
+here after creating the PR, you need to go to the *PR description* (shown as
+the first "comment" on the PR, made by yourself) and *edit* that description.
+Editing a PR will trigger the "ChangeLog" status to be updated.
 
 For the summary itself, follow this style:
 
@@ -66,11 +95,11 @@ ChangeLog: Foo plugin: A specific issue people had has been fixed.
 ```
 
 The summary must be on a line of its own, with a "ChangeLog:" prefix at the
-beginning of the line. The text should start with "Foo plugin" to give the
-reader context for the information. Other common contexts are "collectd" for
-the core daemon, "Build system", and "Documentation". Use past tense and
-passive voice the for remainder, e.g. "a bug has been fixed", "a feature has
-been added".
+beginning of the line. The text should start with "Foo plugin" or "collectd"
+(when making changes to the daemon itself) to give the reader context for the
+information. Other common contexts are "collectd" for the core daemon, "Build
+system", and "Documentation". Use past tense and passive voice the for
+remainder, e.g. "a bug has been fixed", "a feature has been added".
 
 Some PRs should be excluded from the release notes, e.g. changes to project
 internal documentation (such as this file). Those changes are not interesting
