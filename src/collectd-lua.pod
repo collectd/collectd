@@ -111,6 +111,11 @@ once for every after B<init functions>.
 These are used to clean-up the internal state. They are called once for
  every shutting down phase.
 
+=item notification functions
+
+These are used to receive a PUTNOTIF event. They are called once for
+ every notification phase.
+
 =back
 
 =head1 FUNCTIONS
@@ -149,6 +154,12 @@ table of values.
 
 Function to register shutdown callbacks.
 The callback function will be called without arguments.
+
+=item register_notification(callback)
+
+Function to register notification callbacks.
+The callback function will be called with one argument passed, which will be a
+table of values.
 
 =item log_error, log_warning, log_notice, log_info, log_debug(I<message>)
 

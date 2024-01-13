@@ -46,6 +46,7 @@
 #define PLUGIN_WRITE 2
 #define PLUGIN_SHUTDOWN 3
 #define PLUGIN_CONFIG 4
+#define PLUGIN_NOTIFICATION 5
 
 typedef struct lua_script_s {
   lua_State *lua_state;
@@ -203,6 +204,62 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   pthread_mutex_unlock(&lua_lock);
   return status;
 } /* }}} int clua_write */
+
+static int clua_notification(const notification_t *notify,
+                             user_data_t *ud) /* {{{ */
+{
+  clua_callback_data_t *cb = ud->data;
+
+  pthread_mutex_lock(&lua_lock);
+
+  lua_State *L = cb->lua_state;
+
+  int status = clua_load_callback(L, cb->callback_id);
+  if (status != 0) {
+    ERROR("Lua plugin: Unable to load callback \"%s\" (id %i).",
+          cb->lua_function_name, cb->callback_id);
+    pthread_mutex_unlock(&lua_lock);
+    return -1;
+  }
+  /* +1 = 1 */
+
+  /* convert notification_t to table on stack */
+  status = luaC_pushnotification(L, notify);
+  if (status != 0) {
+    lua_pop(L, 1); /* -1 = 0 */
+    pthread_mutex_unlock(&lua_lock);
+    ERROR("Lua plugin: luaC_notification failed.");
+    return -1;
+  }
+  /* +1 = 2 */
+
+  status = lua_pcall(L, 1, 1, 0); /* -2+1 = 1 */
+  if (status != 0) {
+    const char *errmsg = lua_tostring(L, -1);
+    if (errmsg == NULL)
+      ERROR("Lua plugin: Calling the notification callback failed. "
+            "In addition, retrieving the error message failed.");
+    else
+      ERROR("Lua plugin: Calling the notification callback failed:\n%s",
+            errmsg);
+    lua_pop(L, 1); /* -1 = 0 */
+    pthread_mutex_unlock(&lua_lock);
+    return -1;
+  }
+
+  if (!lua_isnumber(L, -1)) {
+    ERROR("Lua plugin: Notification function \"%s\" (id %i) did not return a "
+          "numeric value.",
+          cb->lua_function_name, cb->callback_id);
+    status = -1;
+  } else {
+    status = (int)lua_tointeger(L, -1);
+  }
+
+  lua_pop(L, 1); /* -1 = 0 */
+  pthread_mutex_unlock(&lua_lock);
+  return status;
+} /* }}} int clua_notification */
 
 /*
  * Exported functions
@@ -400,6 +457,17 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
     if (status != 0)
       return luaL_error(L, "lua_cb_register_plugin_callbacks(config) failed");
     return 0;
+  } else if (PLUGIN_NOTIFICATION == type) {
+    int status =
+        plugin_register_notification(/* name = */ function_name,
+                                     /* callback  = */ clua_notification,
+                                     &(user_data_t){
+                                         .data = cb,
+                                         .free_func = lua_cb_free,
+                                     });
+    if (status != 0)
+      return luaL_error(L, "plugin_register_notification failed");
+    return 0;
   } else {
     return luaL_error(L, "%s", "lua_cb_register_generic unsupported type");
   }
@@ -425,6 +493,10 @@ static int lua_cb_register_config(lua_State *L) {
   return lua_cb_register_generic(L, PLUGIN_CONFIG);
 }
 
+static int lua_cb_register_notification(lua_State *L) {
+  return lua_cb_register_generic(L, PLUGIN_NOTIFICATION);
+}
+
 static const luaL_Reg collectdlib[] = {
     {"log_debug", lua_cb_log_debug},
     {"log_error", lua_cb_log_error},
@@ -437,6 +509,7 @@ static const luaL_Reg collectdlib[] = {
     {"register_init", lua_cb_register_init},
     {"register_shutdown", lua_cb_register_shutdown},
     {"register_config", lua_cb_register_config},
+    {"register_notification", lua_cb_register_notification},
     {NULL, NULL}};
 
 static int open_collectd(lua_State *L) /* {{{ */
