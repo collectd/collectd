@@ -139,7 +139,7 @@ static int clua_read(user_data_t *ud) /* {{{ */
   return status;
 } /* }}} int clua_read */
 
-static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
+static int clua_write(metric_family_t const *mf, /* {{{ */
                       user_data_t *ud) {
   clua_callback_data_t *cb = ud->data;
 
@@ -156,11 +156,11 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   }
   /* +1 = 1 */
 
-  status = luaC_pushvaluelist(L, ds, vl);
+  status = luaC_pushmetricfamily(L, mf);
   if (status != 0) {
     lua_pop(L, 1); /* -1 = 0 */
     pthread_mutex_unlock(&cb->lock);
-    ERROR("Lua plugin: luaC_pushvaluelist failed.");
+    ERROR("Lua plugin: luaC_pushmetricfamily failed.");
     return -1;
   }
   /* +1 = 2 */

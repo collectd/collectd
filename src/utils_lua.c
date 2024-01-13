@@ -98,45 +98,6 @@ static int ltoc_table_values(lua_State *L, int idx, /* {{{ */
   return status;
 } /* }}} int ltoc_table_values */
 
-static int luaC_pushvalues(lua_State *L, const data_set_t *ds,
-                           const value_list_t *vl) /* {{{ */
-{
-  assert(vl->values_len == ds->ds_num);
-
-  lua_newtable(L);
-  for (size_t i = 0; i < vl->values_len; i++) {
-    lua_pushinteger(L, (lua_Integer)i + 1);
-    luaC_pushvalue(L, vl->values[i], ds->ds[i].type);
-    lua_settable(L, -3);
-  }
-
-  return 0;
-} /* }}} int luaC_pushvalues */
-
-static int luaC_pushdstypes(lua_State *L, const data_set_t *ds) /* {{{ */
-{
-  lua_newtable(L);
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    lua_pushinteger(L, (lua_Integer)i);
-    lua_pushstring(L, DS_TYPE_TO_STRING(ds->ds[i].type));
-    lua_settable(L, -3);
-  }
-
-  return 0;
-} /* }}} int luaC_pushdstypes */
-
-static int luaC_pushdsnames(lua_State *L, const data_set_t *ds) /* {{{ */
-{
-  lua_newtable(L);
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    lua_pushinteger(L, (lua_Integer)i);
-    lua_pushstring(L, ds->ds[i].name);
-    lua_settable(L, -3);
-  }
-
-  return 0;
-} /* }}} int luaC_pushdsnames */
-
 /*
  * Public functions
  */
@@ -274,38 +235,161 @@ int luaC_pushvalue(lua_State *L, value_t v, int ds_type) /* {{{ */
   return 0;
 } /* }}} int luaC_pushvalue */
 
-int luaC_pushvaluelist(lua_State *L, const data_set_t *ds,
-                       const value_list_t *vl) /* {{{ */
+static int luaC_pushlabelset(lua_State *L, label_set_t label) /* {{{ */
 {
+  /*
+    label_set_t will be mapped to the following Lua table:
+
+    label = {
+      name1 => value1,
+      ...
+      nameN => valueN
+    }
+   */
   lua_newtable(L);
-
-  lua_pushstring(L, vl->host);
-  lua_setfield(L, -2, "host");
-
-  lua_pushstring(L, vl->plugin);
-  lua_setfield(L, -2, "plugin");
-  lua_pushstring(L, vl->plugin_instance);
-  lua_setfield(L, -2, "plugin_instance");
-
-  lua_pushstring(L, vl->type);
-  lua_setfield(L, -2, "type");
-  lua_pushstring(L, vl->type_instance);
-  lua_setfield(L, -2, "type_instance");
-
-  luaC_pushvalues(L, ds, vl);
-  lua_setfield(L, -2, "values");
-
-  luaC_pushdstypes(L, ds);
-  lua_setfield(L, -2, "dstypes");
-
-  luaC_pushdsnames(L, ds);
-  lua_setfield(L, -2, "dsnames");
-
-  luaC_pushcdtime(L, vl->time);
-  lua_setfield(L, -2, "time");
-
-  luaC_pushcdtime(L, vl->interval);
-  lua_setfield(L, -2, "interval");
-
+  label_pair_t *ptr = label.ptr;
+  for (int i = 0; i < label.num; i++) {
+    /* label set key must be unique */
+    lua_pushstring(L, ptr->value);
+    lua_setfield(L, -2, ptr->name);
+    ptr++;
+  }
   return 0;
-} /* }}} int luaC_pushvaluelist */
+} /* }}} int luaC_pushlabelset */
+
+static int luaC_pushmetadata(lua_State *L, meta_data_t *meta) /* {{{ */
+{
+  /*
+    meta_data_t will be mapped to the following Lua table:
+
+    meta => {
+      key1 => value1,
+      ...,
+      keyN => valueN
+    }
+  */
+  char **toc = NULL;
+  lua_newtable(L);
+  if (!meta) {
+    /* meta = {} */
+    return -1;
+  }
+  int meta_count = meta_data_toc(meta, &toc);
+  if (meta_count == 0 || toc == NULL) {
+    /* meta = {} */
+    WARNING("lua: can't count meta_entry_t in meta_data_t: %d", meta_count);
+    return -1;
+  }
+  for (int i = 0; i < meta_count; i++) {
+    int meta_type = meta_data_type(meta, toc[i]);
+    int exist = meta_data_exists(meta, toc[i]);
+    if (!exist) {
+      WARNING("lua: can't get nth key (%s) of meta_data_t", toc[i]);
+      continue;
+    }
+    switch (meta_type) {
+    case MD_TYPE_STRING: {
+      char *string = NULL;
+      meta_data_get_string(meta, toc[i], &string);
+      lua_pushstring(L, string);
+    } break;
+    case MD_TYPE_SIGNED_INT: {
+      int64_t i64value = 0;
+      meta_data_get_signed_int(meta, toc[i], &i64value);
+      lua_pushnumber(L, i64value);
+    } break;
+    case MD_TYPE_UNSIGNED_INT: {
+      uint64_t u64value = 0;
+      meta_data_get_unsigned_int(meta, toc[i], &u64value);
+      lua_pushnumber(L, u64value);
+    } break;
+    case MD_TYPE_DOUBLE: {
+      double dvalue = 0.0;
+      meta_data_get_double(meta, toc[i], &dvalue);
+      lua_pushnumber(L, dvalue);
+    } break;
+    case MD_TYPE_BOOLEAN: {
+      bool bvalue = false;
+      meta_data_get_boolean(meta, toc[i], &bvalue);
+      lua_pushboolean(L, bvalue);
+    } break;
+    default:
+      /* should not happen */
+      break;
+    }
+    if (MD_TYPE_STRING >= meta_type && meta_type <= MD_TYPE_BOOLEAN) {
+      /* metadata keys must be unique */
+      lua_setfield(L, -2, toc[i]);
+    }
+  }
+  return 0;
+} /* }}} int luaC_pushmetadata */
+
+static int luaC_pushmetriclist(lua_State *L, metric_list_t metric) /* {{{ */
+{
+  /*
+    metric_list_t will be mapped to the following Lua table:
+
+    metric = {
+      [1] => {
+        label => luaC_pushlabelset(),
+        value => luaC_pushvalue()
+        time => luaC_pushcdtime(),
+        interval => luaC_pushcdtime(),
+        meta => luaC_pushmetadata(),
+      },
+      ...
+      [N] => {
+       ...
+      }
+   */
+  lua_newtable(L);
+  metric_t *ptr = metric.ptr;
+  for (int i = 0; i < metric.num; i++) {
+    lua_newtable(L);
+    luaC_pushlabelset(L, ptr->label);
+    lua_setfield(L, -2, "label");
+    luaC_pushvalue(L, ptr->value, ptr->family->type);
+    lua_setfield(L, -2, "value");
+    luaC_pushcdtime(L, ptr->time);
+    lua_setfield(L, -2, "time");
+    luaC_pushcdtime(L, ptr->interval);
+    lua_setfield(L, -2, "interval");
+    /* metric[N] = {} */
+    luaC_pushmetadata(L, ptr->meta);
+    lua_setfield(L, -2, "meta");
+    lua_rawseti(L, -2, i + 1);
+    ptr++;
+  }
+  return 0;
+} /* }}} int luaC_pushmetriclist */
+
+int luaC_pushmetricfamily(lua_State *L, metric_family_t const *mf) /* {{{ */
+{
+  /*
+    metric_family_t is mapped to the following Lua table:
+
+    {
+      name => ...,
+      help => ...,
+      unit => ...,
+      type => ...,
+      resource => luaC_pushlabelset(),
+      metric => luaC_pushmetriclist(),
+    }
+  */
+  lua_newtable(L);
+  lua_pushstring(L, mf->name);
+  lua_setfield(L, -2, "name");
+  lua_pushstring(L, mf->help);
+  lua_setfield(L, -2, "help");
+  lua_pushstring(L, mf->unit);
+  lua_setfield(L, -2, "unit");
+  lua_pushinteger(L, (lua_Integer)mf->type);
+  lua_setfield(L, -2, "type");
+  luaC_pushlabelset(L, mf->resource);
+  lua_setfield(L, -2, "resource");
+  luaC_pushmetriclist(L, mf->metric);
+  lua_setfield(L, -2, "metric");
+  return 0;
+} /* }}} int luaC_pushmetricfamily */
