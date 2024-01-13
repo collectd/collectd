@@ -82,6 +82,78 @@ once for every value that was dispatched by any plugin.
 
 =back
 
+=head1 DATA TYPES
+
+
+=head2 Metrics data
+
+Since B<collectd> version 6, type of I<value_list_t> was deprecated
+and changed to I<metric_family_t>.
+
+This means that the argument of B<write callback function> was also changed.
+
+Here is the mapping from I<metric_family_t> to Lua table.
+
+  {
+    name => ...,
+    help => ...,
+    unit => ...,
+    type => ...,
+    resource => {
+      key1 => value1,
+      ...,
+      keyN => valueN
+    }
+    metric => {
+      [1] => {
+	label => {
+	  key1 => value1,
+	  ...,
+	  keyN => valueN
+	}
+	value => ...,
+	time => ...,
+	interval => ...,
+	meta => {
+	  key1 => value1,
+	  ...,
+	  keyN => valueN
+	}
+      },
+      ...
+      [N] => {
+	...
+      }
+    }
+  }
+
+Note that internal data type are also mapped to each Lua tables.
+
+=over 4
+
+=item I<resource>
+
+It is mapped from I<label_set_t>.
+The key of I<resource> is unique.
+It contains such as "host.id", "host.name", "service.name" and so on as a key.
+
+=item I<metric>
+
+It is mapped from I<metric_list_t>. It is array of I<metric_t>.
+The content of metric depends on producer plugin.
+
+=item I<label>
+
+It is mapped from I<label_set_t>.
+The key of I<label> is unique.
+
+=item I<meta>
+
+It is mapped from I<meta_data_t>.
+The key of I<meta> is unique.
+
+=back
+
 =head1 FUNCTIONS
 
 The following functions are provided to Lua modules:
