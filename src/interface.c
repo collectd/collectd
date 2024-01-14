@@ -97,6 +97,8 @@ static size_t numif;
 static bool unique_name;
 #endif /* HAVE_LIBKSTAT */
 
+// Based on the OpenTelemetry Semantic Conventions:
+// https://opentelemetry.io/docs/specs/semconv/system/system-metrics/#network-metrics
 enum {
   FAM_DROPPED,
   FAM_PACKETS,
