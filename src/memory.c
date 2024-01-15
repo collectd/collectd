@@ -65,45 +65,41 @@
 static char const *const label_state = "system.memory.state";
 
 typedef enum {
-  COLLECTD_MEMORY_TYPE_USED,
-  COLLECTD_MEMORY_TYPE_FREE,
-  COLLECTD_MEMORY_TYPE_BUFFERS,
-  COLLECTD_MEMORY_TYPE_CACHED,
-  COLLECTD_MEMORY_TYPE_SLAB_TOTAL,
-  COLLECTD_MEMORY_TYPE_SLAB_RECL,
-  COLLECTD_MEMORY_TYPE_SLAB_UNRECL,
-  COLLECTD_MEMORY_TYPE_WIRED,
-  COLLECTD_MEMORY_TYPE_ACTIVE,
-  COLLECTD_MEMORY_TYPE_INACTIVE,
-  COLLECTD_MEMORY_TYPE_KERNEL,
-  COLLECTD_MEMORY_TYPE_LOCKED,
-  COLLECTD_MEMORY_TYPE_ARC,
-  COLLECTD_MEMORY_TYPE_UNUSED,
-  COLLECTD_MEMORY_TYPE_AVAILABLE,
-  COLLECTD_MEMORY_TYPE_USER_WIRE,
-  COLLECTD_MEMORY_TYPE_LAUNDRY,
-  COLLECTD_MEMORY_TYPE_MAX, /* #states */
+  STATE_ACTIVE,
+  STATE_ARC,
+  STATE_BUFFERS,
+  STATE_CACHED,
+  STATE_FREE,
+  STATE_INACTIVE,
+  STATE_KERNEL,
+  STATE_LAUNDRY,
+  STATE_LOCKED,
+  STATE_SHARED,
+  STATE_UNUSED,
+  STATE_USED,
+  STATE_USER_WIRE,
+  STATE_WIRED,
+  STATE_MAX, /* #states */
 } memory_type_t;
 
-static char const *memory_type_names[COLLECTD_MEMORY_TYPE_MAX] = {
-    "used",
-    "free",
-    "buffers",
-    "cached",
-    "slab",
-    "slab_reclaimable",
-    "slab_unreclaimable",
-    "wired",
-    "active",
-    "inactive",
-    "kernel",
-    "locked",
-    "arc",
-    "unusable",
-    "available",
-    "user_wire",
-    "laundry",
+// clang-format off
+static char const *memory_type_names[STATE_MAX] = {
+  [STATE_ACTIVE]    = "active",
+  [STATE_ARC]       = "arc",
+  [STATE_BUFFERS]   = "buffers",
+  [STATE_CACHED]    = "cached",
+  [STATE_FREE]      = "free",
+  [STATE_INACTIVE]  = "inactive",
+  [STATE_KERNEL]    = "kernel",
+  [STATE_LAUNDRY]   = "laundry",
+  [STATE_LOCKED]    = "locked",
+  [STATE_SHARED]    = "shared",
+  [STATE_UNUSED]    = "unusable",
+  [STATE_USED]      = "used",
+  [STATE_USER_WIRE] = "user_wire",
+  [STATE_WIRED]     = "wired",
 };
+// clang-format on
 
 /* vm_statistics_data_t */
 #if HAVE_HOST_STATISTICS
@@ -149,17 +145,24 @@ static int pagesize;
 #include <uvm/uvm_extern.h>
 #endif
 
-static bool values_absolute = true;
-static bool values_percentage;
+static bool report_usage = true;
+static bool report_utilization = true;
+static bool report_limit;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
-    if (strcasecmp("ValuesAbsolute", child->key) == 0)
-      cf_util_get_boolean(child, &values_absolute);
-    else if (strcasecmp("ValuesPercentage", child->key) == 0)
-      cf_util_get_boolean(child, &values_percentage);
+    /* "ValuesAbsolute" & "ValuesPercentage" are for compatibility with the v5
+     * version */
+    if (strcasecmp("ReportUsage", child->key) == 0 ||
+        strcasecmp("ValuesAbsolute", child->key) == 0)
+      cf_util_get_boolean(child, &report_usage);
+    else if (strcasecmp("ReportUtilization", child->key) == 0 ||
+             strcasecmp("ValuesPercentage", child->key) == 0)
+      cf_util_get_boolean(child, &report_utilization);
+    else if (strcasecmp("ReportLimit", child->key) == 0)
+      cf_util_get_boolean(child, &report_limit);
     else
       ERROR("memory plugin: Invalid configuration option: \"%s\".", child->key);
   }
@@ -167,8 +170,8 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* }}} int memory_config */
 
-static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
-  metric_family_t fam_absolute = {
+static int memory_dispatch(gauge_t values[STATE_MAX]) {
+  metric_family_t fam_usage = {
       .name = "system.memory.usage",
       .help = "Reports memory in use by state",
       .unit = "By",
@@ -176,61 +179,81 @@ static int memory_dispatch(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
   };
   gauge_t total = 0;
 
-  for (size_t i = 0; i < COLLECTD_MEMORY_TYPE_MAX; i++) {
+  for (size_t i = 0; i < STATE_MAX; i++) {
     if (isnan(values[i])) {
       continue;
     }
 
     total += values[i];
 
-    if (values_absolute) {
-      metric_family_append(&fam_absolute, label_state, memory_type_names[i],
+    if (report_usage) {
+      metric_family_append(&fam_usage, label_state, memory_type_names[i],
                            (value_t){.gauge = values[i]}, NULL);
     }
   }
 
   int ret = 0;
-  if (values_absolute) {
-    int status = plugin_dispatch_metric_family(&fam_absolute);
+  if (report_usage) {
+    int status = plugin_dispatch_metric_family(&fam_usage);
     if (status != 0) {
       ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
             STRERROR(status));
     }
     ret = status;
   }
-  metric_family_metric_reset(&fam_absolute);
-
-  if (!values_percentage) {
-    return ret;
-  }
+  metric_family_metric_reset(&fam_usage);
 
   if (total == 0) {
     return EINVAL;
   }
 
-  metric_family_t fam_percent = {
+  if (report_limit) {
+    metric_family_t fam_limit = {
+        .name = "system.memory.limit",
+        .help = "Total memory available in the system.",
+        .unit = "By",
+        .type = METRIC_TYPE_COUNTER, // [sic] should be UpDownCounter
+    };
+    metric_t m = {
+        .value = (value_t){.derive = (derive_t)total},
+    };
+    metric_family_metric_append(&fam_limit, m);
+
+    int status = plugin_dispatch_metric_family(&fam_limit);
+    if (status != 0) {
+      ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
+    }
+    ret = ret ? ret : status;
+  }
+
+  if (!report_utilization) {
+    return ret;
+  }
+
+  metric_family_t fam_util = {
       .name = "system.memory.utilization",
       .help = "Reports memory in use by state",
       .unit = "1",
       .type = METRIC_TYPE_GAUGE,
   };
-  for (size_t i = 0; i < COLLECTD_MEMORY_TYPE_MAX; i++) {
+  for (size_t i = 0; i < STATE_MAX; i++) {
     if (isnan(values[i])) {
       continue;
     }
 
-    metric_family_append(&fam_percent, label_state, memory_type_names[i],
-                         (value_t){.gauge = 100.0 * values[i] / total}, NULL);
+    metric_family_append(&fam_util, label_state, memory_type_names[i],
+                         (value_t){.gauge = values[i] / total}, NULL);
   }
 
-  int status = plugin_dispatch_metric_family(&fam_percent);
+  int status = plugin_dispatch_metric_family(&fam_util);
   if (status != 0) {
     ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
           STRERROR(status));
-    ret = ret ? ret : status;
   }
-  metric_family_metric_reset(&fam_percent);
+  ret = ret ? ret : status;
 
+  metric_family_metric_reset(&fam_util);
   return ret;
 }
 
@@ -285,7 +308,7 @@ static int memory_init(void) {
   return 0;
 } /* int memory_init */
 
-static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
+static int memory_read_internal(gauge_t values[STATE_MAX]) {
 #if HAVE_HOST_STATISTICS
   if (!port_host || !pagesize) {
     return EINVAL;
@@ -321,12 +344,10 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
    *   This memory is not being used.
    */
 
-  values[COLLECTD_MEMORY_TYPE_WIRED] = (gauge_t)(vm_data.wire_count * pagesize);
-  values[COLLECTD_MEMORY_TYPE_ACTIVE] =
-      (gauge_t)(vm_data.active_count * pagesize);
-  values[COLLECTD_MEMORY_TYPE_INACTIVE] =
-      (gauge_t)(vm_data.inactive_count * pagesize);
-  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(vm_data.free_count * pagesize);
+  values[STATE_WIRED] = (gauge_t)(vm_data.wire_count * pagesize);
+  values[STATE_ACTIVE] = (gauge_t)(vm_data.active_count * pagesize);
+  values[STATE_INACTIVE] = (gauge_t)(vm_data.inactive_count * pagesize);
+  values[STATE_FREE] = (gauge_t)(vm_data.free_count * pagesize);
   /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
@@ -344,16 +365,15 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     return errno;
   }
 
-  values[COLLECTD_MEMORY_TYPE_WIRED] = (gauge_t)(uvmexp.wired * pagesize);
-  values[COLLECTD_MEMORY_TYPE_ACTIVE] = (gauge_t)(uvmexp.active * pagesize);
-  values[COLLECTD_MEMORY_TYPE_INACTIVE] = (gauge_t)(uvmexp.inactive * pagesize);
-  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(uvmexp.free * pagesize);
+  values[STATE_WIRED] = (gauge_t)(uvmexp.wired * pagesize);
+  values[STATE_ACTIVE] = (gauge_t)(uvmexp.active * pagesize);
+  values[STATE_INACTIVE] = (gauge_t)(uvmexp.inactive * pagesize);
+  values[STATE_FREE] = (gauge_t)(uvmexp.free * pagesize);
 
   int64_t accounted =
       uvmexp.wired + uvmexp.active + uvmexp.inactive + uvmexp.free;
   if (uvmexp.npages > accounted) {
-    values[COLLECTD_MEMORY_TYPE_KERNEL] =
-        (gauge_t)((uvmexp.npages - accounted) * pagesize);
+    values[STATE_KERNEL] = (gauge_t)((uvmexp.npages - accounted) * pagesize);
   }
   /* #endif HAVE_SYSCTL && defined(KERNEL_NETBSD) */
 
@@ -374,13 +394,13 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     memory_type_t type;
   } metrics[] = {
       {"vm.stats.vm.v_page_size"},
-      {"vm.stats.vm.v_free_count", COLLECTD_MEMORY_TYPE_FREE},
-      {"vm.stats.vm.v_wire_count", COLLECTD_MEMORY_TYPE_WIRED},
-      {"vm.stats.vm.v_active_count", COLLECTD_MEMORY_TYPE_ACTIVE},
-      {"vm.stats.vm.v_inactive_count", COLLECTD_MEMORY_TYPE_INACTIVE},
-      {"vm.stats.vm.v_cache_count", COLLECTD_MEMORY_TYPE_CACHED},
-      {"vm.stats.vm.v_user_wire_count", COLLECTD_MEMORY_TYPE_USER_WIRE},
-      {"vm.stats.vm.v_laundry_count", COLLECTD_MEMORY_TYPE_LAUNDRY},
+      {"vm.stats.vm.v_free_count", STATE_FREE},
+      {"vm.stats.vm.v_wire_count", STATE_WIRED},
+      {"vm.stats.vm.v_active_count", STATE_ACTIVE},
+      {"vm.stats.vm.v_inactive_count", STATE_INACTIVE},
+      {"vm.stats.vm.v_cache_count", STATE_CACHED},
+      {"vm.stats.vm.v_user_wire_count", STATE_USER_WIRE},
+      {"vm.stats.vm.v_laundry_count", STATE_LAUNDRY},
   };
 
   gauge_t pagesize = 0;
@@ -433,36 +453,22 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     if (strcmp(fields[0], "MemTotal:") == 0) {
       mem_total = v;
     } else if (strcmp(fields[0], "MemFree:") == 0) {
-      values[COLLECTD_MEMORY_TYPE_FREE] = v;
+      values[STATE_FREE] = v;
       mem_not_used += v;
     } else if (strcmp(fields[0], "Buffers:") == 0) {
-      values[COLLECTD_MEMORY_TYPE_BUFFERS] = v;
+      values[STATE_BUFFERS] = v;
       mem_not_used += v;
     } else if (strcmp(fields[0], "Cached:") == 0) {
-      values[COLLECTD_MEMORY_TYPE_CACHED] = v;
+      values[STATE_CACHED] = v;
       mem_not_used += v;
-    } else if (strcmp(fields[0], "Slab:") == 0) {
-      values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL] = v;
-    } else if (strcmp(fields[0], "SReclaimable:") == 0) {
-      values[COLLECTD_MEMORY_TYPE_SLAB_RECL] = v;
-    } else if (strcmp(fields[0], "SUnreclaim:") == 0) {
-      values[COLLECTD_MEMORY_TYPE_SLAB_UNRECL] = v;
-    } else if (strcmp(fields[0], "MemAvailable:") == 0) {
-      values[COLLECTD_MEMORY_TYPE_AVAILABLE] = v;
+    } else if (strcmp(fields[0], "Shmem:") == 0) {
+      values[STATE_SHARED] = v;
+      mem_not_used += v;
     }
   }
 
   if (fclose(fh)) {
     WARNING("memory plugin: fclose failed: %s", STRERRNO);
-  }
-
-  /* If SReclaimable (introduced in kernel 2.6.19) is available count it
-   * (but not SUnreclaim) towards the unused memory.
-   * If we do not have detailed slab info count the total as unused. */
-  if (!isnan(values[COLLECTD_MEMORY_TYPE_SLAB_RECL])) {
-    mem_not_used += values[COLLECTD_MEMORY_TYPE_SLAB_RECL];
-  } else if (!isnan(values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL])) {
-    mem_not_used += values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL];
   }
 
   if (isnan(mem_total) || (mem_total == 0) || (mem_total < mem_not_used)) {
@@ -471,16 +477,7 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
 
   /* "used" is not explicitly reported. It is calculated as everything that is
    * not "not used", e.g. cached, buffers, ... */
-  values[COLLECTD_MEMORY_TYPE_USED] = mem_total - mem_not_used;
-
-  /* SReclaimable and SUnreclaim were introduced in kernel 2.6.19
-   * They sum up to the value of Slab, which is available on older & newer
-   * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
-   * if not. */
-  if (!isnan(values[COLLECTD_MEMORY_TYPE_SLAB_RECL]) ||
-      !isnan(values[COLLECTD_MEMORY_TYPE_SLAB_UNRECL])) {
-    values[COLLECTD_MEMORY_TYPE_SLAB_TOTAL] = NAN;
-  }
+  values[STATE_USED] = mem_total - mem_not_used;
   /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -531,13 +528,12 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     mem_lock = 0;
   }
 
-  values[COLLECTD_MEMORY_TYPE_USED] = (gauge_t)(mem_used * pagesize);
-  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(mem_free * pagesize);
-  values[COLLECTD_MEMORY_TYPE_LOCKED] = (gauge_t)(mem_lock * pagesize);
-  values[COLLECTD_MEMORY_TYPE_KERNEL] =
-      (gauge_t)((mem_kern * pagesize) - arcsize);
-  values[COLLECTD_MEMORY_TYPE_UNUSED] = (gauge_t)(mem_unus * pagesize);
-  values[COLLECTD_MEMORY_TYPE_ARC] = (gauge_t)arcsize;
+  values[STATE_USED] = (gauge_t)(mem_used * pagesize);
+  values[STATE_FREE] = (gauge_t)(mem_free * pagesize);
+  values[STATE_LOCKED] = (gauge_t)(mem_lock * pagesize);
+  values[STATE_KERNEL] = (gauge_t)((mem_kern * pagesize) - arcsize);
+  values[STATE_UNUSED] = (gauge_t)(mem_unus * pagesize);
+  values[STATE_ARC] = (gauge_t)arcsize;
   /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL && __OpenBSD__
@@ -554,10 +550,9 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     return errno;
   }
 
-  values[COLLECTD_MEMORY_TYPE_ACTIVE] = (gauge_t)(vmtotal.t_arm * pagesize);
-  values[COLLECTD_MEMORY_TYPE_INACTIVE] =
-      (gauge_t)((vmtotal.t_rm - vmtotal.t_arm) * pagesize);
-  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(vmtotal.t_free * pagesize);
+  values[STATE_ACTIVE] = (gauge_t)(vmtotal.t_arm * pagesize);
+  values[STATE_INACTIVE] = (gauge_t)((vmtotal.t_rm - vmtotal.t_arm) * pagesize);
+  values[STATE_FREE] = (gauge_t)(vmtotal.t_free * pagesize);
   /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
@@ -566,9 +561,9 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
     return -1;
   }
 
-  values[COLLECTD_MEMORY_TYPE_USED] = (gauge_t)ios->used;
-  values[COLLECTD_MEMORY_TYPE_CACHED] = (gauge_t)ios->cache;
-  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)ios->free;
+  values[STATE_USED] = (gauge_t)ios->used;
+  values[STATE_CACHED] = (gauge_t)ios->cache;
+  values[STATE_FREE] = (gauge_t)ios->free;
   /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
@@ -588,12 +583,10 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
    *   real_total = real_free + real_inuse
    *   real_inuse = "active" + real_pinned + numperm
    */
-  values[COLLECTD_MEMORY_TYPE_FREE] = (gauge_t)(pmemory.real_free * pagesize);
-  values[COLLECTD_MEMORY_TYPE_CACHED] = (gauge_t)(pmemory.numperm * pagesize);
-  values[COLLECTD_MEMORY_TYPE_KERNEL] =
-      (gauge_t)(pmemory.real_system * pagesize);
-  values[COLLECTD_MEMORY_TYPE_USED] =
-      (gauge_t)(pmemory.real_process * pagesize);
+  values[STATE_FREE] = (gauge_t)(pmemory.real_free * pagesize);
+  values[STATE_CACHED] = (gauge_t)(pmemory.numperm * pagesize);
+  values[STATE_KERNEL] = (gauge_t)(pmemory.real_system * pagesize);
+  values[STATE_USED] = (gauge_t)(pmemory.real_process * pagesize);
 #endif /* HAVE_PERFSTAT */
 
   return 0;
@@ -601,8 +594,8 @@ static int memory_read_internal(gauge_t values[COLLECTD_MEMORY_TYPE_MAX]) {
 
 static int memory_read(void) /* {{{ */
 {
-  gauge_t values[COLLECTD_MEMORY_TYPE_MAX] = {0};
-  for (size_t i = 0; i < COLLECTD_MEMORY_TYPE_MAX; i++) {
+  gauge_t values[STATE_MAX] = {0};
+  for (size_t i = 0; i < STATE_MAX; i++) {
     values[i] = NAN;
   }
 

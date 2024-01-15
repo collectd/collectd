@@ -1056,8 +1056,9 @@
 #</Plugin>
 
 #<Plugin memory>
-#	ValuesAbsolute true
-#	ValuesPercentage false
+#	ReportUsage true
+#	ReportUtilization true
+#	ReportLimit false
 #</Plugin>
 
 #<Plugin mmc>
