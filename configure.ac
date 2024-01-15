@@ -7267,7 +7267,7 @@ m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
 AC_ARG_ENABLE([all-plugins],
-  [AS_HELP_STRING([--enable-all-plugins], [enable all plugins @<:@default=yes@:>@])],
+  [AS_HELP_STRING([--enable-all-plugins], [enable all plugins @<:@default=auto@:>@])],
   [
      if test "x$enableval" = "xyes"; then
        enable_all_plugins="yes"
@@ -7278,6 +7278,18 @@ AC_ARG_ENABLE([all-plugins],
      fi; fi
   ],
   [enable_all_plugins="auto"]
+)
+
+AC_ARG_ENABLE([compatibility-mode],
+  [AS_HELP_STRING([--enable-compatibility-mode], [enable v5 compatibility mode @<:@default=no@:>@])],
+  [
+     if test "x$enableval" = "xyes"; then
+       enable_compatibility_mode="yes"
+     else
+       enable_compatibility_mode="no"
+     fi
+  ],
+  [enable_compatibility_mode="no"]
 )
 
 ################################################################################
@@ -7325,6 +7337,84 @@ plugin_write_riemann="no (collectd 6 support missing)"
 plugin_write_sensu="no (collectd 6 support missing)"
 plugin_write_syslog="no (collectd 6 support missing)"
 plugin_write_tsdb="no (collectd 6 support missing)"
+
+if test "x$enable_compatibility_mode" = "xno"; then
+	plugin_apache="no (requires v5 compatibility mode)"
+	plugin_apcups="no (requires v5 compatibility mode)"
+	plugin_apple_sensors="no (requires v5 compatibility mode)"
+	plugin_battery="no (requires v5 compatibility mode)"
+	plugin_bind="no (requires v5 compatibility mode)"
+	plugin_capabilities="no (requires v5 compatibility mode)"
+	plugin_ceph="no (requires v5 compatibility mode)"
+	plugin_cgroups="no (requires v5 compatibility mode)"
+	plugin_connectivity="no (requires v5 compatibility mode)"
+	plugin_conntrack="no (requires v5 compatibility mode)"
+	plugin_cpufreq="no (requires v5 compatibility mode)"
+	plugin_curl="no (requires v5 compatibility mode)"
+	plugin_curl_json="no (requires v5 compatibility mode)"
+	plugin_dbi="no (requires v5 compatibility mode)"
+	plugin_dns="no (requires v5 compatibility mode)"
+	plugin_dpdkevents="no (requires v5 compatibility mode)"
+	plugin_dpdkstat="no (requires v5 compatibility mode)"
+	plugin_dpdk_telemetry="no (requires v5 compatibility mode)"
+	plugin_drbd="no (requires v5 compatibility mode)"
+	plugin_email="no (requires v5 compatibility mode)"
+	plugin_fhcount="no (requires v5 compatibility mode)"
+	plugin_filecount="no (requires v5 compatibility mode)"
+	plugin_fscache="no (requires v5 compatibility mode)"
+	plugin_gps="no (requires v5 compatibility mode)"
+	plugin_hddtemp="no (requires v5 compatibility mode)"
+	plugin_hugepages="no (requires v5 compatibility mode)"
+	plugin_intel_rdt="no (requires v5 compatibility mode)"
+	plugin_ipmi="no (requires v5 compatibility mode)"
+	plugin_iptables="no (requires v5 compatibility mode)"
+	plugin_ipvs="no (requires v5 compatibility mode)"
+	plugin_madwifi="no (requires v5 compatibility mode)"
+	plugin_mbmon="no (requires v5 compatibility mode)"
+	plugin_mcelog="no (requires v5 compatibility mode)"
+	plugin_md="no (requires v5 compatibility mode)"
+	plugin_memcached="no (requires v5 compatibility mode)"
+	plugin_multimeter="no (requires v5 compatibility mode)"
+	plugin_mysql="no (requires v5 compatibility mode)"
+	plugin_netlink="no (requires v5 compatibility mode)"
+	plugin_nfs="no (requires v5 compatibility mode)"
+	plugin_nginx="no (requires v5 compatibility mode)"
+	plugin_ntpd="no (requires v5 compatibility mode)"
+	plugin_numa="no (requires v5 compatibility mode)"
+	plugin_nut="no (requires v5 compatibility mode)"
+	plugin_olsrd="no (requires v5 compatibility mode)"
+	plugin_onewire="no (requires v5 compatibility mode)"
+	plugin_openvpn="no (requires v5 compatibility mode)"
+	plugin_ovs_events="no (requires v5 compatibility mode)"
+	plugin_ovs_stats="no (requires v5 compatibility mode)"
+	plugin_pinba="no (requires v5 compatibility mode)"
+	plugin_powerdns="no (requires v5 compatibility mode)"
+	plugin_processes="no (requires v5 compatibility mode)"
+	plugin_procevent="no (requires v5 compatibility mode)"
+	plugin_sensors="no (requires v5 compatibility mode)"
+	plugin_serial="no (requires v5 compatibility mode)"
+	plugin_smart="no (requires v5 compatibility mode)"
+	plugin_synproxy="no (requires v5 compatibility mode)"
+	plugin_table="no (requires v5 compatibility mode)"
+	plugin_tail_csv="no (requires v5 compatibility mode)"
+	plugin_tape="no (requires v5 compatibility mode)"
+	plugin_tcpconns="no (requires v5 compatibility mode)"
+	plugin_teamspeak2="no (requires v5 compatibility mode)"
+	plugin_ted="no (requires v5 compatibility mode)"
+	plugin_thermal="no (requires v5 compatibility mode)"
+	plugin_tokyotyrant="no (requires v5 compatibility mode)"
+	plugin_turbostat="no (requires v5 compatibility mode)"
+	plugin_ubi="no (requires v5 compatibility mode)"
+	plugin_varnish="no (requires v5 compatibility mode)"
+	plugin_virt="no (requires v5 compatibility mode)"
+	plugin_vmem="no (requires v5 compatibility mode)"
+	plugin_vserver="no (requires v5 compatibility mode)"
+	plugin_wireless="no (requires v5 compatibility mode)"
+	plugin_xencpu="no (requires v5 compatibility mode)"
+	plugin_zfs_arc="no (requires v5 compatibility mode)"
+	plugin_zone="no (requires v5 compatibility mode)"
+	plugin_zookeeper="no (requires v5 compatibility mode)"
+fi
 
 m4_divert_once([HELP_ENABLE], [])
 
