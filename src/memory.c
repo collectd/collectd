@@ -250,10 +250,10 @@ static int memory_dispatch(gauge_t values[STATE_MAX]) {
   if (status != 0) {
     ERROR("memory plugin: plugin_dispatch_metric_family failed: %s",
           STRERROR(status));
-    ret = ret ? ret : status;
   }
-  metric_family_metric_reset(&fam_util);
+  ret = ret ? ret : status;
 
+  metric_family_metric_reset(&fam_util);
   return ret;
 }
 
