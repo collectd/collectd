@@ -1861,8 +1861,8 @@ static int mach_get_task_name(task_t t, int *pid, char *name,
 /* end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO */
 
 /* do actual readings from kernel */
-static int ps_read(void) {
 #if HAVE_THREAD_INFO
+static int ps_read_thread_info(void) {
   kern_return_t status;
 
   processor_set_t port_pset_priv;
@@ -2094,9 +2094,12 @@ static int ps_read(void) {
 
   for (ps = list_head_g; ps != NULL; ps = ps->next)
     ps_submit_proc_list(ps);
-    /* #endif HAVE_THREAD_INFO */
+
+  return 0;
+}
 
 #elif KERNEL_LINUX
+static int ps_read_linux(void) {
   int running = 0;
   int sleeping = 0;
   int zombies = 0;
@@ -2187,12 +2190,16 @@ static int ps_read(void) {
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
 
-  read_fork_rate(buffer);
-  if (report_sys_ctxt_switch)
+  read_fork_rate();
+  if (report_sys_ctxt_switch) {
     read_sys_ctxt_switch(buffer);
-    /* #endif KERNEL_LINUX */
+  }
+
+  return 0;
+}
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
+static int ps_read_freebsd(void) {
   int running = 0;
   int sleeping = 0;
   int zombies = 0;
@@ -2345,9 +2352,12 @@ static int ps_read(void) {
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
-    /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+
+  return 0;
+}
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC2_NETBSD
+static int ps_read_netbsd(void) {
   int running = 0;
   int sleeping = 0;
   int zombies = 0;
@@ -2527,9 +2537,12 @@ static int ps_read(void) {
 
   for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
-    /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC2_NETBSD */
+
+  return 0;
+}
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD
+static int ps_read_openbsd(void) {
   int running = 0;
   int sleeping = 0;
   int zombies = 0;
@@ -2671,10 +2684,12 @@ static int ps_read(void) {
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
-    /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD */
+
+  return 0;
+}
 
 #elif HAVE_PROCINFO_H
-  /* AIX */
+static int ps_read_aix(void) {
   int running = 0;
   int sleeping = 0;
   int zombies = 0;
@@ -2810,9 +2825,12 @@ static int ps_read(void) {
 
   for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
     ps_submit_proc_list(ps);
-    /* #endif HAVE_PROCINFO_H */
+
+  return 0;
+}
 
 #elif KERNEL_SOLARIS
+static int ps_read_solaris(void) {
   /*
    * The Solaris section adds a few more process states and removes some
    * process states compared to linux. Most notably there is no "PAGING"
@@ -2908,10 +2926,33 @@ static int ps_read(void) {
     ps_submit_proc_list(ps_ptr);
 
   read_fork_rate();
+
+  return 0;
+}
 #endif /* KERNEL_SOLARIS */
 
-  want_init = false;
+static int ps_read(void) {
+  int status = 0;
+#if HAVE_THREAD_INFO
+  status = ps_read_thread_info();
+#elif KERNEL_LINUX
+  status = ps_read_linux();
+#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
+  status = ps_read_freebsd();
+#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC2_NETBSD
+  status = ps_read_netbsd();
+#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD
+  status = ps_read_openbsd();
+#elif HAVE_PROCINFO_H
+  status = ps_read_aix();
+#elif KERNEL_SOLARIS
+  status = ps_read_solaris();
+#endif
+  if (status != 0) {
+    return status;
+  }
 
+  want_init = false;
   return 0;
 } /* int ps_read */
 
