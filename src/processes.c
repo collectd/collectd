@@ -353,6 +353,46 @@ int getargs(void *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
 static ts_t *taskstats_handle;
 #endif
 
+static char const *const state_label = "system.processes.status";
+
+typedef enum {
+  // required
+  STATE_RUNNING,
+  STATE_SLEEPING,
+  STATE_STOPPED,
+  STATE_DEFUNCT,
+  // custom
+  STATE_BLOCKED,
+  STATE_DAEMON,
+  STATE_DETACHED,
+  STATE_IDLE,
+  STATE_ONPROC,
+  STATE_ORPHAN,
+  STATE_PAGING,
+  STATE_SYSTEM,
+  STATE_WAIT,
+  // #states
+  STATE_MAX,
+} process_state_t;
+
+static char const *state_names[STATE_MAX] = {
+    // required
+    [STATE_RUNNING] = "running",
+    [STATE_SLEEPING] = "sleeping",
+    [STATE_STOPPED] = "stopped",
+    [STATE_DEFUNCT] = "defunct",
+    // custom
+    [STATE_BLOCKED] = "blocked",
+    [STATE_DAEMON] = "daemon",
+    [STATE_DETACHED] = "detached",
+    [STATE_IDLE] = "idle",
+    [STATE_ONPROC] = "onproc",
+    [STATE_ORPHAN] = "orphan",
+    [STATE_PAGING] = "paging",
+    [STATE_SYSTEM] = "system",
+    [STATE_WAIT] = "wait",
+};
+
 /* put name of process from config to list_head_g tree
  * list_head_g is a list of 'procstat_t' structs with
  * processes names we want to watch */
@@ -822,20 +862,6 @@ static int ps_init(void) {
 
   return 0;
 } /* int ps_init */
-
-/* submit global state (e.g.: qty of zombies, running, etc..) */
-static void ps_submit_state(const char *state, double value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "processes", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, "", sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "ps_state", sizeof(vl.type));
-  sstrncpy(vl.type_instance, state, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
 
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void ps_submit_proc_list(procstat_t *ps) {
@@ -1468,9 +1494,6 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
 static int procs_running(const char *buffer) {
   char id[] = "procs_running "; /* white space terminated */
-  char *running;
-  char *endptr = NULL;
-  long result = 0L;
 
   /* the data contains :
    * the literal string 'procs_running',
@@ -1478,16 +1501,17 @@ static int procs_running(const char *buffer) {
    * the number of running processes.
    * The parser does include the white-space character.
    */
-  running = strstr(buffer, id);
+  char *running = strstr(buffer, id);
   if (!running) {
     WARNING("'procs_running ' not found in /proc/stat");
     return -1;
   }
   running += strlen(id);
 
-  result = strtol(running, &endptr, 10);
+  char *endptr = NULL;
+  long result = strtol(running, &endptr, 10);
   if ((*running != '\0') && ((*endptr == '\0') || (*endptr == '\n'))) {
-    return (int)result;
+    return result;
   }
 
   return -1;
@@ -1862,7 +1886,7 @@ static int mach_get_task_name(task_t t, int *pid, char *name,
 
 /* do actual readings from kernel */
 #if HAVE_THREAD_INFO
-static int ps_read_thread_info(void) {
+static int ps_read_thread_info(gauge_t process_count[static STATE_MAX]) {
   kern_return_t status;
 
   processor_set_t port_pset_priv;
@@ -1878,11 +1902,11 @@ static int ps_read_thread_info(void) {
   thread_basic_info_data_t thread_data;
   mach_msg_type_number_t thread_data_len;
 
-  int running = 0;
-  int sleeping = 0;
-  int zombies = 0;
-  int stopped = 0;
-  int blocked = 0;
+  process_count[STATE_BLOCKED] = 0;
+  process_count[STATE_DEFUNCT] = 0;
+  process_count[STATE_RUNNING] = 0;
+  process_count[STATE_SLEEPING] = 0;
+  process_count[STATE_STOPPED] = 0;
 
   procstat_t *ps;
   process_entry_t pse;
@@ -1997,7 +2021,7 @@ static int ps_read_thread_info(void) {
          * makes sense to some extend: A `zombie'
          * thread is nonsense, since the task/process
          * is dead. */
-        zombies++;
+        process_count[STATE_DEFUNCT]++;
         DEBUG("task_threads failed: %s", mach_error_string(status));
         if (task_list[task] != port_task_self)
           mach_port_deallocate(port_task_self, task_list[task]);
@@ -2021,18 +2045,18 @@ static int ps_read_thread_info(void) {
 
         switch (thread_data.run_state) {
         case TH_STATE_RUNNING:
-          running++;
+          process_count[STATE_RUNNING]++;
           break;
         case TH_STATE_STOPPED:
         /* What exactly is `halted'? */
         case TH_STATE_HALTED:
-          stopped++;
+          process_count[STATE_STOPPED]++;
           break;
         case TH_STATE_WAITING:
-          sleeping++;
+          process_count[STATE_SLEEPING]++;
           break;
         case TH_STATE_UNINTERRUPTIBLE:
-          blocked++;
+          process_count[STATE_BLOCKED]++;
           break;
         /* There is no `zombie' case here,
          * since there are no zombie-threads.
@@ -2086,12 +2110,6 @@ static int ps_read_thread_info(void) {
     }
   } /* for (pset_list) */
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("blocked", blocked);
-
   for (ps = list_head_g; ps != NULL; ps = ps->next)
     ps_submit_proc_list(ps);
 
@@ -2099,64 +2117,60 @@ static int ps_read_thread_info(void) {
 }
 
 #elif KERNEL_LINUX
-static int ps_read_linux(void) {
-  int running = 0;
-  int sleeping = 0;
-  int zombies = 0;
-  int stopped = 0;
-  int paging = 0;
-  int blocked = 0;
+static int ps_read_linux(gauge_t process_count[static STATE_MAX]) {
+  process_count[STATE_RUNNING] = 0;
+  process_count[STATE_SLEEPING] = 0;
+  process_count[STATE_DEFUNCT] = 0;
+  process_count[STATE_STOPPED] = 0;
+  process_count[STATE_PAGING] = 0;
+  process_count[STATE_BLOCKED] = 0;
 
-  struct dirent *ent;
-  DIR *proc;
-  long pid;
-
-  char buffer[65536] = {};
-  char cmdline[CMDLINE_BUFFER_SIZE];
-
-  int status;
-  process_entry_t pse;
-  char state;
-
-  running = sleeping = zombies = stopped = paging = blocked = 0;
   ps_list_reset();
 
-  if ((proc = opendir("/proc")) == NULL) {
+  DIR *proc = opendir("/proc");
+  if (proc == NULL) {
     ERROR("Cannot open `/proc': %s", STRERRNO);
     return -1;
   }
 
+  struct dirent *ent;
   while ((ent = readdir(proc)) != NULL) {
+    char cmdline[CMDLINE_BUFFER_SIZE];
+
     if (!isdigit(ent->d_name[0]))
       continue;
 
-    if ((pid = atol(ent->d_name)) < 1)
+    long pid = atol(ent->d_name);
+    if (pid < 1) {
       continue;
+    }
 
-    memset(&pse, 0, sizeof(pse));
-    pse.id = pid;
+    process_entry_t pse = {
+        .id = pid,
+    };
+    char state = 0;
 
-    status = ps_read_process(pid, &pse, &state);
+    int status = ps_read_process(pid, &pse, &state);
     if (status != 0) {
-      DEBUG("ps_read_process failed: %i", status);
+      DEBUG("ps_read_process(%ld) failed: %d", pid, status);
       continue;
     }
 
     switch (state) {
     case 'S':
-      sleeping++;
+      process_count[STATE_SLEEPING]++;
       break;
     case 'D':
-      blocked++;
+      process_count[STATE_BLOCKED]++;
       break;
     case 'Z':
-      zombies++;
+      process_count[STATE_DEFUNCT]++;
       break;
     case 'T':
-      stopped++;
+      process_count[STATE_STOPPED]++;
       break;
     case 'W':
-      paging++;
+      process_count[STATE_PAGING]++;
       break;
     }
 
@@ -2166,10 +2180,13 @@ static int ps_read_linux(void) {
 
   closedir(proc);
 
-  if (read_file_contents("/proc/stat", buffer, sizeof(buffer) - 1) <= 0) {
-    ERROR("Cannot read `/proc/stat`");
+  char buffer[4096] = {0};
+  ssize_t n = read_text_file_contents("/proc/stat", buffer, sizeof(buffer) - 1);
+  if (n <= 0) {
+    ERROR("processes plugin: reading \"/proc/stat\" failed.");
     return -1;
   }
+
   /* get procs_running from /proc/stat
    * scanning /proc/stat AND computing other process stats takes too much time.
    * Consequently, the number of running processes based on the occurences
@@ -2178,19 +2195,12 @@ static int ps_read_linux(void) {
    * stat(s).
    * The 'procs_running' number in /proc/stat on the other hand is more
    * accurate, and can be retrieved in a single 'read' call. */
-  running = procs_running(buffer);
+  process_count[STATE_RUNNING] = procs_running(buffer);
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("paging", paging);
-  ps_submit_state("blocked", blocked);
+  for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
+    ps_submit_proc_list(ps);
 
-  for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
-
-  read_fork_rate();
+  read_fork_rate(buffer);
   if (report_sys_ctxt_switch) {
     read_sys_ctxt_switch(buffer);
   }
@@ -2199,14 +2209,14 @@ static int ps_read_linux(void) {
 }
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
-static int ps_read_freebsd(void) {
-  int running = 0;
-  int sleeping = 0;
-  int zombies = 0;
-  int stopped = 0;
-  int blocked = 0;
-  int idle = 0;
-  int wait = 0;
+static int ps_read_freebsd(gauge_t process_count[static STATE_MAX]) {
+  process_count[STATE_RUNNING] = 0;
+  process_count[STATE_SLEEPING] = 0;
+  process_count[STATE_DEFUNCT] = 0;
+  process_count[STATE_STOPPED] = 0;
+  process_count[STATE_BLOCKED] = 0;
+  process_count[STATE_IDLE] = 0;
+  process_count[STATE_WAIT] = 0;
 
   kvm_t *kd;
   char errbuf[_POSIX2_LINE_MAX];
@@ -2316,25 +2326,25 @@ static int ps_read_freebsd(void) {
 
       switch (procs[i].ki_stat) {
       case SSTOP:
-        stopped++;
+        process_count[STATE_STOPPED]++;
         break;
       case SSLEEP:
-        sleeping++;
+        process_count[STATE_SLEEPING]++;
         break;
       case SRUN:
-        running++;
+        process_count[STATE_RUNNING]++;
         break;
       case SIDL:
-        idle++;
+        process_count[STATE_IDLE]++;
         break;
       case SWAIT:
-        wait++;
+        process_count[STATE_WAIT]++;
         break;
       case SLOCK:
-        blocked++;
+        process_count[STATE_BLOCKED]++;
         break;
       case SZOMB:
-        zombies++;
+        process_count[STATE_DEFUNCT]++;
         break;
       }
     } /* if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid)) */
@@ -2342,29 +2352,20 @@ static int ps_read_freebsd(void) {
 
   kvm_close(kd);
 
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("blocked", blocked);
-  ps_submit_state("idle", idle);
-  ps_submit_state("wait", wait);
-
-  for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+  for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
+    ps_submit_proc_list(ps);
 
   return 0;
 }
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC2_NETBSD
-static int ps_read_netbsd(void) {
-  int running = 0;
-  int sleeping = 0;
-  int zombies = 0;
-  int stopped = 0;
-  int blocked = 0;
-  int idle = 0;
-  int wait = 0;
+static int ps_read_netbsd(gauge_t process_count[static STATE_MAX]) {
+  process_count[STATE_RUNNING] = 0;
+  process_count[STATE_SLEEPING] = 0;
+  process_count[STATE_DEFUNCT] = 0;
+  process_count[STATE_STOPPED] = 0;
+  process_count[STATE_BLOCKED] = 0;
+  process_count[STATE_IDLE] = 0;
 
   kvm_t *kd;
   char errbuf[_POSIX2_LINE_MAX];
@@ -2497,22 +2498,22 @@ static int ps_read_netbsd(void) {
         switch (kl[l].l_stat) {
         case LSONPROC:
         case LSRUN:
-          running++;
+          process_count[STATE_RUNNING]++;
           break;
         case LSSLEEP:
           if (kl[l].l_flag & L_SINTR) {
             if (kl[l].l_slptime > maxslp)
-              idle++;
+              process_count[STATE_IDLE]++;
             else
-              sleeping++;
+              process_count[STATE_SLEEPING]++;
           } else
-            blocked++;
+            process_count[STATE_BLOCKED]++;
           break;
         case LSSTOP:
-          stopped++;
+          process_count[STATE_STOPPED]++;
           break;
         case LSIDL:
-          idle++;
+          process_count[STATE_IDLE]++;
           break;
         }
       }
@@ -2520,20 +2521,12 @@ static int ps_read_netbsd(void) {
     case SZOMB:
     case SDYING:
     case SDEAD:
-      zombies++;
+      process_count[STATE_DEFUNCT]++;
       break;
     }
   }
 
   kvm_close(kd);
-
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("blocked", blocked);
-  ps_submit_state("idle", idle);
-  ps_submit_state("wait", wait);
 
   for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
@@ -2542,14 +2535,13 @@ static int ps_read_netbsd(void) {
 }
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD
-static int ps_read_openbsd(void) {
-  int running = 0;
-  int sleeping = 0;
-  int zombies = 0;
-  int stopped = 0;
-  int onproc = 0;
-  int idle = 0;
-  int dead = 0;
+static int ps_read_openbsd(gauge_t process_count[static STATE_MAX]) {
+  process_count[STATE_RUNNING] = 0;
+  process_count[STATE_SLEEPING] = 0;
+  process_count[STATE_DEFUNCT] = 0;
+  process_count[STATE_STOPPED] = 0;
+  process_count[STATE_ONPROC] = 0;
+  process_count[STATE_IDLE] = 0;
 
   kvm_t *kd;
   char errbuf[1024];
@@ -2648,39 +2640,29 @@ static int ps_read_openbsd(void) {
 
       switch (procs[i].p_stat) {
       case SSTOP:
-        stopped++;
+        process_count[STATE_STOPPED]++;
         break;
       case SSLEEP:
-        sleeping++;
+        process_count[STATE_SLEEPING]++;
         break;
       case SRUN:
-        running++;
+        process_count[STATE_RUNNING]++;
         break;
       case SIDL:
-        idle++;
+        process_count[STATE_IDLE]++;
         break;
       case SONPROC:
-        onproc++;
+        process_count[STATE_ONPROC]++;
         break;
       case SDEAD:
-        dead++;
-        break;
       case SZOMB:
-        zombies++;
+        process_count[STATE_DEFUNCT]++;
         break;
       }
     } /* if ((proc_ptr == NULL) || (proc_ptr->p_pid != procs[i].p_pid)) */
   }
 
   kvm_close(kd);
-
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("onproc", onproc);
-  ps_submit_state("idle", idle);
-  ps_submit_state("dead", dead);
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
@@ -2689,13 +2671,13 @@ static int ps_read_openbsd(void) {
 }
 
 #elif HAVE_PROCINFO_H
-static int ps_read_aix(void) {
-  int running = 0;
-  int sleeping = 0;
-  int zombies = 0;
-  int stopped = 0;
-  int paging = 0;
-  int blocked = 0;
+static int ps_read_aix(gauge_t process_count[static STATE_MAX]) {
+  process_count[STATE_RUNNING] = 0;
+  process_count[STATE_SLEEPING] = 0;
+  process_count[STATE_DEFUNCT] = 0;
+  process_count[STATE_STOPPED] = 0;
+  process_count[STATE_PAGING] = 0;
+  process_count[STATE_BLOCKED] = 0;
 
   pid_t pindex = 0;
   int nprocs;
@@ -2750,28 +2732,26 @@ static int ps_read_aix(void) {
       while ((nthreads = getthrds64(procentry[i].pi_pid, thrdentry,
                                     sizeof(struct thrdentry64), &thindex,
                                     MAXTHRDENTRY)) > 0) {
-        int j;
-
-        for (j = 0; j < nthreads; j++) {
+        for (int j = 0; j < nthreads; j++) {
           switch (thrdentry[j].ti_state) {
           /* case TSNONE: break; */
           case TSIDL:
-            blocked++;
+            process_count[STATE_BLOCKED]++;
             break; /* FIXME is really blocked */
           case TSRUN:
-            running++;
+            process_count[STATE_RUNNING]++;
             break;
           case TSSLEEP:
-            sleeping++;
+            process_count[STATE_SLEEPING]++;
             break;
           case TSSWAP:
-            paging++;
+            process_count[STATE_PAGING]++;
             break;
           case TSSTOP:
-            stopped++;
+            process_count[STATE_STOPPED]++;
             break;
           case TSZOMB:
-            zombies++;
+            process_count[STATE_DEFUNCT]++;
             break;
           }
         }
@@ -2816,12 +2796,6 @@ static int ps_read_aix(void) {
     if (nprocs < MAXPROCENTRY)
       break;
   } /* while (getprocs64() > 0) */
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("paging", paging);
-  ps_submit_state("blocked", blocked);
 
   for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
     ps_submit_proc_list(ps);
@@ -2830,21 +2804,21 @@ static int ps_read_aix(void) {
 }
 
 #elif KERNEL_SOLARIS
-static int ps_read_solaris(void) {
+static int ps_read_solaris(gauge_t process_count[static STATE_MAX]) {
   /*
    * The Solaris section adds a few more process states and removes some
    * process states compared to linux. Most notably there is no "PAGING"
    * and "BLOCKED" state for a process.  The rest is similar to the linux
    * code.
    */
-  int running = 0;
-  int sleeping = 0;
-  int zombies = 0;
-  int stopped = 0;
-  int detached = 0;
-  int daemon = 0;
-  int system = 0;
-  int orphan = 0;
+  process_count[STATE_RUNNING] = 0;
+  process_count[STATE_SLEEPING] = 0;
+  process_count[STATE_DEFUNCT] = 0;
+  process_count[STATE_STOPPED] = 0;
+  process_count[STATE_DETACHED] = 0;
+  process_count[STATE_DAEMON] = 0;
+  process_count[STATE_SYSTEM] = 0;
+  process_count[STATE_ORPHAN] = 0;
 
   struct dirent *ent;
   DIR *proc;
@@ -2883,28 +2857,28 @@ static int ps_read_solaris(void) {
 
     switch (state) {
     case 'R':
-      running++;
+      process_count[STATE_RUNNING]++;
       break;
     case 'S':
-      sleeping++;
+      process_count[STATE_SLEEPING]++;
       break;
     case 'E':
-      detached++;
+      process_count[STATE_DETACHED]++;
       break;
     case 'Z':
-      zombies++;
+      process_count[STATE_DEFUNCT]++;
       break;
     case 'T':
-      stopped++;
+      process_count[STATE_STOPPED]++;
       break;
     case 'A':
-      daemon++;
+      process_count[STATE_DAEMON]++;
       break;
     case 'Y':
-      system++;
+      process_count[STATE_SYSTEM]++;
       break;
     case 'O':
-      orphan++;
+      process_count[STATE_ORPHAN]++;
       break;
     }
 
@@ -2912,15 +2886,6 @@ static int ps_read_solaris(void) {
                 ps_get_cmdline(pid, pse.name, cmdline, sizeof(cmdline)), &pse);
   } /* while(readdir) */
   closedir(proc);
-
-  ps_submit_state("running", running);
-  ps_submit_state("sleeping", sleeping);
-  ps_submit_state("zombies", zombies);
-  ps_submit_state("stopped", stopped);
-  ps_submit_state("detached", detached);
-  ps_submit_state("daemon", daemon);
-  ps_submit_state("system", system);
-  ps_submit_state("orphan", orphan);
 
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
@@ -2932,26 +2897,50 @@ static int ps_read_solaris(void) {
 #endif /* KERNEL_SOLARIS */
 
 static int ps_read(void) {
+  gauge_t process_count[STATE_MAX];
+  for (process_state_t s = 0; s < STATE_MAX; s++) {
+    process_count[s] = NAN;
+  }
+
   int status = 0;
 #if HAVE_THREAD_INFO
-  status = ps_read_thread_info();
+  status = ps_read_thread_info(process_count);
 #elif KERNEL_LINUX
-  status = ps_read_linux();
+  status = ps_read_linux(process_count);
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
-  status = ps_read_freebsd();
+  status = ps_read_freebsd(process_count);
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC2_NETBSD
-  status = ps_read_netbsd();
+  status = ps_read_netbsd(process_count);
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD
-  status = ps_read_openbsd();
+  status = ps_read_openbsd(process_count);
 #elif HAVE_PROCINFO_H
-  status = ps_read_aix();
+  status = ps_read_aix(process_count);
 #elif KERNEL_SOLARIS
-  status = ps_read_solaris();
+  status = ps_read_solaris(process_count);
 #endif
   if (status != 0) {
     return status;
   }
 
+  metric_family_t fam = {
+      .name = "system.processes.count",
+      .help = "Total number of processes in each state",
+      .unit = "{process}",
+      .type = METRIC_TYPE_GAUGE,
+  };
+
+  for (process_state_t s = 0; s < STATE_MAX; s++) {
+    if (isnan(process_count[s])) {
+      continue;
+    }
+
+    value_t v = {.gauge = process_count[s]};
+    metric_family_append(&fam, state_label, state_names[s], v, NULL);
+  }
+
+  plugin_dispatch_metric_family(&fam);
+
+  metric_family_metric_reset(&fam);
   want_init = false;
   return 0;
 } /* int ps_read */
