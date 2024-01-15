@@ -243,13 +243,13 @@ static void swap_submit_usage3(metric_family_t *fams, char const *device,
       total += other;
 
       metric_family_append(fam_utilization, label_state, other_name,
-                           (value_t){.gauge = 100.0 * other / total}, &m);
+                           (value_t){.gauge = other / total}, &m);
     }
 
     metric_family_append(fam_utilization, label_state, state_used,
-                         (value_t){.gauge = 100.0 * used / total}, &m);
+                         (value_t){.gauge = used / total}, &m);
     metric_family_append(fam_utilization, label_state, state_free,
-                         (value_t){.gauge = 100.0 * free / total}, &m);
+                         (value_t){.gauge = free / total}, &m);
   }
 
   metric_reset(&m);
