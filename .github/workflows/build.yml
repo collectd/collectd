@@ -34,14 +34,14 @@ jobs:
           - centos9
           - fedora39
           - fedora38
-        configure_flags: ['']
+        configure_flags: ['--enable-compatibility-mode']
         include:
           - container_tag: debian12
-            configure_flags: '--enable-debug'
+            configure_flags: '--enable-compatibility-mode --enable-debug'
           - container_tag: debian12
             # By default clang emits DWARF v5, which Valgrind cannot read yet.
             # https://github.com/llvm/llvm-project/issues/56550
-            configure_flags: 'CC=clang CXX=clang++ CFLAGS=-gdwarf-4'
+            configure_flags: '--enable-compatibility-mode CC=clang CXX=clang++ CFLAGS=-gdwarf-4'
     env:
       CONFIGURE_FLAGS: ${{ matrix.configure_flags }}
       # this env var picked up by valgrind during make check phase
@@ -96,14 +96,15 @@ jobs:
         container_tag:
           - debian_unstable
           - fedora_main
+        configure_flags: ['--enable-compatibility-mode']
         # Add additional per-distro vars here.
         include:
           - container_tag: debian_unstable
-            configure_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt"
+            configure_flags: "--enable-compatibility-mode --disable-dpdkstat --disable-dpdkevents --disable-virt"
           - container_tag: fedora_main
             cflags: "-fPIE -Wno-deprecated-declarations"
             cppflags: "-fPIE -Wno-deprecated-declarations"
-            configure_flags: "--disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
+            configure_flags: "--enable-compatibility-mode --disable-dpdkstat --disable-dpdkevents --disable-virt --disable-xmms"
     env:
       CFLAGS: ${{ matrix.cflags }}
       CPPFLAGS: ${{ matrix.cppflags }}
