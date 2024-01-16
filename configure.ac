@@ -7418,7 +7418,6 @@ if test "x$enable_compatibility_mode" = "xno"; then
 	plugin_ovs_stats="no (requires v5 compatibility mode)"
 	plugin_pinba="no (requires v5 compatibility mode)"
 	plugin_powerdns="no (requires v5 compatibility mode)"
-	plugin_processes="no (requires v5 compatibility mode)"
 	plugin_procevent="no (requires v5 compatibility mode)"
 	plugin_sensors="no (requires v5 compatibility mode)"
 	plugin_serial="no (requires v5 compatibility mode)"
