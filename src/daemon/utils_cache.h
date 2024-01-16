@@ -50,16 +50,14 @@ value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl);
 size_t uc_get_size(void);
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);
 
-int uc_get_state(const data_set_t *ds, const value_list_t *vl);
-int uc_set_state(const data_set_t *ds, const value_list_t *vl, int state);
-int uc_get_hits(const data_set_t *ds, const value_list_t *vl);
-int uc_set_hits(const data_set_t *ds, const value_list_t *vl, int hits);
-int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step);
+int uc_get_state(const value_list_t *vl);
+int uc_set_state(const value_list_t *vl, int state);
+int uc_get_hits(const value_list_t *vl);
+int uc_set_hits(const value_list_t *vl, int hits);
+int uc_inc_hits(const value_list_t *vl, int step);
 
 int uc_set_callbacks_mask(const char *name, unsigned long callbacks_mask);
 
-int uc_get_history(const data_set_t *ds, const value_list_t *vl,
-                   gauge_t *ret_history, size_t num_steps, size_t num_ds);
 int uc_get_history_by_name(const char *name, gauge_t *ret_history,
                            size_t num_steps, size_t num_ds);
 
