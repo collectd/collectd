@@ -1177,12 +1177,12 @@ endif
 if BUILD_PLUGIN_GPU_SYSMAN
 pkglib_LTLIBRARIES += gpu_sysman.la
 gpu_sysman_la_SOURCES = src/gpu_sysman.c
-gpu_sysman_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_SYSMAN_CPPFLAGS)
-gpu_sysman_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_SYSMAN_LDFLAGS)
-gpu_sysman_la_LIBADD = $(BUILD_WITH_SYSMAN_LIBS)
+gpu_sysman_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(LEVEL_ZERO_CFLAGS)
+gpu_sysman_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+gpu_sysman_la_LIBADD = $(LEVEL_ZERO_LIBS)
 
 test_plugin_gpu_sysman_SOURCES = src/gpu_sysman_test.c
-test_plugin_gpu_sysman_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(BUILD_WITH_SYSMAN_CPPFLAGS)
+test_plugin_gpu_sysman_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(LEVEL_ZERO_CFLAGS)
 test_plugin_gpu_sysman_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_gpu_sysman_LDADD =
 check_PROGRAMS += test_plugin_gpu_sysman

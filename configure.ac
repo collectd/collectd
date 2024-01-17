@@ -2105,52 +2105,37 @@ AC_SUBST([BUILD_WITH_CUDA_LIBS])
 
 # }}}
 
-# --with-sysman {{{
-AC_ARG_WITH([sysman],
-  [AS_HELP_STRING([--with-sysman@<:@=PREFIX@:>@], [Path to Level-Zero sysman.])],
-  [
-    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
-      with_sysman_cppflags="-I$withval/include"
-      with_sysman_ldflags="-I$withval/lib"
-      with_sysman="yes"
-    else
-      with_sysman="$withval"
-    fi
-  ],
-  [with_sysman="no"]
+# Level-Zero loader provides Sysman API (subset) for the "gpu_sysman" plugin
+# libze {{{
+PKG_CHECK_MODULES([LEVEL_ZERO], [level-zero],
+  [with_level_zero="yes"],
+  [with_level_zero="no (pkg-config could not find 'level-zero')"]
 )
 
-if test "x$with_sysman" = "xyes"; then
+if test "x$with_level_zero" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $with_sysman_cppflags"
+  CPPFLAGS="$CPPFLAGS $LEVEL_ZERO_CFLAGS"
 
   AC_CHECK_HEADERS([level_zero/ze_api.h level_zero/zes_api.h],
-    [with_sysman="yes"],
-    [with_sysman="no (ze_api.h / zes_api.h not found)"]
+    [with_level_zero="yes"],
+    [with_level_zero="no (ze_api.h / zes_api.h not found)"]
   )
   CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
-if test "x$with_sysman" = "xyes"; then
+if test "x$with_level_zero" = "xyes"; then
   SAVE_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS $with_sysman_ldflags"
+  LDFLAGS="$LDFLAGS $LEVEL_ZERO_LIBS"
 
   AC_CHECK_LIB([ze_loader], zeInit,
-    [with_sysman="yes"],
-    [with_sysman="no (libze_loader symbol 'zeInit' not found)"]
+    [with_level_zero="yes"],
+    [with_level_zero="no (libze_loader symbol 'zeInit' not found)"]
   )
   LDFLAGS="$SAVE_LDFLAGS"
 fi
 
-if test "x$with_sysman" = "xyes"; then
-  BUILD_WITH_SYSMAN_CPPFLAGS="$with_sysman_cppflags"
-  BUILD_WITH_SYSMAN_LDFLAGS="$with_sysman_ldflags"
-  BUILD_WITH_SYSMAN_LIBS="-lze_loader"
-fi
-
-AC_SUBST([BUILD_WITH_SYSMAN_CPPFLAGS])
-AC_SUBST([BUILD_WITH_SYSMAN_LDFLAGS])
-AC_SUBST([BUILD_WITH_SYSMAN_LIBS])
+AC_SUBST([LEVEL_ZERO_CFLAGS])
+AC_SUBST([LEVEL_ZERO_LIBS])
 # }}}
 
 # --with-libaquaero5 {{{
@@ -6770,7 +6755,7 @@ plugin_fscache="no"
 plugin_gmond="$with_libganglia"
 plugin_gps="no"
 plugin_gpu_nvidia="$with_cuda"
-plugin_gpu_sysman="$with_sysman"
+plugin_gpu_sysman="$with_level_zero"
 plugin_grpc="yes"
 plugin_hddtemp="yes"
 plugin_hugepages="no"
@@ -7463,7 +7448,7 @@ AC_PLUGIN([fscache],             [$plugin_fscache],           [fscache statistic
 AC_PLUGIN([gmond],               [$plugin_gmond],             [Ganglia plugin])
 AC_PLUGIN([gps],                 [$plugin_gps],               [GPS plugin])
 AC_PLUGIN([gpu_nvidia],          [$plugin_gpu_nvidia],        [NVIDIA GPU plugin])
-AC_PLUGIN([gpu_sysman],          [$plugin_gpu_sysman],        [Level-Zero Sysman GPU plugin])
+AC_PLUGIN([gpu_sysman],          [$plugin_gpu_sysman],        [Intel GPU plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [$plugin_hddtemp],           [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],         [Hugepages statistics])
@@ -7845,7 +7830,6 @@ AC_MSG_RESULT([    libsigrok   . . . . . $with_libsigrok])
 AC_MSG_RESULT([    libssl  . . . . . . . $with_libssl])
 AC_MSG_RESULT([    libslurm .  . . . . . $with_libslurm])
 AC_MSG_RESULT([    libstatgrab . . . . . $with_libstatgrab])
-AC_MSG_RESULT([    libsysman . . . . . . $with_sysman])
 AC_MSG_RESULT([    libtokyotyrant  . . . $with_libtokyotyrant])
 AC_MSG_RESULT([    libudev . . . . . . . $with_libudev])
 AC_MSG_RESULT([    libupsclient  . . . . $with_libupsclient])
@@ -7854,6 +7838,7 @@ AC_MSG_RESULT([    libvirt . . . . . . . $with_libvirt])
 AC_MSG_RESULT([    libxenctrl  . . . . . $with_libxenctrl])
 AC_MSG_RESULT([    libxml2 . . . . . . . $with_libxml2])
 AC_MSG_RESULT([    libyajl . . . . . . . $with_libyajl])
+AC_MSG_RESULT([    libze_loader. . . . . $with_level_zero])
 AC_MSG_RESULT([    oracle  . . . . . . . $with_oracle])
 AC_MSG_RESULT([    protobuf-c  . . . . . $have_protoc_c])
 AC_MSG_RESULT([    protoc 3  . . . . . . $have_protoc3])
