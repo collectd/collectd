@@ -283,7 +283,7 @@ static int redfish_preconfig(void) {
     goto error;
 
   /* Creating placeholder for queries */
-  ctx.queries = c_avl_create((void *)strcmp);
+  ctx.queries = c_avl_create((int (*)(const void *, const void *))strcmp);
   if (ctx.services == NULL)
     goto free_services;
 

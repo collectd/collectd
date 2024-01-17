@@ -493,13 +493,14 @@ sd_output_t *sd_output_create(sd_resource_t *res) /* {{{ */
     return NULL;
   }
 
-  out->staged = c_avl_create((void *)strcmp);
+  out->staged = c_avl_create((int (*)(const void *, const void *))strcmp);
   if (out->staged == NULL) {
     sd_output_destroy(out);
     return NULL;
   }
 
-  out->metric_descriptors = c_avl_create((void *)strcmp);
+  out->metric_descriptors =
+      c_avl_create((int (*)(const void *, const void *))strcmp);
   if (out->metric_descriptors == NULL) {
     sd_output_destroy(out);
     return NULL;
