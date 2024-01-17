@@ -1049,6 +1049,38 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
   plugin_dispatch_metric_family(&fam_stack);
   metric_family_metric_reset(&fam_stack);
 
+  if (pse->io_rchar != -1 && pse->io_wchar != -1) {
+    metric_family_t fam_disk = {
+        .name = "process.io",
+        .help = "The amount of data transferred by the process.",
+        .unit = "By",
+        .type = METRIC_TYPE_COUNTER,
+        .resource = resource,
+    };
+    metric_family_append(&fam_disk, "direction", "read",
+                         (value_t){.derive = pse->io_rchar}, NULL);
+    metric_family_append(&fam_disk, "direction", "write",
+                         (value_t){.derive = pse->io_wchar}, NULL);
+    plugin_dispatch_metric_family(&fam_disk);
+    metric_family_metric_reset(&fam_disk);
+  }
+
+  if (pse->io_syscr != -1 && pse->io_syscw != -1) {
+    metric_family_t fam_disk = {
+        .name = "process.operations",
+        .help = "The number of I/O operations performed by the process.",
+        .unit = "{operation}",
+        .type = METRIC_TYPE_COUNTER,
+        .resource = resource,
+    };
+    metric_family_append(&fam_disk, "direction", "read",
+                         (value_t){.derive = pse->io_syscr}, NULL);
+    metric_family_append(&fam_disk, "direction", "write",
+                         (value_t){.derive = pse->io_syscw}, NULL);
+    plugin_dispatch_metric_family(&fam_disk);
+    metric_family_metric_reset(&fam_disk);
+  }
+
   if (pse->io_diskr != -1 && pse->io_diskw != -1) {
     metric_family_t fam_disk = {
         .name = "process.disk.io",
@@ -1078,6 +1110,19 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
   plugin_dispatch_metric_family(&fam_threads);
   metric_family_metric_reset(&fam_threads);
 
+  metric_family_t fam_fd = {
+      .name = "process.open_file_descriptors",
+      .help = "Number of file descriptors in use by the process.",
+      .unit = "{count}",
+      .type = METRIC_TYPE_GAUGE,
+      .resource = resource,
+  };
+  metric_family_metric_append(&fam_fd, (metric_t){
+                                           .value.gauge = pse->num_fd,
+                                       });
+  plugin_dispatch_metric_family(&fam_fd);
+  metric_family_metric_reset(&fam_fd);
+
   if (pse->cswitch_vol != -1 && pse->cswitch_invol != -1) {
     metric_family_t fam_cswitch = {
         .name = "process.context_switches",
@@ -1092,6 +1137,22 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
                          (value_t){.derive = pse->cswitch_invol}, NULL);
     plugin_dispatch_metric_family(&fam_cswitch);
     metric_family_metric_reset(&fam_cswitch);
+  }
+
+  if (pse->vmem_majflt_counter != -1 && pse->vmem_minflt_counter != -1) {
+    metric_family_t fam_pgfault = {
+        .name = "process.paging.faults",
+        .help = "Number of page faults the process has made.",
+        .unit = "{fault}",
+        .type = METRIC_TYPE_COUNTER,
+        .resource = resource,
+    };
+    metric_family_append(&fam_pgfault, "type", "major",
+                         (value_t){.derive = pse->vmem_majflt_counter}, NULL);
+    metric_family_append(&fam_pgfault, "type", "minor",
+                         (value_t){.derive = pse->vmem_minflt_counter}, NULL);
+    plugin_dispatch_metric_family(&fam_pgfault);
+    metric_family_metric_reset(&fam_pgfault);
   }
 }
 
@@ -1131,50 +1192,6 @@ static void ps_submit_proc_list(procstat_t *ps) {
   vl.values[1].gauge = pse->num_lwp;
   vl.values_len = 2;
   plugin_dispatch_values(&vl);
-
-  sstrncpy(vl.type, "ps_pagefaults", sizeof(vl.type));
-  vl.values[0].derive = ps->vmem_minflt_counter;
-  vl.values[1].derive = ps->vmem_majflt_counter;
-  vl.values_len = 2;
-  plugin_dispatch_values(&vl);
-
-  if ((ps->io_rchar != -1) && (ps->io_wchar != -1)) {
-    sstrncpy(vl.type, "io_octets", sizeof(vl.type));
-    vl.values[0].derive = ps->io_rchar;
-    vl.values[1].derive = ps->io_wchar;
-    vl.values_len = 2;
-    plugin_dispatch_values(&vl);
-  }
-
-  if ((ps->io_syscr != -1) && (ps->io_syscw != -1)) {
-    sstrncpy(vl.type, "io_ops", sizeof(vl.type));
-    vl.values[0].derive = ps->io_syscr;
-    vl.values[1].derive = ps->io_syscw;
-    vl.values_len = 2;
-    plugin_dispatch_values(&vl);
-  }
-
-  if (ps->num_maps > 0) {
-    sstrncpy(vl.type, "file_handles", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "mapped", sizeof(vl.type_instance));
-    vl.values[0].gauge = ps->num_maps;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
-  }
-
-  if ((ps->cswitch_vol != -1) && (ps->cswitch_invol != -1)) {
-    sstrncpy(vl.type, "contextswitch", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "voluntary", sizeof(vl.type_instance));
-    vl.values[0].derive = ps->cswitch_vol;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
-
-    sstrncpy(vl.type, "contextswitch", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "involuntary", sizeof(vl.type_instance));
-    vl.values[0].derive = ps->cswitch_invol;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
-  }
 
   /* The ps->delay_* metrics are in nanoseconds per second. Convert to seconds
    * per second. */
