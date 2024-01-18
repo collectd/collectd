@@ -197,6 +197,7 @@ typedef struct {
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
 
+  /* CPU counters are scaled to count microseconds. */
   derive_t cpu_user_counter;
   derive_t cpu_system_counter;
 
@@ -246,6 +247,7 @@ typedef struct procstat_entry_s {
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
 
+  /* CPU counters are scaled to count microseconds. */
   derive_t cpu_user_counter;
   derive_t cpu_system_counter;
 
@@ -260,12 +262,12 @@ typedef struct procstat_entry_s {
   derive_t cswitch_vol;
   derive_t cswitch_invol;
 
-#if HAVE_LIBTASKSTATS
-  value_to_rate_state_t delay_cpu;
-  value_to_rate_state_t delay_blkio;
-  value_to_rate_state_t delay_swapin;
-  value_to_rate_state_t delay_freepages;
-#endif
+  /* Linux Delay Accounting. Unit is ns/s. */
+  bool has_delay;
+  derive_t delay_cpu;
+  derive_t delay_blkio;
+  derive_t delay_swapin;
+  derive_t delay_freepages;
 
   struct procstat_entry_s *next;
 } procstat_entry_t;
@@ -293,12 +295,6 @@ typedef struct procstat {
 
   derive_t cswitch_vol;
   derive_t cswitch_invol;
-
-  /* Linux Delay Accounting. Unit is ns/s. */
-  gauge_t delay_cpu;
-  gauge_t delay_blkio;
-  gauge_t delay_swapin;
-  gauge_t delay_freepages;
 
   bool report_fd_num;
   bool report_maps_num;
@@ -533,39 +529,6 @@ static void ps_update_counter(derive_t *group_counter, derive_t *curr_counter,
   *group_counter += curr_value;
 }
 
-#if HAVE_LIBTASKSTATS
-static void ps_update_delay_one(gauge_t *out_rate_sum,
-                                value_to_rate_state_t *state, uint64_t cnt,
-                                cdtime_t t) {
-  gauge_t rate = NAN;
-  int status = value_to_rate(&rate, (value_t){.counter = (counter_t)cnt},
-                             DS_TYPE_COUNTER, t, state);
-  if ((status != 0) || isnan(rate)) {
-    return;
-  }
-
-  if (isnan(*out_rate_sum)) {
-    *out_rate_sum = rate;
-  } else {
-    *out_rate_sum += rate;
-  }
-}
-
-static void ps_update_delay(procstat_t *out, procstat_entry_t *prev,
-                            process_entry_t *curr) {
-  cdtime_t now = cdtime();
-
-  ps_update_delay_one(&out->delay_cpu, &prev->delay_cpu, curr->delay.cpu_ns,
-                      now);
-  ps_update_delay_one(&out->delay_blkio, &prev->delay_blkio,
-                      curr->delay.blkio_ns, now);
-  ps_update_delay_one(&out->delay_swapin, &prev->delay_swapin,
-                      curr->delay.swapin_ns, now);
-  ps_update_delay_one(&out->delay_freepages, &prev->delay_freepages,
-                      curr->delay.freepages_ns, now);
-}
-#endif
-
 static procstat_entry_t *
 find_or_allocate_procstat_entry(procstat_t *ps, unsigned long id,
                                 unsigned long long starttime) {
@@ -617,10 +580,12 @@ static void ps_add_entry_to_procstat(procstat_t *ps, char const *cmdline,
   ps_fill_details(ps, entry);
 #endif
 
+  pse->has_delay = entry->has_delay;
 #if HAVE_LIBTASKSTATS
-  if (entry->has_delay) {
-    ps_update_delay(ps, pse, entry);
-  }
+  pse->delay_cpu = (derive_t)entry->delay.cpu_ns;
+  pse->delay_blkio = (derive_t)entry->delay.blkio_ns;
+  pse->delay_swapin = (derive_t)entry->delay.swapin_ns;
+  pse->delay_freepages = (derive_t)entry->delay.freepages_ns;
 #endif
 
   pse->num_lwp = (gauge_t)entry->num_lwp;
@@ -762,11 +727,6 @@ static void ps_list_add(char const *name, process_entry_t *entry) {
 /* remove old entries from instances of processes in list_head_g */
 static void ps_list_reset(void) {
   for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next) {
-    ps->delay_cpu = NAN;
-    ps->delay_blkio = NAN;
-    ps->delay_swapin = NAN;
-    ps->delay_freepages = NAN;
-
     procstat_entry_t *pse = ps->instances;
     procstat_entry_t *pse_prev = NULL;
     while (pse != NULL) {
@@ -778,6 +738,12 @@ static void ps_list_reset(void) {
       pse->vmem_data = NAN;
       pse->vmem_code = NAN;
       pse->stack_size = NAN;
+
+      pse->has_delay = false;
+      pse->delay_cpu = 0;
+      pse->delay_blkio = 0;
+      pse->delay_swapin = 0;
+      pse->delay_freepages = 0;
 
       if (pse->seen) {
         pse->seen = false;
@@ -997,6 +963,44 @@ static int process_resource(procstat_t const *ps, procstat_entry_t const *pse,
   return have_id ? 0 : -1;
 }
 
+static void ps_dispatch_delay(label_set_t resource,
+                              procstat_entry_t const *pse) {
+  metric_family_t fam_delay = {
+      .name = "process.delay.time",
+      .help = "Time the process spend waiting for external components.",
+      .unit = "ns",
+      .type = METRIC_TYPE_COUNTER,
+      .resource = resource,
+  };
+  struct {
+    char *type_label;
+    value_t value;
+  } metrics[] = {
+      {
+          .type_label = "cpu",
+          .value.derive = pse->delay_cpu,
+      },
+      {
+          .type_label = "blkio",
+          .value.derive = pse->delay_blkio,
+      },
+      {
+          .type_label = "swapin",
+          .value.derive = pse->delay_swapin,
+      },
+      {
+          .type_label = "freepages",
+          .value.derive = pse->delay_freepages,
+      },
+  };
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
+    metric_family_append(&fam_delay, "type", metrics[i].type_label,
+                         metrics[i].value, NULL);
+  }
+  plugin_dispatch_metric_family(&fam_delay);
+  metric_family_metric_reset(&fam_delay);
+}
+
 static void ps_dispatch_procstat_entry(procstat_t const *ps,
                                        procstat_entry_t const *pse) {
   label_set_t resource = {0};
@@ -1154,6 +1158,10 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
     plugin_dispatch_metric_family(&fam_pgfault);
     metric_family_metric_reset(&fam_pgfault);
   }
+
+  if (pse->has_delay) {
+    ps_dispatch_delay(resource, pse);
+  }
 }
 
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..)
@@ -1192,31 +1200,6 @@ static void ps_submit_proc_list(procstat_t *ps) {
   vl.values[1].gauge = pse->num_lwp;
   vl.values_len = 2;
   plugin_dispatch_values(&vl);
-
-  /* The ps->delay_* metrics are in nanoseconds per second. Convert to seconds
-   * per second. */
-  gauge_t const delay_factor = 1000000000.0;
-
-  struct {
-    const char *type_instance;
-    gauge_t rate_ns;
-  } delay_metrics[] = {
-      {"delay-cpu", ps->delay_cpu},
-      {"delay-blkio", ps->delay_blkio},
-      {"delay-swapin", ps->delay_swapin},
-      {"delay-freepages", ps->delay_freepages},
-  };
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(delay_metrics); i++) {
-    if (isnan(delay_metrics[i].rate_ns)) {
-      continue;
-    }
-    sstrncpy(vl.type, "delay_rate", sizeof(vl.type));
-    sstrncpy(vl.type_instance, delay_metrics[i].type_instance,
-             sizeof(vl.type_instance));
-    vl.values[0].gauge = delay_metrics[i].rate_ns / delay_factor;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
-  }
 #endif
 } /* void ps_submit_proc_list */
 
