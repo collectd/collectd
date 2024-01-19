@@ -93,12 +93,7 @@
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
-#if HAVE_LINUX_CONFIG_H
-#include <linux/config.h>
-#endif
-#ifndef CONFIG_HZ
-#define CONFIG_HZ 100
-#endif
+/* no-op */
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS &&                                                  \
@@ -894,7 +889,6 @@ static int ps_init(void) {
 
 #elif KERNEL_LINUX
   pagesize_g = sysconf(_SC_PAGESIZE);
-  DEBUG("pagesize_g = %li; CONFIG_HZ = %i;", pagesize_g, CONFIG_HZ);
 
 #if HAVE_LIBTASKSTATS
   if (taskstats_handle == NULL) {
@@ -1653,9 +1647,11 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
                                            : stack_ptr - stack_start;
   }
 
-  /* Convert jiffies to useconds */
-  cpu_user_counter = cpu_user_counter * 1000000 / CONFIG_HZ;
-  cpu_system_counter = cpu_system_counter * 1000000 / CONFIG_HZ;
+  derive_t clock_ticks = (derive_t)sysconf(_SC_CLK_TCK);
+
+  /* Convert to microseconds */
+  cpu_user_counter = cpu_user_counter * 1000000 / clock_ticks;
+  cpu_system_counter = cpu_system_counter * 1000000 / clock_ticks;
   vmem_rss = vmem_rss * pagesize_g;
 
   ps->cpu_user_counter = cpu_user_counter;

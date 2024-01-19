@@ -588,9 +588,8 @@ AC_CHECK_HEADERS([sys/swap.h vm/anon.h],
 )
 
 # For load module
-# For the processes plugin
 # For users module
-AC_CHECK_HEADERS([sys/loadavg.h linux/config.h utmp.h utmpx.h])
+AC_CHECK_HEADERS([sys/loadavg.h utmp.h utmpx.h])
 
 # For quota module
 AC_CHECK_HEADERS([sys/ucred.h], [], [],
