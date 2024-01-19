@@ -224,9 +224,9 @@ static bool report_guest;
 static bool subtract_guest = true;
 
 static const char *config_keys[] = {
-    "ReportByCpu",        "ReportByState",    "ReportNumCpu",
-    "ReportUtilization",  "ValuesPercentage", "ReportGuestState",
-    "SubtractGuestState",
+    "ReportByCpu",      "ReportByState",      "ReportGuestState",
+    "ReportNumCpu",     "ReportUsage",        "ReportUtilization",
+    "ValuesPercentage", "SubtractGuestState",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -234,17 +234,17 @@ static int cpu_config(char const *key, char const *value) /* {{{ */
 {
   if (strcasecmp(key, "ReportByCpu") == 0)
     report_by_cpu = IS_TRUE(value);
+  else if (strcasecmp(key, "ReportByState") == 0)
+    report_by_state = IS_TRUE(value);
+  else if (strcasecmp(key, "ReportGuestState") == 0)
+    report_guest = IS_TRUE(value);
+  else if (strcasecmp(key, "ReportNumCpu") == 0)
+    report_num_cpu = IS_TRUE(value);
   else if (strcasecmp(key, "ReportUsage") == 0)
     report_usage = IS_TRUE(value);
   else if (strcasecmp(key, "ReportUtilization") == 0 ||
            strcasecmp(key, "ValuesPercentage") == 0)
     report_utilization = IS_TRUE(value);
-  else if (strcasecmp(key, "ReportByState") == 0)
-    report_by_state = IS_TRUE(value);
-  else if (strcasecmp(key, "ReportNumCpu") == 0)
-    report_num_cpu = IS_TRUE(value);
-  else if (strcasecmp(key, "ReportGuestState") == 0)
-    report_guest = IS_TRUE(value);
   else if (strcasecmp(key, "SubtractGuestState") == 0)
     subtract_guest = IS_TRUE(value);
   else
