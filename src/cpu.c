@@ -428,6 +428,8 @@ static void usage_finalize(usage_t *u) {
 
   size_t cpu_num = u->states_num / STATE_MAX;
   gauge_t state_ratio[STATE_MAX] = {0};
+  // Aggregate non-idle CPU states to STATE_ACTIVE and all CPUs' states to
+  // global states.
   for (size_t cpu = 0; cpu < cpu_num; cpu++) {
     size_t active_index = (cpu * STATE_MAX) + STATE_ACTIVE;
     usage_state_t *active = u->states + active_index;

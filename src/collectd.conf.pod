@@ -1790,7 +1790,7 @@ Sets whether CPU usage (in jiffies/seconds) is reported. Defaults to B<true>.
 
 =item B<ReportUtilization> B<true>|B<false>
 
-Sets whether CPU utilization (a ratio) is reported. Defaults to B<true>.
+Sets whether CPU utilization ratio is reported. Defaults to B<true>.
 
 When enabled, the B<ReportByState> and B<ReportByCpu> options can be used to
 report aggregated data.
