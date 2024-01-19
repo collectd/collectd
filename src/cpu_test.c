@@ -58,11 +58,12 @@ DEF_TEST(usage_rate) {
 }
 
 DEF_TEST(usage_ratio) {
+  const size_t cpu_num = 4;
   usage_t usage = {0};
 
   cdtime_t t0 = TIME_T_TO_CDTIME_T(100);
   usage_init(&usage, t0);
-  for (size_t cpu = 0; cpu < 4; cpu++) {
+  for (size_t cpu = 0; cpu < cpu_num; cpu++) {
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
       usage_record(&usage, cpu, s, 1000);
     }
@@ -73,7 +74,7 @@ DEF_TEST(usage_ratio) {
   derive_t global_increment = 0;
   derive_t state_increment[STATE_MAX] = {0};
 
-  for (size_t cpu = 0; cpu < 4; cpu++) {
+  for (size_t cpu = 0; cpu < cpu_num; cpu++) {
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
       derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
       usage_record(&usage, cpu, s, 1000 + increment);
@@ -89,7 +90,7 @@ DEF_TEST(usage_ratio) {
     }
   }
 
-  for (size_t cpu = 0; cpu < 4; cpu++) {
+  for (size_t cpu = 0; cpu < cpu_num; cpu++) {
     derive_t active_increment = 0;
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
       derive_t increment = ((derive_t)cpu * STATE_ACTIVE) + ((derive_t)s);
@@ -111,7 +112,7 @@ DEF_TEST(usage_ratio) {
   }
 
   gauge_t sum = 0;
-  for (size_t cpu = 0; cpu < 4; cpu++) {
+  for (size_t cpu = 0; cpu < cpu_num; cpu++) {
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
       gauge_t rate = usage_ratio(&usage, cpu, s);
       sum += rate;
