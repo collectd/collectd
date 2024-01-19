@@ -245,6 +245,10 @@ typedef struct procstat_entry_s {
   /* CPU counters are scaled to count microseconds. */
   derive_t cpu_user_counter;
   derive_t cpu_system_counter;
+  value_to_rate_state_t cpu_user_state;
+  value_to_rate_state_t cpu_system_state;
+  gauge_t cpu_user_rate;
+  gauge_t cpu_system_rate;
 
   /* io data */
   derive_t io_rchar;
@@ -276,9 +280,6 @@ typedef struct procstat {
 
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
-
-  derive_t cpu_user_counter;
-  derive_t cpu_system_counter;
 
   /* io data */
   derive_t io_rchar;
@@ -592,6 +593,17 @@ static void ps_add_entry_to_procstat(procstat_t *ps, char const *cmdline,
   pse->vmem_code = (gauge_t)entry->vmem_code;
   pse->stack_size = (gauge_t)entry->stack_size;
 
+  cdtime_t now = cdtime();
+
+  pse->cpu_user_counter = entry->cpu_user_counter;
+  value_to_rate(&pse->cpu_user_rate,
+                (value_t){.counter = entry->cpu_user_counter}, DS_TYPE_DERIVE,
+                now, &pse->cpu_user_state);
+  pse->cpu_system_counter = entry->cpu_system_counter;
+  value_to_rate(&pse->cpu_system_rate,
+                (value_t){.counter = entry->cpu_system_counter}, DS_TYPE_DERIVE,
+                now, &pse->cpu_system_state);
+
   if ((entry->io_rchar != -1) && (entry->io_wchar != -1)) {
     ps_update_counter(&ps->io_rchar, &pse->io_rchar, entry->io_rchar);
     ps_update_counter(&ps->io_wchar, &pse->io_wchar, entry->io_wchar);
@@ -617,11 +629,6 @@ static void ps_add_entry_to_procstat(procstat_t *ps, char const *cmdline,
                     entry->vmem_minflt_counter);
   ps_update_counter(&ps->vmem_majflt_counter, &pse->vmem_majflt_counter,
                     entry->vmem_majflt_counter);
-
-  ps_update_counter(&ps->cpu_user_counter, &pse->cpu_user_counter,
-                    entry->cpu_user_counter);
-  ps_update_counter(&ps->cpu_system_counter, &pse->cpu_system_counter,
-                    entry->cpu_system_counter);
 }
 
 #if KERNEL_LINUX
@@ -733,6 +740,11 @@ static void ps_list_reset(void) {
       pse->vmem_data = NAN;
       pse->vmem_code = NAN;
       pse->stack_size = NAN;
+
+      pse->cpu_user_counter = 0;
+      pse->cpu_system_counter = 0;
+      pse->cpu_user_rate = NAN;
+      pse->cpu_system_rate = NAN;
 
       pse->has_delay = false;
       pse->delay_cpu = 0;
@@ -957,6 +969,45 @@ static int process_resource(procstat_t const *ps, procstat_entry_t const *pse,
   return have_id ? 0 : -1;
 }
 
+static void ps_dispatch_cpu(label_set_t resource, procstat_entry_t const *pse) {
+  metric_family_t fam_cpu_time = {
+      .name = "process.cpu.time",
+      .help = "Total CPU microseconds broken down by different states.",
+      .unit = "ms",
+      .type = METRIC_TYPE_COUNTER,
+      .resource = resource,
+  };
+  metric_family_append(&fam_cpu_time, "state", "user",
+                       (value_t){.derive = pse->cpu_user_counter}, NULL);
+  metric_family_append(&fam_cpu_time, "state", "system",
+                       (value_t){.derive = pse->cpu_system_counter}, NULL);
+  plugin_dispatch_metric_family(&fam_cpu_time);
+  metric_family_metric_reset(&fam_cpu_time);
+
+  if (isnan(pse->cpu_user_rate) && isnan(pse->cpu_system_rate)) {
+    return;
+  }
+
+  gauge_t cpus = (gauge_t)sysconf(_SC_NPROCESSORS_ONLN);
+  gauge_t factor = 1.0 / (cpus * 1000000.0);
+
+  metric_family_t fam_cpu_util = {
+      .name = "process.cpu.utilization",
+      .help =
+          "Difference in process.cpu.time since the last measurement, divided "
+          "by the elapsed time and number of CPUs available to the process.",
+      .unit = "1",
+      .type = METRIC_TYPE_GAUGE,
+      .resource = resource,
+  };
+  metric_family_append(&fam_cpu_util, "state", "user",
+                       (value_t){.gauge = pse->cpu_user_rate * factor}, NULL);
+  metric_family_append(&fam_cpu_util, "state", "system",
+                       (value_t){.gauge = pse->cpu_system_rate * factor}, NULL);
+  plugin_dispatch_metric_family(&fam_cpu_util);
+  metric_family_metric_reset(&fam_cpu_util);
+}
+
 static void ps_dispatch_delay(label_set_t resource,
                               procstat_entry_t const *pse) {
   metric_family_t fam_delay = {
@@ -1007,6 +1058,8 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
     DEBUG("processes plugin: resource = %s", buf.ptr);
     STRBUF_DESTROY(buf);
   }
+
+  ps_dispatch_cpu(resource, pse);
 
   metric_family_t fam_rss = {
       .name = "process.memory.usage",
