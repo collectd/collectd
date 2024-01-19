@@ -97,8 +97,7 @@
   } while (0)
 #define OVS_DEBUG(fmt, ...)                                                    \
   do {                                                                         \
-    DEBUG("%s:%d:%s(): " fmt, __FILE__, __LINE__, __FUNCTION__,                \
-          ##__VA_ARGS__);                                                      \
+    DEBUG("%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__);    \
   } while (0)
 
 #define OVS_DB_POLL_TIMEOUT 1           /* poll receive timeout (sec) */
@@ -368,14 +367,14 @@ static yajl_gen_status ovs_yajl_gen_val(yajl_gen jgen, yajl_val jval) {
     }
     OVS_YAJL_CALL(yajl_gen_map_close, jgen);
   } else {
-    OVS_ERROR("%s() unsupported value type %d (skip)", __FUNCTION__,
+    OVS_ERROR("%s() unsupported value type %d (skip)", __func__,
               (int)(jval)->type);
     goto yajl_gen_failure;
   }
   return yajl_gen_status_ok;
 
 yajl_gen_failure:
-  OVS_ERROR("%s() error to generate value", __FUNCTION__);
+  OVS_ERROR("%s() error to generate value", __func__);
   return yajl_gen_ret;
 }
 
@@ -1144,7 +1143,7 @@ int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
       clock_gettime(CLOCK_REALTIME, &ts);
       ts.tv_sec += OVS_DB_SEND_REQ_TIMEOUT;
       if (sem_timedwait(&new_cb->result.sync, &ts) < 0) {
-        OVS_ERROR("%s() no replay received within %d sec", __FUNCTION__,
+        OVS_ERROR("%s() no replay received within %d sec", __func__,
                   OVS_DB_SEND_REQ_TIMEOUT);
         ret = (-1);
       }
