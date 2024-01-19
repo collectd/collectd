@@ -112,6 +112,8 @@ typedef struct diskstats {
   bool has_merged;
   bool has_in_progress;
   bool has_io_time;
+  bool has_discard;
+  bool has_flush;
 
   struct diskstats *next;
 } diskstats_t;
@@ -307,6 +309,19 @@ static int disk_shutdown(void) {
 #endif /* KERNEL_LINUX */
   return 0;
 } /* int disk_shutdown */
+
+static void disk_submit_single(const char *plugin_instance, const char *type,
+                               derive_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.derive = value};
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+
+  plugin_dispatch_values(&vl);
+} /* void disk_submit_single */
 
 static void disk_submit(const char *plugin_instance, const char *type,
                         derive_t read, derive_t write) {
@@ -740,10 +755,17 @@ static int disk_read(void) {
   derive_t io_time = 0;
   derive_t weighted_time = 0;
   derive_t diff_io_time = 0;
+  derive_t discard_ops = 0;
+  derive_t discard_merged = 0;
+  derive_t discard_sectors = 0;
+  derive_t discard_time = 0;
+  derive_t flush_ops = 0;
+  derive_t flush_time = 0;
   int is_disk = 0;
 
   diskstats_t *ds, *pre_ds;
 
+  /* https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats */
   if ((fh = fopen("/proc/diskstats", "r")) == NULL) {
     ERROR("disk plugin: fopen(\"/proc/diskstats\"): %s", STRERRNO);
     return -1;
@@ -788,6 +810,21 @@ static int disk_read(void) {
       write_sectors = atoll(fields[6]);
     } else {
       assert(numfields >= 14);
+
+      /* Kernel 4.18+, Discards */
+      if (numfields >= 18) {
+        discard_ops = atoll(fields[14]);
+        discard_merged = atoll(fields[15]);
+        discard_sectors = atoll(fields[16]);
+        discard_time = atoll(fields[17]);
+      }
+
+      /* Kernel 5.5+, Flush */
+      if (numfields >= 20) {
+        flush_ops = atoll(fields[18]);
+        flush_time = atoll(fields[19]);
+      }
+
       read_ops = atoll(fields[3]);
       write_ops = atoll(fields[7]);
 
@@ -882,6 +919,13 @@ static int disk_read(void) {
       if (io_time)
         ds->has_io_time = true;
 
+      ds->has_discard =
+          discard_ops || discard_merged || discard_sectors || discard_time;
+
+      /* There is chance 'has_flush' is true while 'has_discard' remains false
+       */
+      ds->has_flush = flush_ops || flush_time;
+
     } /* if (is_disk) */
 
     /* Skip first cycle for newly-added disk */
@@ -935,6 +979,17 @@ static int disk_read(void) {
         submit_in_progress(output_name, in_progress);
       if (ds->has_io_time)
         submit_io_time(output_name, io_time, weighted_time);
+      if (ds->has_discard) {
+        disk_submit_single(output_name, "disk_discard_ops", discard_ops);
+        disk_submit_single(output_name, "disk_discard_merged", discard_merged);
+        disk_submit_single(output_name, "disk_discard_sectors",
+                           discard_sectors);
+        disk_submit_single(output_name, "disk_discard_time", discard_time);
+      }
+      if (ds->has_flush) {
+        disk_submit_single(output_name, "disk_flush_ops", flush_ops);
+        disk_submit_single(output_name, "disk_flush_time", flush_time);
+      }
 
       submit_utilization(output_name, diff_io_time);
     } /* if (is_disk) */
