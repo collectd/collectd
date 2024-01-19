@@ -394,9 +394,9 @@ static int disk_read(void) {
   };
   metric_family_t fam_ops = {
       .name = "system.disk.operations",
-      .help = "Read and write operations performed by the disk. If multiple "
-              "operations are merged into one by the disk, they will be "
-              "accounted for separately.",
+      .help = "Read and write operations performed by the disk. Operations are "
+              "reported separately even if they were merged into one operation "
+              "by the I/O subsystem.",
       .unit = "{operation}",
       .type = METRIC_TYPE_COUNTER,
   };
@@ -421,10 +421,10 @@ static int disk_read(void) {
   metric_family_t fam_disk_io_weighted_time = {
       .name = "system.disk.weighted_io_time",
       .help = "This metric is incremented at each I/O start, I/O completion, "
-              "or I/O merge by the number of I/Os in progress times the number "
-              "of milliseconds spent doing I/O since the last update of this "
-              "field.  This can provide an easy measure of both I/O completion "
-              "time and the backlog that may be accumulating.",
+              "or I/O merge by the number of I/Os in progress, times the "
+              "number of milliseconds spent doing I/O since the last update of "
+              "this field. This can provide an easy measure of both I/O "
+              "completion time and the backlog that may be accumulating.",
       .unit = "ms",
       .type = METRIC_TYPE_COUNTER,
   };
