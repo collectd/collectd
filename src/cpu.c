@@ -108,24 +108,29 @@
 #define CPU_ALL SIZE_MAX
 
 typedef enum {
-  STATE_USER,
-  STATE_SYSTEM,
-  STATE_WAIT,
-  STATE_NICE,
-  STATE_SWAP,
-  STATE_INTERRUPT,
-  STATE_SOFTIRQ,
-  STATE_STEAL,
   STATE_GUEST,
   STATE_GUEST_NICE,
   STATE_IDLE,
+  STATE_INTERRUPT,
+  STATE_NICE,
+  STATE_SOFTIRQ,
+  STATE_STEAL,
+  STATE_SWAP,
+  STATE_SYSTEM,
+  STATE_USER,
+  STATE_WAIT,
   STATE_ACTIVE, /* sum of (!idle) */
   STATE_MAX,    /* #states */
 } state_t;
 
 static const char *cpu_state_names[STATE_MAX] = {
-    "user",    "system", "wait",  "nice",       "swap", "interrupt",
-    "softirq", "steal",  "guest", "guest_nice", "idle", "active"};
+    [STATE_GUEST] = "guest",   [STATE_GUEST_NICE] = "guest_nice",
+    [STATE_IDLE] = "idle",     [STATE_INTERRUPT] = "interrupt",
+    [STATE_NICE] = "nice",     [STATE_SOFTIRQ] = "softirq",
+    [STATE_STEAL] = "steal",   [STATE_SWAP] = "swap",
+    [STATE_SYSTEM] = "system", [STATE_USER] = "user",
+    [STATE_WAIT] = "wait",     [STATE_ACTIVE] = "active",
+};
 
 typedef struct {
   gauge_t rate;
