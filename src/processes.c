@@ -2828,11 +2828,16 @@ static int ps_read_aix(gauge_t process_count[static STATE_MAX]) {
           break;
       }
 
-      /* tv_usec is nanosec ??? */
+      /* Yes, the .tv_usec field below really does contain nanoseconds. From the
+       * AIX docs:
+       *
+       * The ProcessBuffer parameter of getprocs subroutine contains two struct
+       * rusage fields named pi_ru and pi_cru. Each of these fields contains two
+       * struct timeval fields named ru_utime and ru_stime. The tv_usec field in
+       * both of the struct timeval contain nanoseconds instead of microseconds.
+       */
       pse.cpu_user_counter = procentry[i].pi_ru.ru_utime.tv_sec * 1000000 +
                              procentry[i].pi_ru.ru_utime.tv_usec / 1000;
-
-      /* tv_usec is nanosec ??? */
       pse.cpu_system_counter = procentry[i].pi_ru.ru_stime.tv_sec * 1000000 +
                                procentry[i].pi_ru.ru_stime.tv_usec / 1000;
 
