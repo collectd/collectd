@@ -909,7 +909,7 @@ static meta_data_t *uc_get_meta(metric_t const *m) /* {{{ */
 /* Sorry about this preprocessor magic, but it really makes this file much
  * shorter.. */
 #define UC_WRAP(wrap_function)                                                 \
-  {                                                                            \
+  do {                                                                         \
     pthread_mutex_lock(&cache_lock);                                           \
     errno = 0;                                                                 \
     meta_data_t *meta = uc_get_meta(m);                                        \
@@ -920,23 +920,23 @@ static meta_data_t *uc_get_meta(metric_t const *m) /* {{{ */
     int ret = wrap_function(meta, key);                                        \
     pthread_mutex_unlock(&cache_lock);                                         \
     return ret;                                                                \
-  }
+  } while (0)
 
-int uc_meta_data_exists(metric_t const *m, const char *key)
-    UC_WRAP(meta_data_exists);
-
-int uc_meta_data_delete(metric_t const *m, const char *key)
-    UC_WRAP(meta_data_delete);
-
+int uc_meta_data_exists(metric_t const *m, const char *key) {
+  UC_WRAP(meta_data_exists);
+}
+int uc_meta_data_delete(metric_t const *m, const char *key) {
+  UC_WRAP(meta_data_delete);
+}
 /* The second argument is called `toc` in the API, but the macro expects
  * `key`. */
-int uc_meta_data_toc(metric_t const *m, char ***key) UC_WRAP(meta_data_toc);
+int uc_meta_data_toc(metric_t const *m, char ***key) { UC_WRAP(meta_data_toc); }
 #undef UC_WRAP
 
 /* We need a new version of this macro because the following functions take
- * two argumetns. gratituous semicolons added for formatting sanity*/
+ * two arguments. Gratuitous semicolons added for formatting sanity. */
 #define UC_WRAP(wrap_function)                                                 \
-  {                                                                            \
+  do {                                                                         \
     pthread_mutex_lock(&cache_lock);                                           \
     errno = 0;                                                                 \
     meta_data_t *meta = uc_get_meta(m);                                        \
@@ -947,37 +947,41 @@ int uc_meta_data_toc(metric_t const *m, char ***key) UC_WRAP(meta_data_toc);
     int ret = wrap_function(meta, key, value);                                 \
     pthread_mutex_unlock(&cache_lock);                                         \
     return ret;                                                                \
-  }
+  } while (0)
+
 int uc_meta_data_add_string(metric_t const *m, const char *key,
-                            const char *value) UC_WRAP(meta_data_add_string);
-
+                            const char *value) {
+  UC_WRAP(meta_data_add_string);
+}
 int uc_meta_data_add_signed_int(metric_t const *m, const char *key,
-                                int64_t value)
-    UC_WRAP(meta_data_add_signed_int);
-
+                                int64_t value) {
+  UC_WRAP(meta_data_add_signed_int);
+}
 int uc_meta_data_add_unsigned_int(metric_t const *m, const char *key,
-                                  uint64_t value)
-    UC_WRAP(meta_data_add_unsigned_int);
-
-int uc_meta_data_add_double(metric_t const *m, const char *key, double value)
-    UC_WRAP(meta_data_add_double);
-int uc_meta_data_add_boolean(metric_t const *m, const char *key, bool value)
-    UC_WRAP(meta_data_add_boolean);
-
-int uc_meta_data_get_string(metric_t const *m, const char *key, char **value)
-    UC_WRAP(meta_data_get_string);
-
+                                  uint64_t value) {
+  UC_WRAP(meta_data_add_unsigned_int);
+}
+int uc_meta_data_add_double(metric_t const *m, const char *key, double value) {
+  UC_WRAP(meta_data_add_double);
+}
+int uc_meta_data_add_boolean(metric_t const *m, const char *key, bool value) {
+  UC_WRAP(meta_data_add_boolean);
+}
+int uc_meta_data_get_string(metric_t const *m, const char *key, char **value) {
+  UC_WRAP(meta_data_get_string);
+}
 int uc_meta_data_get_signed_int(metric_t const *m, const char *key,
-                                int64_t *value)
-    UC_WRAP(meta_data_get_signed_int);
-
+                                int64_t *value) {
+  UC_WRAP(meta_data_get_signed_int);
+}
 int uc_meta_data_get_unsigned_int(metric_t const *m, const char *key,
-                                  uint64_t *value)
-    UC_WRAP(meta_data_get_unsigned_int);
-
-int uc_meta_data_get_double(metric_t const *m, const char *key, double *value)
-    UC_WRAP(meta_data_get_double);
-
-int uc_meta_data_get_boolean(metric_t const *m, const char *key, bool *value)
-    UC_WRAP(meta_data_get_boolean);
+                                  uint64_t *value) {
+  UC_WRAP(meta_data_get_unsigned_int);
+}
+int uc_meta_data_get_double(metric_t const *m, const char *key, double *value) {
+  UC_WRAP(meta_data_get_double);
+}
+int uc_meta_data_get_boolean(metric_t const *m, const char *key, bool *value) {
+  UC_WRAP(meta_data_get_boolean);
+}
 #undef UC_WRAP
