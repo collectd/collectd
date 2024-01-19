@@ -665,11 +665,11 @@
 #	MountPoint "/home"
 #	FSType "ext3"
 #	IgnoreSelected false
+#
 #	LogOnce false
-#	ReportByDevice false
 #	ReportInodes false
-#	ValuesAbsolute true
-#	ValuesPercentage false
+#	ReportUsage true
+#	ReportUtilization false
 #</Plugin>
 
 #<Plugin disk>

@@ -46,6 +46,19 @@
 #error "No applicable input method."
 #endif
 
+static char const *const device_label = "system.device";
+static char const *const mode_label = "system.filesystem.mode";
+static char const *const mountpoint_label = "system.filesystem.mountpoint";
+static char const *const state_label = "system.filesystem.state";
+static char const *const type_label = "system.filesystem.type";
+
+static char const *const state_free = "free";
+static char const *const state_used = "used";
+static char const *const state_reserved = "reserved";
+
+static char const *const mode_ro = "ro";
+static char const *const mode_rw = "rw";
+
 static const char *config_keys[] = {
     "Device",         "MountPoint",       "FSType",
     "IgnoreSelected", "ReportByDevice",   "ReportInodes",
@@ -58,8 +71,8 @@ static ignorelist_t *il_fstype;
 static ignorelist_t *il_errors;
 
 static bool report_inodes;
-static bool values_absolute = true;
-static bool values_percentage;
+static bool report_usage = true;
+static bool report_utilization;
 static bool log_once;
 
 static int df_init(void) {
@@ -111,18 +124,20 @@ static int df_config(const char *key, const char *value) {
       report_inodes = false;
 
     return 0;
-  } else if (strcasecmp(key, "ValuesAbsolute") == 0) {
+  } else if (strcasecmp(key, "ReportUsage") == 0 ||
+             strcasecmp(key, "ValuesAbsolute") == 0) {
     if (IS_TRUE(value))
-      values_absolute = true;
+      report_usage = true;
     else
-      values_absolute = false;
+      report_usage = false;
 
     return 0;
-  } else if (strcasecmp(key, "ValuesPercentage") == 0) {
+  } else if (strcasecmp(key, "ReportUtilization") == 0 ||
+             strcasecmp(key, "ValuesPercentage") == 0) {
     if (IS_TRUE(value))
-      values_percentage = true;
+      report_utilization = true;
     else
-      values_percentage = false;
+      report_utilization = false;
 
     return 0;
   } else if (strcasecmp(key, "LogOnce") == 0) {
@@ -145,18 +160,22 @@ static int df_read(void) {
 #endif
   metric_family_t fam_usage = {
       .name = "system.filesystem.usage",
+      .unit = "By",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_utilization = {
       .name = "system.filesystem.utilization",
+      .unit = "1",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_inode_usage = {
       .name = "system.filesystem.inodes.usage",
+      .unit = "{inode}",
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_inode_utilization = {
       .name = "system.filesystem.inodes.utilization",
+      .unit = "1",
       .type = METRIC_TYPE_GAUGE,
   };
 
@@ -225,33 +244,36 @@ static int df_read(void) {
     gauge_t blk_reserved = (gauge_t)(statbuf.f_bfree - statbuf.f_bavail);
     gauge_t blk_used = (gauge_t)(statbuf.f_blocks - statbuf.f_bfree);
 
-    metric_t m = {0};
-    metric_label_set(&m, "device", dev);
-    metric_label_set(&m, "fstype", mnt_ptr->type);
-    metric_label_set(&m, "mountpoint", mnt_ptr->dir);
+    bool read_only = (statbuf.f_flag & ST_RDONLY) != 0;
 
-    if (values_absolute) {
-      metric_family_append(&fam_usage, "state", "used",
+    metric_t m = {0};
+    metric_label_set(&m, device_label, dev);
+    metric_label_set(&m, mode_label, read_only ? mode_ro : mode_rw);
+    metric_label_set(&m, mountpoint_label, mnt_ptr->dir);
+    metric_label_set(&m, type_label, mnt_ptr->type);
+
+    if (report_usage) {
+      metric_family_append(&fam_usage, state_label, state_used,
                            (value_t){.gauge = blk_used * blocksize}, &m);
 
-      metric_family_append(&fam_usage, "state", "free",
+      metric_family_append(&fam_usage, state_label, state_free,
                            (value_t){.gauge = blk_free * blocksize}, &m);
 
-      metric_family_append(&fam_usage, "state", "reserved",
+      metric_family_append(&fam_usage, state_label, state_reserved,
                            (value_t){.gauge = blk_reserved * blocksize}, &m);
     }
 
-    if (values_percentage) {
+    if (report_utilization) {
       assert(statbuf.f_blocks != 0); // checked above
-      gauge_t f = 100.0 / (gauge_t)statbuf.f_blocks;
+      gauge_t f = 1.0 / (gauge_t)statbuf.f_blocks;
 
-      metric_family_append(&fam_utilization, "state", "used",
+      metric_family_append(&fam_utilization, state_label, state_used,
                            (value_t){.gauge = blk_used * f}, &m);
 
-      metric_family_append(&fam_utilization, "state", "free",
+      metric_family_append(&fam_utilization, state_label, state_free,
                            (value_t){.gauge = blk_free * f}, &m);
 
-      metric_family_append(&fam_utilization, "state", "reserved",
+      metric_family_append(&fam_utilization, state_label, state_reserved,
                            (value_t){.gauge = blk_reserved * f}, &m);
     }
 
@@ -267,17 +289,18 @@ static int df_read(void) {
       gauge_t inode_reserved = (gauge_t)(statbuf.f_ffree - statbuf.f_favail);
       gauge_t inode_used = (gauge_t)(statbuf.f_files - statbuf.f_ffree);
 
-      if (values_percentage) {
+      if (report_utilization) {
         if (statbuf.f_files > 0) {
-          gauge_t f = 100.0 / (gauge_t)statbuf.f_files;
+          gauge_t f = 1.0 / (gauge_t)statbuf.f_files;
 
-          metric_family_append(&fam_inode_usage, "state", "used",
+          metric_family_append(&fam_inode_utilization, state_label, state_used,
                                (value_t){.gauge = inode_used * f}, &m);
 
-          metric_family_append(&fam_inode_usage, "state", "free",
+          metric_family_append(&fam_inode_utilization, state_label, state_free,
                                (value_t){.gauge = inode_free * f}, &m);
 
-          metric_family_append(&fam_inode_usage, "state", "reserved",
+          metric_family_append(&fam_inode_utilization, state_label,
+                               state_reserved,
                                (value_t){.gauge = inode_reserved * f}, &m);
         } else {
           metric_reset(&m);
@@ -285,14 +308,14 @@ static int df_read(void) {
           break;
         }
       }
-      if (values_absolute) {
-        metric_family_append(&fam_inode_usage, "state", "used",
+      if (report_usage) {
+        metric_family_append(&fam_inode_usage, state_label, state_used,
                              (value_t){.gauge = inode_used}, &m);
 
-        metric_family_append(&fam_inode_usage, "state", "free",
+        metric_family_append(&fam_inode_usage, state_label, state_free,
                              (value_t){.gauge = inode_free}, &m);
 
-        metric_family_append(&fam_inode_usage, "state", "reserved",
+        metric_family_append(&fam_inode_usage, state_label, state_reserved,
                              (value_t){.gauge = inode_reserved}, &m);
       }
     }
@@ -303,11 +326,13 @@ static int df_read(void) {
   cu_mount_freelist(mnt_list);
 
   metric_family_t *families[] = {
-      &fam_usage, &fam_utilization, &fam_inode_usage, &fam_inode_utilization,
-      NULL,
+      &fam_usage,
+      &fam_utilization,
+      &fam_inode_usage,
+      &fam_inode_utilization,
   };
 
-  for (size_t i = 0; families[i] != NULL; i++) {
+  for (size_t i = 0; STATIC_ARRAY_SIZE(families); i++) {
     if (families[i]->metric.num == 0) {
       continue;
     }
