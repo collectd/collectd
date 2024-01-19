@@ -64,7 +64,6 @@ int uc_inc_hits(metric_t const *m, int step);
 
 int uc_set_callbacks_mask(const char *name, unsigned long callbacks_mask);
 
-int uc_get_history(metric_t const *m, gauge_t *ret_history, size_t num_steps);
 int uc_get_history_by_name(const char *name, gauge_t *ret_history,
                            size_t num_steps);
 
