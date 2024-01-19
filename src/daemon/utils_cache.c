@@ -714,20 +714,6 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
   return 0;
 } /* int uc_get_history_by_name */
 
-int uc_get_history(metric_t const *m, gauge_t *ret_history, size_t num_steps) {
-  strbuf_t buf = STRBUF_CREATE;
-  int status = metric_identity(&buf, m);
-  if (status != 0) {
-    ERROR("uc_update: metric_identity failed with status %d.", status);
-    STRBUF_DESTROY(buf);
-    return status;
-  }
-
-  int ret = uc_get_history_by_name(buf.ptr, ret_history, num_steps);
-  STRBUF_DESTROY(buf);
-  return ret;
-} /* int uc_get_history */
-
 int uc_get_hits(metric_t const *m) {
   strbuf_t buf = STRBUF_CREATE;
   int status = metric_identity(&buf, m);
