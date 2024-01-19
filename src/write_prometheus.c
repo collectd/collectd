@@ -732,7 +732,7 @@ static int prom_config(oconfig_item_t *ci) {
 
 static int prom_init() {
   if (prom_metrics == NULL) {
-    prom_metrics = c_avl_create((void *)strcmp);
+    prom_metrics = c_avl_create((int (*)(const void *, const void *))strcmp);
     if (prom_metrics == NULL) {
       ERROR("write_prometheus plugin: c_avl_create() failed.");
       return -1;
