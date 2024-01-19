@@ -1092,14 +1092,6 @@ static int disk_read(void) {
     metric_family_append(&fam_ops, direction_label, write_direction,
                          (value_t){.counter = kio.KIO_WOPS}, &m);
 
-    if (strncmp(ksp[i]->ks_class, "disk", 4) == 0) {
-      /* FIXME: Convert this to microseconds if necessary */
-      metric_family_append(&fam_ops_time, direction_label, read_direction,
-                           (value_t){.counter = kio.KIO_RTIME}, &m);
-      metric_family_append(&fam_ops_time, direction_label, write_direction,
-                           (value_t){.counter = kio.KIO_WTIME}, &m);
-    }
-
     metric_reset(&m);
   }
   /* #endif defined(HAVE_LIBKSTAT) */
