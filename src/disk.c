@@ -107,8 +107,8 @@ typedef struct diskstats {
 
   derive_t read_ops;
   derive_t write_ops;
-  derive_t read_time;
-  derive_t write_time;
+  derive_t read_time_us;
+  derive_t write_time_us;
 
   derive_t avg_read_time;
   derive_t avg_write_time;
@@ -403,7 +403,7 @@ static int disk_read(void) {
   metric_family_t fam_ops_time = {
       .name = "system.disk.operation_time",
       .help = "Sum of the time each operation took to complete",
-      .unit = "s",
+      .unit = "us",
       .type = METRIC_TYPE_COUNTER,
   };
   metric_family_t fam_merged = {
@@ -463,8 +463,8 @@ static int disk_read(void) {
   CFStringRef tmp_cf_string_ref;
   kern_return_t status;
 
-  signed long long read_ops, read_byt, read_tme;
-  signed long long write_ops, write_byt, write_tme;
+  signed long long read_ops, read_byt;
+  signed long long write_ops, write_byt;
 
   int disk_major, disk_minor;
   char disk_name[DATA_MAX_NAME_LEN];
@@ -578,13 +578,13 @@ static int disk_read(void) {
         dict_get_value(stats_dict, kIOBlockStorageDriverStatisticsReadsKey);
     read_byt =
         dict_get_value(stats_dict, kIOBlockStorageDriverStatisticsBytesReadKey);
-    read_tme = dict_get_value(stats_dict,
-                              kIOBlockStorageDriverStatisticsTotalReadTimeKey);
+    long long read_time_ns = dict_get_value(
+        stats_dict, kIOBlockStorageDriverStatisticsTotalReadTimeKey);
     write_ops =
         dict_get_value(stats_dict, kIOBlockStorageDriverStatisticsWritesKey);
     write_byt = dict_get_value(stats_dict,
                                kIOBlockStorageDriverStatisticsBytesWrittenKey);
-    write_tme = dict_get_value(
+    long long write_time_ns = dict_get_value(
         stats_dict, kIOBlockStorageDriverStatisticsTotalWriteTimeKey);
     CFRelease(props_dict);
     IOObjectRelease(disk);
@@ -604,11 +604,11 @@ static int disk_read(void) {
       metric_family_append(&fam_ops, direction_label, write_direction,
                            (value_t){.counter = write_ops}, &m);
     }
-    if ((read_tme != -1LL) || (write_tme != -1LL)) {
+    if ((read_time_ns != -1LL) || (write_time_ns != -1LL)) {
       metric_family_append(&fam_ops_time, direction_label, read_direction,
-                           (value_t){.counter = read_tme / 1000}, &m);
+                           (value_t){.derive = read_time_ns / 1000}, &m);
       metric_family_append(&fam_ops_time, direction_label, write_direction,
-                           (value_t){.counter = write_tme / 1000}, &m);
+                           (value_t){.derive = write_time_ns / 1000}, &m);
     }
     metric_reset(&m);
   }
@@ -728,17 +728,17 @@ static int disk_read(void) {
           &m);
     }
 
-    long double read_time =
+    long double read_time_s =
         devstat_compute_etime(&snap_iter->duration[DEVSTAT_READ], NULL);
-    long double write_time =
+    long double write_time_s =
         devstat_compute_etime(&snap_iter->duration[DEVSTAT_WRITE], NULL);
-    if ((read_time != 0) || (write_time != 0)) {
-      metric_family_append(&fam_ops_time, direction_label, read_direction,
-                           (value_t){.counter = (counter_t)(read_time * 1000)},
-                           &m);
-      metric_family_append(&fam_ops_time, direction_label, write_direction,
-                           (value_t){.counter = (counter_t)(write_time * 1000)},
-                           &m);
+    if ((read_time_s != 0) || (write_time_s != 0)) {
+      metric_family_append(
+          &fam_ops_time, direction_label, read_direction,
+          (value_t){.derive = (derive_t)(read_time_s * 1000000.0)}, &m);
+      metric_family_append(
+          &fam_ops_time, direction_label, write_direction,
+          (value_t){.derive = (derive_t)(write_time_s * 1000000.0)}, &m);
     }
 
     long double busy_time = 0, utilization = 0, total_duration = 0;
@@ -777,10 +777,10 @@ static int disk_read(void) {
 
   derive_t read_ops = 0;
   derive_t read_merged = 0;
-  derive_t read_time = 0;
+  derive_t read_time_us = 0;
   derive_t write_ops = 0;
   derive_t write_merged = 0;
-  derive_t write_time = 0;
+  derive_t write_time_us = 0;
   gauge_t in_progress = NAN;
   derive_t io_time = 0;
   derive_t weighted_time = 0;
@@ -841,9 +841,9 @@ static int disk_read(void) {
 
       is_disk = 1;
       read_merged = atoll(fields[4]);
-      read_time = atoll(fields[6]);
+      read_time_us = atoll(fields[6]);
       write_merged = atoll(fields[8]);
-      write_time = atoll(fields[10]);
+      write_time_us = atoll(fields[10]);
 
       in_progress = atof(fields[11]);
 
@@ -891,15 +891,15 @@ static int disk_read(void) {
       else
         diff_write_ops = write_ops - ds->write_ops;
 
-      if (read_time < ds->read_time)
-        diff_read_time = 1 + read_time + (UINT_MAX - ds->read_time);
+      if (read_time_us < ds->read_time_us)
+        diff_read_time = 1 + read_time_us + (UINT_MAX - ds->read_time_us);
       else
-        diff_read_time = read_time - ds->read_time;
+        diff_read_time = read_time_us - ds->read_time_us;
 
-      if (write_time < ds->write_time)
-        diff_write_time = 1 + write_time + (UINT_MAX - ds->write_time);
+      if (write_time_us < ds->write_time_us)
+        diff_write_time = 1 + write_time_us + (UINT_MAX - ds->write_time_us);
       else
-        diff_write_time = write_time - ds->write_time;
+        diff_write_time = write_time_us - ds->write_time_us;
 
       if (io_time < ds->io_time)
         diff_io_time = 1 + io_time + (UINT_MAX - ds->io_time);
@@ -913,9 +913,9 @@ static int disk_read(void) {
             disk_calc_time_incr(diff_write_time, diff_write_ops);
 
       ds->read_ops = read_ops;
-      ds->read_time = read_time;
+      ds->read_time_us = read_time_us;
       ds->write_ops = write_ops;
-      ds->write_time = write_time;
+      ds->write_time_us = write_time_us;
       ds->io_time = io_time;
 
       if (read_merged || write_merged)
@@ -980,11 +980,11 @@ static int disk_read(void) {
                            (value_t){.counter = (counter_t)ds->write_ops}, &m);
     }
 
-    if ((ds->read_time != 0) || (ds->write_time != 0)) {
+    if ((ds->read_time_us != 0) || (ds->write_time_us != 0)) {
       metric_family_append(&fam_ops_time, direction_label, read_direction,
-                           (value_t){.counter = (counter_t)ds->read_time}, &m);
+                           (value_t){.derive = ds->read_time_us}, &m);
       metric_family_append(&fam_ops_time, direction_label, write_direction,
-                           (value_t){.counter = (counter_t)ds->write_time}, &m);
+                           (value_t){.derive = ds->write_time_us}, &m);
     }
 
     if (is_disk) {
@@ -1178,20 +1178,19 @@ static int disk_read(void) {
                                                           stat_disk[i].xrate)},
                          &m);
 
-    derive_t read_time = stat_disk[i].rserv;
-    read_time *= ((double)(_system_configuration.Xint) /
-                  (double)(_system_configuration.Xfrac)) /
-                 1000000.0;
-    derive_t write_time = stat_disk[i].wserv;
-    write_time *= ((double)(_system_configuration.Xint) /
-                   (double)(_system_configuration.Xfrac)) /
-                  1000000.0;
-    metric_family_append(&fam_ops_time, direction_label, read_direction,
-                         (value_t){.counter = (counter_t)read_time}, &m);
-    metric_family_append(&fam_ops_time, direction_label, write_direction,
-                         (value_t){.counter = (counter_t)} write_time, &m);
+    double xintfrac = ((double)_system_configuration.Xint) /
+                      ((double)_system_configuration.Xfrac);
 
-    metric_reset(&m);
+    derive_t read_time_ns = stat_disk[i].rserv * _system_configuration.Xint /
+                            _system_configuration.Xfrac;
+    derive_t write_time_ns = stat_disk[i].wserv * _system_configuration.Xint /
+                             _system_configuration.Xfrac;
+    metric_family_append(&fam_ops_time, direction_label, read_direction,
+                         (value_t){.derive = read_time_ns / 1000}, &m);
+    metric_family_append(&fam_ops_time, direction_label, write_direction,
+                         (value_t){.derive = write_time_ns / 1000, &m);
+
+      metric_reset(&m);
   }
 /* #endif defined(HAVE_PERFSTAT) */
 #elif HAVE_SYSCTL && KERNEL_NETBSD
@@ -1250,7 +1249,8 @@ static int disk_read(void) {
     metric_family_append(&fam_ops, direction_label, write_direction,
                          (value_t){.counter = drives[i].wxfer}, &m);
 
-    m.value.counter = drives[i].time_sec + drives[i].time_usec / 1000000;
+    m.value.derive = ((derive_t)drives[i].time_sec * 1000000) +
+                     ((derive_t)drives[i].time_usec);
     metric_family_metric_append(&fam_ops_time, m);
 
     metric_reset(&m);
