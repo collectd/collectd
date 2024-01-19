@@ -132,6 +132,8 @@ static const char *cpu_state_names[STATE_MAX] = {
     [STATE_WAIT] = "wait",     [STATE_ACTIVE] = "active",
 };
 
+#define USAGE_UNAVAILABLE -1
+
 typedef struct {
   gauge_t rate;
   bool has_rate;
@@ -537,7 +539,7 @@ static gauge_t usage_rate(usage_t *u, size_t cpu, state_t state) {
   } else {
     size_t index = (cpu * STATE_MAX) + state;
     if (index >= u->states_num) {
-      return -1;
+      return NAN;
     }
     us = u->states[index];
   }
@@ -562,12 +564,12 @@ static derive_t usage_count(usage_t *u, size_t cpu, state_t state) {
   } else {
     size_t index = (cpu * STATE_MAX) + state;
     if (index >= u->states_num) {
-      return -1;
+      return USAGE_UNAVAILABLE;
     }
     us = u->states[index];
   }
 
-  return us.has_count ? us.count : -1;
+  return us.has_count ? us.count : USAGE_UNAVAILABLE;
 }
 
 /* Commits the number of cores */
@@ -610,7 +612,7 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
   if (report_by_state) {
     for (state_t state = 0; state < STATE_ACTIVE; state++) {
       derive_t usage = usage_count(u, cpu_num, state);
-      if (usage == -1) {
+      if (usage == USAGE_UNAVAILABLE) {
         continue;
       }
       metric_family_append(&fam, label_state, cpu_state_names[state],
@@ -618,8 +620,10 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
     }
   } else {
     derive_t usage = usage_count(u, cpu_num, STATE_ACTIVE);
-    metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
-                         (value_t){.derive = usage}, &m);
+    if (usage != USAGE_UNAVAILABLE) {
+      metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
+                           (value_t){.derive = usage}, &m);
+    }
   }
 
   int status = plugin_dispatch_metric_family(&fam);
@@ -667,8 +671,10 @@ static void commit_cpu_utilization(usage_t *u, size_t cpu_num) {
 
   if (!report_by_state) {
     gauge_t ratio = usage_ratio(u, cpu_num, STATE_ACTIVE);
-    metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
-                         (value_t){.gauge = ratio}, &m);
+    if (!isnan(ratio)) {
+      metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
+                           (value_t){.gauge = ratio}, &m);
+    }
   } else {
     for (state_t state = 0; state < STATE_ACTIVE; state++) {
       gauge_t ratio = usage_ratio(u, cpu_num, state);
