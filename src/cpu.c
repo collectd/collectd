@@ -364,7 +364,6 @@ static int usage_init(usage_t *u, cdtime_t now) {
   }
   u->time = now;
   u->cpu_num = 0;
-  u->finalized = false;
   for (size_t i = 0; i < u->states_num; i++) {
     u->states[i].rate = 0;
     u->states[i].has_rate = false;
@@ -374,6 +373,7 @@ static int usage_init(usage_t *u, cdtime_t now) {
     u->global[s].has_rate = false;
   }
 
+  u->finalized = false;
   return 0;
 }
 
