@@ -575,8 +575,7 @@ static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
 {
   metric_family_t fam = {
       .name = "system.cpu.logical.count",
-      .help = "Reports the number of logical (virtual) processor cores created "
-              "by the operating system to manage multitasking",
+      .help = "The number of logical (virtual) processor cores",
       .unit = "{cpu}",
       .type = METRIC_TYPE_GAUGE,
   };
