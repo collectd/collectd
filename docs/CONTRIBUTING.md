@@ -57,14 +57,15 @@ PRs need to be categorized into one of three categories:
 
 *   **Feature**
 
-    The code has new behavior. Performance and documentation improvements are
+    The code has new behavior. Performance improvements are typically
     considered features. These changes would typically go into a "feature
     release".
 *   **Fix**
 
-    The code fixes a bug, regression, or otherwise unintended behavior. These
-    changes would typically go into a "patch" release.
-*   **Unlisted Change**
+    The code fixes a bug, regression, or otherwise unintended behavior.
+    Documentation improvements are typically considered fixes. These changes
+    would typically go into a "patch" release.
+*   **Maintenance**
 
     The change is not relevant for end users of collectd. This includes changes
     to the CI system, style changes, and refactorings. These changes are not
@@ -73,9 +74,9 @@ PRs need to be categorized into one of three categories:
 If you don't have access to modify labels yourself, you can trigger our bot to
 apply the right label for you by adding a prefix to the PR title:
 
-*   Feature: `feat`, `docs`, or `perf`.
-*   Bug: `fix`.
-*   Unlisted Change: `build`, `chore`, `ci`, `style`, `refactor`, `test`.
+*   Feature: `feat` or `perf`.
+*   Fix: `fix` or `docs`.
+*   Maintenance: `build`, `chore`, `ci`, `style`, `refactor`, or `test`.
 
 You are encouraged to use those prefixes together with the plugin you're
 modifying. A new feature in the CPU plugin would have the `feat(cpu): ` prefix.
