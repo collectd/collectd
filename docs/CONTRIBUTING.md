@@ -108,7 +108,7 @@ remainder, e.g. "a bug has been fixed", "a feature has been added".
 Some PRs should be excluded from the release notes, e.g. changes to project
 internal documentation (such as this file). Those changes are not interesting
 for external users of the project and would reduce the value of the release
-notes. Maintainers may use the `Unlisted Change` label to mark those PRs.
+notes. Maintainers may use the `Maintenance` label to mark those PRs.
 
 ## Other resources
 
