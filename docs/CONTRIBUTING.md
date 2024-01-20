@@ -81,6 +81,9 @@ apply the right label for you by adding a prefix to the PR title:
 You are encouraged to use those prefixes together with the plugin you're
 modifying. A new feature in the CPU plugin would have the `feat(cpu): ` prefix.
 
+PRs should either introduce a new feature or fix a bug, not both. Such changes
+should be split into two PRs.
+
 ### ChangeLog
 
 Feature and Bug PRs need to have a one-line summary in the *PR description*.
