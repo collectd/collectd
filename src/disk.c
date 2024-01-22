@@ -1049,16 +1049,12 @@ static int disk_read(void) {
 #define KIO_WOCTETS writes
 #define KIO_ROPS nreads
 #define KIO_WOPS nwrites
-#define KIO_RTIME rtime
-#define KIO_WTIME wtime
 #elif HAVE_KSTAT_IO_T_NWRITTEN && HAVE_KSTAT_IO_T_WRITES &&                    \
     HAVE_KSTAT_IO_T_WTIME
 #define KIO_ROCTETS nread
 #define KIO_WOCTETS nwritten
 #define KIO_ROPS reads
 #define KIO_WOPS writes
-#define KIO_RTIME rtime
-#define KIO_WTIME wtime
 #else
 #error "kstat_io_t does not have the required members"
 #endif
@@ -1091,6 +1087,21 @@ static int disk_read(void) {
                          (value_t){.counter = kio.KIO_ROPS}, &m);
     metric_family_append(&fam_ops, direction_label, write_direction,
                          (value_t){.counter = kio.KIO_WOPS}, &m);
+
+    if (strncmp(ksp[i]->ks_class, "disk", strlen("disk")) == 0) {
+      hrtime_t run_time_ns = kio.rtime;
+      m.value.derive = (derive_t)(run_time_ns / 1000);
+      metric_family_metric_append(&fam_disk_io_time, m);
+
+      hrtime_t weighted_io_time_ns = kio.rlentime;
+      m.value.derive = (derive_t)(weighted_io_time_ns / 1000000);
+      metric_family_metric_append(&fam_disk_io_weighted_time, m);
+
+      uint_t ops_waiting = kio.wcnt;
+      uint_t ops_running = kio.rcnt;
+      m.value.gauge = (gauge_t)(ops_running + ops_waiting);
+      metric_family_metric_append(&fam_disk_pending_operations, m);
+    }
 
     metric_reset(&m);
   }
