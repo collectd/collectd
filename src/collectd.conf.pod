@@ -5291,7 +5291,7 @@ which the sizes of physical memory vary.
 =item B<ReportLimit> B<false>|B<true>
 
 Controls reporting of the total amount of physical memory available to the
-system. Defaults to B<true>.
+system. Defaults to B<false>.
 
 =back
 
