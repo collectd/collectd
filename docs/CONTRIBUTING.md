@@ -103,7 +103,8 @@ beginning of the line. To give the reader context for the information, the text
 should start with "${name} plugin" when making changes to a plugin, and
 "collectd" for the core daemon changes. Other common contexts are "Build
 system", and "Documentation". Use past tense and passive voice the for
-remainder, e.g. "a bug has been fixed", "a feature has been added".
+remainder, e.g. "a bug &lt;describe impact&gt; has been fixed", "a feature
+&lt;describe impact&gt; has been added".
 
 Some PRs should be excluded from the release notes, e.g. changes to project
 internal documentation (such as this file). Those changes are not interesting
