@@ -85,6 +85,7 @@ static const char *config_keys[] = {
     "Interface",
     "IgnoreSelected",
     "ReportInactive",
+    "UniqueName",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -235,6 +236,56 @@ static int interface_read(void) {
   fclose(fh);
   /* #endif KERNEL_LINUX */
 
+#elif HAVE_LIBKSTAT
+  derive_t rx;
+  derive_t tx;
+  char iname[DATA_MAX_NAME_LEN];
+
+  if (kc == NULL)
+    return -1;
+
+  for (int i = 0; i < numif; i++) {
+    if (kstat_read(kc, ksp[i], NULL) == -1)
+      continue;
+
+    if (unique_name)
+      ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
+                ksp[i]->ks_instance, ksp[i]->ks_name);
+    else
+      sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
+
+    /* try to get 64bit counters */
+    rx = get_kstat_value(ksp[i], "ipackets64");
+    tx = get_kstat_value(ksp[i], "opackets64");
+    /* or fallback to 32bit */
+    if (rx == -1LL)
+      rx = get_kstat_value(ksp[i], "ipackets");
+    if (tx == -1LL)
+      tx = get_kstat_value(ksp[i], "opackets");
+    if (!report_inactive && rx == 0 && tx == 0)
+      continue;
+    if ((rx != -1LL) || (tx != -1LL))
+      if_submit(iname, "if_packets", rx, tx);
+
+    /* try to get 64bit counters */
+    rx = get_kstat_value(ksp[i], "rbytes64");
+    tx = get_kstat_value(ksp[i], "obytes64");
+    /* or fallback to 32bit */
+    if (rx == -1LL)
+      rx = get_kstat_value(ksp[i], "rbytes");
+    if (tx == -1LL)
+      tx = get_kstat_value(ksp[i], "obytes");
+    if ((rx != -1LL) || (tx != -1LL))
+      if_submit(iname, "if_octets", rx, tx);
+
+    /* no 64bit error counters yet */
+    rx = get_kstat_value(ksp[i], "ierrors");
+    tx = get_kstat_value(ksp[i], "oerrors");
+    if ((rx != -1LL) || (tx != -1LL))
+      if_submit(iname, "if_errors", rx, tx);
+  }
+  /* #endif HAVE_LIBKSTAT */
+
 #elif HAVE_GETIFADDRS
   struct ifaddrs *if_list;
 
@@ -287,56 +338,6 @@ static int interface_read(void) {
   freeifaddrs(if_list);
   /* #endif HAVE_GETIFADDRS */
 
-#elif HAVE_LIBKSTAT
-  derive_t rx;
-  derive_t tx;
-  char iname[DATA_MAX_NAME_LEN];
-
-  if (kc == NULL)
-    return -1;
-
-  for (int i = 0; i < numif; i++) {
-    if (kstat_read(kc, ksp[i], NULL) == -1)
-      continue;
-
-    if (unique_name)
-      ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
-                ksp[i]->ks_instance, ksp[i]->ks_name);
-    else
-      sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
-
-    /* try to get 64bit counters */
-    rx = get_kstat_value(ksp[i], "ipackets64");
-    tx = get_kstat_value(ksp[i], "opackets64");
-    /* or fallback to 32bit */
-    if (rx == -1LL)
-      rx = get_kstat_value(ksp[i], "ipackets");
-    if (tx == -1LL)
-      tx = get_kstat_value(ksp[i], "opackets");
-    if (!report_inactive && rx == 0 && tx == 0)
-      continue;
-    if ((rx != -1LL) || (tx != -1LL))
-      if_submit(iname, "if_packets", rx, tx);
-
-    /* try to get 64bit counters */
-    rx = get_kstat_value(ksp[i], "rbytes64");
-    tx = get_kstat_value(ksp[i], "obytes64");
-    /* or fallback to 32bit */
-    if (rx == -1LL)
-      rx = get_kstat_value(ksp[i], "rbytes");
-    if (tx == -1LL)
-      tx = get_kstat_value(ksp[i], "obytes");
-    if ((rx != -1LL) || (tx != -1LL))
-      if_submit(iname, "if_octets", rx, tx);
-
-    /* no 64bit error counters yet */
-    rx = get_kstat_value(ksp[i], "ierrors");
-    tx = get_kstat_value(ksp[i], "oerrors");
-    if ((rx != -1LL) || (tx != -1LL))
-      if_submit(iname, "if_errors", rx, tx);
-  }
-    /* #endif HAVE_LIBKSTAT */
-
 #elif defined(HAVE_LIBSTATGRAB)
   sg_network_io_stats *ios;
   int num;
@@ -348,7 +349,7 @@ static int interface_read(void) {
       continue;
     if_submit(ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
   }
-    /* #endif HAVE_LIBSTATGRAB */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
   perfstat_id_t id;
