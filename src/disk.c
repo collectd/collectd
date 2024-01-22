@@ -99,25 +99,23 @@ typedef struct diskstats {
   /* This overflows in roughly 1361 years */
   unsigned int poll_count;
 
-  derive_t read_sectors;
-  derive_t write_sectors;
+  counter_t read_sectors;
+  counter_t write_sectors;
 
-  derive_t read_bytes;
-  derive_t write_bytes;
+  counter_t read_bytes;
+  counter_t write_bytes;
 
-  derive_t read_ops;
-  derive_t write_ops;
-  derive_t read_time_us;
-  derive_t write_time_us;
+  counter_t read_ops;
+  counter_t write_ops;
+  counter_t read_time_ms;
+  counter_t write_time_ms;
 
+  rate_to_value_state_t avg_read_time_state;
+  rate_to_value_state_t avg_write_time_state;
   derive_t avg_read_time;
   derive_t avg_write_time;
 
-  derive_t io_time;
-
-  bool has_merged;
-  bool has_in_progress;
-  bool has_io_time;
+  value_to_rate_state_t io_time_state;
 
   struct diskstats *next;
 } diskstats_t;
@@ -315,13 +313,17 @@ static int disk_shutdown(void) {
 } /* int disk_shutdown */
 
 #if KERNEL_LINUX
-static counter_t disk_calc_time_incr(counter_t delta_time,
-                                     counter_t delta_ops) {
-  double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
-  double avg_time = ((double)delta_time) / ((double)delta_ops);
-  double avg_time_incr = interval * avg_time;
+static gauge_t avg_time_per_op(counter_t time_ms, counter_t ops) {
+  if (ops == 0) {
+    return NAN;
+  }
+  return ((gauge_t)time_ms) / ((gauge_t)ops);
+}
 
-  return (counter_t)(avg_time_incr + .5);
+static counter_t parse_counter(char const *s) {
+  char **const endptr = NULL;
+  int const base = 0;
+  return (counter_t)strtoull(s, endptr, base);
 }
 #endif
 
@@ -772,20 +774,20 @@ static int disk_read(void) {
   char *fields[32];
   static unsigned int poll_count = 0;
 
-  derive_t read_sectors = 0;
-  derive_t write_sectors = 0;
+  counter_t read_sectors = 0;
+  counter_t write_sectors = 0;
 
-  derive_t read_ops = 0;
-  derive_t read_merged = 0;
-  derive_t read_time_us = 0;
-  derive_t write_ops = 0;
-  derive_t write_merged = 0;
-  derive_t write_time_us = 0;
+  counter_t read_ops = 0;
+  counter_t read_merged = 0;
+  counter_t read_time_ms = 0;
+  counter_t write_ops = 0;
+  counter_t write_merged = 0;
+  counter_t write_time_ms = 0;
   gauge_t in_progress = NAN;
-  derive_t io_time_ms = 0;
-  derive_t weighted_time = 0;
-  derive_t diff_io_time_ms = 0;
-  int is_disk = 0;
+  counter_t io_time_ms = 0;
+  counter_t weighted_time = 0;
+  gauge_t io_time_rate_ms = NAN; // unit: ms/s
+  bool is_disk = false;
 
   diskstats_t *ds, *pre_ds;
 
@@ -827,43 +829,35 @@ static int disk_read(void) {
     is_disk = 0;
     if (numfields == 7) {
       /* Kernel 2.6, Partition */
-      read_ops = atoll(fields[3]);
-      read_sectors = atoll(fields[4]);
-      write_ops = atoll(fields[5]);
-      write_sectors = atoll(fields[6]);
+      read_ops = parse_counter(fields[3]);
+      read_sectors = parse_counter(fields[4]);
+      write_ops = parse_counter(fields[5]);
+      write_sectors = parse_counter(fields[6]);
     } else {
       assert(numfields >= 14);
-      read_ops = atoll(fields[3]);
-      write_ops = atoll(fields[7]);
+      read_ops = parse_counter(fields[3]);
+      write_ops = parse_counter(fields[7]);
 
-      read_sectors = atoll(fields[5]);
-      write_sectors = atoll(fields[9]);
+      read_sectors = parse_counter(fields[5]);
+      write_sectors = parse_counter(fields[9]);
 
       is_disk = 1;
-      read_merged = atoll(fields[4]);
-      read_time_us = atoll(fields[6]);
-      write_merged = atoll(fields[8]);
-      write_time_us = atoll(fields[10]);
+      read_merged = parse_counter(fields[4]);
+      read_time_ms = parse_counter(fields[6]);
+      write_merged = parse_counter(fields[8]);
+      write_time_ms = parse_counter(fields[10]);
 
       in_progress = atof(fields[11]);
 
-      io_time_ms = atof(fields[12]);
-      weighted_time = atof(fields[13]);
+      io_time_ms = parse_counter(fields[12]);
+      weighted_time = parse_counter(fields[13]);
     }
 
     {
-      derive_t diff_read_sectors;
-      derive_t diff_write_sectors;
-
-      /* If the counter wraps around, it's only 32 bits.. */
-      if (read_sectors < ds->read_sectors)
-        diff_read_sectors = 1 + read_sectors + (UINT_MAX - ds->read_sectors);
-      else
-        diff_read_sectors = read_sectors - ds->read_sectors;
-      if (write_sectors < ds->write_sectors)
-        diff_write_sectors = 1 + write_sectors + (UINT_MAX - ds->write_sectors);
-      else
-        diff_write_sectors = write_sectors - ds->write_sectors;
+      counter_t diff_read_sectors =
+          counter_diff(ds->read_sectors, read_sectors);
+      counter_t diff_write_sectors =
+          counter_diff(ds->write_sectors, write_sectors);
 
       ds->read_bytes += 512 * diff_read_sectors;
       ds->write_bytes += 512 * diff_write_sectors;
@@ -873,60 +867,39 @@ static int disk_read(void) {
 
     /* Calculate the average time an io-op needs to complete */
     if (is_disk) {
-      derive_t diff_read_ops;
-      derive_t diff_write_ops;
-      derive_t diff_read_time;
-      derive_t diff_write_time;
+      /* Calculate the average time spent per read operation in ms. */
+      counter_t diff_read_time_ms =
+          counter_diff(ds->read_time_ms, read_time_ms);
+      counter_t diff_read_ops = counter_diff(ds->read_ops, read_ops);
+      gauge_t avg_read_time_rate_ms =
+          avg_time_per_op(diff_read_time_ms, diff_read_ops);
 
-      if (read_ops < ds->read_ops)
-        diff_read_ops = 1 + read_ops + (UINT_MAX - ds->read_ops);
-      else
-        diff_read_ops = read_ops - ds->read_ops;
-      DEBUG("disk plugin: disk_name = %s; read_ops = %" PRIi64 "; "
-            "ds->read_ops = %" PRIi64 "; diff_read_ops = %" PRIi64 ";",
-            disk_name, read_ops, ds->read_ops, diff_read_ops);
+      /* Scale the time to microseconds and calculate a counter value. */
+      value_t avg_read_time = {0};
+      rate_to_value(&avg_read_time, avg_read_time_rate_ms * 1000.0,
+                    &ds->avg_read_time_state, DS_TYPE_DERIVE, cdtime());
+      ds->avg_read_time = avg_read_time.derive;
 
-      if (write_ops < ds->write_ops)
-        diff_write_ops = 1 + write_ops + (UINT_MAX - ds->write_ops);
-      else
-        diff_write_ops = write_ops - ds->write_ops;
+      /* Calculate the average time spent per write operation in ms. */
+      counter_t diff_write_time_ms =
+          counter_diff(ds->write_time_ms, write_time_ms);
+      counter_t diff_write_ops = counter_diff(ds->write_ops, write_ops);
+      gauge_t avg_write_time_rate_ms =
+          avg_time_per_op(diff_write_time_ms, diff_write_ops);
 
-      if (read_time_us < ds->read_time_us)
-        diff_read_time = 1 + read_time_us + (UINT_MAX - ds->read_time_us);
-      else
-        diff_read_time = read_time_us - ds->read_time_us;
-
-      if (write_time_us < ds->write_time_us)
-        diff_write_time = 1 + write_time_us + (UINT_MAX - ds->write_time_us);
-      else
-        diff_write_time = write_time_us - ds->write_time_us;
-
-      if (io_time_ms < ds->io_time)
-        diff_io_time_ms = 1 + io_time_ms + (UINT_MAX - ds->io_time);
-      else
-        diff_io_time_ms = io_time_ms - ds->io_time;
-
-      if (diff_read_ops != 0)
-        ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
-      if (diff_write_ops != 0)
-        ds->avg_write_time +=
-            disk_calc_time_incr(diff_write_time, diff_write_ops);
+      /* Scale the time to microseconds and calculate a counter value. */
+      value_t avg_write_time = {0};
+      rate_to_value(&avg_write_time, avg_write_time_rate_ms * 1000.0,
+                    &ds->avg_write_time_state, DS_TYPE_DERIVE, cdtime());
+      ds->avg_write_time = avg_write_time.derive;
 
       ds->read_ops = read_ops;
-      ds->read_time_us = read_time_us;
+      ds->read_time_ms = read_time_ms;
       ds->write_ops = write_ops;
-      ds->write_time_us = write_time_us;
-      ds->io_time = io_time_ms;
+      ds->write_time_ms = write_time_ms;
 
-      if (read_merged || write_merged)
-        ds->has_merged = true;
-
-      if (in_progress)
-        ds->has_in_progress = true;
-
-      if (io_time_ms)
-        ds->has_io_time = true;
-
+      value_to_rate(&io_time_rate_ms, (value_t){.counter = io_time_ms},
+                    DS_TYPE_COUNTER, cdtime(), &ds->io_time_state);
     } /* if (is_disk) */
 
     /* Skip first cycle for newly-added disk */
@@ -980,34 +953,36 @@ static int disk_read(void) {
                            (value_t){.counter = (counter_t)ds->write_ops}, &m);
     }
 
-    if ((ds->read_time_us != 0) || (ds->write_time_us != 0)) {
+    if ((ds->read_time_ms != 0) || (ds->write_time_ms != 0)) {
       metric_family_append(&fam_ops_time, direction_label, read_direction,
-                           (value_t){.derive = ds->read_time_us}, &m);
+                           (value_t){.derive = ds->read_time_ms * 1000}, &m);
       metric_family_append(&fam_ops_time, direction_label, write_direction,
-                           (value_t){.derive = ds->write_time_us}, &m);
+                           (value_t){.derive = ds->write_time_ms * 1000}, &m);
     }
 
     if (is_disk) {
-      if (ds->has_merged) {
+      if (read_merged != 0 || write_merged != 0) {
         metric_family_append(&fam_merged, direction_label, read_direction,
                              (value_t){.counter = (counter_t)read_merged}, &m);
         metric_family_append(&fam_merged, direction_label, write_direction,
                              (value_t){.counter = (counter_t)write_merged}, &m);
       }
-      if (ds->has_in_progress) {
+      if (!isnan(in_progress)) {
         m.value.gauge = in_progress;
         metric_family_metric_append(&fam_disk_pending_operations, m);
       }
-      if (ds->has_io_time) {
+      if (io_time_ms != 0) {
         m.value.derive = 1000 * io_time_ms;
         metric_family_metric_append(&fam_disk_io_time, m);
       }
+
       m.value.counter = (counter_t)weighted_time;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
 
-      long interval_ms = CDTIME_T_TO_MS(plugin_get_interval());
-      m.value.gauge = ((gauge_t)diff_io_time_ms) / ((gauge_t)interval_ms);
-      metric_family_metric_append(&fam_utilization, m);
+      if (!isnan(io_time_rate_ms)) {
+        m.value.gauge = io_time_rate_ms / 1000.0;
+        metric_family_metric_append(&fam_utilization, m);
+      }
     } /* if (is_disk) */
 
     metric_reset(&m);
