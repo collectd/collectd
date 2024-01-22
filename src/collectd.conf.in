@@ -417,9 +417,10 @@
 #</Plugin>
 
 #<Plugin cpu>
+#  ReportUsage true
+#  ReportUtilization true
 #  ReportByCpu true
 #  ReportByState true
-#  ValuesPercentage false
 #  ReportNumCpu false
 #  ReportGuestState false
 #  SubtractGuestState true
