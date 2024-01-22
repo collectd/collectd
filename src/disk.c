@@ -849,12 +849,6 @@ static int disk_read(void) {
     value_to_rate(&io_time_rate_ms, (value_t){.counter = io_time_ms},
                   DS_TYPE_COUNTER, cdtime(), &ds->io_time_state);
 
-    /* Skip first cycle for newly-added disk */
-    if (ds->poll_count == 0) {
-      DEBUG("disk plugin: (ds->poll_count = 0) => Skipping.");
-      ds->poll_count = poll_count;
-      continue;
-    }
     ds->poll_count = poll_count;
 
     if ((read_ops == 0) && (write_ops == 0)) {
