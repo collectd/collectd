@@ -648,11 +648,10 @@ static void commit_usage(usage_t *u) {
 }
 
 /* Commits (dispatches) the values for one CPU or the global aggregation.
- * cpu_num is the index of the CPU to be committed or -1 in case of the global
- * aggregation. rates is a pointer to STATE_MAX gauge_t values
- * holding the
- * current rate; each rate may be NAN. Calculates the percentage of each state
- * and dispatches the metric. */
+ * cpu_num is the index of the CPU to be committed or CPU_ALL in case of the
+ * global aggregation. rates is a pointer to STATE_MAX gauge_t values holding
+ * the current rate; each rate may be NAN. Calculates the percentage of each
+ * state and dispatches the metric. */
 static void commit_cpu_utilization(usage_t *u, size_t cpu_num) {
   metric_family_t fam = {
       .name = "system.cpu.utilization",
