@@ -310,6 +310,7 @@ static int disk_shutdown(void) {
   return 0;
 } /* int disk_shutdown */
 
+#if KERNEL_LINUX
 static void disk_submit_single(const char *plugin_instance, const char *type,
                                derive_t value) {
   value_list_t vl = VALUE_LIST_INIT;
@@ -322,6 +323,7 @@ static void disk_submit_single(const char *plugin_instance, const char *type,
 
   plugin_dispatch_values(&vl);
 } /* void disk_submit_single */
+#endif
 
 static void disk_submit(const char *plugin_instance, const char *type,
                         derive_t read, derive_t write) {
