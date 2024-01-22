@@ -2853,20 +2853,20 @@ PKG_CHECK_MODULES([GRPCPP], [grpc++],
 fi
 
 if test "x$withval" != "xno"; then
-  AC_MSG_CHECKING([whether $CXX accepts -std=c++11])
-  if test_cxx_flags -std=c++11; then
+  AC_MSG_CHECKING([whether $CXX accepts -std=c++14])
+  if test_cxx_flags -std=c++14; then
     AC_MSG_RESULT([yes])
   else
     AC_MSG_RESULT([no])
-    with_libgrpcpp="no (requires C++11 support)"
-    with_libprotobuf="no (<google/protobuf/util/time_util.h> requires C++11 support)"
+    with_libgrpcpp="no (requires C++14 support)"
+    with_libprotobuf="no (<absl/base/policy_checks.h> requires C++14 support)"
   fi
 fi
 
 if test "x$with_libgrpcpp" = "xyes"; then
   AC_LANG_PUSH(C++)
   SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
+  CPPFLAGS="-std=c++14 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
   AC_CHECK_HEADERS([grpc++/grpc++.h],
     [with_libgrpcpp="yes"],
     [with_libgrpcpp="no (<grpc++/grpc++.h> not found)"]
@@ -2880,7 +2880,7 @@ if test "x$with_libgrpcpp" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   SAVE_LDFLAGS="$LDFLAGS"
   SAVE_LIBS="$LIBS"
-  CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
+  CPPFLAGS="-std=c++14 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
   LDFLAGS="$with_libgrpcpp_ldflags"
   if test "x$GRPCPP_LIBS" = "x"; then
     LIBS="-lgrpc++"
@@ -2908,7 +2908,7 @@ if test "x$with_libgrpcpp" = "xyes"; then
   AC_LANG_POP(C++)
 fi
 
-BUILD_WITH_LIBGRPCPP_CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS"
+BUILD_WITH_LIBGRPCPP_CPPFLAGS="-std=c++14 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS"
 BUILD_WITH_LIBGRPCPP_LDFLAGS="$with_libgrpcpp_ldflags"
 BUILD_WITH_LIBGRPCPP_LIBS="$GRPCPP_LIBS"
 AC_SUBST([BUILD_WITH_LIBGRPCPP_CPPFLAGS])
@@ -4852,7 +4852,7 @@ if test "x$withval" != "xno"; then
   AC_CHECK_LIB([protobuf], [main],
     [
       SAVE_CPPFLAGS="$CPPFLAGS"
-      CPPFLAGS="-std=c++11 $with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
+      CPPFLAGS="-std=c++14 $with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
       if test "x$PROTOBUF_LIBS" = "x"
       then
         PROTOBUF_LIBS="-lprotobuf"
