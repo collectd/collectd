@@ -415,7 +415,7 @@ static int disk_read(void) {
   metric_family_t fam_disk_io_time = {
       .name = "system.disk.io_time",
       .help = "Time disk spent activated",
-      .unit = "s",
+      .unit = "us",
       .type = METRIC_TYPE_COUNTER,
   };
   metric_family_t fam_disk_io_weighted_time = {
@@ -749,7 +749,7 @@ static int disk_read(void) {
             &queue_length, DSM_NONE) != 0) {
       WARNING("%s", devstat_errbuf);
     } else {
-      m.value.counter = (counter_t)busy_time;
+      m.value.counter = (counter_t)(1000000.0 * busy_time);
       metric_family_metric_append(&fam_disk_io_time, m);
 
       m.value.gauge = (gauge_t)utilization;
@@ -782,9 +782,9 @@ static int disk_read(void) {
   derive_t write_merged = 0;
   derive_t write_time_us = 0;
   gauge_t in_progress = NAN;
-  derive_t io_time = 0;
+  derive_t io_time_ms = 0;
   derive_t weighted_time = 0;
-  derive_t diff_io_time = 0;
+  derive_t diff_io_time_ms = 0;
   int is_disk = 0;
 
   diskstats_t *ds, *pre_ds;
@@ -847,7 +847,7 @@ static int disk_read(void) {
 
       in_progress = atof(fields[11]);
 
-      io_time = atof(fields[12]);
+      io_time_ms = atof(fields[12]);
       weighted_time = atof(fields[13]);
     }
 
@@ -901,10 +901,10 @@ static int disk_read(void) {
       else
         diff_write_time = write_time_us - ds->write_time_us;
 
-      if (io_time < ds->io_time)
-        diff_io_time = 1 + io_time + (UINT_MAX - ds->io_time);
+      if (io_time_ms < ds->io_time)
+        diff_io_time_ms = 1 + io_time_ms + (UINT_MAX - ds->io_time);
       else
-        diff_io_time = io_time - ds->io_time;
+        diff_io_time_ms = io_time_ms - ds->io_time;
 
       if (diff_read_ops != 0)
         ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
@@ -916,7 +916,7 @@ static int disk_read(void) {
       ds->read_time_us = read_time_us;
       ds->write_ops = write_ops;
       ds->write_time_us = write_time_us;
-      ds->io_time = io_time;
+      ds->io_time = io_time_ms;
 
       if (read_merged || write_merged)
         ds->has_merged = true;
@@ -924,7 +924,7 @@ static int disk_read(void) {
       if (in_progress)
         ds->has_in_progress = true;
 
-      if (io_time)
+      if (io_time_ms)
         ds->has_io_time = true;
 
     } /* if (is_disk) */
@@ -999,14 +999,14 @@ static int disk_read(void) {
         metric_family_metric_append(&fam_disk_pending_operations, m);
       }
       if (ds->has_io_time) {
-        m.value.counter = (counter_t)io_time;
+        m.value.derive = 1000 * io_time_ms;
         metric_family_metric_append(&fam_disk_io_time, m);
       }
       m.value.counter = (counter_t)weighted_time;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
 
-      long interval = CDTIME_T_TO_MS(plugin_get_interval());
-      m.value.gauge = ((gauge_t)diff_io_time) / ((gauge_t)interval);
+      long interval_ms = CDTIME_T_TO_MS(plugin_get_interval());
+      m.value.gauge = ((gauge_t)diff_io_time_ms) / ((gauge_t)interval_ms);
       metric_family_metric_append(&fam_utilization, m);
     } /* if (is_disk) */
 
@@ -1243,7 +1243,7 @@ static int disk_read(void) {
 
     m.value.derive = ((derive_t)drives[i].time_sec * 1000000) +
                      ((derive_t)drives[i].time_usec);
-    metric_family_metric_append(&fam_ops_time, m);
+    metric_family_metric_append(&fam_disk_io_time, m);
 
     metric_reset(&m);
   }
