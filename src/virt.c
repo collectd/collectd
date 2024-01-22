@@ -736,7 +736,7 @@ static void set_field_from_metadata(value_list_t *vl, virDomainPtr dom,
 
   const char *namespace = NULL;
   if (hm_ns == NULL) {
-    namespace = "http://openstack.org/xmlns/libvirt/nova/1.0";
+    namespace = "http://openstack.org/xmlns/libvirt/nova/1.1";
   } // namespace =hm_ns;
   else {
     namespace = hm_ns;
@@ -937,10 +937,11 @@ static void memory_submit(virDomainPtr dom, gauge_t value) {
 
 static void memory_stats_submit(gauge_t value, virDomainPtr dom,
                                 int tag_index) {
-  static const char *tags[] = {"swap_in",        "swap_out",   "major_fault",
-                               "minor_fault",    "unused",     "available",
-                               "actual_balloon", "rss",        "usable",
-                               "last_update",    "disk_caches"};
+  static const char *tags[] = {
+      "swap_in",       "swap_out",    "major_fault",    "minor_fault",
+      "unused",        "available",   "actual_balloon", "rss",
+      "usable",        "last_update", "disk_caches",    "hugetlb_pgalloc",
+      "hugetlb_pgfail"};
 
   if ((tag_index < 0) || (tag_index >= (int)STATIC_ARRAY_SIZE(tags))) {
     ERROR(PLUGIN_NAME " plugin: Array index out of bounds: tag_index = %d",

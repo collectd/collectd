@@ -46,7 +46,7 @@ int ioctl(int __fd, unsigned long int __request, ...) {
   if (admin_cmd->opcode == NVME_ADMIN_IDENTIFY) {
     // ioctl asked about vid
     __le16 *vid = (__le16 *)addr;
-    *vid = VENDOR_ID;
+    *vid = htole16(VENDOR_ID);
     return 0;
   } else if (admin_cmd->opcode == NVME_ADMIN_GET_LOG_PAGE) {
     // ioctl asked about smart attributes

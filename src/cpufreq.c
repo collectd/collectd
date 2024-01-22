@@ -31,13 +31,13 @@
 #endif
 
 #if KERNEL_LINUX
-#define MAX_AVAIL_FREQS 20
+static int max_avail_freqs = 128; // default MAX_AVAIL_FREQS
 
 static int num_cpu;
 
 struct cpu_data_t {
-  value_to_rate_state_t time_state[MAX_AVAIL_FREQS];
-} * cpu_data;
+  value_to_rate_state_t *time_state;
+} *cpu_data;
 
 /* Flags denoting capability of reporting CPU frequency statistics. */
 static bool report_p_stats = false;
@@ -62,6 +62,25 @@ static void cpufreq_stats_init(void) {
              filename);
       report_p_stats = false;
       break;
+    } else {
+      /* Count the number of lines in the file content:
+       * /sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state */
+      FILE *fh = fopen(filename, "r");
+      if (fh == NULL) {
+        ERROR("cpufreq plugin: File %s not exists or no access.", filename);
+        break;
+      }
+      int state_count = 0;
+      char line[DATA_MAX_NAME_LEN] = {0};
+      while (fgets(line, sizeof(line), fh) != NULL) {
+        state_count++;
+      }
+      fclose(fh);
+
+      /* variable: max_avail_freqs, takes the maximum value of the actual
+       * statistics. */
+      max_avail_freqs =
+          state_count > max_avail_freqs ? state_count : max_avail_freqs;
     }
 
     snprintf(filename, sizeof(filename),
@@ -75,6 +94,18 @@ static void cpufreq_stats_init(void) {
       break;
     }
   }
+
+  for (int i = 0; i < num_cpu; i++) {
+    cpu_data[i].time_state =
+        calloc(max_avail_freqs, sizeof(value_to_rate_state_t));
+    if (cpu_data[i].time_state == NULL) {
+      ERROR("cpufreq plugin: time_state memory allocation failed. P-State "
+            "statistics will not be reported.");
+      report_p_stats = false;
+      return;
+    }
+  }
+
   return;
 }
 #endif /* KERNEL_LINUX */
@@ -180,11 +211,11 @@ static void cpufreq_read_stats(int cpu) {
     char state[DATA_MAX_NAME_LEN];
     snprintf(state, sizeof(state), "%u", frequency);
 
-    if (state_index >= MAX_AVAIL_FREQS) {
+    if (state_index >= max_avail_freqs) {
       NOTICE("cpufreq plugin: Found too many frequency states (%d > %d). "
-             "Plugin needs to be recompiled. Please open a bug report for "
+             "Please open a bug report for "
              "this.",
-             (state_index + 1), MAX_AVAIL_FREQS);
+             (state_index + 1), max_avail_freqs);
       break;
     }
 
