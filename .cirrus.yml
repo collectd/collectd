@@ -150,12 +150,15 @@ non_standard_toolchains_task:
         - make -j$(nproc) -sk
       tests_script:
         - >
-          for i in cpu disk interface load memory swap users; do
-            if ! $(ldd ".libs/${i}.so" 2>/dev/null | grep -q 'libstatgrab.so'); then
-              echo "plugin $i NOT linked against libstatgrab"
-              exit 1
+          err=0
+          for plugin in cpu disk interface load memory swap users; do
+            if ! $(ldd ".libs/${plugin}.so" 2>/dev/null | grep -q 'libstatgrab.so'); then
+              echo "plugin ${plugin} is NOT linked against libstatgrab:"
+              ldd ".libs/${plugin}.so" | sed -e 's/^/    /'
+              err=$(($err + 1))
             fi
           done
+          exit $err
 
     # build using clang with a collection of strict build flags, will most
     # probably always fail
