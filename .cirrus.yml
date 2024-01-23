@@ -145,7 +145,7 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -j$(nproc) -sk
+        - make -j$(nproc) -sk V=1
       tests_script:
         - |
           err=0
