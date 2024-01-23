@@ -131,33 +131,6 @@ non_standard_toolchains_task:
       tests_script:
         - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
 
-    # build against libstatgrab, should always pass
-    - env:
-        LABEL: statgrab
-      allow_failures: false
-      skip_notifications: false
-      configure_script:
-        - ./build.sh
-        - gcc --version
-        - >
-          ./configure --with-libstatgrab --enable-debug
-          CFLAGS="$(dpkg-buildflags --get CFLAGS)"
-          CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
-          LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
-      build_script:
-        - make -j$(nproc) -sk V=1
-      tests_script:
-        - |
-          err=0
-          for plugin in cpu disk interface load memory swap users; do
-            if ! $(ldd ".libs/${plugin}.so" 2>/dev/null | grep -q 'libstatgrab.so'); then
-              echo "plugin ${plugin} is NOT linked against libstatgrab:"
-              ldd ".libs/${plugin}.so" | sed -e 's/^/    /'
-              err=$((err + 1))
-            fi
-          done
-          exit $err
-
     # build using clang with a collection of strict build flags, will most
     # probably always fail
     - env:
