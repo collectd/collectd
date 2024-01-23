@@ -1,3 +1,131 @@
+2024-01-23, Version 6.0.0-rc0
+	* Daemon: A special case, mapping "libvirt" to the "virt" plugin, has
+	  been removed. Thanks to @octo. #3493
+	* Daemon: Resource attributes have been added to the core data
+	  structures. Thanks to @octo. #4187
+	* Daemon: Support for "absolute" metric values has been removed. Thanks
+	  to @octo. #3507
+	* Daemon: The legacy `value_list_t` data structure and supporting
+	  functions have been moved into a separate component. Thanks to @octo.
+	  #4195
+	* Daemon: The new `metric_t` and `metric_family_t` data structures hold
+	  metrics that are identified by a label set. Thanks to @octo. #3508
+	* Daemon: The schema with which metrics are translated from v5 to v6 has
+	  been improved. Thanks to @octo. #4197
+	* Daemon: The `sstrncpy` utility function has been improved to handle
+	  all inputs gracefully. Thanks to @octo. #4233
+	* Daemon: The `strbuf` utility library has been added. It simplifies
+	  building strings iteratively. Thanks to @octo. #3481
+	* Daemon: "uc_update: Value too old" errors on metric dispatch have been
+	  fixed. Thanks to @hnez. #4103
+	* Daemon: Use one write thread per write plugin. Thanks to @hnez. #4026
+	* Daemon: All valid UTF-8 strings are now accepted as resource attribute
+	  name and metric label name. Thanks to @octo. #4212
+	* Daemon: A unit field has been added to the metric family struct.
+	  Thanks to @octo. #4194
+	* Daemon: Memory corruption in the "label_set_delete" function has been
+	  fixed. Thanks to @octo. #4214
+	* Daemon: The new "Resource" option allows users to configure resource
+	  attributes manually if desired. Thanks to @octo. #4199
+	* Build system: Fix some gcc warnings with more strict checks. Thanks to
+	  @eero-t. #3970
+	* Build system: the `--enable-compatibility-mode` argument has been
+	  added to control whether or not to build plugins using the
+	  compatibility mode. Such plugins are considered "unstable" and the
+	  metrics reported by these plugins will change in the future. Thanks to
+	  @octo. #4236
+	* GPU Sysman plugin: A new plugin reporting Intel GPU metrics has been
+	  added. Thanks to @eero-t. #3968
+	* Write OpenTelemetry: A new plugin for exporting metrics using the
+	  OpenTelemetry Protocol over gRPC has been added. Thanks to @octo.
+	  #4180
+	* Plugin ascent: This plugin has been removed. Thanks to @octo. #3557
+	* XMMS plugin: This plugin has been removed. Thanks to @octo. #3556
+	* BuddyInfo plugin: migration to v6.0. Thanks to @manuelluis. #3833
+	* Chrony plugin: migration to v6.0. Thanks to @manuelluis. #3830
+	* ContextSwitch plugin: migration to v6.0. Thanks to @manuelluis. #3812
+	* CPU, DF, Disk, and Memory plugins: Metric names have been updates to
+	  conform to OTEP 119. Thanks to @octo. #4181
+	* CPU plugin: The metric schema has been aligned with OpenTelemetry
+	  semantic conventions. Thanks to @octo. #4216
+	* CPUSleep plugin: migration to v6.0. Thanks to @manuelluis. #3818
+	* Cpython: fix build with Python 3.11. Thanks to @sgn. #4057
+	* DF plugin: migration to v6.0. Thanks to @manuelluis. #3810
+	* DF plugin: The metric schema has been aligned with OpenTelemetry
+	  semantic conventions. Thanks to @octo. #4218
+	* Disk plugin: migration to v6.0. Thanks to @hnez. #4075
+	* Disk plugin: The metric schema has been aligned with OpenTelemetry
+	  semantic conventions. Thanks to @octo. #4217
+	* Entropy plugin: migration to v6.0. Thanks to @manuelluis. #3813
+	* Ethstat: ethstat plugin expose ethtool and NIC statistics from sysfs .
+	  Thanks to @bkotlowski. #3928
+	* Exec plugin: Make `PUTMETRIC` available as command. Thanks to @hnez.
+	  #4074
+	* GPU Sysman plugin: Automatically enable the plugin when `level-zero`
+	  is available. Thanks to @eero-t. #4239
+	* GPU Sysman plugin: Add fabric port metrics support. Thanks to @eero-t.
+	  #4087
+	* GPU Sysman plugin: Add more metric output variants and better control
+	  for them. Thanks to @eero-t. #4047
+	* GPU Sysman plugin: fix initial min memory check value. Thanks to
+	  @eero-t. #4134
+	* GPU Sysman plugin: fix minimum memory usage calculation. Thanks to
+	  @eero-t. #4210
+	* GPU Sysman plugin: improve metric variants handling. Thanks to
+	  @eero-t. #4173
+	* GPU Sysman plugin: Misc improvements. Thanks to @eero-t. #4109
+	* InfluxDB plugin: support HTTP endpoint. Thanks to @matwey. #3999
+	* Interface plugin: The metric schema has been aligned with
+	  OpenTelemetry semantic conventions. Thanks to @octo. #4228
+	* Interface plugin: Updated to the v6 API. Thanks to @octo. #3765
+	* Ipc plugin: migration to v6.0. Thanks to @manuelluis. #3828
+	* IRQ plugin: Migrated to collectd 6 data structures. Thanks to @octo.
+	  #4192
+	* Load plugin: Migrated to collectd 6 data structures. Thanks to @octo.
+	  #4191
+	* Lua plugin: migrate the Lua plugin to v6.0. Thanks to @kenhys. #3795
+	* Match utility: The printing of a `NULL` pointer in debug mode has been
+	  fixed. Thanks to @sonertari. #3893
+	* Memory plugin: bring to feature parity with main branch. Thanks to
+	  @hnez. #4076
+	* Memory plugin: The metric schema has been aligned with OpenTelemetry
+	  semantic conventions. Thanks to @octo. #4219
+	* Memory plugin: The plugin has been migrated to metric labels. Thanks
+	  to @octo. #3762
+	* Memory plugin: The `system.memory.limit` metric has been added. The
+	  "slab" and "available" states have been removed, the "shared" state
+	  was added (Linux only). Utilization reporting has been changed to
+	  report a ratio (fraction of 1) rather than a percentage. Thanks to
+	  @octo. #4224
+	* MMC plugin: Port to collectd 6. Thanks to @hnez. #4077
+	* Ping plugin: migration to v6.0. Thanks to @manuelluis. #3823
+	* Protocols plugin: Initialize metric_family to zero. Thanks to
+	  @manuelluis. #3851
+	* Protocols plugin: migration to v6.0. Thanks to @manuelluis. #3821
+	* Uptime plugin: migration to v6.0. Thanks to @manuelluis. #3807
+	* Users plugin: migration to v6.0. Thanks to @manuelluis. #3808
+	* Write HTTP plugin: Support for the OpenTelemetry protocol (OTLP) has
+	  been added. Thanks to @octo. #4188
+	* Write InfluxDB UDP plugin: migration to v6.0. Thanks to @carlospeon.
+	  #3763
+	* Write Log plugin: extra output lines have been removed to streamline
+	  output. Thanks to @octo. #4175
+	* Write Log plugin: Remove blank lines from output. Thanks to @octo.
+	  #4179
+	* Write Prometheus plugin: log which socket creation function failed.
+	  Thanks to @eero-t. #4049
+	* Write Prometheus plugin: Escaping for metric and label names has been
+	  added. Test coverage has been improved. Thanks to @octo. #4206
+	* Write Prometheus plugin: migration to v6.0. Thanks to @manuelluis.
+	  #3861
+	* Write Prometheus plugin: Resource attributes have been integrated into
+	  the plugin. "service.name" and "service.instance.id" are exported as
+	  "job" and "instance" labels. All other resource attributes are
+	  exported once in the `target_info` metric family. Thanks to @octo.
+	  #4213
+	* Write Prometheus plugin: Units are appended to metric family names if
+	  available. Thanks to @octo. #4220
+
 2020-09-03, Version 5.12.0
 	* varnish plugin: Added varnish 6 support. Thanks to Charly Koza, Ismael
 	  Puerto. #3445
