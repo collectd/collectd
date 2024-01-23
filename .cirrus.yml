@@ -110,10 +110,8 @@ redhat_default_toolchain_task:
 non_standard_toolchains_task:
   container:
     image: collectd/ci:debian12
-  only_if: $CIRRUS_PR == ''
 
   matrix:
-
     # build using clang with default build flags, should always pass
     - env:
         LABEL: clang
