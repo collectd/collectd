@@ -13,13 +13,7 @@ Makefile.in
 /install-sh
 /libltdl/
 /ltmain.sh
-/m4/libtool.m4
-/m4/ltargz.m4
-/m4/ltdl.m4
-/m4/lt~obsolete.m4
-/m4/ltoptions.m4
-/m4/ltsugar.m4
-/m4/ltversion.m4
+/m4/
 /missing
 /src/config.h.in
 
@@ -40,6 +34,7 @@ src/stamp-h1
 .dirstamp
 .libs/
 .deps/
+/collectd
 /collectd-nagios
 /collectd-tg
 /collectdctl
@@ -87,12 +82,13 @@ bindings/perl/pm_to_blib
 *.pyc
 
 # backup stuff
+*.bak
 *~
 
 # lint stuff
 *.ln
 
-#ide stuff
+# IDE stuff
 .vscode
 
 # cscope stuff
@@ -103,5 +99,6 @@ test-suite.log
 src/tests/
 test_*
 
-# src/daemon/...
-/collectd
+# coverage data
+*.gcov
+*.gcno
