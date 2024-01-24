@@ -2388,6 +2388,13 @@ write_redis_la_SOURCES = src/write_redis.c
 write_redis_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
 write_redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
 write_redis_la_LIBADD = libformat_json.la -lhiredis
+
+test_plugin_write_redis_SOURCES = src/write_redis_test.c
+test_plugin_write_redis_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+test_plugin_write_redis_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
+test_plugin_write_redis_LDADD = libformat_json.la libplugin_mock.la -lhiredis
+check_PROGRAMS += test_plugin_write_redis
+TESTS += test_plugin_write_redis
 endif
 
 if BUILD_PLUGIN_WRITE_RIEMANN
