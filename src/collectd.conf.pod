@@ -11639,30 +11639,29 @@ options are available:
 
 The B<Node> block identifies a new I<Redis> node, that is a new I<Redis>
 instance running on a specified host and port. The node name is a
-canonical identifier which is used as I<plugin instance>. It is limited to
-51E<nbsp>characters in length.
+canonical identifier which is used as I<plugin instance>.
 
 =item B<Host> I<Hostname>
 
-The B<Host> option is the hostname or IP-address where the I<Redis> instance is
-running on.
+The name or IP-address of the host running the I<Redis> instance.
 
 =item B<Port> I<Port>
 
 The B<Port> option is the TCP port on which the Redis instance accepts
-connections. Either a service name of a port number may be given. Please note
-that numerical port numbers must be given as a string, too.
+connections. Either a service name of a port number may be given.
 
-=item B<Timeout> I<Milliseconds>
+=item B<Timeout> I<Seconds>
 
-The B<Timeout> option sets the socket connection timeout, in milliseconds.
+The B<Timeout> option sets the socket connection timeout in seconds. Use
+fractional numbers to specify timeouts shorter than one second, e.g. C<0.5> for
+500 ms.
 
 =item B<Prefix> I<Prefix>
 
 Prefix used when constructing the name of the I<Sorted Sets> and the I<Set>
-containing all metrics. Defaults to C<collectd/>, so metrics will have names
-like C<collectd/cpu-0/cpu-user>. When setting this to something different, it
-is recommended but not required to include a trailing slash in I<Prefix>.
+containing all metrics. Defaults to no prefix. If a prefix is configured,
+metric names are prefixed with the configured string verbatim, without an
+additional separation character.
 
 =item B<Database> I<Index>
 
@@ -11672,13 +11671,14 @@ to C<0>.
 =item B<MaxSetSize> I<Items>
 
 The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can
-hold. Negative values for I<Items> sets no limit, which is the default behavior.
+hold. Set to zero to disable (i.e. no size limit), which is the default
+behavior.
 
 =item B<MaxSetDuration> I<Seconds>
 
-The B<MaxSetDuration> option limits the duration of items that the
-I<Sorted Sets> can hold. Negative values for I<Items> sets no duration, which
-is the default behavior.
+The B<MaxSetDuration> option limits the maximum age of items in the I<Sorted
+Sets>. After reaching this age, metrics will get purged. Set to zero to disable
+(i.e. no age lmit), which is the default behavior.
 
 =item B<StoreRates> B<true>|B<false>
 

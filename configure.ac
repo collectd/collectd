@@ -6876,7 +6876,7 @@ plugin_write_log="no"
 plugin_write_mongodb="$with_libmongoc"
 plugin_write_open_telemetry="yes"
 plugin_write_prometheus="no"
-plugin_write_redis="$with_libhiredis"
+plugin_write_redis="yes"
 plugin_write_riemann="$with_libriemann_client"
 plugin_write_sensu="yes"
 plugin_write_stackdriver="no"
@@ -7065,6 +7065,10 @@ if test "x$with_libcurl" != "xyes"; then
 fi
 if test "x$with_libyajl2" != "xyes"; then
   plugin_write_http="no (libyajl2 not found)"
+  plugin_write_redis="no (libyajl2 not found)"
+fi
+if test "x$with_libhiredis" != "xyes"; then
+  plugin_write_redis="no (libhiredis not found)"
 fi
 
 if test "x$with_libyajl" = "xyes"; then
@@ -7317,7 +7321,6 @@ plugin_threshold="no (collectd 6 support missing)"
 plugin_write_graphite="no (collectd 6 support missing)"
 plugin_write_kafka="no (collectd 6 support missing)"
 plugin_write_mongodb="no (collectd 6 support missing)"
-plugin_write_redis="no (collectd 6 support missing)"
 plugin_write_riemann="no (collectd 6 support missing)"
 plugin_write_sensu="no (collectd 6 support missing)"
 plugin_write_syslog="no (collectd 6 support missing)"
