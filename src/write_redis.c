@@ -37,6 +37,8 @@
 #define REDIS_DEFAULT_PREFIX "collectd/"
 #endif
 
+struct wr_node_s;
+typedef struct wr_node_s wr_node_t;
 struct wr_node_s {
   char name[DATA_MAX_NAME_LEN];
 
@@ -49,10 +51,13 @@ struct wr_node_s {
   cdtime_t max_set_duration;
   bool store_rates;
 
+  int (*reconnect)(wr_node_t *node);
+  void (*disconnect)(wr_node_t *node);
+  int (*execute)(wr_node_t *node, int argc, char const **argv);
+
   redisContext *conn;
   pthread_mutex_t lock;
 };
-typedef struct wr_node_s wr_node_t;
 
 /*
  * Functions
@@ -100,7 +105,7 @@ static int reconnect(wr_node_t *node) {
   return 0;
 }
 
-static int execute_command(wr_node_t *node, int argc, char const **argv) {
+static int execute(wr_node_t *node, int argc, char const **argv) {
   redisReply *rr = redisCommandArgv(node->conn, argc, argv, NULL);
   if (rr == NULL) {
     strbuf_t cmd = STRBUF_CREATE;
@@ -130,7 +135,7 @@ static int apply_set_size(wr_node_t *node, char const *id) {
   strbuf_printf(&max_rank, "%d", -1 * node->max_set_size - 1);
 
   char const *cmd[] = {"ZREMRANGEBYRANK", id, "0", max_rank.ptr};
-  int err = execute_command(node, STATIC_ARRAY_SIZE(cmd), cmd);
+  int err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
 
   STRBUF_DESTROY(max_rank);
   return err;
@@ -148,7 +153,7 @@ static int apply_set_duration(wr_node_t *node, char const *id,
                 CDTIME_T_TO_DOUBLE(last_update - node->max_set_duration));
 
   char const *cmd[] = {"ZREMRANGEBYSCORE", id, "-inf", min_time.ptr};
-  int err = execute_command(node, STATIC_ARRAY_SIZE(cmd), cmd);
+  int err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
 
   STRBUF_DESTROY(min_time);
   return err;
@@ -162,7 +167,7 @@ static int register_metric(wr_node_t *node, char const *id) {
   strbuf_print(&key, "values");
 
   char const *cmd[] = {"SADD", key.ptr, id};
-  int err = execute_command(node, STATIC_ARRAY_SIZE(cmd), cmd);
+  int err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
 
   STRBUF_DESTROY(key);
   return err;
@@ -180,7 +185,7 @@ static int write_metric_value(wr_node_t *node, metric_t const *m,
   strbuf_printf(&m_time, "%.9f", CDTIME_T_TO_DOUBLE(m->time));
 
   char const *cmd[] = {"ZADD", id, m_time.ptr, value.ptr};
-  err = execute_command(node, STATIC_ARRAY_SIZE(cmd), cmd);
+  err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
 
   STRBUF_DESTROY(m_time);
   STRBUF_DESTROY(value);
@@ -230,7 +235,7 @@ static int wr_write(/* {{{ */
 
   pthread_mutex_lock(&node->lock);
 
-  int err = reconnect(node);
+  int err = node->reconnect(node);
   if (err != 0) {
     pthread_mutex_unlock(&node->lock);
     return err;
@@ -254,7 +259,7 @@ static void wr_config_free(void *ptr) /* {{{ */
   if (node == NULL)
     return;
 
-  disconnect(node);
+  node->disconnect(node);
   pthread_mutex_destroy(&node->lock);
 
   sfree(node->host);
@@ -270,6 +275,10 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
 
   *node = (wr_node_t){
       .store_rates = true,
+
+      .reconnect = reconnect,
+      .disconnect = disconnect,
+      .execute = execute,
   };
   pthread_mutex_init(&node->lock, /* attr = */ NULL);
 
@@ -322,8 +331,9 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
     STRBUF_DESTROY(cb_name);
   }
 
-  if (status != 0)
+  if (status != 0) {
     wr_config_free(node);
+  }
 
   return status;
 } /* }}} int wr_config_node */
