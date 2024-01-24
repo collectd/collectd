@@ -292,9 +292,8 @@ static void pmu_submit_counters(const char *cgroup, const char *event,
   sstrncpy(vl.type, "pmu_counter", sizeof(vl.type));
   sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
 
-  DEBUG(PMU_PLUGIN ": %s/%s = %" PRIu64 " (%" PRIu64 " * %" PRIu64 " / %" PRIu64
-                   ")",
-        vl.type_instance, vl.plugin_instance, scaled, raw, enabled, running);
+  DEBUG(PMU_PLUGIN ": %s/%s = %llu (%llu * %llu / %llu)", vl.type_instance,
+        vl.plugin_instance, scaled, raw, enabled, running);
 
   plugin_dispatch_values(&vl);
 }
