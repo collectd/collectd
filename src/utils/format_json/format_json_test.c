@@ -346,11 +346,130 @@ DEF_TEST(open_telemetry) {
   return 0;
 }
 
+DEF_TEST(format_json_metric_identity) {
+  struct {
+    char *name;
+    label_pair_t *labels;
+    size_t labels_num;
+    label_pair_t *rattr;
+    size_t rattr_num;
+    char const *want;
+  } cases[] = {
+      {
+          .name = "metric_without_labels",
+          .want = "{\"name\":\"metric_without_labels\"}",
+      },
+      {
+          .name = "metric_with_labels",
+          .labels =
+              (label_pair_t[]){
+                  {"sorted", "yes"},
+                  {"alphabetically", "true"},
+              },
+          .labels_num = 2,
+          .want = "{\"name\":\"metric_with_labels\",\"labels\":{"
+                  "\"alphabetically\":\"true\",\"sorted\":\"yes\"}}",
+      },
+      {
+          .name = "escape_sequences",
+          .labels =
+              (label_pair_t[]){
+                  {"newline", "\n"},
+                  {"quote", "\""},
+                  {"tab", "\t"},
+                  {"cardridge_return", "\r"},
+              },
+          .labels_num = 4,
+          .want =
+              "{\"name\":\"escape_sequences\",\"labels\":{\"cardridge_return\":"
+              "\"\\r\",\"newline\":\"\\n\",\"quote\":\"\\\"\",\"tab\":\"\\t\"}"
+              "}",
+      },
+      {
+          .name = "metric_with_resource",
+          .rattr =
+              (label_pair_t[]){
+                  {"host.name", "example.com"},
+              },
+          .rattr_num = 1,
+          .want = "{\"name\":\"metric_with_resource\",\"resource\":{\"host."
+                  "name\":\"example.com\"}}",
+      },
+      {
+          .name = "metric_with_resource_and_labels",
+          .rattr =
+              (label_pair_t[]){
+                  {"omega", "always"},
+                  {"alpha", "resources"},
+              },
+          .rattr_num = 2,
+          .labels =
+              (label_pair_t[]){
+                  {"gamma", "first"},
+                  {"beta", "come"},
+              },
+          .labels_num = 2,
+          .want = "{\"name\":\"metric_with_resource_and_labels\",\"resource\":{"
+                  "\"alpha\":\"resources\",\"omega\":\"always\"},\"labels\":{"
+                  "\"beta\":\"come\",\"gamma\":\"first\"}}",
+      },
+      {
+          .name = "complex_names.are.quoted",
+          .rattr =
+              (label_pair_t[]){
+                  {"with space", "gets quotes"},
+              },
+          .rattr_num = 1,
+          .labels =
+              (label_pair_t[]){
+                  {"and \"quotes\" are", "escaped"},
+              },
+          .labels_num = 1,
+          .want = "{\"name\":\"complex_names.are.quoted\",\"resource\":{\"with "
+                  "space\":\"gets quotes\"},\"labels\":{\"and \\\"quotes\\\" "
+                  "are\":\"escaped\"}}",
+      },
+  };
+
+  for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
+    printf("## Case %zu: %s\n", i, cases[i].name);
+
+    metric_family_t fam = {
+        .name = cases[i].name,
+        .type = METRIC_TYPE_UNTYPED,
+    };
+    metric_t m = {
+        .family = &fam,
+    };
+    for (size_t j = 0; j < cases[i].labels_num; j++) {
+      CHECK_ZERO(metric_label_set(&m, cases[i].labels[j].name,
+                                  cases[i].labels[j].value));
+    }
+    for (size_t j = 0; j < cases[i].rattr_num; j++) {
+      CHECK_ZERO(metric_family_resource_attribute_update(
+          &fam, cases[i].rattr[j].name, cases[i].rattr[j].value));
+    }
+
+    strbuf_t buf = STRBUF_CREATE;
+    CHECK_ZERO(format_json_metric_identity(&buf, &m));
+
+    EXPECT_EQ_STR(cases[i].want, buf.ptr);
+
+    STRBUF_DESTROY(buf);
+    metric_family_metric_reset(&fam);
+    label_set_reset(&fam.resource);
+    metric_reset(&m);
+  }
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(notification);
   RUN_TEST(metric_family);
   RUN_TEST(metric_family_append);
   RUN_TEST(open_telemetry);
+  RUN_TEST(format_json_metric_identity);
 
   END_TEST;
 }
