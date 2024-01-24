@@ -28,11 +28,7 @@
 #ifndef UTILS_CONFIG_CORES_H
 #define UTILS_CONFIG_CORES_H 1
 
-#include "configfile.h"
-
-#ifndef PRIsz
-#define PRIsz "zu"
-#endif /* PRIsz */
+#include "daemon/configfile.h"
 
 struct core_group_s {
   char *desc;
