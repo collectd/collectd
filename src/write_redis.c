@@ -159,18 +159,24 @@ static int apply_set_duration(wr_node_t *node, char const *id,
   return err;
 }
 
-static int register_metric(wr_node_t *node, char const *id) {
+static int add_resource_to_global_set(wr_node_t *node, char const *id) {
   strbuf_t key = STRBUF_CREATE;
   if (node->prefix != NULL) {
     strbuf_print(&key, node->prefix);
   }
-  strbuf_print(&key, "values");
+  strbuf_print(&key, "resources");
 
   char const *cmd[] = {"SADD", key.ptr, id};
   int err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
 
   STRBUF_DESTROY(key);
   return err;
+}
+
+static int add_metric_to_resource(wr_node_t *node, char const *resource_id,
+                                  char const *metric_id) {
+  char const *cmd[] = {"SADD", resource_id, metric_id};
+  return node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
 }
 
 static int write_metric_value(wr_node_t *node, metric_t const *m,
@@ -192,11 +198,13 @@ static int write_metric_value(wr_node_t *node, metric_t const *m,
   return err;
 }
 
-static int write_metric(wr_node_t *node, metric_t const *m) {
+static int write_metric(wr_node_t *node, char const *resource_id,
+                        metric_t const *m) {
   strbuf_t id = STRBUF_CREATE;
   if (node->prefix != NULL) {
     strbuf_print(&id, node->prefix);
   }
+  strbuf_print(&id, "metric/");
   int err = format_json_metric_identity(&id, m);
   if (err != 0) {
     ERROR("write_redis plugin: Formatting metric identity failed: %s",
@@ -209,7 +217,7 @@ static int write_metric(wr_node_t *node, metric_t const *m) {
     goto cleanup;
   }
 
-  err = register_metric(node, id.ptr);
+  err = add_metric_to_resource(node, resource_id, id.ptr);
   if (err != 0) {
     goto cleanup;
   }
@@ -229,29 +237,44 @@ cleanup:
   return err;
 }
 
-static int wr_write(/* {{{ */
-                    metric_family_t const *fam, user_data_t *ud) {
+static int wr_write(metric_family_t const *fam, user_data_t *ud) {
   wr_node_t *node = ud->data;
 
-  pthread_mutex_lock(&node->lock);
-
-  int err = node->reconnect(node);
+  strbuf_t resource_id = STRBUF_CREATE;
+  if (node->prefix != NULL) {
+    strbuf_print(&resource_id, node->prefix);
+  }
+  strbuf_print(&resource_id, "resource/");
+  int err = format_json_label_set(&resource_id, fam->resource);
   if (err != 0) {
-    pthread_mutex_unlock(&node->lock);
+    STRBUF_DESTROY(resource_id);
     return err;
   }
 
+  pthread_mutex_lock(&node->lock);
+
+  err = node->reconnect(node);
+  if (err != 0) {
+    goto cleanup;
+  }
+
   for (size_t i = 0; i < fam->metric.num; i++) {
-    int err = write_metric(node, fam->metric.ptr + i);
+    int err = write_metric(node, resource_id.ptr, fam->metric.ptr + i);
     if (err != 0) {
-      pthread_mutex_unlock(&node->lock);
-      return err;
+      goto cleanup;
     }
   }
 
+  err = add_resource_to_global_set(node, resource_id.ptr);
+  if (err != 0) {
+    goto cleanup;
+  }
+
+cleanup:
   pthread_mutex_unlock(&node->lock);
-  return 0;
-} /* }}} int wr_write */
+  STRBUF_DESTROY(resource_id);
+  return err;
+}
 
 static void wr_config_free(void *ptr) /* {{{ */
 {

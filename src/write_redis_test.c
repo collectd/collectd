@@ -39,7 +39,8 @@ static int fake_execute(wr_node_t *node, int argc, char const **argv) {
     strbuf_print(&cmd, argv[i]);
   }
 
-  got_commands = realloc(got_commands, sizeof(*got_commands) * (got_commands_num + 1));
+  got_commands =
+      realloc(got_commands, sizeof(*got_commands) * (got_commands_num + 1));
   got_commands[got_commands_num] = strdup(cmd.ptr);
   got_commands_num++;
 
@@ -80,15 +81,27 @@ DEF_TEST(usage_rate) {
                               {
                                   .ptr =
                                       (label_pair_t[]){
-                                          {"metric.type", "gauge"},
+                                          {"metric.name", "m1"},
                                       },
                                   .num = 1,
                               },
                           .value = (value_t){.gauge = 42},
                           .time = TIME_T_TO_CDTIME_T(100),
                       },
+                      {
+                          .label =
+                              {
+                                  .ptr =
+                                      (label_pair_t[]){
+                                          {"metric.name", "m2"},
+                                      },
+                                  .num = 1,
+                              },
+                          .value = (value_t){.gauge = 23},
+                          .time = DOUBLE_TO_CDTIME_T(100.123456780),
+                      },
                   },
-              .num = 1,
+              .num = 2,
           },
   };
 
@@ -112,12 +125,19 @@ DEF_TEST(usage_rate) {
 
   CHECK_ZERO(wr_write(&fam, &ud));
 
-#define METRIC_ID                                                              \
-  "{\"name\":\"unit.test\",\"resource\":{\"test\":\"usage_rate\"},\"labels\":" \
-  "{\"metric.type\":\"gauge\"}}"
+#define RESOURCE_ID "{\"test\":\"usage_rate\"}"
+#define METRIC_ONE_ID                                                          \
+  "{\"name\":\"unit.test\",\"resource\":" RESOURCE_ID ",\"labels\":"           \
+  "{\"metric.name\":\"m1\"}}"
+#define METRIC_TWO_ID                                                          \
+  "{\"name\":\"unit.test\",\"resource\":" RESOURCE_ID ",\"labels\":"           \
+  "{\"metric.name\":\"m2\"}}"
   char *want_commands[] = {
-      "ZADD " METRIC_ID " 100.000000000 100.000:42",
-      "SADD values " METRIC_ID,
+      "ZADD metric/" METRIC_ONE_ID " 100.000000000 100.000:42",
+      "SADD resource/" RESOURCE_ID " metric/" METRIC_ONE_ID,
+      "ZADD metric/" METRIC_TWO_ID " 100.123456780 100.123:23",
+      "SADD resource/" RESOURCE_ID " metric/" METRIC_TWO_ID,
+      "SADD resources resource/" RESOURCE_ID,
   };
   size_t want_commands_num = STATIC_ARRAY_SIZE(want_commands);
 

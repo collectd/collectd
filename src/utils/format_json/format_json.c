@@ -454,6 +454,46 @@ static int format_metric_identity(yajl_gen g, metric_t const *m) {
   return 0;
 }
 
+int format_json_label_set(strbuf_t *buf, label_set_t labels) {
+  if (buf == NULL) {
+    return EINVAL;
+  }
+
+#if HAVE_YAJL_V2
+  yajl_gen g = yajl_gen_alloc(NULL);
+#else /* !HAVE_YAJL_V2 */
+  yajl_gen_config conf = {0};
+  yajl_gen g = yajl_gen_alloc(&conf, NULL);
+#endif
+  if (g == NULL) {
+    return -1;
+  }
+
+  if (format_label_set(g, labels) != 0) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return -1;
+  }
+
+  unsigned char const *out;
+#if HAVE_YAJL_V2
+  size_t out_len;
+#else
+  unsigned int out_len;
+#endif
+  /* copy to output buffer */
+  if (yajl_gen_get_buf(g, &out, &out_len) != yajl_gen_status_ok) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return -1;
+  }
+  strbuf_printn(buf, (char const *)out, (size_t)out_len);
+
+  yajl_gen_clear(g);
+  yajl_gen_free(g);
+  return 0;
+}
+
 int format_json_metric_identity(strbuf_t *buf, metric_t const *m) {
   if (buf == NULL || m == NULL) {
     return EINVAL;

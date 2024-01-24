@@ -11616,15 +11616,29 @@ Synopsis:
     </Node>
   </Plugin>
 
-Values are submitted to I<Sorted Sets>, using the metric name as the key, and
-the timestamp as the score. Retrieving a date range can then be done using the
-C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
-I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
-C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
-using the C<SMEMBERS> I<Redis> command. You can specify the database to use
-with the B<Database> parameter (default is C<0>). See
-L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
-details.
+Metric values are written to I<Sorted Sets>, using the JSON encoded metric
+identity prefixed by C<metric/> as the key, and the timestamp as the score.
+This allows retrieving a date range using the C<ZRANGEBYSCORE> I<Redis>
+command.
+
+The plugin writes one I<Set> per I<resource> (e.g. host). The set's key is the
+JSON encoded resource attributes, prefixed by C<resource/>. The values are the
+metric IDs as outlined above.
+
+Finally, the keys of all resource I<Sets> are written to a global I<Set>,
+called C<resources>. A list of resources can be retrieved using the C<SMEMBERS>
+I<Redis> command.
+
+Putting it all together: for a metric family with a single metric, the
+following Redit operations are performced:
+
+  ZADD metric/<metric_id> <timestamp> <value>
+  SADD resource/<resource_id> metric/<metric_id>
+  SADD resources resource/<resource_id>
+
+You can specify the database to use with the B<Database> parameter (default is
+C<0>). See L<http://redis.io/commands#sorted_set> and
+L<http://redis.io/commands#set> for details.
 
 The information shown in the synopsis above is the I<default configuration>
 which is used by the plugin if no configuration is present.
