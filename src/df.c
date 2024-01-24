@@ -332,7 +332,7 @@ static int df_read(void) {
       &fam_inode_utilization,
   };
 
-  for (size_t i = 0; STATIC_ARRAY_SIZE(families); i++) {
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(families); i++) {
     if (families[i]->metric.num == 0) {
       continue;
     }
