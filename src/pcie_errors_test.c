@@ -149,6 +149,8 @@ DEF_TEST(pcie_read) {
 }
 
 DEF_TEST(dispatch_notification) {
+  hostname_set("example.com");
+
   pcie_device_t dev = {0, TEST_DOMAIN, TEST_BUS, TEST_DEVICE, TEST_FUNCTION,
                        0, 0,           0,        0,           0};
   cdtime_t t = cdtime();

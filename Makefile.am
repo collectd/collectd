@@ -445,11 +445,14 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
+	src/daemon/globals.c \
+	src/daemon/globals.h \
 	src/daemon/resource.c \
 	src/daemon/resource.h \
 	src/daemon/types_list.c \
 	src/daemon/types_list.h \
-	src/daemon/utils_cache_mock.c \
+	src/daemon/utils_cache.c \
+	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
 	src/daemon/utils_time.c \
@@ -457,7 +460,7 @@ libplugin_mock_la_SOURCES = \
 	src/utils/value_list/value_list.c \
 	src/utils/value_list/value_list.h
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
-libplugin_mock_la_LIBADD = libmetric.la liboconfig.la libcommon.la libignorelist.la $(COMMON_LIBS)
+libplugin_mock_la_LIBADD = libavltree.la libmetric.la liboconfig.la libcommon.la libignorelist.la $(COMMON_LIBS)
 
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \

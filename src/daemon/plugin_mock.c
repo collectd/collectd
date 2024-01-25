@@ -34,8 +34,6 @@
 kstat_ctl_t *kc = NULL;
 #endif /* HAVE_LIBKSTAT */
 
-char *hostname_g = "example.com";
-
 void plugin_set_dir(const char *dir) { /* nop */
 }
 
@@ -121,6 +119,19 @@ DECLARE_UNREGISTER(notification)
 
 int plugin_dispatch_metric_family(metric_family_t const *fam) {
   return ENOTSUP;
+}
+
+int plugin_dispatch_missing(__attribute__((unused))
+                            metric_family_t const *fam) {
+  return ENOTSUP;
+}
+
+void plugin_dispatch_cache_event(
+    __attribute__((unused)) enum cache_event_type_e event_type,
+    __attribute__((unused)) unsigned long callbacks_mask,
+    __attribute__((unused)) const char *name,
+    __attribute__((unused)) metric_t const *m) {
+  // no-op
 }
 
 int plugin_dispatch_notification(__attribute__((unused))

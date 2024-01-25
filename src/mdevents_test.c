@@ -108,6 +108,8 @@ DEF_TEST(dispatch_notification) {
   int ret;
   char buf[130];
 
+  hostname_set("example.com");
+
   memset(buf, 'a', 129);
   buf[129] = '\0';
 
