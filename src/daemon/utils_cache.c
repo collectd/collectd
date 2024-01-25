@@ -42,11 +42,11 @@ typedef struct cache_entry_s {
   char name[6 * DATA_MAX_NAME_LEN];
   gauge_t values_gauge;
   value_t values_raw;
-  /* Time contained in the package
-   * (for calculating rates) */
+  /* First observed metric time */
+  cdtime_t first_time;
+  /* Last observed metric time (for calculating rates) */
   cdtime_t last_time;
-  /* Time according to the local clock
-   * (for purging old entries) */
+  /* Time according to the local clock (for purging old entries) */
   cdtime_t last_update;
   /* Interval in which the data is collected
    * (for purging old entries) */
@@ -82,11 +82,14 @@ struct uc_iter_s {
 static c_avl_tree_t *cache_tree;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static int cache_compare(const cache_entry_t *a, const cache_entry_t *b) {
+static int cache_compare(void const *a, void const *b) {
+  cache_entry_t const *ea = a;
+  cache_entry_t const *eb = b;
+
 #if COLLECT_DEBUG
   assert((a != NULL) && (b != NULL));
 #endif
-  return strcmp(a->name, b->name);
+  return strcmp(ea->name, eb->name);
 } /* int cache_compare */
 
 static cache_entry_t *cache_alloc() {
@@ -135,41 +138,38 @@ static int uc_insert(metric_t const *m, char const *key) {
     return -1;
   }
 
+  *ce = (cache_entry_t){
+      .first_time = m->time,
+      .values_raw = m->value,
+      .last_time = m->time,
+      .last_update = cdtime(),
+      .interval = m->interval,
+      .state = STATE_UNKNOWN,
+  };
   sstrncpy(ce->name, key, sizeof(ce->name));
 
   switch (m->family->type) {
   case DS_TYPE_COUNTER:
+  case DS_TYPE_DERIVE:
     ce->values_gauge = NAN;
-    ce->values_raw.counter = m->value.counter;
     break;
 
   case DS_TYPE_GAUGE:
     ce->values_gauge = m->value.gauge;
-    ce->values_raw.gauge = m->value.gauge;
-    break;
-
-  case DS_TYPE_DERIVE:
-    ce->values_gauge = NAN;
-    ce->values_raw.derive = m->value.derive;
     break;
 
   default:
     /* This shouldn't happen. */
-    ERROR("uc_insert: Don't know how to handle data source type %i.",
-          m->family->type);
+    ERROR("uc_insert: Unexpected metric type %d.", m->family->type);
     sfree(key_copy);
     cache_free(ce);
     return -1;
-  } /* switch (ds->ds[i].type) */
-
-  ce->last_time = m->time;
-  ce->last_update = cdtime();
-  ce->interval = m->interval;
-  ce->state = STATE_UNKNOWN;
+  }
 
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
-    sfree(key_copy);
     ERROR("uc_insert: c_avl_insert failed.");
+    sfree(key_copy);
+    cache_free(ce);
     return -1;
   }
 
@@ -178,9 +178,9 @@ static int uc_insert(metric_t const *m, char const *key) {
 } /* int uc_insert */
 
 int uc_init(void) {
-  if (cache_tree == NULL)
-    cache_tree =
-        c_avl_create((int (*)(const void *, const void *))cache_compare);
+  if (cache_tree == NULL) {
+    cache_tree = c_avl_create(cache_compare);
+  }
 
   return 0;
 } /* int uc_init */
@@ -523,6 +523,39 @@ int uc_get_value(metric_t const *m, value_t *ret) {
   STRBUF_DESTROY(buf);
   return status;
 } /* value_t *uc_get_value */
+
+static int uc_get_first_time_by_name(const char *name, cdtime_t *ret_time) {
+  cache_entry_t *ce = NULL;
+  int err = c_avl_get(cache_tree, name, (void *)&ce);
+  if (err == ENOENT) {
+    DEBUG("utils_cache: uc_get_first_time: No such value: %s", name);
+    return err;
+  } else if (err != 0) {
+    ERROR("utils_cache: uc_get_first_time: c_avl_get(\"%s\") failed: %s", name,
+          STRERROR(err));
+    return err;
+  }
+
+  *ret_time = ce->first_time;
+  return 0;
+}
+
+int uc_get_first_time(metric_t const *m, cdtime_t *ret_time) {
+  strbuf_t buf = STRBUF_CREATE;
+  int err = metric_identity(&buf, m);
+  if (err != 0) {
+    ERROR("uc_get_value: metric_identity failed with status %d.", err);
+    STRBUF_DESTROY(buf);
+    return err;
+  }
+
+  pthread_mutex_lock(&cache_lock);
+  err = uc_get_first_time_by_name(buf.ptr, ret_time);
+  pthread_mutex_unlock(&cache_lock);
+
+  STRBUF_DESTROY(buf);
+  return err;
+}
 
 size_t uc_get_size(void) {
   size_t size_arrays = 0;
