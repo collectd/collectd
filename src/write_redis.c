@@ -26,7 +26,8 @@
 
 #include "collectd.h"
 
-#include "plugin.h"
+#include "daemon/plugin.h"
+#include "daemon/utils_cache.h"
 #include "utils/common/common.h"
 #include "utils/format_json/format_json.h"
 
@@ -199,7 +200,7 @@ static int write_metric_value(wr_node_t *node, metric_t const *m,
 }
 
 static int write_metric(wr_node_t *node, char const *resource_id,
-                        metric_t const *m) {
+                        metric_t const *m, bool is_new) {
   strbuf_t id = STRBUF_CREATE;
   if (node->prefix != NULL) {
     strbuf_print(&id, node->prefix);
@@ -217,9 +218,11 @@ static int write_metric(wr_node_t *node, char const *resource_id,
     goto cleanup;
   }
 
-  err = add_metric_to_resource(node, resource_id, id.ptr);
-  if (err != 0) {
-    goto cleanup;
+  if (is_new) {
+    err = add_metric_to_resource(node, resource_id, id.ptr);
+    if (err != 0) {
+      goto cleanup;
+    }
   }
 
   err = apply_set_size(node, id.ptr);
@@ -237,6 +240,17 @@ cleanup:
   return err;
 }
 
+static bool metric_is_new(metric_t const *m) {
+  cdtime_t first_time = 0;
+  int err = uc_get_first_time(m, &first_time);
+  if (err != 0) {
+    ERROR("write_redis plugin: uc_get_first_time failed: %s", STRERROR(err));
+    return true;
+  }
+
+  return m->time == first_time;
+}
+
 static int wr_write(metric_family_t const *fam, user_data_t *ud) {
   wr_node_t *node = ud->data;
 
@@ -251,6 +265,16 @@ static int wr_write(metric_family_t const *fam, user_data_t *ud) {
     return err;
   }
 
+  // determine whether metrics are new before grabbing the log.
+  bool all_new = true;
+  bool is_new[fam->metric.num];
+  memset(is_new, 0, sizeof(is_new));
+
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    is_new[i] = metric_is_new(fam->metric.ptr + i);
+    all_new = all_new && is_new[i];
+  }
+
   pthread_mutex_lock(&node->lock);
 
   err = node->reconnect(node);
@@ -259,15 +283,18 @@ static int wr_write(metric_family_t const *fam, user_data_t *ud) {
   }
 
   for (size_t i = 0; i < fam->metric.num; i++) {
-    int err = write_metric(node, resource_id.ptr, fam->metric.ptr + i);
+    int err =
+        write_metric(node, resource_id.ptr, fam->metric.ptr + i, is_new[i]);
     if (err != 0) {
       goto cleanup;
     }
   }
 
-  err = add_resource_to_global_set(node, resource_id.ptr);
-  if (err != 0) {
-    goto cleanup;
+  if (all_new) {
+    err = add_resource_to_global_set(node, resource_id.ptr);
+    if (err != 0) {
+      goto cleanup;
+    }
   }
 
 cleanup:

@@ -11623,18 +11623,23 @@ command.
 
 The plugin writes one I<Set> per I<resource> (e.g. host). The set's key is the
 JSON encoded resource attributes, prefixed by C<resource/>. The values are the
-metric IDs as outlined above.
+metric IDs as outlined above. The write is only performed when the metric is
+"new", i.e. it is observed for the first time.
 
 Finally, the keys of all resource I<Sets> are written to a global I<Set>,
 called C<resources>. A list of resources can be retrieved using the C<SMEMBERS>
-I<Redis> command.
+I<Redis> command. The write is only performed if all metrics in the metric
+family are "new", see above.
 
 Putting it all together: for a metric family with a single metric, the
-following Redit operations are performced:
+following Redit operations are performced when the metric is encountered for
+the first time:
 
   ZADD metric/<metric_id> <timestamp> <value>
   SADD resource/<resource_id> metric/<metric_id>
   SADD resources resource/<resource_id>
+
+On subsequent writes, only the C<ZADD> command is performed.
 
 You can specify the database to use with the B<Database> parameter (default is
 C<0>). See L<http://redis.io/commands#sorted_set> and
