@@ -2105,6 +2105,9 @@ EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
     return EINVAL;
   }
   if (fam->metric.num == 0) {
+    DEBUG("plugin_dispatch_metric_family: Metric family \"%s\" contains zero "
+          "metrics.",
+          fam->name);
     return 0;
   }
 

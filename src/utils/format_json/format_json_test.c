@@ -136,7 +136,7 @@ static int expect_json_labels(char *json, label_pair_t *labels,
 
 DEF_TEST(notification) {
   label_pair_t labels[] = {
-      {"summary", "this is a message"},
+      {"summary", "this is a \"message\""},
       {"alertname", "collectd_unit_test"},
       {"instance", "example.com"},
       {"service", "collectd"},
@@ -144,19 +144,21 @@ DEF_TEST(notification) {
   };
 
   /* 1448284606.125 ^= 1555083754651779072 */
-  notification_t n = {NOTIF_WARNING,
-                      1555083754651779072ULL,
-                      "this is a message",
-                      "example.com",
-                      "unit",
-                      "",
-                      "test",
-                      "case",
-                      NULL};
+  notification_t n = {
+      .severity = NOTIF_WARNING,
+      .time = 1555083754651779072ULL,
+      .message = "this is a \"message\"",
+      .host = "example.com",
+      .plugin = "unit",
+      .plugin_instance = "",
+      .type = "test",
+      .type_instance = "case",
+      .meta = NULL,
+  };
 
   char got[1024];
   CHECK_ZERO(format_json_notification(got, sizeof(got), &n));
-  // printf ("got = \"%s\";\n", got);
+  printf("got = \"%s\";\n", got);
 
   return expect_json_labels(got, labels, STATIC_ARRAY_SIZE(labels));
 }
