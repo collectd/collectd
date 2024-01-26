@@ -2100,8 +2100,12 @@ static void set_default_resource_attributes(metric_family_t *fam) {
 }
 
 EXPORT int plugin_dispatch_metric_family(metric_family_t const *fam) {
-  if ((fam == NULL) || (fam->metric.num == 0)) {
+  if (fam == NULL) {
+    ERROR("plugin_dispatch_metric_family: fam == NULL");
     return EINVAL;
+  }
+  if (fam->metric.num == 0) {
+    return 0;
   }
 
   /* Create a copy of the metric_family_t so we can modify the time and
