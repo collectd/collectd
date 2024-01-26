@@ -25,6 +25,7 @@
  */
 
 #include "testing.h"
+#include "utils/common/common.h"
 #include "utils/value_list/value_list.h"
 
 DEF_TEST(parse_values) {
