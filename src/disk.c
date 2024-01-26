@@ -1179,10 +1179,6 @@ static int disk_read(void) {
 #endif /* HAVE_SYSCTL && KERNEL_NETBSD */
 
   for (size_t i = 0; fams[i] != NULL; i++) {
-    if (fams[i]->metric.num == 0) {
-      continue;
-    }
-
     int status = plugin_dispatch_metric_family(fams[i]);
     if (status != 0) {
       ERROR("disk: plugin_dispatch_metric_family failed: %s", STRERROR(status));
