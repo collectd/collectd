@@ -212,7 +212,7 @@ static int swap_init(void) /* {{{ */
   return 0;
 } /* }}} int swap_init */
 
-static void swap_submit_usage3(metric_family_t *fams, char const *device,
+static void swap_append_usage3(metric_family_t *fams, char const *device,
                                gauge_t used, gauge_t free,
                                char const *other_name, gauge_t other) {
   metric_family_t *fam_usage = &fams[FAM_SWAP_USAGE];
@@ -253,11 +253,11 @@ static void swap_submit_usage3(metric_family_t *fams, char const *device,
   }
 
   metric_reset(&m);
-} /* void swap_submit_usage3 */
+} /* void swap_append_usage3 */
 
-static void swap_submit_usage(metric_family_t *fams, char *device, gauge_t used,
+static void swap_append_usage(metric_family_t *fams, char *device, gauge_t used,
                               gauge_t free) {
-  swap_submit_usage3(fams, device, used, free, NULL, NAN);
+  swap_append_usage3(fams, device, used, free, NULL, NAN);
 }
 
 #if KERNEL_LINUX || HAVE_PERFSTAT || KERNEL_NETBSD
@@ -266,7 +266,7 @@ static char const *const label_direction = "system.paging.direction";
 static char const *const direction_in = "in";
 static char const *const direction_out = "out";
 
-static void swap_submit_io(metric_family_t *fams, counter_t in, counter_t out,
+static void swap_append_io(metric_family_t *fams, counter_t in, counter_t out,
                            derive_t pagesize) {
   if (!report_io) {
     return;
@@ -283,7 +283,7 @@ static void swap_submit_io(metric_family_t *fams, counter_t in, counter_t out,
                        (value_t){.counter = in}, NULL);
   metric_family_append(fam, label_direction, direction_out,
                        (value_t){.counter = out}, NULL);
-} /* void swap_submit_io */
+} /* void swap_append_io */
 #endif
 
 #if KERNEL_LINUX
@@ -328,7 +328,7 @@ static int swap_read_separate(metric_family_t *fams) /* {{{ */
     if (total < used)
       continue;
 
-    swap_submit_usage(fams, path, used * 1024.0, (total - used) * 1024.0);
+    swap_append_usage(fams, path, used * 1024.0, (total - used) * 1024.0);
   }
 
   fclose(fh);
@@ -383,7 +383,7 @@ static int swap_read_combined(metric_family_t *fams) /* {{{ */
   if (swap_used < 0.0)
     return EINVAL;
 
-  swap_submit_usage3(fams, NULL, swap_used * 1024.0, swap_free * 1024.0,
+  swap_append_usage3(fams, NULL, swap_used * 1024.0, swap_free * 1024.0,
                      "cached", swap_cached * 1024.0);
 
   return 0;
@@ -425,7 +425,7 @@ static int swap_read_io(metric_family_t *fams) /* {{{ */
     return ENOENT;
   }
 
-  swap_submit_io(fams, swap_in, swap_out, pagesize);
+  swap_append_io(fams, swap_in, swap_out, pagesize);
 
   return 0;
 } /* }}} int swap_read_io */
@@ -493,7 +493,7 @@ static int swap_read_kstat(metric_family_t *fams) /* {{{ */
   swap_resv = (gauge_t)((ai.ani_resv + ai.ani_free - ai.ani_max) * pagesize);
   swap_avail = (gauge_t)((ai.ani_max - ai.ani_resv) * pagesize);
 
-  swap_submit_usage3(fams, NULL, swap_alloc, swap_avail, "reserved", swap_resv);
+  swap_append_usage3(fams, NULL, swap_alloc, swap_avail, "reserved", swap_resv);
 
   return 0;
 } /* }}} int swap_read_kstat */
@@ -577,7 +577,7 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
 
     sstrncpy(path, s->swt_ent[i].ste_path, sizeof(path));
 
-    swap_submit_usage(fams, path, this_total - this_avail, this_avail);
+    swap_append_usage(fams, path, this_total - this_avail, this_avail);
   } /* for (swap_num) */
 
   if (total < avail) {
@@ -592,7 +592,7 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
   /* If the "separate" option was specified (report_by_device == true) all
    * values have already been dispatched from within the loop. */
   if (!report_by_device) {
-    swap_submit_usage(fams, NULL, total - avail, avail);
+    swap_append_usage(fams, NULL, total - avail, avail);
   }
 
   sfree(s_paths);
@@ -623,7 +623,7 @@ static int swap_read_io(metric_family_t *fams) /* {{{ */
   counter_t swap_in = uvmexp.pgswapin;
   counter_t swap_out = uvmexp.pgswapout;
 
-  swap_submit_io(fams, swap_in, swap_out, pagesize);
+  swap_append_io(fams, swap_in, swap_out, pagesize);
 
   return (0);
 } /* }}} */
@@ -686,7 +686,7 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
 
     sstrncpy(path, swap_entries[i].se_path, sizeof(path));
 
-    swap_submit_usage(fams, path, this_used, this_total - this_used);
+    swap_append_usage(fams, path, this_used, this_total - this_used);
   } /* for (swap_num) */
 
   if (total < used) {
@@ -700,7 +700,7 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
   /* If the "separate" option was specified (report_by_device == 1), all
    * values have already been dispatched from within the loop. */
   if (!report_by_device) {
-    swap_submit_usage(fams, NULL, used, total - used);
+    swap_append_usage(fams, NULL, used, total - used);
   }
 
   sfree(swap_entries);
@@ -729,7 +729,7 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
     return -1;
 
   /* The returned values are bytes. */
-  swap_submit_usage(fams, NULL, (gauge_t)sw_usage.xsu_used,
+  swap_append_usage(fams, NULL, (gauge_t)sw_usage.xsu_used,
                     (gauge_t)sw_usage.xsu_avail);
 
   return 0;
@@ -756,7 +756,7 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
   total *= (gauge_t)kvm_pagesize;
   used *= (gauge_t)kvm_pagesize;
 
-  swap_submit_usage(fams, NULL, used, total - used);
+  swap_append_usage(fams, NULL, used, total - used);
 
   return 0;
 } /* }}} int swap_read_fam */
@@ -771,7 +771,7 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
   if (swap == NULL)
     return -1;
 
-  swap_submit_usage(fams, NULL, (gauge_t)swap->used, (gauge_t)swap->free);
+  swap_append_usage(fams, NULL, (gauge_t)swap->used, (gauge_t)swap->free);
 
   return 0;
 } /* }}} int swap_read_fam */
@@ -793,12 +793,12 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
   gauge_t free = (gauge_t)(pmemory.pgsp_free * pagesize);
   gauge_t reserved = (gauge_t)(pmemory.pgsp_rsvd * pagesize);
 
-  swap_submit_usage3(fams, NULL, total - free, free, "reserved", reserved);
+  swap_append_usage3(fams, NULL, total - free, free, "reserved", reserved);
 
   counter_t swap_in = pmemory.pgspins;
   counter_t swap_out = pmemory.pgspouts;
 
-  swap_submit_io(fams, swap_in, swap_out, pagesize);
+  swap_append_io(fams, swap_in, swap_out, pagesize);
 
   return 0;
 } /* }}} int swap_read_fam */
