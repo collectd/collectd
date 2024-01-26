@@ -333,10 +333,6 @@ static int df_read(void) {
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(families); i++) {
-    if (families[i]->metric.num == 0) {
-      continue;
-    }
-
     int status = plugin_dispatch_metric_family(families[i]);
     if (status != 0) {
       ERROR("df: plugin_dispatch_metric_family failed: %s", STRERROR(status));
