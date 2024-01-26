@@ -843,14 +843,12 @@ static int swap_read(void) {
 
   for (size_t i = 0; i < FAM_SWAP_MAX; i++) {
     metric_family_t *fam = &fams[i];
-    if (fam->metric.num > 0) {
-      int status = plugin_dispatch_metric_family(fam);
-      if (status != 0) {
-        ERROR("swap plugin: plugin_dispatch_metric_family failed: %s",
-              STRERROR(status));
-      }
-      metric_family_metric_reset(fam);
+    int status = plugin_dispatch_metric_family(fam);
+    if (status != 0) {
+      ERROR("swap plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
     }
+    metric_family_metric_reset(fam);
   }
 
   return 0;
