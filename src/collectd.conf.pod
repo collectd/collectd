@@ -9333,9 +9333,10 @@ This option is only available if the I<Swap plugin> can read C</proc/swaps>
 
 =item B<ReportBytes> B<false>|B<true>
 
-When enabled, the I<swap I/O> is reported in bytes. When disabled, the default,
-I<swap I/O> is reported in pages. This option is available under Linux and
-NetBSD only.
+When enabled, the I<swap I/O> is reported in bytes. When disabled, I<swap I/O>
+is reported in pages. Defaults to B<false>. This option is available under
+Linux and NetBSD only.
+
 
 =item B<ReportUsage> B<true>|B<false>
 
