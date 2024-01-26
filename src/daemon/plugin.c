@@ -60,11 +60,14 @@
 
 #include <dlfcn.h>
 
+/* except for plugin_log_cb, all callback types return an int */
+typedef int (*placeholder_cb_t)(void);
+
 /*
  * Private structures
  */
 struct callback_func_s {
-  void *cf_callback;
+  placeholder_cb_t cf_callback;
   user_data_t cf_udata;
   plugin_ctx_t cf_ctx;
 };
@@ -349,7 +352,7 @@ static int register_callback(llist_t **list, /* {{{ */
 } /* }}} int register_callback */
 
 static int create_register_callback(llist_t **list, /* {{{ */
-                                    const char *name, void *callback,
+                                    const char *name, placeholder_cb_t callback,
                                     user_data_t const *ud) {
 
   if (name == NULL || callback == NULL)
@@ -427,7 +430,7 @@ static int plugin_load_file(char const *file, bool global) {
     return ENOENT;
   }
 
-  void (*reg_handle)(void) = (void *)dlsym(dlh, "module_register");
+  void (*reg_handle)(void) = dlsym(dlh, "module_register");
   if (reg_handle == NULL) {
     ERROR("Couldn't find symbol \"module_register\" in \"%s\": %s\n", file,
           dlerror());
@@ -519,13 +522,13 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
     old_ctx = plugin_set_ctx(rf->rf_ctx);
 
     if (rf_type == RF_SIMPLE) {
-      int (*callback)(void) = (void *)rf->rf_callback;
+      int (*callback)(void) = rf->rf_callback;
 
       status = (*callback)();
     } else {
       assert(rf_type == RF_COMPLEX);
 
-      plugin_read_cb callback = (void *)rf->rf_callback;
+      plugin_read_cb callback = (plugin_read_cb)rf->rf_callback;
       status = (*callback)(&rf->rf_udata);
     }
 
@@ -1055,8 +1058,8 @@ EXPORT int plugin_register_complex_config(const char *type,
   return cf_register_complex(type, callback);
 } /* int plugin_register_complex_config */
 
-EXPORT int plugin_register_init(const char *name, int (*callback)(void)) {
-  return create_register_callback(&list_init, name, (void *)callback, NULL);
+EXPORT int plugin_register_init(const char *name, plugin_init_cb callback) {
+  return create_register_callback(&list_init, name, callback, NULL);
 } /* plugin_register_init */
 
 static int plugin_compare_read_func(const void *arg0, const void *arg1) {
@@ -1147,7 +1150,7 @@ EXPORT int plugin_register_read(const char *name, int (*callback)(void)) {
     return ENOMEM;
   }
 
-  rf->rf_callback = (void *)callback;
+  rf->rf_callback = callback;
   rf->rf_udata.data = NULL;
   rf->rf_udata.free_func = NULL;
   rf->rf_ctx = plugin_get_ctx();
@@ -1180,7 +1183,7 @@ EXPORT int plugin_register_complex_read(const char *group, const char *name,
     return ENOMEM;
   }
 
-  rf->rf_callback = (void *)callback;
+  rf->rf_callback = (placeholder_cb_t)callback;
   if (group != NULL)
     sstrncpy(rf->rf_group, group, sizeof(rf->rf_group));
   else
@@ -1299,8 +1302,8 @@ EXPORT int plugin_register_flush(const char *name, plugin_flush_cb callback,
                                  user_data_t const *ud) {
   plugin_ctx_t ctx = plugin_get_ctx();
 
-  int status =
-      create_register_callback(&list_flush, name, (void *)callback, ud);
+  int status = create_register_callback(&list_flush, name,
+                                        (placeholder_cb_t)callback, ud);
   if (status != 0) {
     return status;
   }
@@ -1347,7 +1350,8 @@ EXPORT int plugin_register_flush(const char *name, plugin_flush_cb callback,
 
 EXPORT int plugin_register_missing(const char *name, plugin_missing_cb callback,
                                    user_data_t const *ud) {
-  return create_register_callback(&list_missing, name, (void *)callback, ud);
+  return create_register_callback(&list_missing, name,
+                                  (placeholder_cb_t)callback, ud);
 } /* int plugin_register_missing */
 
 EXPORT int plugin_register_cache_event(const char *name,
@@ -1405,20 +1409,22 @@ EXPORT int plugin_register_cache_event(const char *name,
   return 0;
 } /* int plugin_register_cache_event */
 
-EXPORT int plugin_register_shutdown(const char *name, int (*callback)(void)) {
-  return create_register_callback(&list_shutdown, name, (void *)callback, NULL);
+EXPORT int plugin_register_shutdown(const char *name,
+                                    plugin_shutdown_cb callback) {
+  return create_register_callback(&list_shutdown, name, callback, NULL);
 } /* int plugin_register_shutdown */
 
 EXPORT int plugin_register_log(const char *name, plugin_log_cb callback,
                                user_data_t const *ud) {
-  return create_register_callback(&list_log, name, (void *)callback, ud);
+  return create_register_callback(&list_log, name, (placeholder_cb_t)callback,
+                                  ud);
 } /* int plugin_register_log */
 
 EXPORT int plugin_register_notification(const char *name,
                                         plugin_notification_cb callback,
                                         user_data_t const *ud) {
-  return create_register_callback(&list_notification, name, (void *)callback,
-                                  ud);
+  return create_register_callback(&list_notification, name,
+                                  (placeholder_cb_t)callback, ud);
 } /* int plugin_register_log */
 
 EXPORT int plugin_unregister_config(const char *name) {
@@ -1742,7 +1748,7 @@ EXPORT int plugin_init_all(void) {
   while (le != NULL) {
     callback_func_t *cf = le->value;
     plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
-    plugin_init_cb callback = (void *)cf->cf_callback;
+    plugin_init_cb callback = cf->cf_callback;
     status = (*callback)();
     plugin_set_ctx(old_ctx);
 
@@ -1806,10 +1812,10 @@ EXPORT int plugin_read_all_once(void) {
     old_ctx = plugin_set_ctx(rf->rf_ctx);
 
     if (rf->rf_type == RF_SIMPLE) {
-      int (*callback)(void) = (void *)rf->rf_callback;
+      int (*callback)(void) = rf->rf_callback;
       status = (*callback)();
     } else {
-      plugin_read_cb callback = (void *)rf->rf_callback;
+      plugin_read_cb callback = (plugin_read_cb)rf->rf_callback;
       status = (*callback)(&rf->rf_udata);
     }
 
@@ -1821,7 +1827,7 @@ EXPORT int plugin_read_all_once(void) {
     }
 
     sfree(rf->rf_name);
-    destroy_callback((void *)rf);
+    destroy_callback((callback_func_t *)rf);
   }
 
   return return_status;
@@ -1872,7 +1878,7 @@ EXPORT int plugin_flush(const char *plugin, cdtime_t timeout,
 
     callback_func_t *cf = le->value;
     plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
-    plugin_flush_cb callback = (void *)cf->cf_callback;
+    plugin_flush_cb callback = (plugin_flush_cb)cf->cf_callback;
 
     (*callback)(timeout, identifier, &cf->cf_udata);
 
@@ -1913,7 +1919,7 @@ EXPORT int plugin_shutdown_all(void) {
   while (le != NULL) {
     callback_func_t *cf = le->value;
     plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
-    plugin_shutdown_cb callback = (void *)cf->cf_callback;
+    plugin_shutdown_cb callback = cf->cf_callback;
 
     /* Advance the pointer before calling the callback allows
      * shutdown functions to unregister themselves. If done the
@@ -1954,7 +1960,7 @@ EXPORT int plugin_dispatch_missing(metric_family_t const *fam) /* {{{ */
   while (le != NULL) {
     callback_func_t *cf = le->value;
     plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
-    plugin_missing_cb callback = cf->cf_callback;
+    plugin_missing_cb callback = (plugin_missing_cb)cf->cf_callback;
 
     int status = (*callback)(fam, &cf->cf_udata);
     plugin_set_ctx(old_ctx);
@@ -2153,16 +2159,13 @@ EXPORT int plugin_dispatch_notification(const notification_t *notif) {
 
   le = llist_head(list_notification);
   while (le != NULL) {
-    callback_func_t *cf;
-    plugin_notification_cb callback;
-    int status;
-
     /* do not switch plugin context; rather keep the context
      * (interval) information of the calling plugin */
 
-    cf = le->value;
-    callback = cf->cf_callback;
-    status = (*callback)(notif, &cf->cf_udata);
+    callback_func_t *cf = le->value;
+    plugin_notification_cb callback = (plugin_notification_cb)cf->cf_callback;
+
+    int status = (*callback)(notif, &cf->cf_udata);
     if (status != 0) {
       WARNING("plugin_dispatch_notification: Notification "
               "callback %s returned %i.",
@@ -2198,7 +2201,7 @@ EXPORT void plugin_log(int level, const char *format, ...) {
   le = llist_head(list_log);
   while (le != NULL) {
     callback_func_t *cf = le->value;
-    plugin_log_cb callback = (void *)cf->cf_callback;
+    plugin_log_cb callback = (plugin_log_cb)cf->cf_callback;
 
     /* do not switch plugin context; rather keep the context
      * (interval) information of the calling plugin */
