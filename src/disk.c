@@ -119,6 +119,9 @@ typedef struct diskstats {
 } diskstats_t;
 
 static diskstats_t *disklist;
+
+static bool report_discard;
+static bool report_flush;
 /* #endif KERNEL_LINUX */
 #elif KERNEL_FREEBSD
 static struct gmesh geom_tree;
@@ -164,8 +167,9 @@ static char *conf_udev_name_attr;
 static struct udev *handle_udev;
 #endif
 
-static const char *config_keys[] = {"Disk", "UseBSDName", "IgnoreSelected",
-                                    "UdevNameAttr"};
+static const char *config_keys[] = {"Disk",           "UseBSDName",
+                                    "IgnoreSelected", "UdevNameAttr",
+                                    "ReportDiscard",  "ReportFlush"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist;
@@ -201,6 +205,20 @@ static int disk_config(const char *key, const char *value) {
 #else
     WARNING("disk plugin: The \"UdevNameAttr\" option is only supported "
             "if collectd is built with libudev support");
+#endif
+  } else if (strcasecmp("ReportDiscard", key) == 0) {
+#if KERNEL_LINUX
+    report_discard = IS_TRUE(value);
+#else
+    WARNING("disk plugin: The \"ReportDiscard\" option is only supported "
+            "on Linux and will be ignored.");
+#endif
+  } else if (strcasecmp("ReportFlush", key) == 0) {
+#if KERNEL_LINUX
+    report_flush = IS_TRUE(value);
+#else
+    WARNING("disk plugin: The \"ReportFlush\" option is only supported "
+            "on Linux and will be ignored.");
 #endif
   } else {
     return -1;
@@ -981,14 +999,14 @@ static int disk_read(void) {
         submit_in_progress(output_name, in_progress);
       if (ds->has_io_time)
         submit_io_time(output_name, io_time, weighted_time);
-      if (ds->has_discard) {
+      if (report_discard && ds->has_discard) {
         disk_submit_single(output_name, "disk_discard_ops", discard_ops);
         disk_submit_single(output_name, "disk_discard_merged", discard_merged);
         disk_submit_single(output_name, "disk_discard_sectors",
                            discard_sectors);
         disk_submit_single(output_name, "disk_discard_time", discard_time);
       }
-      if (ds->has_flush) {
+      if (report_flush && ds->has_flush) {
         disk_submit_single(output_name, "disk_flush_ops", flush_ops);
         disk_submit_single(output_name, "disk_flush_time", flush_time);
       }
