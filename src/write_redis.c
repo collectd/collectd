@@ -34,8 +34,8 @@
 #include <hiredis/hiredis.h>
 #include <sys/time.h>
 
-#ifndef REDIS_DEFAULT_PREFIX
-#define REDIS_DEFAULT_PREFIX "collectd/"
+#ifndef REDIS_DEFAULT_PORT
+#define REDIS_DEFAULT_PORT 6379
 #endif
 
 struct wr_node_s;
@@ -48,8 +48,7 @@ struct wr_node_s {
   cdtime_t timeout;
   char *prefix;
   int database;
-  int max_set_size;
-  cdtime_t max_set_duration;
+  cdtime_t retention;
   bool store_rates;
 
   int (*reconnect)(wr_node_t *node);
@@ -83,13 +82,14 @@ static int reconnect(wr_node_t *node) {
     ERROR("write_redis plugin: Connecting to host \"%s\" (port %i) failed: "
           "Unknown reason",
           (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : 6379);
+          (node->port != 0) ? node->port : REDIS_DEFAULT_PORT);
     return ENOTCONN;
   }
   if (node->conn->err) {
     ERROR("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
           (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : 6379, node->conn->errstr);
+          (node->port != 0) ? node->port : REDIS_DEFAULT_PORT,
+          node->conn->errstr);
     disconnect(node);
     return ENOTCONN;
   }
@@ -106,58 +106,34 @@ static int reconnect(wr_node_t *node) {
   return 0;
 }
 
+static void print_execute_error(int argc, char const **argv, char const *msg) {
+  strbuf_t cmd = STRBUF_CREATE;
+  for (int i = 0; i < argc; i++) {
+    if (i != 0) {
+      strbuf_print(&cmd, " ");
+    }
+    strbuf_print(&cmd, argv[i]);
+  }
+
+  ERROR("write_redis plugin: Command \"%s\" failed: %s", cmd.ptr, msg);
+
+  STRBUF_DESTROY(cmd);
+}
+
 static int execute(wr_node_t *node, int argc, char const **argv) {
   redisReply *rr = redisCommandArgv(node->conn, argc, argv, NULL);
   if (rr == NULL) {
-    strbuf_t cmd = STRBUF_CREATE;
-    for (int i = 0; i < argc; i++) {
-      if (i != 0) {
-        strbuf_print(&cmd, " ");
-      }
-      strbuf_print(&cmd, argv[i]);
-    }
-
-    ERROR("write_redis plugin: Command \"%s\" failed: %s", cmd.ptr,
-          node->conn->errstr);
-    STRBUF_DESTROY(cmd);
+    print_execute_error(argc, argv, node->conn->errstr);
     return (node->conn->err != 0) ? node->conn->err : -1;
+  }
+  if (rr->type == REDIS_REPLY_ERROR) {
+    print_execute_error(argc, argv, rr->str);
+    freeReplyObject(rr);
+    return -1;
   }
 
   freeReplyObject(rr);
   return 0;
-}
-
-static int apply_set_size(wr_node_t *node, char const *id) {
-  if (node->max_set_size <= 0) {
-    return 0;
-  }
-
-  strbuf_t max_rank = STRBUF_CREATE;
-  strbuf_printf(&max_rank, "%d", -1 * node->max_set_size - 1);
-
-  char const *cmd[] = {"ZREMRANGEBYRANK", id, "0", max_rank.ptr};
-  int err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
-
-  STRBUF_DESTROY(max_rank);
-  return err;
-}
-
-static int apply_set_duration(wr_node_t *node, char const *id,
-                              cdtime_t last_update) {
-  if (node->max_set_duration == 0 || last_update < node->max_set_duration) {
-    return 0;
-  }
-
-  strbuf_t min_time = STRBUF_CREATE;
-  // '(' indicates 'less than' in redis CLI.
-  strbuf_printf(&min_time, "(%.9f",
-                CDTIME_T_TO_DOUBLE(last_update - node->max_set_duration));
-
-  char const *cmd[] = {"ZREMRANGEBYSCORE", id, "-inf", min_time.ptr};
-  int err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
-
-  STRBUF_DESTROY(min_time);
-  return err;
 }
 
 static int add_resource_to_global_set(wr_node_t *node, char const *id) {
@@ -180,22 +156,73 @@ static int add_metric_to_resource(wr_node_t *node, char const *resource_id,
   return node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
 }
 
-static int write_metric_value(wr_node_t *node, metric_t const *m,
-                              char const *id) {
+static int ts_add(wr_node_t *node, metric_t const *m, char const *id) {
+  strbuf_t m_time = STRBUF_CREATE;
+  strbuf_printf(&m_time, "%" PRIu64, CDTIME_T_TO_MS(m->time));
+
   strbuf_t value = STRBUF_CREATE;
   int err = format_values(&value, m, node->store_rates);
   if (err != 0) {
-    return err;
+    ERROR("write_redis plugin: format_values failed: %s", STRERROR(err));
+    goto cleanup;
   }
 
-  strbuf_t m_time = STRBUF_CREATE;
-  strbuf_printf(&m_time, "%.9f", CDTIME_T_TO_DOUBLE(m->time));
+  // format_values returns a string with "<timestamp>:<value>"; create a new
+  // pointer that points to "<value>" directly.
+  char const *value_ptr = strchr(value.ptr, ':');
+  if (value_ptr == NULL) {
+    ERROR("write_redis plugin: format_values returned \"%s\", want string "
+          "containing ':'",
+          value.ptr);
+    goto cleanup;
+  }
+  value_ptr++;
 
-  char const *cmd[] = {"ZADD", id, m_time.ptr, value.ptr};
+  // RedisTimeSeries doesn't handle NANs.
+  if (strcmp("nan", value_ptr) == 0) {
+    goto cleanup;
+  }
+
+  char const *cmd[] = {"TS.ADD", id, m_time.ptr, value_ptr};
   err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
 
-  STRBUF_DESTROY(m_time);
+cleanup:
   STRBUF_DESTROY(value);
+  STRBUF_DESTROY(m_time);
+  return err;
+}
+
+static int ts_create(wr_node_t *node, metric_t const *m,
+                     char const *metric_id) {
+  strbuf_t retention = STRBUF_CREATE;
+  strbuf_printf(&retention, "%" PRIu64, CDTIME_T_TO_MS(node->retention));
+
+  size_t cmd_cap = 11 + 2 * m->label.num;
+  char const *cmd[cmd_cap];
+  memset(cmd, 0, sizeof(cmd));
+  cmd[0] = "TS.CREATE";
+  cmd[1] = metric_id;
+  cmd[2] = "RETENTION";
+  cmd[3] = retention.ptr;
+  cmd[4] = "ENCODING";
+  cmd[5] = "COMPRESSED";
+  cmd[6] = "DUPLICATE_POLICY";
+  cmd[7] = "FIRST";
+  cmd[8] = "LABELS";
+  cmd[9] = "metric.name";
+  cmd[10] = m->family->name;
+
+  size_t cmd_len = 11;
+  for (size_t i = 0; i < m->label.num; i++) {
+    assert(cmd_len + 2 <= cmd_cap);
+    cmd[cmd_len] = m->label.ptr[i].name;
+    cmd[cmd_len + 1] = m->label.ptr[i].value;
+    cmd_len += 2;
+  }
+
+  int err = node->execute(node, (int)cmd_len, cmd);
+
+  STRBUF_DESTROY(retention);
   return err;
 }
 
@@ -213,7 +240,13 @@ static int write_metric(wr_node_t *node, char const *resource_id,
     return err;
   }
 
-  err = write_metric_value(node, m, id.ptr);
+  if (is_new) {
+    // An error is returned even if the existing and new keys are equal
+    // => ignore
+    (void)ts_create(node, m, id.ptr);
+  }
+
+  err = ts_add(node, m, id.ptr);
   if (err != 0) {
     goto cleanup;
   }
@@ -223,16 +256,6 @@ static int write_metric(wr_node_t *node, char const *resource_id,
     if (err != 0) {
       goto cleanup;
     }
-  }
-
-  err = apply_set_size(node, id.ptr);
-  if (err != 0) {
-    goto cleanup;
-  }
-
-  err = apply_set_duration(node, id.ptr, m->time);
-  if (err != 0) {
-    goto cleanup;
   }
 
 cleanup:
@@ -286,7 +309,10 @@ static int wr_write(metric_family_t const *fam, user_data_t *ud) {
     int err =
         write_metric(node, resource_id.ptr, fam->metric.ptr + i, is_new[i]);
     if (err != 0) {
-      goto cleanup;
+      WARNING("write_redis plugin: write_metric failed with %s, aborting at "
+              "index %zu",
+              STRERROR(err), i);
+      continue;
     }
   }
 
@@ -325,6 +351,7 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
 
   *node = (wr_node_t){
       .store_rates = true,
+      .port = REDIS_DEFAULT_PORT,
 
       .reconnect = reconnect,
       .disconnect = disconnect,
@@ -355,10 +382,8 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &node->prefix);
     } else if (strcasecmp("Database", child->key) == 0) {
       status = cf_util_get_int(child, &node->database);
-    } else if (strcasecmp("MaxSetSize", child->key) == 0) {
-      status = cf_util_get_int(child, &node->max_set_size);
-    } else if (strcasecmp("MaxSetDuration", child->key) == 0) {
-      status = cf_util_get_cdtime(child, &node->max_set_duration);
+    } else if (strcasecmp("Retention", child->key) == 0) {
+      status = cf_util_get_cdtime(child, &node->retention);
     } else if (strcasecmp("StoreRates", child->key) == 0) {
       status = cf_util_get_boolean(child, &node->store_rates);
     } else

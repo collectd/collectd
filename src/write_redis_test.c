@@ -83,7 +83,7 @@ DEF_TEST(wr_write) {
                               {
                                   .ptr =
                                       (label_pair_t[]){
-                                          {"metric.name", "m1"},
+                                          {"lbl", "v1"},
                                       },
                                   .num = 1,
                               },
@@ -95,7 +95,7 @@ DEF_TEST(wr_write) {
                               {
                                   .ptr =
                                       (label_pair_t[]){
-                                          {"metric.name", "m2"},
+                                          {"lbl", "v2"},
                                       },
                                   .num = 1,
                               },
@@ -115,6 +115,7 @@ DEF_TEST(wr_write) {
 
   wr_node_t node = {
       .store_rates = false,
+      .retention = TIME_T_TO_CDTIME_T(86400),
 
       .reconnect = fake_reconnect,
       .disconnect = fake_disconnect,
@@ -132,16 +133,20 @@ DEF_TEST(wr_write) {
 #define RESOURCE_ID "{\"test\":\"wr_write\"}"
 #define METRIC_ONE_ID                                                          \
   "{\"name\":\"unit.test\",\"resource\":" RESOURCE_ID ",\"labels\":"           \
-  "{\"metric.name\":\"m1\"}}"
+  "{\"lbl\":\"v1\"}}"
 #define METRIC_TWO_ID                                                          \
   "{\"name\":\"unit.test\",\"resource\":" RESOURCE_ID ",\"labels\":"           \
-  "{\"metric.name\":\"m2\"}}"
+  "{\"lbl\":\"v2\"}}"
   char *want_commands_new[] = {
-      "ZADD metric/" METRIC_ONE_ID " 100.000000000 100.000:42",
+      // clang-format off
+      "TS.CREATE metric/" METRIC_ONE_ID " RETENTION 86400000 ENCODING COMPRESSED DUPLICATE_POLICY FIRST LABELS metric.name unit.test lbl v1",
+      "TS.ADD metric/" METRIC_ONE_ID " 100000 42",
       "SADD resource/" RESOURCE_ID " metric/" METRIC_ONE_ID,
-      "ZADD metric/" METRIC_TWO_ID " 100.123456780 100.123:23",
+      "TS.CREATE metric/" METRIC_TWO_ID " RETENTION 86400000 ENCODING COMPRESSED DUPLICATE_POLICY FIRST LABELS metric.name unit.test lbl v2",
+      "TS.ADD metric/" METRIC_TWO_ID " 100123 23",
       "SADD resource/" RESOURCE_ID " metric/" METRIC_TWO_ID,
       "SADD resources resource/" RESOURCE_ID,
+      // clang-format on
   };
   size_t want_commands_new_num = STATIC_ARRAY_SIZE(want_commands_new);
 
@@ -165,8 +170,8 @@ DEF_TEST(wr_write) {
 
   // for known metrics we expect only the ZADD commands
   char *want_commands_known[] = {
-      "ZADD metric/" METRIC_ONE_ID " 110.000000000 110.000:42",
-      "ZADD metric/" METRIC_TWO_ID " 110.123456780 110.123:23",
+      "TS.ADD metric/" METRIC_ONE_ID " 110000 42",
+      "TS.ADD metric/" METRIC_TWO_ID " 110123 23",
   };
   size_t want_commands_known_num = STATIC_ARRAY_SIZE(want_commands_known);
 

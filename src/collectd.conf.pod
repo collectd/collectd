@@ -11600,26 +11600,27 @@ want to set B<metadata.broker.list> to your Kafka broker list.
 =head2 Plugin C<write_redis>
 
 The I<write_redis plugin> submits values to I<Redis>, a data structure server.
+It uses the I<Time series> type provided by the I<RedisTimeSeries> module.
 
 Synopsis:
 
   <Plugin "write_redis">
     <Node "example">
         Host "localhost"
-        Port "6379"
-        Timeout 1000
-        Prefix "collectd/"
-        Database 1
-        MaxSetSize -1
-        MaxSetDuration -1
+        Port 6379
+        Database 0
+        Timeout 0
+        Retention 0
         StoreRates true
+        Prefix ""
     </Node>
   </Plugin>
 
-Metric values are written to I<Sorted Sets>, using the JSON encoded metric
-identity prefixed by C<metric/> as the key, and the timestamp as the score.
-This allows retrieving a date range using the C<ZRANGEBYSCORE> I<Redis>
-command.
+Metric values are written to I<Time series> keys, using the JSON encoded metric
+identity prefixed by C<metric/> as the key. When a metric is encountered for
+the first time, collectd tries to create a new time series using C<TS.CREATE>.
+This fails if the time series already exists, therefore C<TS.CREATE> errors are
+logged but ignored.
 
 The plugin writes one I<Set> per I<resource> (e.g. host). The set's key is the
 JSON encoded resource attributes, prefixed by C<resource/>. The values are the
@@ -11635,15 +11636,19 @@ Putting it all together: for a metric family with a single metric, the
 following Redit operations are performced when the metric is encountered for
 the first time:
 
-  ZADD metric/<metric_id> <timestamp> <value>
+  TS.CREATE metric/<metric_id> RETENTION <Retention> LABELS <name0> <value0> ...
+  TS.ADD metric/<metric_id> <timestamp> <value>
   SADD resource/<resource_id> metric/<metric_id>
   SADD resources resource/<resource_id>
 
-On subsequent writes, only the C<ZADD> command is performed.
+On subsequent writes, only the C<TS.ADD> command is performed.
+
+More information about the Redis data types used here is available at
+L<https://redis.io/docs/data-types/timeseries/> and
+L<http://redis.io/commands#set>.
 
 You can specify the database to use with the B<Database> parameter (default is
-C<0>). See L<http://redis.io/commands#sorted_set> and
-L<http://redis.io/commands#set> for details.
+C<0>).
 
 The information shown in the synopsis above is the I<default configuration>
 which is used by the plugin if no configuration is present.
@@ -11669,40 +11674,34 @@ The name or IP-address of the host running the I<Redis> instance.
 The B<Port> option is the TCP port on which the Redis instance accepts
 connections. Either a service name of a port number may be given.
 
+=item B<Database> I<Index>
+
+This index selects the redis database to use for writing operations. Defaults
+to C<0>.
+
 =item B<Timeout> I<Seconds>
 
 The B<Timeout> option sets the socket connection timeout in seconds. Use
 fractional numbers to specify timeouts shorter than one second, e.g. C<0.5> for
 500 ms.
 
-=item B<Prefix> I<Prefix>
+=item B<Retention> I<Seconds>
 
-Prefix used when constructing the name of the I<Sorted Sets> and the I<Set>
-containing all metrics. Defaults to no prefix. If a prefix is configured,
-metric names are prefixed with the configured string verbatim, without an
-additional separation character.
-
-=item B<Database> I<Index>
-
-This index selects the redis database to use for writing operations. Defaults
-to C<0>.
-
-=item B<MaxSetSize> I<Items>
-
-The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can
-hold. Set to zero to disable (i.e. no size limit), which is the default
-behavior.
-
-=item B<MaxSetDuration> I<Seconds>
-
-The B<MaxSetDuration> option limits the maximum age of items in the I<Sorted
-Sets>. After reaching this age, metrics will get purged. Set to zero to disable
-(i.e. no age lmit), which is the default behavior.
+The B<Retention> option sets the retention period of new Time series keys. After
+reaching this age, data points will get purged. Set to zero to disable (i.e. no
+age lmit), which is the default behavior.
 
 =item B<StoreRates> B<true>|B<false>
 
 If set to B<true> (the default), convert counter values to rates. If set to
-B<false> counter values are stored as is, i.e. as an increasing integer number.
+B<false>, counter values are stored as is, i.e. as an increasing integer
+number.
+
+=item B<Prefix> I<Prefix>
+
+Prefix used when keys. Defaults to no prefix. If a prefix is configured, metric
+names are prefixed with the configured string verbatim, without an additional
+separation character.
 
 =back
 
