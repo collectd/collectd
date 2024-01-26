@@ -3027,6 +3027,16 @@ data about the whole disk and each partition being mixed together incorrectly.
 In this case, you can use B<ID_COLLECTD> attribute that is provided by
 I<contrib/99-storage-collectd.rules> udev rule file instead.
 
+=item B<ReportDiscard> B<true>|B<false>
+
+Whether to submit discard metrics (/proc/diskstats 15-18), on Linux only.
+Requires Linux Kernel version > 4.18+.
+
+=item B<ReportFlush> B<true>|B<false>
+
+Whether to submit flush metrics (/proc/diskstats 19-20), on Linux only.
+Requires Linux Kernel version > 5.5+.
+
 =back
 
 =head2 Plugin C<dns>

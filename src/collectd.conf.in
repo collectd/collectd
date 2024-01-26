@@ -683,6 +683,8 @@
 #	IgnoreSelected false
 #	UseBSDName false
 #	UdevNameAttr "DEVNAME"
+#	ReportDiscard false
+#	ReportFlush false
 #</Plugin>
 
 #<Plugin dns>
