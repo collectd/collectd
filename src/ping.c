@@ -668,14 +668,12 @@ static int ping_read(void) /* {{{ */
   } /* }}} for (hl = hostlist_head; hl != NULL; hl = hl->next) */
 
   for (size_t i = 0; fams[i] != NULL; i++) {
-    if (fams[i]->metric.num > 0) {
-      int status = plugin_dispatch_metric_family(fams[i]);
-      if (status != 0) {
-        ERROR("ping plugin: plugin_dispatch_metric_family failed: %s",
-              STRERROR(status));
-      }
-      metric_family_metric_reset(fams[i]);
+    int status = plugin_dispatch_metric_family(fams[i]);
+    if (status != 0) {
+      ERROR("ping plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
     }
+    metric_family_metric_reset(fams[i]);
   }
 
   return 0;
