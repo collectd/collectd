@@ -1751,7 +1751,7 @@
 #	ReportUsage true
 #	ReportUtilization false
 #	ReportIO true
-#	ReportBytes true
+#	ReportBytes false
 #</Plugin>
 
 #<Plugin sysevent>
