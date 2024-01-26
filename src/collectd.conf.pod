@@ -9333,18 +9333,20 @@ This option is only available if the I<Swap plugin> can read C</proc/swaps>
 
 =item B<ReportBytes> B<false>|B<true>
 
-When enabled, the I<swap I/O> is reported in bytes. When disabled, the default,
-I<swap I/O> is reported in pages. This option is available under Linux only.
+When enabled, the I<swap I/O> is reported in bytes. When disabled, I<swap I/O>
+is reported in pages. Defaults to B<false>. This option is available under
+Linux and NetBSD only.
 
-=item B<ValuesAbsolute> B<true>|B<false>
+
+=item B<ReportUsage> B<true>|B<false>
 
 Enables or disables reporting of absolute swap metrics, i.e. number of I<bytes>
 available and used. Defaults to B<true>.
 
-=item B<ValuesPercentage> B<false>|B<true>
+=item B<ReportUtilization> B<false>|B<true>
 
-Enables or disables reporting of relative swap metrics, i.e. I<percent>
-available and free. Defaults to B<false>.
+Enables or disables reporting of relative swap metrics, i.e. the ratio of used
+and free swap space. Defaults to B<false>.
 
 This is useful for deploying I<collectd> in a heterogeneous environment, where
 swap sizes differ and you want to specify generic thresholds or similar.
