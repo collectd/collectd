@@ -28,8 +28,9 @@
 #include "utils/common/common.h"
 #include "utils/resource_metrics/resource_metrics.h"
 
-static int resource_metrics_compare(resource_metrics_t const *a,
-                                    resource_metrics_t const *b) {
+static int resource_metrics_compare(void const *ra, void const *rb) {
+  resource_metrics_t const *a = (resource_metrics_t const *)ra;
+  resource_metrics_t const *b = (resource_metrics_t const *)rb;
   return label_set_compare(a->resource, b->resource);
 }
 
@@ -40,7 +41,7 @@ static resource_metrics_t *lookup_resource(resource_metrics_set_t *set,
   };
 
   return bsearch(&key, set->ptr, set->num, sizeof(*set->ptr),
-                 (void *)resource_metrics_compare);
+                 resource_metrics_compare);
 }
 
 static int insert_resource(resource_metrics_set_t *set, label_set_t resource) {
@@ -60,8 +61,7 @@ static int insert_resource(resource_metrics_set_t *set, label_set_t resource) {
   }
   set->num++;
 
-  qsort(set->ptr, set->num, sizeof(*set->ptr),
-        (void *)resource_metrics_compare);
+  qsort(set->ptr, set->num, sizeof(*set->ptr), resource_metrics_compare);
   return 0;
 }
 
@@ -83,7 +83,9 @@ lookup_or_insert_resource(resource_metrics_set_t *set, label_set_t resource) {
   return ret;
 }
 
-static int compare_family_by_name(metric_family_t **a, metric_family_t **b) {
+static int compare_family_by_name(void const *ma, void const *mb) {
+  metric_family_t **a = (metric_family_t **)ma;
+  metric_family_t **b = (metric_family_t **)mb;
   return strcmp((*a)->name, (*b)->name);
 }
 
@@ -91,7 +93,7 @@ static metric_family_t *lookup_family(resource_metrics_t *rm,
                                       metric_family_t const *fam) {
   metric_family_t **ret =
       bsearch(&fam, rm->families, rm->families_num, sizeof(*rm->families),
-              (void *)compare_family_by_name);
+              compare_family_by_name);
   if (ret == NULL) {
     return NULL;
   }
@@ -122,7 +124,7 @@ static int insert_family(resource_metrics_t *rm, metric_family_t const *fam) {
   rm->families_num++;
 
   qsort(rm->families, rm->families_num, sizeof(*rm->families),
-        (void *)compare_family_by_name);
+        compare_family_by_name);
   return 0;
 }
 
@@ -144,7 +146,9 @@ static metric_family_t *lookup_or_insert_family(resource_metrics_t *rm,
   return ret;
 }
 
-static int compare_metrics(metric_t const *a, metric_t const *b) {
+static int compare_metrics(void const *ma, void const *mb) {
+  metric_t const *a = (metric_t const *)ma;
+  metric_t const *b = (metric_t const *)mb;
   int cmp = label_set_compare(a->label, b->label);
   if (cmp != 0) {
     return cmp;
@@ -161,7 +165,7 @@ static int compare_metrics(metric_t const *a, metric_t const *b) {
 
 static bool metric_exists(metric_family_t const *fam, metric_t const *m) {
   metric_t *found = bsearch(m, fam->metric.ptr, fam->metric.num,
-                            sizeof(*fam->metric.ptr), (void *)compare_metrics);
+                            sizeof(*fam->metric.ptr), compare_metrics);
   return found != NULL;
 }
 
@@ -191,7 +195,7 @@ static int insert_metrics(metric_family_t *fam, metric_list_t metrics) {
 
   if (((size_t)skipped) != metrics.num) {
     qsort(fam->metric.ptr, fam->metric.num, sizeof(*fam->metric.ptr),
-          (void *)compare_metrics);
+          compare_metrics);
   }
 
   return skipped;

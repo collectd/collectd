@@ -28,17 +28,17 @@
 DEF_TEST(utf8_valid) {
   struct {
     char const *name;
-    char *input;
+    uint8_t *input;
     bool want;
   } cases[] = {
       {
           .name = "simple string",
-          .input = "Hello, World!",
+          .input = (uint8_t *)"Hello, World!",
           .want = true,
       },
       {
           .name = "empty string",
-          .input = "",
+          .input = (uint8_t *)"",
           .want = true,
       },
       {
@@ -48,56 +48,56 @@ DEF_TEST(utf8_valid) {
       },
       {
           .name = "The greek work \"kosme\"",
-          .input = (char[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce,
-                            0xbc, 0xce, 0xb5, 0},
+          .input = (uint8_t[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce,
+                               0xbc, 0xce, 0xb5, 0},
           .want = true,
       },
       {
           .name = "First possible sequence of three bytes",
-          .input = (char[]){0xe0, 0xa0, 0x80, 0},
+          .input = (uint8_t[]){0xe0, 0xa0, 0x80, 0},
           .want = true,
       },
       {
           .name = "First possible sequence of four bytes",
-          .input = (char[]){0xf0, 0x90, 0x80, 0x80, 0},
+          .input = (uint8_t[]){0xf0, 0x90, 0x80, 0x80, 0},
           .want = true,
       },
       {
           .name = "U-0000D7F",
-          .input = (char[]){0xed, 0x9f, 0xbf, 0},
+          .input = (uint8_t[]){0xed, 0x9f, 0xbf, 0},
           .want = true,
       },
       {
           .name = "0xFE (invalid byte)",
-          .input = (char[]){'H', 0xfe, 'l', 'l', 'o', 0},
+          .input = (uint8_t[]){'H', 0xfe, 'l', 'l', 'o', 0},
           .want = false,
       },
       {
           .name = "0xFF (invalid byte)",
-          .input = (char[]){'C', 'o', 0xff, 'e', 'e', 0},
+          .input = (uint8_t[]){'C', 'o', 0xff, 'e', 'e', 0},
           .want = false,
       },
       {
           .name = "Continuation byte at end of string",
-          .input = (char[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce,
-                            0xbc, 0xce, 0},
+          .input = (uint8_t[]){0xce, 0xba, 0xe1, 0xbd, 0xb9, 0xcf, 0x83, 0xce,
+                               0xbc, 0xce, 0},
           .want = false,
       },
       {
           .name = "U+002F (overlong ASCII character, 2 bytes)",
-          .input = (char[]){0xc0, 0xaf, 0},
+          .input = (uint8_t[]){0xc0, 0xaf, 0},
           .want = false,
       },
       {
           .name = "U+002F (overlong ASCII character, 3 bytes)",
-          .input = (char[]){0xe0, 0x80, 0xaf, 0},
+          .input = (uint8_t[]){0xe0, 0x80, 0xaf, 0},
           .want = false,
       },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     printf("Case #%zu: %s\n", i, cases[i].name);
-    EXPECT_EQ_INT(cases[i].want, utf8_valid(cases[i].input));
+    EXPECT_EQ_INT(cases[i].want, utf8_valid((const char *)cases[i].input));
   }
   return 0;
 }

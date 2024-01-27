@@ -129,7 +129,8 @@ static int checked_lookup_search(lookup_t *obj, char const *host,
 DEF_TEST(group_by_specific_host) {
   lookup_t *obj;
   CHECK_NOT_NULL(obj = lookup_create(lookup_class_callback, lookup_obj_callback,
-                                     (void *)free, (void *)free));
+                                     (lookup_free_class_callback_t)free,
+                                     (lookup_free_obj_callback_t)free));
 
   checked_lookup_add(obj, "/.*/", "test", "", "test", "/.*/", LU_GROUP_BY_HOST);
   checked_lookup_search(obj, "host0", "test", "", "test", "0",
@@ -148,7 +149,8 @@ DEF_TEST(group_by_specific_host) {
 DEF_TEST(group_by_any_host) {
   lookup_t *obj;
   CHECK_NOT_NULL(obj = lookup_create(lookup_class_callback, lookup_obj_callback,
-                                     (void *)free, (void *)free));
+                                     (lookup_free_class_callback_t)free,
+                                     (lookup_free_obj_callback_t)free));
 
   checked_lookup_add(obj, "/.*/", "/.*/", "/.*/", "test", "/.*/",
                      LU_GROUP_BY_HOST);
@@ -178,7 +180,8 @@ DEF_TEST(multiple_lookups) {
   int status;
 
   CHECK_NOT_NULL(obj = lookup_create(lookup_class_callback, lookup_obj_callback,
-                                     (void *)free, (void *)free));
+                                     (lookup_free_class_callback_t)free,
+                                     (lookup_free_obj_callback_t)free));
 
   checked_lookup_add(obj, "/.*/", "plugin0", "", "test", "/.*/",
                      LU_GROUP_BY_HOST);
@@ -204,7 +207,8 @@ DEF_TEST(multiple_lookups) {
 DEF_TEST(regex) {
   lookup_t *obj;
   CHECK_NOT_NULL(obj = lookup_create(lookup_class_callback, lookup_obj_callback,
-                                     (void *)free, (void *)free));
+                                     (lookup_free_class_callback_t)free,
+                                     (lookup_free_obj_callback_t)free));
 
   checked_lookup_add(obj, "/^db[0-9]\\./", "cpu", "/.*/", "cpu", "/.*/",
                      LU_GROUP_BY_TYPE_INSTANCE);
