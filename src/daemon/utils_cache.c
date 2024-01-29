@@ -151,6 +151,8 @@ static int uc_insert(metric_t const *m, char const *key) {
   switch (m->family->type) {
   case DS_TYPE_COUNTER:
   case DS_TYPE_DERIVE:
+    // Non-gauge types will store the rate in values_gauge when the second data
+    // point is available. Initially, NAN signifies "not enough data".
     ce->values_gauge = NAN;
     break;
 
