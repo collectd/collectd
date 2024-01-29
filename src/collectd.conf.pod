@@ -11633,8 +11633,8 @@ I<Redis> command. The write is only performed if all metrics in the metric
 family are "new", see above.
 
 Putting it all together: for a metric family with a single metric, the
-following Redit operations are performced when the metric is encountered for
-the first time:
+following Redis operations are performed when the metric is encountered for the
+first time:
 
   TS.CREATE metric/<metric_id> RETENTION <Retention> LABELS <name0> <value0> ...
   TS.ADD metric/<metric_id> <timestamp> <value>
@@ -11676,7 +11676,7 @@ connections. Either a service name of a port number may be given.
 
 =item B<Database> I<Index>
 
-This index selects the redis database to use for writing operations. Defaults
+This index selects the Redis database to use for writing operations. Defaults
 to C<0>.
 
 =item B<Timeout> I<Seconds>
@@ -11690,7 +11690,7 @@ second.
 
 The B<Retention> option sets the retention period of new Time series keys. After
 reaching this age, data points will get purged. Set to zero to disable (i.e. no
-age lmit), which is the default behavior.
+age limit), which is the default behavior.
 
 =item B<StoreRates> B<true>|B<false>
 
@@ -11700,9 +11700,9 @@ number.
 
 =item B<Prefix> I<Prefix>
 
-Prefix used when keys. Defaults to no prefix. If a prefix is configured, metric
+Prefix is used when generating key names. If a prefix is configured, metric
 names are prefixed with the configured string verbatim, without an additional
-separation character.
+separation character. Defaults to no prefix.
 
 =back
 
