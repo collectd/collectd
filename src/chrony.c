@@ -1105,14 +1105,12 @@ static int chrony_read(void) {
   }
 
   for (size_t i = 0; i < FAM_CHRONY_MAX; i++) {
-    if (fams[i].metric.num > 0) {
-      int status = plugin_dispatch_metric_family(&fams[i]);
-      if (status != 0) {
-        ERROR("chrony plugin: plugin_dispatch_metric_family failed: %s",
-              STRERROR(status));
-      }
-      metric_family_metric_reset(&fams[i]);
+    int status = plugin_dispatch_metric_family(&fams[i]);
+    if (status != 0) {
+      ERROR("chrony plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
     }
+    metric_family_metric_reset(&fams[i]);
   }
 
   return CHRONY_RC_OK;

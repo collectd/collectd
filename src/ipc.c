@@ -396,14 +396,12 @@ static int ipc_read(void) /* {{{ */
   status |= ipc_read_msg(fams);
 
   for (size_t i = 0; i < FAM_IPC_MAX; i++) {
-    if (fams[i].metric.num > 0) {
-      int status = plugin_dispatch_metric_family(&fams[i]);
-      if (status != 0) {
-        ERROR("ipc plugin: plugin_dispatch_metric_family failed: %s",
-              STRERROR(status));
-      }
-      metric_family_metric_reset(&fams[i]);
+    int status = plugin_dispatch_metric_family(&fams[i]);
+    if (status != 0) {
+      ERROR("ipc plugin: plugin_dispatch_metric_family failed: %s",
+            STRERROR(status));
     }
+    metric_family_metric_reset(&fams[i]);
   }
 
   return status;

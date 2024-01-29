@@ -243,15 +243,13 @@ static int irq_read(void) {
 
   int ret = irq_read_data(&fam);
 
-  if (fam.metric.num > 0) {
-    int status = plugin_dispatch_metric_family(&fam);
-    if (status != 0) {
-      ERROR("irq plugin: plugin_dispatch_metric_family failed: %s",
-            STRERROR(status));
-      ret = -1;
-    }
-    metric_family_metric_reset(&fam);
+  int status = plugin_dispatch_metric_family(&fam);
+  if (status != 0) {
+    ERROR("irq plugin: plugin_dispatch_metric_family failed: %s",
+          STRERROR(status));
+    ret = -1;
   }
+  metric_family_metric_reset(&fam);
 
   return ret;
 }
