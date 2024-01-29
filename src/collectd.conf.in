@@ -2086,7 +2086,7 @@
 #		Host "localhost"
 #		Port 6379
 #		Database 0
-#		Timeout 0
+#		Timeout 1.0
 #		Retention 0 # infinite
 #		StoreRates true
 #		Prefix ""

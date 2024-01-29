@@ -34,9 +34,8 @@
 #include <hiredis/hiredis.h>
 #include <sys/time.h>
 
-#ifndef REDIS_DEFAULT_PORT
-#define REDIS_DEFAULT_PORT 6379
-#endif
+static int const default_port = 6379;
+static cdtime_t const default_timeout = TIME_T_TO_CDTIME_T(1);
 
 struct wr_node_s;
 typedef struct wr_node_s wr_node_t;
@@ -82,14 +81,13 @@ static int reconnect(wr_node_t *node) {
     ERROR("write_redis plugin: Connecting to host \"%s\" (port %i) failed: "
           "Unknown reason",
           (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : REDIS_DEFAULT_PORT);
+          (node->port != 0) ? node->port : default_port);
     return ENOTCONN;
   }
   if (node->conn->err) {
     ERROR("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
           (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : REDIS_DEFAULT_PORT,
-          node->conn->errstr);
+          (node->port != 0) ? node->port : default_port, node->conn->errstr);
     disconnect(node);
     return ENOTCONN;
   }
@@ -351,7 +349,8 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
 
   *node = (wr_node_t){
       .store_rates = true,
-      .port = REDIS_DEFAULT_PORT,
+      .port = default_port,
+      .timeout = default_timeout,
 
       .reconnect = reconnect,
       .disconnect = disconnect,

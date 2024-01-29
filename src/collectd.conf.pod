@@ -11609,7 +11609,7 @@ Synopsis:
         Host "localhost"
         Port 6379
         Database 0
-        Timeout 0
+        Timeout 1.0
         Retention 0
         StoreRates true
         Prefix ""
@@ -11681,9 +11681,10 @@ to C<0>.
 
 =item B<Timeout> I<Seconds>
 
-The B<Timeout> option sets the socket connection timeout in seconds. Use
-fractional numbers to specify timeouts shorter than one second, e.g. C<0.5> for
-500 ms.
+The B<Timeout> option sets the socket connection timeout in seconds. Use zero
+to disable to connect without a timeout. Use fractional numbers to specify
+timeouts shorter than one second, e.g. C<0.5> for 500 ms. Defaults to one
+second.
 
 =item B<Retention> I<Seconds>
 
