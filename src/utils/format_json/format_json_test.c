@@ -431,7 +431,7 @@ DEF_TEST(format_json_metric_identity) {
       },
   };
 
-  for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     printf("## Case %zu: %s\n", i, cases[i].name);
 
     metric_family_t fam = {
