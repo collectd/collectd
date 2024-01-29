@@ -17,7 +17,7 @@ release_ready_task:
   configure_script:
     - ./build.sh
     - ./configure $DEFAULT_CONFIG_OPTS
-  checks_script:
+  make_distcheck_script:
     - make -j$(nproc) -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
   always:
     make_check_artifacts:
