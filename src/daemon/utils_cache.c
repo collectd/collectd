@@ -969,7 +969,7 @@ int uc_meta_data_toc(metric_t const *m, char ***key) { UC_WRAP(meta_data_toc); }
 #undef UC_WRAP
 
 /* We need a new version of this macro because the following functions take
- * two arguments. Gratuitous semicolons added for formatting sanity. */
+ * two arguments. */
 #define UC_WRAP(wrap_function)                                                 \
   do {                                                                         \
     pthread_mutex_lock(&cache_lock);                                           \
