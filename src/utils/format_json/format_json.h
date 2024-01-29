@@ -52,4 +52,8 @@ int format_json_notification(char *buffer, size_t buffer_size,
 int format_json_open_telemetry(strbuf_t *buf,
                                resource_metrics_set_t const *set);
 
+int format_json_label_set(strbuf_t *buf, label_set_t labels);
+
+int format_json_metric_identity(strbuf_t *buf, metric_t const *m);
+
 #endif /* UTILS_FORMAT_JSON_H */

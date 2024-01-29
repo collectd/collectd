@@ -1,6 +1,6 @@
 /**
  * collectd - src/write_redis.c
- * Copyright (C) 2010-2015  Florian Forster
+ * Copyright (C) 2010-2024  Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,182 +26,339 @@
 
 #include "collectd.h"
 
-#include "plugin.h"
+#include "daemon/plugin.h"
+#include "daemon/utils_cache.h"
 #include "utils/common/common.h"
+#include "utils/format_json/format_json.h"
 
 #include <hiredis/hiredis.h>
 #include <sys/time.h>
 
-#ifndef REDIS_DEFAULT_PREFIX
-#define REDIS_DEFAULT_PREFIX "collectd/"
-#endif
+static int const default_port = 6379;
+static cdtime_t const default_timeout = TIME_T_TO_CDTIME_T(1);
 
+struct wr_node_s;
+typedef struct wr_node_s wr_node_t;
 struct wr_node_s {
   char name[DATA_MAX_NAME_LEN];
 
   char *host;
   int port;
-  struct timeval timeout;
+  cdtime_t timeout;
   char *prefix;
   int database;
-  int max_set_size;
-  int max_set_duration;
+  cdtime_t retention;
   bool store_rates;
+
+  int (*reconnect)(wr_node_t *node);
+  void (*disconnect)(wr_node_t *node);
+  int (*execute)(wr_node_t *node, int argc, char const **argv);
 
   redisContext *conn;
   pthread_mutex_t lock;
 };
-typedef struct wr_node_s wr_node_t;
 
 /*
  * Functions
  */
-static int wr_write(/* {{{ */
-                    metric_single_t const *m, user_data_t *ud) {
-  wr_node_t *node = ud->data;
-  char key[512];
-  char value[512] = {0};
-  char time[24];
-  size_t value_size;
-  char *value_ptr;
-  int status;
-  redisReply *rr;
+static void disconnect(wr_node_t *node) {
+  if (node->conn == NULL) {
+    return;
+  }
 
-  char *metric_string_p = NULL;
-  if ((metric_string_p = metric_marshal_text(m)) != 0) {
+  redisFree(node->conn);
+  node->conn = NULL;
+}
+
+static int reconnect(wr_node_t *node) {
+  if (node->conn != NULL) {
+    return 0;
+  }
+
+  node->conn = redisConnectWithTimeout(node->host, node->port,
+                                       CDTIME_T_TO_TIMEVAL(node->timeout));
+  if (node->conn == NULL) {
+    ERROR("write_redis plugin: Connecting to host \"%s\" (port %i) failed: "
+          "Unknown reason",
+          (node->host != NULL) ? node->host : "localhost",
+          (node->port != 0) ? node->port : default_port);
+    return ENOTCONN;
+  }
+  if (node->conn->err) {
+    ERROR("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
+          (node->host != NULL) ? node->host : "localhost",
+          (node->port != 0) ? node->port : default_port, node->conn->errstr);
+    disconnect(node);
+    return ENOTCONN;
+  }
+
+  redisReply *rr = redisCommand(node->conn, "SELECT %d", node->database);
+  if (rr == NULL) {
+    ERROR("write_redis plugin: Command \"SELECT %d\" failed: %s",
+          node->database, node->conn->errstr);
+    disconnect(node);
+    return ENOTCONN;
+  }
+
+  freeReplyObject(rr);
+  return 0;
+}
+
+static void print_execute_error(int argc, char const **argv, char const *msg) {
+  strbuf_t cmd = STRBUF_CREATE;
+  for (int i = 0; i < argc; i++) {
+    if (i != 0) {
+      strbuf_print(&cmd, " ");
+    }
+    strbuf_print(&cmd, argv[i]);
+  }
+
+  ERROR("write_redis plugin: Command \"%s\" failed: %s", cmd.ptr, msg);
+
+  STRBUF_DESTROY(cmd);
+}
+
+static int execute(wr_node_t *node, int argc, char const **argv) {
+  redisReply *rr = redisCommandArgv(node->conn, argc, argv, NULL);
+  if (rr == NULL) {
+    print_execute_error(argc, argv, node->conn->errstr);
+    return (node->conn->err != 0) ? node->conn->err : -1;
+  }
+  if (rr->type == REDIS_REPLY_ERROR) {
+    print_execute_error(argc, argv, rr->str);
+    freeReplyObject(rr);
     return -1;
   }
 
-  ssnprintf(key, sizeof(key), "%s%s",
-            (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX,
-            metric_string_p);
-  ssnprintf(time, sizeof(time), "%.9f", CDTIME_T_TO_DOUBLE(m->time));
+  freeReplyObject(rr);
+  return 0;
+}
 
-  value_size = sizeof(value);
-  value_ptr = &value[0];
-  status = format_values(value_ptr, value_size, m, node->store_rates);
-  if (status != 0) {
-    sfree(metric_string_p);
-    return status;
+static int add_resource_to_global_set(wr_node_t *node, char const *id) {
+  strbuf_t key = STRBUF_CREATE;
+  if (node->prefix != NULL) {
+    strbuf_print(&key, node->prefix);
+  }
+  strbuf_print(&key, "resources");
+
+  char const *cmd[] = {"SADD", key.ptr, id};
+  int err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
+
+  STRBUF_DESTROY(key);
+  return err;
+}
+
+static int add_metric_to_resource(wr_node_t *node, char const *resource_id,
+                                  char const *metric_id) {
+  char const *cmd[] = {"SADD", resource_id, metric_id};
+  return node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
+}
+
+static int ts_add(wr_node_t *node, metric_t const *m, char const *id) {
+  strbuf_t m_time = STRBUF_CREATE;
+  strbuf_printf(&m_time, "%" PRIu64, CDTIME_T_TO_MS(m->time));
+
+  strbuf_t value = STRBUF_CREATE;
+  int err = format_values(&value, m, node->store_rates);
+  if (err != 0) {
+    ERROR("write_redis plugin: format_values failed: %s", STRERROR(err));
+    goto cleanup;
+  }
+
+  // format_values returns a string with "<timestamp>:<value>"; create a new
+  // pointer that points to "<value>" directly.
+  char const *value_ptr = strchr(value.ptr, ':');
+  if (value_ptr == NULL) {
+    ERROR("write_redis plugin: format_values returned \"%s\", want string "
+          "containing ':'",
+          value.ptr);
+    goto cleanup;
+  }
+  value_ptr++;
+
+  // RedisTimeSeries doesn't handle NANs.
+  if (strcmp("nan", value_ptr) == 0) {
+    goto cleanup;
+  }
+
+  char const *cmd[] = {"TS.ADD", id, m_time.ptr, value_ptr};
+  err = node->execute(node, STATIC_ARRAY_SIZE(cmd), cmd);
+
+cleanup:
+  STRBUF_DESTROY(value);
+  STRBUF_DESTROY(m_time);
+  return err;
+}
+
+static int ts_create(wr_node_t *node, metric_t const *m,
+                     char const *metric_id) {
+  strbuf_t retention = STRBUF_CREATE;
+  strbuf_printf(&retention, "%" PRIu64, CDTIME_T_TO_MS(node->retention));
+
+  size_t cmd_len = 11;
+  size_t cmd_cap = cmd_len + 2 * m->label.num;
+  char const *cmd[cmd_cap];
+  memset(cmd, 0, sizeof(cmd));
+  cmd[0] = "TS.CREATE";
+  cmd[1] = metric_id;
+  cmd[2] = "RETENTION";
+  cmd[3] = retention.ptr;
+  cmd[4] = "ENCODING";
+  cmd[5] = "COMPRESSED";
+  cmd[6] = "DUPLICATE_POLICY";
+  cmd[7] = "FIRST";
+  cmd[8] = "LABELS";
+  cmd[9] = "metric.name";
+  cmd[10] = m->family->name;
+
+  for (size_t i = 0; i < m->label.num; i++) {
+    assert(cmd_len + 2 <= cmd_cap);
+    cmd[cmd_len] = m->label.ptr[i].name;
+    cmd[cmd_len + 1] = m->label.ptr[i].value;
+    cmd_len += 2;
+  }
+
+  int err = node->execute(node, (int)cmd_len, cmd);
+
+  STRBUF_DESTROY(retention);
+  return err;
+}
+
+static int write_metric(wr_node_t *node, char const *resource_id,
+                        metric_t const *m, bool is_new) {
+  strbuf_t id = STRBUF_CREATE;
+  if (node->prefix != NULL) {
+    strbuf_print(&id, node->prefix);
+  }
+  strbuf_print(&id, "metric/");
+  int err = format_json_metric_identity(&id, m);
+  if (err != 0) {
+    ERROR("write_redis plugin: Formatting metric identity failed: %s",
+          STRERROR(err));
+    return err;
+  }
+
+  if (is_new) {
+    // An error is returned even if the existing and new keys are equal
+    // => ignore
+    (void)ts_create(node, m, id.ptr);
+  }
+
+  err = ts_add(node, m, id.ptr);
+  if (err != 0) {
+    goto cleanup;
+  }
+
+  if (is_new) {
+    err = add_metric_to_resource(node, resource_id, id.ptr);
+    if (err != 0) {
+      goto cleanup;
+    }
+  }
+
+cleanup:
+  STRBUF_DESTROY(id);
+  return err;
+}
+
+static bool metric_is_new(metric_t const *m) {
+  cdtime_t first_time = 0;
+  int err = uc_get_first_time(m, &first_time);
+  if (err != 0) {
+    ERROR("write_redis plugin: uc_get_first_time failed: %s", STRERROR(err));
+    return true;
+  }
+
+  return m->time == first_time;
+}
+
+static int wr_write(metric_family_t const *fam, user_data_t *ud) {
+  wr_node_t *node = ud->data;
+
+  strbuf_t resource_id = STRBUF_CREATE;
+  if (node->prefix != NULL) {
+    strbuf_print(&resource_id, node->prefix);
+  }
+  strbuf_print(&resource_id, "resource/");
+  int err = format_json_label_set(&resource_id, fam->resource);
+  if (err != 0) {
+    STRBUF_DESTROY(resource_id);
+    return err;
+  }
+
+  // determine whether metrics are new before grabbing the log.
+  bool all_new = true;
+  bool is_new[fam->metric.num];
+  memset(is_new, 0, sizeof(is_new));
+
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    is_new[i] = metric_is_new(fam->metric.ptr + i);
+    all_new = all_new && is_new[i];
   }
 
   pthread_mutex_lock(&node->lock);
 
-  if (node->conn == NULL) {
-    node->conn =
-        redisConnectWithTimeout((char *)node->host, node->port, node->timeout);
-    if (node->conn == NULL) {
-      ERROR("write_redis plugin: Connecting to host \"%s\" (port %i) failed: "
-            "Unknown reason",
-            (node->host != NULL) ? node->host : "localhost",
-            (node->port != 0) ? node->port : 6379);
-      pthread_mutex_unlock(&node->lock);
-      sfree(metric_string_p);
-      return -1;
-    } else if (node->conn->err) {
-      ERROR(
-          "write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
-          (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : 6379, node->conn->errstr);
-      pthread_mutex_unlock(&node->lock);
-      sfree(metric_string_p);
-      return -1;
+  err = node->reconnect(node);
+  if (err != 0) {
+    goto cleanup;
+  }
+
+  for (size_t i = 0; i < fam->metric.num; i++) {
+    int err =
+        write_metric(node, resource_id.ptr, fam->metric.ptr + i, is_new[i]);
+    if (err != 0) {
+      WARNING("write_redis plugin: write_metric failed with %s, aborting at "
+              "index %zu",
+              STRERROR(err), i);
+      continue;
     }
-
-    rr = redisCommand(node->conn, "SELECT %d", node->database);
-    if (rr == NULL)
-      WARNING("SELECT command error. database:%d message:%s", node->database,
-              node->conn->errstr);
-    else
-      freeReplyObject(rr);
   }
 
-  rr = redisCommand(node->conn, "ZADD %s %s %s", key, time, value);
-  if (rr == NULL)
-    WARNING("ZADD command error. key:%s message:%s", key, node->conn->errstr);
-  else
-    freeReplyObject(rr);
-
-  if (node->max_set_size >= 0) {
-    rr = redisCommand(node->conn, "ZREMRANGEBYRANK %s %d %d", key, 0,
-                      (-1 * node->max_set_size) - 1);
-    if (rr == NULL)
-      WARNING("ZREMRANGEBYRANK command error. key:%s message:%s", key,
-              node->conn->errstr);
-    else
-      freeReplyObject(rr);
+  if (all_new) {
+    err = add_resource_to_global_set(node, resource_id.ptr);
+    if (err != 0) {
+      goto cleanup;
+    }
   }
 
-  if (node->max_set_duration > 0) {
-    /*
-     * remove element, scored less than 'current-max_set_duration'
-     * '(...' indicates 'less than' in redis CLI.
-     */
-    rr = redisCommand(node->conn, "ZREMRANGEBYSCORE %s -1 (%.9f", key,
-                      (CDTIME_T_TO_DOUBLE(m->time) - node->max_set_duration));
-    if (rr == NULL)
-      WARNING("ZREMRANGEBYSCORE command error. key:%s message:%s", key,
-              node->conn->errstr);
-    else
-      freeReplyObject(rr);
-  }
-
-  /* TODO(octo): This is more overhead than necessary. Use the cache and
-   * metadata to determine if it is a new metric and call SADD only once for
-   * each metric. */
-  rr =
-      redisCommand(node->conn, "SADD %svalues %s",
-                   (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX,
-                   metric_string_p);
-  if (rr == NULL)
-    WARNING("SADD command error. ident:%s message:%s", metric_string_p,
-            node->conn->errstr);
-  else
-    freeReplyObject(rr);
-
+cleanup:
   pthread_mutex_unlock(&node->lock);
-  sfree(metric_string_p);
-  return 0;
-} /* }}} int wr_write */
+  STRBUF_DESTROY(resource_id);
+  return err;
+}
 
 static void wr_config_free(void *ptr) /* {{{ */
 {
   wr_node_t *node = ptr;
-
   if (node == NULL)
     return;
 
-  if (node->conn != NULL) {
-    redisFree(node->conn);
-    node->conn = NULL;
-  }
+  node->disconnect(node);
+  pthread_mutex_destroy(&node->lock);
 
   sfree(node->host);
+  sfree(node->prefix);
   sfree(node);
 } /* }}} void wr_config_free */
 
 static int wr_config_node(oconfig_item_t *ci) /* {{{ */
 {
-  wr_node_t *node;
-  int timeout;
-  int status;
-
-  node = calloc(1, sizeof(*node));
+  wr_node_t *node = calloc(1, sizeof(*node));
   if (node == NULL)
     return ENOMEM;
-  node->host = NULL;
-  node->port = 0;
-  node->timeout.tv_sec = 1;
-  node->timeout.tv_usec = 0;
-  node->conn = NULL;
-  node->prefix = NULL;
-  node->database = 0;
-  node->max_set_size = -1;
-  node->max_set_duration = -1;
-  node->store_rates = true;
+
+  *node = (wr_node_t){
+      .store_rates = true,
+      .port = default_port,
+      .timeout = default_timeout,
+
+      .reconnect = reconnect,
+      .disconnect = disconnect,
+      .execute = execute,
+  };
   pthread_mutex_init(&node->lock, /* attr = */ NULL);
 
-  status = cf_util_get_string_buffer(ci, node->name, sizeof(node->name));
+  int status = cf_util_get_string_buffer(ci, node->name, sizeof(node->name));
   if (status != 0) {
     sfree(node);
     return status;
@@ -219,20 +376,13 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
         status = 0;
       }
     } else if (strcasecmp("Timeout", child->key) == 0) {
-      status = cf_util_get_int(child, &timeout);
-      if (status == 0) {
-        node->timeout.tv_usec = timeout * 1000;
-        node->timeout.tv_sec = node->timeout.tv_usec / 1000000L;
-        node->timeout.tv_usec %= 1000000L;
-      }
+      status = cf_util_get_cdtime(child, &node->timeout);
     } else if (strcasecmp("Prefix", child->key) == 0) {
       status = cf_util_get_string(child, &node->prefix);
     } else if (strcasecmp("Database", child->key) == 0) {
       status = cf_util_get_int(child, &node->database);
-    } else if (strcasecmp("MaxSetSize", child->key) == 0) {
-      status = cf_util_get_int(child, &node->max_set_size);
-    } else if (strcasecmp("MaxSetDuration", child->key) == 0) {
-      status = cf_util_get_int(child, &node->max_set_duration);
+    } else if (strcasecmp("Retention", child->key) == 0) {
+      status = cf_util_get_cdtime(child, &node->retention);
     } else if (strcasecmp("StoreRates", child->key) == 0) {
       status = cf_util_get_boolean(child, &node->store_rates);
     } else
@@ -244,19 +394,20 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
   } /* for (i = 0; i < ci->children_num; i++) */
 
   if (status == 0) {
-    char cb_name[sizeof("write_redis/") + DATA_MAX_NAME_LEN];
+    strbuf_t cb_name = STRBUF_CREATE;
+    strbuf_printf(&cb_name, "write_redis/%s", node->name);
 
-    ssnprintf(cb_name, sizeof(cb_name), "write_redis/%s", node->name);
-
-    status = plugin_register_write(cb_name, wr_write,
+    status = plugin_register_write(cb_name.ptr, wr_write,
                                    &(user_data_t){
                                        .data = node,
                                        .free_func = wr_config_free,
                                    });
+    STRBUF_DESTROY(cb_name);
   }
 
-  if (status != 0)
+  if (status != 0) {
     wr_config_free(node);
+  }
 
   return status;
 } /* }}} int wr_config_node */

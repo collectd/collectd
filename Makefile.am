@@ -445,11 +445,14 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
+	src/daemon/globals.c \
+	src/daemon/globals.h \
 	src/daemon/resource.c \
 	src/daemon/resource.h \
 	src/daemon/types_list.c \
 	src/daemon/types_list.h \
-	src/daemon/utils_cache_mock.c \
+	src/daemon/utils_cache.c \
+	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
 	src/daemon/utils_time.c \
@@ -457,7 +460,7 @@ libplugin_mock_la_SOURCES = \
 	src/utils/value_list/value_list.c \
 	src/utils/value_list/value_list.h
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
-libplugin_mock_la_LIBADD = libmetric.la liboconfig.la libcommon.la libignorelist.la $(COMMON_LIBS)
+libplugin_mock_la_LIBADD = libavltree.la libmetric.la liboconfig.la libcommon.la libignorelist.la $(COMMON_LIBS)
 
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
@@ -2384,7 +2387,14 @@ pkglib_LTLIBRARIES += write_redis.la
 write_redis_la_SOURCES = src/write_redis.c
 write_redis_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
 write_redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
-write_redis_la_LIBADD = -lhiredis
+write_redis_la_LIBADD = libformat_json.la -lhiredis
+
+test_plugin_write_redis_SOURCES = src/write_redis_test.c
+test_plugin_write_redis_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+test_plugin_write_redis_LDFLAGS = $(AM_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
+test_plugin_write_redis_LDADD = libformat_json.la libplugin_mock.la -lhiredis
+check_PROGRAMS += test_plugin_write_redis
+TESTS += test_plugin_write_redis
 endif
 
 if BUILD_PLUGIN_WRITE_RIEMANN

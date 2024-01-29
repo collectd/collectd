@@ -113,6 +113,19 @@ static int format_time(yajl_gen g, cdtime_t t) /* {{{ */
   return 0;
 } /* }}} int format_time */
 
+static int format_label_set(yajl_gen g, label_set_t labels) {
+  CHECK(yajl_gen_map_open(g)); /* BEGIN labels */
+
+  for (size_t i = 0; i < labels.num; i++) {
+    label_pair_t *l = labels.ptr + i;
+    CHECK(json_add_string(g, l->name));
+    CHECK(json_add_string(g, l->value));
+  }
+
+  CHECK(yajl_gen_map_close(g)); /* END labels */
+  return 0;
+}
+
 /* TODO(octo): format_metric should export the interval, too. */
 /* TODO(octo): Decide whether format_metric should export meta data. */
 static int format_metric(yajl_gen g, metric_t const *m) {
@@ -120,15 +133,7 @@ static int format_metric(yajl_gen g, metric_t const *m) {
 
   if (m->label.num != 0) {
     CHECK(json_add_string(g, "labels"));
-    CHECK(yajl_gen_map_open(g)); /* BEGIN labels */
-
-    for (size_t i = 0; i < m->label.num; i++) {
-      label_pair_t *l = m->label.ptr + i;
-      CHECK(json_add_string(g, l->name));
-      CHECK(json_add_string(g, l->value));
-    }
-
-    CHECK(yajl_gen_map_close(g)); /* END labels */
+    CHECK(format_label_set(g, m->label));
   }
 
   if (m->time != 0) {
@@ -321,12 +326,10 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   }
 
   CHECK(json_add_string(g, "severity"));
-  CHECK(json_add_string(
-      g, (n->severity == NOTIF_FAILURE)
-             ? "FAILURE"
-             : (n->severity == NOTIF_WARNING)
-                   ? "WARNING"
-                   : (n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN"));
+  CHECK(json_add_string(g, (n->severity == NOTIF_FAILURE)   ? "FAILURE"
+                           : (n->severity == NOTIF_WARNING) ? "WARNING"
+                           : (n->severity == NOTIF_OKAY)    ? "OKAY"
+                                                            : "UNKNOWN"));
 
   CHECK(json_add_string(g, "service"));
   CHECK(json_add_string(g, "collectd"));
@@ -430,3 +433,103 @@ int format_json_notification(char *buffer, size_t buffer_size, /* {{{ */
   yajl_gen_free(g);
   return 0;
 } /* }}} format_json_notification */
+
+static int format_metric_identity(yajl_gen g, metric_t const *m) {
+  CHECK(yajl_gen_map_open(g));
+
+  CHECK(json_add_string(g, "name"));
+  CHECK(json_add_string(g, m->family->name));
+
+  if (m->family->resource.num != 0) {
+    CHECK(json_add_string(g, "resource"));
+    CHECK(format_label_set(g, m->family->resource));
+  }
+
+  if (m->label.num != 0) {
+    CHECK(json_add_string(g, "labels"));
+    CHECK(format_label_set(g, m->label));
+  }
+
+  CHECK(yajl_gen_map_close(g));
+  return 0;
+}
+
+int format_json_label_set(strbuf_t *buf, label_set_t labels) {
+  if (buf == NULL) {
+    return EINVAL;
+  }
+
+#if HAVE_YAJL_V2
+  yajl_gen g = yajl_gen_alloc(NULL);
+#else /* !HAVE_YAJL_V2 */
+  yajl_gen_config conf = {0};
+  yajl_gen g = yajl_gen_alloc(&conf, NULL);
+#endif
+  if (g == NULL) {
+    return -1;
+  }
+
+  if (format_label_set(g, labels) != 0) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return -1;
+  }
+
+  unsigned char const *out;
+#if HAVE_YAJL_V2
+  size_t out_len;
+#else
+  unsigned int out_len;
+#endif
+  /* copy to output buffer */
+  if (yajl_gen_get_buf(g, &out, &out_len) != yajl_gen_status_ok) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return -1;
+  }
+  strbuf_printn(buf, (char const *)out, (size_t)out_len);
+
+  yajl_gen_clear(g);
+  yajl_gen_free(g);
+  return 0;
+}
+
+int format_json_metric_identity(strbuf_t *buf, metric_t const *m) {
+  if (buf == NULL || m == NULL) {
+    return EINVAL;
+  }
+
+#if HAVE_YAJL_V2
+  yajl_gen g = yajl_gen_alloc(NULL);
+#else /* !HAVE_YAJL_V2 */
+  yajl_gen_config conf = {0};
+  yajl_gen g = yajl_gen_alloc(&conf, NULL);
+#endif
+  if (g == NULL) {
+    return -1;
+  }
+
+  if (format_metric_identity(g, m) != 0) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return -1;
+  }
+
+  unsigned char const *out;
+#if HAVE_YAJL_V2
+  size_t out_len;
+#else
+  unsigned int out_len;
+#endif
+  /* copy to output buffer */
+  if (yajl_gen_get_buf(g, &out, &out_len) != yajl_gen_status_ok) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return -1;
+  }
+  strbuf_printn(buf, (char const *)out, (size_t)out_len);
+
+  yajl_gen_clear(g);
+  yajl_gen_free(g);
+  return 0;
+}
