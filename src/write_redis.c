@@ -195,7 +195,8 @@ static int ts_create(wr_node_t *node, metric_t const *m,
   strbuf_t retention = STRBUF_CREATE;
   strbuf_printf(&retention, "%" PRIu64, CDTIME_T_TO_MS(node->retention));
 
-  size_t cmd_cap = 11 + 2 * m->label.num;
+  size_t cmd_len = 11;
+  size_t cmd_cap = cmd_len + 2 * m->label.num;
   char const *cmd[cmd_cap];
   memset(cmd, 0, sizeof(cmd));
   cmd[0] = "TS.CREATE";
@@ -210,7 +211,6 @@ static int ts_create(wr_node_t *node, metric_t const *m,
   cmd[9] = "metric.name";
   cmd[10] = m->family->name;
 
-  size_t cmd_len = 11;
   for (size_t i = 0; i < m->label.num; i++) {
     assert(cmd_len + 2 <= cmd_cap);
     cmd[cmd_len] = m->label.ptr[i].name;
