@@ -1,3 +1,10 @@
+2024-01-29, Version 6.0.0.rc1
+	* Fix most `-Wpedantic` warnings in collectd core. Thanks to @eero-t.
+	  #4243
+	* df plugin: An out of bounds read, causing segmentation faults, has
+	  been fixed. Thanks to @octo. #4252
+	* swap plugin: Migration to v6.0. Thanks to @octo. #4190
+
 2024-01-23, Version 6.0.0-rc0
 	* Daemon: A special case, mapping "libvirt" to the "virt" plugin, has
 	  been removed. Thanks to @octo. #3493
