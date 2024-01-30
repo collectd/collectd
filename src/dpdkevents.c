@@ -111,7 +111,7 @@ typedef enum {
 #define DPDK_EVENTS_CTX_GET(a) ((dpdk_events_ctx_t *)dpdk_helper_priv_get(a))
 
 #define DPDK_EVENTS_TRACE()                                                    \
-  DEBUG("%s:%s:%d pid=%u", DPDK_EVENTS_PLUGIN, __FUNCTION__, __LINE__, getpid())
+  DEBUG("%s:%s:%d pid=%u", DPDK_EVENTS_PLUGIN, __func__, __LINE__, getpid())
 
 static dpdk_helper_ctx_t *g_hc;
 static dpdk_events_cfg_status g_state;
@@ -497,7 +497,7 @@ static void dpdk_events_gauge_submit(const char *plugin_instance,
 
 static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(phc);
-  DEBUG(DPDK_EVENTS_PLUGIN ": %s:%d ports=%u", __FUNCTION__, __LINE__,
+  DEBUG(DPDK_EVENTS_PLUGIN ": %s:%d ports=%u", __func__, __LINE__,
         ec->nb_ports);
 
   /* dispatch Link Status values to collectd */
@@ -552,7 +552,7 @@ static void dpdk_events_keep_alive_dispatch(dpdk_helper_ctx_t *phc) {
     } else {
       WARNING(DPDK_EVENTS_PLUGIN
               ": %s:%d Core id %u is out of 0 to %u range, skipping",
-              __FUNCTION__, __LINE__, i, INT64_BIT_SIZE * 2);
+              __func__, __LINE__, i, INT64_BIT_SIZE * 2);
       continue;
     }
 
@@ -639,7 +639,7 @@ static int dpdk_events_read(user_data_t *ud) {
     if (ka_ret) {
       ERROR(DPDK_EVENTS_PLUGIN
             ": %s : error %d in dpdk_event_keep_alive_shm_open()",
-            __FUNCTION__, ka_ret);
+            __func__, ka_ret);
     } else
       dpdk_events_keep_alive_dispatch(g_hc);
   }
