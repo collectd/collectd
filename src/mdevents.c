@@ -41,7 +41,7 @@
 #define DAEMON_NAME "mdadm"
 
 #define MD_EVENTS_ERROR(err_msg, ...)                                          \
-  ERROR(MD_EVENTS_PLUGIN ": %s: " err_msg, __FUNCTION__, ##__VA_ARGS__)
+  ERROR(MD_EVENTS_PLUGIN ": %s: " err_msg, __func__, ##__VA_ARGS__)
 
 // Syslog can be located under different paths on various linux distros;
 // The following two cover the debian-based and redhat distros

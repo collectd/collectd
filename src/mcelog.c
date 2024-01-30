@@ -264,7 +264,7 @@ static int socket_write(socket_adapter_t *self, const char *msg,
 
 static void mcelog_dispatch_notification(notification_t *n) {
   if (!n) {
-    ERROR(MCELOG_PLUGIN ": %s: NULL pointer", __FUNCTION__);
+    ERROR(MCELOG_PLUGIN ": %s: NULL pointer", __func__);
     return;
   }
 
@@ -401,7 +401,7 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
 static int mcelog_submit(const mcelog_memory_rec_t *mr) {
 
   if (!mr) {
-    ERROR(MCELOG_PLUGIN ": %s: NULL pointer", __FUNCTION__);
+    ERROR(MCELOG_PLUGIN ": %s: NULL pointer", __func__);
     return -1;
   }
 
@@ -656,7 +656,7 @@ static int get_memory_machine_checks(void) {
 }
 
 static int mcelog_read(__attribute__((unused)) user_data_t *ud) {
-  DEBUG(MCELOG_PLUGIN ": %s", __FUNCTION__);
+  DEBUG(MCELOG_PLUGIN ": %s", __func__);
 
   if (get_memory_machine_checks() != 0)
     ERROR(MCELOG_PLUGIN ": MACHINE CHECK INFO NOT AVAILABLE");
