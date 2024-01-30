@@ -61,8 +61,6 @@ static void fake_disconnect(wr_node_t *node) {
 static int fake_reconnect(wr_node_t *node) { return 0; }
 
 DEF_TEST(wr_write) {
-  uc_init();
-
   metric_family_t fam = {
       .name = "unit.test",
       .type = METRIC_TYPE_GAUGE,

@@ -1715,9 +1715,6 @@ EXPORT int plugin_init_all(void) {
   int status;
   int ret = 0;
 
-  /* Init the value cache */
-  uc_init();
-
   if (IS_TRUE(global_option_get("CollectInternalStats"))) {
     record_statistics = true;
     plugin_register_read("collectd", plugin_update_internal_statistics);

@@ -38,7 +38,6 @@
 #define STATE_ERROR 3
 #define STATE_MISSING 15
 
-int uc_init(void);
 int uc_check_timeout(void);
 int uc_update(metric_family_t const *fam);
 

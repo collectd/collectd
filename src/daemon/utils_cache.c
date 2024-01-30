@@ -123,7 +123,8 @@ static void cache_free(cache_entry_t *ce) {
 } /* void cache_free */
 
 static int uc_insert(metric_t const *m, char const *key) {
-  /* `cache_lock' has been locked by `uc_update' */
+  // cache_lock has been locked by uc_update().
+  // uc_init has been called by uc_update().
 
   char *key_copy = strdup(key);
   if (key_copy == NULL) {
@@ -179,13 +180,12 @@ static int uc_insert(metric_t const *m, char const *key) {
   return 0;
 } /* int uc_insert */
 
-int uc_init(void) {
-  if (cache_tree == NULL) {
-    cache_tree = c_avl_create(cache_compare);
+static void uc_init(void) {
+  if (cache_tree != NULL) {
+    return;
   }
-
-  return 0;
-} /* int uc_init */
+  cache_tree = c_avl_create(cache_compare);
+}
 
 int uc_check_timeout(void) {
   struct {
@@ -197,6 +197,8 @@ int uc_check_timeout(void) {
   size_t expired_num = 0;
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
+
   cdtime_t now = cdtime();
 
   /* Build a list of entries to be flushed */
@@ -298,6 +300,7 @@ static int uc_update_metric(metric_t const *m) {
   }
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   cache_entry_t *ce = NULL;
   status = c_avl_get(cache_tree, buf.ptr, (void *)&ce);
@@ -404,6 +407,8 @@ int uc_update(metric_family_t const *fam) {
 
 int uc_set_callbacks_mask(const char *name, unsigned long mask) {
   pthread_mutex_lock(&cache_lock);
+  uc_init();
+
   cache_entry_t *ce = NULL;
   int status = c_avl_get(cache_tree, name, (void *)&ce);
   if (status != 0) { /* Ouch, just created entry disappeared ?! */
@@ -413,6 +418,7 @@ int uc_set_callbacks_mask(const char *name, unsigned long mask) {
   }
   DEBUG("uc_set_callbacks_mask: set mask for \"%s\" to %lu.", name, mask);
   ce->callbacks_mask = mask;
+
   pthread_mutex_unlock(&cache_lock);
   return 0;
 }
@@ -422,6 +428,7 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
   int status = 0;
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
     assert(ce != NULL);
@@ -490,6 +497,7 @@ gauge_t *uc_get_rate_vl(const data_set_t *ds, const value_list_t *vl) {
 
 int uc_get_value_by_name(const char *name, value_t *ret_values) {
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   cache_entry_t *ce = NULL;
   int status = 0;
@@ -508,7 +516,6 @@ int uc_get_value_by_name(const char *name, value_t *ret_values) {
   }
 
   pthread_mutex_unlock(&cache_lock);
-
   return status;
 } /* int uc_get_value_by_name */
 
@@ -527,6 +534,8 @@ int uc_get_value(metric_t const *m, value_t *ret) {
 } /* value_t *uc_get_value */
 
 static int uc_get_first_time_by_name(const char *name, cdtime_t *ret_time) {
+  uc_init();
+
   cache_entry_t *ce = NULL;
   int err = c_avl_get(cache_tree, name, (void *)&ce);
   if (err == ENOENT) {
@@ -560,12 +569,12 @@ int uc_get_first_time(metric_t const *m, cdtime_t *ret_time) {
 }
 
 size_t uc_get_size(void) {
-  size_t size_arrays = 0;
-
   pthread_mutex_lock(&cache_lock);
-  size_arrays = (size_t)c_avl_size(cache_tree);
-  pthread_mutex_unlock(&cache_lock);
+  uc_init();
 
+  size_t size_arrays = (size_t)c_avl_size(cache_tree);
+
+  pthread_mutex_unlock(&cache_lock);
   return size_arrays;
 }
 
@@ -585,6 +594,7 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
     return -1;
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   size_arrays = (size_t)c_avl_size(cache_tree);
   if (size_arrays < 1) {
@@ -659,6 +669,7 @@ int uc_get_state(metric_t const *m) {
   }
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   cache_entry_t *ce = NULL;
   int ret = STATE_ERROR;
@@ -668,7 +679,6 @@ int uc_get_state(metric_t const *m) {
   }
 
   pthread_mutex_unlock(&cache_lock);
-
   STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_get_state */
@@ -683,6 +693,7 @@ int uc_set_state(metric_t const *m, int state) {
   }
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   cache_entry_t *ce = NULL;
   int ret = -1;
@@ -693,7 +704,6 @@ int uc_set_state(metric_t const *m, int state) {
   }
 
   pthread_mutex_unlock(&cache_lock);
-
   STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_set_state */
@@ -704,6 +714,7 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
   int status = 0;
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   status = c_avl_get(cache_tree, name, (void *)&ce);
   if (status != 0) {
@@ -745,7 +756,6 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
   }
 
   pthread_mutex_unlock(&cache_lock);
-
   return 0;
 } /* int uc_get_history_by_name */
 
@@ -759,6 +769,7 @@ int uc_get_hits(metric_t const *m) {
   }
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   cache_entry_t *ce = NULL;
   int ret = STATE_ERROR;
@@ -768,7 +779,6 @@ int uc_get_hits(metric_t const *m) {
   }
 
   pthread_mutex_unlock(&cache_lock);
-
   STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_get_hits */
@@ -783,6 +793,7 @@ int uc_set_hits(metric_t const *m, int hits) {
   }
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   cache_entry_t *ce = NULL;
   int ret = -1;
@@ -793,7 +804,6 @@ int uc_set_hits(metric_t const *m, int hits) {
   }
 
   pthread_mutex_unlock(&cache_lock);
-
   STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_set_hits */
@@ -808,6 +818,7 @@ int uc_inc_hits(metric_t const *m, int step) {
   }
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   cache_entry_t *ce = NULL;
   int ret = -1;
@@ -818,7 +829,6 @@ int uc_inc_hits(metric_t const *m, int step) {
   }
 
   pthread_mutex_unlock(&cache_lock);
-
   STRBUF_DESTROY(buf);
   return ret;
 } /* int uc_inc_hits */
@@ -832,6 +842,7 @@ uc_iter_t *uc_get_iterator(void) {
     return NULL;
 
   pthread_mutex_lock(&cache_lock);
+  uc_init();
 
   iter->iter = c_avl_get_iterator(cache_tree);
   if (iter->iter == NULL) {
@@ -850,8 +861,9 @@ int uc_iterator_next(uc_iter_t *iter, char **ret_name) {
 
   while ((status = c_avl_iterator_next(iter->iter, (void *)&iter->name,
                                        (void *)&iter->entry)) == 0) {
-    if (iter->entry->state == STATE_MISSING)
+    if (iter->entry->state == STATE_MISSING) {
       continue;
+    }
 
     break;
   }
@@ -914,8 +926,9 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta) {
  * Meta data interface
  */
 /* XXX: Must hold cache_lock when calling this function! */
-static meta_data_t *uc_get_meta(metric_t const *m) /* {{{ */
-{
+static meta_data_t *uc_get_meta(metric_t const *m) {
+  uc_init();
+
   strbuf_t buf = STRBUF_CREATE;
   int status = metric_identity(&buf, m);
   if (status != 0) {
@@ -939,7 +952,7 @@ static meta_data_t *uc_get_meta(metric_t const *m) /* {{{ */
   }
 
   return ce->meta;
-} /* }}} meta_data_t *uc_get_meta */
+}
 
 /* Sorry about this preprocessor magic, but it really makes this file much
  * shorter.. */
