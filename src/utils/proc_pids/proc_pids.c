@@ -116,7 +116,7 @@ int pids_list_clear(pids_list_t *list) {
 int pids_list_contains_pid(pids_list_t *list, const pid_t pid) {
   assert(list);
 
-  for (int i = 0; i < list->size; i++)
+  for (size_t i = 0; i < list->size; i++)
     if (list->pids[i] == pid)
       return 1;
 
@@ -330,14 +330,14 @@ int pids_list_diff(proc_pids_t *proc, pids_list_t *added,
     return pids_list_add_list(removed, proc->prev);
   }
 
-  for (int i = 0; i < proc->prev->size; i++)
+  for (size_t i = 0; i < proc->prev->size; i++)
     if (0 == pids_list_contains_pid(proc->curr, proc->prev->pids[i])) {
       int add_result = pids_list_add_pid(removed, proc->prev->pids[i]);
       if (add_result < 0)
         return add_result;
     }
 
-  for (int i = 0; i < proc->curr->size; i++)
+  for (size_t i = 0; i < proc->curr->size; i++)
     if (0 == pids_list_contains_pid(proc->prev, proc->curr->pids[i])) {
       int add_result = pids_list_add_pid(added, proc->curr->pids[i]);
       if (add_result < 0)
