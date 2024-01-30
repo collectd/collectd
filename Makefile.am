@@ -160,6 +160,7 @@ check_PROGRAMS = \
 	test_format_graphite \
 	test_meta_data \
 	test_metric \
+	test_daemon_cache \
 	test_utils_avltree \
 	test_utils_cmds \
 	test_utils_heap \
@@ -358,6 +359,9 @@ if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
 
+
+test_daemon_cache_SOURCES = src/daemon/utils_cache_test.c
+test_daemon_cache_LDADD = libplugin_mock.la
 
 test_common_SOURCES = \
 	src/utils/common/common_test.c \
