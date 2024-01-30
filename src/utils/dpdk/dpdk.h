@@ -85,6 +85,6 @@ uint128_t str_to_uint128(const char *str, int len);
 /* logging functions that should be used in child process */
 #define DPDK_CHILD_LOG(...) fprintf(stdout, __VA_ARGS__)
 #define DPDK_CHILD_TRACE(_name)                                                \
-  fprintf(stdout, "%s:%s:%d pid=%u\n", _name, __FUNCTION__, __LINE__, getpid())
+  fprintf(stdout, "%s:%s:%d pid=%u\n", _name, __func__, __LINE__, getpid())
 
 #endif /* UTILS_DPDK_H */
