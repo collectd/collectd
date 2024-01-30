@@ -213,9 +213,9 @@ static int md_events_config(const char *key, const char *value) {
 
 static void md_events_handle_regex_error(int rc, regex_t *regex,
                                          const char *func_name) {
-  char buf[MAX_ERROR_MSG] = {};
+  char buf[MAX_ERROR_MSG];
 
-  regerror(rc, regex, buf, MAX_ERROR_MSG);
+  regerror(rc, regex, buf, sizeof(buf));
   DEBUG("%s() failed with '%s'\n", func_name, buf);
 }
 
@@ -284,15 +284,16 @@ static void md_events_copy_match(char *buf, const char *line,
 }
 
 static int md_events_match_regex(regex_t *regex, const char *to_match) {
-  regmatch_t matches[MAX_MATCHES] = {};
+  regmatch_t matches[MAX_MATCHES];
   int status, severity;
-  md_events_event_t event = {};
 
-  status = regexec(regex, to_match, MAX_MATCHES, matches, 0);
+  status = regexec(regex, to_match, STATIC_ARRAY_SIZE(matches), matches, 0);
   if (status) {
     md_events_handle_regex_error(status, regex, "regexec");
     return -1;
   }
+
+  md_events_event_t event = {0};
 
   // each element from matches array contains the indexes (start/end) within
   // the string that we ran regexp on; use them to retrieve the substrings
