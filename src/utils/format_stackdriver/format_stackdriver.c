@@ -129,7 +129,7 @@ static int format_gcm_resource(yajl_gen gen, sd_resource_t *res) /* {{{ */
  * }
  */
 static int format_typed_value(yajl_gen gen, metric_t const *m,
-                              int64_t start_value) {
+                              counter_t start_value) {
   char integer[32];
 
   yajl_gen_map_open(gen);
@@ -150,8 +150,8 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
   }
   case METRIC_TYPE_COUNTER: {
     /* Counter resets are handled in format_time_series(). */
-    assert(m->value.counter >= (uint64_t)start_value);
-    uint64_t diff = m->value.counter - (uint64_t)start_value;
+    assert(m->value.counter >= start_value);
+    uint64_t diff = m->value.counter - start_value;
     ssnprintf(integer, sizeof(integer), "%" PRIu64, diff);
     break;
   }
@@ -280,7 +280,7 @@ static int format_time_interval(yajl_gen gen, metric_t const *m,
  * the first time, or reset (the current value is smaller than the cached
  * value), the start time is (re)set to vl->time. */
 static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
-                                 int64_t *ret_start_value) {
+                                 counter_t *ret_start_value) {
   /* TODO(octo): Add back DERIVE here. */
   if (m->family->type != METRIC_TYPE_COUNTER) {
     return 0;
@@ -290,17 +290,17 @@ static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
   char const *start_time_key = "stackdriver:start_time";
 
   int status =
-      uc_meta_data_get_signed_int(m, start_value_key, ret_start_value) ||
+      uc_meta_data_get_unsigned_int(m, start_value_key, ret_start_value) ||
       uc_meta_data_get_unsigned_int(m, start_time_key, ret_start_time);
   bool is_reset = *ret_start_value > m->value.counter;
   if ((status == 0) && !is_reset) {
     return 0;
   }
 
-  *ret_start_value = (int64_t)m->value.counter;
+  *ret_start_value = m->value.counter;
   *ret_start_time = m->time;
 
-  return uc_meta_data_add_signed_int(m, start_value_key, *ret_start_value) ||
+  return uc_meta_data_add_unsigned_int(m, start_value_key, *ret_start_value) ||
          uc_meta_data_add_unsigned_int(m, start_time_key, *ret_start_time);
 } /* int read_cumulative_state */
 
@@ -316,7 +316,7 @@ static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
  * }
  */
 static int format_point(yajl_gen gen, metric_t const *m, cdtime_t start_time,
-                        int64_t start_value) {
+                        counter_t start_value) {
   /* {{{ */
   yajl_gen_map_open(gen);
 
@@ -396,7 +396,7 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
   metric_type_t type = m->family->type;
 
   cdtime_t start_time = 0;
-  int64_t start_value = 0;
+  counter_t start_value = 0;
   int status = read_cumulative_state(m, &start_time, &start_value);
   if (status != 0) {
     return status;
@@ -412,8 +412,7 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
     }
   }
   if (type == METRIC_TYPE_COUNTER) {
-    uint64_t sv = (uint64_t)start_value;
-    if (m->value.counter < sv) {
+    if (m->value.counter < start_value) {
       return EAGAIN;
     }
   }
