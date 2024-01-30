@@ -133,8 +133,9 @@ static meta_entry_t *md_entry_clone(const meta_entry_t *orig) /* {{{ */
     return NULL;
 
   copy = md_entry_clone_contents(orig);
+  if (copy != NULL)
+    copy->next = md_entry_clone(orig->next);
 
-  copy->next = md_entry_clone(orig->next);
   return copy;
 } /* }}} meta_entry_t *md_entry_clone */
 
