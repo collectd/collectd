@@ -375,11 +375,13 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
     if (!isfinite(m->value.gauge)) {
       return EAGAIN;
     }
+    break;
   case METRIC_TYPE_COUNTER:
     // for cumulative metrics the interval must not be zero.
     if (start.time == m->time) {
       return EAGAIN;
     }
+    break;
   case METRIC_TYPE_UNTYPED:
     ERROR("format_stackdriver: Invalid metric type: %d", m->family->type);
     return EINVAL;
