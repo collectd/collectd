@@ -450,13 +450,13 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
       DEBUG("utils_cache: uc_get_rate_by_name: requested metric \"%s\" is in "
             "state \"missing\".",
             name);
-      status = -1;
+      status = EAGAIN;
     } else {
       *ret_values = ce->values_gauge;
     }
   } else {
     DEBUG("utils_cache: uc_get_rate_by_name: No such value: %s", name);
-    status = -1;
+    status = ENOENT;
   }
 
   pthread_mutex_unlock(&cache_lock);

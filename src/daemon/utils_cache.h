@@ -48,7 +48,24 @@ value_t *uc_get_value_vl(const data_set_t *ds, const value_list_t *vl);
 
 int uc_get_rate_by_name(const char *name, gauge_t *ret_value);
 
+/* uc_get_rate returns the rate of change for cumulative types (counters) in
+ * `ret_value`. The rate is (approximately) calculcated as:
+ *
+ *   rate = (last_value - prev_value) / (last_time - prev_time)
+ *
+ * Counter overflows are handled correctly. This typically causes counter
+ * resets to result in huge spikes. Unfortunately it is not easily possible to
+ * distinguish between the two. You can determine whether a reset/overflow
+ * occurred by comparing the time returned by `uc_first_metric()` with the
+ * metric time: in an overflow/reset situation, the values are equal.
+ *
+ * For non-cumulative types (gauge), the last value is returned in `ret_value`.
+ *
+ * Returns zero on success, ENOENT if the metric is not in the cache, and
+ * EAGAIN if the metric has state STATE_MISSING.
+ */
 int uc_get_rate(metric_t const *m, gauge_t *ret_value);
+
 int uc_get_value_by_name(const char *name, value_t *ret_value);
 int uc_get_value(metric_t const *m, value_t *ret_value);
 
