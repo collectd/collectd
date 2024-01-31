@@ -35,22 +35,31 @@
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
 
+static int format_double(strbuf_t *buf, double d) {
+  if (isnan(d)) {
+    return strbuf_print(buf, "nan");
+  }
+  return strbuf_printf(buf, GAUGE_FORMAT, d);
+}
+
 static int gr_format_values(strbuf_t *buf, metric_t const *m, gauge_t rate,
                             bool store_rate) {
-  if (!store_rate && ((m->family->type == METRIC_TYPE_GAUGE) ||
-                      (m->family->type == METRIC_TYPE_UNTYPED))) {
+  if (m->family->type == METRIC_TYPE_GAUGE) {
     rate = m->value.gauge;
-    store_rate = true;
   }
 
   if (store_rate) {
-    if (isnan(rate)) {
-      return strbuf_print(buf, "nan");
-    } else {
-      return strbuf_printf(buf, GAUGE_FORMAT, m->value.gauge);
-    }
-  } else if (m->family->type == METRIC_TYPE_COUNTER) {
-    return strbuf_printf(buf, "%" PRIu64, (uint64_t)m->value.counter);
+    return format_double(buf, rate);
+  }
+
+  switch (m->family->type) {
+  case METRIC_TYPE_COUNTER:
+    return strbuf_printf(buf, "%" PRIu64, m->value.counter);
+  case METRIC_TYPE_FPCOUNTER:
+    return format_double(buf, m->value.fpcounter);
+  case METRIC_TYPE_GAUGE:
+    return format_double(buf, m->value.gauge);
+  case METRIC_TYPE_UNTYPED:
   }
 
   P_ERROR("gr_format_values: Unknown data source type: %d", m->family->type);
