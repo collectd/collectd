@@ -6810,6 +6810,7 @@ plugin_nut="$with_libupsclient"
 plugin_olsrd="yes"
 plugin_onewire="$with_libowcapi"
 plugin_openldap="$with_libldap"
+plugin_open_telemetry_collector="yes"
 plugin_openvpn="yes"
 plugin_oracle="$with_oracle"
 plugin_ovs_events="no"
@@ -7145,18 +7146,22 @@ fi
 
 if test "x$GRPC_CPP_PLUGIN" = "x"; then
   plugin_grpc="no (grpc_cpp_plugin not found)"
+  plugin_open_telemetry_collector="no (grpc_cpp_plugin not found)"
   plugin_write_open_telemetry="no (grpc_cpp_plugin not found)"
 fi
 if test "x$have_protoc3" != "xyes"; then
   plugin_grpc="no (protoc3 not found)"
+  plugin_open_telemetry_collector="no (protoc3 not found)"
   plugin_write_open_telemetry="no (protoc3 not found)"
 fi
 if test "x$with_libprotobuf" != "xyes"; then
   plugin_grpc="no (libprotobuf not found)"
+  plugin_open_telemetry_collector="no (libprotobuf not found)"
   plugin_write_open_telemetry="no (libprotobuf not found)"
 fi
 if test "x$with_libgrpcpp" != "xyes"; then
   plugin_grpc="no (libgrpc++ not found)"
+  plugin_open_telemetry_collector="no (libgrpc++ not found)"
   plugin_write_open_telemetry="no (libgrpc++ not found)"
 fi
 if test "x$protoc3_optional" = "xno"; then
@@ -7517,6 +7522,7 @@ AC_PLUGIN([olsrd],               [$plugin_olsrd],             [olsrd statistics]
 AC_PLUGIN([onewire],             [$plugin_onewire],           [OneWire sensor statistics])
 AC_PLUGIN([openldap],            [$plugin_openldap],          [OpenLDAP statistics])
 AC_PLUGIN([openvpn],             [$plugin_openvpn],           [OpenVPN client statistics])
+AC_PLUGIN([open_telemetry_collector], [$plugin_open_telemetry_collector], [OpenTelemetry Collector])
 AC_PLUGIN([oracle],              [$plugin_oracle],            [Oracle plugin])
 AC_PLUGIN([ovs_events],          [$plugin_ovs_events],        [OVS events plugin])
 AC_PLUGIN([ovs_stats],           [$plugin_ovs_stats],         [OVS statistics plugin])

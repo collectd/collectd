@@ -1744,6 +1744,16 @@ openvpn_la_SOURCES = src/openvpn.c
 openvpn_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_OPEN_TELEMETRY_COLLECTOR
+pkglib_LTLIBRARIES += open_telemetry_collector.la
+open_telemetry_collector_la_SOURCES = src/open_telemetry_collector.cc \
+				  opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
+				  opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h
+open_telemetry_collector_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS)
+open_telemetry_collector_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS)
+open_telemetry_collector_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS)
+endif
+
 if BUILD_PLUGIN_ORACLE
 pkglib_LTLIBRARIES += oracle.la
 oracle_la_SOURCES = \
