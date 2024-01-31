@@ -120,6 +120,7 @@ static int json_add_value(yajl_gen g, metric_t const *m,
     CHECK(yajl_gen_integer(g, (long long int)m->value.counter));
     return 0;
   case METRIC_TYPE_UNTYPED:
+    break;
   }
 
   ERROR("format_kairosdb: Invalid metric type: %d", m->family->type);

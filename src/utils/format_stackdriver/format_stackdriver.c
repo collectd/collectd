@@ -191,6 +191,7 @@ static int format_metric_kind(yajl_gen gen, metric_t const *m) {
   case METRIC_TYPE_FPCOUNTER:
     return json_string(gen, "CUMULATIVE");
   case METRIC_TYPE_UNTYPED:
+    break;
   }
   ERROR("format_metric_kind: invalid metric type %d.", m->family->type);
   return EINVAL;
@@ -211,6 +212,7 @@ static int format_value_type(yajl_gen gen, metric_t const *m) {
   case METRIC_TYPE_COUNTER:
     return json_string(gen, "INT64");
   case METRIC_TYPE_UNTYPED:
+    break;
   }
   ERROR("format_metric_kind: invalid metric type %d.", m->family->type);
   return EINVAL;

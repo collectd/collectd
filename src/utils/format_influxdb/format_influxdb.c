@@ -84,6 +84,7 @@ static int format_metric_value(strbuf_t *sb, metric_t const *m,
   case METRIC_TYPE_FPCOUNTER:
     return strbuf_printf(sb, "value=" GAUGE_FORMAT, m->value.fpcounter);
   case METRIC_TYPE_UNTYPED:
+    break;
   }
 
   ERROR("format_influxdb plugin: invalid metric type: %d", m->family->type);

@@ -60,6 +60,7 @@ static int gr_format_values(strbuf_t *buf, metric_t const *m, gauge_t rate,
   case METRIC_TYPE_GAUGE:
     return format_double(buf, m->value.gauge);
   case METRIC_TYPE_UNTYPED:
+    break;
   }
 
   P_ERROR("gr_format_values: Unknown data source type: %d", m->family->type);
