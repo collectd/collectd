@@ -267,7 +267,7 @@ void format_metric_family_name(strbuf_t *buf, metric_family_t const *fam) {
     strbuf_print_restricted(buf, fam->unit, VALID_NAME_CHARS, '_');
   }
 
-  if (fam->type == METRIC_TYPE_COUNTER) {
+  if (fam->type == METRIC_TYPE_COUNTER || fam->type == METRIC_TYPE_FPCOUNTER) {
     strbuf_print(buf, "_total");
   }
 }
@@ -283,6 +283,7 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
     type = "gauge";
     break;
   case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_FPCOUNTER:
     type = "counter";
     break;
   case METRIC_TYPE_UNTYPED:
