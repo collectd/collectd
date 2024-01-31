@@ -129,9 +129,7 @@ static int format_gcm_resource(yajl_gen gen, sd_resource_t *res) /* {{{ */
  * }
  */
 static int format_typed_value(yajl_gen gen, metric_t const *m,
-                              counter_t start_value) {
-  char integer[32];
-
+                              value_t start_value) {
   yajl_gen_map_open(gen);
 
   switch (m->family->type) {
@@ -150,20 +148,22 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
   }
   case METRIC_TYPE_COUNTER: {
     /* Counter resets are handled in format_time_series(). */
-    assert(m->value.counter >= start_value);
-    uint64_t diff = m->value.counter - start_value;
+    assert(m->value.counter >= start_value.counter);
+
+    counter_t diff = m->value.counter - start_value.counter;
+    char integer[64] = {0};
     ssnprintf(integer, sizeof(integer), "%" PRIu64, diff);
+
+    int status = json_string(gen, "int64Value") || json_string(gen, integer);
+    if (status != 0) {
+      return status;
+    }
     break;
   }
   default: {
     ERROR("format_typed_value: unknown value type %d.", m->family->type);
     return EINVAL;
   }
-  }
-
-  int status = json_string(gen, "int64Value") || json_string(gen, integer);
-  if (status != 0) {
-    return status;
   }
 
   yajl_gen_map_close(gen);
@@ -275,35 +275,6 @@ static int format_time_interval(yajl_gen gen, metric_t const *m,
   return 0;
 } /* }}} int format_time_interval */
 
-/* read_cumulative_state reads the start time and start value of cumulative
- * (i.e. METRIC_TYPE_COUNTER) metrics from the cache. If a metric is seen for
- * the first time, or reset (the current value is smaller than the cached
- * value), the start time is (re)set to vl->time. */
-static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
-                                 counter_t *ret_start_value) {
-  /* TODO(octo): Add back DERIVE here. */
-  if (m->family->type != METRIC_TYPE_COUNTER) {
-    return 0;
-  }
-
-  char const *start_value_key = "stackdriver:start_value";
-  char const *start_time_key = "stackdriver:start_time";
-
-  int status =
-      uc_meta_data_get_unsigned_int(m, start_value_key, ret_start_value) ||
-      uc_meta_data_get_unsigned_int(m, start_time_key, ret_start_time);
-  bool is_reset = *ret_start_value > m->value.counter;
-  if ((status == 0) && !is_reset) {
-    return 0;
-  }
-
-  *ret_start_value = m->value.counter;
-  *ret_start_time = m->time;
-
-  return uc_meta_data_add_unsigned_int(m, start_value_key, *ret_start_value) ||
-         uc_meta_data_add_unsigned_int(m, start_time_key, *ret_start_time);
-} /* int read_cumulative_state */
-
 /* Point
  *
  * {
@@ -316,7 +287,7 @@ static int read_cumulative_state(metric_t const *m, cdtime_t *ret_start_time,
  * }
  */
 static int format_point(yajl_gen gen, metric_t const *m, cdtime_t start_time,
-                        counter_t start_value) {
+                        value_t start_value) {
   /* {{{ */
   yajl_gen_map_open(gen);
 
@@ -393,43 +364,41 @@ static int format_metric(yajl_gen gen, metric_t const *m) {
  * Stackdriver due to lack of state. */
 static int format_time_series(yajl_gen gen, metric_t const *m,
                               sd_resource_t *res) {
-  metric_type_t type = m->family->type;
+  uc_first_metric_result_t start = uc_first_metric(m);
+  if (start.err) {
+    ERROR("format_stackdriver: uc_first_metric failed: %s",
+          STRERROR(start.err));
+    return start.err;
+  }
 
-  cdtime_t start_time = 0;
-  counter_t start_value = 0;
-  int status = read_cumulative_state(m, &start_time, &start_value);
-  if (status != 0) {
-    return status;
-  }
-  if (start_time == m->time) {
-    /* for cumulative metrics, the interval must not be zero. */
-    return EAGAIN;
-  }
-  if ((type == METRIC_TYPE_GAUGE) || (type == METRIC_TYPE_UNTYPED)) {
-    double d = (double)m->value.gauge;
-    if (isnan(d) || isinf(d)) {
+  switch (m->family->type) {
+  case METRIC_TYPE_GAUGE:
+    if (!isfinite(m->value.gauge)) {
       return EAGAIN;
     }
-  }
-  if (type == METRIC_TYPE_COUNTER) {
-    if (m->value.counter < start_value) {
+  case METRIC_TYPE_COUNTER:
+    // for cumulative metrics the interval must not be zero.
+    if (start.time == m->time) {
       return EAGAIN;
     }
+  case METRIC_TYPE_UNTYPED:
+    ERROR("format_stackdriver: Invalid metric type: %d", m->family->type);
+    return EINVAL;
   }
 
   yajl_gen_map_open(gen);
 
-  status = json_string(gen, "metric") || format_metric(gen, m) ||
-           json_string(gen, "resource") || format_gcm_resource(gen, res) ||
-           json_string(gen, "metricKind") || format_metric_kind(gen, m) ||
-           json_string(gen, "valueType") || format_value_type(gen, m) ||
-           json_string(gen, "points");
+  int status = json_string(gen, "metric") || format_metric(gen, m) ||
+               json_string(gen, "resource") || format_gcm_resource(gen, res) ||
+               json_string(gen, "metricKind") || format_metric_kind(gen, m) ||
+               json_string(gen, "valueType") || format_value_type(gen, m) ||
+               json_string(gen, "points");
   if (status != 0)
     return status;
 
   yajl_gen_array_open(gen);
 
-  status = format_point(gen, m, start_time, start_value);
+  status = format_point(gen, m, start.time, start.value);
   if (status != 0)
     return status;
 
