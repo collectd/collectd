@@ -36,6 +36,12 @@
 #define DS_TYPE_GAUGE METRIC_TYPE_GAUGE
 #define DS_TYPE_DERIVE (65536 + METRIC_ATTR_CUMULATIVE + 1)
 
+#define DS_TYPE_TO_STRING(t)                                                   \
+  (t == DS_TYPE_COUNTER)  ? "counter"                                          \
+  : (t == DS_TYPE_GAUGE)  ? "gauge"                                            \
+  : (t == DS_TYPE_DERIVE) ? "derive"                                           \
+                          : "unknown"
+
 struct value_list_s {
   value_t *values;
   size_t values_len;
