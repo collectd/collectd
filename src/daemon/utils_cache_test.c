@@ -51,6 +51,15 @@ DEF_TEST(uc_get_rate) {
           .want = 2.0,
       },
       {
+          .name = "decreasing gauge",
+          .first_value = (value_t){.gauge = 100.0},
+          .second_value = (value_t){.gauge = 21.5},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_GAUGE,
+          .want = 21.5,
+      },
+      {
           .name = "counter",
           .first_value = (value_t){.counter = 42},
           .second_value = (value_t){.counter = 102},
