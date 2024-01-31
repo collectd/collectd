@@ -59,7 +59,9 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_value);
  * occurred by comparing the time returned by `uc_first_metric()` with the
  * metric time: in an overflow/reset situation, the values are equal.
  *
- * For non-cumulative types (gauge), the last value is returned in `ret_value`.
+ * For non-cumulative types (gauge), the function takes a short cut and returns
+ * `m->value.gauge` in `ret_value`. Since this is a fast operation, plugin
+ * authors are discouraged from writing special cases for gauge metrics.
  *
  * Returns zero on success, ENOENT if the metric is not in the cache, and
  * EAGAIN if the metric has state STATE_MISSING.

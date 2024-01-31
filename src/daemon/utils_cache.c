@@ -465,6 +465,14 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_values) {
 } /* gauge_t *uc_get_rate_by_name */
 
 int uc_get_rate(metric_t const *m, gauge_t *ret) {
+  if (m == NULL || m->family == NULL || ret == NULL) {
+    return EINVAL;
+  }
+  if (m->family->type == METRIC_TYPE_GAUGE) {
+    *ret = m->value.gauge;
+    return 0;
+  }
+
   strbuf_t buf = STRBUF_CREATE;
   int status = metric_identity(&buf, m);
   if (status != 0) {
