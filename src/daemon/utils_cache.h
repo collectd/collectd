@@ -47,12 +47,21 @@ int uc_get_value_by_name_vl(const char *name, value_t **ret_values,
 value_t *uc_get_value_vl(const data_set_t *ds, const value_list_t *vl);
 
 int uc_get_rate_by_name(const char *name, gauge_t *ret_value);
+
 int uc_get_rate(metric_t const *m, gauge_t *ret_value);
 int uc_get_value_by_name(const char *name, value_t *ret_value);
 int uc_get_value(metric_t const *m, value_t *ret_value);
 
-// uc_get_first_time returns the first observed metric time.
-int uc_get_first_time(metric_t const *m, cdtime_t *ret_time);
+typedef struct {
+  cdtime_t time;
+  value_t value;
+  int err;
+} uc_first_metric_result_t;
+
+// uc_first_metric returns the first observed metric value and time.
+// For cumulative metrics (METRIC_TYPE_COUNTER and METRIC_TYPE_FPCOUNTER),
+// counter resets and counter overflows will reset the value.
+uc_first_metric_result_t uc_first_metric(metric_t const *m);
 
 size_t uc_get_size(void);
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);

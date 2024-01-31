@@ -41,11 +41,14 @@
 typedef struct cache_entry_s {
   char name[6 * DATA_MAX_NAME_LEN];
   gauge_t values_gauge;
-  value_t values_raw;
   /* First observed metric time */
   cdtime_t first_time;
+  /* First observed metric value */
+  value_t first_value;
   /* Last observed metric time (for calculating rates) */
   cdtime_t last_time;
+  /* Last observed metric value (for calculating rates) */
+  value_t last_value;
   /* Time according to the local clock (for purging old entries) */
   cdtime_t last_update;
   /* Interval in which the data is collected
@@ -102,7 +105,7 @@ static cache_entry_t *cache_alloc() {
   }
 
   ce->values_gauge = 0;
-  ce->values_raw = (value_t){.gauge = 0};
+  ce->last_value = (value_t){.gauge = 0};
   ce->history = NULL;
   ce->history_length = 0;
   ce->meta = NULL;
@@ -141,8 +144,9 @@ static int uc_insert(metric_t const *m, char const *key) {
 
   *ce = (cache_entry_t){
       .first_time = m->time,
-      .values_raw = m->value,
+      .first_value = m->value,
       .last_time = m->time,
+      .last_value = m->value,
       .last_update = cdtime(),
       .interval = m->interval,
       .state = STATE_UNKNOWN,
@@ -330,16 +334,23 @@ static int uc_update_metric(metric_t const *m) {
 
   switch (m->family->type) {
   case METRIC_TYPE_COUNTER: {
-    counter_t diff = counter_diff(ce->values_raw.counter, m->value.counter);
+    // Counter overflows and counter resets are signaled to plugins by resetting
+    // "first_time". Since we can't distinguish between an overflow and a
+    // reset, we still provide a non-NAN rate value. In case of a counter
+    // reset, the rate value will likely be unreasonably huge.
+    if (ce->last_value.counter > m->value.counter) {
+      // counter reset
+      ce->first_time = m->time;
+      ce->first_value = m->value;
+    }
+    counter_t diff = counter_diff(ce->last_value.counter, m->value.counter);
     ce->values_gauge =
-        ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
-    ce->values_raw.counter = m->value.counter;
+        ((double)diff) / CDTIME_T_TO_DOUBLE(m->time - ce->last_time);
     break;
   }
 
   case METRIC_TYPE_UNTYPED:
   case METRIC_TYPE_GAUGE: {
-    ce->values_raw.gauge = m->value.gauge;
     ce->values_gauge = m->value.gauge;
     break;
   }
@@ -375,6 +386,7 @@ static int uc_update_metric(metric_t const *m) {
     ce->history_index = (ce->history_index + 1) % ce->history_length;
   }
 
+  ce->last_value = m->value;
   ce->last_time = m->time;
   ce->last_update = cdtime();
   ce->interval = m->interval;
@@ -508,7 +520,7 @@ int uc_get_value_by_name(const char *name, value_t *ret_values) {
     if (ce->state == STATE_MISSING) {
       status = -1;
     } else {
-      *ret_values = ce->values_raw;
+      *ret_values = ce->last_value;
     }
   } else {
     DEBUG("utils_cache: uc_get_value_by_name: No such value: %s", name);
@@ -533,39 +545,42 @@ int uc_get_value(metric_t const *m, value_t *ret) {
   return status;
 } /* value_t *uc_get_value */
 
-static int uc_get_first_time_by_name(const char *name, cdtime_t *ret_time) {
+static uc_first_metric_result_t uc_first_metric_by_name(const char *name) {
   uc_init();
 
   cache_entry_t *ce = NULL;
   int err = c_avl_get(cache_tree, name, (void *)&ce);
   if (err == ENOENT) {
-    DEBUG("utils_cache: uc_get_first_time: No such value: %s", name);
-    return err;
-  } else if (err != 0) {
-    ERROR("utils_cache: uc_get_first_time: c_avl_get(\"%s\") failed: %s", name,
+    DEBUG("utils_cache: uc_first_metric: No such value: \"%s\"", name);
+    return (uc_first_metric_result_t){.err = err};
+  }
+  if (err != 0) {
+    ERROR("utils_cache: uc_first_metric: c_avl_get(\"%s\") failed: %s", name,
           STRERROR(err));
-    return err;
+    return (uc_first_metric_result_t){.err = err};
   }
 
-  *ret_time = ce->first_time;
-  return 0;
+  return (uc_first_metric_result_t){
+      .time = ce->first_time,
+      .value = ce->first_value,
+  };
 }
 
-int uc_get_first_time(metric_t const *m, cdtime_t *ret_time) {
-  strbuf_t buf = STRBUF_CREATE;
-  int err = metric_identity(&buf, m);
+uc_first_metric_result_t uc_first_metric(metric_t const *m) {
+  strbuf_t id = STRBUF_CREATE;
+  int err = metric_identity(&id, m);
   if (err != 0) {
-    ERROR("uc_get_value: metric_identity failed with status %d.", err);
-    STRBUF_DESTROY(buf);
-    return err;
+    ERROR("uc_first_metric: metric_identity failed with status %d.", err);
+    STRBUF_DESTROY(id);
+    return (uc_first_metric_result_t){.err = err};
   }
 
   pthread_mutex_lock(&cache_lock);
-  err = uc_get_first_time_by_name(buf.ptr, ret_time);
+  uc_first_metric_result_t res = uc_first_metric_by_name(id.ptr);
   pthread_mutex_unlock(&cache_lock);
 
-  STRBUF_DESTROY(buf);
-  return err;
+  STRBUF_DESTROY(id);
+  return res;
 }
 
 size_t uc_get_size(void) {
@@ -901,7 +916,7 @@ int uc_iterator_get_values(uc_iter_t *iter, value_t *ret_values) {
   if ((iter == NULL) || (iter->entry == NULL) || (ret_values == NULL))
     return -1;
 
-  *ret_values = iter->entry->values_raw;
+  *ret_values = iter->entry->last_value;
   return 0;
 } /* int uc_iterator_get_values */
 
