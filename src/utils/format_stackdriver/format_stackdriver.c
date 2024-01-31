@@ -134,16 +134,24 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
 
   switch (m->family->type) {
   case METRIC_TYPE_GAUGE: {
-    int status = json_string(gen, "doubleValue");
-    if (status != 0)
+    int status = json_string(gen, "doubleValue") ||
+                 (int)yajl_gen_double(gen, m->value.gauge);
+    if (status != 0) {
       return status;
+    }
+    break;
+  }
+  case METRIC_TYPE_FPCOUNTER: {
+    /* Counter resets are handled in format_time_series(). */
+    assert(m->value.fpcounter >= start_value.fpcounter);
 
-    status = (int)yajl_gen_double(gen, (double)m->value.gauge);
-    if (status != yajl_gen_status_ok)
+    fpcounter_t diff = m->value.fpcounter - start_value.fpcounter;
+    int status =
+        json_string(gen, "doubleValue") || (int)yajl_gen_double(gen, diff);
+    if (status != 0) {
       return status;
-
-    yajl_gen_map_close(gen);
-    return 0;
+    }
+    break;
   }
   case METRIC_TYPE_COUNTER: {
     /* Counter resets are handled in format_time_series(). */
@@ -160,8 +168,7 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
     break;
   }
   case METRIC_TYPE_UNTYPED:
-  default:
-    ERROR("format_typed_value: invalid metric type: %d", m->family->type);
+    ERROR("format_typed_value: invalid metric type %d.", m->family->type);
     return EINVAL;
   }
 
@@ -179,14 +186,14 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
 static int format_metric_kind(yajl_gen gen, metric_t const *m) {
   switch (m->family->type) {
   case METRIC_TYPE_GAUGE:
-  case METRIC_TYPE_UNTYPED:
     return json_string(gen, "GAUGE");
   case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_FPCOUNTER:
     return json_string(gen, "CUMULATIVE");
-  default:
-    ERROR("format_metric_kind: unknown value type %d.", m->family->type);
-    return EINVAL;
+  case METRIC_TYPE_UNTYPED:
   }
+  ERROR("format_metric_kind: invalid metric type %d.", m->family->type);
+  return EINVAL;
 }
 
 /* ValueType
@@ -199,14 +206,14 @@ static int format_metric_kind(yajl_gen gen, metric_t const *m) {
 static int format_value_type(yajl_gen gen, metric_t const *m) {
   switch (m->family->type) {
   case METRIC_TYPE_GAUGE:
-  case METRIC_TYPE_UNTYPED:
+  case METRIC_TYPE_FPCOUNTER:
     return json_string(gen, "DOUBLE");
   case METRIC_TYPE_COUNTER:
     return json_string(gen, "INT64");
-  default:
-    ERROR("format_value_type: unknown value type %d.", m->family->type);
-    return EINVAL;
+  case METRIC_TYPE_UNTYPED:
   }
+  ERROR("format_metric_kind: invalid metric type %d.", m->family->type);
+  return EINVAL;
 }
 
 static int metric_type(strbuf_t *buf, metric_t const *m) {
@@ -264,7 +271,8 @@ static int format_time_interval(yajl_gen gen, metric_t const *m,
   if (status != 0)
     return status;
 
-  if (m->family->type == METRIC_TYPE_COUNTER) {
+  if (m->family->type == METRIC_TYPE_COUNTER ||
+      m->family->type == METRIC_TYPE_FPCOUNTER) {
     int status = json_string(gen, "startTime") || json_time(gen, start_time);
     if (status != 0)
       return status;
@@ -377,6 +385,7 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
     }
     break;
   case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_FPCOUNTER:
     // for cumulative metrics the interval must not be zero.
     if (start.time == m->time) {
       return EAGAIN;

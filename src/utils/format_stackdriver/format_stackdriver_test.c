@@ -32,6 +32,7 @@ DEF_TEST(sd_format_metric_descriptor) {
     label_pair_t *labels;
     size_t labels_num;
     char *want;
+    int want_err;
   } cases[] = {
       {
           .name = "gauge_metric",
@@ -48,11 +49,16 @@ DEF_TEST(sd_format_metric_descriptor) {
                   "\"valueType\":\"INT64\",\"labels\":[]}",
       },
       {
+          .name = "fpcounter_metric",
+          .type = METRIC_TYPE_FPCOUNTER,
+          .want = "{\"type\":\"custom.googleapis.com/collectd/"
+                  "fpcounter_metric\",\"metricKind\":\"CUMULATIVE\","
+                  "\"valueType\":\"DOUBLE\",\"labels\":[]}",
+      },
+      {
           .name = "untyped_metric",
           .type = METRIC_TYPE_UNTYPED,
-          .want = "{\"type\":\"custom.googleapis.com/collectd/"
-                  "untyped_metric\",\"metricKind\":\"GAUGE\",\"valueType\":"
-                  "\"DOUBLE\",\"labels\":[]}",
+          .want_err = 1,
       },
       {
           .name = "metric_with_labels",
@@ -78,6 +84,7 @@ DEF_TEST(sd_format_metric_descriptor) {
   };
 
   for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++) {
+    printf("## Case %zu: %s\n", i, cases[i].name);
     metric_family_t fam = {
         .name = cases[i].name,
         .type = cases[i].type,
@@ -91,7 +98,11 @@ DEF_TEST(sd_format_metric_descriptor) {
     }
 
     strbuf_t buf = STRBUF_CREATE;
-    EXPECT_EQ_INT(0, sd_format_metric_descriptor(&buf, &m));
+    EXPECT_EQ_INT(cases[i].want_err, sd_format_metric_descriptor(&buf, &m));
+    if (cases[i].want_err) {
+      continue;
+    }
+
     EXPECT_EQ_STR(cases[i].want, buf.ptr);
 
     STRBUF_DESTROY(buf);
