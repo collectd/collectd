@@ -30,7 +30,11 @@
 #define UTILS_VALUE_LIST_H 1
 
 #include "daemon/data_set.h"
-#include "daemon/plugin.h"
+#include "daemon/metric.h" // for value_t
+
+#define DS_TYPE_COUNTER METRIC_TYPE_COUNTER
+#define DS_TYPE_GAUGE METRIC_TYPE_GAUGE
+#define DS_TYPE_DERIVE (65536 + METRIC_ATTR_CUMULATIVE + 1)
 
 struct value_list_s {
   value_t *values;

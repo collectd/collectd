@@ -154,14 +154,14 @@ static int uc_insert(metric_t const *m, char const *key) {
   sstrncpy(ce->name, key, sizeof(ce->name));
 
   switch (m->family->type) {
-  case DS_TYPE_COUNTER:
-  case DS_TYPE_DERIVE:
+  case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_FPCOUNTER:
     // Non-gauge types will store the rate in values_gauge when the second data
     // point is available. Initially, NAN signifies "not enough data".
     ce->values_gauge = NAN;
     break;
 
-  case DS_TYPE_GAUGE:
+  case METRIC_TYPE_GAUGE:
     ce->values_gauge = m->value.gauge;
     break;
 
@@ -349,22 +349,28 @@ static int uc_update_metric(metric_t const *m) {
     break;
   }
 
-  case METRIC_TYPE_UNTYPED:
+  case METRIC_TYPE_FPCOUNTER: {
+    // For floating point counters, the logic is slightly different from
+    // integer counters. Floating point counters don't have a (meaningful)
+    // overflow, and we will always assume a counter reset.
+    if (ce->last_value.fpcounter > m->value.fpcounter) {
+      // counter reset
+      ce->first_time = m->time;
+      ce->first_value = m->value;
+      ce->values_gauge = NAN;
+      break;
+    }
+    gauge_t diff = m->value.fpcounter - ce->last_value.fpcounter;
+    ce->values_gauge = diff / CDTIME_T_TO_DOUBLE(m->time - ce->last_time);
+    break;
+  }
+
   case METRIC_TYPE_GAUGE: {
     ce->values_gauge = m->value.gauge;
     break;
   }
 
-#if 0
-  case DS_TYPE_DERIVE: { /* TODO(octo): add support for DERIVE */
-    derive_t diff = m->value.derive - ce->values_raw.derive;
-    ce->values_gauge =
-        ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
-    ce->values_raw.derive = m->value.derive;
-    break;
-  }
-#endif
-
+  case METRIC_TYPE_UNTYPED:
   default: {
     /* This shouldn't happen. */
     pthread_mutex_unlock(&cache_lock);

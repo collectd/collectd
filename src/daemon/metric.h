@@ -32,21 +32,24 @@
 #include "utils/strbuf/strbuf.h"
 #include "utils_time.h"
 
-#define VALUE_TYPE_GAUGE 1
-#define VALUE_TYPE_DERIVE 2
+#define METRIC_ATTR_DOUBLE 0x01
+#define METRIC_ATTR_CUMULATIVE 0x02
 
 typedef enum {
-  METRIC_TYPE_COUNTER = 0,
-  METRIC_TYPE_GAUGE = 1,
-  METRIC_TYPE_UNTYPED = 2,
+  METRIC_TYPE_UNTYPED = 0,
+  METRIC_TYPE_COUNTER = METRIC_ATTR_CUMULATIVE,
+  METRIC_TYPE_FPCOUNTER = METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE,
+  METRIC_TYPE_GAUGE = METRIC_ATTR_DOUBLE,
 } metric_type_t;
 
 typedef uint64_t counter_t;
+typedef double fpcounter_t;
 typedef double gauge_t;
 typedef int64_t derive_t;
 
 union value_u {
   counter_t counter;
+  fpcounter_t fpcounter;
   gauge_t gauge;
   derive_t derive;
 };
