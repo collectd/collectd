@@ -97,6 +97,9 @@ static int number_data_point(yajl_gen g, metric_t const *m) {
     CHECK(yajl_gen_integer(g, m->value.counter));
     break;
   case METRIC_TYPE_FPCOUNTER:
+    CHECK(json_add_string(g, "asDouble"));
+    CHECK(yajl_gen_double(g, m->value.fpcounter));
+    break;
   case METRIC_TYPE_GAUGE:
     CHECK(json_add_string(g, "asDouble"));
     CHECK(yajl_gen_double(g, m->value.gauge));
