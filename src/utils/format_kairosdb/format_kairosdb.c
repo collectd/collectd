@@ -85,6 +85,7 @@ static int json_add_rate(yajl_gen g, metric_t const *m) {
   gauge_t rate = NAN;
   int err = uc_get_rate(m, &rate);
   if (err) {
+    ERROR("format_kairosdb: uc_get_rate failed: %s", STRERROR(err));
     return err;
   }
 
