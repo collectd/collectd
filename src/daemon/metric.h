@@ -42,6 +42,8 @@ typedef enum {
   METRIC_TYPE_FPCOUNTER = METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE,
 } metric_type_t;
 
+#define IS_CUMULATIVE(t) ((t)&METRIC_ATTR_CUMULATIVE)
+
 typedef uint64_t counter_t;
 typedef double fpcounter_t;
 typedef double gauge_t;

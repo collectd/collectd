@@ -273,8 +273,7 @@ static int format_time_interval(yajl_gen gen, metric_t const *m,
   if (status != 0)
     return status;
 
-  if (m->family->type == METRIC_TYPE_COUNTER ||
-      m->family->type == METRIC_TYPE_FPCOUNTER) {
+  if (IS_CUMULATIVE(m->family->type)) {
     int status = json_string(gen, "startTime") || json_time(gen, start_time);
     if (status != 0)
       return status;
