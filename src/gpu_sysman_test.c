@@ -582,7 +582,7 @@ typedef struct {
 
 static metrics_validation_t valid_metrics[] = {
     /* gauge value changes */
-    {"all_errors_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
+    {"errors.all_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
     {"frequency_mhz/actual/current/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0,
      0.0},
     {"frequency_mhz/actual/current/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0,
@@ -607,49 +607,49 @@ static metrics_validation_t valid_metrics[] = {
      2 * FREQ_RATIO_INC, 0, 0.0},
     {"frequency_ratio/request/current/gpu", false, false, FREQ_RATIO_INIT,
      2 * FREQ_RATIO_INC, 0, 0.0},
-    {"memory_used_bytes/HBM/system/min", true, true, MEMORY_INIT, MEMORY_INC, 0,
+    {"memory.usage_bytes/HBM/system/min", true, true, MEMORY_INIT, MEMORY_INC,
+     0, 0.0},
+    {"memory.usage_bytes/HBM/system/max", true, true, MEMORY_INIT, MEMORY_INC,
+     0, 0.0},
+    {"memory.usage_bytes/HBM/system", false, false, MEMORY_INIT, MEMORY_INC, 0,
      0.0},
-    {"memory_used_bytes/HBM/system/max", true, true, MEMORY_INIT, MEMORY_INC, 0,
-     0.0},
-    {"memory_used_bytes/HBM/system", false, false, MEMORY_INIT, MEMORY_INC, 0,
-     0.0},
-    {"memory_usage_ratio/HBM/system/min", true, true, MEM_RATIO_INIT,
+    {"memory.utilization_ratio/HBM/system/min", true, true, MEM_RATIO_INIT,
      MEM_RATIO_INC, 0, 0.0},
-    {"memory_usage_ratio/HBM/system/max", true, true, MEM_RATIO_INIT,
+    {"memory.utilization_ratio/HBM/system/max", true, true, MEM_RATIO_INIT,
      MEM_RATIO_INC, 0, 0.0},
-    {"memory_usage_ratio/HBM/system", false, false, MEM_RATIO_INIT,
+    {"memory.utilization_ratio/HBM/system", false, false, MEM_RATIO_INIT,
      MEM_RATIO_INC, 0, 0.0},
     {"temperature_celsius", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
     {"temperature_ratio", true, false, TEMP_RATIO_INIT, TEMP_RATIO_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
     {"energy_ujoules_total", true, false, COUNTER_START, COUNTER_INC, 0, 0.0},
-    {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"engine_use_usecs_total/all", true, false, COUNTER_START, COUNTER_INC, 0,
+    {"engine.utilization_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
+    {"engine.time_usecs_total/all", true, false, COUNTER_START, COUNTER_INC, 0,
      0.0},
-    {"fabric_port_bytes_total/healthy/off/read", true, false, 2 * COUNTER_START,
+    {"fabric.port_bytes_total/healthy/off/read", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
-    {"fabric_port_bytes_total/healthy/off/write", true, false, COUNTER_START,
+    {"fabric.port_bytes_total/healthy/off/write", true, false, COUNTER_START,
      COUNTER_INC, 0, 0.0},
-    {"fabric_port_bytes_per_second/healthy/off/read", true, false,
+    {"fabric.port_bytes_per_second/healthy/off/read", true, false,
      2 * COUNTER_RATE, 0, 0, 0.0},
-    {"fabric_port_bytes_per_second/healthy/off/write", true, false,
+    {"fabric.port_bytes_per_second/healthy/off/write", true, false,
      COUNTER_RATE, 0, 0, 0.0},
-    {"fabric_port_ratio/healthy/off/read", true, false, 2 * COUNTER_MAX_RATIO,
+    {"fabric.port_ratio/healthy/off/read", true, false, 2 * COUNTER_MAX_RATIO,
      0, 0, 0.0},
-    {"fabric_port_ratio/healthy/off/write", true, false, COUNTER_MAX_RATIO, 0,
+    {"fabric.port_ratio/healthy/off/write", true, false, COUNTER_MAX_RATIO, 0,
      0, 0.0},
-    {"memory_bw_bytes_total/HBM/system/read", true, false, 2 * COUNTER_START,
+    {"memory.bw_bytes_total/HBM/system/read", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
-    {"memory_bw_bytes_total/HBM/system/write", true, false, COUNTER_START,
+    {"memory.bw_bytes_total/HBM/system/write", true, false, COUNTER_START,
      COUNTER_INC, 0, 0.0},
-    {"memory_bw_bytes_per_second/HBM/system/read", true, false,
+    {"memory.bw_bytes_per_second/HBM/system/read", true, false,
      2 * COUNTER_RATE, 0, 0, 0.0},
-    {"memory_bw_bytes_per_second/HBM/system/write", true, false, COUNTER_RATE,
+    {"memory.bw_bytes_per_second/HBM/system/write", true, false, COUNTER_RATE,
      0, 0, 0.0},
-    {"memory_bw_ratio/HBM/system/read", true, false, 2 * COUNTER_MAX_RATIO, 0,
+    {"memory.bw_ratio/HBM/system/read", true, false, 2 * COUNTER_MAX_RATIO, 0,
      0, 0.0},
-    {"memory_bw_ratio/HBM/system/write", true, false, COUNTER_MAX_RATIO, 0, 0,
+    {"memory.bw_ratio/HBM/system/write", true, false, COUNTER_MAX_RATIO, 0, 0,
      0.0},
     {"power_ratio", true, false, COUNTER_INC / POWER_LIMIT / TIME_INC, 0, 0,
      0.0},
@@ -746,15 +746,50 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
   return missing + wrong;
 }
 
+/* Add family name + unit to the given buffer, return offset to the end
+ */
+static size_t add_family_name(char *buf, size_t bufsize,
+                              metric_family_t const *fam) {
+  static const struct {
+    const char *unit;
+    const char *name;
+  } units[] = {
+      {"1", "_ratio"},     {"By", "_bytes"}, {"By/s", "_bytes_per_second"},
+      {"Cel", "_celsius"}, {"{error}", ""},  {"MHz", "_mhz"},
+      {"uj", "_ujoules"},  {"us", "_usecs"}, {"W", "_watts"},
+  };
+
+  assert(fam && fam->name && fam->unit);
+
+  const char *unit = NULL;
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(units); i++) {
+    if (strcmp(fam->unit, units[i].unit) == 0) {
+      unit = units[i].name;
+      break;
+    }
+  }
+  printf("CHECKED UNIT: '%s' for '%s'\n", fam->unit, fam->name);
+  assert(unit);
+
+  const char *suffix = "";
+  if (fam->type == METRIC_TYPE_COUNTER) {
+    suffix = "_total";
+  }
+
+  assert(strlen(fam->name) + strlen(unit) + strlen(suffix) < bufsize);
+  return snprintf(buf, bufsize, "%s%s%s", fam->name, unit, suffix);
+}
+
 /* sort in reverse order so 'type' label comes first */
 static int cmp_labels(const void *a, const void *b) {
   return strcmp(((const label_pair_t *)b)->name,
                 ((const label_pair_t *)a)->name);
 }
 
-/* constructs metric name from metric family name and metric label values */
-static void compose_name(char *buf, size_t bufsize, const char *name,
-                         metric_t *metric) {
+/* append suitable label values to compose full metric name for validation */
+static int add_metric_labels(char *buf, size_t bufsize, size_t offset,
+                             metric_t *metric) {
+  /* handle labels for given metric */
   label_pair_t *label = metric->label.ptr;
   size_t num = metric->label.num;
   assert(num && label);
@@ -762,14 +797,12 @@ static void compose_name(char *buf, size_t bufsize, const char *name,
   /* guarantee stable label ordering i.e. names */
   qsort(label, num, sizeof(*label), cmp_labels);
 
-  /* compose names (metric family + metric label values) */
-  size_t len = strlen(name);
-  assert(len < bufsize);
-  sstrncpy(buf, name, bufsize);
+  /* append relevant subset of metric label values */
   for (size_t i = 0; i < num; i++) {
     const char *name = label[i].name;
     const char *value = label[i].value;
     assert(name && value);
+
     if (strcmp(name, "pci_bdf") == 0 || strcmp(name, "sub_dev") == 0 ||
         strcmp(name, "remote") == 0 || strcmp(name, "port") == 0 ||
         strcmp(name, "link") == 0 || strcmp(name, "model") == 0 ||
@@ -777,9 +810,11 @@ static void compose_name(char *buf, size_t bufsize, const char *name,
       /* do not add numeric IDs, HW labels, or issues to metric name */
       continue;
     }
-    len += snprintf(buf + len, bufsize - len, "/%s", value);
+
+    assert(offset + 1 + strlen(value) < bufsize);
+    offset += snprintf(buf + offset, bufsize - offset, "/%s", value);
   }
-  assert(len < bufsize);
+  return offset;
 }
 
 /* matches constructed metric names against validation array ones and
@@ -788,20 +823,28 @@ static void compose_name(char *buf, size_t bufsize, const char *name,
 int plugin_dispatch_metric_family(metric_family_t const *fam) {
   assert(fam && fam->name && fam->metric.num && fam->metric.ptr);
 
+  /* for now, ignore other error counters than one for all of them */
+  if (strstr(fam->name, "errors") && !strstr(fam->name, "errors.all")) {
+    return 0;
+  }
+
   bool found = false;
-  char name[128] = "\0";
   metric_t *metric = fam->metric.ptr;
 
+  /* for composing full metric name with labels */
+  char name[128];
+  size_t offset = add_family_name(name, sizeof(name), fam);
+
   for (size_t m = 0; m < fam->metric.num; m++) {
+    /* overwrite metric labels part */
+    size_t len = add_metric_labels(name, sizeof(name), offset, &metric[m]);
+    assert(len < sizeof(name));
+
     double value = metric2double(fam->type, metric[m].value);
-    compose_name(name, sizeof(name), fam->name, &metric[m]);
     if (globs.verbose & VERBOSE_METRICS) {
       fprintf(stderr, "METRIC: %s: %g\n", name, value);
     }
-    /* for now, ignore other errors than for all_errors */
-    if (strstr(name, "errors") && !strstr(name, "all_errors")) {
-      return 0;
-    }
+
     for (int v = 0; v < (int)STATIC_ARRAY_SIZE(valid_metrics); v++) {
       metrics_validation_t *valid = &valid_metrics[v];
       if (strstr(name, valid->name)) {
@@ -812,6 +855,7 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
       }
     }
   }
+
   if (!found) {
     fprintf(stderr, "ERROR: found no '%s' metrics\n(e.g '%s')\n", fam->name,
             name);
