@@ -133,8 +133,7 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
   yajl_gen_map_open(gen);
 
   switch (m->family->type) {
-  case METRIC_TYPE_GAUGE:
-  case METRIC_TYPE_UNTYPED: {
+  case METRIC_TYPE_GAUGE: {
     int status = json_string(gen, "doubleValue");
     if (status != 0)
       return status;
@@ -160,10 +159,10 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
     }
     break;
   }
-  default: {
-    ERROR("format_typed_value: unknown value type %d.", m->family->type);
+  case METRIC_TYPE_UNTYPED:
+  default:
+    ERROR("format_typed_value: invalid metric type: %d", m->family->type);
     return EINVAL;
-  }
   }
 
   yajl_gen_map_close(gen);
