@@ -81,33 +81,49 @@ static int json_add_string(yajl_gen g, char const *str) /* {{{ */
     }                                                                          \
   } while (0)
 
+static int json_add_rate(yajl_gen g, metric_t const *m) {
+  gauge_t rate = NAN;
+  int err = uc_get_rate(m, &rate);
+  if (err) {
+    return err;
+  }
+
+  if (isfinite(rate)) {
+    CHECK(yajl_gen_double(g, rate));
+  } else {
+    CHECK(yajl_gen_null(g));
+  }
+
+  return 0;
+}
+
 static int json_add_value(yajl_gen g, metric_t const *m,
                           format_kairosdb_opts_t const *opts) {
-  if ((m->family->type == METRIC_TYPE_GAUGE) ||
-      (m->family->type == METRIC_TYPE_UNTYPED)) {
+  if (opts != NULL && opts->store_rates) {
+    return json_add_rate(g, m);
+  }
+
+  switch (m->family->type) {
+  case METRIC_TYPE_GAUGE: {
     double v = m->value.gauge;
     if (isfinite(v)) {
       CHECK(yajl_gen_double(g, v));
     } else {
       CHECK(yajl_gen_null(g));
     }
-  } else if ((opts != NULL) && opts->store_rates) {
-    gauge_t rate = NAN;
-    uc_get_rate(m, &rate);
-
-    if (isfinite(rate)) {
-      CHECK(yajl_gen_double(g, rate));
-    } else {
-      CHECK(yajl_gen_null(g));
-    }
-  } else if (m->family->type == METRIC_TYPE_COUNTER) {
+    return 0;
+  }
+  case METRIC_TYPE_FPCOUNTER:
+    CHECK(yajl_gen_double(g, m->value.fpcounter));
+    return 0;
+  case METRIC_TYPE_COUNTER:
     CHECK(yajl_gen_integer(g, (long long int)m->value.counter));
-  } else {
-    ERROR("format_kairosdb: Unknown data source type: %d", m->family->type);
-    CHECK(yajl_gen_null(g));
+    return 0;
+  case METRIC_TYPE_UNTYPED:
   }
 
-  return 0;
+  ERROR("format_kairosdb: Invalid metric type: %d", m->family->type);
+  return EINVAL;
 }
 
 static int json_add_metric(yajl_gen g, metric_t const *m,
