@@ -255,16 +255,16 @@ DEF_TEST(metric_family_append) {
 
   metric_family_t fam = {
       .name = "first",
-      .type = METRIC_TYPE_UNTYPED,
+      .type = METRIC_TYPE_COUNTER,
   };
   metric_family_metric_append(&fam, (metric_t){
-                                        .value.gauge = 0,
+                                        .value.counter = 0,
                                     });
   metric_family_metric_append(&fam, (metric_t){
-                                        .value.gauge = 1,
+                                        .value.counter = 1,
                                     });
   CHECK_ZERO(format_json_metric_family(&buf, &fam, false));
-  EXPECT_EQ_STR("[{\"name\":\"first\",\"type\":\"UNTYPED\",\"metrics\":[{"
+  EXPECT_EQ_STR("[{\"name\":\"first\",\"type\":\"COUNTER\",\"metrics\":[{"
                 "\"value\":\"0\"},{\"value\":\"1\"}]}]",
                 buf.ptr);
 
@@ -279,7 +279,7 @@ DEF_TEST(metric_family_append) {
                                     });
 
   CHECK_ZERO(format_json_metric_family(&buf, &fam, false));
-  EXPECT_EQ_STR("[{\"name\":\"first\",\"type\":\"UNTYPED\",\"metrics\":[{"
+  EXPECT_EQ_STR("[{\"name\":\"first\",\"type\":\"COUNTER\",\"metrics\":[{"
                 "\"value\":\"0\"},{\"value\":\"1\"}]},{\"name\":\"second\","
                 "\"type\":\"GAUGE\",\"metrics\":[{\"value\":\"2\"}]}]",
                 buf.ptr);
