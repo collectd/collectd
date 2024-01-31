@@ -96,6 +96,24 @@ redhat_default_toolchain_task:
     - make -j2 -sk check
     - /checks/check-built-plugins.sh
 
+address_sanitizer_task:
+  matrix:
+    - container:
+        image: collectd/ci:buster_amd64
+      allow_failures: true
+  configure_script:
+    - ./build.sh
+    - >
+      ./configure $DEFAULT_CONFIG_OPTS
+      CC="$(which clang)"
+      CFLAGS="-O1 -g -fsanitize=address -fno-omit-frame-pointer"
+      CCLD="$(which clang)"
+      LDFLAGS="-g -fsanitize=address"
+  build_script:
+    - make -j$(nproc) -sk
+  tests_script:
+    - make -j$(nproc) -sk check
+    - /checks/check-built-plugins.sh
 
 ###
 # Misc non-standard build environment & options on most recent released debian
