@@ -314,8 +314,8 @@ static struct {
     {
         "PUTMETRIC untyped type=untyped 42",
         NULL,
-        CMD_OK,
-        CMD_PUTMETRIC,
+        CMD_ERROR,
+        CMD_UNKNOWN,
     },
     {
         "PUTMETRIC quoted_gauge type=\"GAUGE\" 42",
@@ -428,7 +428,7 @@ DEF_TEST(format_putmetric) {
                       },
                   .value.gauge = 42,
               },
-          .want = "PUTMETRIC test 42",
+          .want_err = EINVAL,
       },
       {
           .m =
@@ -460,12 +460,12 @@ DEF_TEST(format_putmetric) {
                   .family =
                       &(metric_family_t){
                           .name = "test",
-                          .type = METRIC_TYPE_UNTYPED,
+                          .type = METRIC_TYPE_GAUGE,
                       },
                   .value.gauge = 42,
                   .time = TIME_T_TO_CDTIME_T(1594809888),
               },
-          .want = "PUTMETRIC test time=1594809888.000 42",
+          .want = "PUTMETRIC test type=GAUGE time=1594809888.000 42",
       },
       {
           .m =
@@ -473,12 +473,12 @@ DEF_TEST(format_putmetric) {
                   .family =
                       &(metric_family_t){
                           .name = "test",
-                          .type = METRIC_TYPE_UNTYPED,
+                          .type = METRIC_TYPE_GAUGE,
                       },
                   .value.gauge = 42,
                   .interval = TIME_T_TO_CDTIME_T(10),
               },
-          .want = "PUTMETRIC test interval=10.000 42",
+          .want = "PUTMETRIC test type=GAUGE interval=10.000 42",
       },
       {
           .m =
@@ -486,7 +486,7 @@ DEF_TEST(format_putmetric) {
                   .family =
                       &(metric_family_t){
                           .name = "test",
-                          .type = METRIC_TYPE_UNTYPED,
+                          .type = METRIC_TYPE_GAUGE,
                       },
                   .value.gauge = 42,
                   .label.ptr =
@@ -496,7 +496,8 @@ DEF_TEST(format_putmetric) {
                       },
                   .label.num = 1,
               },
-          .want = "PUTMETRIC test label:foo=\"with \\\"quotes\\\"\" 42",
+          .want =
+              "PUTMETRIC test type=GAUGE label:foo=\"with \\\"quotes\\\"\" 42",
       },
   };
 

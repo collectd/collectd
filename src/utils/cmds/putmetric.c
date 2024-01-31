@@ -46,8 +46,8 @@ static int set_option(metric_t *m, char const *key, char const *value,
       m->family->type = METRIC_TYPE_GAUGE;
     } else if (strcasecmp("COUNTER", value) == 0) {
       m->family->type = METRIC_TYPE_COUNTER;
-    } else if (strcasecmp("UNTYPED", value) == 0) {
-      m->family->type = METRIC_TYPE_UNTYPED;
+    } else if (strcasecmp("FPCOUNTER", value) == 0) {
+      m->family->type = METRIC_TYPE_FPCOUNTER;
     } else {
       return CMD_ERROR;
     }
@@ -104,7 +104,7 @@ cmd_status_t cmd_parse_putmetric(size_t argc, char **argv,
     cmd_error(CMD_ERROR, errhndl, "calloc failed");
     return CMD_ERROR;
   }
-  fam->type = METRIC_TYPE_UNTYPED;
+  fam->type = METRIC_TYPE_GAUGE;
 
   int status = metric_family_metric_append(fam, (metric_t){0});
   if (status != 0) {
@@ -244,17 +244,18 @@ int cmd_format_putmetric(strbuf_t *buf, metric_t const *m) { /* {{{ */
   strbuf_print(buf, "PUTMETRIC ");
   strbuf_print(buf, m->family->name);
   switch (m->family->type) {
-  case METRIC_TYPE_UNTYPED:
-    /* no op */
-    break;
   case METRIC_TYPE_COUNTER:
     strbuf_print(buf, " type=COUNTER");
+    break;
+  case METRIC_TYPE_FPCOUNTER:
+    strbuf_print(buf, " type=FPCOUNTER");
     break;
   case METRIC_TYPE_GAUGE:
     strbuf_print(buf, " type=GAUGE");
     break;
-  default:
-    return EINVAL;
+  case METRIC_TYPE_UNTYPED:
+    /* no op */
+    break;
   }
 
   if (m->time != 0) {
