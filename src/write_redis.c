@@ -262,14 +262,13 @@ cleanup:
 }
 
 static bool metric_is_new(metric_t const *m) {
-  cdtime_t first_time = 0;
-  int err = uc_get_first_time(m, &first_time);
-  if (err != 0) {
-    ERROR("write_redis plugin: uc_get_first_time failed: %s", STRERROR(err));
+  uc_first_metric_result_t first = uc_first_metric(m);
+  if (first.err != 0) {
+    ERROR("write_redis plugin: uc_get_first failed: %s", STRERROR(first.err));
     return true;
   }
 
-  return m->time == first_time;
+  return m->time == first.time;
 }
 
 static int wr_write(metric_family_t const *fam, user_data_t *ud) {

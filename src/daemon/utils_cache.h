@@ -38,7 +38,6 @@
 #define STATE_ERROR 3
 #define STATE_MISSING 15
 
-int uc_init(void);
 int uc_check_timeout(void);
 int uc_update(metric_family_t const *fam);
 
@@ -48,12 +47,39 @@ int uc_get_value_by_name_vl(const char *name, value_t **ret_values,
 value_t *uc_get_value_vl(const data_set_t *ds, const value_list_t *vl);
 
 int uc_get_rate_by_name(const char *name, gauge_t *ret_value);
+
+/* uc_get_rate returns the rate of change for cumulative types (counters) in
+ * `ret_value`. The rate is (approximately) calculcated as:
+ *
+ *   rate = (last_value - prev_value) / (last_time - prev_time)
+ *
+ * Counter overflows are handled correctly. This typically causes counter
+ * resets to result in huge spikes. Unfortunately it is not easily possible to
+ * distinguish between the two. You can determine whether a reset/overflow
+ * occurred by comparing the time returned by `uc_first_metric()` with the
+ * metric time: in an overflow/reset situation, the values are equal.
+ *
+ * For non-cumulative types (gauge), the function takes a short cut and returns
+ * `m->value.gauge` in `ret_value`. Since this is a fast operation, plugin
+ * authors are discouraged from writing special cases for gauge metrics.
+ *
+ * Returns zero on success, ENOENT if the metric is not in the cache, and
+ * EAGAIN if the metric has state STATE_MISSING. */
 int uc_get_rate(metric_t const *m, gauge_t *ret_value);
+
 int uc_get_value_by_name(const char *name, value_t *ret_value);
 int uc_get_value(metric_t const *m, value_t *ret_value);
 
-// uc_get_first_time returns the first observed metric time.
-int uc_get_first_time(metric_t const *m, cdtime_t *ret_time);
+typedef struct {
+  cdtime_t time;
+  value_t value;
+  int err;
+} uc_first_metric_result_t;
+
+/* uc_first_metric returns the first observed metric value and time.
+ * For cumulative metrics (METRIC_TYPE_COUNTER and METRIC_TYPE_FPCOUNTER),
+ * counter resets and counter overflows will reset the value. */
+uc_first_metric_result_t uc_first_metric(metric_t const *m);
 
 size_t uc_get_size(void);
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);
