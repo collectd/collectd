@@ -5549,6 +5549,7 @@ Synopsis:
       Host "localhost"
       Socket "/var/run/mysql/mysqld.sock"
       SlaveStats true
+      MariadbDialect false
       SlaveNotifications true
     </Database>
 
@@ -5623,6 +5624,11 @@ Disabled by default.
 Enable the collection of primary / replica statistics in a replication setup. In
 order to be able to get access to these statistics, the user needs special
 privileges. See the B<User> documentation above. Defaults to B<false>.
+
+=item B<MariadbDialect> I<true|false>
+
+Enable Multisource replication MariadbDialect support.
+Use SHOW ALL SLAVES STATUS command output for MariaDB.
 
 =item B<SlaveNotifications> I<true|false>
 

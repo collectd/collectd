@@ -60,6 +60,7 @@ struct mysql_database_s /* {{{ */
 
   bool primary_stats;
   bool replica_stats;
+  bool mariadb_dialect;
   bool innodb_stats;
   bool wsrep_stats;
 
@@ -198,6 +199,8 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_boolean(child, &db->replica_stats);
     else if (strcasecmp("SlaveNotifications", child->key) == 0)
       status = cf_util_get_boolean(child, &db->replica_notif);
+    else if (strcasecmp("MariadbDialect", child->key) == 0)
+      status = cf_util_get_boolean(child, &db->mariadb_dialect);
     else if (strcasecmp("InnodbStats", child->key) == 0)
       status = cf_util_get_boolean(child, &db->innodb_stats);
     else if (strcasecmp("WsrepStats", child->key) == 0)
@@ -433,66 +436,164 @@ static int mysql_read_primary_stats(mysql_database_t *db, MYSQL *con) {
 
 static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
   MYSQL_RES *res;
+  MYSQL_FIELD *fields;
   MYSQL_ROW row;
 
-  const char *query;
-  int field_num;
+  const char *query, *channel_name_field;
+  unsigned char field_num, field_req;
 
-  /* WTF? libmysqlclient does not seem to provide any means to
-   * translate a column name to a column index ... :-/ */
-  const int READ_MASTER_LOG_POS_IDX = 6;
-  const int SLAVE_IO_RUNNING_IDX = 10;
-  const int SLAVE_SQL_RUNNING_IDX = 11;
-  const int EXEC_MASTER_LOG_POS_IDX = 21;
-  const int SECONDS_BEHIND_MASTER_IDX = 32;
+#define CHANNEL_NAME_IDX 0
+#define READ_MASTER_LOG_POS_IDX 1
+#define SLAVE_IO_RUNNING_IDX 2
+#define SLAVE_SQL_RUNNING_IDX 3
+#define EXEC_MASTER_LOG_POS_IDX 4
+#define SECONDS_BEHIND_MASTER_IDX 5
 
-  query = "SHOW SLAVE STATUS";
+  if (db->mariadb_dialect && db->mysql_version >= 50505) {
+    query = "SHOW ALL SLAVES STATUS";
+    channel_name_field = "Connection_name";
+  } else {
+    query = "SHOW SLAVE STATUS";
+    channel_name_field = "Channel_Name";
+  }
+  struct {
+    const char *field_name;
+    int field_index;
+  } metrics_idx[] = {
+      {channel_name_field, -1},    {"Read_Master_Log_Pos", -1},
+      {"Slave_IO_Running", -1},    {"Slave_SQL_Running", -1},
+      {"Exec_Master_Log_Pos", -1}, {"Seconds_Behind_Master", -1}};
 
   res = exec_query(con, query);
   if (res == NULL)
     return -1;
 
-  row = mysql_fetch_row(res);
-  if (row == NULL) {
-    ERROR("mysql plugin: Failed to get replica statistics: "
-          "`%s' did not return any rows.",
-          query);
-    mysql_free_result(res);
-    return -1;
-  }
-
+  fields = mysql_fetch_fields(res);
   field_num = mysql_num_fields(res);
-  if (field_num < 33) {
+  field_req = (char)(sizeof(metrics_idx) / sizeof(*metrics_idx));
+  while (field_num > 0) {
+    field_num--;
+    for (unsigned char i = 0; i < field_req; i++) {
+      if (strcmp(fields[field_num].name, metrics_idx[i].field_name) == 0) {
+        metrics_idx[i].field_index = field_num;
+      }
+    }
+  }
+  if (metrics_idx[READ_MASTER_LOG_POS_IDX].field_index == -1 ||
+      metrics_idx[SLAVE_IO_RUNNING_IDX].field_index == -1 ||
+      metrics_idx[SLAVE_SQL_RUNNING_IDX].field_index == -1 ||
+      metrics_idx[EXEC_MASTER_LOG_POS_IDX].field_index == -1 ||
+      metrics_idx[SECONDS_BEHIND_MASTER_IDX].field_index == -1) {
     ERROR("mysql plugin: Failed to get replica statistics: "
-          "`%s' returned less than 33 columns.",
+          "`%s' not all fields are collected.",
           query);
     mysql_free_result(res);
     return -1;
   }
 
-  if (db->replica_stats) {
-    unsigned long long counter;
-    double gauge;
+#define SLAVE_STATUS_RUNNING 1
+#define SLAVE_STATUS_STOPPED 0
+#define SLAVE_STATUS_UNKNOWN -1
+  char io = SLAVE_STATUS_UNKNOWN, sql = SLAVE_STATUS_UNKNOWN;
+  char metric_name[DATA_MAX_NAME_LEN];
+  while ((row = mysql_fetch_row(res))) {
+    if (db->replica_stats) {
+      if (metrics_idx[CHANNEL_NAME_IDX].field_index >= 0 &&
+          row[metrics_idx[CHANNEL_NAME_IDX].field_index][0] != '\0') {
+        gauge_submit(
+            "bool",
+            strncat(sstrncpy(metric_name, "slave-sql-running-",
+                             DATA_MAX_NAME_LEN - 1),
+                    row[metrics_idx[CHANNEL_NAME_IDX].field_index],
+                    DATA_MAX_NAME_LEN -
+                        strlen(row[metrics_idx[CHANNEL_NAME_IDX].field_index]) -
+                        1),
+            (row[metrics_idx[SLAVE_SQL_RUNNING_IDX].field_index] != NULL) &&
+                (strcasecmp(row[metrics_idx[SLAVE_SQL_RUNNING_IDX].field_index],
+                            "yes") == 0),
+            db);
+        gauge_submit(
+            "bool",
+            strncat(sstrncpy(metric_name, "slave-io-running-",
+                             DATA_MAX_NAME_LEN - 1),
+                    row[metrics_idx[CHANNEL_NAME_IDX].field_index],
+                    DATA_MAX_NAME_LEN -
+                        strlen(row[metrics_idx[CHANNEL_NAME_IDX].field_index]) -
+                        1),
+            (row[metrics_idx[SLAVE_IO_RUNNING_IDX].field_index] != NULL) &&
+                (strcasecmp(row[metrics_idx[SLAVE_IO_RUNNING_IDX].field_index],
+                            "yes") == 0),
+            db);
+        derive_submit(
+            "mysql_log_position",
+            strncat(sstrncpy(metric_name, "slave-read-", DATA_MAX_NAME_LEN - 1),
+                    row[metrics_idx[CHANNEL_NAME_IDX].field_index],
+                    DATA_MAX_NAME_LEN -
+                        strlen(row[metrics_idx[CHANNEL_NAME_IDX].field_index]) -
+                        1),
+            atoll(row[metrics_idx[READ_MASTER_LOG_POS_IDX].field_index]), db);
+        derive_submit(
+            "mysql_log_position",
+            strncat(sstrncpy(metric_name, "slave-exec-", DATA_MAX_NAME_LEN - 1),
+                    row[metrics_idx[CHANNEL_NAME_IDX].field_index],
+                    DATA_MAX_NAME_LEN -
+                        strlen(row[metrics_idx[CHANNEL_NAME_IDX].field_index]) -
+                        1),
+            atoll(row[metrics_idx[EXEC_MASTER_LOG_POS_IDX].field_index]), db);
 
-    gauge_submit("bool", "slave-sql-running",
-                 (row[SLAVE_SQL_RUNNING_IDX] != NULL) &&
-                     (strcasecmp(row[SLAVE_SQL_RUNNING_IDX], "yes") == 0),
-                 db);
+        if (row[metrics_idx[SECONDS_BEHIND_MASTER_IDX].field_index] != NULL) {
+          gauge_submit(
+              "time_offset", row[metrics_idx[CHANNEL_NAME_IDX].field_index],
+              atof(row[metrics_idx[SECONDS_BEHIND_MASTER_IDX].field_index]),
+              db);
+        }
+      } else {
+        gauge_submit(
+            "bool", "slave-sql-running",
+            (row[metrics_idx[SLAVE_SQL_RUNNING_IDX].field_index] != NULL) &&
+                (strcasecmp(row[metrics_idx[SLAVE_SQL_RUNNING_IDX].field_index],
+                            "yes") == 0),
+            db);
+        gauge_submit(
+            "bool", "slave-io-running",
+            (row[metrics_idx[SLAVE_IO_RUNNING_IDX].field_index] != NULL) &&
+                (strcasecmp(row[metrics_idx[SLAVE_IO_RUNNING_IDX].field_index],
+                            "yes") == 0),
+            db);
+        derive_submit(
+            "mysql_log_position", "slave-read",
+            atoll(row[metrics_idx[READ_MASTER_LOG_POS_IDX].field_index]), db);
+        derive_submit(
+            "mysql_log_position", "slave-exec",
+            atoll(row[metrics_idx[EXEC_MASTER_LOG_POS_IDX].field_index]), db);
 
-    gauge_submit("bool", "slave-io-running",
-                 (row[SLAVE_IO_RUNNING_IDX] != NULL) &&
-                     (strcasecmp(row[SLAVE_IO_RUNNING_IDX], "yes") == 0),
-                 db);
-
-    counter = atoll(row[READ_MASTER_LOG_POS_IDX]);
-    derive_submit("mysql_log_position", "slave-read", counter, db);
-
-    counter = atoll(row[EXEC_MASTER_LOG_POS_IDX]);
-    derive_submit("mysql_log_position", "slave-exec", counter, db);
-
-    if (row[SECONDS_BEHIND_MASTER_IDX] != NULL) {
-      gauge = atof(row[SECONDS_BEHIND_MASTER_IDX]);
-      gauge_submit("time_offset", NULL, gauge, db);
+        if (row[metrics_idx[SECONDS_BEHIND_MASTER_IDX].field_index] != NULL) {
+          gauge_submit(
+              "time_offset", NULL,
+              atof(row[metrics_idx[SECONDS_BEHIND_MASTER_IDX].field_index]),
+              db);
+        }
+      }
+    }
+    if (db->replica_notif) {
+      if (io == SLAVE_STATUS_UNKNOWN || io == SLAVE_STATUS_RUNNING) {
+        if (row[metrics_idx[SLAVE_IO_RUNNING_IDX].field_index] != NULL &&
+            (strcasecmp(row[metrics_idx[SLAVE_SQL_RUNNING_IDX].field_index],
+                        "yes") == 0)) {
+          io = SLAVE_STATUS_RUNNING;
+        } else {
+          io = SLAVE_STATUS_STOPPED;
+        }
+      }
+      if (sql == SLAVE_STATUS_UNKNOWN || sql == SLAVE_STATUS_RUNNING) {
+        if (row[metrics_idx[SLAVE_IO_RUNNING_IDX].field_index] != NULL &&
+            (strcasecmp(row[metrics_idx[SLAVE_SQL_RUNNING_IDX].field_index],
+                        "yes") == 0)) {
+          sql = SLAVE_STATUS_RUNNING;
+        } else {
+          sql = SLAVE_STATUS_STOPPED;
+        }
+      }
     }
   }
 
@@ -500,26 +601,19 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
     notification_t n = {0,  cdtime(),      "", "",  "mysql",
                         "", "time_offset", "", NULL};
 
-    char *io, *sql;
-
-    io = row[SLAVE_IO_RUNNING_IDX];
-    sql = row[SLAVE_SQL_RUNNING_IDX];
-
     set_host(db, n.host, sizeof(n.host));
 
     /* Assured by "mysql_config_database" */
     assert(db->instance != NULL);
     sstrncpy(n.plugin_instance, db->instance, sizeof(n.plugin_instance));
 
-    if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
-        (db->replica_io_running)) {
+    if ((io == SLAVE_STATUS_STOPPED) && (db->replica_io_running)) {
       n.severity = NOTIF_WARNING;
       ssnprintf(n.message, sizeof(n.message),
                 "replica I/O thread not started or not connected to primary");
       plugin_dispatch_notification(&n);
       db->replica_io_running = false;
-    } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
-               (!db->replica_io_running)) {
+    } else if ((io == SLAVE_STATUS_RUNNING) && (!db->replica_io_running)) {
       n.severity = NOTIF_OKAY;
       ssnprintf(n.message, sizeof(n.message),
                 "replica I/O thread started and connected to primary");
@@ -527,26 +621,18 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
       db->replica_io_running = true;
     }
 
-    if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
-        (db->replica_sql_running)) {
+    if ((sql == SLAVE_STATUS_STOPPED) && (db->replica_sql_running)) {
       n.severity = NOTIF_WARNING;
       ssnprintf(n.message, sizeof(n.message), "replica SQL thread not started");
       plugin_dispatch_notification(&n);
       db->replica_sql_running = false;
-    } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
-               (!db->replica_sql_running)) {
+    } else if ((sql == SLAVE_STATUS_RUNNING) && (!db->replica_sql_running)) {
       n.severity = NOTIF_OKAY;
       ssnprintf(n.message, sizeof(n.message), "replica SQL thread started");
       plugin_dispatch_notification(&n);
       db->replica_sql_running = true;
     }
   }
-
-  row = mysql_fetch_row(res);
-  if (row != NULL)
-    WARNING("mysql plugin: `%s' returned more than one row - "
-            "ignoring further results.",
-            query);
 
   mysql_free_result(res);
 
