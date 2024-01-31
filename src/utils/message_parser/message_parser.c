@@ -88,7 +88,7 @@ static int start_message_assembly(parser_job_data_t *self) {
     ++(self->message_idx);
 
   /* Resize messages buffer if needed */
-  if (self->message_idx >= self->messages_max_len) {
+  if (self->message_idx >= (int)self->messages_max_len) {
     INFO(UTIL_NAME ": Exceeded message buffer size: %zu",
          self->messages_max_len);
     if (self->resize_message_buffer(self, self->messages_max_len +
@@ -147,8 +147,9 @@ static void end_message_assembly(parser_job_data_t *self) {
   self->message_item_idx = 0;
 }
 
-static int message_assembler(const char *row, char *const *matches,
-                             size_t matches_num, void *user_data) {
+static int message_assembler(__attribute__((unused)) const char *row,
+                             char *const *matches, size_t matches_num,
+                             void *user_data) {
   if (user_data == NULL) {
     ERROR(UTIL_NAME ": Invalid user_data pointer");
     return -1;

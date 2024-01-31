@@ -82,7 +82,7 @@ typedef struct cu_match_value_s cu_match_value_t;
  *  Creates a new `cu_match_t' object which will use the regular expression
  *  `regex' to match lines, see the `match_apply' method below. If the line
  *  matches, the callback passed in `callback' will be called along with the
- *  pointer `user_pointer'.
+ *  `user_data' pointer.
  *  The string that's passed to the callback depends on the regular expression:
  *  If the regular expression includes a sub-match, i. e. something like
  *    "value=([0-9][0-9]*)"
