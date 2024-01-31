@@ -64,8 +64,7 @@ int uc_get_rate_by_name(const char *name, gauge_t *ret_value);
  * authors are discouraged from writing special cases for gauge metrics.
  *
  * Returns zero on success, ENOENT if the metric is not in the cache, and
- * EAGAIN if the metric has state STATE_MISSING.
- */
+ * EAGAIN if the metric has state STATE_MISSING. */
 int uc_get_rate(metric_t const *m, gauge_t *ret_value);
 
 int uc_get_value_by_name(const char *name, value_t *ret_value);
@@ -77,9 +76,9 @@ typedef struct {
   int err;
 } uc_first_metric_result_t;
 
-// uc_first_metric returns the first observed metric value and time.
-// For cumulative metrics (METRIC_TYPE_COUNTER and METRIC_TYPE_FPCOUNTER),
-// counter resets and counter overflows will reset the value.
+/* uc_first_metric returns the first observed metric value and time.
+ * For cumulative metrics (METRIC_TYPE_COUNTER and METRIC_TYPE_FPCOUNTER),
+ * counter resets and counter overflows will reset the value. */
 uc_first_metric_result_t uc_first_metric(metric_t const *m);
 
 size_t uc_get_size(void);
