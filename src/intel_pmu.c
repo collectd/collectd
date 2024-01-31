@@ -215,7 +215,7 @@ static int pmu_config_hw_events(oconfig_item_t *ci, intel_pmu_entity_t *ent) {
 
 static int pmu_config(oconfig_item_t *ci) {
 
-  DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PMU_PLUGIN ": %s:%d", __func__, __LINE__);
 
   for (int i = 0; i < ci->children_num; i++) {
     int ret = 0;
@@ -257,7 +257,7 @@ static int pmu_config(oconfig_item_t *ci) {
     }
 
     if (ret != 0) {
-      DEBUG(PMU_PLUGIN ": %s:%d ret=%d", __FUNCTION__, __LINE__, ret);
+      DEBUG(PMU_PLUGIN ": %s:%d ret=%d", __func__, __LINE__, ret);
       return ret;
     }
   }
@@ -427,18 +427,18 @@ static void pmu_dispatch_data(intel_pmu_entity_t *ent) {
 
 static int pmu_read(user_data_t *ud) {
   if (ud == NULL) {
-    ERROR(PMU_PLUGIN ": ud is NULL! %s:%d", __FUNCTION__, __LINE__);
+    ERROR(PMU_PLUGIN ": ud is NULL! %s:%d", __func__, __LINE__);
     return -1;
   }
   if (ud->data == NULL) {
-    ERROR(PMU_PLUGIN ": ud->data is NULL! %s:%d", __FUNCTION__, __LINE__);
+    ERROR(PMU_PLUGIN ": ud->data is NULL! %s:%d", __func__, __LINE__);
     return -1;
   }
   intel_pmu_entity_t *ent = (intel_pmu_entity_t *)ud->data;
   int ret;
   struct event *e;
 
-  DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PMU_PLUGIN ": %s:%d", __func__, __LINE__);
 
   /* read all events only for configured cores */
   for (e = ent->event_list->eventlist; e; e = e->next) {
@@ -703,7 +703,7 @@ static int pmu_read_all_events(void *data, char *name, char *event,
 static int pmu_init(void) {
   int ret;
 
-  DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PMU_PLUGIN ": %s:%d", __func__, __LINE__);
 
   if (g_ctx.entl == NULL) {
     ERROR(PMU_PLUGIN ": No events were setup in configuration.");
@@ -861,7 +861,7 @@ init_error:
 
 static int pmu_shutdown(void) {
 
-  DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PMU_PLUGIN ": %s:%d", __func__, __LINE__);
 
   for (intel_pmu_entity_t *ent = g_ctx.entl; ent != NULL;) {
     intel_pmu_entity_t *tmp = ent;

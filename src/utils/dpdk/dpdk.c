@@ -65,7 +65,7 @@ enum DPDK_HELPER_STATUS {
 };
 
 #define DPDK_HELPER_TRACE(_name)                                               \
-  DEBUG("%s:%s:%d pid=%ld", _name, __FUNCTION__, __LINE__, (long)getpid())
+  DEBUG("%s:%s:%d pid=%ld", _name, __func__, __LINE__, (long)getpid())
 
 struct dpdk_helper_ctx_s {
 
@@ -292,12 +292,12 @@ int dpdk_helper_init(const char *name, size_t data_size,
   size_t shm_size = sizeof(dpdk_helper_ctx_t) + data_size;
 
   if (pphc == NULL) {
-    ERROR("%s:Invalid argument(pphc)", __FUNCTION__);
+    ERROR("%s:Invalid argument(pphc)", __func__);
     return -EINVAL;
   }
 
   if (name == NULL) {
-    ERROR("%s:Invalid argument(name)", __FUNCTION__);
+    ERROR("%s:Invalid argument(name)", __func__);
     return -EINVAL;
   }
 
@@ -417,7 +417,7 @@ static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc) {
 
 static int dpdk_helper_exit(dpdk_helper_ctx_t *phc,
                             enum DPDK_HELPER_STATUS status) {
-  DPDK_CHILD_LOG("%s:%s:%d %s\n", phc->shm_name, __FUNCTION__, __LINE__,
+  DPDK_CHILD_LOG("%s:%s:%d %s\n", phc->shm_name, __func__, __LINE__,
                  dpdk_helper_status_str(status));
 
   close(phc->pipes[1]);
@@ -437,27 +437,27 @@ static int dpdk_helper_exit_command(dpdk_helper_ctx_t *phc,
 
   if (phc->status == DPDK_HELPER_ALIVE_SENDING_EVENTS) {
     phc->status = status;
-    DEBUG("%s:%s:%d %s", phc->shm_name, __FUNCTION__, __LINE__,
+    DEBUG("%s:%s:%d %s", phc->shm_name, __func__, __LINE__,
           dpdk_helper_status_str(status));
 
     int ret = dpdk_helper_command(phc, DPDK_CMD_QUIT, NULL, 0);
     if (ret != 0) {
-      DEBUG("%s:%s:%d kill helper (pid=%lu)", phc->shm_name, __FUNCTION__,
-            __LINE__, (long)phc->pid);
+      DEBUG("%s:%s:%d kill helper (pid=%lu)", phc->shm_name, __func__, __LINE__,
+            (long)phc->pid);
 
       int err = kill(phc->pid, SIGKILL);
       if (err) {
-        ERROR("%s error sending kill to helper: %s", __FUNCTION__, STRERRNO);
+        ERROR("%s error sending kill to helper: %s", __func__, STRERRNO);
       }
     }
   } else {
 
-    DEBUG("%s:%s:%d kill helper (pid=%lu)", phc->shm_name, __FUNCTION__,
-          __LINE__, (long)phc->pid);
+    DEBUG("%s:%s:%d kill helper (pid=%lu)", phc->shm_name, __func__, __LINE__,
+          (long)phc->pid);
 
     int err = kill(phc->pid, SIGKILL);
     if (err) {
-      ERROR("%s error sending kill to helper: %s", __FUNCTION__, STRERRNO);
+      ERROR("%s error sending kill to helper: %s", __func__, STRERRNO);
     }
   }
 
@@ -467,7 +467,7 @@ static int dpdk_helper_exit_command(dpdk_helper_ctx_t *phc,
 static int dpdk_helper_eal_init(dpdk_helper_ctx_t *phc) {
   phc->status = DPDK_HELPER_INITIALIZING_EAL;
   DPDK_CHILD_LOG("%s:%s:%d DPDK_HELPER_INITIALIZING_EAL (start)\n",
-                 phc->shm_name, __FUNCTION__, __LINE__);
+                 phc->shm_name, __func__, __LINE__);
 
   char *argp[DPDK_EAL_ARGC * 2 + 1];
   int argc = 0;
@@ -530,7 +530,7 @@ static int dpdk_helper_eal_init(dpdk_helper_ctx_t *phc) {
   phc->eal_initialized = 1;
 
   DPDK_CHILD_LOG("%s:%s:%d DPDK_HELPER_INITIALIZING_EAL (done)\n",
-                 phc->shm_name, __FUNCTION__, __LINE__);
+                 phc->shm_name, __func__, __LINE__);
 
   return 0;
 }
@@ -545,11 +545,10 @@ static int dpdk_helper_cmd_wait(dpdk_helper_ctx_t *phc, pid_t ppid) {
 
   int ret = sem_timedwait(&phc->sema_cmd_start, &ts);
   DPDK_CHILD_LOG("%s:%s:%d pid=%lu got sema_cmd_start (ret=%d, errno=%d)\n",
-                 phc->shm_name, __FUNCTION__, __LINE__, (long)getpid(), ret,
-                 errno);
+                 phc->shm_name, __func__, __LINE__, (long)getpid(), ret, errno);
 
   if (phc->cmd == DPDK_CMD_QUIT) {
-    DPDK_CHILD_LOG("%s:%s:%d pid=%lu exiting\n", phc->shm_name, __FUNCTION__,
+    DPDK_CHILD_LOG("%s:%s:%d pid=%lu exiting\n", phc->shm_name, __func__,
                    __LINE__, (long)getpid());
     exit(0);
   } else if (ret == -1 && errno == ETIMEDOUT) {
@@ -564,7 +563,7 @@ static int dpdk_helper_cmd_wait(dpdk_helper_ctx_t *phc, pid_t ppid) {
   int val = 0;
   if (sem_getvalue(&phc->sema_cmd_start, &val) == 0)
     DPDK_CHILD_LOG("%s:%s:%d pid=%lu wait sema_cmd_start (value=%d)\n",
-                   phc->shm_name, __FUNCTION__, __LINE__, (long)getpid(), val);
+                   phc->shm_name, __func__, __LINE__, (long)getpid(), val);
 #endif
 
   /* Parent PID change means collectd died so quit the helper process. */
@@ -585,7 +584,7 @@ static int dpdk_helper_cmd_wait(dpdk_helper_ctx_t *phc, pid_t ppid) {
 
     phc->status = DPDK_HELPER_WAITING_ON_PRIMARY;
     DPDK_CHILD_LOG("%s:%s:%d DPDK_HELPER_WAITING_ON_PRIMARY\n", phc->shm_name,
-                   __FUNCTION__, __LINE__);
+                   __func__, __LINE__);
 
     return -1;
   }
@@ -598,7 +597,7 @@ static int dpdk_helper_cmd_wait(dpdk_helper_ctx_t *phc, pid_t ppid) {
     }
     phc->status = DPDK_HELPER_ALIVE_SENDING_EVENTS;
     DPDK_CHILD_LOG("%s:%s:%d DPDK_HELPER_ALIVE_SENDING_EVENTS\n", phc->shm_name,
-                   __FUNCTION__, __LINE__);
+                   __func__, __LINE__);
     return -1;
   }
 
@@ -613,7 +612,7 @@ static int dpdk_helper_worker(dpdk_helper_ctx_t *phc) {
   while (1) {
     if (dpdk_helper_cmd_wait(phc, ppid) == 0) {
       DPDK_CHILD_LOG("%s:%s:%d DPDK command handle (cmd=%d, pid=%lu)\n",
-                     phc->shm_name, __FUNCTION__, __LINE__, phc->cmd,
+                     phc->shm_name, __func__, __LINE__, phc->cmd,
                      (long)getpid());
       phc->cmd_result = dpdk_helper_command_handler(phc, phc->cmd);
     } else {
@@ -623,7 +622,7 @@ static int dpdk_helper_worker(dpdk_helper_ctx_t *phc) {
     /* now kick collectd to get results */
     int err = sem_post(&phc->sema_cmd_complete);
     DPDK_CHILD_LOG("%s:%s:%d post sema_cmd_complete (pid=%lu)\n", phc->shm_name,
-                   __FUNCTION__, __LINE__, (long)getpid());
+                   __func__, __LINE__, (long)getpid());
     if (err) {
       DPDK_CHILD_LOG("dpdk_helper_worker: error posting sema_cmd_complete "
                      "semaphore (%s)\n",
@@ -634,8 +633,7 @@ static int dpdk_helper_worker(dpdk_helper_ctx_t *phc) {
     int val = 0;
     if (sem_getvalue(&phc->sema_cmd_complete, &val) == 0)
       DPDK_CHILD_LOG("%s:%s:%d pid=%lu sema_cmd_complete (value=%d)\n",
-                     phc->shm_name, __FUNCTION__, __LINE__, (long)getpid(),
-                     val);
+                     phc->shm_name, __func__, __LINE__, (long)getpid(), val);
 #endif
 
   } /* while(1) */
@@ -663,14 +661,14 @@ static const char *dpdk_helper_status_str(enum DPDK_HELPER_STATUS status) {
 }
 
 static int dpdk_helper_status_check(dpdk_helper_ctx_t *phc) {
-  DEBUG("%s:%s:%d pid=%u %s", phc->shm_name, __FUNCTION__, __LINE__, getpid(),
+  DEBUG("%s:%s:%d pid=%u %s", phc->shm_name, __func__, __LINE__, getpid(),
         dpdk_helper_status_str(phc->status));
 
   if (phc->status == DPDK_HELPER_GRACEFUL_QUIT) {
     return 0;
   } else if (phc->status == DPDK_HELPER_NOT_INITIALIZED) {
     phc->status = DPDK_HELPER_INITIALIZING;
-    DEBUG("%s:%s:%d DPDK_HELPER_INITIALIZING", phc->shm_name, __FUNCTION__,
+    DEBUG("%s:%s:%d DPDK_HELPER_INITIALIZING", phc->shm_name, __func__,
           __LINE__);
     int err = dpdk_helper_spawn(phc);
     if (err) {
@@ -682,7 +680,7 @@ static int dpdk_helper_status_check(dpdk_helper_ctx_t *phc) {
   pid_t ws = waitpid(phc->pid, NULL, WNOHANG);
   if (ws != 0) {
     phc->status = DPDK_HELPER_INITIALIZING;
-    DEBUG("%s:%s:%d DPDK_HELPER_INITIALIZING", phc->shm_name, __FUNCTION__,
+    DEBUG("%s:%s:%d DPDK_HELPER_INITIALIZING", phc->shm_name, __func__,
           __LINE__);
     int err = dpdk_helper_spawn(phc);
     if (err) {
@@ -733,7 +731,7 @@ int dpdk_helper_command(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd, int *result,
     return -EINVAL;
   }
 
-  DEBUG("%s:%s:%d pid=%lu, cmd=%d", phc->shm_name, __FUNCTION__, __LINE__,
+  DEBUG("%s:%s:%d pid=%lu, cmd=%d", phc->shm_name, __func__, __LINE__,
         (long)getpid(), cmd);
 
   phc->cmd_wait_time = cmd_wait_time;
@@ -812,8 +810,7 @@ uint64_t strtoull_safe(const char *str, int *err) {
 
   val = strtoull(str, &endptr, 16);
   if (*endptr) {
-    ERROR("%s Failed to parse the value %s, endptr=%c", __FUNCTION__, str,
-          *endptr);
+    ERROR("%s Failed to parse the value %s, endptr=%c", __func__, str, *endptr);
     res = -EINVAL;
   }
   if (err != NULL)
@@ -828,8 +825,8 @@ uint128_t str_to_uint128(const char *str, int len) {
   memset(&lcore_mask, 0, sizeof(lcore_mask));
 
   if (len <= 2 || strncmp(str, "0x", 2) != 0) {
-    ERROR("%s Value %s should be represened in hexadecimal format",
-          __FUNCTION__, str);
+    ERROR("%s Value %s should be represened in hexadecimal format", __func__,
+          str);
     return lcore_mask;
   }
   /* If str is <= 64 bit long ('0x' + 16 chars = 18 chars) then
@@ -871,14 +868,14 @@ uint8_t dpdk_helper_eth_dev_count(void) {
   if (ports == 0) {
     ERROR(
         "%s:%d: No DPDK ports available. Check bound devices to DPDK driver.\n",
-        __FUNCTION__, __LINE__);
+        __func__, __LINE__);
     return ports;
   }
 
   if (ports > RTE_MAX_ETHPORTS) {
     ERROR("%s:%d: Number of DPDK ports (%u) is greater than "
           "RTE_MAX_ETHPORTS=%d. Ignoring extra ports\n",
-          __FUNCTION__, __LINE__, ports, RTE_MAX_ETHPORTS);
+          __func__, __LINE__, ports, RTE_MAX_ETHPORTS);
     ports = RTE_MAX_ETHPORTS;
   }
 

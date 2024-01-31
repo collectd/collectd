@@ -859,7 +859,7 @@ static void smi_event_handler(ipmi_con_t __attribute__((unused)) * ipmi,
   unsigned int type = ipmi_event_get_type(event);
   ipmi_domain_t *domain = cb_data;
 
-  DEBUG("%s: Event received: type %u", __FUNCTION__, type);
+  DEBUG("%s: Event received: type %u", __func__, type);
 
   if (type != 0x02)
     /* It's not a standard IPMI event. */

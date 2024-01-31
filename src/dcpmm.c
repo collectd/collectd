@@ -90,7 +90,7 @@ static void add_metric(const char *plugin_inst, const char *type,
 } /* void add_metric  */
 
 static int dcpmm_read(__attribute__((unused)) user_data_t *ud) {
-  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __func__, __LINE__);
 
   int i, ret = 0;
   char dimm_num[16];
@@ -167,12 +167,12 @@ static int dcpmm_read(__attribute__((unused)) user_data_t *ud) {
 } /* int dcpmm_read */
 
 static int dcpmm_stop(void) {
-  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __func__, __LINE__);
 
   int ret = 0;
 
   if (skip_stop) {
-    DEBUG(PLUGIN_NAME ": %s:%d skipping stop function", __FUNCTION__, __LINE__);
+    DEBUG(PLUGIN_NAME ": %s:%d skipping stop function", __func__, __LINE__);
 
     return ret;
   }
@@ -186,7 +186,7 @@ static int dcpmm_stop(void) {
 } /* int dcpmm_stop */
 
 static int dcpmm_shutdown(void) {
-  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __func__, __LINE__);
 
   int ret = 0;
 
@@ -198,7 +198,7 @@ static int dcpmm_shutdown(void) {
 } /* int dcpmm_shutdown */
 
 static int dcpmm_init(void) {
-  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __func__, __LINE__);
 
   int ret = 0;
 
@@ -239,7 +239,7 @@ static int dcpmm_init(void) {
 } /* int dcpmm_init */
 
 static int dcpmm_config(oconfig_item_t *ci) {
-  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __func__, __LINE__);
 
   int ret = 0;
 

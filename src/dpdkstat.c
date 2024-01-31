@@ -42,7 +42,7 @@
 #define DPDK_STATS_NAME "dpdk_collectd_stats"
 
 #define DPDK_STATS_TRACE()                                                     \
-  DEBUG("%s:%s:%d pid=%u", DPDK_STATS_PLUGIN, __FUNCTION__, __LINE__, getpid())
+  DEBUG("%s:%s:%d pid=%u", DPDK_STATS_PLUGIN, __func__, __LINE__, getpid())
 
 struct dpdk_stats_config_s {
   cdtime_t interval;
@@ -266,7 +266,7 @@ static int dpdk_helper_stats_count_get(dpdk_helper_ctx_t *phc) {
     stats_count += len;
   }
 
-  DPDK_CHILD_LOG("%s:%s:%d stats_count=%d\n", DPDK_STATS_PLUGIN, __FUNCTION__,
+  DPDK_CHILD_LOG("%s:%s:%d stats_count=%d\n", DPDK_STATS_PLUGIN, __func__,
                  __LINE__, stats_count);
 
   return stats_count;
@@ -301,7 +301,7 @@ int dpdk_helper_command_handler(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd) {
     DPDK_CHILD_LOG(
         DPDK_STATS_PLUGIN
         ":%s:%d not enough space for stats (available=%d, needed=%d)\n",
-        __FUNCTION__, __LINE__, (int)dpdk_stats_get_size(phc), stats_size);
+        __func__, __LINE__, (int)dpdk_stats_get_size(phc), stats_size);
     return -ENOBUFS;
   }
 
@@ -384,7 +384,7 @@ static int dpdk_stats_counters_dispatch(dpdk_helper_ctx_t *phc) {
 
   /* dispatch stats values to collectd */
 
-  DEBUG("%s:%s:%d ports=%u", DPDK_STATS_PLUGIN, __FUNCTION__, __LINE__,
+  DEBUG("%s:%s:%d ports=%u", DPDK_STATS_PLUGIN, __func__, __LINE__,
         ctx->ports_count);
 
   int stats_count = 0;
@@ -429,7 +429,7 @@ static int dpdk_stats_reinit_helper() {
   size_t data_size = sizeof(dpdk_stats_ctx_t) +
                      (ctx->stats_count * DPDK_STATS_CTX_GET_XSTAT_SIZE);
 
-  DEBUG("%s:%d helper reinit (new_size=%" PRIsz ")", __FUNCTION__, __LINE__,
+  DEBUG("%s:%d helper reinit (new_size=%" PRIsz ")", __func__, __LINE__,
         data_size);
 
   dpdk_stats_ctx_t tmp_ctx;
