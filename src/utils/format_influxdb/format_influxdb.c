@@ -31,73 +31,82 @@
 
 #include "utils/format_influxdb/format_influxdb.h"
 
-int format_influxdb_point(strbuf_t *sb, metric_t metric, bool store_rates) {
-  bool have_values = false;
+#define NEED_ESCAPE "\\ ,=\""
+#define ESCAPE_CHAR '\\'
 
-#define BUFFER_ADD_ESCAPE(...)                                                 \
+#define ERR_COMBINE(err, f)                                                    \
   do {                                                                         \
-    int status = strbuf_print_escaped(sb, __VA_ARGS__, "\\ ,=\"", '\\');       \
-    if (status != 0)                                                           \
-      return status;                                                           \
+    err = err ? err : f;                                                       \
   } while (0)
 
-#define BUFFER_ADD(...)                                                        \
-  do {                                                                         \
-    int status = strbuf_printf(sb, __VA_ARGS__);                               \
-    if (status != 0)                                                           \
-      return status;                                                           \
-  } while (0)
-
-  have_values = false;
-  BUFFER_ADD_ESCAPE(metric.family->name);
-  for (size_t j = 0; j < metric.label.num; j++) {
-    label_pair_t label = metric.label.ptr[j];
-    BUFFER_ADD(",");
-    BUFFER_ADD_ESCAPE(label.name);
-    BUFFER_ADD("=");
-    BUFFER_ADD_ESCAPE(label.value);
+static int format_metric_identity(strbuf_t *sb, metric_t const *m) {
+  int err = strbuf_print_escaped(sb, m->family->name, NEED_ESCAPE, ESCAPE_CHAR);
+  for (size_t j = 0; j < m->label.num; j++) {
+    label_pair_t label = m->label.ptr[j];
+    ERR_COMBINE(err, strbuf_printf(sb, ","));
+    ERR_COMBINE(err,
+                strbuf_print_escaped(sb, label.name, NEED_ESCAPE, ESCAPE_CHAR));
+    ERR_COMBINE(err, strbuf_printf(sb, "="));
+    ERR_COMBINE(err,
+                strbuf_print_escaped(sb, label.value, "\\ ,=\"", ESCAPE_CHAR));
   }
-  BUFFER_ADD(" ");
+  ERR_COMBINE(err, strbuf_printf(sb, " "));
+  return err;
+}
 
-  if (store_rates && (metric.family->type == METRIC_TYPE_COUNTER)) {
-    gauge_t rate;
-    if (uc_get_rate(&metric, &rate) != 0) {
-      WARNING("write_influxdb_udp plugin: "
-              "uc_get_rate failed.");
-      return EINVAL;
-    }
-    if (!isnan(rate)) {
-      BUFFER_ADD("value=" GAUGE_FORMAT, rate);
-      have_values = true;
-    }
-  } else {
-    switch (metric.family->type) {
-    case METRIC_TYPE_GAUGE:
-    case METRIC_TYPE_UNTYPED:
-      if (!isnan(metric.value.gauge)) {
-        BUFFER_ADD("value=" GAUGE_FORMAT, metric.value.gauge);
-        have_values = true;
-      }
-      break;
-    case METRIC_TYPE_COUNTER:
-      BUFFER_ADD("value=%" PRIi64 "i", metric.value.counter);
-      have_values = true;
-      break;
-    default:
-      WARNING("write_influxdb_udp plugin: "
-              "unknown family type.");
-      return EINVAL;
-      break;
-    }
+static int format_metric_rate(strbuf_t *sb, metric_t const *m) {
+  gauge_t rate = 0;
+  if (uc_get_rate(m, &rate) != 0) {
+    WARNING("write_influxdb_udp plugin: uc_get_rate failed.");
+    return EINVAL;
+  }
+  if (isnan(rate)) {
+    return EAGAIN;
   }
 
-  if (!have_values)
+  return strbuf_printf(sb, "value=" GAUGE_FORMAT, rate);
+}
+
+static int format_metric_value(strbuf_t *sb, metric_t const *m,
+                               bool store_rate) {
+  if (store_rate) {
+    return format_metric_rate(sb, m);
+  }
+
+  switch (m->family->type) {
+  case METRIC_TYPE_GAUGE:
+    if (isnan(m->value.gauge)) {
+      return EAGAIN;
+    }
+    return strbuf_printf(sb, "value=" GAUGE_FORMAT, m->value.gauge);
+  case METRIC_TYPE_COUNTER:
+    return strbuf_printf(sb, "value=%" PRIu64 "i", m->value.counter);
+  case METRIC_TYPE_FPCOUNTER:
+    return strbuf_printf(sb, "value=" GAUGE_FORMAT, m->value.fpcounter);
+  case METRIC_TYPE_UNTYPED:
+  }
+
+  ERROR("format_influxdb plugin: invalid metric type: %d", m->family->type);
+  return EINVAL;
+}
+
+static int format_metric_time(strbuf_t *sb, metric_t const *m) {
+  return strbuf_printf(sb, " %" PRIu64 "\n", CDTIME_T_TO_MS(m->time));
+}
+
+int format_influxdb_point(strbuf_t *sb, metric_t const *m, bool store_rate) {
+  int err = format_metric_identity(sb, m);
+  if (err != 0) {
+    return err;
+  }
+
+  err = format_metric_value(sb, m, store_rate);
+  if (err == EAGAIN) {
     return 0;
+  }
+  if (err != 0) {
+    return err;
+  }
 
-  BUFFER_ADD(" %" PRIu64 "\n", CDTIME_T_TO_MS(metric.time));
-
-#undef BUFFER_ADD_ESCAPE
-#undef BUFFER_ADD
-
-  return 0;
+  return format_metric_time(sb, m);
 } /* int write_influxdb_point */

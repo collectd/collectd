@@ -30,6 +30,6 @@
 
 #include "plugin.h"
 
-int format_influxdb_point(strbuf_t *sb, metric_t metric, bool store_rates);
+int format_influxdb_point(strbuf_t *sb, metric_t const *m, bool store_rate);
 
 #endif /* UTILS_FORMAT_INFLUXDB_H */

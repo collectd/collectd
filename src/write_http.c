@@ -473,9 +473,8 @@ static int wh_write_influxdb(metric_family_t const *fam, wh_callback_t *cb) {
   pthread_mutex_lock(&cb->send_buffer_lock);
 
   for (size_t i = 0; i < fam->metric.num; i++) {
-    metric_t metric = fam->metric.ptr[i];
-    int status =
-        format_influxdb_point(&cb->send_buffer, metric, cb->store_rates);
+    metric_t const *m = fam->metric.ptr + i;
+    int status = format_influxdb_point(&cb->send_buffer, m, cb->store_rates);
     if (status != 0) {
       pthread_mutex_unlock(&cb->send_buffer_lock);
       ERROR("write_http plugin: format_influxdb_point failed: %s",
