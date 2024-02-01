@@ -7153,6 +7153,50 @@ can be configured independently from that option. Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<open_telemetry_collector>
+
+The I<open_telemetry_collector plugin> implements an OpenTelemetry Collector.
+Specifically, it implements a gRPC C<MetricsService>.
+
+=over 4
+
+=item B<Listen> I<Host> I<Port>
+
+The B<Listen> statement sets the network address and port to which to bind.
+Multiple B<Listen> blocks can be specified to listen on multiple
+interfaces/ports. When no B<Listen> blocks are specified, it defaults to
+B<0.0.0.0:4317>.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+Optionally, B<Listen> blocks support the following options:
+
+=over 4
+
+=item B<EnableSSL> I<false>|I<true>
+
+Whether to enable SSL for incoming connections. Default: false.
+
+=item B<SSLCACertificateFile> I<Filename>
+
+=item B<SSLCertificateFile> I<Filename>
+
+=item B<SSLCertificateKeyFile> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=item B<VerifyPeer> B<true>|B<false>
+
+When enabled, a valid client certificate is required to connect to the server.
+When disabled, a client certifiacte is not requested and any unsolicited client
+certificate is accepted.
+Enabled by default.
+
+=back
+
+=back
+
 =head2 Plugin C<oracle>
 
 The "oracle" plugin uses the Oracle® Call Interface I<(OCI)> to connect to an
