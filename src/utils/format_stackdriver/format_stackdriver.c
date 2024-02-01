@@ -479,6 +479,15 @@ static void sd_output_reset_staged(sd_output_t *out) /* {{{ */
     sfree(key);
 } /* }}} void sd_output_reset_staged */
 
+static void reset(sd_output_t *out) {
+  sd_output_reset_staged(out);
+
+  yajl_gen_clear(out->gen);       /* empty generator buffer */
+  yajl_gen_reset(out->gen, NULL); /* reset generator state */
+
+  sd_output_initialize(out);
+}
+
 sd_output_t *sd_output_create(sd_resource_t *res) /* {{{ */
 {
   sd_output_t *out = calloc(1, sizeof(*out));
@@ -576,6 +585,7 @@ int sd_output_add(sd_output_t *out, data_set_t const *ds,
     }
     if (status != 0) {
       ERROR("sd_output_add: format_time_series failed with status %d.", status);
+      reset(out);
       return status;
     }
     staged = 1;
@@ -619,12 +629,7 @@ char *sd_output_reset(sd_output_t *out) /* {{{ */
   yajl_gen_get_buf(out->gen, &json_buffer, &(size_t){0});
   char *ret = strdup((void const *)json_buffer);
 
-  sd_output_reset_staged(out);
-
-  yajl_gen_free(out->gen);
-  out->gen = yajl_gen_alloc(/* funcs = */ NULL);
-
-  sd_output_initialize(out);
+  reset(out);
 
   return ret;
 } /* }}} char *sd_output_reset */
