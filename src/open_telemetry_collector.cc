@@ -73,7 +73,7 @@ struct Listener {
   grpc::SslServerCredentialsOptions *ssl;
 };
 static std::vector<Listener> listeners;
-static grpc::string default_addr("0.0.0.0:50051");
+static grpc::string default_addr("0.0.0.0:4317");
 
 /*
  * helper functions
