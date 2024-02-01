@@ -1747,11 +1747,19 @@ endif
 if BUILD_PLUGIN_OPEN_TELEMETRY_COLLECTOR
 pkglib_LTLIBRARIES += open_telemetry_collector.la
 open_telemetry_collector_la_SOURCES = src/open_telemetry_collector.cc \
-				  opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
-				  opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h
-open_telemetry_collector_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS)
-open_telemetry_collector_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS)
-open_telemetry_collector_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS)
+				      opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
+				      opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h \
+				      opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc \
+				      opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h \
+				      opentelemetry/proto/common/v1/common.pb.cc \
+				      opentelemetry/proto/common/v1/common.pb.h \
+				      opentelemetry/proto/metrics/v1/metrics.pb.cc \
+				      opentelemetry/proto/metrics/v1/metrics.pb.h \
+				      opentelemetry/proto/resource/v1/resource.pb.cc \
+				      opentelemetry/proto/resource/v1/resource.pb.h
+open_telemetry_collector_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS)
+open_telemetry_collector_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS)
+open_telemetry_collector_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
 endif
 
 if BUILD_PLUGIN_ORACLE
