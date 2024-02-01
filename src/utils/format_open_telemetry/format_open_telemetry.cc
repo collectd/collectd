@@ -80,8 +80,7 @@ static void metric_to_number_data_point(NumberDataPoint *dp,
     // cover other values.
     break;
   }
-  // never reached, only here to make the compiler happy
-  ERROR("format_open_telemetry: unexpected metric type: %d", m->family->type);
+  ERROR("format_open_telemetry: invalid metric type: %d", m->family->type);
 }
 
 static void set_sum(Metric *m, metric_family_t const *fam) {
@@ -134,12 +133,11 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
     set_gauge(m, fam);
     return;
   case METRIC_TYPE_UNTYPED:
-    // Fall through. This case signals the compiler that we're checking all
-    // values of the enum. We report an error outside of the switch to also
-    // cover other values.
+    // Never reached, only here to show the compiler we're handling all possible
+    // `metric_type_t` values.
     break;
   }
-  ERROR("format_open_telemetry: unexpected metric type: %d", fam->type);
+  ERROR("format_open_telemetry: invalid metric type: %d", fam->type);
 }
 
 static void set_instrumentation_scope(ScopeMetrics *sm) {

@@ -323,7 +323,7 @@ static int uc_update_rate(metric_t const *m, cache_entry_t *ce) {
   } /* switch (m->family->type) */
 
   /* This shouldn't happen. */
-  ERROR("uc_update: Invalid metric type: %d", m->family->type);
+  ERROR("uc_update: invalid metric type: %d", m->family->type);
   return EINVAL;
 }
 
