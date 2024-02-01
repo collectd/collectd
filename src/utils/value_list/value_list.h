@@ -30,7 +30,7 @@
 #define UTILS_VALUE_LIST_H 1
 
 #include "daemon/data_set.h"
-#include "daemon/metric.h" // for value_t
+#include "daemon/metric.h"
 
 #define DS_TYPE_COUNTER METRIC_TYPE_COUNTER
 #define DS_TYPE_GAUGE METRIC_TYPE_GAUGE
