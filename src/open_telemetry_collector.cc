@@ -220,7 +220,15 @@ static grpc::Status unmarshal_gauge_metric(Gauge g, metric_family_t *fam) {
 }
 
 static grpc::Status unmarshal_sum_metric(Sum sum, metric_family_t *fam) {
-  // TODO(octo): check is_monotonic and aggregation temporality
+  if (!sum.is_monotonic()) {
+    // TODO(octo): convert to gauge instead?
+    DEBUG("open_telemetry_collector: non-monotonic sums (aka. UpDownCounters) "
+          "are unsupported");
+    return grpc::Status(
+        grpc::StatusCode::UNIMPLEMENTED,
+        "non-monotonic sums (aka. UpDownCounters) are unsupported");
+  }
+
   for (auto db : sum.data_points()) {
     grpc::Status s =
         unmarshal_data_point(db, fam, sum.aggregation_temporality());
