@@ -313,8 +313,8 @@ static grpc::Status dispatch_resource_metrics(ResourceMetrics rm) {
  */
 class OTMetricsService : public MetricsService::Service {
 public:
-  grpc::Status Export(grpc::ClientContext *context,
-                      const ExportMetricsServiceRequest &req,
+  grpc::Status Export(grpc::ServerContext *context,
+                      const ExportMetricsServiceRequest *req,
                       ExportMetricsServiceResponse *resp) {
     for (auto rm : req.resource_metrics()) {
       grpc::Status s = dispatch_resource_metrics(rm);
