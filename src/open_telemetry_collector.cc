@@ -480,11 +480,12 @@ static int otelcol_config_listen(oconfig_item_t *ci) {
     }
   }
 
-  ssl_opts->pem_key_cert_pairs.push_back(pkcp);
-  if (use_ssl)
+  if (use_ssl) {
+    ssl_opts->pem_key_cert_pairs.push_back(pkcp);
     listener.ssl = ssl_opts;
-  else
+  } else {
     delete (ssl_opts);
+  }
 
   listeners.push_back(listener);
   return 0;
