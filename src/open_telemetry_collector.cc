@@ -173,7 +173,6 @@ static grpc::Status unmarshal_data_point(NumberDataPoint dp,
       // (#4266)
       // fam->type = METRIC_TYPE_FPCOUNTER;
       // m.value.fpcounter = dp.as_double();
-      fam->type = METRIC_TYPE_COUNTER;
       m.value.counter = offset.counter + (counter_t)dp.as_double();
       break;
     }
@@ -181,7 +180,6 @@ static grpc::Status unmarshal_data_point(NumberDataPoint dp,
     break;
   case NumberDataPoint::kAsInt:
     if (is_cumulative) {
-      fam->type = METRIC_TYPE_COUNTER;
       m.value.counter = offset.counter + (counter_t)dp.as_int();
       break;
     }
@@ -270,6 +268,7 @@ static grpc::Status dispatch_metric(Metric mpb, label_set_t resource,
     break;
   }
   case Metric::kSum: {
+    fam.type = METRIC_TYPE_COUNTER;
     grpc::Status s = unmarshal_sum_metric(mpb.sum(), &fam);
     if (!s.ok()) {
       metric_family_metric_reset(&fam);
