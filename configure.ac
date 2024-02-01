@@ -2880,6 +2880,37 @@ if test "x$with_libgrpcpp" = "xyes"; then
   AC_LANG_POP(C++)
 fi
 
+if test "x$with_libgrpcpp" = "xyes"; then
+  AC_MSG_CHECKING([for grpc++_reflection])
+  AC_LANG_PUSH(C++)
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
+  LDFLAGS="$with_libgrpcpp_ldflags"
+  LIBS="-lgrpc++_reflection $GRPCPP_LIBS"
+  AC_LINK_IFELSE(
+    [
+      AC_LANG_PROGRAM(
+        [[#include <grpc++/ext/proto_server_reflection_plugin.h>]],
+        [[grpc::reflection::InitProtoReflectionServerBuilderPlugin();]]
+      )
+    ],
+    [
+      AC_MSG_RESULT([yes])
+      GRPCPP_LIBS="$LIBS"
+      AC_DEFINE([HAVE_GRPCPP_REFLECTION], [1], [Define if the grpc++_reflection library is available.])
+    ],
+    [
+      AC_MSG_RESULT([no])
+    ]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
+  AC_LANG_POP(C++)
+fi
+
 BUILD_WITH_LIBGRPCPP_CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS"
 BUILD_WITH_LIBGRPCPP_LDFLAGS="$with_libgrpcpp_ldflags"
 BUILD_WITH_LIBGRPCPP_LIBS="$GRPCPP_LIBS"

@@ -37,6 +37,9 @@ extern "C" {
 #include <vector>
 
 #include <grpc++/grpc++.h>
+#if HAVE_GRPCPP_REFLECTION
+#include <grpc++/ext/proto_server_reflection_plugin.h>
+#endif
 
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
@@ -370,6 +373,9 @@ public:
 class CollectorServer final {
 public:
   void Start() {
+#if HAVE_GRPCPP_REFLECTION
+    grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+#endif
     auto auth = grpc::InsecureServerCredentials();
 
     grpc::ServerBuilder builder;
