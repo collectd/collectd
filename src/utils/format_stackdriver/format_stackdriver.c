@@ -479,6 +479,15 @@ static void sd_output_reset_staged(sd_output_t *out) /* {{{ */
     sfree(key);
 } /* }}} void sd_output_reset_staged */
 
+static void reset(sd_output_t *out) {
+  sd_output_reset_staged(out);
+
+  yajl_gen_clear(out->gen);       /* empty generator buffer */
+  yajl_gen_reset(out->gen, NULL); /* reset generator state */
+
+  sd_output_initialize(out);
+}
+
 sd_output_t *sd_output_create(sd_resource_t *res) /* {{{ */
 {
   sd_output_t *out = calloc(1, sizeof(*out));
@@ -576,6 +585,7 @@ int sd_output_add(sd_output_t *out, data_set_t const *ds,
     }
     if (status != 0) {
       ERROR("sd_output_add: format_time_series failed with status %d.", status);
+      reset(out);
       return status;
     }
     staged = 1;
@@ -613,20 +623,32 @@ int sd_output_register_metric(sd_output_t *out, data_set_t const *ds,
 
 char *sd_output_reset(sd_output_t *out) /* {{{ */
 {
-  sd_output_finalize(out);
+  int err = sd_output_finalize(out);
+  if (err) {
+    goto handle_err;
+  }
 
   unsigned char const *json_buffer = NULL;
-  yajl_gen_get_buf(out->gen, &json_buffer, &(size_t){0});
+  size_t json_buffer_size = 0;
+  err = yajl_gen_get_buf(out->gen, &json_buffer, &json_buffer_size);
+  if (err) {
+    goto handle_err;
+  }
+
   char *ret = strdup((void const *)json_buffer);
+  if (ret == NULL) {
+    err = errno;
+    goto handle_err;
+  }
 
-  sd_output_reset_staged(out);
-
-  yajl_gen_free(out->gen);
-  out->gen = yajl_gen_alloc(/* funcs = */ NULL);
-
-  sd_output_initialize(out);
-
+  /* success */
+  reset(out);
   return ret;
+
+handle_err:
+  reset(out);
+  errno = err;
+  return NULL;
 } /* }}} char *sd_output_reset */
 
 sd_resource_t *sd_resource_create(char const *type) /* {{{ */
