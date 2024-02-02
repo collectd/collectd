@@ -7167,9 +7167,14 @@ B<Synopsis:>
       SSLCACertificateFile "/path/to/root.pem"
       SSLCertificateFile "/path/to/client.pem"
       SSLCertificateKeyFile "/path/to/client.key"
-      VerifyPeer false
+      VerifyPeer true
     </Receiver>
-    Exporter "localhost" "4317"
+    <Exporter "localhost" "4317">
+      EnableSSL false
+      SSLCACertificateFile "/path/to/root.pem"
+      SSLCertificateFile "/path/to/client.pem"
+      SSLCertificateKeyFile "/path/to/client.key"
+    </Exporter>
   </Plugin>
 
 =over 4
