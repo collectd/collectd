@@ -356,9 +356,9 @@ static int write_influxdb_udp_write(metric_family_t const *fam,
   strbuf_t sb = STRBUF_CREATE_FIXED(buffer, buffer_len);
 
   for (size_t i = 0; i < fam->metric.num;) {
-    metric_t metric = fam->metric.ptr[i];
+    metric_t const *m = fam->metric.ptr + i;
     const size_t pos = sb.pos;
-    int status = format_influxdb_point(&sb, metric, wifxudp_config_store_rates);
+    int status = format_influxdb_point(&sb, m, wifxudp_config_store_rates);
     if (status == ENOSPC) {
       fill_send_buffer(sb.ptr, pos);
       strbuf_reset(&sb);

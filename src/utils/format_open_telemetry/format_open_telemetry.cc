@@ -66,19 +66,21 @@ static void metric_to_number_data_point(NumberDataPoint *dp,
   // when we've seen a metric for the first time.
 
   // A valid metric type is guaranteed by add_metric().
-  assert(m->family->type == METRIC_TYPE_COUNTER ||
-         m->family->type == METRIC_TYPE_GAUGE);
   switch (m->family->type) {
   case METRIC_TYPE_COUNTER:
     dp->set_as_int(m->value.derive);
-    break;
+    return;
   case METRIC_TYPE_GAUGE:
+  case METRIC_TYPE_FPCOUNTER:
     dp->set_as_double(m->value.gauge);
-    break;
+    return;
   case METRIC_TYPE_UNTYPED:
-    // never reached, only here to make the compiler happy
+    // Fall through. This case signals the compiler that we're checking all
+    // values of the enum. We report an error outside of the switch to also
+    // cover other values.
     break;
   }
+  ERROR("format_open_telemetry: invalid metric type: %d", m->family->type);
 }
 
 static void set_sum(Metric *m, metric_family_t const *fam) {
@@ -107,10 +109,9 @@ static void set_gauge(Metric *m, metric_family_t const *fam) {
 }
 
 static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
-  if (fam->type != METRIC_TYPE_COUNTER && fam->type != METRIC_TYPE_GAUGE) {
-    WARNING("format_open_telemetry: metric family \"%s\" with type %d is not "
-            "supported.",
-            fam->name, fam->type);
+  if (fam->type == METRIC_TYPE_UNTYPED) {
+    ERROR("format_open_telemetry: metric family \"%s\" has invalid type %d.",
+          fam->name, fam->type);
     return;
   }
 
@@ -125,15 +126,18 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
 
   switch (fam->type) {
   case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_FPCOUNTER:
     set_sum(m, fam);
     return;
   case METRIC_TYPE_GAUGE:
     set_gauge(m, fam);
     return;
   case METRIC_TYPE_UNTYPED:
-    // never reached, only here to make the compiler happy
-    return;
+    // Never reached, only here to show the compiler we're handling all possible
+    // `metric_type_t` values.
+    break;
   }
+  ERROR("format_open_telemetry: invalid metric type: %d", fam->type);
 }
 
 static void set_instrumentation_scope(ScopeMetrics *sm) {

@@ -86,6 +86,24 @@ DEF_TEST(uc_get_rate) {
           .type = METRIC_TYPE_COUNTER,
           .want = (23. + 18. + 1.) / (110. - 100.),
       },
+      {
+          .name = "fpcounter",
+          .first_value = (value_t){.fpcounter = 4.2},
+          .second_value = (value_t){.fpcounter = 10.2},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_FPCOUNTER,
+          .want = (10.2 - 4.2) / (110 - 100),
+      },
+      {
+          .name = "fpcounter with reset",
+          .first_value = (value_t){.fpcounter = 100000.0},
+          .second_value = (value_t){.fpcounter = 0.2},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_FPCOUNTER,
+          .want = NAN,
+      },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {

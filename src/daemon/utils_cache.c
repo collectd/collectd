@@ -150,27 +150,12 @@ static int uc_insert(metric_t const *m, char const *key) {
       .last_update = cdtime(),
       .interval = m->interval,
       .state = STATE_UNKNOWN,
+      .values_gauge = NAN,
   };
   sstrncpy(ce->name, key, sizeof(ce->name));
 
-  switch (m->family->type) {
-  case DS_TYPE_COUNTER:
-  case DS_TYPE_DERIVE:
-    // Non-gauge types will store the rate in values_gauge when the second data
-    // point is available. Initially, NAN signifies "not enough data".
-    ce->values_gauge = NAN;
-    break;
-
-  case DS_TYPE_GAUGE:
+  if (m->family->type == METRIC_TYPE_GAUGE) {
     ce->values_gauge = m->value.gauge;
-    break;
-
-  default:
-    /* This shouldn't happen. */
-    ERROR("uc_insert: Unexpected metric type %d.", m->family->type);
-    sfree(key_copy);
-    cache_free(ce);
-    return -1;
   }
 
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
@@ -294,6 +279,54 @@ int uc_check_timeout(void) {
   return 0;
 } /* int uc_check_timeout */
 
+static int uc_update_rate(metric_t const *m, cache_entry_t *ce) {
+  switch (m->family->type) {
+  case METRIC_TYPE_COUNTER: {
+    // Counter overflows and counter resets are signaled to plugins by resetting
+    // "first_time". Since we can't distinguish between an overflow and a
+    // reset, we still provide a non-NAN rate value. In case of a counter
+    // reset, the rate value will likely be unreasonably huge.
+    if (ce->last_value.counter > m->value.counter) {
+      // counter reset
+      ce->first_time = m->time;
+      ce->first_value = m->value;
+    }
+    counter_t diff = counter_diff(ce->last_value.counter, m->value.counter);
+    ce->values_gauge =
+        ((double)diff) / CDTIME_T_TO_DOUBLE(m->time - ce->last_time);
+    return 0;
+  }
+
+  case METRIC_TYPE_FPCOUNTER: {
+    // For floating point counters, the logic is slightly different from
+    // integer counters. Floating point counters don't have a (meaningful)
+    // overflow, and we will always assume a counter reset.
+    if (ce->last_value.fpcounter > m->value.fpcounter) {
+      // counter reset
+      ce->first_time = m->time;
+      ce->first_value = m->value;
+      ce->values_gauge = NAN;
+      return 0;
+    }
+    gauge_t diff = m->value.fpcounter - ce->last_value.fpcounter;
+    ce->values_gauge = diff / CDTIME_T_TO_DOUBLE(m->time - ce->last_time);
+    return 0;
+  }
+
+  case METRIC_TYPE_GAUGE: {
+    ce->values_gauge = m->value.gauge;
+    return 0;
+  }
+
+  case METRIC_TYPE_UNTYPED:
+    break;
+  } /* switch (m->family->type) */
+
+  /* This shouldn't happen. */
+  ERROR("uc_update: invalid metric type: %d", m->family->type);
+  return EINVAL;
+}
+
 static int uc_update_metric(metric_t const *m) {
   strbuf_t buf = STRBUF_CREATE;
   int status = metric_identity(&buf, m);
@@ -332,48 +365,12 @@ static int uc_update_metric(metric_t const *m) {
     return -1;
   }
 
-  switch (m->family->type) {
-  case METRIC_TYPE_COUNTER: {
-    // Counter overflows and counter resets are signaled to plugins by resetting
-    // "first_time". Since we can't distinguish between an overflow and a
-    // reset, we still provide a non-NAN rate value. In case of a counter
-    // reset, the rate value will likely be unreasonably huge.
-    if (ce->last_value.counter > m->value.counter) {
-      // counter reset
-      ce->first_time = m->time;
-      ce->first_value = m->value;
-    }
-    counter_t diff = counter_diff(ce->last_value.counter, m->value.counter);
-    ce->values_gauge =
-        ((double)diff) / CDTIME_T_TO_DOUBLE(m->time - ce->last_time);
-    break;
-  }
-
-  case METRIC_TYPE_UNTYPED:
-  case METRIC_TYPE_GAUGE: {
-    ce->values_gauge = m->value.gauge;
-    break;
-  }
-
-#if 0
-  case DS_TYPE_DERIVE: { /* TODO(octo): add support for DERIVE */
-    derive_t diff = m->value.derive - ce->values_raw.derive;
-    ce->values_gauge =
-        ((double)diff) / (CDTIME_T_TO_DOUBLE(m->time - ce->last_time));
-    ce->values_raw.derive = m->value.derive;
-    break;
-  }
-#endif
-
-  default: {
-    /* This shouldn't happen. */
+  int err = uc_update_rate(m, ce);
+  if (err) {
     pthread_mutex_unlock(&cache_lock);
-    ERROR("uc_update: Don't know how to handle data source type %i.",
-          m->family->type);
     STRBUF_DESTROY(buf);
-    return -1;
+    return err;
   }
-  } /* switch (m->family->type) */
 
   DEBUG("uc_update: %s = %f", buf.ptr, ce->values_gauge);
 

@@ -96,13 +96,18 @@ static int number_data_point(yajl_gen g, metric_t const *m) {
     CHECK(json_add_string(g, "asInt"));
     CHECK(yajl_gen_integer(g, m->value.counter));
     break;
+  case METRIC_TYPE_FPCOUNTER:
+    CHECK(json_add_string(g, "asDouble"));
+    CHECK(yajl_gen_double(g, m->value.fpcounter));
+    break;
   case METRIC_TYPE_GAUGE:
     CHECK(json_add_string(g, "asDouble"));
     CHECK(yajl_gen_double(g, m->value.gauge));
     break;
   case METRIC_TYPE_UNTYPED:
-    // TODO
-    assert(0);
+    ERROR("format_json_open_telemetry: Unexpected metric type: %d",
+          m->family->type);
+    return EINVAL;
   }
 
   CHECK(yajl_gen_map_close(g)); /* END NumberDataPoint */
@@ -162,6 +167,7 @@ static int metric(yajl_gen g, metric_family_t const *fam) {
 
   switch (fam->type) {
   case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_FPCOUNTER:
     CHECK(json_add_string(g, "sum"));
     CHECK(sum(g, fam));
     break;
@@ -170,8 +176,8 @@ static int metric(yajl_gen g, metric_family_t const *fam) {
     CHECK(gauge(g, fam));
     break;
   case METRIC_TYPE_UNTYPED:
-    // TODO
-    assert(0);
+    ERROR("format_json_open_telemetry: Unexpected metric type: %d", fam->type);
+    return EINVAL;
   }
 
   CHECK(yajl_gen_map_close(g)); /* END Metric */

@@ -40,16 +40,6 @@
 #include <inttypes.h>
 #include <pthread.h>
 
-#define DS_TYPE_COUNTER 0
-#define DS_TYPE_GAUGE VALUE_TYPE_GAUGE
-#define DS_TYPE_DERIVE VALUE_TYPE_DERIVE
-
-#define DS_TYPE_TO_STRING(t)                                                   \
-  (t == DS_TYPE_COUNTER)  ? "counter"                                          \
-  : (t == DS_TYPE_GAUGE)  ? "gauge"                                            \
-  : (t == DS_TYPE_DERIVE) ? "derive"                                           \
-                          : "unknown"
-
 #ifndef LOG_ERR
 #define LOG_ERR 3
 #endif

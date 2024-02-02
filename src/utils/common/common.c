@@ -957,6 +957,8 @@ int format_values(strbuf_t *buf, metric_t const *m, bool store_rates) {
     }
   } else if (m->family->type == METRIC_TYPE_COUNTER) {
     strbuf_printf(buf, ":%" PRIu64, m->value.counter);
+  } else if (m->family->type == METRIC_TYPE_FPCOUNTER) {
+    strbuf_printf(buf, ":" GAUGE_FORMAT, m->value.fpcounter);
   } else if (m->family->type == DS_TYPE_DERIVE) {
     strbuf_printf(buf, ":%" PRIi64, m->value.derive);
   } else {

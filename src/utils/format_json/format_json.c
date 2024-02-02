@@ -190,12 +190,12 @@ static int json_metric_family(yajl_gen g, metric_family_t const *fam) {
   case METRIC_TYPE_COUNTER:
     type = "COUNTER";
     break;
+  case METRIC_TYPE_FPCOUNTER:
+    type = "FPCOUNTER";
+    break;
   case METRIC_TYPE_UNTYPED:
     type = "UNTYPED";
     break;
-  default:
-    ERROR("format_json_metric: Unknown value type: %d", fam->type);
-    return EINVAL;
   }
   CHECK(json_add_string(g, "type"));
   CHECK(json_add_string(g, type));
