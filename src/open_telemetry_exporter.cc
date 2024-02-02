@@ -42,10 +42,6 @@ extern "C" {
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
 #include "utils/format_open_telemetry/format_open_telemetry.h"
 
-#ifndef OT_DEFAULT_HOST
-#define OT_DEFAULT_HOST "localhost"
-#endif
-
 #ifndef OT_DEFAULT_PORT
 #define OT_DEFAULT_PORT "4317"
 #endif
@@ -58,7 +54,6 @@ using opentelemetry::proto::collector::metrics::v1::MetricsService;
  * Private variables
  */
 typedef struct {
-  char *name;
   int reference_count;
 
   char *host;
@@ -144,7 +139,6 @@ static void ot_callback_decref(void *data) {
 
   cb->stub.reset();
 
-  sfree(cb->name);
   sfree(cb->host);
   sfree(cb->port);
 
@@ -185,40 +179,34 @@ static int ot_write(metric_family_t const *fam, user_data_t *user_data) {
 }
 
 int exporter_config(oconfig_item_t *ci) {
+  if (ci->values_num < 1 || ci->values_num > 2 ||
+      ci->values[0].type != OCONFIG_TYPE_STRING ||
+      (ci->values_num > 1 && ci->values[1].type != OCONFIG_TYPE_STRING)) {
+    ERROR("open_telemetry plugin: The \"%s\" config option needs "
+          "one or two string arguments (address and port).",
+          ci->key);
+    return EINVAL;
+  }
+
   ot_callback_t *cb = (ot_callback_t *)calloc(1, sizeof(*cb));
   if (cb == NULL) {
     ERROR("open_telemetry plugin: calloc failed.");
     return -1;
   }
 
-  cb->reference_count = 1;
-  cf_util_get_string(ci, &cb->name);
-  cb->host = strdup(OT_DEFAULT_HOST);
-  cb->port = strdup(OT_DEFAULT_PORT);
-
+  *cb = (ot_callback_t){
+      .reference_count = 1,
+      .host = strdup(ci->values[0].value.string),
+  };
+  if (ci->values_num >= 2) {
+    cb->port = strdup(ci->values[1].value.string);
+  } else {
+    cb->port = strdup(OT_DEFAULT_PORT);
+  }
   pthread_mutex_init(&cb->mu, /* attr = */ NULL);
 
-  for (int i = 0; i < ci->children_num; i++) {
-    oconfig_item_t *child = ci->children + i;
-
-    int status = 0;
-    if (strcasecmp("Host", child->key) == 0)
-      status = cf_util_get_string(child, &cb->host);
-    else if (strcasecmp("Port", child->key) == 0)
-      status = cf_util_get_service(child, &cb->port);
-    else {
-      ERROR("open_telemetry plugin: invalid config option: %s.", child->key);
-      status = -1;
-    }
-
-    if (status != 0) {
-      ot_callback_decref(cb);
-      return status;
-    }
-  }
-
   strbuf_t callback_name = STRBUF_CREATE;
-  strbuf_printf(&callback_name, "open_telemetry/%s", cb->name);
+  strbuf_printf(&callback_name, "open_telemetry/[%s]:%s", cb->host, cb->port);
 
   user_data_t user_data = {
       .data = cb,

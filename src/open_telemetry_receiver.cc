@@ -47,6 +47,10 @@ extern "C" {
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/resource/v1/resource.pb.h"
 
+#ifndef OT_DEFAULT_PORT
+#define OT_DEFAULT_PORT "4317"
+#endif
+
 using opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess;
 using opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest;
 using opentelemetry::proto::collector::metrics::v1::
@@ -380,24 +384,19 @@ public:
 
     grpc::ServerBuilder builder;
 
-    if (listeners.empty()) {
-      builder.AddListeningPort(default_addr, auth);
-      INFO("open_telemetry plugin: Listening on %s", default_addr.c_str());
-    } else {
-      for (auto l : listeners) {
-        grpc::string addr = l.addr + ":" + l.port;
+    for (auto l : listeners) {
+      grpc::string addr = l.addr + ":" + l.port;
 
-        auto use_ssl = grpc::string("");
-        auto a = auth;
-        if (l.ssl != nullptr) {
-          use_ssl = grpc::string(" (SSL enabled)");
-          a = grpc::SslServerCredentials(*l.ssl);
-        }
-
-        builder.AddListeningPort(addr, a);
-        INFO("open_telemetry plugin: Listening on %s%s", addr.c_str(),
-             use_ssl.c_str());
+      auto use_ssl = grpc::string("");
+      auto a = auth;
+      if (l.ssl != nullptr) {
+        use_ssl = grpc::string(" (SSL enabled)");
+        a = grpc::SslServerCredentials(*l.ssl);
       }
+
+      builder.AddListeningPort(addr, a);
+      INFO("open_telemetry plugin: Listening on %s%s", addr.c_str(),
+           use_ssl.c_str());
     }
 
     builder.RegisterService(&metrics_service);
@@ -457,17 +456,22 @@ static void receiver_install_callbacks(void) {
  * collectd plugin interface
  */
 int receiver_config(oconfig_item_t *ci) {
-  if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_STRING) ||
-      (ci->values[1].type != OCONFIG_TYPE_STRING)) {
-    ERROR("open_telemetry plugin: The `%s` config option needs exactly "
-          "two string argument (address and port).",
+  if (ci->values_num < 1 || ci->values_num > 2 ||
+      ci->values[0].type != OCONFIG_TYPE_STRING ||
+      (ci->values_num > 1 && ci->values[1].type != OCONFIG_TYPE_STRING)) {
+    ERROR("open_telemetry plugin: The \"%s\" config option needs "
+          "one or two string arguments (address and port).",
           ci->key);
-    return -1;
+    return EINVAL;
   }
 
   auto listener = Listener();
   listener.addr = grpc::string(ci->values[0].value.string);
-  listener.port = grpc::string(ci->values[1].value.string);
+  if (ci->values_num >= 2) {
+    listener.port = grpc::string(ci->values[1].value.string);
+  } else {
+    listener.port = grpc::string(OT_DEFAULT_PORT);
+  }
   listener.ssl = nullptr;
 
   auto ssl_opts = new grpc::SslServerCredentialsOptions(
@@ -526,7 +530,7 @@ int receiver_config(oconfig_item_t *ci) {
     ssl_opts->pem_key_cert_pairs.push_back(pkcp);
     listener.ssl = ssl_opts;
   } else {
-    delete (ssl_opts);
+    delete ssl_opts;
   }
 
   listeners.push_back(listener);

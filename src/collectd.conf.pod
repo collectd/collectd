@@ -7153,7 +7153,7 @@ can be configured independently from that option. Defaults to B<false>.
 
 =back
 
-=head2 Plugin C<open_telemetry_collector>
+=head2 Plugin C<open_telemetry>
 
 The I<open_telemetry plugin> implements an OpenTelemetry exporter and receiver
 using OTLP. Specifically, it implements a gRPC C<MetricsService> client and
@@ -7169,15 +7169,12 @@ B<Synopsis:>
       SSLCertificateKeyFile "/path/to/client.key"
       VerifyPeer false
     </Receiver>
-    <Exporter "example">
-      Host "localhost"
-      Port "4317"
-    </Exporter>
+    Exporter "localhost" "4317"
   </Plugin>
 
 =over 4
 
-=item B<Receiver> I<Host> I<Port>
+=item B<Receiver> I<Host> [I<Port>]
 
 The B<Receiver> statement sets the network address and port to which to bind.
 Multiple B<Receiver> blocks can be specified to listen on multiple
@@ -7185,6 +7182,9 @@ interfaces/ports. When no B<Receiver> blocks are specified, the plugin will not
 receive any metrics.
 
 The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+The I<Port> argument may be omitted. In that case the default C<"4317"> is
+used.
 
 Optionally, B<Receiver> blocks support the following options:
 
@@ -7212,23 +7212,15 @@ Enabled by default.
 
 =back
 
-=item B<Exporter> I<Name>
+=item B<Exporter> I<Host> [I<Port>]
 
-The plugin can export metrics to multiple collectors by specifying multiple
-B<Exporter> blocks. Within the B<Exporter> blocks, the following options are
-available:
+The B<Exporter> option configures an OTLP export to the given collector
+address. Multiple collectors can be specified using multiple B<Exporter> lines.
 
-=over 4
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
 
-=item B<Host> I<Address>
-
-Hostname or address to connect to. Defaults to C<localhost>.
-
-=item B<Port> I<Service>
-
-Service name or port number to connect to. Defaults to C<4317>.
-
-=back
+The I<Port> argument may be omitted. In that case the default C<"4317"> is
+used.
 
 =back
 
