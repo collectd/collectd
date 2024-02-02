@@ -28,6 +28,9 @@
  * - https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
  * - https://spec.oneapi.io/level-zero/latest/sysman/api.html
  *
+ * Metrics names and labels are based on Open Telemetry spec:
+ * https://opentelemetry.io/docs/specs/semconv/system/hardware-metrics/#hwgpu---gpu-metrics
+ *
  * Error handling:
  * - Allocations are done using collectd scalloc(), smalloc() and sstrdup()
  *   helpers which log an error and exit on allocation failures
@@ -64,7 +67,7 @@
 #include "utils/common/common.h"
 
 #define PLUGIN_NAME "gpu_sysman"
-#define METRIC_PREFIX "sysman.gpu."
+#define METRIC_PREFIX "hw.gpu."
 
 /* collectd plugin API callback finished OK */
 #define RET_OK 0
@@ -1017,7 +1020,7 @@ static void ras_submit(gpu_device_t *gpu, const char *name, const char *help,
 
   m.value.counter = value;
   if (type) {
-    metric_label_set(&m, "type", type);
+    metric_label_set(&m, "hw.error.type", type);
   }
   if (subdev) {
     metric_label_set(&m, "sub_dev", subdev);
@@ -1333,11 +1336,11 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
 static void add_bw_gauges(metric_t *metric, metric_family_t *fam, double reads,
                           double writes) {
   metric->value.gauge = reads;
-  metric_label_set(metric, "direction", "read");
+  metric_label_set(metric, "direction", "receive");
   metric_family_metric_append(fam, *metric);
 
   metric->value.gauge = writes;
-  metric_label_set(metric, "direction", "write");
+  metric_label_set(metric, "direction", "transmit");
   metric_family_metric_append(fam, *metric);
 }
 
@@ -1370,23 +1373,25 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     gpu->membw_count = mem_count;
   }
 
-  char *name = METRIC_PREFIX "memory.bw";
+  /* names based on network metrics:
+   * https://opentelemetry.io/docs/specs/semconv/system/hardware-metrics/#hwnetwork---network-adapter-metrics
+   */
   metric_family_t fam_ratio = {
       .help = "Average memory bandwidth usage ratio (0-1) over query interval",
+      .name = METRIC_PREFIX "memory.bandwidth.utilization",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "1",
   };
   metric_family_t fam_rate = {
       .help = "Memory bandwidth usage rate (in bytes per second)",
+      .name = METRIC_PREFIX "memory.io.rate",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "By/s",
   };
   metric_family_t fam_counter = {
       .help = "Memory bandwidth usage total (in bytes)",
+      .name = METRIC_PREFIX "memory.io",
       .type = METRIC_TYPE_COUNTER,
-      .name = name,
       .unit = "By",
   };
   metric_t metric = {0};
@@ -1410,11 +1415,11 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     }
     if (config.output & OUTPUT_BASE) {
       metric.value.counter = bw.writeCounter;
-      metric_label_set(&metric, "direction", "write");
+      metric_label_set(&metric, "direction", "transmit");
       metric_family_metric_append(&fam_counter, metric);
 
       metric.value.counter = bw.readCounter;
-      metric_label_set(&metric, "direction", "read");
+      metric_label_set(&metric, "direction", "receive");
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
@@ -1553,17 +1558,16 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
     assert(gpu->frequency);
   }
 
-  char *name = METRIC_PREFIX "frequency";
   metric_family_t fam_freq = {
       .help = "Sampled HW frequency (in MHz)",
+      .name = METRIC_PREFIX "frequency",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "MHz",
   };
   metric_family_t fam_ratio = {
       .help = "Sampled HW frequency ratio vs (non-overclocked) max frequency",
+      .name = METRIC_PREFIX "frequency.ratio",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "1",
   };
   metric_t metric = {0};
@@ -1759,18 +1763,17 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
     gpu->throttle_count = freq_count;
   }
 
-  char *name = METRIC_PREFIX "throttled";
   metric_family_t fam_ratio = {
       .help =
           "Ratio (0-1) of HW frequency being throttled during query interval",
+      .name = METRIC_PREFIX "throttled",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "1",
   };
   metric_family_t fam_counter = {
       .help = "Total time HW frequency has been throttled (in microseconds)",
+      .name = METRIC_PREFIX "throttled.time",
       .type = METRIC_TYPE_COUNTER,
-      .name = name,
       .unit = "us",
   };
   metric_t metric = {0};
@@ -1850,17 +1853,16 @@ static bool gpu_temps(gpu_device_t *gpu) {
     gpu->temp_count = temp_count;
   }
 
-  char *name = METRIC_PREFIX "temperature";
   metric_family_t fam_temp = {
       .help = "Temperature sensor value (in Celsius) when queried",
+      .name = METRIC_PREFIX "temperature",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "Cel",
   };
   metric_family_t fam_ratio = {
       .help = "Temperature sensor value ratio to its max value when queried",
+      .name = METRIC_PREFIX "temperature.ratio",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "1",
   };
   metric_t metric = {0};
@@ -2024,24 +2026,26 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
     gpu->fabric_count = port_count;
   }
 
-  char *name = METRIC_PREFIX "fabric.port";
+  /* names based on network metrics:
+   * https://opentelemetry.io/docs/specs/semconv/system/hardware-metrics/#hwnetwork---network-adapter-metrics
+   */
   metric_family_t fam_ratio = {
       .help =
           "Average fabric port bandwidth usage ratio (0-1) over query interval",
+      .name = METRIC_PREFIX "fabric.bandwidth.utilization",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "1",
   };
   metric_family_t fam_rate = {
       .help = "Fabric port throughput rate (in bytes per second)",
+      .name = METRIC_PREFIX "fabric.io.rate",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "By/s",
   };
   metric_family_t fam_counter = {
       .help = "Fabric port throughput total (in bytes)",
+      .name = METRIC_PREFIX "fabric.io",
       .type = METRIC_TYPE_COUNTER,
-      .name = name,
       .unit = "By",
   };
   metric_t metric = {0};
@@ -2125,11 +2129,11 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
 
     if (config.output & OUTPUT_BASE) {
       metric.value.counter = bw.txCounter;
-      metric_label_set(&metric, "direction", "write");
+      metric_label_set(&metric, "direction", "transmit");
       metric_family_metric_append(&fam_counter, metric);
 
       metric.value.counter = bw.rxCounter;
-      metric_label_set(&metric, "direction", "read");
+      metric_label_set(&metric, "direction", "receive");
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
@@ -2206,18 +2210,17 @@ static bool gpu_powers(gpu_device_t *gpu) {
     gpu->power_count = power_count;
   }
 
-  char *name = METRIC_PREFIX "power";
   metric_family_t fam_ratio = {
       .help = "Ratio of average power usage vs sustained or burst "
               "power limit",
+      .name = METRIC_PREFIX "power.utilization",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "1",
   };
   metric_family_t fam_power = {
       .help = "Average power usage (in Watts) over query interval",
+      .name = METRIC_PREFIX "power",
       .type = METRIC_TYPE_GAUGE,
-      .name = name,
       .unit = "W",
   };
   metric_family_t fam_energy = {
