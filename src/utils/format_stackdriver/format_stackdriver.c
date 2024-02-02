@@ -134,8 +134,8 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
 
   switch (m->family->type) {
   case METRIC_TYPE_GAUGE: {
-    int status = json_string(gen, "doubleValue") ||
-                 (int)yajl_gen_double(gen, m->value.gauge);
+    int status =
+        json_string(gen, "doubleValue") || yajl_gen_double(gen, m->value.gauge);
     if (status != 0) {
       return status;
     }
@@ -146,8 +146,7 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
     assert(m->value.fpcounter >= start_value.fpcounter);
 
     fpcounter_t diff = m->value.fpcounter - start_value.fpcounter;
-    int status =
-        json_string(gen, "doubleValue") || (int)yajl_gen_double(gen, diff);
+    int status = json_string(gen, "doubleValue") || yajl_gen_double(gen, diff);
     if (status != 0) {
       return status;
     }
