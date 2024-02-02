@@ -7192,7 +7192,7 @@ Optionally, B<Receiver> blocks support the following options:
 
 =item B<EnableSSL> I<false>|I<true>
 
-Whether to enable SSL for incoming connections. Default: false.
+Whether to enable SSL for incoming connections. Default: I<false>.
 
 =item B<SSLCACertificateFile> I<Filename>
 
@@ -7221,6 +7221,25 @@ The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
 
 The I<Port> argument may be omitted. In that case the default C<"4317"> is
 used.
+
+Optionally, B<Exporter> blocks support the following options:
+
+=over 4
+
+=item B<EnableSSL> I<false>|I<true>
+
+Whether to require SSL when connecting. Default: I<false>.
+
+=item B<SSLCACertificateFile> I<Filename>
+
+=item B<SSLCertificateFile> I<Filename>
+
+=item B<SSLCertificateKeyFile> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
 
 =back
 

@@ -37,6 +37,8 @@ extern "C" {
 #include <netdb.h>
 }
 
+#include <fstream>
+
 #include <grpc++/grpc++.h>
 
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
@@ -51,13 +53,16 @@ using opentelemetry::proto::collector::metrics::v1::
 using opentelemetry::proto::collector::metrics::v1::MetricsService;
 
 /*
- * Private variables
+ * Private types
  */
 typedef struct {
   int reference_count;
 
   char *host;
   char *port;
+
+  bool use_ssl;
+  grpc::SslCredentialsOptions *ssl_opts;
 
   resource_metrics_set_t resource_metrics;
   cdtime_t staged_time;
@@ -69,14 +74,15 @@ typedef struct {
 
 static int export_metrics(ot_callback_t *cb) {
   if (cb->stub == NULL) {
-    strbuf_t buf = STRBUF_CREATE;
-    strbuf_printf(&buf, "%s:%s", cb->host, cb->port);
+    grpc::string addr = grpc::string(cb->host) + ":" + grpc::string(cb->port);
 
-    auto chan =
-        grpc::CreateChannel(buf.ptr, grpc::InsecureChannelCredentials());
+    auto creds = grpc::InsecureChannelCredentials();
+    if (cb->use_ssl) {
+      creds = grpc::SslCredentials(*cb->ssl_opts);
+    }
+
+    auto chan = grpc::CreateChannel(addr, creds);
     cb->stub = MetricsService::NewStub(chan);
-
-    STRBUF_DESTROY(buf);
   }
 
   auto req = format_open_telemetry_export_metrics_service_request(
@@ -142,6 +148,8 @@ static void ot_callback_decref(void *data) {
   sfree(cb->host);
   sfree(cb->port);
 
+  delete cb->ssl_opts;
+
   pthread_mutex_unlock(&cb->mu);
   pthread_mutex_destroy(&cb->mu);
 
@@ -178,6 +186,29 @@ static int ot_write(metric_family_t const *fam, user_data_t *user_data) {
   return 0;
 }
 
+static int config_get_file(oconfig_item_t const *ci, grpc::string *out) {
+  char *path = NULL;
+  int err = cf_util_get_string(ci, &path);
+  if (err) {
+    return err;
+  }
+
+  std::ifstream f;
+  f.open(path);
+  if (!f.is_open()) {
+    ERROR("open_telemetry plugin: Failed to open \"%s\"", path);
+    return EPERM;
+  }
+
+  grpc::string line;
+  while (std::getline(f, line)) {
+    out->append(line);
+    out->push_back('\n');
+  }
+  f.close();
+  return 0;
+} /* config_get_file */
+
 int exporter_config(oconfig_item_t *ci) {
   if (ci->values_num < 1 || ci->values_num > 2 ||
       ci->values[0].type != OCONFIG_TYPE_STRING ||
@@ -194,16 +225,39 @@ int exporter_config(oconfig_item_t *ci) {
     return -1;
   }
 
-  *cb = (ot_callback_t){
-      .reference_count = 1,
-      .host = strdup(ci->values[0].value.string),
-  };
+  cb->reference_count = 1;
+  cb->host = strdup(ci->values[0].value.string);
   if (ci->values_num >= 2) {
     cb->port = strdup(ci->values[1].value.string);
   } else {
     cb->port = strdup(OT_DEFAULT_PORT);
   }
+  cb->ssl_opts = new grpc::SslCredentialsOptions;
   pthread_mutex_init(&cb->mu, /* attr = */ NULL);
+
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+
+    int err = 0;
+    if (!strcasecmp("EnableSSL", child->key)) {
+      err = cf_util_get_boolean(child, &cb->use_ssl);
+    } else if (!strcasecmp("SSLCACertificateFile", child->key)) {
+      err = config_get_file(child, &cb->ssl_opts->pem_root_certs);
+    } else if (!strcasecmp("SSLCertificateKeyFile", child->key)) {
+      err = config_get_file(child, &cb->ssl_opts->pem_private_key);
+    } else if (!strcasecmp("SSLCertificateFile", child->key)) {
+      err = config_get_file(child, &cb->ssl_opts->pem_cert_chain);
+    } else {
+      ERROR("open_telemetry plugin: Option \"%s\" is not allowed inside a "
+            "\"%s\" block.",
+            child->key, ci->key);
+      err = EINVAL;
+    }
+
+    if (err) {
+      return err;
+    }
+  }
 
   strbuf_t callback_name = STRBUF_CREATE;
   strbuf_printf(&callback_name, "open_telemetry/[%s]:%s", cb->host, cb->port);
