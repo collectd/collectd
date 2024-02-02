@@ -342,6 +342,11 @@ static int wg_flush_nolock(cdtime_t timeout, wg_callback_t *cb) /* {{{ */
   }
 
   char *payload = sd_output_reset(cb->formatter);
+  if (payload == NULL) {
+    ERROR("write_stackdriver plugin: sd_output_reset failed: %s", STRERRNO);
+    return errno;
+  }
+
   int status = wg_call_timeseries_write(cb, payload);
   wg_reset_buffer(cb);
   return status;

@@ -60,7 +60,7 @@ int sd_output_register_metric(sd_output_t *out, metric_t const *m);
 
 /* sd_output_reset resets the output and returns the previous content of the
  * buffer. It is the caller's responsibility to call free() with the returned
- * pointer. */
+ * pointer. On error errno is set and NULL is returned. */
 char *sd_output_reset(sd_output_t *out);
 
 sd_resource_t *sd_resource_create(char const *type);

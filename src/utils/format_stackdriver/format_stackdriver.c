@@ -601,15 +601,32 @@ int sd_output_register_metric(sd_output_t *out, metric_t const *m) {
 
 char *sd_output_reset(sd_output_t *out) /* {{{ */
 {
-  sd_output_finalize(out);
+  int err = sd_output_finalize(out);
+  if (err) {
+    goto handle_err;
+  }
 
   unsigned char const *json_buffer = NULL;
-  yajl_gen_get_buf(out->gen, &json_buffer, &(size_t){0});
+  size_t json_buffer_size = 0;
+  err = yajl_gen_get_buf(out->gen, &json_buffer, &json_buffer_size);
+  if (err) {
+    goto handle_err;
+  }
+
   char *ret = strdup((void const *)json_buffer);
+  if (ret == NULL) {
+    err = errno;
+    goto handle_err;
+  }
 
+  /* success */
   reset(out);
-
   return ret;
+
+handle_err:
+  reset(out);
+  errno = err;
+  return NULL;
 } /* }}} char *sd_output_reset */
 
 sd_resource_t *sd_resource_create(char const *type) /* {{{ */
