@@ -24,17 +24,6 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-/* write_open_telemetry plugin configuration example
- *
- * <Plugin write_open_telemetry>
- *   <Node "name">
- *     Host "localhost"
- *     Port "8080"
- *     Path "/v1/metrics"
- *   </Node>
- * </Plugin>
- */
-
 extern "C" {
 #include "collectd.h"
 
@@ -103,7 +92,7 @@ static int export_metrics(ot_callback_t *cb) {
   grpc::Status status = cb->stub->Export(&context, *req, &resp);
 
   if (!status.ok()) {
-    ERROR("write_open_telemetry plugin: Exporting metrics failed: %s",
+    ERROR("open_telemetry plugin: Exporting metrics failed: %s",
           status.error_message().c_str());
     return -1;
   }
@@ -111,8 +100,7 @@ static int export_metrics(ot_callback_t *cb) {
   if (resp.has_partial_success() &&
       resp.partial_success().rejected_data_points() > 0) {
     auto ps = resp.partial_success();
-    NOTICE("write_open_telemetry plugin: %" PRId64
-           " data points were rejected: %s",
+    NOTICE("open_telemetry plugin: %" PRId64 " data points were rejected: %s",
            ps.rejected_data_points(), ps.error_message().c_str());
   }
 
@@ -199,7 +187,7 @@ static int ot_write(metric_family_t const *fam, user_data_t *user_data) {
 int exporter_config(oconfig_item_t *ci) {
   ot_callback_t *cb = (ot_callback_t *)calloc(1, sizeof(*cb));
   if (cb == NULL) {
-    ERROR("write_open_telemetry plugin: calloc failed.");
+    ERROR("open_telemetry plugin: calloc failed.");
     return -1;
   }
 
@@ -219,9 +207,7 @@ int exporter_config(oconfig_item_t *ci) {
     else if (strcasecmp("Port", child->key) == 0)
       status = cf_util_get_service(child, &cb->port);
     else {
-      ERROR("write_open_telemetry plugin: Invalid configuration "
-            "option: %s.",
-            child->key);
+      ERROR("open_telemetry plugin: invalid config option: %s.", child->key);
       status = -1;
     }
 
@@ -232,7 +218,7 @@ int exporter_config(oconfig_item_t *ci) {
   }
 
   strbuf_t callback_name = STRBUF_CREATE;
-  strbuf_printf(&callback_name, "write_open_telemetry/%s", cb->name);
+  strbuf_printf(&callback_name, "open_telemetry/%s", cb->name);
 
   user_data_t user_data = {
       .data = cb,

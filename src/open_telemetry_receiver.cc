@@ -87,7 +87,7 @@ static grpc::string read_file(const char *filename) {
 
   f.open(filename);
   if (!f.is_open()) {
-    ERROR("open_telemetry_collector: Failed to open '%s'", filename);
+    ERROR("open_telemetry plugin: Failed to open '%s'", filename);
     return "";
   }
 
@@ -225,7 +225,7 @@ static grpc::Status unmarshal_gauge_metric(Gauge g, metric_family_t *fam) {
 static grpc::Status unmarshal_sum_metric(Sum sum, metric_family_t *fam) {
   if (!sum.is_monotonic()) {
     // TODO(octo): convert to gauge instead?
-    DEBUG("open_telemetry_collector: non-monotonic sums (aka. UpDownCounters) "
+    DEBUG("open_telemetry plugin: non-monotonic sums (aka. UpDownCounters) "
           "are unsupported");
     return grpc::Status(
         grpc::StatusCode::UNIMPLEMENTED,
@@ -357,7 +357,7 @@ public:
     for (auto rm : req->resource_metrics()) {
       grpc::Status s = dispatch_resource_metrics(rm, ps);
       if (!s.ok()) {
-        ERROR("open_telemetry_collector: dispatch_resource_metrics failed: %s",
+        ERROR("open_telemetry plugin: dispatch_resource_metrics failed: %s",
               s.error_message().c_str());
         return s;
       }
@@ -382,7 +382,7 @@ public:
 
     if (listeners.empty()) {
       builder.AddListeningPort(default_addr, auth);
-      INFO("open_telemetry_collector: Listening on %s", default_addr.c_str());
+      INFO("open_telemetry plugin: Listening on %s", default_addr.c_str());
     } else {
       for (auto l : listeners) {
         grpc::string addr = l.addr + ":" + l.port;
@@ -395,7 +395,7 @@ public:
         }
 
         builder.AddListeningPort(addr, a);
-        INFO("open_telemetry_collector: Listening on %s%s", addr.c_str(),
+        INFO("open_telemetry plugin: Listening on %s%s", addr.c_str(),
              use_ssl.c_str());
       }
     }
@@ -422,7 +422,7 @@ static int receiver_init(void) {
 
   server = new CollectorServer();
   if (!server) {
-    ERROR("open_telemetry_collector: Failed to create server");
+    ERROR("open_telemetry plugin: Failed to create server");
     return -1;
   }
 
@@ -445,12 +445,10 @@ static int receiver_shutdown(void) {
 static void receiver_install_callbacks(void) {
   static bool done;
 
-  if (done) {
-    return;
+  if (!done) {
+    plugin_register_init("open_telemetry_receiver", receiver_init);
+    plugin_register_shutdown("open_telemetry_receiver", receiver_shutdown);
   }
-
-  plugin_register_init("open_telemetry_collector", receiver_init);
-  plugin_register_shutdown("open_telemetry_collector", receiver_shutdown);
 
   done = true;
 }
@@ -461,7 +459,7 @@ static void receiver_install_callbacks(void) {
 int receiver_config(oconfig_item_t *ci) {
   if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_STRING) ||
       (ci->values[1].type != OCONFIG_TYPE_STRING)) {
-    ERROR("open_telemetry_collector: The `%s` config option needs exactly "
+    ERROR("open_telemetry plugin: The `%s` config option needs exactly "
           "two string argument (address and port).",
           ci->key);
     return -1;
@@ -482,14 +480,14 @@ int receiver_config(oconfig_item_t *ci) {
 
     if (!strcasecmp("EnableSSL", child->key)) {
       if (cf_util_get_boolean(child, &use_ssl)) {
-        ERROR("open_telemetry_collector: Option `%s` expects a boolean value",
+        ERROR("open_telemetry plugin: Option `%s` expects a boolean value",
               child->key);
         return -1;
       }
     } else if (!strcasecmp("SSLCACertificateFile", child->key)) {
       char *certs = NULL;
       if (cf_util_get_string(child, &certs)) {
-        ERROR("open_telemetry_collector: Option `%s` expects a string value",
+        ERROR("open_telemetry plugin: Option `%s` expects a string value",
               child->key);
         return -1;
       }
@@ -497,7 +495,7 @@ int receiver_config(oconfig_item_t *ci) {
     } else if (!strcasecmp("SSLCertificateKeyFile", child->key)) {
       char *key = NULL;
       if (cf_util_get_string(child, &key)) {
-        ERROR("open_telemetry_collector: Option `%s` expects a string value",
+        ERROR("open_telemetry plugin: Option `%s` expects a string value",
               child->key);
         return -1;
       }
@@ -505,7 +503,7 @@ int receiver_config(oconfig_item_t *ci) {
     } else if (!strcasecmp("SSLCertificateFile", child->key)) {
       char *cert = NULL;
       if (cf_util_get_string(child, &cert)) {
-        ERROR("open_telemetry_collector: Option `%s` expects a string value",
+        ERROR("open_telemetry plugin: Option `%s` expects a string value",
               child->key);
         return -1;
       }
@@ -519,9 +517,8 @@ int receiver_config(oconfig_item_t *ci) {
           verify ? GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
                  : GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE;
     } else {
-      WARNING(
-          "open_telemetry_collector: Option `%s` not allowed in <%s> block.",
-          child->key, ci->key);
+      WARNING("open_telemetry plugin: Option `%s` not allowed in <%s> block.",
+              child->key, ci->key);
     }
   }
 
