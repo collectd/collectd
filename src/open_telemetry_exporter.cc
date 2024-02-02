@@ -1,6 +1,6 @@
 /**
- * collectd - src/write_open_telemetry.cc
- * Copyright (C) 2023       Florian octo Forster
+ * collectd - src/open_telemetry_exporter.cc
+ * Copyright (C) 2023-2024  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,7 @@
 extern "C" {
 #include "collectd.h"
 
-#include "plugin.h"
+#include "daemon/plugin.h"
 #include "utils/common/common.h"
 
 #include "utils/resource_metrics/resource_metrics.h"
@@ -196,7 +196,7 @@ static int ot_write(metric_family_t const *fam, user_data_t *user_data) {
   return 0;
 }
 
-static int ot_config_node(oconfig_item_t *ci) {
+int exporter_config(oconfig_item_t *ci) {
   ot_callback_t *cb = (ot_callback_t *)calloc(1, sizeof(*cb));
   if (cb == NULL) {
     ERROR("write_open_telemetry plugin: calloc failed.");
@@ -253,24 +253,4 @@ static int ot_config_node(oconfig_item_t *ci) {
   ot_callback_decref(cb);
   STRBUF_DESTROY(callback_name);
   return 0;
-}
-
-static int ot_config(oconfig_item_t *ci) {
-  for (int i = 0; i < ci->children_num; i++) {
-    oconfig_item_t *child = ci->children + i;
-
-    if (strcasecmp("Node", child->key) == 0)
-      ot_config_node(child);
-    else {
-      ERROR("write_open_telemetry plugin: Invalid configuration "
-            "option: %s.",
-            child->key);
-    }
-  }
-
-  return 0;
-}
-
-void module_register(void) {
-  plugin_register_complex_config("write_open_telemetry", ot_config);
 }

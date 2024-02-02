@@ -7155,21 +7155,38 @@ can be configured independently from that option. Defaults to B<false>.
 
 =head2 Plugin C<open_telemetry_collector>
 
-The I<open_telemetry_collector plugin> implements an OpenTelemetry Collector.
-Specifically, it implements a gRPC C<MetricsService>.
+The I<open_telemetry plugin> implements an OpenTelemetry exporter and receiver
+using OTLP. Specifically, it implements a gRPC C<MetricsService> client and
+server.
+
+B<Synopsis:>
+
+  <Plugin open_telemetry>
+    <Receiver "0.0.0.0" "4317">
+      EnableSSL false
+      SSLCACertificateFile "/path/to/root.pem"
+      SSLCertificateFile "/path/to/client.pem"
+      SSLCertificateKeyFile "/path/to/client.key"
+      VerifyPeer false
+    </Receiver>
+    <Exporter "example">
+      Host "localhost"
+      Port "4317"
+    </Exporter>
+  </Plugin>
 
 =over 4
 
-=item B<Listen> I<Host> I<Port>
+=item B<Receiver> I<Host> I<Port>
 
-The B<Listen> statement sets the network address and port to which to bind.
-Multiple B<Listen> blocks can be specified to listen on multiple
-interfaces/ports. When no B<Listen> blocks are specified, it defaults to
-B<0.0.0.0:4317>.
+The B<Receiver> statement sets the network address and port to which to bind.
+Multiple B<Receiver> blocks can be specified to listen on multiple
+interfaces/ports. When no B<Receiver> blocks are specified, the plugin will not
+receive any metrics.
 
 The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
 
-Optionally, B<Listen> blocks support the following options:
+Optionally, B<Receiver> blocks support the following options:
 
 =over 4
 
@@ -7192,6 +7209,24 @@ When enabled, a valid client certificate is required to connect to the server.
 When disabled, a client certifiacte is not requested and any unsolicited client
 certificate is accepted.
 Enabled by default.
+
+=back
+
+=item B<Exporter> I<Name>
+
+The plugin can export metrics to multiple collectors by specifying multiple
+B<Exporter> blocks. Within the B<Exporter> blocks, the following options are
+available:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<4317>.
 
 =back
 
@@ -11192,35 +11227,6 @@ number.
 Sets the information used when authenticating to a I<MongoDB> database. The
 fields are optional (in which case no authentication is attempted), but if you
 want to use authentication all three fields must be set.
-
-=back
-
-=head2 Plugin C<write_open_telemetry>
-
-The I<write_open_telemetry plugin> will export metrics to an I<OpenTelemetry
-collector> using the gRPC based OTLP protocol.
-
-B<Synopsis:>
-
- <Plugin "write_open_telemetry">
-   <Node "default">
-     Host "localhost"
-     Port "4317"
-   </Node>
- </Plugin>
-
-The plugin can export metrics to multiple collectors by specifying multiple
-B<Node> blocks. Within the B<Node> blocks, the following options are available:
-
-=over 4
-
-=item B<Host> I<Address>
-
-Hostname or address to connect to. Defaults to C<localhost>.
-
-=item B<Port> I<Service>
-
-Service name or port number to connect to. Defaults to C<4317>.
 
 =back
 

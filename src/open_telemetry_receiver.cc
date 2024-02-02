@@ -1,5 +1,5 @@
 /**
- * collectd - src/grpc.cc
+ * collectd - src/open_telemetry_receiver.cc
  * Copyright (C) 2015-2016 Sebastian Harl
  * Copyright (C) 2016-2024 Florian octo Forster
  *
@@ -415,11 +415,50 @@ private:
 
 static CollectorServer *server = nullptr;
 
+static int receiver_init(void) {
+  if (server) {
+    return 0;
+  }
+
+  server = new CollectorServer();
+  if (!server) {
+    ERROR("open_telemetry_collector: Failed to create server");
+    return -1;
+  }
+
+  server->Start();
+  return 0;
+} /* receiver_init() */
+
+static int receiver_shutdown(void) {
+  if (!server)
+    return 0;
+
+  server->Shutdown();
+
+  delete server;
+  server = nullptr;
+
+  return 0;
+} /* receiver_shutdown() */
+
+static void receiver_install_callbacks(void) {
+  static bool done;
+
+  if (done) {
+    return;
+  }
+
+  plugin_register_init("open_telemetry_collector", receiver_init);
+  plugin_register_shutdown("open_telemetry_collector", receiver_shutdown);
+
+  done = true;
+}
+
 /*
  * collectd plugin interface
  */
-extern "C" {
-static int otelcol_config_listen(oconfig_item_t *ci) {
+int receiver_config(oconfig_item_t *ci) {
   if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_STRING) ||
       (ci->values[1].type != OCONFIG_TYPE_STRING)) {
     ERROR("open_telemetry_collector: The `%s` config option needs exactly "
@@ -494,58 +533,6 @@ static int otelcol_config_listen(oconfig_item_t *ci) {
   }
 
   listeners.push_back(listener);
+  receiver_install_callbacks();
   return 0;
-} /* otelcol_config_listen() */
-
-static int otelcol_config(oconfig_item_t *ci) {
-  for (int i = 0; i < ci->children_num; i++) {
-    oconfig_item_t *child = ci->children + i;
-
-    if (!strcasecmp("Listen", child->key)) {
-      if (otelcol_config_listen(child)) {
-        return -1;
-      }
-    }
-
-    else {
-      WARNING("open_telemetry_collector: Option `%s` not allowed here.",
-              child->key);
-    }
-  }
-
-  return 0;
-} /* otelcol_config() */
-
-static int otelcol_init(void) {
-  if (server) {
-    return 0;
-  }
-
-  server = new CollectorServer();
-  if (!server) {
-    ERROR("open_telemetry_collector: Failed to create server");
-    return -1;
-  }
-
-  server->Start();
-  return 0;
-} /* otelcol_init() */
-
-static int otelcol_shutdown(void) {
-  if (!server)
-    return 0;
-
-  server->Shutdown();
-
-  delete server;
-  server = nullptr;
-
-  return 0;
-} /* otelcol_shutdown() */
-
-void module_register(void) {
-  plugin_register_complex_config("open_telemetry_collector", otelcol_config);
-  plugin_register_init("open_telemetry_collector", otelcol_init);
-  plugin_register_shutdown("open_telemetry_collector", otelcol_shutdown);
-} /* module_register() */
-} /* extern "C" */
+} /* receiver_config() */

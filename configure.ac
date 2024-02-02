@@ -6841,7 +6841,7 @@ plugin_nut="$with_libupsclient"
 plugin_olsrd="yes"
 plugin_onewire="$with_libowcapi"
 plugin_openldap="$with_libldap"
-plugin_open_telemetry_collector="yes"
+plugin_open_telemetry="yes"
 plugin_openvpn="yes"
 plugin_oracle="$with_oracle"
 plugin_ovs_events="no"
@@ -6906,7 +6906,6 @@ plugin_write_influxdb_udp="yes"
 plugin_write_kafka="$with_librdkafka"
 plugin_write_log="no"
 plugin_write_mongodb="$with_libmongoc"
-plugin_write_open_telemetry="yes"
 plugin_write_prometheus="no"
 plugin_write_redis="yes"
 plugin_write_riemann="$with_libriemann_client"
@@ -7177,26 +7176,22 @@ fi
 
 if test "x$GRPC_CPP_PLUGIN" = "x"; then
   plugin_grpc="no (grpc_cpp_plugin not found)"
-  plugin_open_telemetry_collector="no (grpc_cpp_plugin not found)"
-  plugin_write_open_telemetry="no (grpc_cpp_plugin not found)"
+  plugin_open_telemetry="no (grpc_cpp_plugin not found)"
 fi
 if test "x$have_protoc3" != "xyes"; then
   plugin_grpc="no (protoc3 not found)"
-  plugin_open_telemetry_collector="no (protoc3 not found)"
-  plugin_write_open_telemetry="no (protoc3 not found)"
+  plugin_open_telemetry="no (protoc3 not found)"
 fi
 if test "x$with_libprotobuf" != "xyes"; then
   plugin_grpc="no (libprotobuf not found)"
-  plugin_open_telemetry_collector="no (libprotobuf not found)"
-  plugin_write_open_telemetry="no (libprotobuf not found)"
+  plugin_open_telemetry="no (libprotobuf not found)"
 fi
 if test "x$with_libgrpcpp" != "xyes"; then
   plugin_grpc="no (libgrpc++ not found)"
-  plugin_open_telemetry_collector="no (libgrpc++ not found)"
-  plugin_write_open_telemetry="no (libgrpc++ not found)"
+  plugin_open_telemetry="no (libgrpc++ not found)"
 fi
 if test "x$protoc3_optional" = "xno"; then
-  plugin_write_open_telemetry="no (protoc does not support optional fields)"
+  plugin_open_telemetry="no (protoc does not support optional fields)"
 fi
 
 if test "x$have_getifaddrs" = "xyes"; then
@@ -7553,7 +7548,7 @@ AC_PLUGIN([olsrd],               [$plugin_olsrd],             [olsrd statistics]
 AC_PLUGIN([onewire],             [$plugin_onewire],           [OneWire sensor statistics])
 AC_PLUGIN([openldap],            [$plugin_openldap],          [OpenLDAP statistics])
 AC_PLUGIN([openvpn],             [$plugin_openvpn],           [OpenVPN client statistics])
-AC_PLUGIN([open_telemetry_collector], [$plugin_open_telemetry_collector], [OpenTelemetry Collector])
+AC_PLUGIN([open_telemetry],      [$plugin_open_telemetry],    [OpenTelemetry exporter/receiver])
 AC_PLUGIN([oracle],              [$plugin_oracle],            [Oracle plugin])
 AC_PLUGIN([ovs_events],          [$plugin_ovs_events],        [OVS events plugin])
 AC_PLUGIN([ovs_stats],           [$plugin_ovs_stats],         [OVS statistics plugin])
@@ -7618,7 +7613,6 @@ AC_PLUGIN([write_influxdb_udp],  [$plugin_write_influxdb_udp],[Influxdb udp outp
 AC_PLUGIN([write_kafka],         [$plugin_write_kafka],       [Kafka output plugin])
 AC_PLUGIN([write_log],           [$plugin_write_log],         [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$plugin_write_mongodb],     [MongoDB output plugin])
-AC_PLUGIN([write_open_telemetry],[$plugin_write_open_telemetry],[Write OpenTelemetry plugin])
 AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus],  [Prometheus write plugin])
 AC_PLUGIN([write_redis],         [$plugin_write_redis],       [Redis output plugin])
 AC_PLUGIN([write_riemann],       [$plugin_write_riemann],     [Riemann output plugin])
@@ -8001,6 +7995,7 @@ AC_MSG_RESULT([    nut . . . . . . . . . $enable_nut])
 AC_MSG_RESULT([    olsrd . . . . . . . . $enable_olsrd])
 AC_MSG_RESULT([    onewire . . . . . . . $enable_onewire])
 AC_MSG_RESULT([    openldap  . . . . . . $enable_openldap])
+AC_MSG_RESULT([    open_telemetry  . . . $enable_open_telemetry])
 AC_MSG_RESULT([    openvpn . . . . . . . $enable_openvpn])
 AC_MSG_RESULT([    oracle  . . . . . . . $enable_oracle])
 AC_MSG_RESULT([    ovs_events  . . . . . $enable_ovs_events])
@@ -8065,7 +8060,6 @@ AC_MSG_RESULT([    write_influxdb_udp. . $enable_write_influxdb_udp])
 AC_MSG_RESULT([    write_kafka . . . . . $enable_write_kafka])
 AC_MSG_RESULT([    write_log . . . . . . $enable_write_log])
 AC_MSG_RESULT([    write_mongodb . . . . $enable_write_mongodb])
-AC_MSG_RESULT([    write_open_telemetry  $enable_write_open_telemetry])
 AC_MSG_RESULT([    write_prometheus. . . $enable_write_prometheus])
 AC_MSG_RESULT([    write_redis . . . . . $enable_write_redis])
 AC_MSG_RESULT([    write_riemann . . . . $enable_write_riemann])

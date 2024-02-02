@@ -484,7 +484,7 @@ libformat_influxdb_la_SOURCES = \
 	src/utils/format_influxdb/format_influxdb.c \
 	src/utils/format_influxdb/format_influxdb.h
 
-if BUILD_PLUGIN_WRITE_OPEN_TELEMETRY
+if BUILD_PLUGIN_OPEN_TELEMETRY
 noinst_LTLIBRARIES += libformat_open_telemetry.la
 libformat_open_telemetry_la_SOURCES = \
 	src/utils/format_open_telemetry/format_open_telemetry.cc \
@@ -1744,22 +1744,17 @@ openvpn_la_SOURCES = src/openvpn.c
 openvpn_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
-if BUILD_PLUGIN_OPEN_TELEMETRY_COLLECTOR
-pkglib_LTLIBRARIES += open_telemetry_collector.la
-open_telemetry_collector_la_SOURCES = src/open_telemetry_collector.cc \
-				      opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
-				      opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h \
-				      opentelemetry/proto/collector/metrics/v1/metrics_service.pb.cc \
-				      opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h \
-				      opentelemetry/proto/common/v1/common.pb.cc \
-				      opentelemetry/proto/common/v1/common.pb.h \
-				      opentelemetry/proto/metrics/v1/metrics.pb.cc \
-				      opentelemetry/proto/metrics/v1/metrics.pb.h \
-				      opentelemetry/proto/resource/v1/resource.pb.cc \
-				      opentelemetry/proto/resource/v1/resource.pb.h
-open_telemetry_collector_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS)
-open_telemetry_collector_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS)
-open_telemetry_collector_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
+if BUILD_PLUGIN_OPEN_TELEMETRY
+pkglib_LTLIBRARIES += open_telemetry.la
+open_telemetry_la_SOURCES = \
+	src/open_telemetry.cc \
+	src/open_telemetry_exporter.cc \
+	src/open_telemetry_receiver.cc \
+	opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
+	opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h
+open_telemetry_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS)
+open_telemetry_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS)
+open_telemetry_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS) libformat_open_telemetry.la
 endif
 
 if BUILD_PLUGIN_ORACLE
@@ -2377,16 +2372,6 @@ write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 write_mongodb_la_LIBADD = $(BUILD_WITH_LIBMONGOC_LIBS)
 endif
 
-if BUILD_PLUGIN_WRITE_OPEN_TELEMETRY
-pkglib_LTLIBRARIES += write_open_telemetry.la
-write_open_telemetry_la_SOURCES = src/write_open_telemetry.cc \
-				  opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
-				  opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h
-write_open_telemetry_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS)
-write_open_telemetry_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS)
-write_open_telemetry_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) libformat_open_telemetry.la
-endif
-
 if BUILD_PLUGIN_WRITE_PROMETHEUS
 pkglib_LTLIBRARIES += write_prometheus.la
 write_prometheus_la_SOURCES = src/write_prometheus.c
@@ -2535,7 +2520,7 @@ types.pb.cc: $(srcdir)/proto/types.proto
 endif
 endif
 
-if BUILD_PLUGIN_WRITE_OPEN_TELEMETRY
+if BUILD_PLUGIN_OPEN_TELEMETRY
 BUILT_SOURCES += \
 	opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \
 	opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h \
