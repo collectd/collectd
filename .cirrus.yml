@@ -17,8 +17,11 @@ release_ready_task:
   configure_script:
     - ./build.sh
     - ./configure $DEFAULT_CONFIG_OPTS
-  checks_script:
+  make_distcheck_script:
     - make -j$(nproc) -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
 
 ###
 # Default toolchain and build flags used in deb packages, on a range of Debian
@@ -62,6 +65,9 @@ debian_default_toolchain_task:
       else
         /checks/check-built-plugins.sh
       fi
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
 
 ###
 # Default toolchain and build flags used in RPM packages, on a range of RedHat
@@ -101,6 +107,9 @@ redhat_default_toolchain_task:
       else
         /checks/check-built-plugins.sh
       fi
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
 
 
 ###
@@ -130,6 +139,9 @@ non_standard_toolchains_task:
         - make -j$(nproc) -sk
       tests_script:
         - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+      always:
+        make_check_artifacts:
+          path: "**/*.log"
 
     # build using clang with a collection of strict build flags, will most
     # probably always fail
@@ -171,6 +183,9 @@ non_standard_toolchains_task:
         - make -j$(nproc) -sk
       tests_script:
         - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+      always:
+        make_check_artifacts:
+          path: "**/*.log"
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -201,6 +216,9 @@ bleeding_edge_compilers_task:
     - make -j$(nproc) -sk
   tests_script:
     - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
 
 freebsd_task:
   freebsd_instance:
@@ -221,3 +239,6 @@ freebsd_task:
     - make -j$(nproc) -sk
   tests_script:
     - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
