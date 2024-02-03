@@ -132,8 +132,6 @@ static const char *cpu_state_names[STATE_MAX] = {
     [STATE_WAIT] = "wait",     [STATE_ACTIVE] = "active",
 };
 
-#define USAGE_UNAVAILABLE -1
-
 typedef struct {
   gauge_t rate;
   bool has_rate;
@@ -141,7 +139,7 @@ typedef struct {
 
   /* count is a scaled counter, so that all states in sum increase by 1000000
    * per second. */
-  derive_t count;
+  fpcounter_t count;
   bool has_count;
   rate_to_value_state_t to_count;
 } usage_state_t;
@@ -473,13 +471,13 @@ static void usage_finalize(usage_t *u) {
     }
 
     /* With cpu_rate available, calculate a counter for each state that is
-     * normalized to microseconds. I.e. all states of one CPU sum up to 1000000
-     * us per second. */
+     * normalized to seconds. I.e. all states of one CPU sum up to 1.0 second
+     * per second. */
     for (state_t s = 0; s < STATE_MAX; s++) {
       size_t index = (cpu * STATE_MAX) + s;
       usage_state_t *us = u->states + index;
 
-      us->count = -1;
+      us->count = NAN;
       if (!us->has_rate) {
         /* Ensure that us->to_count is initialized. */
         rate_to_value(&(value_t){0}, 0.0, &us->to_count, DS_TYPE_DERIVE,
@@ -489,10 +487,10 @@ static void usage_finalize(usage_t *u) {
 
       gauge_t ratio = us->rate / cpu_rate;
       value_t v = {0};
-      int status = rate_to_value(&v, 1000000.0 * ratio, &us->to_count,
-                                 DS_TYPE_DERIVE, u->time);
+      int status = rate_to_value(&v, ratio, &us->to_count,
+                                 METRIC_TYPE_FPCOUNTER, u->time);
       if (status == 0) {
-        us->count = v.derive;
+        us->count = v.fpcounter;
         us->has_count = true;
       }
 
@@ -503,18 +501,19 @@ static void usage_finalize(usage_t *u) {
   for (state_t s = 0; s < STATE_MAX; s++) {
     usage_state_t *us = &u->global[s];
 
-    us->count = -1;
+    us->count = NAN;
     if (!us->has_rate) {
       /* Ensure that us->to_count is initialized. */
-      rate_to_value(&(value_t){0}, 0.0, &us->to_count, DS_TYPE_DERIVE, u->time);
+      rate_to_value(&(value_t){0}, 0.0, &us->to_count, METRIC_TYPE_FPCOUNTER,
+                    u->time);
       continue;
     }
 
     value_t v = {0};
-    int status = rate_to_value(&v, 1000000.0 * state_ratio[s], &us->to_count,
-                               DS_TYPE_DERIVE, u->time);
+    int status = rate_to_value(&v, state_ratio[s], &us->to_count,
+                               METRIC_TYPE_FPCOUNTER, u->time);
     if (status == 0) {
-      us->count = v.derive;
+      us->count = v.fpcounter;
       us->has_count = true;
     }
   }
@@ -555,7 +554,7 @@ static gauge_t usage_ratio(usage_t *u, size_t cpu, state_t state) {
   return usage_rate(u, cpu, state) / global_rate;
 }
 
-static derive_t usage_count(usage_t *u, size_t cpu, state_t state) {
+static fpcounter_t usage_count(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
 
   usage_state_t us;
@@ -564,12 +563,12 @@ static derive_t usage_count(usage_t *u, size_t cpu, state_t state) {
   } else {
     size_t index = (cpu * STATE_MAX) + state;
     if (index >= u->states_num) {
-      return USAGE_UNAVAILABLE;
+      return NAN;
     }
     us = u->states[index];
   }
 
-  return us.has_count ? us.count : USAGE_UNAVAILABLE;
+  return us.has_count ? us.count : NAN;
 }
 
 /* Commits the number of cores */
@@ -598,8 +597,8 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
   metric_family_t fam = {
       .name = "system.cpu.time",
       .help = "Microseconds each logical CPU spent in each state",
-      .unit = "us",
-      .type = METRIC_TYPE_COUNTER,
+      .unit = "s",
+      .type = METRIC_TYPE_FPCOUNTER,
   };
 
   metric_t m = {0};
@@ -611,18 +610,18 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
 
   if (report_by_state) {
     for (state_t state = 0; state < STATE_ACTIVE; state++) {
-      derive_t usage = usage_count(u, cpu_num, state);
-      if (usage == USAGE_UNAVAILABLE) {
+      fpcounter_t usage = usage_count(u, cpu_num, state);
+      if (isnan(usage)) {
         continue;
       }
       metric_family_append(&fam, label_state, cpu_state_names[state],
-                           (value_t){.derive = usage}, &m);
+                           (value_t){.fpcounter = usage}, &m);
     }
   } else {
-    derive_t usage = usage_count(u, cpu_num, STATE_ACTIVE);
-    if (usage != USAGE_UNAVAILABLE) {
+    fpcounter_t usage = usage_count(u, cpu_num, STATE_ACTIVE);
+    if (!isnan(usage)) {
       metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
-                           (value_t){.derive = usage}, &m);
+                           (value_t){.fpcounter = usage}, &m);
     }
   }
 

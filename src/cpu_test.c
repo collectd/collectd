@@ -124,7 +124,7 @@ DEF_TEST(usage_ratio) {
   return 0;
 }
 
-static bool expect_usage_count(derive_t want, derive_t got, size_t cpu,
+static bool expect_usage_count(fpcounter_t want, fpcounter_t got, size_t cpu,
                                state_t state) {
   char cpu_str[64] = "CPU_ALL";
   if (cpu != SIZE_MAX) {
@@ -133,14 +133,14 @@ static bool expect_usage_count(derive_t want, derive_t got, size_t cpu,
 
   bool ok = true;
   char msg[1024] = {0};
-  snprintf(msg, sizeof(msg), "usage_count(cpu=%s, state=\"%s\") = %" PRId64,
-           cpu_str, cpu_state_names[state], got);
+  snprintf(msg, sizeof(msg), "usage_count(cpu=%s, state=\"%s\") = %g", cpu_str,
+           cpu_state_names[state], got);
 
   derive_t diff = got - want;
-  if (diff < -1 || diff > 1) {
+  if (diff < -DBL_PRECISION || diff > DBL_PRECISION) {
     snprintf(msg, sizeof(msg),
-             "usage_count(cpu=%s, state=\"%s\") = %" PRId64 ", want %" PRId64,
-             cpu_str, cpu_state_names[state], got, want);
+             "usage_count(cpu=%s, state=\"%s\") = %g, want %g", cpu_str,
+             cpu_state_names[state], got, want);
     ok = false;
   }
 
@@ -174,8 +174,8 @@ DEF_TEST(usage_count) {
     }
   }
 
-  gauge_t state_time[STATE_MAX] = {0};
-  gauge_t sum_time = 0;
+  fpcounter_t state_time[STATE_MAX] = {0};
+  fpcounter_t sum_time = 0;
   for (size_t cpu = 0; cpu < CPU_NUM; cpu++) {
     derive_t active_increment = 0;
     for (state_t s = 0; s < STATE_ACTIVE; s++) {
@@ -184,34 +184,34 @@ DEF_TEST(usage_count) {
         active_increment += increment;
       }
 
-      gauge_t want_time = 1000000.0 * CDTIME_T_TO_DOUBLE(interval) *
-                          ((gauge_t)increment) / ((gauge_t)cpu_increment[cpu]);
+      fpcounter_t want_time = CDTIME_T_TO_DOUBLE(interval) *
+                              ((fpcounter_t)increment) /
+                              ((fpcounter_t)cpu_increment[cpu]);
       state_time[s] += want_time;
       sum_time += want_time;
 
-      bool ok = expect_usage_count((derive_t)want_time,
-                                   usage_count(&usage, cpu, s), cpu, s);
+      bool ok =
+          expect_usage_count(want_time, usage_count(&usage, cpu, s), cpu, s);
       ret = ret || !ok;
     }
 
-    gauge_t want_active_time = 1000000.0 * CDTIME_T_TO_DOUBLE(interval) *
-                               ((gauge_t)active_increment) /
-                               ((gauge_t)cpu_increment[cpu]);
+    fpcounter_t want_active_time = CDTIME_T_TO_DOUBLE(interval) *
+                                   ((fpcounter_t)active_increment) /
+                                   ((fpcounter_t)cpu_increment[cpu]);
     state_time[STATE_ACTIVE] += want_active_time;
-    bool ok = expect_usage_count((derive_t)want_active_time,
+    bool ok = expect_usage_count(want_active_time,
                                  usage_count(&usage, cpu, STATE_ACTIVE), cpu,
                                  STATE_ACTIVE);
     ret = ret || !ok;
   }
 
   for (state_t s = 0; s < STATE_MAX; s++) {
-    bool ok = expect_usage_count((derive_t)state_time[s],
-                                 usage_count(&usage, CPU_ALL, s), CPU_ALL, s);
+    bool ok = expect_usage_count(state_time[s], usage_count(&usage, CPU_ALL, s),
+                                 CPU_ALL, s);
     ret = ret || !ok;
   }
 
-  EXPECT_EQ_DOUBLE(CPU_NUM * 1000000.0 * CDTIME_T_TO_DOUBLE(interval),
-                   sum_time);
+  EXPECT_EQ_DOUBLE(CPU_NUM * CDTIME_T_TO_DOUBLE(interval), sum_time);
 
   usage_reset(&usage);
   return ret;
