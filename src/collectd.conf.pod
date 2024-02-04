@@ -7211,7 +7211,7 @@ connections.
 =item B<VerifyPeer> B<true>|B<false>
 
 When enabled, a valid client certificate is required to connect to the server.
-When disabled, a client certifiacte is not requested and any unsolicited client
+When disabled, a client certificate is not requested and any unsolicited client
 certificate is accepted.
 Enabled by default.
 
