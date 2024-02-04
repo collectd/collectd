@@ -187,7 +187,7 @@ static int ot_write(metric_family_t const *fam, user_data_t *user_data) {
   return 0;
 }
 
-static int config_get_file(oconfig_item_t const *ci, grpc::string *out) {
+int config_get_file(oconfig_item_t const *ci, grpc::string *out) {
   char *path = NULL;
   int err = cf_util_get_string(ci, &path);
   if (err) {
@@ -223,7 +223,7 @@ int exporter_config(oconfig_item_t *ci) {
   ot_callback_t *cb = (ot_callback_t *)calloc(1, sizeof(*cb));
   if (cb == NULL) {
     ERROR("open_telemetry plugin: calloc failed.");
-    return -1;
+    return ENOMEM;
   }
 
   cb->reference_count = 1;

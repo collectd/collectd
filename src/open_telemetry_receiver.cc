@@ -82,27 +82,6 @@ struct Listener {
 static std::vector<Listener> listeners;
 
 /*
- * helper functions
- */
-static grpc::string read_file(const char *filename) {
-  std::ifstream f;
-  grpc::string s, content;
-
-  f.open(filename);
-  if (!f.is_open()) {
-    ERROR("open_telemetry plugin: Failed to open '%s'", filename);
-    return "";
-  }
-
-  while (std::getline(f, s)) {
-    content += s;
-    content.push_back('\n');
-  }
-  f.close();
-  return content;
-} /* read_file */
-
-/*
  * proto conversion
  */
 static grpc::Status wrap_error(int err) {
@@ -448,6 +427,9 @@ static void receiver_install_callbacks(void) {
   done = true;
 }
 
+// config_get_file is implemented in src/open_telemetry_exporter.cc
+int config_get_file(oconfig_item_t const *ci, grpc::string *out);
+
 /*
  * collectd plugin interface
  */
@@ -478,47 +460,33 @@ int receiver_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
+    int err = 0;
     if (!strcasecmp("EnableSSL", child->key)) {
-      if (cf_util_get_boolean(child, &use_ssl)) {
-        ERROR("open_telemetry plugin: Option `%s` expects a boolean value",
-              child->key);
-        return -1;
-      }
+      err = cf_util_get_boolean(child, &use_ssl);
     } else if (!strcasecmp("SSLCACertificateFile", child->key)) {
-      char *certs = NULL;
-      if (cf_util_get_string(child, &certs)) {
-        ERROR("open_telemetry plugin: Option `%s` expects a string value",
-              child->key);
-        return -1;
-      }
-      ssl_opts->pem_root_certs = read_file(certs);
+      err = config_get_file(child, &ssl_opts->pem_root_certs);
     } else if (!strcasecmp("SSLCertificateKeyFile", child->key)) {
-      char *key = NULL;
-      if (cf_util_get_string(child, &key)) {
-        ERROR("open_telemetry plugin: Option `%s` expects a string value",
-              child->key);
-        return -1;
-      }
-      pkcp.private_key = read_file(key);
+      err = config_get_file(child, &pkcp.private_key);
     } else if (!strcasecmp("SSLCertificateFile", child->key)) {
-      char *cert = NULL;
-      if (cf_util_get_string(child, &cert)) {
-        ERROR("open_telemetry plugin: Option `%s` expects a string value",
-              child->key);
-        return -1;
-      }
-      pkcp.cert_chain = read_file(cert);
+      err = config_get_file(child, &pkcp.cert_chain);
     } else if (!strcasecmp("VerifyPeer", child->key)) {
       bool verify = false;
-      if (cf_util_get_boolean(child, &verify)) {
-        return -1;
+      err = cf_util_get_boolean(child, &verify);
+      if (!err) {
+        ssl_opts->client_certificate_request =
+            verify ? GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
+                   : GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE;
       }
-      ssl_opts->client_certificate_request =
-          verify ? GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
-                 : GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE;
     } else {
-      WARNING("open_telemetry plugin: Option `%s` not allowed in <%s> block.",
-              child->key, ci->key);
+      ERROR("open_telemetry plugin: Option \"%s\" is not allowed inside a "
+            "\"%s\" block.",
+            child->key, ci->key);
+      err = EINVAL;
+    }
+
+    if (err) {
+      delete ssl_opts;
+      return err;
     }
   }
 
