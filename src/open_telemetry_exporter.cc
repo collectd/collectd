@@ -149,6 +149,7 @@ static void ot_callback_decref(void *data) {
   sfree(cb->port);
 
   delete cb->ssl_opts;
+  cb->ssl_opts = NULL;
 
   pthread_mutex_unlock(&cb->mu);
   pthread_mutex_destroy(&cb->mu);
