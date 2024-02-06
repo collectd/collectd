@@ -276,20 +276,6 @@ typedef struct procstat {
   regex_t *re;
 #endif
 
-  derive_t vmem_minflt_counter;
-  derive_t vmem_majflt_counter;
-
-  /* io data */
-  derive_t io_rchar;
-  derive_t io_wchar;
-  derive_t io_syscr;
-  derive_t io_syscw;
-  derive_t io_diskr;
-  derive_t io_diskw;
-
-  derive_t cswitch_vol;
-  derive_t cswitch_invol;
-
   bool report_fd_num;
   bool report_maps_num;
   bool report_ctx_switch;
@@ -405,15 +391,6 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
   }
   sstrncpy(new->name, name, sizeof(new->name));
 
-  new->io_rchar = -1;
-  new->io_wchar = -1;
-  new->io_syscr = -1;
-  new->io_syscw = -1;
-  new->io_diskr = -1;
-  new->io_diskw = -1;
-  new->cswitch_vol = -1;
-  new->cswitch_invol = -1;
-
   new->report_fd_num = report_fd_num;
   new->report_maps_num = report_maps_num;
   new->report_ctx_switch = report_ctx_switch;
@@ -502,27 +479,6 @@ static bool ps_list_match(const char *name, const char *cmdline,
   return false;
 } /* int ps_list_match */
 
-static void ps_update_counter(derive_t *group_counter, derive_t *curr_counter,
-                              derive_t new_counter) {
-  unsigned long curr_value;
-
-  if (want_init) {
-    *curr_counter = new_counter;
-    return;
-  }
-
-  if (new_counter < *curr_counter)
-    curr_value = new_counter + (ULONG_MAX - *curr_counter);
-  else
-    curr_value = new_counter - *curr_counter;
-
-  if (*group_counter == -1)
-    *group_counter = 0;
-
-  *curr_counter = new_counter;
-  *group_counter += curr_value;
-}
-
 static procstat_entry_t *
 find_or_allocate_procstat_entry(procstat_t *ps, unsigned long id,
                                 unsigned long long starttime) {
@@ -601,32 +557,6 @@ static void ps_add_entry_to_procstat(procstat_t *ps, char const *cmdline,
   value_to_rate(&pse->cpu_system_rate,
                 (value_t){.fpcounter = entry->cpu_system_counter},
                 METRIC_TYPE_FPCOUNTER, now, &pse->cpu_system_state);
-
-  if ((entry->io_rchar != -1) && (entry->io_wchar != -1)) {
-    ps_update_counter(&ps->io_rchar, &pse->io_rchar, entry->io_rchar);
-    ps_update_counter(&ps->io_wchar, &pse->io_wchar, entry->io_wchar);
-  }
-
-  if ((entry->io_syscr != -1) && (entry->io_syscw != -1)) {
-    ps_update_counter(&ps->io_syscr, &pse->io_syscr, entry->io_syscr);
-    ps_update_counter(&ps->io_syscw, &pse->io_syscw, entry->io_syscw);
-  }
-
-  if ((entry->io_diskr != -1) && (entry->io_diskw != -1)) {
-    ps_update_counter(&ps->io_diskr, &pse->io_diskr, entry->io_diskr);
-    ps_update_counter(&ps->io_diskw, &pse->io_diskw, entry->io_diskw);
-  }
-
-  if ((entry->cswitch_vol != -1) && (entry->cswitch_invol != -1)) {
-    ps_update_counter(&ps->cswitch_vol, &pse->cswitch_vol, entry->cswitch_vol);
-    ps_update_counter(&ps->cswitch_invol, &pse->cswitch_invol,
-                      entry->cswitch_invol);
-  }
-
-  ps_update_counter(&ps->vmem_minflt_counter, &pse->vmem_minflt_counter,
-                    entry->vmem_minflt_counter);
-  ps_update_counter(&ps->vmem_majflt_counter, &pse->vmem_majflt_counter,
-                    entry->vmem_majflt_counter);
 }
 
 #if KERNEL_LINUX
