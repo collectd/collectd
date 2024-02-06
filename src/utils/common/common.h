@@ -386,10 +386,10 @@ counter_t counter_diff(counter_t old_value, counter_t new_value);
  * this case the value_t is invalid and the next call should succeed. Other
  * return values indicate an error. */
 int rate_to_value(value_t *ret_value, gauge_t rate,
-                  rate_to_value_state_t *state, int ds_type, cdtime_t t);
+                  rate_to_value_state_t *state, metric_type_t type, cdtime_t t);
 
-int value_to_rate(gauge_t *ret_rate, value_t value, int ds_type, cdtime_t t,
-                  value_to_rate_state_t *state);
+int value_to_rate(gauge_t *ret_rate, value_t value, metric_type_t type,
+                  cdtime_t t, value_to_rate_state_t *state);
 
 /* Converts a service name (a string) to a port number
  * (in the range [1-65535]). Returns less than zero on error. */

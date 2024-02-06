@@ -299,53 +299,285 @@ DEF_TEST(strunescape) {
   return 0;
 }
 
-DEF_TEST(value_to_rate) {
+DEF_TEST(rate_to_value) {
   struct {
-    time_t t0;
-    time_t t1;
-    int ds_type;
-    value_t v0;
-    value_t v1;
-    gauge_t want;
+    char *name;
+    gauge_t rate;
+    rate_to_value_state_t state;
+    metric_type_t type;
+    cdtime_t time;
+    value_t want;
+    gauge_t want_residual;
+    int want_err;
   } cases[] = {
-      {0, 10, DS_TYPE_DERIVE, {.derive = 0}, {.derive = 1000}, NAN},
-      {10, 20, DS_TYPE_DERIVE, {.derive = 1000}, {.derive = 2000}, 100.0},
-      {20, 30, DS_TYPE_DERIVE, {.derive = 2000}, {.derive = 1800}, -20.0},
-      {0, 10, DS_TYPE_COUNTER, {.counter = 0}, {.counter = 1000}, NAN},
-      {10, 20, DS_TYPE_COUNTER, {.counter = 1000}, {.counter = 5000}, 400.0},
-      /* 32bit wrap-around. */
-      {20,
-       30,
-       DS_TYPE_COUNTER,
-       {.counter = 4294967238ULL},
-       {.counter = 42},
-       10.0},
-      /* 64bit wrap-around. */
-      {30,
-       40,
-       DS_TYPE_COUNTER,
-       {.counter = 18446744073709551558ULL},
-       {.counter = 42},
-       10.0},
+      {
+          .name = "zero value",
+          .rate = 1.,
+          .state = {.last_time = 0},
+          .type = METRIC_TYPE_COUNTER,
+          .time = TIME_T_TO_CDTIME_T(10),
+          .want_err = EAGAIN,
+      },
+      {
+          .name = "counter",
+          .rate = 1.,
+          .state =
+              {
+                  .last_value = {.counter = 1000},
+                  .last_time = TIME_T_TO_CDTIME_T(10),
+                  .residual = 0,
+              },
+          .type = METRIC_TYPE_COUNTER,
+          .time = TIME_T_TO_CDTIME_T(20),
+          .want = {.counter = 1010},
+      },
+      {
+          .name = "residual gets rounded down",
+          .rate = 0.999,
+          .state =
+              {
+                  .last_value = {.counter = 1000},
+                  .last_time = TIME_T_TO_CDTIME_T(10),
+                  .residual = 0,
+              },
+          .type = METRIC_TYPE_COUNTER,
+          .time = TIME_T_TO_CDTIME_T(20),
+          .want = {.counter = 1009},
+          .want_residual = 0.99,
+      },
+      {
+          .name = "residual gets added to result",
+          .rate = 0.0011,
+          .state =
+              {
+                  .last_value = {.counter = 1000},
+                  .last_time = TIME_T_TO_CDTIME_T(10),
+                  .residual = 0.99,
+              },
+          .type = METRIC_TYPE_COUNTER,
+          .time = TIME_T_TO_CDTIME_T(20),
+          .want = {.counter = 1001},
+          .want_residual = 0.001,
+      },
+      {
+          .name = "fpcounter",
+          .rate = 1.234,
+          .state =
+              {
+                  .last_value = {.fpcounter = 1000},
+                  .last_time = TIME_T_TO_CDTIME_T(10),
+                  .residual = 0,
+              },
+          .type = METRIC_TYPE_FPCOUNTER,
+          .time = TIME_T_TO_CDTIME_T(20),
+          .want = {.fpcounter = 1012.34},
+      },
+      {
+          .name = "derive",
+          .rate = 1.,
+          .state =
+              {
+                  .last_value = {.derive = 1000},
+                  .last_time = TIME_T_TO_CDTIME_T(10),
+                  .residual = 0,
+              },
+          .type = DS_TYPE_DERIVE,
+          .time = TIME_T_TO_CDTIME_T(20),
+          .want = {.derive = 1010},
+      },
+      {
+          .name = "derive initialization with negative rate",
+          .rate = 1.05,
+          .state = {.last_time = 0},
+          .type = DS_TYPE_DERIVE,
+          .time = TIME_T_TO_CDTIME_T(20),
+          .want_err = EAGAIN,
+          .want_residual = .5,
+      },
+      {
+          .name = "derive with negative rate",
+          .rate = -1.,
+          .state =
+              {
+                  .last_value = {.derive = 1000},
+                  .last_time = TIME_T_TO_CDTIME_T(10),
+                  .residual = 0,
+              },
+          .type = DS_TYPE_DERIVE,
+          .time = TIME_T_TO_CDTIME_T(20),
+          .want = {.derive = 990},
+      },
+      {
+          .name = "residual gets rounded down",
+          .rate = -1.01,
+          .state =
+              {
+                  .last_value = {.derive = 1000},
+                  .last_time = TIME_T_TO_CDTIME_T(10),
+                  .residual = 0,
+              },
+          .type = DS_TYPE_DERIVE,
+          .time = TIME_T_TO_CDTIME_T(20),
+          .want = {.derive = 989},
+          .want_residual = .9,
+      },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("## Case %zu %s\n", i, cases[i].name);
+
+    rate_to_value_state_t state = cases[i].state;
+    value_t got = {0};
+    EXPECT_EQ_INT(cases[i].want_err,
+                  rate_to_value(&got, cases[i].rate, &state, cases[i].type,
+                                cases[i].time));
+    if (cases[i].want_err) {
+      continue;
+    }
+
+    switch (cases[i].type) {
+    case METRIC_TYPE_COUNTER:
+      EXPECT_EQ_UINT64(cases[i].want.counter, got.counter);
+      EXPECT_EQ_UINT64(cases[i].want.counter, state.last_value.counter);
+      break;
+    case METRIC_TYPE_GAUGE:
+      EXPECT_EQ_DOUBLE(cases[i].want.gauge, got.gauge);
+      EXPECT_EQ_DOUBLE(cases[i].want.gauge, state.last_value.gauge);
+      break;
+    case METRIC_TYPE_FPCOUNTER:
+      EXPECT_EQ_DOUBLE(cases[i].want.fpcounter, got.fpcounter);
+      EXPECT_EQ_UINT64(cases[i].want.fpcounter, state.last_value.fpcounter);
+      break;
+    case METRIC_TYPE_UNTYPED:
+      LOG(false, "invalid metric type");
+      break;
+    }
+
+    EXPECT_EQ_UINT64(cases[i].time, state.last_time);
+    EXPECT_EQ_DOUBLE(cases[i].want_residual, state.residual);
+  }
+
+  return 0;
+}
+
+DEF_TEST(value_to_rate) {
+  struct {
+    char *name;
+    time_t t0;
+    time_t t1;
+    metric_type_t type;
+    value_t v0;
+    value_t v1;
+    gauge_t want;
+    int want_err;
+  } cases[] = {
+      {
+          .name = "derive_t init",
+          .t0 = 0,
+          .t1 = 10,
+          .type = DS_TYPE_DERIVE,
+          .v0 = {.derive = 0},
+          .v1 = {.derive = 1000},
+          .want_err = EAGAIN,
+      },
+      {
+          .name = "derive_t increase",
+          .t0 = 10,
+          .t1 = 20,
+          .type = DS_TYPE_DERIVE,
+          .v0 = {.derive = 1000},
+          .v1 = {.derive = 2000},
+          .want = 100.0,
+      },
+      {
+          .name = "derive_t decrease",
+          .t0 = 20,
+          .t1 = 30,
+          .type = DS_TYPE_DERIVE,
+          .v0 = {.derive = 2000},
+          .v1 = {.derive = 1800},
+          .want = -20.0,
+      },
+      {
+          .name = "counter_t init",
+          .t0 = 0,
+          .t1 = 10,
+          .type = METRIC_TYPE_COUNTER,
+          .v0 = {.counter = 0},
+          .v1 = {.counter = 1000},
+          .want_err = EAGAIN,
+      },
+      {
+          .name = "counter_t increase",
+          .t0 = 10,
+          .t1 = 20,
+          .type = METRIC_TYPE_COUNTER,
+          .v0 = {.counter = 1000},
+          .v1 = {.counter = 5000},
+          .want = 400.0,
+      },
+      {
+          .name = "counter_t 32bit wrap-around",
+          .t0 = 20,
+          .t1 = 30,
+          .type = METRIC_TYPE_COUNTER,
+          .v0 = {.counter = 4294967238ULL},
+          .v1 = {.counter = 42},
+          .want = 10.0,
+      },
+      {
+          .name = "counter_t 64bit wrap-around",
+          .t0 = 30,
+          .t1 = 40,
+          .type = METRIC_TYPE_COUNTER,
+          .v0 = {.counter = 18446744073709551558ULL},
+          .v1 = {.counter = 42},
+          .want = 10.0,
+      },
+      {
+          .name = "fpcounter_t init",
+          .t0 = 0,
+          .t1 = 10,
+          .type = METRIC_TYPE_FPCOUNTER,
+          .v0 = {.fpcounter = 0.},
+          .v1 = {.fpcounter = 10.},
+          .want_err = EAGAIN,
+      },
+      {
+          .name = "fpcounter_t increase",
+          .t0 = 10,
+          .t1 = 20,
+          .type = METRIC_TYPE_FPCOUNTER,
+          .v0 = {.fpcounter = 10.},
+          .v1 = {.fpcounter = 50.5},
+          .want = (50.5 - 10.) / (20. - 10.),
+      },
+      {
+          .name = "fpcounter_t reset",
+          .t0 = 20,
+          .t1 = 30,
+          .type = METRIC_TYPE_FPCOUNTER,
+          .v0 = {.fpcounter = 100.0},
+          .v1 = {.fpcounter = 20.0},
+          .want_err = EAGAIN,
+      },
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("## Case %zu %s\n", i, cases[i].name);
+
     cdtime_t t0 = TIME_T_TO_CDTIME_T(cases[i].t0);
     value_to_rate_state_t state = {
         .last_value = cases[i].v0,
         .last_time = t0,
     };
-    gauge_t got;
-
-    if (cases[i].t0 == 0) {
-      EXPECT_EQ_INT(EAGAIN,
-                    value_to_rate(&got, cases[i].v1, cases[i].ds_type,
-                                  TIME_T_TO_CDTIME_T(cases[i].t1), &state));
+    gauge_t got = 0;
+    EXPECT_EQ_INT(cases[i].want_err,
+                  value_to_rate(&got, cases[i].v1, cases[i].type,
+                                TIME_T_TO_CDTIME_T(cases[i].t1), &state));
+    if (cases[i].want_err) {
       continue;
     }
-
-    EXPECT_EQ_INT(0, value_to_rate(&got, cases[i].v1, cases[i].ds_type,
-                                   TIME_T_TO_CDTIME_T(cases[i].t1), &state));
     EXPECT_EQ_DOUBLE(cases[i].want, got);
   }
 
@@ -415,6 +647,7 @@ int main(void) {
   RUN_TEST(escape_slashes);
   RUN_TEST(escape_string);
   RUN_TEST(strunescape);
+  RUN_TEST(rate_to_value);
   RUN_TEST(value_to_rate);
   RUN_TEST(format_values);
   RUN_TEST(string_has_suffix);

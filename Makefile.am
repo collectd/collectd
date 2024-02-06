@@ -422,7 +422,7 @@ libavltree_la_SOURCES = \
 libcommon_la_SOURCES = \
 	src/utils/common/common.c \
 	src/utils/common/common.h
-libcommon_la_LIBADD = libmetric.la libstrbuf.la $(COMMON_LIBS)
+libcommon_la_LIBADD = libmetric.la libstrbuf.la -lm $(COMMON_LIBS)
 
 libheap_la_SOURCES = \
 	src/utils/heap/heap.c \
