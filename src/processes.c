@@ -1250,19 +1250,6 @@ static int dispatch_fork_rate(counter_t value) {
   metric_family_metric_reset(&fam);
   return err;
 }
-
-static void ps_submit_global_stat(const char *type_name, derive_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.derive = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "processes", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, "", sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type_name, sizeof(vl.type));
-  sstrncpy(vl.type_instance, "", sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
 #endif /* KERNEL_LINUX || KERNEL_SOLARIS*/
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
@@ -1771,32 +1758,43 @@ static int read_fork_rate(const char *buffer) {
   return dispatch_fork_rate(value.counter);
 }
 
+static int dispatch_context_switch(counter_t value) {
+  metric_family_t fam = {
+      .name = "system.process.context_switches",
+      .help = "Total number of context switches performed on the system.",
+      .unit = "{count}",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value = {.counter = value},
+                                    });
+  int err = plugin_dispatch_metric_family(&fam);
+  metric_family_metric_reset(&fam);
+  return err;
+}
+
 static int read_sys_ctxt_switch(const char *buffer) {
-  value_t value;
-  char id[] = "ctxt ";
-  char *ctxt;
+  char const *prefix = "ctxt ";
 
-  int status;
-  char *fields[2];
-  int fields_num;
-  const int expected = STATIC_ARRAY_SIZE(fields);
-
-  ctxt = strstr(buffer, id);
-  if (!ctxt) {
-    WARNING("'ctxt ' not found in /proc/stat");
-    return -1;
+  char *processes = strstr(buffer, prefix);
+  if (!processes) {
+    ERROR("processes plugin: \"ctxt \" not found in /proc/stat");
+    return ENOENT;
   }
 
-  fields_num = strsplit(ctxt, fields, expected);
-  if (fields_num != expected)
-    return -1;
+  char *fields[2] = {0};
+  const int expected = STATIC_ARRAY_SIZE(fields);
+  int fields_num = strsplit(processes, fields, expected);
+  if (fields_num != expected) {
+    return EINVAL;
+  }
 
-  status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+  value_t value = {0};
+  int status = parse_value(fields[1], &value, METRIC_TYPE_COUNTER);
   if (status != 0)
     return -1;
 
-  ps_submit_global_stat("contextswitch", value.derive);
-  return 0;
+  return dispatch_context_switch(value.counter);
 }
 #endif /*KERNEL_LINUX */
 
