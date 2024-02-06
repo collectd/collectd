@@ -242,3 +242,27 @@ freebsd_task:
   always:
     make_check_artifacts:
       path: "**/*.log"
+
+macos_task:
+  macos_instance:
+    matrix:
+      - image: ghcr.io/cirruslabs/macos-sonoma-xcode:latest
+  allow_failures: false
+  brew_install_script:
+    - >
+      brew install
+      autoconf automake
+      libtool
+      bison
+      flex
+      pkg-config
+  configure_script:
+    - ./build.sh
+    - ./configure
+  build_script:
+    - make -j$(nproc) -sk
+  tests_script:
+    - make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
