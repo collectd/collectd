@@ -243,16 +243,17 @@ freebsd_task:
     matrix:
       - image_family: freebsd-13-2
   allow_failures: false
-  git_submodule_script:
-    - git submodule init -- opentelemetry-proto
-    - git submodule update -- opentelemetry-proto
   pkg_install_script:
     - >
       pkg install --yes
+      git
       autotools
       bison
       flex
       pkgconf
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   configure_script:
     - ./build.sh
     - ./configure --disable-perl
