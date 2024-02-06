@@ -1,7 +1,7 @@
 env:
   LANG: C
   CIRRUS_CLONE_DEPTH: 1
-  CIRRUS_CLONE_SUBMODULES: true
+  CIRRUS_CLONE_SUBMODULES: false
   DEFAULT_CONFIG_OPTS: --enable-compatibility-mode --enable-debug --without-libstatgrab --disable-dependency-tracking
 
 
@@ -11,6 +11,9 @@ env:
 release_ready_task:
   container:
     image: collectd/ci:debian12
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   lint_script:
     - /checks/check-bashisms.sh
     - /checks/check-pod.sh
@@ -47,6 +50,9 @@ debian_default_toolchain_task:
       only_if: $CIRRUS_BRANCH == 'main'
       env:
         CONTAINER_IMAGE: debian_unstable
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   configure_script:
     - ./build.sh
     - gcc --version
@@ -93,6 +99,9 @@ redhat_default_toolchain_task:
       only_if: $CIRRUS_BRANCH == 'main'
       env:
         CONTAINER_IMAGE: fedora_main
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   configure_script:
     - ./build.sh
     - gcc --version
@@ -126,6 +135,9 @@ non_standard_toolchains_task:
         LABEL: clang
       allow_failures: true # TODO: fix this platform
       skip_notifications: true
+      git_submodule_script:
+        - git submodule init -- opentelemetry-proto
+        - git submodule update -- opentelemetry-proto
       configure_script:
         - ./build.sh
         - clang --version
@@ -149,6 +161,9 @@ non_standard_toolchains_task:
         LABEL: clang strict
       allow_failures: true
       skip_notifications: true
+      git_submodule_script:
+        - git submodule init -- opentelemetry-proto
+        - git submodule update -- opentelemetry-proto
       configure_script:
         - ./build.sh
         - clang --version
@@ -203,6 +218,9 @@ bleeding_edge_compilers_task:
       CC: clang
       CC: clang-18
       CC: clang-17
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   configure_script:
     - ./build.sh
     - $CC --version
@@ -225,6 +243,9 @@ freebsd_task:
     matrix:
       - image_family: freebsd-13-2
   allow_failures: false
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   pkg_install_script:
     - >
       pkg install --yes
@@ -248,6 +269,9 @@ macos_task:
     matrix:
       - image: ghcr.io/cirruslabs/macos-sonoma-xcode:latest
   allow_failures: false
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   brew_install_script:
     - >
       brew install
