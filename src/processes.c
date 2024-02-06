@@ -1236,6 +1236,21 @@ static void ps_submit_proc_list(procstat_t *ps) {
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
+static int dispatch_fork_rate(counter_t value) {
+  metric_family_t fam = {
+      .name = "system.processes.created",
+      .help = "Total number of processes created over uptime of the host",
+      .unit = "{process}",
+      .type = METRIC_TYPE_COUNTER,
+  };
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value = {.counter = value},
+                                    });
+  int err = plugin_dispatch_metric_family(&fam);
+  metric_family_metric_reset(&fam);
+  return err;
+}
+
 static void ps_submit_global_stat(const char *type_name, derive_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -1733,31 +1748,27 @@ static int procs_running(const char *buffer) {
 }
 
 static int read_fork_rate(const char *buffer) {
-  value_t value;
-  char id[] = "processes ";
-  char *processes;
+  char const *prefix = "processes ";
 
-  int status;
-  char *fields[2];
-  int fields_num;
-  const int expected = STATIC_ARRAY_SIZE(fields);
-
-  processes = strstr(buffer, id);
+  char *processes = strstr(buffer, prefix);
   if (!processes) {
-    WARNING("'processes ' not found in /proc/stat");
-    return -1;
+    ERROR("processes plugin: \"processes \" not found in /proc/stat");
+    return ENOENT;
   }
 
-  fields_num = strsplit(processes, fields, expected);
-  if (fields_num != expected)
-    return -1;
+  char *fields[2] = {0};
+  const int expected = STATIC_ARRAY_SIZE(fields);
+  int fields_num = strsplit(processes, fields, expected);
+  if (fields_num != expected) {
+    return EINVAL;
+  }
 
-  status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+  value_t value = {0};
+  int status = parse_value(fields[1], &value, METRIC_TYPE_COUNTER);
   if (status != 0)
     return -1;
 
-  ps_submit_global_stat("fork_rate", value.derive);
-  return 0;
+  return dispatch_fork_rate(value.counter);
 }
 
 static int read_sys_ctxt_switch(const char *buffer) {
@@ -1922,7 +1933,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
  */
 static int read_fork_rate(void) {
   extern kstat_ctl_t *kc;
-  derive_t result = 0;
+  counter_t sum = 0;
 
   if (kc == NULL)
     return -1;
@@ -1938,12 +1949,11 @@ static int read_fork_rate(void) {
 
       tmp = get_kstat_value(ksp_chain, "nthreads");
       if (tmp != -1LL)
-        result += tmp;
+        sum += tmp;
     }
   }
 
-  ps_submit_global_stat("fork_rate", result);
-  return 0;
+  return dispatch_fork_rate(sum);
 }
 #endif /* KERNEL_SOLARIS */
 
