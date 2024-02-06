@@ -282,7 +282,7 @@ macos_task:
       pkg-config
   configure_script:
     - ./build.sh
-    - ./configure
+    - ./configure ${DEFAULT_CONFIG_OPTS}
   build_script:
     - make -j "${CIRRUS_CPU}" -sk
   tests_script:
