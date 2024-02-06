@@ -8,82 +8,53 @@ env:
 # Misc non-standard build environment & options on most recent released debian
 # version.
 # Some are expected to fail, others should always pass
-non_standard_toolchains_task:
+clang_pedantic_task:
   container:
     image: collectd/ci:debian12
-
-  matrix:
-    # build using clang with default build flags, should always pass
-    - env:
-        LABEL: clang
-      allow_failures: true # TODO: fix this platform
-      skip_notifications: true
-      git_submodule_script:
-        - git submodule init -- opentelemetry-proto
-        - git submodule update -- opentelemetry-proto
-      configure_script:
-        - ./build.sh
-        - clang --version
-        - >
-          ./configure CC=clang CXX=clang++
-          $DEFAULT_CONFIG_OPTS
-          CFLAGS="$(dpkg-buildflags --get CFLAGS) -gdwarf-4"
-          CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
-          LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
-      build_script:
-        - make -j$(nproc) -sk
-      tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-      always:
-        make_check_artifacts:
-          path: "**/*.log"
-
     # build using clang with a collection of strict build flags, will most
     # probably always fail
-    - env:
-        LABEL: clang strict
-      allow_failures: true
-      skip_notifications: true
-      git_submodule_script:
-        - git submodule init -- opentelemetry-proto
-        - git submodule update -- opentelemetry-proto
-      configure_script:
-        - ./build.sh
-        - clang --version
-        - >
-          ./configure CC=clang CXX=clang++
-          $DEFAULT_CONFIG_OPTS
-          CFLAGS='-gdwarf-4 -Wall
-          -Wno-error
-          -Wextra
-          -Wformat=2
-          -Wformat-security
-          -Wformat-nonliteral
-          -Wmissing-include-dirs
-          -Wold-style-definition
-          -Wpointer-arith
-          -Winit-self
-          -Wmissing-prototypes
-          -Wimplicit-function-declaration
-          -Wmissing-declarations
-          -Wstrict-prototypes
-          -Wmissing-noreturn
-          -Wshadow
-          -Wendif-labels
-          -Wwrite-strings
-          -Wno-unused-parameter
-          -Wno-missing-field-initializers
-          -Wdate-time
-          -Wnested-externs
-          -Wno-typedef-redefinition
-          -Wno-gnu-variable-sized-type-not-at-end'
-      build_script:
-        - make -j$(nproc) -sk
-      tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-      always:
-        make_check_artifacts:
-          path: "**/*.log"
+  allow_failures: true
+  skip_notifications: true
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
+  configure_script:
+    - ./build.sh
+    - clang --version
+    - >
+      ./configure CC=clang CXX=clang++
+      $DEFAULT_CONFIG_OPTS
+      CFLAGS='-gdwarf-4 -Wall
+      -Wno-error
+      -Wextra
+      -Wformat=2
+      -Wformat-security
+      -Wformat-nonliteral
+      -Wmissing-include-dirs
+      -Wold-style-definition
+      -Wpointer-arith
+      -Winit-self
+      -Wmissing-prototypes
+      -Wimplicit-function-declaration
+      -Wmissing-declarations
+      -Wstrict-prototypes
+      -Wmissing-noreturn
+      -Wshadow
+      -Wendif-labels
+      -Wwrite-strings
+      -Wno-unused-parameter
+      -Wno-missing-field-initializers
+      -Wdate-time
+      -Wnested-externs
+      -Wno-typedef-redefinition
+      -Wno-gnu-variable-sized-type-not-at-end'
+  build_script:
+    - make -j$(nproc) -sk
+  tests_script:
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
