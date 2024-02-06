@@ -144,7 +144,7 @@ non_standard_toolchains_task:
         - >
           ./configure CC=clang CXX=clang++
           $DEFAULT_CONFIG_OPTS
-          CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+          CFLAGS="$(dpkg-buildflags --get CFLAGS) -gdwarf-4"
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
@@ -170,7 +170,7 @@ non_standard_toolchains_task:
         - >
           ./configure CC=clang CXX=clang++
           $DEFAULT_CONFIG_OPTS
-          CFLAGS='-Wall
+          CFLAGS='-gdwarf-4 -Wall
           -Wno-error
           -Wextra
           -Wformat=2
