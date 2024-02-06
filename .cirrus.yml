@@ -260,9 +260,9 @@ macos_task:
     - ./build.sh
     - ./configure
   build_script:
-    - make -j$(nproc) -sk
+    - make -j "${CIRRUS_CPU}" -sk
   tests_script:
-    - make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+    - make -j "${CIRRUS_CPU}" -sk check || (cat ./test-suite.log && false)
   always:
     make_check_artifacts:
       path: "**/*.log"
