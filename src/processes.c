@@ -259,12 +259,12 @@ typedef struct procstat_entry_s {
   derive_t cswitch_vol;
   derive_t cswitch_invol;
 
-  /* Linux Delay Accounting. Unit is ns/s. */
+  /* Linux Delay Accounting. Unit is s/s. */
   bool has_delay;
-  derive_t delay_cpu;
-  derive_t delay_blkio;
-  derive_t delay_swapin;
-  derive_t delay_freepages;
+  fpcounter_t delay_cpu;
+  fpcounter_t delay_blkio;
+  fpcounter_t delay_swapin;
+  fpcounter_t delay_freepages;
 
   struct procstat_entry_s *next;
 } procstat_entry_t;
@@ -576,10 +576,10 @@ static void ps_add_entry_to_procstat(procstat_t *ps, char const *cmdline,
 
   pse->has_delay = entry->has_delay;
 #if HAVE_LIBTASKSTATS
-  pse->delay_cpu = (derive_t)entry->delay.cpu_ns;
-  pse->delay_blkio = (derive_t)entry->delay.blkio_ns;
-  pse->delay_swapin = (derive_t)entry->delay.swapin_ns;
-  pse->delay_freepages = (derive_t)entry->delay.freepages_ns;
+  pse->delay_cpu = ((fpcounter_t)entry->delay.cpu_ns) / 1e9;
+  pse->delay_blkio = ((fpcounter_t)entry->delay.blkio_ns) / 1e9;
+  pse->delay_swapin = ((fpcounter_t)entry->delay.swapin_ns) / 1e9;
+  pse->delay_freepages = ((fpcounter_t)entry->delay.freepages_ns) / 1e9;
 #endif
 
   pse->num_lwp = (gauge_t)entry->num_lwp;
@@ -1011,8 +1011,8 @@ static void ps_dispatch_delay(label_set_t resource,
   metric_family_t fam_delay = {
       .name = "process.delay.time",
       .help = "Time the process spend waiting for external components.",
-      .unit = "ns",
-      .type = METRIC_TYPE_COUNTER,
+      .unit = "s",
+      .type = METRIC_TYPE_FPCOUNTER,
       .resource = resource,
   };
   struct {
@@ -1021,19 +1021,19 @@ static void ps_dispatch_delay(label_set_t resource,
   } metrics[] = {
       {
           .type_label = "cpu",
-          .value.derive = pse->delay_cpu,
+          .value.fpcounter = pse->delay_cpu,
       },
       {
           .type_label = "blkio",
-          .value.derive = pse->delay_blkio,
+          .value.fpcounter = pse->delay_blkio,
       },
       {
           .type_label = "swapin",
-          .value.derive = pse->delay_swapin,
+          .value.fpcounter = pse->delay_swapin,
       },
       {
           .type_label = "freepages",
-          .value.derive = pse->delay_freepages,
+          .value.fpcounter = pse->delay_freepages,
       },
   };
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
