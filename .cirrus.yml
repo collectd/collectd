@@ -92,7 +92,7 @@ bleeding_edge_compilers_task:
     make_check_artifacts:
       path: "**/*.log"
 
-freebsd_task:
+FreeBSD_task:
   freebsd_instance:
     matrix:
       - image_family: freebsd-13-2
@@ -119,7 +119,7 @@ freebsd_task:
     make_check_artifacts:
       path: "**/*.log"
 
-macos_task:
+MacOS_task:
   macos_instance:
     matrix:
       - image: ghcr.io/cirruslabs/macos-sonoma-xcode:latest
