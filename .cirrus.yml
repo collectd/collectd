@@ -21,7 +21,7 @@ release_ready_task:
     - ./build.sh
     - ./configure $DEFAULT_CONFIG_OPTS
   make_distcheck_script:
-    - make -j$(nproc) -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
+    - make -j$(nproc) -s distcheck
   always:
     make_check_artifacts:
       path: "**/*.log"
