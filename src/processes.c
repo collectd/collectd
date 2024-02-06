@@ -906,9 +906,9 @@ static void ps_dispatch_cpu(label_set_t resource, procstat_entry_t const *pse) {
       .resource = resource,
   };
   metric_family_append(&fam_cpu_time, "state", "user",
-                       (value_t){.derive = pse->cpu_user_counter}, NULL);
+                       (value_t){.fpcounter = pse->cpu_user_counter}, NULL);
   metric_family_append(&fam_cpu_time, "state", "system",
-                       (value_t){.derive = pse->cpu_system_counter}, NULL);
+                       (value_t){.fpcounter = pse->cpu_system_counter}, NULL);
   plugin_dispatch_metric_family(&fam_cpu_time);
   metric_family_metric_reset(&fam_cpu_time);
 
