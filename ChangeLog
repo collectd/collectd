@@ -1,3 +1,19 @@
+2024-02-07, Version 6.0.0.rc2
+	* Daemon: The `plugin_dispatch_metric_family()` function has been
+	  changed to handle metric families with zero metrics gracefully. Thanks
+	  to @octo. #4257
+	* Daemon: The first observed metric value has been added to the metrics
+	  cache. Thanks to @octo. #4265
+	* Daemon: The new `FPCOUNTER` (floating point counter) metric type has
+	  been added. Thanks to @octo. #4266
+	* CPU and Disk plugins: Time metrics have been changed to report seconds
+	  per second. Thanks to @octo. #4272
+	* format_stackdriver: An error path that could leave the JSON generator
+	  in an undefined state has been fixed. Thanks to @octo. #4268
+	* write_redis plugin: The plugin has been ported to work with
+	  `metric_family_t`. The schema used has been migrated to make use of
+	  *RedisTimeSeries* instead of a sorted set. Thanks to @octo. #4258
+
 2024-01-29, Version 6.0.0.rc1
 	* Fix most `-Wpedantic` warnings in collectd core. Thanks to @eero-t.
 	  #4243
