@@ -29,7 +29,7 @@ jobs:
       run: make -j $(nproc) distcheck
     - name: Upload distribution package
       run: |
-        ls -l *.bz2
-        [[ -e "${GITHUB_REF#refs/tags/}.tar.bz2" ]] && gh release upload "${GITHUB_REF}" "${GITHUB_REF#refs/tags/}.tar.bz2"
+        echo "GITHUB_REF_NAME=\"${GITHUB_REF_NAME}\""
+        [[ -e "${GITHUB_REF_NAME:?}.tar.bz2" ]] && gh release upload "${GITHUB_REF_NAME:?}" "${GITHUB_REF_NAME:?}.tar.bz2"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
