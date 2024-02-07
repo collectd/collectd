@@ -27,13 +27,10 @@
  **/
 
 #include "collectd.h"
-#include "plugin.h"
-#include "sqlite3.h"
+#include "daemon/plugin.h"
 #include "utils/common/common.h"
 
-#include <sys/stat.h>
-#include <sys/sysinfo.h>
-#include <sys/types.h>
+#include <sqlite3.h>
 
 #define RAS_PLUGIN "ras"
 #define DEFAULT_DB_PATH "/var/lib/rasdaemon/ras-mc_event.db"
