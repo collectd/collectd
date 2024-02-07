@@ -232,10 +232,14 @@ freebsd_task:
       autotools
       bison
       flex
+      libpfctl
       pkgconf
   configure_script:
     - ./build.sh
-    - ./configure --disable-perl
+    - >
+      ./configure --disable-perl
+      CPPFLAGS='-I/usr/local/include'
+      LIBS="-L/usr/local/lib"
   build_script:
     - make -j$(nproc) -sk
   tests_script:

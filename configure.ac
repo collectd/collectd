@@ -2040,6 +2040,20 @@ if test "x$with_kvm_openfiles" = "xyes"; then
   with_libkvm="yes"
 fi
 
+AC_CHECK_HEADERS([libpfctl.h],,,
+[
+  #include <sys/queue.h>
+  #include <sys/types.h>
+  #include <netinet/in.h>
+  #include <net/if.h>
+  #include <net/pfvar.h>
+])
+AC_CHECK_LIB([pfctl], [pfctl_status_counter],
+  [with_libpfctl="yes"],
+  [with_libpfctl="no"]
+)
+AM_CONDITIONAL([BUILD_WITH_LIBPFCTL], [test "x$with_libpfctl" = "xyes"])
+
 # --with-cuda {{{
 AC_ARG_WITH([cuda],
   [AS_HELP_STRING([--with-cuda@<:@=PREFIX@:>@], [Path to cuda.])],
