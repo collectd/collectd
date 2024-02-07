@@ -1,191 +1,60 @@
 env:
   LANG: C
   CIRRUS_CLONE_DEPTH: 1
-  CIRRUS_CLONE_SUBMODULES: true
+  CIRRUS_CLONE_SUBMODULES: false
   DEFAULT_CONFIG_OPTS: --enable-compatibility-mode --enable-debug --without-libstatgrab --disable-dependency-tracking
-
-
-###
-# make distcheck and other sanity checks
-#
-release_ready_task:
-  container:
-    image: collectd/ci:debian12
-  lint_script:
-    - /checks/check-bashisms.sh
-    - /checks/check-pod.sh
-  configure_script:
-    - ./build.sh
-    - ./configure $DEFAULT_CONFIG_OPTS
-  make_distcheck_script:
-    - make -j$(nproc) -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
-  always:
-    make_check_artifacts:
-      path: "**/*.log"
-
-###
-# Default toolchain and build flags used in deb packages, on a range of Debian
-# and Ubuntu releases (+ Debian/unstable)
-# Most should succeed, and PRs shouldn't break them.
-#
-debian_default_toolchain_task:
-  matrix:
-    - container:
-        image: collectd/ci:debian12
-      allow_failures: false
-      env:
-        CONTAINER_IMAGE: debian12
-    - container:
-        image: collectd/ci:ubuntu23.10
-      allow_failures: false
-      env:
-        CONTAINER_IMAGE: ubuntu23.10
-    - container:
-        image: collectd/ci:debian_unstable
-      allow_failures: true
-      skip_notifications: true
-      only_if: $CIRRUS_BRANCH == 'main'
-      env:
-        CONTAINER_IMAGE: debian_unstable
-  configure_script:
-    - ./build.sh
-    - gcc --version
-    - >
-      ./configure CC=gcc $DEFAULT_CONFIG_OPTS
-      CFLAGS="$(dpkg-buildflags --get CFLAGS)"
-      CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
-      LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
-  build_script:
-    - make -j$(nproc) -sk
-  tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-    - |
-      if [[ -e ".expected-plugins/$CONTAINER_IMAGE" ]]; then
-        /checks/check-built-plugins.sh ".expected-plugins/$CONTAINER_IMAGE"
-      else
-        /checks/check-built-plugins.sh
-      fi
-  always:
-    make_check_artifacts:
-      path: "**/*.log"
-
-###
-# Default toolchain and build flags used in RPM packages, on a range of RedHat
-# and Fedora releases (+ Fedora/rawhide)
-# Most should succeed, and PRs shouldn't break them.
-#
-redhat_default_toolchain_task:
-  matrix:
-    - container:
-        image: collectd/ci:centos9
-      allow_failures: false
-      env:
-        CONTAINER_IMAGE: centos9
-    - container:
-        image: collectd/ci:fedora39
-      allow_failures: false
-      env:
-        CONTAINER_IMAGE: fedora39
-    - container:
-        image: collectd/ci:fedora_main
-      allow_failures: true
-      skip_notifications: true
-      only_if: $CIRRUS_BRANCH == 'main'
-      env:
-        CONTAINER_IMAGE: fedora_main
-  configure_script:
-    - ./build.sh
-    - gcc --version
-    - ./configure CC=gcc $DEFAULT_CONFIG_OPTS CFLAGS="$(rpm --eval '%optflags')"
-  build_script:
-    - make -j$(nproc) -sk
-  tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-    - |
-      if [[ -e ".expected-plugins/$CONTAINER_IMAGE" ]]; then
-        /checks/check-built-plugins.sh ".expected-plugins/$CONTAINER_IMAGE"
-      else
-        /checks/check-built-plugins.sh
-      fi
-  always:
-    make_check_artifacts:
-      path: "**/*.log"
-
 
 ###
 # Misc non-standard build environment & options on most recent released debian
 # version.
 # Some are expected to fail, others should always pass
-non_standard_toolchains_task:
+clang_pedantic_task:
   container:
     image: collectd/ci:debian12
-
-  matrix:
-    # build using clang with default build flags, should always pass
-    - env:
-        LABEL: clang
-      allow_failures: true # TODO: fix this platform
-      skip_notifications: true
-      configure_script:
-        - ./build.sh
-        - clang --version
-        - >
-          ./configure CC=clang CXX=clang++
-          $DEFAULT_CONFIG_OPTS
-          CFLAGS="$(dpkg-buildflags --get CFLAGS)"
-          CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
-          LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
-      build_script:
-        - make -j$(nproc) -sk
-      tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-      always:
-        make_check_artifacts:
-          path: "**/*.log"
-
     # build using clang with a collection of strict build flags, will most
     # probably always fail
-    - env:
-        LABEL: clang strict
-      allow_failures: true
-      skip_notifications: true
-      configure_script:
-        - ./build.sh
-        - clang --version
-        - >
-          ./configure CC=clang CXX=clang++
-          $DEFAULT_CONFIG_OPTS
-          CFLAGS='-Wall
-          -Wno-error
-          -Wextra
-          -Wformat=2
-          -Wformat-security
-          -Wformat-nonliteral
-          -Wmissing-include-dirs
-          -Wold-style-definition
-          -Wpointer-arith
-          -Winit-self
-          -Wmissing-prototypes
-          -Wimplicit-function-declaration
-          -Wmissing-declarations
-          -Wstrict-prototypes
-          -Wmissing-noreturn
-          -Wshadow
-          -Wendif-labels
-          -Wwrite-strings
-          -Wno-unused-parameter
-          -Wno-missing-field-initializers
-          -Wdate-time
-          -Wnested-externs
-          -Wno-typedef-redefinition
-          -Wno-gnu-variable-sized-type-not-at-end'
-      build_script:
-        - make -j$(nproc) -sk
-      tests_script:
-        - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
-      always:
-        make_check_artifacts:
-          path: "**/*.log"
+  allow_failures: true
+  skip_notifications: true
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
+  configure_script:
+    - ./build.sh
+    - clang --version
+    - >
+      ./configure CC=clang CXX=clang++
+      $DEFAULT_CONFIG_OPTS
+      CFLAGS='-gdwarf-4 -Wall
+      -Wno-error
+      -Wextra
+      -Wformat=2
+      -Wformat-security
+      -Wformat-nonliteral
+      -Wmissing-include-dirs
+      -Wold-style-definition
+      -Wpointer-arith
+      -Winit-self
+      -Wmissing-prototypes
+      -Wimplicit-function-declaration
+      -Wmissing-declarations
+      -Wstrict-prototypes
+      -Wmissing-noreturn
+      -Wshadow
+      -Wendif-labels
+      -Wwrite-strings
+      -Wno-unused-parameter
+      -Wno-missing-field-initializers
+      -Wdate-time
+      -Wnested-externs
+      -Wno-typedef-redefinition
+      -Wno-gnu-variable-sized-type-not-at-end'
+  build_script:
+    - make -j$(nproc) -sk
+  tests_script:
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -203,6 +72,9 @@ bleeding_edge_compilers_task:
       CC: clang
       CC: clang-18
       CC: clang-17
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   configure_script:
     - ./build.sh
     - $CC --version
@@ -215,12 +87,12 @@ bleeding_edge_compilers_task:
   build_script:
     - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check
   always:
     make_check_artifacts:
       path: "**/*.log"
 
-freebsd_task:
+FreeBSD_task:
   freebsd_instance:
     matrix:
       - image_family: freebsd-13-2
@@ -228,17 +100,48 @@ freebsd_task:
   pkg_install_script:
     - >
       pkg install --yes
+      git
       autotools
       bison
       flex
       pkgconf
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
   configure_script:
     - ./build.sh
     - ./configure --disable-perl
   build_script:
     - make -j$(nproc) -sk
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check || (cat ./test-suite.log && false)
+    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check
+  always:
+    make_check_artifacts:
+      path: "**/*.log"
+
+MacOS_task:
+  macos_instance:
+    matrix:
+      - image: ghcr.io/cirruslabs/macos-sonoma-xcode:latest
+  allow_failures: false
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
+  brew_install_script:
+    - >
+      brew install
+      autoconf automake
+      libtool
+      bison
+      flex
+      pkg-config
+  configure_script:
+    - ./build.sh
+    - ./configure ${DEFAULT_CONFIG_OPTS}
+  build_script:
+    - make -j "${CIRRUS_CPU}" -sk
+  tests_script:
+    - make -j "${CIRRUS_CPU}" -sk check
   always:
     make_check_artifacts:
       path: "**/*.log"
