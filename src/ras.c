@@ -381,12 +381,22 @@ static int ras_init(void) {
     INFO("Database opened successfully");
   }
 
-  nprocs = get_nprocs_conf();
+  long n = sysconf(_SC_NPROCESSORS_CONF);
+  if (n == -1) {
+    ERROR("ras plugin: sysconf(_SC_NPROCESSORS_CONF) failed: %s", STRERRNO);
+    return errno;
+  }
+  if (n <= 0) {
+    ERROR("ras plugin: sysconf(_SC_NPROCESSORS_CONF) returned %ld", n);
+    return EINVAL;
+  }
+
+  nprocs = (int)n;
   ras_metrics_server.per_CPU = (struct ras_metrics_per_CPU *)calloc(
       nprocs, sizeof(struct ras_metrics_per_CPU));
   if (ras_metrics_server.per_CPU == NULL) {
     ERROR("Fail allocated memory");
-    return -1;
+    return ENOMEM;
   }
   return 0;
 } /* int ras_init */
