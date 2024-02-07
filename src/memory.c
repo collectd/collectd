@@ -257,6 +257,26 @@ static int memory_dispatch(gauge_t values[STATE_MAX]) {
   return ret;
 }
 
+#if KERNEL_LINUX
+static int system_linux_memory_available(gauge_t available) {
+  metric_family_t fam = {
+      .name = "system.linux.memory.available",
+      .help = "An estimate of how much memory is available for starting new "
+              "applications, without causing swapping.",
+      .unit = "By",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_metric_append(&fam, (metric_t){
+                                        .value.gauge = available,
+                                    });
+
+  int err = plugin_dispatch_metric_family(&fam);
+  metric_family_metric_reset(&fam);
+
+  return err;
+}
+#endif
+
 static int memory_init(void) {
 #if HAVE_HOST_STATISTICS
   port_host = mach_host_self();
@@ -464,6 +484,8 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     } else if (strcmp(fields[0], "Shmem:") == 0) {
       values[STATE_SHARED] = v;
       mem_not_used += v;
+    } else if (strcmp(fields[0], "MemAvailable:") == 0) {
+      system_linux_memory_available(v);
     }
   }
 
