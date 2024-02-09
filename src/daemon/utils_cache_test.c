@@ -104,6 +104,42 @@ DEF_TEST(uc_get_rate) {
           .type = METRIC_TYPE_FPCOUNTER,
           .want = NAN,
       },
+      {
+          .name = "up_down_counter",
+          .first_value = (value_t){.up_down_counter = 10},
+          .second_value = (value_t){.up_down_counter = 20},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_UP_DOWN_COUNTER,
+          .want = 20,
+      },
+      {
+          .name = "decreasing up_down_counter",
+          .first_value = (value_t){.up_down_counter = 1000},
+          .second_value = (value_t){.up_down_counter = 215},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_UP_DOWN_COUNTER,
+          .want = 215,
+      },
+      {
+          .name = "up_down_counter_fp",
+          .first_value = (value_t){.up_down_counter_fp = 1.0},
+          .second_value = (value_t){.up_down_counter_fp = 2.0},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_UP_DOWN_COUNTER_FP,
+          .want = 2.0,
+      },
+      {
+          .name = "decreasing up_down_counter_fp",
+          .first_value = (value_t){.up_down_counter_fp = 100.0},
+          .second_value = (value_t){.up_down_counter_fp = 21.5},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_UP_DOWN_COUNTER_FP,
+          .want = 21.5,
+      },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
@@ -130,9 +166,11 @@ DEF_TEST(uc_get_rate) {
     EXPECT_EQ_INT(0, uc_update(&fam));
     gauge_t got = 0;
     EXPECT_EQ_INT(0, uc_get_rate(&m, &got));
-    gauge_t want = NAN;
-    if (fam.type == METRIC_TYPE_GAUGE) {
-      want = cases[i].first_value.gauge;
+    gauge_t want = cases[i].first_value.gauge;
+    if (IS_MONOTONIC(fam.type)) {
+      want = NAN;
+    } else if (fam.type == METRIC_TYPE_UP_DOWN_COUNTER) {
+      want = (gauge_t)cases[i].first_value.up_down_counter;
     }
     EXPECT_EQ_DOUBLE(want, got);
 

@@ -933,115 +933,87 @@ int format_name(char *ret, int ret_len, const char *hostname,
 } /* int format_name */
 
 int format_values(strbuf_t *buf, metric_t const *m, bool store_rates) {
-  strbuf_printf(buf, "%.3f", CDTIME_T_TO_DOUBLE(m->time));
+  strbuf_printf(buf, "%.3f:", CDTIME_T_TO_DOUBLE(m->time));
 
-  if (store_rates) {
-    gauge_t rates = NAN;
-    int err = uc_get_rate(m, &rates);
-    if (err) {
-      ERROR("format_values: uc_get_rate failed: %s", STRERROR(err));
-      return err;
-    }
-    if (isnan(rates)) {
-      strbuf_print(buf, ":nan");
-    } else {
-      strbuf_printf(buf, ":" GAUGE_FORMAT, rates);
-    }
-    return 0;
+  if (!store_rates) {
+    return value_marshal_text(buf, m->value, m->family->type);
   }
 
-  if (m->family->type == DS_TYPE_DERIVE) {
-    return strbuf_printf(buf, ":%" PRIi64, m->value.derive);
+  gauge_t rates = NAN;
+  int err = uc_get_rate(m, &rates);
+  if (err) {
+    ERROR("format_values: uc_get_rate failed: %s", STRERROR(err));
+    return err;
   }
-
-  switch (m->family->type) {
-  case METRIC_TYPE_GAUGE:
-    /* Solaris' printf tends to print NAN as "-nan", breaking unit tests, so we
-     * introduce a special case here. */
-    if (isnan(m->value.gauge)) {
-      return strbuf_print(buf, ":nan");
-    }
-    return strbuf_printf(buf, ":" GAUGE_FORMAT, m->value.gauge);
-  case METRIC_TYPE_COUNTER:
-    return strbuf_printf(buf, ":%" PRIu64, m->value.counter);
-  case METRIC_TYPE_FPCOUNTER:
-    return strbuf_printf(buf, ":" GAUGE_FORMAT, m->value.fpcounter);
-  case METRIC_TYPE_UNTYPED:
-    break;
+  if (isnan(rates)) {
+    strbuf_print(buf, "nan");
+  } else {
+    strbuf_printf(buf, GAUGE_FORMAT, rates);
   }
-  ERROR("format_values: Unknown metric type: %d", m->family->type);
-  return EINVAL;
+  return 0;
 } /* }}} int format_values */
 
-int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
-  char *value;
+int parse_value(char const *value, value_t *ret_value, metric_type_t type) {
   char *endptr = NULL;
-  size_t value_len;
-
-  if (value_orig == NULL)
-    return EINVAL;
-
-  value = strdup(value_orig);
-  if (value == NULL)
-    return ENOMEM;
-  value_len = strlen(value);
-
-  while ((value_len > 0) && isspace((int)value[value_len - 1])) {
-    value[value_len - 1] = '\0';
-    value_len--;
-  }
-
-  switch (ds_type) {
-  case DS_TYPE_COUNTER:
-    ret_value->counter = (counter_t)strtoull(value, &endptr, 0);
-    break;
-
-  case DS_TYPE_GAUGE:
+  switch (type) {
+  case METRIC_TYPE_GAUGE:
     ret_value->gauge = (gauge_t)strtod(value, &endptr);
     break;
 
-  case DS_TYPE_DERIVE:
-    ret_value->derive = (derive_t)strtoll(value, &endptr, 0);
+  case METRIC_TYPE_COUNTER:
+    ret_value->counter = (counter_t)strtoull(value, &endptr, 0);
     break;
 
-  default:
-    sfree(value);
-    P_ERROR("parse_value: Invalid data source type: %i.", ds_type);
-    return -1;
+  case METRIC_TYPE_FPCOUNTER:
+    ret_value->fpcounter = (fpcounter_t)strtod(value, &endptr);
+    break;
+
+  case METRIC_TYPE_UP_DOWN_COUNTER:
+    ret_value->up_down_counter = (up_down_counter_t)strtoll(value, &endptr, 0);
+    break;
+
+  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+    ret_value->up_down_counter_fp =
+        (up_down_counter_fp_t)strtod(value, &endptr);
+    break;
+
+  case METRIC_TYPE_UNTYPED:
+    P_ERROR("parse_value: invalid metric type: %d.", type);
+    return EINVAL;
   }
 
   if (value == endptr) {
     P_ERROR("parse_value: Failed to parse string as %s: \"%s\".",
-            DS_TYPE_TO_STRING(ds_type), value);
-    sfree(value);
-    return -1;
-  } else if ((NULL != endptr) && ('\0' != *endptr))
-    P_INFO("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
-           "Input string was \"%s\".",
-           endptr, DS_TYPE_TO_STRING(ds_type), value_orig);
+            METRIC_TYPE_TO_STRING(type), value);
+    return EINVAL;
+  }
+  if (NULL != endptr) {
+    if (*endptr != 0 && !isspace(*endptr)) {
+      P_INFO("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
+             "Input string was \"%s\".",
+             endptr, METRIC_TYPE_TO_STRING(type), value);
+    }
+  }
 
-  sfree(value);
   return 0;
 } /* int parse_value */
 
-int parse_value_file(char const *path, value_t *ret_value, int ds_type) {
-  FILE *fh;
+int parse_value_file(char const *path, value_t *ret_value, metric_type_t type) {
+  FILE *fh = fopen(path, "r");
+  if (fh == NULL) {
+    return errno;
+  }
+
   char buffer[256];
-
-  fh = fopen(path, "r");
-  if (fh == NULL)
-    return -1;
-
   if (fgets(buffer, sizeof(buffer), fh) == NULL) {
     fclose(fh);
-    return -1;
+    return EINVAL;
   }
 
   fclose(fh);
-
   strstripnewline(buffer);
 
-  return parse_value(buffer, ret_value, ds_type);
+  return parse_value(buffer, ret_value, type);
 } /* int parse_value_file */
 
 #if !HAVE_GETPWNAM_R
@@ -1227,9 +1199,6 @@ counter_t counter_diff(counter_t old_value, counter_t new_value) {
 int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
                   rate_to_value_state_t *state, metric_type_t type,
                   cdtime_t t) {
-  gauge_t delta_gauge;
-  cdtime_t delta_t;
-
   if (type == METRIC_TYPE_GAUGE) {
     state->last_value.gauge = rate;
     state->last_time = t;
@@ -1252,19 +1221,12 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     return EINVAL;
   }
 
-  delta_t = t - state->last_time;
-  delta_gauge = (rate * CDTIME_T_TO_DOUBLE(delta_t)) + state->residual;
+  cdtime_t delta_t = t - state->last_time;
+  gauge_t delta_gauge = (rate * CDTIME_T_TO_DOUBLE(delta_t)) + state->residual;
 
   /* Previous value is invalid. */
   if (state->last_time == 0) /* {{{ */
   {
-    if (type == DS_TYPE_DERIVE) {
-      state->last_value.derive = (derive_t)floor(rate);
-      state->residual = rate - ((gauge_t)state->last_value.derive);
-      state->last_time = t;
-      return EAGAIN;
-    }
-
     switch (type) {
     case METRIC_TYPE_GAUGE:
       /* not reached */
@@ -1277,6 +1239,14 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
       state->last_value.fpcounter = (fpcounter_t)rate;
       state->residual = 0;
       break;
+    case METRIC_TYPE_UP_DOWN_COUNTER:
+      state->last_value.up_down_counter = (up_down_counter_t)floor(rate);
+      state->residual = rate - ((gauge_t)state->last_value.up_down_counter);
+      break;
+    case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+      state->last_value.up_down_counter_fp = (up_down_counter_fp_t)rate;
+      state->residual = 0;
+      break;
     case METRIC_TYPE_UNTYPED:
       ERROR("rate_to_value: invalid metric type: %d", type);
       return EINVAL;
@@ -1286,29 +1256,31 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     return EAGAIN;
   } /* }}} */
 
-  if (type == DS_TYPE_DERIVE) {
-    derive_t delta_derive = (derive_t)floor(delta_gauge);
-    state->last_value.derive += delta_derive;
-    state->residual = delta_gauge - ((gauge_t)delta_derive);
-
-    state->last_time = t;
-    *ret_value = state->last_value;
-    return 0;
-  }
-
   switch (type) {
   case METRIC_TYPE_GAUGE:
     /* not reached */
     break;
   case METRIC_TYPE_COUNTER: {
-    counter_t delta_counter = (counter_t)delta_gauge;
-    state->last_value.counter += delta_counter;
-    state->residual = delta_gauge - ((gauge_t)delta_counter);
+    counter_t delta = (counter_t)delta_gauge;
+    state->last_value.counter += delta;
+    state->residual = delta_gauge - ((gauge_t)delta);
     break;
   }
   case METRIC_TYPE_FPCOUNTER: {
-    fpcounter_t delta_counter = (fpcounter_t)delta_gauge;
-    state->last_value.fpcounter += delta_counter;
+    fpcounter_t delta = (fpcounter_t)delta_gauge;
+    state->last_value.fpcounter += delta;
+    state->residual = 0;
+    break;
+  }
+  case METRIC_TYPE_UP_DOWN_COUNTER: {
+    up_down_counter_t delta = (up_down_counter_t)floor(delta_gauge);
+    state->last_value.up_down_counter += delta;
+    state->residual = delta_gauge - ((gauge_t)delta);
+    break;
+  }
+  case METRIC_TYPE_UP_DOWN_COUNTER_FP: {
+    up_down_counter_fp_t delta = (up_down_counter_fp_t)delta_gauge;
+    state->last_value.up_down_counter_fp += delta;
     state->residual = 0;
     break;
   }
@@ -1324,17 +1296,10 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
 
 static int calculate_rate(gauge_t *ret_rate, value_t value, metric_type_t type,
                           gauge_t interval, value_to_rate_state_t *state) {
-  if (type == DS_TYPE_DERIVE) {
-    derive_t diff = value.derive - state->last_value.derive;
-    *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
-    return 0;
-  }
-
   switch (type) {
-  case METRIC_TYPE_GAUGE: {
+  case METRIC_TYPE_GAUGE:
     *ret_rate = value.gauge;
     return 0;
-  }
   case METRIC_TYPE_COUNTER: {
     counter_t diff = counter_diff(state->last_value.counter, value.counter);
     *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
@@ -1346,6 +1311,18 @@ static int calculate_rate(gauge_t *ret_rate, value_t value, metric_type_t type,
       return EAGAIN;
     }
     fpcounter_t diff = value.fpcounter - state->last_value.fpcounter;
+    *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
+    return 0;
+  }
+  case METRIC_TYPE_UP_DOWN_COUNTER: {
+    up_down_counter_t diff =
+        value.up_down_counter - state->last_value.up_down_counter;
+    *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
+    return 0;
+  }
+  case METRIC_TYPE_UP_DOWN_COUNTER_FP: {
+    up_down_counter_fp_t diff =
+        value.up_down_counter_fp - state->last_value.up_down_counter_fp;
     *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
     return 0;
   }

@@ -436,17 +436,25 @@ DEF_TEST(rate_to_value) {
     }
 
     switch (cases[i].type) {
-    case METRIC_TYPE_COUNTER:
-      EXPECT_EQ_UINT64(cases[i].want.counter, got.counter);
-      EXPECT_EQ_UINT64(cases[i].want.counter, state.last_value.counter);
-      break;
     case METRIC_TYPE_GAUGE:
       EXPECT_EQ_DOUBLE(cases[i].want.gauge, got.gauge);
       EXPECT_EQ_DOUBLE(cases[i].want.gauge, state.last_value.gauge);
       break;
+    case METRIC_TYPE_COUNTER:
+      EXPECT_EQ_UINT64(cases[i].want.counter, got.counter);
+      EXPECT_EQ_UINT64(cases[i].want.counter, state.last_value.counter);
+      break;
     case METRIC_TYPE_FPCOUNTER:
       EXPECT_EQ_DOUBLE(cases[i].want.fpcounter, got.fpcounter);
       EXPECT_EQ_UINT64(cases[i].want.fpcounter, state.last_value.fpcounter);
+      break;
+    case METRIC_TYPE_UP_DOWN_COUNTER:
+      EXPECT_EQ_UINT64(cases[i].want.up_down_counter, got.up_down_counter);
+      EXPECT_EQ_UINT64(cases[i].want.up_down_counter, state.last_value.up_down_counter);
+      break;
+    case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+      EXPECT_EQ_DOUBLE(cases[i].want.up_down_counter_fp, got.up_down_counter_fp);
+      EXPECT_EQ_UINT64(cases[i].want.up_down_counter_fp, state.last_value.up_down_counter_fp);
       break;
     case METRIC_TYPE_UNTYPED:
       LOG(false, "invalid metric type");

@@ -281,6 +281,11 @@ int uc_check_timeout(void) {
 
 static int uc_update_rate(metric_t const *m, cache_entry_t *ce) {
   switch (m->family->type) {
+  case METRIC_TYPE_GAUGE: {
+    ce->values_gauge = m->value.gauge;
+    return 0;
+  }
+
   case METRIC_TYPE_COUNTER: {
     // Counter overflows and counter resets are signaled to plugins by resetting
     // "first_time". Since we can't distinguish between an overflow and a
@@ -313,8 +318,13 @@ static int uc_update_rate(metric_t const *m, cache_entry_t *ce) {
     return 0;
   }
 
-  case METRIC_TYPE_GAUGE: {
-    ce->values_gauge = m->value.gauge;
+  case METRIC_TYPE_UP_DOWN_COUNTER: {
+    ce->values_gauge = (gauge_t) m->value.up_down_counter;
+    return 0;
+  }
+
+  case METRIC_TYPE_UP_DOWN_COUNTER_FP: {
+    ce->values_gauge = (gauge_t) m->value.up_down_counter_fp;
     return 0;
   }
 
@@ -465,9 +475,21 @@ int uc_get_rate(metric_t const *m, gauge_t *ret) {
   if (m == NULL || m->family == NULL || ret == NULL) {
     return EINVAL;
   }
-  if (m->family->type == METRIC_TYPE_GAUGE) {
+  switch (m->family->type) {
+  case METRIC_TYPE_GAUGE:
     *ret = m->value.gauge;
     return 0;
+  case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_FPCOUNTER:
+    break;
+  case METRIC_TYPE_UP_DOWN_COUNTER:
+    *ret = (gauge_t)m->value.up_down_counter;
+    return 0;
+  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+    *ret = (gauge_t)m->value.up_down_counter_fp;
+    return 0;
+  case METRIC_TYPE_UNTYPED:
+    return EINVAL;
   }
 
   strbuf_t buf = STRBUF_CREATE;

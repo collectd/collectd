@@ -278,7 +278,7 @@ static void format_metric_family_name(strbuf_t *buf,
     strbuf_print_restricted(buf, pfam->unit, VALID_NAME_CHARS, '_');
   }
 
-  if (IS_CUMULATIVE(pfam->type)) {
+  if (IS_MONOTONIC(pfam->type)) {
     strbuf_print(buf, "_total");
   }
 }
@@ -291,6 +291,8 @@ static void format_metric_family(strbuf_t *buf,
   char *type = NULL;
   switch (pfam->type) {
   case METRIC_TYPE_GAUGE:
+  case METRIC_TYPE_UP_DOWN_COUNTER:
+  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
     type = "gauge";
     break;
   case METRIC_TYPE_COUNTER:
@@ -321,11 +323,8 @@ static void format_metric_family(strbuf_t *buf,
     char const *instance = label_set_get(pm->resource, "service.instance.id");
 
     format_metric(buf, pm, family_name.ptr, job, instance);
-
-    if (pfam->type == METRIC_TYPE_COUNTER)
-      strbuf_printf(buf, " %" PRIu64, pm->value.counter);
-    else
-      strbuf_printf(buf, " " GAUGE_FORMAT, pm->value.gauge);
+    strbuf_print(buf, " ");
+    value_marshal_text(buf, pm->value, pfam->type);
 
     if (pm->time > 0) {
       strbuf_printf(buf, " %" PRIi64 "\n", CDTIME_T_TO_MS(pm->time));

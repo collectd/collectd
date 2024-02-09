@@ -34,25 +34,54 @@
 
 #define METRIC_ATTR_DOUBLE 0x01
 #define METRIC_ATTR_CUMULATIVE 0x02
+#define METRIC_ATTR_MONOTONIC 0x04
 
 typedef enum {
   METRIC_TYPE_UNTYPED = 0,
+  // METRIC_TYPE_GAUGE are absolute metrics that cannot (meaningfully) be summed
+  // up. Examples are temperatures and utilization ratios.
   METRIC_TYPE_GAUGE = METRIC_ATTR_DOUBLE,
-  METRIC_TYPE_COUNTER = METRIC_ATTR_CUMULATIVE,
-  METRIC_TYPE_FPCOUNTER = METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE,
+  // METRIC_TYPE_COUNTER are monotonically increasing integer counts. The rate
+  // of change is meaningful, the absolute value is not.
+  METRIC_TYPE_COUNTER = METRIC_ATTR_CUMULATIVE | METRIC_ATTR_MONOTONIC,
+  // METRIC_TYPE_FPCOUNTER are monotonically increasing floating point counts.
+  // The rate of change is meaningful, the absolute value is not.
+  METRIC_TYPE_FPCOUNTER =
+      METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE | METRIC_ATTR_MONOTONIC,
+  // METRIC_TYPE_UP_DOWN_COUNTER are absolute integer metrics that can
+  // (meaningfully) be summed up. Examples are filesystem space used and
+  // physical memory.
+  METRIC_TYPE_UP_DOWN_COUNTER = METRIC_ATTR_CUMULATIVE,
+  // METRIC_TYPE_UP_DOWN_COUNTER_FP are absolute floating point metrics that can
+  // (meaningfully) be summed up.
+  METRIC_TYPE_UP_DOWN_COUNTER_FP = METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE,
 } metric_type_t;
 
-#define IS_CUMULATIVE(t) ((t)&METRIC_ATTR_CUMULATIVE)
+#define METRIC_TYPE_TO_STRING(t)                                               \
+  (t == METRIC_TYPE_GAUGE)                ? "gauge"                            \
+  : (t == METRIC_TYPE_COUNTER)            ? "counter"                          \
+  : (t == METRIC_TYPE_FPCOUNTER)          ? "fpcounter"                        \
+  : (t == METRIC_TYPE_UP_DOWN_COUNTER)    ? "up_down_counter"                  \
+  : (t == METRIC_TYPE_UP_DOWN_COUNTER_FP) ? "up_down_counter_fp"               \
+                                          : "unknown"
 
+#define IS_DOUBLE(t) ((t)&METRIC_ATTR_DOUBLE)
+#define IS_MONOTONIC(t) ((t)&METRIC_ATTR_MONOTONIC)
+
+typedef double gauge_t;
 typedef uint64_t counter_t;
 typedef double fpcounter_t;
-typedef double gauge_t;
 typedef int64_t derive_t;
+typedef int64_t up_down_counter_t;
+typedef double up_down_counter_fp_t;
 
 union value_u {
+  gauge_t gauge;
   counter_t counter;
   fpcounter_t fpcounter;
-  gauge_t gauge;
+  up_down_counter_t up_down_counter;
+  up_down_counter_fp_t up_down_counter_fp;
+  // For collectd 5 compatiblity. Treated the same as up_down_counter.
   derive_t derive;
 };
 typedef union value_u value_t;

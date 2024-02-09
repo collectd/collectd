@@ -73,22 +73,18 @@ static int format_metric_value(strbuf_t *sb, metric_t const *m,
     return format_metric_rate(sb, m);
   }
 
-  switch (m->family->type) {
-  case METRIC_TYPE_GAUGE:
-    if (isnan(m->value.gauge)) {
-      return EAGAIN;
-    }
-    return strbuf_printf(sb, "value=" GAUGE_FORMAT, m->value.gauge);
-  case METRIC_TYPE_COUNTER:
-    return strbuf_printf(sb, "value=%" PRIu64 "i", m->value.counter);
-  case METRIC_TYPE_FPCOUNTER:
-    return strbuf_printf(sb, "value=" GAUGE_FORMAT, m->value.fpcounter);
-  case METRIC_TYPE_UNTYPED:
-    break;
+  if ((m->family->type == METRIC_TYPE_GAUGE && isnan(m->value.gauge)) ||
+      (m->family->type == METRIC_TYPE_UP_DOWN_COUNTER_FP &&
+       isnan(m->value.up_down_counter_fp))) {
+    return EAGAIN;
   }
 
-  ERROR("format_influxdb plugin: invalid metric type: %d", m->family->type);
-  return EINVAL;
+  int err = strbuf_print(sb, "value=");
+  ERR_COMBINE(err, value_marshal_text(sb, m->value, m->family->type));
+  if (!IS_DOUBLE(m->family->type)) {
+    ERR_COMBINE(err, strbuf_print(sb, "i"));
+  }
+  return err;
 }
 
 static int format_metric_time(strbuf_t *sb, metric_t const *m) {

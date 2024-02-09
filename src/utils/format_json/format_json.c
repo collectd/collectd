@@ -26,12 +26,10 @@
  **/
 
 #include "collectd.h"
-
-#include "utils/format_json/format_json.h"
-
-#include "plugin.h"
+#include "daemon/plugin.h"
+#include "daemon/utils_cache.h"
 #include "utils/common/common.h"
-#include "utils_cache.h"
+#include "utils/format_json/format_json.h"
 
 #include <yajl/yajl_common.h>
 #include <yajl/yajl_gen.h>
@@ -159,6 +157,24 @@ static int format_metric(yajl_gen g, metric_t const *m) {
   return 0;
 }
 
+static char const *metric_type_to_string(metric_type_t type) {
+  switch (type) {
+  case METRIC_TYPE_GAUGE:
+    return "GAUGE";
+  case METRIC_TYPE_COUNTER:
+    return "COUNTER";
+  case METRIC_TYPE_FPCOUNTER:
+    return "FPCOUNTER";
+  case METRIC_TYPE_UP_DOWN_COUNTER:
+    return "UP_DOWN_COUNTER";
+  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+    return "UP_DOWN_COUNTER_FP";
+  case METRIC_TYPE_UNTYPED:
+    break;
+  }
+  return "INVALID";
+}
+
 /* json_metric_family that all metrics in ml have the same name and value_type.
  *
  * Example:
@@ -181,24 +197,8 @@ static int json_metric_family(yajl_gen g, metric_family_t const *fam) {
   CHECK(json_add_string(g, "name"));
   CHECK(json_add_string(g, fam->name));
 
-  char const *type = NULL;
-  switch (fam->type) {
-  /* TODO(octo): handle store_rates. */
-  case METRIC_TYPE_GAUGE:
-    type = "GAUGE";
-    break;
-  case METRIC_TYPE_COUNTER:
-    type = "COUNTER";
-    break;
-  case METRIC_TYPE_FPCOUNTER:
-    type = "FPCOUNTER";
-    break;
-  case METRIC_TYPE_UNTYPED:
-    type = "UNTYPED";
-    break;
-  }
   CHECK(json_add_string(g, "type"));
-  CHECK(json_add_string(g, type));
+  CHECK(json_add_string(g, metric_type_to_string(fam->type)));
 
   CHECK(json_add_string(g, "metrics"));
   CHECK(yajl_gen_array_open(g));
@@ -216,6 +216,7 @@ static int json_metric_family(yajl_gen g, metric_family_t const *fam) {
   return 0;
 }
 
+/* TODO(octo): handle store_rates. */
 int format_json_metric_family(strbuf_t *buf, metric_family_t const *fam,
                               bool store_rates) {
   if ((buf == NULL) || (fam == NULL))
