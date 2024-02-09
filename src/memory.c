@@ -170,17 +170,17 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* }}} int memory_config */
 
-static int memory_dispatch(gauge_t values[STATE_MAX]) {
+static int memory_dispatch(up_down_counter_t values[STATE_MAX]) {
   metric_family_t fam_usage = {
       .name = "system.memory.usage",
       .help = "Reports memory in use by state",
       .unit = "By",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN_COUNTER,
   };
-  gauge_t total = 0;
+  up_down_counter_t total = 0;
 
   for (size_t i = 0; i < STATE_MAX; i++) {
-    if (isnan(values[i])) {
+    if (values[i] < 0) {
       continue;
     }
 
@@ -212,12 +212,11 @@ static int memory_dispatch(gauge_t values[STATE_MAX]) {
         .name = "system.memory.limit",
         .help = "Total memory available in the system.",
         .unit = "By",
-        .type = METRIC_TYPE_COUNTER, // [sic] should be UpDownCounter
+        .type = METRIC_TYPE_UP_DOWN_COUNTER,
     };
-    metric_t m = {
-        .value = (value_t){.derive = (derive_t)total},
-    };
-    metric_family_metric_append(&fam_limit, m);
+    metric_family_metric_append(&fam_limit, (metric_t){
+                                                .value.up_down_counter = total,
+                                            });
 
     int status = plugin_dispatch_metric_family(&fam_limit);
     if (status != 0) {
@@ -238,12 +237,13 @@ static int memory_dispatch(gauge_t values[STATE_MAX]) {
       .type = METRIC_TYPE_GAUGE,
   };
   for (size_t i = 0; i < STATE_MAX; i++) {
-    if (isnan(values[i])) {
+    if (values[i] < 0) {
       continue;
     }
 
+    gauge_t ratio = ((gauge_t)values[i]) / ((gauge_t)total);
     metric_family_append(&fam_util, label_state, memory_type_names[i],
-                         (value_t){.gauge = values[i] / total}, NULL);
+                         (value_t){.gauge = ratio}, NULL);
   }
 
   int status = plugin_dispatch_metric_family(&fam_util);
@@ -328,7 +328,7 @@ static int memory_init(void) {
   return 0;
 } /* int memory_init */
 
-static int memory_read_internal(gauge_t values[STATE_MAX]) {
+static int memory_read_internal(up_down_counter_t values[STATE_MAX]) {
 #if HAVE_HOST_STATISTICS
   if (!port_host || !pagesize) {
     return EINVAL;
@@ -364,10 +364,11 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
    *   This memory is not being used.
    */
 
-  values[STATE_WIRED] = (gauge_t)(vm_data.wire_count * pagesize);
-  values[STATE_ACTIVE] = (gauge_t)(vm_data.active_count * pagesize);
-  values[STATE_INACTIVE] = (gauge_t)(vm_data.inactive_count * pagesize);
-  values[STATE_FREE] = (gauge_t)(vm_data.free_count * pagesize);
+  values[STATE_WIRED] = (up_down_counter_t)(vm_data.wire_count * pagesize);
+  values[STATE_ACTIVE] = (up_down_counter_t)(vm_data.active_count * pagesize);
+  values[STATE_INACTIVE] =
+      (up_down_counter_t)(vm_data.inactive_count * pagesize);
+  values[STATE_FREE] = (up_down_counter_t)(vm_data.free_count * pagesize);
   /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
@@ -385,15 +386,16 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     return errno;
   }
 
-  values[STATE_WIRED] = (gauge_t)(uvmexp.wired * pagesize);
-  values[STATE_ACTIVE] = (gauge_t)(uvmexp.active * pagesize);
-  values[STATE_INACTIVE] = (gauge_t)(uvmexp.inactive * pagesize);
-  values[STATE_FREE] = (gauge_t)(uvmexp.free * pagesize);
+  values[STATE_WIRED] = (up_down_counter_t)(uvmexp.wired * pagesize);
+  values[STATE_ACTIVE] = (up_down_counter_t)(uvmexp.active * pagesize);
+  values[STATE_INACTIVE] = (up_down_counter_t)(uvmexp.inactive * pagesize);
+  values[STATE_FREE] = (up_down_counter_t)(uvmexp.free * pagesize);
 
   int64_t accounted =
       uvmexp.wired + uvmexp.active + uvmexp.inactive + uvmexp.free;
   if (uvmexp.npages > accounted) {
-    values[STATE_KERNEL] = (gauge_t)((uvmexp.npages - accounted) * pagesize);
+    values[STATE_KERNEL] =
+        (up_down_counter_t)((uvmexp.npages - accounted) * pagesize);
   }
   /* #endif HAVE_SYSCTL && defined(KERNEL_NETBSD) */
 
@@ -423,7 +425,7 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
       {"vm.stats.vm.v_laundry_count", STATE_LAUNDRY},
   };
 
-  gauge_t pagesize = 0;
+  up_down_counter_t pagesize = 0;
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
     long value = 0;
     size_t value_len = sizeof(value);
@@ -437,11 +439,11 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     }
 
     if (i == 0) {
-      pagesize = (gauge_t)value;
+      pagesize = (up_down_counter_t)value;
       continue;
     }
 
-    values[metrics[i].type] = ((gauge_t)value) * pagesize;
+    values[metrics[i].type] = ((up_down_counter_t)value) * pagesize;
   } /* for (sysctl_keys) */
 #endif /* HAVE_SYSCTL && KERNEL_NETBSD */
   /* #endif HAVE_SYSCTLBYNAME */
@@ -454,8 +456,8 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     return status;
   }
 
-  gauge_t mem_total = 0;
-  gauge_t mem_not_used = 0;
+  up_down_counter_t mem_total = -1;
+  up_down_counter_t mem_not_used = 0;
 
   char buffer[256];
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -465,10 +467,7 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
       continue;
     }
 
-    gauge_t v = 1024.0 * atof(fields[1]);
-    if (!isfinite(v)) {
-      continue;
-    }
+    up_down_counter_t v = (up_down_counter_t)(1024 * atoll(fields[1]));
 
     if (strcmp(fields[0], "MemTotal:") == 0) {
       mem_total = v;
@@ -493,7 +492,7 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     WARNING("memory plugin: fclose failed: %s", STRERRNO);
   }
 
-  if (isnan(mem_total) || (mem_total == 0) || (mem_total < mem_not_used)) {
+  if (mem_total < 0 || mem_total < mem_not_used) {
     return EINVAL;
   }
 
@@ -550,12 +549,12 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     mem_lock = 0;
   }
 
-  values[STATE_USED] = (gauge_t)(mem_used * pagesize);
-  values[STATE_FREE] = (gauge_t)(mem_free * pagesize);
-  values[STATE_LOCKED] = (gauge_t)(mem_lock * pagesize);
-  values[STATE_KERNEL] = (gauge_t)((mem_kern * pagesize) - arcsize);
-  values[STATE_UNUSED] = (gauge_t)(mem_unus * pagesize);
-  values[STATE_ARC] = (gauge_t)arcsize;
+  values[STATE_USED] = (up_down_counter_t)(mem_used * pagesize);
+  values[STATE_FREE] = (up_down_counter_t)(mem_free * pagesize);
+  values[STATE_LOCKED] = (up_down_counter_t)(mem_lock * pagesize);
+  values[STATE_KERNEL] = (up_down_counter_t)((mem_kern * pagesize) - arcsize);
+  values[STATE_UNUSED] = (up_down_counter_t)(mem_unus * pagesize);
+  values[STATE_ARC] = (up_down_counter_t)arcsize;
   /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL && __OpenBSD__
@@ -572,9 +571,10 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     return errno;
   }
 
-  values[STATE_ACTIVE] = (gauge_t)(vmtotal.t_arm * pagesize);
-  values[STATE_INACTIVE] = (gauge_t)((vmtotal.t_rm - vmtotal.t_arm) * pagesize);
-  values[STATE_FREE] = (gauge_t)(vmtotal.t_free * pagesize);
+  values[STATE_ACTIVE] = (up_down_counter_t)(vmtotal.t_arm * pagesize);
+  values[STATE_INACTIVE] =
+      (up_down_counter_t)((vmtotal.t_rm - vmtotal.t_arm) * pagesize);
+  values[STATE_FREE] = (up_down_counter_t)(vmtotal.t_free * pagesize);
   /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
@@ -583,9 +583,9 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
     return -1;
   }
 
-  values[STATE_USED] = (gauge_t)ios->used;
-  values[STATE_CACHED] = (gauge_t)ios->cache;
-  values[STATE_FREE] = (gauge_t)ios->free;
+  values[STATE_USED] = (up_down_counter_t)ios->used;
+  values[STATE_CACHED] = (up_down_counter_t)ios->cache;
+  values[STATE_FREE] = (up_down_counter_t)ios->free;
   /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
@@ -605,10 +605,10 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
    *   real_total = real_free + real_inuse
    *   real_inuse = "active" + real_pinned + numperm
    */
-  values[STATE_FREE] = (gauge_t)(pmemory.real_free * pagesize);
-  values[STATE_CACHED] = (gauge_t)(pmemory.numperm * pagesize);
-  values[STATE_KERNEL] = (gauge_t)(pmemory.real_system * pagesize);
-  values[STATE_USED] = (gauge_t)(pmemory.real_process * pagesize);
+  values[STATE_FREE] = (up_down_counter_t)(pmemory.real_free * pagesize);
+  values[STATE_CACHED] = (up_down_counter_t)(pmemory.numperm * pagesize);
+  values[STATE_KERNEL] = (up_down_counter_t)(pmemory.real_system * pagesize);
+  values[STATE_USED] = (up_down_counter_t)(pmemory.real_process * pagesize);
 #endif /* HAVE_PERFSTAT */
 
   return 0;
@@ -616,9 +616,9 @@ static int memory_read_internal(gauge_t values[STATE_MAX]) {
 
 static int memory_read(void) /* {{{ */
 {
-  gauge_t values[STATE_MAX] = {0};
+  up_down_counter_t values[STATE_MAX] = {0};
   for (size_t i = 0; i < STATE_MAX; i++) {
-    values[i] = NAN;
+    values[i] = -1;
   }
 
   int status = memory_read_internal(values);
