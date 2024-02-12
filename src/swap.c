@@ -1,6 +1,6 @@
 /**
  * collectd - src/swap.c
- * Copyright (C) 2005-2014  Florian octo Forster
+ * Copyright (C) 2005-2024  Florian octo Forster
  * Copyright (C) 2009       Stefan Völkel
  * Copyright (C) 2009       Manuel Sanmartin
  * Copyright (C) 2010       Aurélien Reynaud
@@ -127,6 +127,7 @@ static char const *const state_used = "used";
 enum {
   FAM_SWAP_USAGE = 0,
   FAM_SWAP_UTILIZATION,
+  FAM_SWAP_FAULTS,
   FAM_SWAP_OPS,
   FAM_SWAP_IO,
   FAM_SWAP_MAX,
@@ -263,23 +264,16 @@ static char const *const label_direction = "system.paging.direction";
 static char const *const direction_in = "in";
 static char const *const direction_out = "out";
 
-static void swap_append_io(metric_family_t *fams, counter_t in, counter_t out,
-                           derive_t pagesize) {
-  if (!report_io) {
-    return;
+static void swap_append_io(metric_family_t *fams, char const *direction,
+                           counter_t c, derive_t pagesize) {
+  if (report_io && !report_bytes) {
+    metric_family_append(&fams[FAM_SWAP_OPS], label_direction, direction,
+                         (value_t){.counter = c}, NULL);
   }
-
-  metric_family_t *fam = &fams[FAM_SWAP_OPS];
-  if (report_bytes) {
-    fam = &fams[FAM_SWAP_IO];
-    in = in * (counter_t)pagesize;
-    out = out * (counter_t)pagesize;
+  if (report_io && report_bytes) {
+    metric_family_append(&fams[FAM_SWAP_IO], label_direction, direction,
+                         (value_t){.counter = c * pagesize}, NULL);
   }
-
-  metric_family_append(fam, label_direction, direction_in,
-                       (value_t){.counter = in}, NULL);
-  metric_family_append(fam, label_direction, direction_out,
-                       (value_t){.counter = out}, NULL);
 } /* void swap_append_io */
 #endif
 
@@ -387,20 +381,15 @@ static int swap_read_combined(metric_family_t *fams) /* {{{ */
   return 0;
 } /* }}} int swap_read_combined */
 
-static int swap_read_io(metric_family_t *fams) /* {{{ */
+static int swap_read_vmstat(metric_family_t *fams) /* {{{ */
 {
-  char buffer[1024];
-
-  uint8_t have_data = 0;
-  derive_t swap_in = 0;
-  derive_t swap_out = 0;
-
   FILE *fh = fopen("/proc/vmstat", "r");
   if (fh == NULL) {
     WARNING("swap: fopen(/proc/vmstat): %s", STRERRNO);
     return -1;
   }
 
+  char buffer[1024];
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
     char *fields[8];
     int numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
@@ -408,25 +397,30 @@ static int swap_read_io(metric_family_t *fams) /* {{{ */
     if (numfields != 2)
       continue;
 
+    value_t v = {0};
+    int err = parse_value(fields[1], &v, METRIC_TYPE_COUNTER);
+    if (err) {
+      WARNING("swap plugin: Parsing \"%s\" failed.", fields[1]);
+      continue;
+    }
+
     if (strcasecmp("pswpin", fields[0]) == 0) {
-      strtoderive(fields[1], &swap_in);
-      have_data |= 0x01;
+      swap_append_io(fams, direction_in, v.counter, pagesize);
     } else if (strcasecmp("pswpout", fields[0]) == 0) {
-      strtoderive(fields[1], &swap_out);
-      have_data |= 0x02;
+      swap_append_io(fams, direction_out, v.counter, pagesize);
+    } else if (strcasecmp("pgfault", fields[0]) == 0) {
+      metric_family_append(&fams[FAM_SWAP_FAULTS], "system.paging.type",
+                           "minor", v, NULL);
+    } else if (strcasecmp("pgmajfault", fields[0]) == 0) {
+      metric_family_append(&fams[FAM_SWAP_FAULTS], "system.paging.type",
+                           "major", v, NULL);
     }
   } /* while (fgets) */
 
   fclose(fh);
 
-  if (have_data != 0x03) {
-    return ENOENT;
-  }
-
-  swap_append_io(fams, swap_in, swap_out, pagesize);
-
   return 0;
-} /* }}} int swap_read_io */
+} /* }}} int swap_read_vmstat */
 
 static int swap_read_fam(metric_family_t *fams) /* {{{ */
 {
@@ -435,8 +429,7 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
   else
     swap_read_combined(fams);
 
-  if (report_io)
-    swap_read_io(fams);
+  swap_read_vmstat(fams);
 
   return 0;
 } /* }}} int swap_read_fam */
@@ -623,7 +616,8 @@ static int swap_read_io(metric_family_t *fams) /* {{{ */
   counter_t swap_in = uvmexp.pgswapin;
   counter_t swap_out = uvmexp.pgswapout;
 
-  swap_append_io(fams, swap_in, swap_out, pagesize);
+  swap_append_io(fams, direction_in, swap_in, pagesize);
+  swap_append_io(fams, direction_out, swap_out, pagesize);
 
   return (0);
 } /* }}} */
@@ -801,7 +795,8 @@ static int swap_read_fam(metric_family_t *fams) /* {{{ */
   counter_t swap_in = pmemory.pgspins;
   counter_t swap_out = pmemory.pgspouts;
 
-  swap_append_io(fams, swap_in, swap_out, pagesize);
+  swap_append_io(fams, direction_in, swap_in, pagesize);
+  swap_append_io(fams, direction_out, swap_out, pagesize);
 
   return 0;
 } /* }}} int swap_read_fam */
@@ -822,6 +817,13 @@ static int swap_read(void) {
               .help = "Unix swap utilization",
               .unit = "1",
               .type = METRIC_TYPE_GAUGE,
+          },
+      [FAM_SWAP_FAULTS] =
+          {
+              .name = "system.paging.faults",
+              .help = "Number of page faults",
+              .unit = "{fault}",
+              .type = METRIC_TYPE_COUNTER,
           },
       [FAM_SWAP_OPS] =
           {
@@ -844,7 +846,7 @@ static int swap_read(void) {
     return status;
   }
 
-  for (size_t i = 0; i < FAM_SWAP_MAX; i++) {
+  for (int i = 0; i < FAM_SWAP_MAX; i++) {
     metric_family_t *fam = &fams[i];
     int status = plugin_dispatch_metric_family(fam);
     if (status != 0) {
