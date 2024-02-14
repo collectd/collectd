@@ -74,6 +74,7 @@
 
 #define SYSMAN_UNIT_TEST_BUILD 1
 #include "gpu_sysman.c" /* test this */
+#include "testing.h"
 
 /* include metric functions + their dependencies directly, instead of
  * building & linking libcommon.a (like normal collectd builds do)?
@@ -583,28 +584,28 @@ typedef struct {
 static metrics_validation_t valid_metrics[] = {
     /* gauge value changes */
     {"errors.all_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
-    {"frequency_mhz/actual/current/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0,
-     0.0},
-    {"frequency_mhz/actual/current/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0,
-     0.0},
-    {"frequency_mhz/actual/current/gpu", false, false, FREQ_INIT, FREQ_INC, 0,
-     0.0},
-    {"frequency_mhz/request/current/gpu/min", true, true, FREQ_INIT,
-     2 * FREQ_INC, 0, 0.0},
-    {"frequency_mhz/request/current/gpu/max", true, true, FREQ_INIT,
-     2 * FREQ_INC, 0, 0.0},
-    {"frequency_mhz/request/current/gpu", false, false, FREQ_INIT, 2 * FREQ_INC,
-     0, 0.0},
-    {"frequency.ratio_ratio/actual/current/gpu/min", true, true, FREQ_RATIO_INIT,
-     FREQ_RATIO_INC, 0, 0.0},
-    {"frequency.ratio_ratio/actual/current/gpu/max", true, true, FREQ_RATIO_INIT,
-     FREQ_RATIO_INC, 0, 0.0},
+    {"frequency_hz/actual/current/gpu/min", true, true, 1e6 * FREQ_INIT,
+     1e6 * FREQ_INC, 0, 0.0},
+    {"frequency_hz/actual/current/gpu/max", true, true, 1e6 * FREQ_INIT,
+     1e6 * FREQ_INC, 0, 0.0},
+    {"frequency_hz/actual/current/gpu", false, false, 1e6 * FREQ_INIT,
+     1e6 * FREQ_INC, 0, 0.0},
+    {"frequency_hz/request/current/gpu/min", true, true, 1e6 * FREQ_INIT,
+     2e6 * FREQ_INC, 0, 0.0},
+    {"frequency_hz/request/current/gpu/max", true, true, 1e6 * FREQ_INIT,
+     2e6 * FREQ_INC, 0, 0.0},
+    {"frequency_hz/request/current/gpu", false, false, 1e6 * FREQ_INIT,
+     2e6 * FREQ_INC, 0, 0.0},
+    {"frequency.ratio_ratio/actual/current/gpu/min", true, true,
+     FREQ_RATIO_INIT, FREQ_RATIO_INC, 0, 0.0},
+    {"frequency.ratio_ratio/actual/current/gpu/max", true, true,
+     FREQ_RATIO_INIT, FREQ_RATIO_INC, 0, 0.0},
     {"frequency.ratio_ratio/actual/current/gpu", false, false, FREQ_RATIO_INIT,
      FREQ_RATIO_INC, 0, 0.0},
-    {"frequency.ratio_ratio/request/current/gpu/min", true, true, FREQ_RATIO_INIT,
-     2 * FREQ_RATIO_INC, 0, 0.0},
-    {"frequency.ratio_ratio/request/current/gpu/max", true, true, FREQ_RATIO_INIT,
-     2 * FREQ_RATIO_INC, 0, 0.0},
+    {"frequency.ratio_ratio/request/current/gpu/min", true, true,
+     FREQ_RATIO_INIT, 2 * FREQ_RATIO_INC, 0, 0.0},
+    {"frequency.ratio_ratio/request/current/gpu/max", true, true,
+     FREQ_RATIO_INIT, 2 * FREQ_RATIO_INC, 0, 0.0},
     {"frequency.ratio_ratio/request/current/gpu", false, false, FREQ_RATIO_INIT,
      2 * FREQ_RATIO_INC, 0, 0.0},
     {"memory.usage_bytes/HBM/system/min", true, true, MEMORY_INIT, MEMORY_INC,
@@ -620,44 +621,55 @@ static metrics_validation_t valid_metrics[] = {
     {"memory.utilization_ratio/HBM/system", false, false, MEM_RATIO_INIT,
      MEM_RATIO_INC, 0, 0.0},
     {"temperature_celsius", true, false, TEMP_INIT, TEMP_INC, 0, 0.0},
-    {"temperature.ratio_ratio", true, false, TEMP_RATIO_INIT, TEMP_RATIO_INC, 0, 0.0},
+    {"temperature.ratio_ratio", true, false, TEMP_RATIO_INIT, TEMP_RATIO_INC, 0,
+     0.0},
 
     /* while counters increase, per-time incremented value should stay same */
-    {"energy_ujoules_total", true, false, COUNTER_START, COUNTER_INC, 0, 0.0},
+    {"energy_joules_total", true, false, COUNTER_START / 1e6, COUNTER_INC / 1e6,
+     0, 0.0},
     {"engine.utilization_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"engine.time_usecs_total/all", true, false, COUNTER_START, COUNTER_INC, 0,
-     0.0},
-    {"fabric.io_bytes_total/healthy/off/receive", true, false, 2 * COUNTER_START,
-     2 * COUNTER_INC, 0, 0.0},
+    {"engine.time_seconds_total/all", true, false, COUNTER_START / 1e6,
+     COUNTER_INC / 1e6, 0, 0.0},
+    {"fabric.io_bytes_total/healthy/off/receive", true, false,
+     2 * COUNTER_START, 2 * COUNTER_INC, 0, 0.0},
     {"fabric.io_bytes_total/healthy/off/transmit", true, false, COUNTER_START,
      COUNTER_INC, 0, 0.0},
     {"fabric.io.rate_bytes_per_second/healthy/off/receive", true, false,
      2 * COUNTER_RATE, 0, 0, 0.0},
     {"fabric.io.rate_bytes_per_second/healthy/off/transmit", true, false,
      COUNTER_RATE, 0, 0, 0.0},
-    {"fabric.bandwidth.utilization_ratio/healthy/off/receive", true, false, 2 * COUNTER_MAX_RATIO,
-     0, 0, 0.0},
-    {"fabric.bandwidth.utilization_ratio/healthy/off/transmit", true, false, COUNTER_MAX_RATIO, 0,
-     0, 0.0},
+    {"fabric.bandwidth.utilization_ratio/healthy/off/receive", true, false,
+     2 * COUNTER_MAX_RATIO, 0, 0, 0.0},
+    {"fabric.bandwidth.utilization_ratio/healthy/off/transmit", true, false,
+     COUNTER_MAX_RATIO, 0, 0, 0.0},
     {"memory.io_bytes_total/HBM/system/receive", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
     {"memory.io_bytes_total/HBM/system/transmit", true, false, COUNTER_START,
      COUNTER_INC, 0, 0.0},
     {"memory.io.rate_bytes_per_second/HBM/system/receive", true, false,
      2 * COUNTER_RATE, 0, 0, 0.0},
-    {"memory.io.rate_bytes_per_second/HBM/system/transmit", true, false, COUNTER_RATE,
-     0, 0, 0.0},
-    {"memory.bandwidth.utilization_ratio/HBM/system/receive", true, false, 2 * COUNTER_MAX_RATIO, 0,
-     0, 0.0},
-    {"memory.bandwidth.utilization_ratio/HBM/system/transmit", true, false, COUNTER_MAX_RATIO, 0, 0,
-     0.0},
-    {"power.utilization_ratio", true, false, COUNTER_INC / POWER_LIMIT / TIME_INC, 0, 0,
-     0.0},
+    {"memory.io.rate_bytes_per_second/HBM/system/transmit", true, false,
+     COUNTER_RATE, 0, 0, 0.0},
+    {"memory.bandwidth.utilization_ratio/HBM/system/receive", true, false,
+     2 * COUNTER_MAX_RATIO, 0, 0, 0.0},
+    {"memory.bandwidth.utilization_ratio/HBM/system/transmit", true, false,
+     COUNTER_MAX_RATIO, 0, 0, 0.0},
+    {"power.utilization_ratio", true, false,
+     COUNTER_INC / POWER_LIMIT / TIME_INC, 0, 0, 0.0},
     {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"throttled.time_usecs_total/gpu", true, false, COUNTER_START, COUNTER_INC, 0,
-     0.0},
+    {"throttled.time_seconds_total/gpu", true, false, COUNTER_START / 1e6,
+     COUNTER_INC / 1e6, 0, 0.0},
     {"throttled_ratio/gpu", true, false, COUNTER_RATIO, 0, 0, 0.0},
 };
+
+static int expect_double_eq(double expect, double actual) {
+  /* WA for "unused-variable" warning on testing.h */
+  fail_count__++;
+  /* macro returns -1 on non-equality, continues if equal */
+  EXPECT_EQ_DOUBLE(expect, actual);
+  fail_count__--;
+  return 0;
+}
 
 /* VALIDATE: reset tracked metrics values and return count of how many
  * metrics were not set since last reset.
@@ -729,7 +741,7 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
       incrounds += multisampled / config.samples;
     }
     double expected = metric->value_init + incrounds * metric->value_inc;
-    if (last != expected) {
+    if (expect_double_eq(expected, last) != 0) {
       fprintf(
           stderr,
           "ERROR: expected %g, but got value %g for metric '%s' on round %d\n",
@@ -754,9 +766,9 @@ static size_t add_family_name(char *buf, size_t bufsize,
     const char *unit;
     const char *name;
   } units[] = {
-      {"1", "_ratio"},     {"By", "_bytes"}, {"By/s", "_bytes_per_second"},
-      {"Cel", "_celsius"}, {"{error}", ""},  {"MHz", "_mhz"},
-      {"uj", "_ujoules"},  {"us", "_usecs"}, {"W", "_watts"},
+      {"1", "_ratio"},     {"By", "_bytes"},  {"By/s", "_bytes_per_second"},
+      {"Cel", "_celsius"}, {"{error}", ""},   {"Hz", "_hz"},
+      {"J", "_joules"},    {"s", "_seconds"}, {"W", "_watts"},
   };
 
   assert(fam && fam->name && fam->unit);
@@ -768,11 +780,11 @@ static size_t add_family_name(char *buf, size_t bufsize,
       break;
     }
   }
-  printf("CHECKED UNIT: '%s' for '%s'\n", fam->unit, fam->name);
+  // printf("CHECKED UNIT: '%s' for '%s'\n", fam->unit, fam->name);
   assert(unit);
 
   const char *suffix = "";
-  if (fam->type == METRIC_TYPE_COUNTER) {
+  if (IS_CUMULATIVE(fam->type)) {
     suffix = "_total";
   }
 

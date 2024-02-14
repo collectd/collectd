@@ -1221,7 +1221,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   metric_family_t fam_bytes = {
       .help = "Sampled memory usage (in bytes)",
       .name = METRIC_PREFIX "memory.usage",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
       .unit = "By",
   };
   metric_family_t fam_ratio = {
@@ -1270,7 +1270,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       /* Sysman reports just memory size & free amounts => calculate used */
       mem_used = mem_size - mem_free;
       if (config.output & OUTPUT_BASE) {
-        metric.value.gauge = mem_used;
+        metric.value.up_down = mem_used;
         metric_family_metric_append(&fam_bytes, metric);
         reported_base = true;
       }
@@ -1298,7 +1298,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       mem_used = mem_size - free_max;
       metric_label_set(&metric, "function", "min");
       if (config.output & OUTPUT_BASE) {
-        metric.value.gauge = mem_used;
+        metric.value.up_down = mem_used;
         metric_family_metric_append(&fam_bytes, metric);
         reported_base = true;
       }
@@ -1311,7 +1311,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       mem_used = mem_size - free_min;
       metric_label_set(&metric, "function", "max");
       if (config.output & OUTPUT_BASE) {
-        metric.value.gauge = mem_used;
+        metric.value.up_down = mem_used;
         metric_family_metric_append(&fam_bytes, metric);
         reported_base = true;
       }
@@ -1333,7 +1333,18 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   return ok;
 }
 
-static void add_bw_gauges(metric_t *metric, metric_family_t *fam, double reads,
+static void add_bw_rates(metric_t *metric, metric_family_t *fam, int64_t reads,
+                         int64_t writes) {
+  metric->value.up_down = reads;
+  metric_label_set(metric, "direction", "receive");
+  metric_family_metric_append(fam, *metric);
+
+  metric->value.up_down = writes;
+  metric_label_set(metric, "direction", "transmit");
+  metric_family_metric_append(fam, *metric);
+}
+
+static void add_bw_ratios(metric_t *metric, metric_family_t *fam, double reads,
                           double writes) {
   metric->value.gauge = reads;
   metric_label_set(metric, "direction", "receive");
@@ -1385,7 +1396,7 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
   metric_family_t fam_rate = {
       .help = "Memory bandwidth usage rate (in bytes per second)",
       .name = METRIC_PREFIX "memory.io.rate",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
       .unit = "By/s",
   };
   metric_family_t fam_counter = {
@@ -1434,12 +1445,12 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
 
       if (config.output & OUTPUT_RATE) {
         double factor = 1.0e6 / timediff;
-        add_bw_gauges(&metric, &fam_rate, factor * reads, factor * writes);
+        add_bw_rates(&metric, &fam_rate, factor * reads, factor * writes);
         reported_rate = true;
       }
       if ((config.output & OUTPUT_RATIO) && old->maxBandwidth) {
         double factor = 1.0e6 / (old->maxBandwidth * timediff);
-        add_bw_gauges(&metric, &fam_ratio, factor * reads, factor * writes);
+        add_bw_ratios(&metric, &fam_ratio, factor * reads, factor * writes);
         reported_ratio = true;
       }
     }
@@ -1559,10 +1570,10 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
   }
 
   metric_family_t fam_freq = {
-      .help = "Sampled HW frequency (in MHz)",
+      .help = "Sampled HW frequency (in Hz)",
       .name = METRIC_PREFIX "frequency",
       .type = METRIC_TYPE_GAUGE,
-      .unit = "MHz",
+      .unit = "Hz",
   };
   metric_family_t fam_ratio = {
       .help = "Sampled HW frequency ratio vs (non-overclocked) max frequency",
@@ -1600,14 +1611,14 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
 
     if (config.samples < 2) {
       set_freq_throttled_label(&metric, gpu->frequency[0][i].throttleReasons);
-      /* negative value = unsupported:
-       * https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv416zes_freq_state_t
+      /* Values are in MHz. Negative value = unsupported:
+       * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-freq-state-t
        */
       value = gpu->frequency[0][i].request;
       if (value >= 0) {
         metric_label_set(&metric, "type", "request");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = value;
+          metric.value.gauge = 1e6 * value;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1621,7 +1632,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       if (value >= 0) {
         metric_label_set(&metric, "type", "actual");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = value;
+          metric.value.gauge = 1e6 * value;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1660,7 +1671,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_label_set(&metric, "type", "request");
         metric_label_set(&metric, "function", "min");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = req_min;
+          metric.value.gauge = 1e6 * req_min;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1671,7 +1682,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         }
         metric_label_set(&metric, "function", "max");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = req_max;
+          metric.value.gauge = 1e6 * req_max;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1685,7 +1696,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_label_set(&metric, "type", "actual");
         metric_label_set(&metric, "function", "min");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = act_min;
+          metric.value.gauge = 1e6 * act_min;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1696,7 +1707,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         }
         metric_label_set(&metric, "function", "max");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = act_max;
+          metric.value.gauge = 1e6 * act_max;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1771,10 +1782,10 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       .unit = "1",
   };
   metric_family_t fam_counter = {
-      .help = "Total time HW frequency has been throttled (in microseconds)",
+      .help = "Total time HW frequency has been throttled (in seconds)",
       .name = METRIC_PREFIX "throttled.time",
-      .type = METRIC_TYPE_COUNTER,
-      .unit = "us",
+      .type = METRIC_TYPE_COUNTER_FP,
+      .unit = "s",
   };
   metric_t metric = {0};
 
@@ -1798,15 +1809,17 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       break;
     }
     if (config.output & OUTPUT_BASE) {
-      /* cannot convert microsecs to secs as counters are integers */
-      metric.value.counter = throttle.throttleTime;
+      /* times are in microseconds:
+       * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-freq-throttle-time-t
+       */
+      metric.value.counter_fp = throttle.throttleTime / 1e6;
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
     zes_freq_throttle_time_t *old = &gpu->throttle[i];
     if (old->timestamp && throttle.timestamp > old->timestamp &&
         (config.output & OUTPUT_RATIO)) {
-      /* micro seconds => throttle ratio */
+      /* throttle time & timestamp are both in microsecs */
       metric.value.gauge = (throttle.throttleTime - old->throttleTime) /
                            (double)(throttle.timestamp - old->timestamp);
       metric_family_metric_append(&fam_ratio, metric);
@@ -2039,7 +2052,7 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
   metric_family_t fam_rate = {
       .help = "Fabric port throughput rate (in bytes per second)",
       .name = METRIC_PREFIX "fabric.io.rate",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
       .unit = "By/s",
   };
   metric_family_t fam_counter = {
@@ -2151,7 +2164,7 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
 
       if (config.output & OUTPUT_RATE) {
         double factor = 1.0e6 / timediff;
-        add_bw_gauges(&metric, &fam_rate, factor * reads, factor * writes);
+        add_bw_rates(&metric, &fam_rate, factor * reads, factor * writes);
         reported_rate = true;
       }
       if (config.output & OUTPUT_RATIO) {
@@ -2160,7 +2173,7 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
         if (maxr > 0 && maxw > 0) {
           double rfactor = 1.0e6 / (maxr * timediff);
           double wfactor = 1.0e6 / (maxw * timediff);
-          add_bw_gauges(&metric, &fam_ratio, rfactor * reads, wfactor * writes);
+          add_bw_ratios(&metric, &fam_ratio, rfactor * reads, wfactor * writes);
           reported_ratio = true;
         }
       }
@@ -2220,14 +2233,14 @@ static bool gpu_powers(gpu_device_t *gpu) {
   metric_family_t fam_power = {
       .help = "Average power usage (in Watts) over query interval",
       .name = METRIC_PREFIX "power",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN_FP,
       .unit = "W",
   };
   metric_family_t fam_energy = {
-      .help = "Total energy consumption since boot (in microjoules)",
-      .type = METRIC_TYPE_COUNTER,
+      .help = "Total energy consumption since boot (in joules)",
+      .type = METRIC_TYPE_COUNTER_FP,
       .name = METRIC_PREFIX "energy",
-      .unit = "uj",
+      .unit = "J",
   };
   metric_t metric = {0};
 
@@ -2256,7 +2269,7 @@ static bool gpu_powers(gpu_device_t *gpu) {
     }
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
     if (config.output & OUTPUT_BASE) {
-      metric.value.counter = counter.energy;
+      metric.value.counter_fp = counter.energy / 1e6;
       metric_family_metric_append(&fam_energy, metric);
       reported_base = true;
     }
@@ -2268,8 +2281,10 @@ static bool gpu_powers(gpu_device_t *gpu) {
       double time_diff = counter.timestamp - old->timestamp;
 
       if (config.output & OUTPUT_RATE) {
-        /* microJoules / microSeconds => watts */
-        metric.value.gauge = energy_diff / time_diff;
+        /* microJoules / microSeconds => watts
+         * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-power-energy-counter-t
+         */
+        metric.value.up_down_fp = energy_diff / time_diff;
         metric_family_metric_append(&fam_power, metric);
         reported_rate = true;
       }
@@ -2375,10 +2390,10 @@ static bool gpu_engines(gpu_device_t *gpu) {
   };
   metric_family_t fam_counter = {
       .help = "GPU engine / group execution time (activity) total (in "
-              "microseconds)",
-      .type = METRIC_TYPE_COUNTER,
+              "seconds)",
+      .type = METRIC_TYPE_COUNTER_FP,
       .name = METRIC_PREFIX "engine.time",
-      .unit = "us",
+      .unit = "s",
   };
   metric_t metric = {0};
 
@@ -2478,7 +2493,10 @@ static bool gpu_engines(gpu_device_t *gpu) {
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
     metric_label_set(&metric, "type", vname);
     if (config.output & OUTPUT_BASE) {
-      metric.value.counter = stats.activeTime;
+      /* Intel L0 backend provides times in microsecs:
+       * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-engine-stats-t
+       */
+      metric.value.counter_fp = stats.activeTime / 1e6;
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
