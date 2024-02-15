@@ -51,7 +51,7 @@ static void otel_resource_attributes(void) {
     return;
   }
 
-  size_t tmp_sz = strlen(ra) + 1;
+  size_t tmp_sz = strlen(ra) + 2;
   char tmp[tmp_sz];
   sstrncpy(tmp, ra, sizeof(tmp));
 
