@@ -82,11 +82,15 @@
 #ifdef BUILD_STANDALONE
 /* utilities needed from collectd core */
 #include "daemon/metric.c"
+#include "daemon/resource.c"
 #include "utils/common/common.c"
 #include "utils/metadata/meta_data.c"
 #include "utils/strbuf/strbuf.c"
 #include "utils/utf8/utf8.c"
 #endif
+
+/* dummy for resource.c::default_resource_attributes() */
+char *hostname_g = "hostname";
 
 /* logging check bit, and per-phase logging bits enabling it */
 #define VERBOSE_CALLS 1
