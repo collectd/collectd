@@ -119,6 +119,8 @@ static unit_map_t unit_map[] = {
     {"MBy", "megabytes"},
     {"GBy", "gigabytes"},
     {"TBy", "terabytes"},
+    // Throughput
+    {"By/s", "bytes_per_second"},
     // SI units
     {"m", "meters"},
     {"V", "volts"},
@@ -272,7 +274,10 @@ static void format_metric_family_name(strbuf_t *buf,
 
   unit_map_t const *unit = unit_map_lookup(pfam->unit);
   if (unit != NULL) {
-    strbuf_printf(buf, "_%s", unit->prometheus);
+    /* e.g. ratio metric names may already end in "_ratio" */
+    if (!string_has_suffix(name, unit->prometheus)) {
+      strbuf_printf(buf, "_%s", unit->prometheus);
+    }
   } else if (pfam->unit != NULL && pfam->unit[0] != '{') {
     strbuf_print(buf, "_");
     strbuf_print_restricted(buf, pfam->unit, VALID_NAME_CHARS, '_');
