@@ -179,8 +179,7 @@ static void handle_label_event(struct pv *p, evargs args) {
   p->label = strdup(value);
   if (p->label == NULL) {
     ERROR("epics plugin: Cannot allocate memory for \"%s\" value", p->name);
-
-    return;
+    // fall-through
   }
 
   pthread_mutex_unlock(&epics_plugin.lock);
