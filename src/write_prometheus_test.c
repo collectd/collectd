@@ -25,12 +25,9 @@
  */
 
 #include "collectd.h"
-
-#include "daemon/metric.h"
 #include "testing.h"
-#include "utils/common/common.h"
 
-int format_label_name(strbuf_t *buf, char const *name);
+#include "write_prometheus.c" /* sic */
 
 DEF_TEST(format_label_name) {
   // Test cases are based on:
@@ -57,7 +54,6 @@ DEF_TEST(format_label_name) {
 
   return 0;
 }
-void format_metric_family_name(strbuf_t *buf, metric_family_t const *fam);
 
 DEF_TEST(format_metric_family_name) {
   // Test cases are based on:
@@ -123,13 +119,13 @@ DEF_TEST(format_metric_family_name) {
     printf("# Case %zu: %s\n", i, cases[i].name);
     strbuf_t got = STRBUF_CREATE;
 
-    metric_family_t fam = {
+    prometheus_metric_family_t pfam = {
         .name = cases[i].name,
         .type = cases[i].type,
         .unit = cases[i].unit,
     };
 
-    format_metric_family_name(&got, &fam);
+    format_metric_family_name(&got, &pfam);
     EXPECT_EQ_STR(cases[i].want, got.ptr);
 
     STRBUF_DESTROY(got);
@@ -138,17 +134,15 @@ DEF_TEST(format_metric_family_name) {
   return 0;
 }
 
-void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam);
-
 DEF_TEST(format_metric_family) {
   struct {
     char const *name;
-    metric_family_t fam;
+    prometheus_metric_family_t pfam;
     char const *want;
   } cases[] = {
       {
           .name = "metrics is empty",
-          .fam =
+          .pfam =
               {
                   .name = "unit.test",
               },
@@ -156,21 +150,18 @@ DEF_TEST(format_metric_family) {
       },
       {
           .name = "metric without labels",
-          .fam =
+          .pfam =
               {
                   .name = "unit.test",
                   .type = METRIC_TYPE_COUNTER,
-                  .metric =
-                      {
-                          .ptr =
-                              &(metric_t){
-                                  .value =
-                                      (value_t){
-                                          .counter = 42,
-                                      },
+                  .metrics =
+                      &(prometheus_metric_t){
+                          .value =
+                              (value_t){
+                                  .counter = 42,
                               },
-                          .num = 1,
                       },
+                  .metrics_num = 1,
               },
           .want = "# HELP unit_test_total\n"
                   "# TYPE unit_test_total counter\n"
@@ -179,30 +170,27 @@ DEF_TEST(format_metric_family) {
       },
       {
           .name = "metric with one label",
-          .fam =
+          .pfam =
               {
                   .name = "unittest",
                   .type = METRIC_TYPE_GAUGE,
-                  .metric =
-                      {
-                          .ptr =
-                              &(metric_t){
-                                  .label =
-                                      {
-                                          .ptr =
-                                              &(label_pair_t){
-                                                  .name = "foo",
-                                                  .value = "bar",
-                                              },
-                                          .num = 1,
+                  .metrics =
+                      &(prometheus_metric_t){
+                          .label =
+                              {
+                                  .ptr =
+                                      &(label_pair_t){
+                                          .name = "foo",
+                                          .value = "bar",
                                       },
-                                  .value =
-                                      (value_t){
-                                          .gauge = 42,
-                                      },
+                                  .num = 1,
                               },
-                          .num = 1,
+                          .value =
+                              (value_t){
+                                  .gauge = 42,
+                              },
                       },
+                  .metrics_num = 1,
               },
           .want = "# HELP unittest\n"
                   "# TYPE unittest gauge\n"
@@ -211,30 +199,27 @@ DEF_TEST(format_metric_family) {
       },
       {
           .name = "invalid characters are replaced",
-          .fam =
+          .pfam =
               {
                   .name = "unit.test",
                   .type = METRIC_TYPE_UNTYPED,
-                  .metric =
-                      {
-                          .ptr =
-                              &(metric_t){
-                                  .label =
-                                      {
-                                          .ptr =
-                                              &(label_pair_t){
-                                                  .name = "metric.name",
-                                                  .value = "unit.test",
-                                              },
-                                          .num = 1,
+                  .metrics =
+                      &(prometheus_metric_t){
+                          .label =
+                              {
+                                  .ptr =
+                                      &(label_pair_t){
+                                          .name = "metric.name",
+                                          .value = "unit.test",
                                       },
-                                  .value =
-                                      (value_t){
-                                          .gauge = 42,
-                                      },
+                                  .num = 1,
                               },
-                          .num = 1,
+                          .value =
+                              (value_t){
+                                  .gauge = 42,
+                              },
                       },
+                  .metrics_num = 1,
               },
           .want = "# HELP unit_test\n"
                   "# TYPE unit_test untyped\n"
@@ -243,40 +228,38 @@ DEF_TEST(format_metric_family) {
       },
       {
           .name = "most resource attributes are ignored",
-          .fam =
+          .pfam =
               {
                   .name = "unit.test",
                   .type = METRIC_TYPE_UNTYPED,
-                  .resource =
-                      {
-                          .ptr =
-                              (label_pair_t[]){
-                                  {"service.instance.id",
-                                   "service instance id"},
-                                  {"service.name", "service name"},
-                                  {"zzz.all.other.attributes", "are ignored"},
-                              },
-                          .num = 3,
-                      },
-                  .metric =
-                      {
-                          .ptr =
-                              &(metric_t){
-                                  .label =
-                                      {
-                                          .ptr =
-                                              (label_pair_t[]){
-                                                  {"metric.name", "unit.test"},
-                                              },
-                                          .num = 1,
+                  .metrics =
+                      &(prometheus_metric_t){
+                          .resource =
+                              {
+                                  .ptr =
+                                      (label_pair_t[]){
+                                          {"service.instance.id",
+                                           "service instance id"},
+                                          {"service.name", "service name"},
+                                          {"zzz.all.other.attributes",
+                                           "are ignored"},
                                       },
-                                  .value =
-                                      (value_t){
-                                          .gauge = 42,
-                                      },
+                                  .num = 3,
                               },
-                          .num = 1,
+                          .label =
+                              {
+                                  .ptr =
+                                      (label_pair_t[]){
+                                          {"metric.name", "unit.test"},
+                                      },
+                                  .num = 1,
+                              },
+                          .value =
+                              (value_t){
+                                  .gauge = 42,
+                              },
                       },
+                  .metrics_num = 1,
               },
           .want = "# HELP unit_test\n"
                   "# TYPE unit_test untyped\n"
@@ -288,14 +271,9 @@ DEF_TEST(format_metric_family) {
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     printf("# Case %zu: %s\n", i, cases[i].name);
+
     strbuf_t got = STRBUF_CREATE;
-
-    metric_family_t *fam = &cases[i].fam;
-    for (size_t j = 0; j < fam->metric.num; j++) {
-      fam->metric.ptr[j].family = fam;
-    }
-
-    format_metric_family(&got, &cases[i].fam);
+    format_metric_family(&got, &cases[i].pfam);
     EXPECT_EQ_STR(cases[i].want, got.ptr);
 
     STRBUF_DESTROY(got);
@@ -303,9 +281,6 @@ DEF_TEST(format_metric_family) {
 
   return 0;
 }
-
-void target_info(strbuf_t *buf, metric_family_t const **families,
-                 size_t families_num);
 
 DEF_TEST(target_info) {
   struct {
@@ -422,19 +397,17 @@ DEF_TEST(target_info) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     printf("# Case %zu: %s\n", i, cases[i].name);
 
-    metric_family_t mfams[cases[i].resources_num];
-    metric_t ms[cases[i].resources_num];
+    prometheus_metric_t pms[cases[i].resources_num];
     for (size_t j = 0; j < cases[i].resources_num; j++) {
-      mfams[j] = (metric_family_t){.resource = cases[i].resources[j]};
-      ms[j] = (metric_t){.family = &mfams[j]};
+      pms[j] = (prometheus_metric_t){.resource = cases[i].resources[j]};
     }
-    metric_family_t fam = {
-        .metric.ptr = ms,
-        .metric.num = cases[i].resources_num,
+    prometheus_metric_family_t pfam = {
+        .metrics= pms,
+        .metrics_num = cases[i].resources_num,
     };
 
     strbuf_t got = STRBUF_CREATE;
-    target_info(&got, (metric_family_t const *[]){&fam}, 1);
+    target_info(&got, (prometheus_metric_family_t const *[]){&pfam}, 1);
     EXPECT_EQ_STR(cases[i].want, got.ptr);
 
     STRBUF_DESTROY(got);
@@ -442,11 +415,6 @@ DEF_TEST(target_info) {
 
   return 0;
 }
-
-void format_text(strbuf_t *buf);
-int prom_write(metric_family_t const *fam, user_data_t *ud);
-int alloc_metrics(void);
-void free_metrics(void);
 
 DEF_TEST(end_to_end) {
   hostname_set("example.com");
