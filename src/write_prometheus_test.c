@@ -439,11 +439,154 @@ DEF_TEST(target_info) {
   return 0;
 }
 
+void format_text(strbuf_t *buf);
+int prom_write(metric_family_t const *fam, user_data_t *ud);
+int alloc_metrics(void);
+void free_metrics(void);
+
+DEF_TEST(end_to_end) {
+  hostname_set("example.com");
+
+  struct {
+    char const *name;
+    metric_family_t *fams;
+    size_t fams_num;
+    char const *want;
+  } cases[] = {
+      {
+          .name = "single metric",
+          .fams =
+              &(metric_family_t){
+                  .name = "unit.test",
+                  .type = METRIC_TYPE_COUNTER,
+                  .resource =
+                      {
+                          .ptr =
+                              (label_pair_t[]){
+                                  {"host.name", "example.org"},
+                                  {"service.instance.id", "instance1"},
+                                  {"service.name", "name1"},
+                              },
+                          .num = 3,
+                      },
+                  .metric =
+                      {
+                          .ptr =
+                              &(metric_t){
+                                  .value.counter = 42,
+                              },
+                          .num = 1,
+                      },
+              },
+          .fams_num = 1,
+// clang-format off
+          .want =
+            "# HELP target_info Target metadata\n"
+	    "# TYPE target_info gauge\n"
+	    "target_info{job=\"name1\",instance=\"instance1\",host_name=\"example.org\"} 1\n"
+	    "\n"
+	    "# HELP unit_test_total\n"
+	    "# TYPE unit_test_total counter\n"
+	    "unit_test_total{job=\"name1\",instance=\"instance1\"} 42\n"
+	    "\n"
+	    "# collectd/write_prometheus " PACKAGE_VERSION
+	    " at example.com\n",
+// clang-format on
+      },
+      {
+          .name = "multiple resources",
+          .fams =
+              (metric_family_t[]){
+                  {
+                      .name = "unit.test",
+                      .type = METRIC_TYPE_COUNTER,
+                      .resource =
+                          {
+                              .ptr =
+                                  (label_pair_t[]){
+                                      {"host.name", "example.org"},
+                                      {"service.instance.id", "instance1"},
+                                      {"service.name", "name1"},
+                                  },
+                              .num = 3,
+                          },
+                      .metric =
+                          {
+                              .ptr =
+                                  &(metric_t){
+                                      .value.counter = 42,
+                                  },
+                              .num = 1,
+                          },
+                  },
+                  {
+                      .name = "unit.test",
+                      .type = METRIC_TYPE_COUNTER,
+                      .resource =
+                          {
+                              .ptr =
+                                  (label_pair_t[]){
+                                      {"host.name", "example.net"},
+                                      {"service.instance.id", "instance2"},
+                                      {"service.name", "name1"},
+                                  },
+                              .num = 3,
+                          },
+                      .metric =
+                          {
+                              .ptr =
+                                  &(metric_t){
+                                      .value.counter = 23,
+                                  },
+                              .num = 1,
+                          },
+                  },
+              },
+          .fams_num = 1,
+          // clang-format off
+          .want =
+            "# HELP target_info Target metadata\n"
+	    "# TYPE target_info gauge\n"
+	    "target_info{job=\"name1\",instance=\"instance1\",host_name=\"example.org\"} 1\n"
+	    "target_info{job=\"name1\",instance=\"instance2\",host_name=\"example.net\"} 1\n"
+	    "\n"
+	    "# HELP unit_test_total\n"
+	    "# TYPE unit_test_total counter\n"
+	    "unit_test_total{job=\"name1\",instance=\"instance1\"} 42\n"
+	    "unit_test_total{job=\"name1\",instance=\"instance2\"} 23\n"
+	    "\n"
+	    "# collectd/write_prometheus " PACKAGE_VERSION " at example.com\n",
+          // clang-format on
+      },
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
+    printf("# Case %zu: %s\n", i, cases[i].name);
+
+    CHECK_ZERO(alloc_metrics());
+
+    for (size_t j = 0; j < cases[i].fams_num; j++) {
+      CHECK_ZERO(prom_write(cases[i].fams + j, NULL));
+    }
+
+    strbuf_t got = STRBUF_CREATE;
+    format_text(&got);
+
+    EXPECT_EQ_STR(cases[i].want, got.ptr);
+
+    STRBUF_DESTROY(got);
+    free_metrics();
+  }
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(format_label_name);
   RUN_TEST(format_metric_family_name);
   RUN_TEST(format_metric_family);
   RUN_TEST(target_info);
+  RUN_TEST(end_to_end);
 
   END_TEST;
 }

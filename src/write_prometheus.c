@@ -446,7 +446,8 @@ static void format_metric_families(strbuf_t *buf,
   }
 }
 
-static void format_text(strbuf_t *buf) {
+/* visible for testing */
+void format_text(strbuf_t *buf) {
   pthread_mutex_lock(&prom_metrics_lock);
 
   size_t families_num = (size_t)c_avl_size(prom_metrics);
@@ -731,13 +732,43 @@ static int prom_config(oconfig_item_t *ci) {
   return 0;
 }
 
-static int prom_init(void) {
+/* Visible for testing */
+int alloc_metrics(void) {
+  if (prom_metrics != NULL) {
+    return 0;
+  }
+
+  prom_metrics = c_avl_create((int (*)(const void *, const void *))strcmp);
   if (prom_metrics == NULL) {
-    prom_metrics = c_avl_create((int (*)(const void *, const void *))strcmp);
-    if (prom_metrics == NULL) {
-      ERROR("write_prometheus plugin: c_avl_create() failed.");
-      return -1;
-    }
+    ERROR("write_prometheus plugin: c_avl_create() failed.");
+    return ENOMEM;
+  }
+
+  return 0;
+}
+
+/* Visible for testing */
+void free_metrics(void) {
+  if (prom_metrics == NULL) {
+    return;
+  }
+
+  char *name = NULL;
+  metric_family_t *prom_fam = NULL;
+  while (c_avl_pick(prom_metrics, (void *)&name, (void *)&prom_fam) == 0) {
+    assert(name == prom_fam->name);
+    name = NULL;
+    metric_family_free(prom_fam);
+  }
+
+  c_avl_destroy(prom_metrics);
+  prom_metrics = NULL;
+}
+
+static int prom_init(void) {
+  int err = alloc_metrics();
+  if (err) {
+    return err;
   }
 
   if (httpd == NULL) {
@@ -752,8 +783,9 @@ static int prom_init(void) {
   return 0;
 }
 
-static int prom_write(metric_family_t const *fam,
-                      __attribute__((unused)) user_data_t *ud) {
+/* Visible for testing */
+int prom_write(metric_family_t const *fam,
+               __attribute__((unused)) user_data_t *ud) {
   pthread_mutex_lock(&prom_metrics_lock);
 
   metric_family_t *prom_fam = NULL;
@@ -862,24 +894,14 @@ static int prom_missing(metric_family_t const *fam,
   return 0;
 }
 
-static int prom_shutdown(void) {
+int prom_shutdown(void) {
   if (httpd != NULL) {
     MHD_stop_daemon(httpd);
     httpd = NULL;
   }
 
   pthread_mutex_lock(&prom_metrics_lock);
-  if (prom_metrics != NULL) {
-    char *name;
-    metric_family_t *prom_fam;
-    while (c_avl_pick(prom_metrics, (void *)&name, (void *)&prom_fam) == 0) {
-      assert(name == prom_fam->name);
-      name = NULL;
-      metric_family_free(prom_fam);
-    }
-    c_avl_destroy(prom_metrics);
-    prom_metrics = NULL;
-  }
+  free_metrics();
   pthread_mutex_unlock(&prom_metrics_lock);
 
   sfree(httpd_host);
