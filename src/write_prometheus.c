@@ -824,8 +824,10 @@ static int prom_missing(metric_family_t const *fam,
   pthread_mutex_lock(&prom_metrics_lock);
 
   metric_family_t *prom_fam = NULL;
-  if (c_avl_get(prom_metrics, fam->name, (void *)&prom_fam) != 0)
+  if (c_avl_get(prom_metrics, fam->name, (void *)&prom_fam) != 0) {
+    pthread_mutex_unlock(&prom_metrics_lock);
     return 0;
+  }
 
   for (size_t i = 0; i < fam->metric.num; i++) {
     metric_t const *m = &fam->metric.ptr[i];
