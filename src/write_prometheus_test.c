@@ -422,15 +422,19 @@ DEF_TEST(target_info) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     printf("# Case %zu: %s\n", i, cases[i].name);
 
-    metric_family_t families[cases[i].resources_num];
-    metric_family_t const *family_ptrs[cases[i].resources_num];
+    metric_family_t mfams[cases[i].resources_num];
+    metric_t ms[cases[i].resources_num];
     for (size_t j = 0; j < cases[i].resources_num; j++) {
-      families[j].resource = cases[i].resources[j];
-      family_ptrs[j] = &families[j];
+      mfams[j] = (metric_family_t){.resource = cases[i].resources[j]};
+      ms[j] = (metric_t){.family = &mfams[j]};
     }
+    metric_family_t fam = {
+        .metric.ptr = ms,
+        .metric.num = cases[i].resources_num,
+    };
 
     strbuf_t got = STRBUF_CREATE;
-    target_info(&got, family_ptrs, cases[i].resources_num);
+    target_info(&got, (metric_family_t const *[]){&fam}, 1);
     EXPECT_EQ_STR(cases[i].want, got.ptr);
 
     STRBUF_DESTROY(got);
@@ -479,7 +483,7 @@ DEF_TEST(end_to_end) {
                       },
               },
           .fams_num = 1,
-// clang-format off
+          // clang-format off
           .want =
             "# HELP target_info Target metadata\n"
 	    "# TYPE target_info gauge\n"
@@ -491,7 +495,7 @@ DEF_TEST(end_to_end) {
 	    "\n"
 	    "# collectd/write_prometheus " PACKAGE_VERSION
 	    " at example.com\n",
-// clang-format on
+          // clang-format on
       },
       {
           .name = "multiple resources",
@@ -542,18 +546,18 @@ DEF_TEST(end_to_end) {
                           },
                   },
               },
-          .fams_num = 1,
+          .fams_num = 2,
           // clang-format off
           .want =
             "# HELP target_info Target metadata\n"
 	    "# TYPE target_info gauge\n"
-	    "target_info{job=\"name1\",instance=\"instance1\",host_name=\"example.org\"} 1\n"
 	    "target_info{job=\"name1\",instance=\"instance2\",host_name=\"example.net\"} 1\n"
+	    "target_info{job=\"name1\",instance=\"instance1\",host_name=\"example.org\"} 1\n"
 	    "\n"
 	    "# HELP unit_test_total\n"
 	    "# TYPE unit_test_total counter\n"
-	    "unit_test_total{job=\"name1\",instance=\"instance1\"} 42\n"
 	    "unit_test_total{job=\"name1\",instance=\"instance2\"} 23\n"
+	    "unit_test_total{job=\"name1\",instance=\"instance1\"} 42\n"
 	    "\n"
 	    "# collectd/write_prometheus " PACKAGE_VERSION " at example.com\n",
           // clang-format on
@@ -566,6 +570,13 @@ DEF_TEST(end_to_end) {
     CHECK_ZERO(alloc_metrics());
 
     for (size_t j = 0; j < cases[i].fams_num; j++) {
+      metric_family_t *fam = cases[i].fams + j;
+
+      for (size_t k = 0; k < fam->metric.num; k++) {
+        metric_t *m = fam->metric.ptr + k;
+        m->family = fam;
+      }
+
       CHECK_ZERO(prom_write(cases[i].fams + j, NULL));
     }
 

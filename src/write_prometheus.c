@@ -213,7 +213,7 @@ static int format_metric(strbuf_t *buf, metric_t const *m,
    * not replace any characters. */
   int status =
       strbuf_print_restricted(buf, metric_family_name, VALID_NAME_CHARS, '_');
-  if (m->label.num == 0) {
+  if (job == NULL && instance == NULL && m->label.num == 0) {
     return status;
   }
 
@@ -303,12 +303,13 @@ void format_metric_family(strbuf_t *buf, metric_family_t const *prom_fam) {
     strbuf_printf(buf, "# HELP %s %s\n", family_name.ptr, prom_fam->help);
   strbuf_printf(buf, "# TYPE %s %s\n", family_name.ptr, type);
 
-  char const *job = label_set_get(prom_fam->resource, "service.name");
-  char const *instance =
-      label_set_get(prom_fam->resource, "service.instance.id");
-
   for (size_t i = 0; i < prom_fam->metric.num; i++) {
     metric_t *m = &prom_fam->metric.ptr[i];
+
+    // Note: m->family != prom_fam
+    char const *job = label_set_get(m->family->resource, "service.name");
+    char const *instance =
+        label_set_get(m->family->resource, "service.instance.id");
 
     format_metric(buf, m, family_name.ptr, job, instance);
 
@@ -391,7 +392,10 @@ void target_info(strbuf_t *buf, metric_family_t const **families,
 
   for (size_t i = 0; i < families_num; i++) {
     metric_family_t const *fam = families[i];
-    target_info_add(&ti, fam->resource);
+    for (size_t j = 0; j < fam->metric.num; j++) {
+      metric_t const *m = fam->metric.ptr + j;
+      target_info_add(&ti, m->family->resource);
+    }
   }
 
   if (ti.resources_num == 0) {
@@ -520,21 +524,59 @@ static int prom_metric_cmp(void const *a, void const *b) {
   metric_t const *m_a = (metric_t *)a;
   metric_t const *m_b = (metric_t *)b;
 
-  if (m_a->label.num < m_b->label.num)
-    return -1;
-  else if (m_a->label.num > m_b->label.num)
-    return 1;
-
-  for (size_t i = 0; i < m_a->label.num; i++) {
-    int status = strcmp(m_a->label.ptr[i].value, m_b->label.ptr[i].value);
-    if (status != 0)
-      return status;
-
-#if COLLECT_DEBUG
-    assert(strcmp(m_a->label.ptr[i].name, m_b->label.ptr[i].name) == 0);
-#endif
+  int cmp = label_set_compare(m_a->family->resource, m_b->family->resource);
+  if (cmp) {
+    return cmp;
   }
+
+  return label_set_compare(m_a->label, m_b->label);
+}
+
+static void prom_resource_attr_free(metric_family_t *attr) {
+  if (attr == NULL) {
+    return;
+  }
+
+  label_set_reset(&attr->resource);
+  sfree(attr);
+}
+
+static metric_family_t *prom_resource_attr_clone(metric_family_t const *fam) {
+  metric_family_t *attr = calloc(1, sizeof(*attr));
+  if (attr == NULL) {
+    return NULL;
+  }
+
+  int err = label_set_clone(&attr->resource, fam->resource);
+  if (err) {
+    prom_resource_attr_free(attr);
+    return NULL;
+  }
+
+  return attr;
+}
+
+static int prom_metric_family_metric_append(metric_family_t *fam,
+                                            metric_t const *m) {
+  metric_t copy = *m;
+
+  copy.family = prom_resource_attr_clone(m->family);
+  if (copy.family == NULL) {
+    return ENOMEM;
+  }
+
+  int err = metric_list_append(&fam->metric, copy);
+  if (err) {
+    prom_resource_attr_free(copy.family);
+    return err;
+  }
+
   return 0;
+}
+
+static void prom_metric_reset(metric_t *m) {
+  prom_resource_attr_free(m->family);
+  metric_reset(m);
 }
 
 static int prom_metric_family_metric_delete(metric_family_t *fam,
@@ -551,7 +593,7 @@ static int prom_metric_family_metric_delete(metric_family_t *fam,
   if (i >= fam->metric.num)
     return ENOENT;
 
-  metric_reset(&fam->metric.ptr[i]);
+  prom_metric_reset(&fam->metric.ptr[i]);
 
   if ((fam->metric.num - 1) > i)
     memmove(&fam->metric.ptr[i], &fam->metric.ptr[i + 1],
@@ -571,6 +613,39 @@ static int prom_metric_family_metric_delete(metric_family_t *fam,
     fam->metric.ptr = tmp;
 
   return 0;
+}
+
+static void prom_metric_family_free(metric_family_t *prom_fam) {
+  for (size_t i = 0; i < prom_fam->metric.num; i++) {
+    metric_t *m = prom_fam->metric.ptr + i;
+    prom_resource_attr_free(m->family);
+    m->family = NULL;
+  }
+
+  metric_family_free(prom_fam);
+}
+
+static metric_family_t *prom_metric_family_clone(metric_family_t const *fam) {
+  metric_family_t *copy = calloc(1, sizeof(*copy));
+  if (copy == NULL) {
+    return NULL;
+  }
+  copy->type = fam->type;
+
+  copy->name = strdup(fam->name);
+  if (copy->name == NULL) {
+    sfree(copy);
+    return NULL;
+  }
+
+  if (fam->help != NULL) {
+    copy->help = strdup(fam->help);
+  }
+  if (fam->unit != NULL) {
+    copy->unit = strdup(fam->unit);
+  }
+
+  return copy;
 }
 
 static void prom_logger(__attribute__((unused)) void *arg, char const *fmt,
@@ -758,7 +833,7 @@ void free_metrics(void) {
   while (c_avl_pick(prom_metrics, (void *)&name, (void *)&prom_fam) == 0) {
     assert(name == prom_fam->name);
     name = NULL;
-    metric_family_free(prom_fam);
+    prom_metric_family_free(prom_fam);
   }
 
   c_avl_destroy(prom_metrics);
@@ -790,26 +865,20 @@ int prom_write(metric_family_t const *fam,
 
   metric_family_t *prom_fam = NULL;
   if (c_avl_get(prom_metrics, fam->name, (void *)&prom_fam) != 0) {
-    prom_fam = metric_family_clone(fam);
+    prom_fam = prom_metric_family_clone(fam);
     if (prom_fam == NULL) {
       ERROR("write_prometheus plugin: Clone metric \"%s\" failed.", fam->name);
       pthread_mutex_unlock(&prom_metrics_lock);
-      return -1;
+      return ENOMEM;
     }
-    /* Sort the metrics so that lookup is fast. */
-    qsort(prom_fam->metric.ptr, prom_fam->metric.num,
-          sizeof(*prom_fam->metric.ptr), prom_metric_cmp);
 
-    int status = c_avl_insert(prom_metrics, prom_fam->name, prom_fam);
-    if (status != 0) {
+    int err = c_avl_insert(prom_metrics, prom_fam->name, prom_fam);
+    if (err) {
       ERROR("write_prometheus plugin: Adding \"%s\" failed.", prom_fam->name);
       metric_family_free(prom_fam);
       pthread_mutex_unlock(&prom_metrics_lock);
-      return -1;
+      return err;
     }
-
-    pthread_mutex_unlock(&prom_metrics_lock);
-    return 0;
   }
 
   for (size_t i = 0; i < fam->metric.num; i++) {
@@ -818,7 +887,7 @@ int prom_write(metric_family_t const *fam,
     metric_t *mmatch = bsearch(m, prom_fam->metric.ptr, prom_fam->metric.num,
                                sizeof(*prom_fam->metric.ptr), prom_metric_cmp);
     if (mmatch == NULL) {
-      metric_family_metric_append(prom_fam, *m);
+      prom_metric_family_metric_append(prom_fam, m);
       /* Sort the metrics so that lookup is fast. */
       qsort(prom_fam->metric.ptr, prom_fam->metric.num,
             sizeof(*prom_fam->metric.ptr), prom_metric_cmp);
@@ -829,8 +898,9 @@ int prom_write(metric_family_t const *fam,
 
     /* Prometheus has a globally configured timeout after which metrics are
      * considered stale. This causes problems when metrics have an interval
-     * exceeding that limit. We emulate the behavior of "pushgateway" and *not*
-     * send a timestamp value – Prometheus will fill in the current time. */
+     * exceeding that limit. We emulate the behavior of "pushgateway" and
+     * *not* send a timestamp value – Prometheus will fill in the current
+     * time. */
     if (m->interval > staleness_delta) {
       static c_complain_t long_metric = C_COMPLAIN_INIT_STATIC;
       c_complain(LOG_NOTICE, &long_metric,
@@ -911,7 +981,8 @@ int prom_shutdown(void) {
 void module_register(void) {
   plugin_register_complex_config("write_prometheus", prom_config);
   plugin_register_init("write_prometheus", prom_init);
-  plugin_register_write("write_prometheus", prom_write, /* user data = */ NULL);
+  plugin_register_write("write_prometheus", prom_write,
+                        /* user data = */ NULL);
   plugin_register_missing("write_prometheus", prom_missing,
                           /* user data = */ NULL);
   plugin_register_shutdown("write_prometheus", prom_shutdown);
