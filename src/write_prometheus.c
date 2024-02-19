@@ -247,7 +247,8 @@ static int format_metric(strbuf_t *buf, prometheus_metric_t const *pm,
  * multiple underscores into one underscore.
  *
  * Visible for testing */
-void format_metric_family_name(strbuf_t *buf, prometheus_metric_family_t const *pfam) {
+void format_metric_family_name(strbuf_t *buf,
+                               prometheus_metric_family_t const *pfam) {
   size_t name_len = strlen(pfam->name);
   char name[name_len + 1];
   memset(name, 0, sizeof(name));

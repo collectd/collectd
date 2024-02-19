@@ -402,7 +402,7 @@ DEF_TEST(target_info) {
       pms[j] = (prometheus_metric_t){.resource = cases[i].resources[j]};
     }
     prometheus_metric_family_t pfam = {
-        .metrics= pms,
+        .metrics = pms,
         .metrics_num = cases[i].resources_num,
     };
 
