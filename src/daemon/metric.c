@@ -407,6 +407,13 @@ static int metric_list_append_list(metric_list_t *dest, metric_list_t src) {
   return 0;
 }
 
+int metric_list_append(metric_list_t *list, metric_t m) {
+  return metric_list_append_list(list, (metric_list_t){
+                                           .ptr = &m,
+                                           .num = 1,
+                                       });
+}
+
 static void metric_list_reset(metric_list_t *metrics) {
   if (metrics == NULL) {
     return;
