@@ -164,11 +164,6 @@ typedef struct {
   size_t num;
 } metric_list_t;
 
-/* metric_list_append appends a metric to the metric list. The metrics labels
- * and metadata are cloned. The metric family is not cloned, instead the
- * pointer is copied verbatim. */
-int metric_list_append(metric_list_t *list, metric_t m);
-
 /*
  * Metric Family
  */
