@@ -24,10 +24,9 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "collectd.h"
-#include "testing.h"
-
 #include "write_prometheus.c" /* sic */
+
+#include "testing.h"
 
 DEF_TEST(format_label_name) {
   // Test cases are based on:
