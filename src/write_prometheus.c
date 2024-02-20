@@ -917,8 +917,9 @@ static int prom_write(metric_family_t const *fam,
   for (size_t i = 0; i < fam->metric.num; i++) {
     prometheus_metric_t pm = to_prometheus_metric(fam->metric.ptr[i]);
 
-    prometheus_metric_t *mmatch = bsearch(&pm, pfam->metrics, pfam->metrics_num,
-                               sizeof(*pfam->metrics), prom_metric_cmp);
+    prometheus_metric_t *mmatch =
+        bsearch(&pm, pfam->metrics, pfam->metrics_num, sizeof(*pfam->metrics),
+                prom_metric_cmp);
     if (mmatch == NULL) {
       prom_metric_family_metric_append(pfam, pm);
       continue;
