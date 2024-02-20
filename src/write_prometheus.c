@@ -665,9 +665,20 @@ prom_metric_family_clone(metric_family_t const *fam) {
 
   if (fam->help != NULL) {
     pfam->help = strdup(fam->help);
+    if (pfam->help == NULL) {
+      sfree(pfam->name);
+      sfree(pfam);
+      return NULL;
+    }
   }
   if (fam->unit != NULL) {
     pfam->unit = strdup(fam->unit);
+    if (pfam->unit == NULL) {
+      sfree(pfam->help);
+      sfree(pfam->name);
+      sfree(pfam);
+      return NULL;
+    }
   }
 
   return pfam;
