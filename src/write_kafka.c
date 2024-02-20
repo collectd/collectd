@@ -77,7 +77,7 @@ static void kafka_log(const rd_kafka_t *rkt, int level, const char *fac,
 }
 #endif
 
-static rd_kafka_resp_err_t kafka_error() {
+static rd_kafka_resp_err_t kafka_error(void) {
 #if RD_KAFKA_VERSION >= 0x000b00ff
   return rd_kafka_last_error();
 #else

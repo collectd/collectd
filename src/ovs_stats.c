@@ -1268,7 +1268,7 @@ static void ovs_stats_free_bridge_list(bridge_list_t *head) {
 }
 
 /* Handle OVSDB lost connection callback */
-static void ovs_stats_conn_terminate() {
+static void ovs_stats_conn_terminate(void) {
   WARNING("Lost connection to OVSDB server");
   pthread_mutex_lock(&g_stats_lock);
   ovs_stats_free_bridge_list(g_bridge_list_head);

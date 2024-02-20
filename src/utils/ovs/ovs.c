@@ -218,7 +218,7 @@ static bool ovs_db_poll_is_running(ovs_db_t *pdb) {
 
 /* Generate unique identifier (UID). It is used by OVS DB API
  * to set "id" field for any OVS DB JSON request. */
-static uint64_t ovs_uid_generate() {
+static uint64_t ovs_uid_generate(void) {
   uint64_t new_uid;
   pthread_mutex_lock(&ovs_uid_mutex);
   new_uid = ++ovs_uid;
@@ -607,7 +607,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
  */
 
 /* Allocate JSON reader instance */
-static ovs_json_reader_t *ovs_json_reader_alloc() {
+static ovs_json_reader_t *ovs_json_reader_alloc(void) {
   ovs_json_reader_t *jreader = calloc(1, sizeof(*jreader));
   if (jreader == NULL)
     return NULL;

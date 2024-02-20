@@ -237,7 +237,7 @@ static int nop_writer(lcc_value_list_t const *vl) {
   return 0;
 }
 
-static int test_network_parse() {
+static int test_network_parse(void) {
   int ret = 0;
 
   for (size_t i = 0; i < sizeof(raw_packet_data) / sizeof(raw_packet_data[0]);
@@ -269,7 +269,7 @@ static int test_network_parse() {
   return ret;
 }
 
-static int test_parse_time() {
+static int test_parse_time(void) {
   int ret = 0;
 
   struct {
@@ -317,7 +317,7 @@ static int test_parse_time() {
   return ret;
 }
 
-static int test_parse_string() {
+static int test_parse_string(void) {
   int ret = 0;
 
   struct {
@@ -356,7 +356,7 @@ static int test_parse_string() {
   return ret;
 }
 
-static int test_parse_values() {
+static int test_parse_values(void) {
   int ret = 0;
 
   uint8_t testcase[] = {
@@ -415,7 +415,7 @@ static int test_parse_values() {
 }
 
 #if HAVE_GCRYPT_H
-static int test_verify_sha256() {
+static int test_verify_sha256(void) {
   int ret = 0;
 
   int status = verify_sha256(
@@ -447,7 +447,7 @@ static int test_verify_sha256() {
 #endif
 
 #if HAVE_GCRYPT_H
-static int test_decrypt_aes256() {
+static int test_decrypt_aes256(void) {
   char const *iv_str = "4cbe2a747c9f9dcfa0e66f0c2fa74875";
   uint8_t iv[16] = {0};
   size_t iv_len = sizeof(iv);

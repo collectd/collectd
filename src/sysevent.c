@@ -401,7 +401,7 @@ err:
   return -1;
 }
 
-static int read_socket() {
+static int read_socket(void) {
   int recv_flags = MSG_DONTWAIT;
 
   while (42) {
@@ -608,7 +608,7 @@ static void sysevent_dispatch_notification(const char *message,
     sfree(buf);
 }
 
-static void read_ring_buffer() {
+static void read_ring_buffer(void) {
   pthread_mutex_lock(&sysevent_data_lock);
 
   // If there's currently nothing to read from the buffer,
@@ -862,7 +862,7 @@ static int stop_socket_thread(int shutdown) /* {{{ */
   return status;
 } /* }}} int stop_socket_thread */
 
-static int stop_dequeue_thread() /* {{{ */
+static int stop_dequeue_thread(void) /* {{{ */
 {
   pthread_mutex_lock(&sysevent_thread_lock);
 
@@ -905,7 +905,7 @@ static int stop_dequeue_thread() /* {{{ */
   return status;
 } /* }}} int stop_dequeue_thread */
 
-static int stop_threads() /* {{{ */
+static int stop_threads(void) /* {{{ */
 {
   int status = stop_socket_thread(1);
   int status2 = stop_dequeue_thread();

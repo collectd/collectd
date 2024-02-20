@@ -1686,7 +1686,7 @@ EXPORT int plugin_unregister_cache_event(const char *name) {
   return 0;
 }
 
-static void destroy_cache_event_callbacks() {
+static void destroy_cache_event_callbacks(void) {
   for (size_t i = 0; i < list_cache_event_num; i++) {
     cache_event_func_t *cef = &list_cache_event[i];
     if (!cef->callback)

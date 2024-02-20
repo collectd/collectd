@@ -100,7 +100,7 @@ static int ovs_events_plugin_read(user_data_t *u);
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 1 when context is locked.
  */
-static int ovs_events_ctx_lock() {
+static int ovs_events_ctx_lock(void) {
   pthread_mutex_lock(&ovs_events_ctx.mutex);
   return 1;
 }
@@ -108,7 +108,7 @@ static int ovs_events_ctx_lock() {
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 0 when context is unlocked.
  */
-static int ovs_events_ctx_unlock() {
+static int ovs_events_ctx_unlock(void) {
   pthread_mutex_unlock(&ovs_events_ctx.mutex);
   return 0;
 }
@@ -133,7 +133,7 @@ static int ovs_events_config_iface_exists(const char *ifname) {
 /* Get OVS DB select parameter request based on rfc7047,
  * "Transact" & "Select" section
  */
-static char *ovs_events_get_select_params() {
+static char *ovs_events_get_select_params(void) {
   size_t buff_size = 0;
   size_t buff_off = 0;
   char *opt_buff = NULL;
@@ -188,7 +188,7 @@ static char *ovs_events_get_select_params() {
 }
 
 /* Release memory allocated for configuration data */
-static void ovs_events_config_free() {
+static void ovs_events_config_free(void) {
   ovs_events_iface_list_t *del_iface = NULL;
   sfree(ovs_events_ctx.ovs_db_select_params);
   while (ovs_events_ctx.config.ifaces) {
@@ -582,7 +582,7 @@ static void ovs_events_conn_initialize(ovs_db_t *pdb) {
 }
 
 /* OVS DB terminate connection notification callback */
-static void ovs_events_conn_terminate() {
+static void ovs_events_conn_terminate(void) {
   const char msg[] = "OVS DB connection has been lost";
   if (ovs_events_ctx.config.send_notification)
     ovs_events_dispatch_terminate_notification(msg);

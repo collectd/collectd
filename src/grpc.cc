@@ -524,7 +524,7 @@ private:
  */
 class CollectdServer final {
 public:
-  void Start() {
+  void Start(void) {
     auto auth = grpc::InsecureServerCredentials();
 
     grpc::ServerBuilder builder;
@@ -553,7 +553,7 @@ public:
     server_ = builder.BuildAndStart();
   } /* Start() */
 
-  void Shutdown() { server_->Shutdown(); } /* Shutdown() */
+  void Shutdown(void) { server_->Shutdown(); } /* Shutdown() */
 
 private:
   CollectdImpl collectd_service_;

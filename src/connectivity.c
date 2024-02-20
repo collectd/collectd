@@ -624,7 +624,7 @@ static void connectivity_dispatch_notification(const char *interface,
 }
 
 // NOTE: Caller MUST hold connectivity_data_lock when calling this function
-static void send_interface_status() {
+static void send_interface_status(void) {
   for (interface_list_t *il = interface_list_head; il != NULL;
        il = il->next) /* {{{ */
   {
@@ -642,7 +642,7 @@ static void send_interface_status() {
   statuses_to_send = 0;
 }
 
-static void read_interface_status() /* {{{ */
+static void read_interface_status(void) /* {{{ */
 {
   pthread_mutex_lock(&connectivity_data_lock);
 
@@ -695,7 +695,7 @@ static void *connectivity_dequeue_thread(void *arg) /* {{{ */
   return ((void *)0);
 } /* }}} void *connectivity_dequeue_thread */
 
-static int nl_connect() {
+static int nl_connect(void) {
   struct sockaddr_nl sa_nl = {
       .nl_family = AF_NETLINK,
       .nl_groups = RTMGRP_LINK,
@@ -884,7 +884,7 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
     return thread_status;
 }
 
-static int stop_dequeue_thread() /* {{{ */
+static int stop_dequeue_thread(void) /* {{{ */
 {
   pthread_mutex_lock(&connectivity_threads_lock);
 
@@ -924,7 +924,7 @@ static int stop_dequeue_thread() /* {{{ */
   return status;
 } /* }}} int stop_dequeue_thread */
 
-static int stop_threads() /* {{{ */
+static int stop_threads(void) /* {{{ */
 {
   int status = stop_netlink_thread(1);
   int status2 = stop_dequeue_thread();

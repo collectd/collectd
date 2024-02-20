@@ -149,7 +149,7 @@ static int bind_socket_to_addr(sockent_t *se, const struct addrinfo *ai) {
   return 0;
 } /* int bind_socket_to_addr */
 
-static sockent_t *sockent_create() {
+static sockent_t *sockent_create(void) {
   sockent_t *se = calloc(1, sizeof(*se));
   if (se == NULL)
     return NULL;

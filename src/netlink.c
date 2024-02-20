@@ -1005,7 +1005,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
   return MNL_CB_OK;
 } /* int qos_filter_cb */
 
-static size_t ir_get_buffer_size() {
+static size_t ir_get_buffer_size(void) {
   if (collect_vf_stats == false) {
     return MNL_SOCKET_BUFFER_SIZE;
   }

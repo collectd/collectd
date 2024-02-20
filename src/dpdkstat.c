@@ -102,7 +102,7 @@ dpdk_helper_ctx_t *g_hc = NULL;
 static char g_shm_name[DATA_MAX_NAME_LEN] = DPDK_STATS_NAME;
 static dpdk_stat_cfg_status g_state = DPDK_STAT_STATE_OKAY;
 
-static int dpdk_stats_reinit_helper();
+static int dpdk_stats_reinit_helper(void);
 static void dpdk_stats_default_config(void) {
   dpdk_stats_ctx_t *ec = DPDK_STATS_CTX_GET(g_hc);
 
@@ -421,7 +421,7 @@ static int dpdk_stats_counters_dispatch(dpdk_helper_ctx_t *phc) {
   return 0;
 }
 
-static int dpdk_stats_reinit_helper() {
+static int dpdk_stats_reinit_helper(void) {
   DPDK_STATS_TRACE();
 
   dpdk_stats_ctx_t *ctx = DPDK_STATS_CTX_GET(g_hc);

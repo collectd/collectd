@@ -39,7 +39,7 @@ static size_t strbuf_avail(strbuf_t *buf) {
   return buf->size - (buf->pos + 1);
 }
 
-static size_t strbuf_pagesize() {
+static size_t strbuf_pagesize(void) {
   static size_t cached_pagesize;
 
   if (!cached_pagesize) {
