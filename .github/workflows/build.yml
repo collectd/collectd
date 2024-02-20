@@ -35,15 +35,19 @@ jobs:
           - fedora39
           - fedora38
         configure_flags: ['--enable-compatibility-mode']
+        cflags: ['-Wstrict-prototypes']
         include:
           - container_tag: debian12
             configure_flags: '--enable-compatibility-mode --enable-debug'
+            cflags: '-Wstrict-prototypes'
           - container_tag: debian12
+            configure_flags: '--enable-compatibility-mode CC=clang CXX=clang++'
             # By default clang emits DWARF v5, which Valgrind cannot read yet.
             # https://github.com/llvm/llvm-project/issues/56550
-            configure_flags: '--enable-compatibility-mode CC=clang CXX=clang++ CFLAGS=-gdwarf-4'
+            cflags: '-gdwarf-4 -Wstrict-prototypes'
     env:
       CONFIGURE_FLAGS: ${{ matrix.configure_flags }}
+      CFLAGS: ${{ matrix.cflags }}
       # this env var picked up by valgrind during make check phase
       VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
     steps:
