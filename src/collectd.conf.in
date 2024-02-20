@@ -182,6 +182,7 @@
 #@BUILD_PLUGIN_OLSRD_TRUE@LoadPlugin olsrd
 #@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
 #@BUILD_PLUGIN_OPENLDAP_TRUE@LoadPlugin openldap
+#@BUILD_PLUGIN_OPEN_TELEMETRY_TRUE@LoadPlugin open_telemetry
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_OVS_EVENTS_TRUE@LoadPlugin ovs_events
@@ -236,7 +237,6 @@
 #@BUILD_PLUGIN_WRITE_KAFKA_TRUE@LoadPlugin write_kafka
 #@BUILD_PLUGIN_WRITE_LOG_TRUE@LoadPlugin write_log
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
-#@BUILD_PLUGIN_WRITE_OPEN_TELEMETRY_TRUE@LoadPlugin write_open_telemetry
 #@BUILD_PLUGIN_WRITE_PROMETHEUS_TRUE@LoadPlugin write_prometheus
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
@@ -1331,6 +1331,22 @@
 #	CollectUserCount false
 #</Plugin>
 
+#<Plugin open_telemetry>
+#  <Receiver "0.0.0.0" "4317">
+#    EnableSSL false
+#    SSLCACertificateFile "/path/to/root.pem"
+#    SSLCertificateFile "/path/to/client.pem"
+#    SSLCertificateKeyFile "/path/to/client.key"
+#    VerifyPeer true
+#  </Receiver>
+#  <Exporter "localhost" "4317">
+#    EnableSSL false
+#    SSLCACertificateFile "/path/to/root.pem"
+#    SSLCertificateFile "/path/to/client.pem"
+#    SSLCertificateKeyFile "/path/to/client.key"
+#  </Exporter>
+#</Plugin>
+
 #<Plugin oracle>
 #  <Query "out_of_stock">
 #    Statement "SELECT category, COUNT(*) AS value FROM products WHERE in_stock = 0 GROUP BY category"
@@ -2068,13 +2084,6 @@
 #		User "auth_user"
 #		Password "auth_passwd"
 #	</Node>
-#</Plugin>
-
-#<Plugin write_open_telemetry>
-#  <Node "example">
-#    Host "localhost"
-#    Port "4317"
-#  </Node>
 #</Plugin>
 
 #<Plugin write_prometheus>

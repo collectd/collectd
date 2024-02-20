@@ -7153,6 +7153,101 @@ can be configured independently from that option. Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<open_telemetry>
+
+The I<open_telemetry plugin> implements an OpenTelemetry exporter and receiver
+using OTLP. Specifically, it implements a gRPC C<MetricsService> client and
+server.
+
+B<Synopsis:>
+
+  <Plugin open_telemetry>
+    <Receiver "0.0.0.0" "4317">
+      EnableSSL false
+      SSLCACertificateFile "/path/to/root.pem"
+      SSLCertificateFile "/path/to/client.pem"
+      SSLCertificateKeyFile "/path/to/client.key"
+      VerifyPeer true
+    </Receiver>
+    <Exporter "localhost" "4317">
+      EnableSSL false
+      SSLCACertificateFile "/path/to/root.pem"
+      SSLCertificateFile "/path/to/client.pem"
+      SSLCertificateKeyFile "/path/to/client.key"
+    </Exporter>
+  </Plugin>
+
+=over 4
+
+=item B<Receiver> I<Host> [I<Port>]
+
+The B<Receiver> statement sets the network address and port to which to bind.
+Multiple B<Receiver> blocks can be specified to listen on multiple
+interfaces/ports. When no B<Receiver> blocks are specified, the plugin will not
+receive any metrics.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+The I<Port> argument may be omitted. In that case the default C<"4317"> is
+used.
+
+Optionally, B<Receiver> blocks support the following options:
+
+=over 4
+
+=item B<EnableSSL> I<false>|I<true>
+
+Whether to enable SSL for incoming connections. Default: I<false>.
+
+=item B<SSLCACertificateFile> I<Filename>
+
+=item B<SSLCertificateFile> I<Filename>
+
+=item B<SSLCertificateKeyFile> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=item B<VerifyPeer> B<true>|B<false>
+
+When enabled, a valid client certificate is required to connect to the server.
+When disabled, a client certificate is not requested and any unsolicited client
+certificate is accepted.
+Enabled by default.
+
+=back
+
+=item B<Exporter> I<Host> [I<Port>]
+
+The B<Exporter> option configures an OTLP export to the given collector
+address. Multiple collectors can be specified using multiple B<Exporter> lines.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+The I<Port> argument may be omitted. In that case the default C<"4317"> is
+used.
+
+Optionally, B<Exporter> blocks support the following options:
+
+=over 4
+
+=item B<EnableSSL> I<false>|I<true>
+
+Whether to require SSL when connecting. Default: I<false>.
+
+=item B<SSLCACertificateFile> I<Filename>
+
+=item B<SSLCertificateFile> I<Filename>
+
+=item B<SSLCertificateKeyFile> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
+
+=back
+
 =head2 Plugin C<oracle>
 
 The "oracle" plugin uses the Oracle® Call Interface I<(OCI)> to connect to an
@@ -11148,35 +11243,6 @@ number.
 Sets the information used when authenticating to a I<MongoDB> database. The
 fields are optional (in which case no authentication is attempted), but if you
 want to use authentication all three fields must be set.
-
-=back
-
-=head2 Plugin C<write_open_telemetry>
-
-The I<write_open_telemetry plugin> will export metrics to an I<OpenTelemetry
-collector> using the gRPC based OTLP protocol.
-
-B<Synopsis:>
-
- <Plugin "write_open_telemetry">
-   <Node "default">
-     Host "localhost"
-     Port "4317"
-   </Node>
- </Plugin>
-
-The plugin can export metrics to multiple collectors by specifying multiple
-B<Node> blocks. Within the B<Node> blocks, the following options are available:
-
-=over 4
-
-=item B<Host> I<Address>
-
-Hostname or address to connect to. Defaults to C<localhost>.
-
-=item B<Port> I<Service>
-
-Service name or port number to connect to. Defaults to C<4317>.
 
 =back
 

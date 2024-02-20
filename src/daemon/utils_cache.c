@@ -523,13 +523,13 @@ int uc_get_value_by_name(const char *name, value_t *ret_values) {
 
     /* remove missing values from getval */
     if (ce->state == STATE_MISSING) {
-      status = -1;
+      status = EAGAIN;
     } else {
       *ret_values = ce->last_value;
     }
   } else {
     DEBUG("utils_cache: uc_get_value_by_name: No such value: %s", name);
-    status = -1;
+    status = ENOENT;
   }
 
   pthread_mutex_unlock(&cache_lock);
@@ -739,7 +739,7 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
   status = c_avl_get(cache_tree, name, (void *)&ce);
   if (status != 0) {
     pthread_mutex_unlock(&cache_lock);
-    return -ENOENT;
+    return ENOENT;
   }
   /* Check if there are enough values available. If not, increase the buffer
    * size. */
@@ -749,7 +749,7 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
     tmp = realloc(ce->history, sizeof(*ce->history) * num_steps);
     if (tmp == NULL) {
       pthread_mutex_unlock(&cache_lock);
-      return -ENOMEM;
+      return ENOMEM;
     }
 
     for (size_t i = ce->history_length; i < num_steps; i++)
