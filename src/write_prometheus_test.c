@@ -464,6 +464,71 @@ DEF_TEST(end_to_end) {
           // clang-format on
       },
       {
+          .name = "multiple data points of one metric",
+          .fams =
+              (metric_family_t[]){
+                  {
+                      .name = "unit.test",
+                      .type = METRIC_TYPE_COUNTER,
+                      .resource =
+                          {
+                              .ptr =
+                                  (label_pair_t[]){
+                                      {"host.name", "example.org"},
+                                      {"service.instance.id", "instance1"},
+                                      {"service.name", "name1"},
+                                  },
+                              .num = 3,
+                          },
+                      .metric =
+                          {
+                              .ptr =
+                                  &(metric_t){
+                                      .time = TIME_T_TO_CDTIME_T(100),
+                                      .value.counter = 42,
+                                  },
+                              .num = 1,
+                          },
+                  },
+                  {
+                      .name = "unit.test",
+                      .type = METRIC_TYPE_COUNTER,
+                      .resource =
+                          {
+                              .ptr =
+                                  (label_pair_t[]){
+                                      {"host.name", "example.org"},
+                                      {"service.instance.id", "instance1"},
+                                      {"service.name", "name1"},
+                                  },
+                              .num = 3,
+                          },
+                      .metric =
+                          {
+                              .ptr =
+                                  &(metric_t){
+                                      .time = TIME_T_TO_CDTIME_T(110),
+                                      .value.counter = 62,
+                                  },
+                              .num = 1,
+                          },
+                  },
+              },
+          .fams_num = 2,
+          // clang-format off
+          .want =
+            "# HELP target_info Target metadata\n"
+	    "# TYPE target_info gauge\n"
+	    "target_info{job=\"name1\",instance=\"instance1\",host_name=\"example.org\"} 1\n"
+	    "\n"
+	    "# HELP unit_test_total\n"
+	    "# TYPE unit_test_total counter\n"
+	    "unit_test_total{job=\"name1\",instance=\"instance1\"} 62 110000\n"
+	    "\n"
+	    "# collectd/write_prometheus " PACKAGE_VERSION " at example.com\n",
+          // clang-format on
+      },
+      {
           .name = "multiple resources",
           .fams =
               (metric_family_t[]){
