@@ -778,7 +778,7 @@ cleanup:
  * RETURN VALUE
  *  0 on success. Negative number on error.
  */
-static int read_pids_data() {
+static int read_pids_data(void) {
 
   if (0 == g_rdt->num_ngroups) {
     DEBUG(RDT_PLUGIN ": read_pids_data: not configured - PIDs read skipped");
@@ -858,7 +858,7 @@ groups_refresh:
  * DESCRIPTION
  *   Initialize pids monitoring for all name groups
  */
-static void rdt_init_pids_monitoring() {
+static void rdt_init_pids_monitoring(void) {
   for (size_t group_idx = 0; group_idx < g_rdt->num_ngroups; group_idx++) {
     /*
      * Each group must have not-null proc_pids array.
@@ -1206,7 +1206,7 @@ static int rdt_config(oconfig_item_t *ci) {
   return 0;
 }
 
-static int read_cores_data() {
+static int read_cores_data(void) {
 
   if (0 == g_rdt->cores.num_cgroups) {
     DEBUG(RDT_PLUGIN ": read_cores_data: not configured - Cores read skipped");
@@ -1257,7 +1257,7 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
   return 0;
 }
 
-static void rdt_init_cores_monitoring() {
+static void rdt_init_cores_monitoring(void) {
   for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
     core_group_t *cg = g_rdt->cores.cgroups + i;
 

@@ -45,7 +45,7 @@ int redfish_test_plugin_dispatch_values_mock(value_list_t const *vl) {
   return 0;
 }
 
-static value_list_t *redfish_test_get_last_dispatched_value_list() {
+static value_list_t *redfish_test_get_last_dispatched_value_list(void) {
   return &last_dispatched_value_list;
 }
 

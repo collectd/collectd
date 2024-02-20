@@ -95,7 +95,7 @@ static int cache_compare(void const *a, void const *b) {
   return strcmp(ea->name, eb->name);
 } /* int cache_compare */
 
-static cache_entry_t *cache_alloc() {
+static cache_entry_t *cache_alloc(void) {
   cache_entry_t *ce;
 
   ce = calloc(1, sizeof(*ce));

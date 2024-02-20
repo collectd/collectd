@@ -239,7 +239,7 @@ DEF_TEST(parse_packet) {
   return 0;
 }
 
-int main() {
+int main(void) {
   RUN_TEST(parse_packet);
 
   END_TEST;

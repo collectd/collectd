@@ -1162,7 +1162,7 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
   submit_notif(dom, severity, msg, "domain_state", NULL);
 }
 
-static int lv_init_ignorelists() {
+static int lv_init_ignorelists(void) {
   if (il_domains == NULL)
     il_domains = ignorelist_create(1);
   if (il_block_devices == NULL)

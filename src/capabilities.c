@@ -240,7 +240,7 @@ static void cap_logger(__attribute__((unused)) void *arg, char const *fmt,
 }
 
 #if defined(MHD_VERSION) && MHD_VERSION >= 0x00090000
-static int cap_open_socket() {
+static int cap_open_socket(void) {
   char service[NI_MAXSERV];
   snprintf(service, sizeof(service), "%hu", httpd_port);
 
@@ -305,7 +305,7 @@ static int cap_open_socket() {
 }
 #endif
 
-static struct MHD_Daemon *cap_start_daemon() {
+static struct MHD_Daemon *cap_start_daemon(void) {
 #if defined(MHD_VERSION) && MHD_VERSION >= 0x00090000
   int fd = cap_open_socket();
   if (fd == -1) {
@@ -368,7 +368,7 @@ static int cap_config(oconfig_item_t *ci) {
   return status;
 }
 
-static int cap_shutdown() {
+static int cap_shutdown(void) {
   if (httpd != NULL) {
     MHD_stop_daemon(httpd);
     httpd = NULL;

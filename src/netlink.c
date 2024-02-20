@@ -244,9 +244,9 @@ static int check_ignorelist(const char *dev, const char *type,
         continue;
     } else
 #endif
-        /* i->device == NULL  =>  match all devices */
-        if ((i->device != NULL) && (strcasecmp(i->device, dev) != 0))
-      continue;
+      /* i->device == NULL  =>  match all devices */
+      if ((i->device != NULL) && (strcasecmp(i->device, dev) != 0))
+        continue;
 
     if (strcasecmp(i->type, type) != 0)
       continue;
@@ -1005,7 +1005,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
   return MNL_CB_OK;
 } /* int qos_filter_cb */
 
-static size_t ir_get_buffer_size() {
+static size_t ir_get_buffer_size(void) {
   if (collect_vf_stats == false) {
     return MNL_SOCKET_BUFFER_SIZE;
   }

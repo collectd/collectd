@@ -91,7 +91,7 @@ int pqos_cap_get_event(const struct pqos_cap *cap,
 /***************************************************************************
  * helper functions
  */
-rdt_ctx_t *stub_rdt_setup() {
+rdt_ctx_t *stub_rdt_setup(void) {
 
   rdt_ctx_t *rdt = calloc(1, sizeof(*rdt));
   struct pqos_cpuinfo *pqos_cpu = calloc(1, sizeof(*pqos_cpu));

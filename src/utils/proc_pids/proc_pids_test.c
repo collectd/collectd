@@ -78,7 +78,7 @@ int stub_procfs_setup(const stub_proc_pid_t *proc_pids_array,
  * RETURN VALUE
  *   system command result
  */
-int stub_procfs_teardown() {
+int stub_procfs_teardown(void) {
   char cmd[256];
   sstrncpy(cmd, "rm -rf ", STATIC_ARRAY_SIZE(cmd));
   strncat(cmd, proc_fs, STATIC_ARRAY_SIZE(cmd) - strlen(cmd) - 1);

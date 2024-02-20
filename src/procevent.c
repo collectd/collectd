@@ -663,7 +663,7 @@ static int process_map_refresh(void) {
   return 0;
 }
 
-static int nl_connect() {
+static int nl_connect(void) {
   struct sockaddr_nl sa_nl = {
       .nl_family = AF_NETLINK,
       .nl_groups = CN_IDX_PROC,
@@ -729,7 +729,7 @@ static int set_proc_ev_listen(bool enable) {
 }
 
 // Read from netlink socket and write to ring buffer
-static int read_event() {
+static int read_event(void) {
   int recv_flags = MSG_DONTWAIT;
 
   if (nl_sock == -1)
@@ -903,7 +903,7 @@ static void procevent_dispatch_notification(long pid, gauge_t value,
 }
 
 // Read from ring buffer and dispatch to write plugins
-static void read_ring_buffer() {
+static void read_ring_buffer(void) {
   pthread_mutex_lock(&procevent_data_lock);
 
   // If there's currently nothing to read from the buffer,
@@ -1169,7 +1169,7 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
     return thread_status;
 } /* }}} int stop_netlink_thread */
 
-static int stop_dequeue_thread() /* {{{ */
+static int stop_dequeue_thread(void) /* {{{ */
 {
   pthread_mutex_lock(&procevent_thread_lock);
 
@@ -1205,7 +1205,7 @@ static int stop_dequeue_thread() /* {{{ */
   return status;
 } /* }}} int stop_dequeue_thread */
 
-static int stop_threads() /* {{{ */
+static int stop_threads(void) /* {{{ */
 {
   int status = stop_netlink_thread(1);
   int status2 = stop_dequeue_thread();

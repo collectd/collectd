@@ -651,7 +651,7 @@ static int prom_open_socket(int addrfamily, const char **failed) {
   return fd;
 } /* }}} int prom_open_socket */
 
-static struct MHD_Daemon *prom_start_daemon() {
+static struct MHD_Daemon *prom_start_daemon(void) {
   /* {{{ */
   const char *failed = "(unknown)";
   int fd = prom_open_socket(PF_INET6, &failed);
@@ -684,7 +684,7 @@ static struct MHD_Daemon *prom_start_daemon() {
   return d;
 } /* }}} struct MHD_Daemon *prom_start_daemon */
 #else /* if MHD_VERSION < 0x00090000 */
-static struct MHD_Daemon *prom_start_daemon() {
+static struct MHD_Daemon *prom_start_daemon(void) {
   /* {{{ */
   struct MHD_Daemon *d = MHD_start_daemon(
       MHD_USE_THREAD_PER_CONNECTION | MHD_USE_DEBUG, httpd_port,
@@ -731,7 +731,7 @@ static int prom_config(oconfig_item_t *ci) {
   return 0;
 }
 
-static int prom_init() {
+static int prom_init(void) {
   if (prom_metrics == NULL) {
     prom_metrics = c_avl_create((int (*)(const void *, const void *))strcmp);
     if (prom_metrics == NULL) {
@@ -862,7 +862,7 @@ static int prom_missing(metric_family_t const *fam,
   return 0;
 }
 
-static int prom_shutdown() {
+static int prom_shutdown(void) {
   if (httpd != NULL) {
     MHD_stop_daemon(httpd);
     httpd = NULL;
@@ -886,7 +886,7 @@ static int prom_shutdown() {
   return 0;
 }
 
-void module_register() {
+void module_register(void) {
   plugin_register_complex_config("write_prometheus", prom_config);
   plugin_register_init("write_prometheus", prom_init);
   plugin_register_write("write_prometheus", prom_write, /* user data = */ NULL);

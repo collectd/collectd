@@ -987,7 +987,7 @@ static void *c_ipmi_thread_main(void *user_data) {
   return (void *)0;
 } /* void *c_ipmi_thread_main */
 
-static c_ipmi_instance_t *c_ipmi_init_instance() {
+static c_ipmi_instance_t *c_ipmi_init_instance(void) {
   c_ipmi_instance_t *st;
 
   st = calloc(1, sizeof(*st));
