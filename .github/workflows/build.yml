@@ -35,16 +35,16 @@ jobs:
           - fedora39
           - fedora38
         configure_flags: ['--enable-compatibility-mode']
-        cflags: ['-Wstrict-prototypes']
+        cflags: ['']
         include:
           - container_tag: debian12
             configure_flags: '--enable-compatibility-mode --enable-debug'
-            cflags: '-Wstrict-prototypes'
+            cflags: ''
           - container_tag: debian12
             configure_flags: '--enable-compatibility-mode CC=clang CXX=clang++'
             # By default clang emits DWARF v5, which Valgrind cannot read yet.
             # https://github.com/llvm/llvm-project/issues/56550
-            cflags: '-gdwarf-4 -Wstrict-prototypes'
+            cflags: '-gdwarf-4'
     env:
       CONFIGURE_FLAGS: ${{ matrix.configure_flags }}
       CFLAGS: ${{ matrix.cflags }}
@@ -68,12 +68,14 @@ jobs:
       with:
         name: ${{ matrix.container_tag }}
         path: config.log
+    # The configure script relies on the old syntax to check whether functions
+    # exist, so we can't specify `-Wstrict-prototypes` globally.
     - name: Build collectd
-      run: make -j$(nproc) -sk
+      run: make -j$(nproc) -sk CFLAGS="${CFLAGS} -Werror=strict-prototypes"
     - name: Run make check
       run: |
         set +e
-        make $MAKEFLAGS check
+        make $MAKEFLAGS check CFLAGS="${CFLAGS} -Werror=strict-prototypes"
         echo "$?" >make-check.status
       continue-on-error: true
     - name: Upload log files
@@ -133,11 +135,11 @@ jobs:
         name: ${{ matrix.container_tag }}
         path: config.log
     - name: Build collectd
-      run: make -j$(nproc) -sk
+      run: make -j$(nproc) -sk CFLAGS="${CFLAGS} -Werror=strict-prototypes"
     - name: Run make check
       run: |
         set +e
-        make $MAKEFLAGS check
+        make $MAKEFLAGS check CFLAGS="${CFLAGS} -Werror=strict-prototypes"
         echo "$?" >make-check.status
       continue-on-error: true
     - name: Upload log files
