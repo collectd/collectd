@@ -460,8 +460,7 @@ DEF_TEST(end_to_end) {
 	    "# TYPE unit_test_total counter\n"
 	    "unit_test_total{job=\"name1\",instance=\"instance1\"} 42\n"
 	    "\n"
-	    "# collectd/write_prometheus " PACKAGE_VERSION
-	    " at example.com\n",
+	    "# collectd/write_prometheus " PACKAGE_VERSION " at example.com\n",
           // clang-format on
       },
       {
