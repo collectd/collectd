@@ -244,9 +244,9 @@ static int check_ignorelist(const char *dev, const char *type,
         continue;
     } else
 #endif
-        /* i->device == NULL  =>  match all devices */
-        if ((i->device != NULL) && (strcasecmp(i->device, dev) != 0))
-      continue;
+      /* i->device == NULL  =>  match all devices */
+      if ((i->device != NULL) && (strcasecmp(i->device, dev) != 0))
+        continue;
 
     if (strcasecmp(i->type, type) != 0)
       continue;
