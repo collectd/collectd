@@ -1200,7 +1200,7 @@ gpu_sysman_la_LIBADD = $(LEVEL_ZERO_LIBS)
 test_plugin_gpu_sysman_SOURCES = src/gpu_sysman_test.c
 test_plugin_gpu_sysman_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(LEVEL_ZERO_CFLAGS)
 test_plugin_gpu_sysman_LDFLAGS = $(PLUGIN_LDFLAGS)
-test_plugin_gpu_sysman_LDADD =
+test_plugin_gpu_sysman_LDADD = libcommon.la
 check_PROGRAMS += test_plugin_gpu_sysman
 TESTS += test_plugin_gpu_sysman
 endif

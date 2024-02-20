@@ -1,7 +1,7 @@
 /**
  * collectd - src/gpu_sysman_test.c
  *
- * Copyright(c) 2020-2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2020-2024 Intel Corporation. All rights reserved.
  *
  * Licensed under the same terms and conditions as src/gpu_sysman.c.
  *
@@ -10,16 +10,27 @@
  *
  * Testing for gpu_sysman.c Sysman API usage and error handling.
  *
- * See:
+ * Sysman API:
  * - https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
  * - https://spec.oneapi.io/level-zero/latest/sysman/api.html
  *
- * Building unit-tests:
- *   gcc -I. -Idaemon  -I/path/to/level-zero -O3 -g --coverage -Werror \
- *       -Wall -Wextra -Wpedantic -Wcast-align=strict -Wformat-security \
- *       gpu_sysman_test.c -o test_plugin_gpu_sysman
+ * Installing build dependencies:
+ * - Fedora: sudo dnf install oneapi-level-zero-devel
+ * - Debian: sudo apt install libze-dev
  *
- * Running unit-units:
+ * Normal build / testing:
+ * - build: make test_plugin_gpu_sysman
+ * - test: make test_plugin_gpu_sysman.log
+ *
+ * Direct builds for whole-program analysis, coverage etc (for configured
+ * sources, so that "config.h" + other generated includes are present):
+ *	gcc -I. -Idaemon -DHAVE_CONFIG_H -DBUILD_STANDALONE --coverage -Werror \
+ *	 -O3 -g -Wall -Wextra -Wpedantic -Wcast-align=strict -Wformat-security \
+ *	 -Wnull-dereference -Wstrict-overflow=2 -Warray-bounds=2 \
+ *	 -D_FORTIFY_SOURCE=2 -Wno-aggressive-loop-optimizations \
+ *	 gpu_sysman_test.c -o test_plugin_gpu_sysman
+ *
+ * Running unit-units directly:
  *	./test_plugin_gpu_sysman
  *
  * Testing for memory leakage:
@@ -37,10 +48,7 @@
  *   optimizations have significantly lower coverage due to each (trivial
  *   and build-time verifiable) switch-case being considered separately
  *
- *
  * Mock up functionality details:
- * - Allocation helpers assert instead of exiting on alloc failure,
- *   to get a backtrace
  * - All functions return only a single property or metric item,
  *   until hitting earlier set call limit, after which they return error
  * - All metric property functions report them coming from subdevice 0
@@ -64,9 +72,19 @@
  * - Plugin init, shutdown and re-init works without problems
  */
 
-#define KERNEL_LINUX 1
-#define FP_LAYOUT_NEED_NOTHING 1
 #include "gpu_sysman.c" /* test this */
+
+/* include metric functions + their dependencies directly, instead of
+ * building & linking libcommon.a (like normal collectd builds do)?
+ */
+#ifdef BUILD_STANDALONE
+/* utilities needed from collectd core */
+#include "daemon/metric.c"
+#include "utils/common/common.c"
+#include "utils/metadata/meta_data.c"
+#include "utils/strbuf/strbuf.c"
+#include "utils/utf8/utf8.c"
+#endif
 
 /* logging check bit, and per-phase logging bits enabling it */
 #define VERBOSE_CALLS 1
@@ -842,120 +860,6 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
   return 0;
 }
 
-#define MAX_LABELS 16
-
-/* mock function uses just one large enough metrics array (for testing)
- * instead of increasing it one-by-one, like the real collectd metrics
- * code does
- */
-int metric_label_set(metric_t *m, char const *name, char const *value) {
-  assert(m && name);
-  size_t num = m->label.num;
-  label_pair_t *pair = m->label.ptr;
-  if (num) {
-    assert(num < MAX_LABELS);
-    assert(pair);
-  } else {
-    assert(!pair);
-    pair = scalloc(MAX_LABELS, sizeof(*pair));
-    m->label.ptr = pair;
-  }
-  int i;
-  for (i = 0; i < MAX_LABELS; i++) {
-    if (!pair[i].name) {
-      /* not found -> new label */
-      pair[i].name = sstrdup(name);
-      m->label.num++;
-      break;
-    }
-    if (strcmp(name, pair[i].name) == 0) {
-      break;
-    }
-  }
-  assert(value); /* removing label with NULL 'value' is not supported */
-  free(pair[i].value);
-  pair[i].value = sstrdup(value);
-  return 0;
-}
-
-int metric_reset(metric_t *m) {
-  assert(m);
-  size_t num = m->label.num;
-  label_pair_t *pair = m->label.ptr;
-  if (!num) {
-    assert(!pair);
-    return 0;
-  }
-  assert(pair);
-  for (int i = 0; i < MAX_LABELS; i++) {
-    if (!pair[i].name) {
-      break;
-    }
-    free(pair[i].name);
-    free(pair[i].value);
-    pair[i].value = pair[i].name = NULL;
-    num--;
-  }
-  assert(!num);
-  free(pair);
-  m->label.ptr = NULL;
-  m->label.num = 0;
-  return 0;
-}
-
-#define MAX_METRICS 8
-
-/* mock function uses just one large enough metrics array (for testing)
- * instead of increasing it one-by-one, like the real collectd metrics
- * code does
- */
-int metric_family_metric_append(metric_family_t *fam, metric_t m) {
-  assert(fam);
-  size_t num = fam->metric.num;
-  metric_t *metric = fam->metric.ptr;
-  if (num) {
-    assert(num < MAX_METRICS);
-    assert(metric);
-  } else {
-    assert(!metric);
-    metric = scalloc(MAX_METRICS, sizeof(*metric));
-    fam->metric.ptr = metric;
-  }
-  /* copy metric and pointers to its labels */
-  metric[num] = m;
-  label_pair_t *src = m.label.ptr;
-  if (src) {
-    /* alloc max size as labels can be added also to family metrics copies */
-    label_pair_t *dst = scalloc(MAX_LABELS, sizeof(*src));
-    metric[num].label.ptr = dst;
-    for (size_t i = 0; i < m.label.num; i++) {
-      dst[i].name = sstrdup(src[i].name);
-      dst[i].value = sstrdup(src[i].value);
-    }
-  }
-  fam->metric.num++;
-  m.family = fam;
-  return 0;
-}
-
-int metric_family_metric_reset(metric_family_t *fam) {
-  metric_t *metric = fam->metric.ptr;
-  for (size_t m = 0; m < fam->metric.num; m++) {
-    label_pair_t *pair = metric[m].label.ptr;
-    for (size_t i = 0; i < metric[m].label.num; i++) {
-      free(pair[i].name);
-      free(pair[i].value);
-    }
-    free(pair);
-    metric[m].label.ptr = NULL;
-    metric[m].label.num = 0;
-  }
-  free(fam->metric.ptr);
-  fam->metric.ptr = NULL;
-  fam->metric.num = 0;
-  return 0;
-}
-
 /* ------------------------------------------------------------------------- */
 /* mock up of collectd plugin API */
 
@@ -1038,26 +942,22 @@ void plugin_log(int level, const char *format, ...) {
   fprintf(stderr, "%s (%s)\n", msg, log_levels[level].name);
 }
 
-/* safe function wrapper from utils/common/common.c */
-char *sstrncpy(char *dest, const char *src, size_t n) {
-  strncpy(dest, src, n);
-  dest[n - 1] = '\0';
-  return dest;
+/* ------------------------------------------------------------------------- */
+/* Dummies for unused collectd core functions, needed for linking
+ * because "utils/common/common.c" refers both "daemon/utils_cache.c"
+ * and "daemon/plugin.c" functionality.
+ *
+ * Therefore "libcommon.la" needs these too for linking to work.
+ */
+
+void daemon_log(__attribute__((unused)) int level,
+                __attribute__((unused)) const char *format, ...) {
+  assert(0);
 }
-void *scalloc(size_t nmemb, size_t size) {
-  void *p = calloc(nmemb, size);
-  assert(p);
-  return p;
-}
-void *smalloc(size_t size) {
-  void *p = malloc(size);
-  assert(p);
-  return p;
-}
-char *sstrdup(const char *s1) {
-  char *s2 = strdup(s1);
-  assert(s2);
-  return s2;
+
+int uc_get_rate(__attribute__((unused)) metric_t const *m,
+                __attribute__((unused)) gauge_t *ret_value) {
+  return ENOTSUP;
 }
 
 /* ------------------------------------------------------------------------- */
