@@ -114,7 +114,7 @@ FreeBSD_task:
     - git submodule update -- opentelemetry-proto
   configure_script:
     - ./build.sh
-    - ./configure --disable-perl
+    - ./configure ${DEFAULT_CONFIG_OPTS} --disable-perl
   build_script:
     - make -j$(nproc) -sk CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   tests_script:
