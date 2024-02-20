@@ -81,15 +81,15 @@ bleeding_edge_compilers_task:
     - ./build.sh
     - $CC --version
     - >
-      ./configure CC=$CC
-      $DEFAULT_CONFIG_OPTS
+      ./configure ${DEFAULT_CONFIG_OPTS}
+      CC="$CC"
       CFLAGS="$(dpkg-buildflags --get CFLAGS)"
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -j$(nproc) -sk CFLAGS="${CFLAGS} -Werror=strict-prototypes"
+    - make -j$(nproc) -sk CFLAGS="$(dpkg-buildflags --get CFLAGS) -Werror=strict-prototypes"
   tests_script:
-    - make -j$(nproc) check CFLAGS="${CFLAGS} -Werror=strict-prototypes"
+    - make -j$(nproc) check CFLAGS="$(dpkg-buildflags --get CFLAGS) -Werror=strict-prototypes"
   always:
     make_check_artifacts:
       path: "**/*.log"
