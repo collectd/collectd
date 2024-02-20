@@ -7062,6 +7062,7 @@ fi
 
 if test "x$with_libcurl" != "xyes"; then
   plugin_write_http="no (libcurl not found)"
+  plugin_bind="no (libcurl not found)"
 fi
 if test "x$with_libyajl2" != "xyes"; then
   plugin_write_http="no (libyajl2 not found)"
@@ -7069,6 +7070,15 @@ if test "x$with_libyajl2" != "xyes"; then
 fi
 if test "x$with_libhiredis" != "xyes"; then
   plugin_write_redis="no (libhiredis not found)"
+fi
+
+if test "x$with_libxml2" != "xyes"; then
+  plugin_bind="no (libxml2 not found)"
+  plugin_curl_xml="no (libxml2 not found)"
+fi
+
+if test "x$have_strptime" != "xyes"; then
+  plugin_bind="no (strptime not found)"
 fi
 
 if test "x$with_libyajl" = "xyes"; then
