@@ -38,11 +38,12 @@ extern "C" {
 }
 
 #include <fstream>
-
 #include <grpc++/grpc++.h>
 
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
 #include "utils/format_open_telemetry/format_open_telemetry.h"
+
+#include "open_telemetry.h"
 
 #ifndef OT_DEFAULT_PORT
 #define OT_DEFAULT_PORT "4317"

@@ -47,6 +47,8 @@ extern "C" {
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/resource/v1/resource.pb.h"
 
+#include "open_telemetry.h"
+
 #ifndef OT_DEFAULT_PORT
 #define OT_DEFAULT_PORT "4317"
 #endif
@@ -426,9 +428,6 @@ static void receiver_install_callbacks(void) {
 
   done = true;
 }
-
-// config_get_file is implemented in src/open_telemetry_exporter.cc
-int config_get_file(oconfig_item_t const *ci, grpc::string *out);
 
 /*
  * collectd plugin interface

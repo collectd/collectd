@@ -1747,7 +1747,7 @@ endif
 if BUILD_PLUGIN_OPEN_TELEMETRY
 pkglib_LTLIBRARIES += open_telemetry.la
 open_telemetry_la_SOURCES = \
-	src/open_telemetry.cc \
+	src/open_telemetry.cc src/open_telemetry.h \
 	src/open_telemetry_exporter.cc \
 	src/open_telemetry_receiver.cc \
 	opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.cc \

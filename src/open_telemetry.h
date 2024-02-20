@@ -1,5 +1,5 @@
 /**
- * collectd - src/open_telemetry.cc
+ * collectd - src/open_telemetry.h
  * Copyright (C) 2024       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,46 +24,19 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-extern "C" {
-#include "collectd.h"
+#ifndef OPEN_TELEMETRY_H
+#define OPEN_TELEMETRY_H 1
 
+extern "C" {
+#include "daemon/collectd.h"
 #include "daemon/configfile.h"
-#include "daemon/plugin.h"
 }
 
-#include "open_telemetry.h"
+#include <grpc++/grpc++.h>
 
-static int ot_config(oconfig_item_t *ci) {
-  for (int i = 0; i < ci->children_num; i++) {
-    oconfig_item_t *child = ci->children + i;
+int exporter_config(oconfig_item_t *ci);
+int receiver_config(oconfig_item_t *ci);
 
-    if (strcasecmp("Exporter", child->key) == 0) {
-      int err = exporter_config(child);
-      if (err) {
-        ERROR("open_telemetry plugin: Configuring exporter failed "
-              "with status %d",
-              err);
-        return err;
-      }
-    } else if (strcasecmp("Receiver", child->key) == 0) {
-      int err = receiver_config(child);
-      if (err) {
-        ERROR("open_telemetry plugin: Configuring receiver failed "
-              "with status %d",
-              err);
-        return err;
-      }
-    } else {
-      ERROR("open_telemetry plugin: invalid config option: \"%s\"", child->key);
-      return EINVAL;
-    }
-  }
+int config_get_file(oconfig_item_t const *ci, grpc::string *out);
 
-  return 0;
-}
-
-extern "C" {
-void module_register(void) {
-  plugin_register_complex_config("open_telemetry", ot_config);
-}
-}
+#endif
