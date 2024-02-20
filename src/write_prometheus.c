@@ -159,8 +159,7 @@ static unit_map_t const *unit_map_lookup(char const *unit) {
                  sizeof(unit_map[0]), unit_map_compare);
 }
 
-/* Visible for testing */
-int format_label_name(strbuf_t *buf, char const *name) {
+static int format_label_name(strbuf_t *buf, char const *name) {
   int status = 0;
 
   strbuf_t namebuf = STRBUF_CREATE;
@@ -244,11 +243,9 @@ static int format_metric(strbuf_t *buf, prometheus_metric_t const *pm,
 /* format_metric_family_name creates a Prometheus compatible metric name by
  * replacing all characters that are invalid in Prometheus with underscores,
  * drop any leading and trailing underscores, and collapses a sequence of
- * multiple underscores into one underscore.
- *
- * Visible for testing */
-void format_metric_family_name(strbuf_t *buf,
-                               prometheus_metric_family_t const *pfam) {
+ * multiple underscores into one underscore. */
+static void format_metric_family_name(strbuf_t *buf,
+                                      prometheus_metric_family_t const *pfam) {
   size_t name_len = strlen(pfam->name);
   char name[name_len + 1];
   memset(name, 0, sizeof(name));
@@ -290,9 +287,8 @@ void format_metric_family_name(strbuf_t *buf,
   }
 }
 
-/* visible for testing */
-void format_metric_family(strbuf_t *buf,
-                          prometheus_metric_family_t const *pfam) {
+static void format_metric_family(strbuf_t *buf,
+                                 prometheus_metric_family_t const *pfam) {
   if (pfam->metrics_num == 0)
     return;
 
@@ -402,9 +398,9 @@ static void target_info_reset(target_info_t *ti) {
  * See
  * https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#supporting-target-metadata-in-both-push-based-and-pull-based-systems
  * for more details. */
-/* visible for testing */
-void target_info(strbuf_t *buf, prometheus_metric_family_t const **families,
-                 size_t families_num) {
+static void target_info(strbuf_t *buf,
+                        prometheus_metric_family_t const **families,
+                        size_t families_num) {
   target_info_t ti = {0};
 
   for (size_t i = 0; i < families_num; i++) {
@@ -467,8 +463,7 @@ static void format_metric_families(strbuf_t *buf,
   }
 }
 
-/* visible for testing */
-void format_text(strbuf_t *buf) {
+static void format_text(strbuf_t *buf) {
   pthread_mutex_lock(&prom_metrics_lock);
 
   size_t families_num = (size_t)c_avl_size(prom_metrics);
@@ -837,8 +832,7 @@ static int prom_config(oconfig_item_t *ci) {
   return 0;
 }
 
-/* Visible for testing */
-int alloc_metrics(void) {
+static int alloc_metrics(void) {
   if (prom_metrics != NULL) {
     return 0;
   }
@@ -852,8 +846,7 @@ int alloc_metrics(void) {
   return 0;
 }
 
-/* Visible for testing */
-void free_metrics(void) {
+static void free_metrics(void) {
   if (prom_metrics == NULL) {
     return;
   }
@@ -888,9 +881,8 @@ static int prom_init(void) {
   return 0;
 }
 
-/* Visible for testing */
-int prom_write(metric_family_t const *fam,
-               __attribute__((unused)) user_data_t *ud) {
+static int prom_write(metric_family_t const *fam,
+                      __attribute__((unused)) user_data_t *ud) {
   pthread_mutex_lock(&prom_metrics_lock);
 
   prometheus_metric_family_t *pfam = NULL;
@@ -992,7 +984,7 @@ static int prom_missing(metric_family_t const *fam,
   return 0;
 }
 
-int prom_shutdown(void) {
+static int prom_shutdown(void) {
   if (httpd != NULL) {
     MHD_stop_daemon(httpd);
     httpd = NULL;
