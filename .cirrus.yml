@@ -15,17 +15,12 @@ clang_pedantic_task:
     # probably always fail
   allow_failures: true
   skip_notifications: true
-  git_submodule_script:
-    - git submodule init -- opentelemetry-proto
-    - git submodule update -- opentelemetry-proto
-  configure_script:
-    - ./build.sh
-    - clang --version
-    - >
-      ./configure CC=clang CXX=clang++
-      $DEFAULT_CONFIG_OPTS
-      CFLAGS='-gdwarf-4 -Wall
+  env:
+    VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
+    CFLAGS: >-
+      -gdwarf-4
       -Wno-error
+      -Wall
       -Wextra
       -Wformat=2
       -Wformat-security
@@ -37,7 +32,6 @@ clang_pedantic_task:
       -Wmissing-prototypes
       -Wimplicit-function-declaration
       -Wmissing-declarations
-      -Wstrict-prototypes
       -Wmissing-noreturn
       -Wshadow
       -Wendif-labels
@@ -47,11 +41,18 @@ clang_pedantic_task:
       -Wdate-time
       -Wnested-externs
       -Wno-typedef-redefinition
-      -Wno-gnu-variable-sized-type-not-at-end'
+      -Wno-gnu-variable-sized-type-not-at-end
+  git_submodule_script:
+    - git submodule init -- opentelemetry-proto
+    - git submodule update -- opentelemetry-proto
+  configure_script:
+    - ./build.sh
+    - clang --version
+    - ./configure CC=clang CXX=clang++ $DEFAULT_CONFIG_OPTS
   build_script:
-    - make -j$(nproc) -sk
+    - make -j$(nproc) -sk CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check
+    - make -j$(nproc) check CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   always:
     make_check_artifacts:
       path: "**/*.log"
@@ -72,6 +73,7 @@ bleeding_edge_compilers_task:
       CC: clang
       CC: clang-18
       CC: clang-17
+    VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
   git_submodule_script:
     - git submodule init -- opentelemetry-proto
     - git submodule update -- opentelemetry-proto
@@ -85,9 +87,9 @@ bleeding_edge_compilers_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -j$(nproc) -sk
+    - make -j$(nproc) -sk CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check
+    - make -j$(nproc) check CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   always:
     make_check_artifacts:
       path: "**/*.log"
@@ -97,6 +99,8 @@ FreeBSD_task:
     matrix:
       - image_family: freebsd-13-2
   allow_failures: false
+  env:
+    VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
   pkg_install_script:
     - >
       pkg install --yes
@@ -112,9 +116,9 @@ FreeBSD_task:
     - ./build.sh
     - ./configure --disable-perl
   build_script:
-    - make -j$(nproc) -sk
+    - make -j$(nproc) -sk CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   tests_script:
-    - VALGRIND_OPTS="--errors-for-leak-kinds=definite" make -j$(nproc) -sk check
+    - make -j$(nproc) check CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   always:
     make_check_artifacts:
       path: "**/*.log"
@@ -139,9 +143,9 @@ MacOS_task:
     - ./build.sh
     - ./configure ${DEFAULT_CONFIG_OPTS}
   build_script:
-    - make -j "${CIRRUS_CPU}" -sk
+    - make -j "${CIRRUS_CPU}" -sk CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   tests_script:
-    - make -j "${CIRRUS_CPU}" -sk check
+    - make -j "${CIRRUS_CPU}" -sk check CFLAGS="${CFLAGS} -Werror=strict-prototypes"
   always:
     make_check_artifacts:
       path: "**/*.log"
