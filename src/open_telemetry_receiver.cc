@@ -134,9 +134,6 @@ static grpc::Status unmarshal_data_point(NumberDataPoint dp,
       .time = NS_TO_CDTIME_T(dp.time_unix_nano()),
   };
 
-  bool is_cumulative = (agg == AGGREGATION_TEMPORALITY_DELTA ||
-                        agg == AGGREGATION_TEMPORALITY_CUMULATIVE);
-
   value_t offset = {0};
   if (agg == AGGREGATION_TEMPORALITY_DELTA) {
     int err = uc_get_value(&m, &offset);
@@ -155,19 +152,24 @@ static grpc::Status unmarshal_data_point(NumberDataPoint dp,
 
   switch (dp.value_case()) {
   case NumberDataPoint::kAsDouble:
-    if (is_cumulative) {
-      fam->type = METRIC_TYPE_FPCOUNTER;
-      m.value.fpcounter = dp.as_double();
-      break;
+    if (fam->type == METRIC_TYPE_COUNTER) {
+      fam->type = METRIC_TYPE_COUNTER_FP;
+      m.value.counter_fp = offset.counter_fp + dp.as_double();
+    } else if (fam->type == METRIC_TYPE_UP_DOWN) {
+      fam->type = METRIC_TYPE_UP_DOWN_FP;
+      m.value.up_down_fp = offset.up_down_fp + dp.as_double();
+    } else if (fam->type == METRIC_TYPE_GAUGE) {
+      m.value.gauge = dp.as_double();
     }
-    m.value.gauge = dp.as_double();
     break;
   case NumberDataPoint::kAsInt:
-    if (is_cumulative) {
-      m.value.counter = offset.counter + (counter_t)dp.as_int();
-      break;
+    if (fam->type == METRIC_TYPE_COUNTER) {
+      m.value.counter = offset.counter + (uint64_t)dp.as_int();
+    } else if (fam->type == METRIC_TYPE_UP_DOWN) {
+      m.value.up_down = offset.up_down + dp.as_int();
+    } else if (fam->type == METRIC_TYPE_GAUGE) {
+      m.value.gauge = (double)dp.as_int();
     }
-    m.value.gauge = (gauge_t)dp.as_int();
     break;
   default:
     return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
@@ -192,9 +194,11 @@ static grpc::Status unmarshal_data_point(NumberDataPoint dp,
 }
 
 static grpc::Status unmarshal_gauge_metric(Gauge g, metric_family_t *fam) {
-  for (auto db : g.data_points()) {
+  fam->type = METRIC_TYPE_GAUGE;
+
+  for (auto dp : g.data_points()) {
     grpc::Status s =
-        unmarshal_data_point(db, fam, AGGREGATION_TEMPORALITY_UNSPECIFIED);
+        unmarshal_data_point(dp, fam, AGGREGATION_TEMPORALITY_UNSPECIFIED);
     if (!s.ok()) {
       return s;
     }
@@ -204,18 +208,14 @@ static grpc::Status unmarshal_gauge_metric(Gauge g, metric_family_t *fam) {
 }
 
 static grpc::Status unmarshal_sum_metric(Sum sum, metric_family_t *fam) {
-  if (!sum.is_monotonic()) {
-    // TODO(octo): convert to gauge instead?
-    DEBUG("open_telemetry plugin: non-monotonic sums (aka. UpDownCounters) "
-          "are unsupported");
-    return grpc::Status(
-        grpc::StatusCode::UNIMPLEMENTED,
-        "non-monotonic sums (aka. UpDownCounters) are unsupported");
+  fam->type = METRIC_TYPE_UP_DOWN;
+  if (sum.is_monotonic()) {
+    fam->type = METRIC_TYPE_COUNTER;
   }
 
-  for (auto db : sum.data_points()) {
+  for (auto dp : sum.data_points()) {
     grpc::Status s =
-        unmarshal_data_point(db, fam, sum.aggregation_temporality());
+        unmarshal_data_point(dp, fam, sum.aggregation_temporality());
     if (!s.ok()) {
       return s;
     }
@@ -250,7 +250,6 @@ static grpc::Status dispatch_metric(Metric mpb, label_set_t resource,
 
   switch (mpb.data_case()) {
   case Metric::kGauge: {
-    fam.type = METRIC_TYPE_GAUGE;
     grpc::Status s = unmarshal_gauge_metric(mpb.gauge(), &fam);
     if (!s.ok()) {
       metric_family_metric_reset(&fam);
@@ -260,7 +259,6 @@ static grpc::Status dispatch_metric(Metric mpb, label_set_t resource,
     break;
   }
   case Metric::kSum: {
-    fam.type = METRIC_TYPE_COUNTER;
     grpc::Status s = unmarshal_sum_metric(mpb.sum(), &fam);
     if (!s.ok()) {
       metric_family_metric_reset(&fam);

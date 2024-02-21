@@ -161,7 +161,7 @@ static int df_read(void) {
   metric_family_t fam_usage = {
       .name = "system.filesystem.usage",
       .unit = "By",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
   };
   metric_family_t fam_utilization = {
       .name = "system.filesystem.utilization",
@@ -171,7 +171,7 @@ static int df_read(void) {
   metric_family_t fam_inode_usage = {
       .name = "system.filesystem.inodes.usage",
       .unit = "{inode}",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
   };
   metric_family_t fam_inode_utilization = {
       .name = "system.filesystem.inodes.utilization",
@@ -215,7 +215,7 @@ static int df_read(void) {
     if (!statbuf.f_blocks)
       continue;
 
-    gauge_t blocksize = (gauge_t)BLOCKSIZE(statbuf);
+    int64_t blocksize = (int64_t)BLOCKSIZE(statbuf);
 
 /*
  * Sanity-check for the values in the struct
@@ -240,9 +240,9 @@ static int df_read(void) {
     if (statbuf.f_blocks < statbuf.f_bfree)
       statbuf.f_blocks = statbuf.f_bfree;
 
-    gauge_t blk_free = (gauge_t)statbuf.f_bavail;
-    gauge_t blk_reserved = (gauge_t)(statbuf.f_bfree - statbuf.f_bavail);
-    gauge_t blk_used = (gauge_t)(statbuf.f_blocks - statbuf.f_bfree);
+    int64_t blk_free = (int64_t)statbuf.f_bavail;
+    int64_t blk_reserved = (int64_t)(statbuf.f_bfree - statbuf.f_bavail);
+    int64_t blk_used = (int64_t)(statbuf.f_blocks - statbuf.f_bfree);
 
     bool read_only = (statbuf.f_flag & ST_RDONLY) != 0;
 
@@ -254,13 +254,13 @@ static int df_read(void) {
 
     if (report_usage) {
       metric_family_append(&fam_usage, state_label, state_used,
-                           (value_t){.gauge = blk_used * blocksize}, &m);
+                           (value_t){.up_down = blk_used * blocksize}, &m);
 
       metric_family_append(&fam_usage, state_label, state_free,
-                           (value_t){.gauge = blk_free * blocksize}, &m);
+                           (value_t){.up_down = blk_free * blocksize}, &m);
 
       metric_family_append(&fam_usage, state_label, state_reserved,
-                           (value_t){.gauge = blk_reserved * blocksize}, &m);
+                           (value_t){.up_down = blk_reserved * blocksize}, &m);
     }
 
     if (report_utilization) {
@@ -268,13 +268,13 @@ static int df_read(void) {
       gauge_t f = 1.0 / (gauge_t)statbuf.f_blocks;
 
       metric_family_append(&fam_utilization, state_label, state_used,
-                           (value_t){.gauge = blk_used * f}, &m);
+                           (value_t){.gauge = ((gauge_t)blk_used) * f}, &m);
 
       metric_family_append(&fam_utilization, state_label, state_free,
-                           (value_t){.gauge = blk_free * f}, &m);
+                           (value_t){.gauge = ((gauge_t)blk_free) * f}, &m);
 
       metric_family_append(&fam_utilization, state_label, state_reserved,
-                           (value_t){.gauge = blk_reserved * f}, &m);
+                           (value_t){.gauge = ((gauge_t)blk_reserved) * f}, &m);
     }
 
     /* inode handling */
@@ -285,23 +285,25 @@ static int df_read(void) {
       if (statbuf.f_files < statbuf.f_ffree)
         statbuf.f_files = statbuf.f_ffree;
 
-      gauge_t inode_free = (gauge_t)statbuf.f_favail;
-      gauge_t inode_reserved = (gauge_t)(statbuf.f_ffree - statbuf.f_favail);
-      gauge_t inode_used = (gauge_t)(statbuf.f_files - statbuf.f_ffree);
+      int64_t inode_free = (int64_t)statbuf.f_favail;
+      int64_t inode_reserved = (int64_t)(statbuf.f_ffree - statbuf.f_favail);
+      int64_t inode_used = (int64_t)(statbuf.f_files - statbuf.f_ffree);
 
       if (report_utilization) {
         if (statbuf.f_files > 0) {
           gauge_t f = 1.0 / (gauge_t)statbuf.f_files;
 
           metric_family_append(&fam_inode_utilization, state_label, state_used,
-                               (value_t){.gauge = inode_used * f}, &m);
+                               (value_t){.gauge = ((gauge_t)inode_used) * f},
+                               &m);
 
           metric_family_append(&fam_inode_utilization, state_label, state_free,
-                               (value_t){.gauge = inode_free * f}, &m);
+                               (value_t){.gauge = ((gauge_t)inode_free) * f},
+                               &m);
 
-          metric_family_append(&fam_inode_utilization, state_label,
-                               state_reserved,
-                               (value_t){.gauge = inode_reserved * f}, &m);
+          metric_family_append(
+              &fam_inode_utilization, state_label, state_reserved,
+              (value_t){.gauge = ((gauge_t)inode_reserved) * f}, &m);
         } else {
           metric_reset(&m);
           retval = -1;
@@ -310,13 +312,13 @@ static int df_read(void) {
       }
       if (report_usage) {
         metric_family_append(&fam_inode_usage, state_label, state_used,
-                             (value_t){.gauge = inode_used}, &m);
+                             (value_t){.up_down = inode_used}, &m);
 
         metric_family_append(&fam_inode_usage, state_label, state_free,
-                             (value_t){.gauge = inode_free}, &m);
+                             (value_t){.up_down = inode_free}, &m);
 
         metric_family_append(&fam_inode_usage, state_label, state_reserved,
-                             (value_t){.gauge = inode_reserved}, &m);
+                             (value_t){.up_down = inode_reserved}, &m);
       }
     }
 

@@ -77,7 +77,7 @@ typedef struct {
 } uc_first_metric_result_t;
 
 /* uc_first_metric returns the first observed metric value and time.
- * For cumulative metrics (METRIC_TYPE_COUNTER and METRIC_TYPE_FPCOUNTER),
+ * For cumulative metrics (METRIC_TYPE_COUNTER and METRIC_TYPE_COUNTER_FP),
  * counter resets and counter overflows will reset the value. */
 uc_first_metric_result_t uc_first_metric(metric_t const *m);
 

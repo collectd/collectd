@@ -92,17 +92,25 @@ static int number_data_point(yajl_gen g, metric_t const *m) {
   CHECK(yajl_gen_integer(g, CDTIME_T_TO_NS(m->time)));
 
   switch (m->family->type) {
-  case METRIC_TYPE_COUNTER:
-    CHECK(json_add_string(g, "asInt"));
-    CHECK(yajl_gen_integer(g, m->value.counter));
-    break;
-  case METRIC_TYPE_FPCOUNTER:
-    CHECK(json_add_string(g, "asDouble"));
-    CHECK(yajl_gen_double(g, m->value.fpcounter));
-    break;
   case METRIC_TYPE_GAUGE:
     CHECK(json_add_string(g, "asDouble"));
     CHECK(yajl_gen_double(g, m->value.gauge));
+    break;
+  case METRIC_TYPE_COUNTER:
+    CHECK(json_add_string(g, "asInt"));
+    CHECK(yajl_gen_integer(g, (long long int)m->value.counter));
+    break;
+  case METRIC_TYPE_COUNTER_FP:
+    CHECK(json_add_string(g, "asDouble"));
+    CHECK(yajl_gen_double(g, m->value.counter_fp));
+    break;
+  case METRIC_TYPE_UP_DOWN:
+    CHECK(json_add_string(g, "asInt"));
+    CHECK(yajl_gen_integer(g, (long long int)m->value.up_down));
+    break;
+  case METRIC_TYPE_UP_DOWN_FP:
+    CHECK(json_add_string(g, "asDouble"));
+    CHECK(yajl_gen_integer(g, m->value.up_down_fp));
     break;
   case METRIC_TYPE_UNTYPED:
     ERROR("format_json_open_telemetry: Unexpected metric type: %d",
@@ -166,14 +174,16 @@ static int metric(yajl_gen g, metric_family_t const *fam) {
   }
 
   switch (fam->type) {
-  case METRIC_TYPE_COUNTER:
-  case METRIC_TYPE_FPCOUNTER:
-    CHECK(json_add_string(g, "sum"));
-    CHECK(sum(g, fam));
-    break;
   case METRIC_TYPE_GAUGE:
     CHECK(json_add_string(g, "gauge"));
     CHECK(gauge(g, fam));
+    break;
+  case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN:
+  case METRIC_TYPE_UP_DOWN_FP:
+    CHECK(json_add_string(g, "sum"));
+    CHECK(sum(g, fam));
     break;
   case METRIC_TYPE_UNTYPED:
     ERROR("format_json_open_telemetry: Unexpected metric type: %d", fam->type);

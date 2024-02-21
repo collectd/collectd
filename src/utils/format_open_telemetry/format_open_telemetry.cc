@@ -67,12 +67,20 @@ static void metric_to_number_data_point(NumberDataPoint *dp,
 
   // A valid metric type is guaranteed by add_metric().
   switch (m->family->type) {
-  case METRIC_TYPE_COUNTER:
-    dp->set_as_int(m->value.derive);
-    return;
   case METRIC_TYPE_GAUGE:
-  case METRIC_TYPE_FPCOUNTER:
     dp->set_as_double(m->value.gauge);
+    return;
+  case METRIC_TYPE_COUNTER:
+    dp->set_as_int((int64_t)m->value.counter);
+    return;
+  case METRIC_TYPE_UP_DOWN:
+    dp->set_as_int((int64_t)m->value.up_down);
+    return;
+  case METRIC_TYPE_COUNTER_FP:
+    dp->set_as_double(m->value.counter_fp);
+    return;
+  case METRIC_TYPE_UP_DOWN_FP:
+    dp->set_as_double(m->value.up_down_fp);
     return;
   case METRIC_TYPE_UNTYPED:
     // Fall through. This case signals the compiler that we're checking all
@@ -94,7 +102,7 @@ static void set_sum(Metric *m, metric_family_t const *fam) {
   }
 
   s->set_aggregation_temporality(AGGREGATION_TEMPORALITY_CUMULATIVE);
-  s->set_is_monotonic(true);
+  s->set_is_monotonic(IS_MONOTONIC(fam->type));
 }
 
 static void set_gauge(Metric *m, metric_family_t const *fam) {
@@ -125,12 +133,14 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
   }
 
   switch (fam->type) {
-  case METRIC_TYPE_COUNTER:
-  case METRIC_TYPE_FPCOUNTER:
-    set_sum(m, fam);
-    return;
   case METRIC_TYPE_GAUGE:
     set_gauge(m, fam);
+    return;
+  case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN:
+  case METRIC_TYPE_UP_DOWN_FP:
+    set_sum(m, fam);
     return;
   case METRIC_TYPE_UNTYPED:
     // Never reached, only here to show the compiler we're handling all possible

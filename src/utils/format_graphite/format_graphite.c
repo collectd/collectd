@@ -44,27 +44,10 @@ static int format_double(strbuf_t *buf, double d) {
 
 static int gr_format_values(strbuf_t *buf, metric_t const *m, gauge_t rate,
                             bool store_rate) {
-  if (m->family->type == METRIC_TYPE_GAUGE) {
-    rate = m->value.gauge;
-  }
-
   if (store_rate) {
     return format_double(buf, rate);
   }
-
-  switch (m->family->type) {
-  case METRIC_TYPE_COUNTER:
-    return strbuf_printf(buf, "%" PRIu64, m->value.counter);
-  case METRIC_TYPE_FPCOUNTER:
-    return format_double(buf, m->value.fpcounter);
-  case METRIC_TYPE_GAUGE:
-    return format_double(buf, m->value.gauge);
-  case METRIC_TYPE_UNTYPED:
-    break;
-  }
-
-  P_ERROR("gr_format_values: Unknown data source type: %d", m->family->type);
-  return EINVAL;
+  return value_marshal_text(buf, m->value, m->family->type);
 }
 
 static int graphite_print_escaped(strbuf_t *buf, char const *s,

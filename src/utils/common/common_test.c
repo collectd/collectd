@@ -360,17 +360,17 @@ DEF_TEST(rate_to_value) {
           .want_residual = 0.001,
       },
       {
-          .name = "fpcounter",
+          .name = "counter_fp",
           .rate = 1.234,
           .state =
               {
-                  .last_value = {.fpcounter = 1000},
+                  .last_value = {.counter_fp = 1000},
                   .last_time = TIME_T_TO_CDTIME_T(10),
                   .residual = 0,
               },
-          .type = METRIC_TYPE_FPCOUNTER,
+          .type = METRIC_TYPE_COUNTER_FP,
           .time = TIME_T_TO_CDTIME_T(20),
-          .want = {.fpcounter = 1012.34},
+          .want = {.counter_fp = 1012.34},
       },
       {
           .name = "derive",
@@ -436,17 +436,25 @@ DEF_TEST(rate_to_value) {
     }
 
     switch (cases[i].type) {
-    case METRIC_TYPE_COUNTER:
-      EXPECT_EQ_UINT64(cases[i].want.counter, got.counter);
-      EXPECT_EQ_UINT64(cases[i].want.counter, state.last_value.counter);
-      break;
     case METRIC_TYPE_GAUGE:
       EXPECT_EQ_DOUBLE(cases[i].want.gauge, got.gauge);
       EXPECT_EQ_DOUBLE(cases[i].want.gauge, state.last_value.gauge);
       break;
-    case METRIC_TYPE_FPCOUNTER:
-      EXPECT_EQ_DOUBLE(cases[i].want.fpcounter, got.fpcounter);
-      EXPECT_EQ_UINT64(cases[i].want.fpcounter, state.last_value.fpcounter);
+    case METRIC_TYPE_COUNTER:
+      EXPECT_EQ_UINT64(cases[i].want.counter, got.counter);
+      EXPECT_EQ_UINT64(cases[i].want.counter, state.last_value.counter);
+      break;
+    case METRIC_TYPE_COUNTER_FP:
+      EXPECT_EQ_DOUBLE(cases[i].want.counter_fp, got.counter_fp);
+      EXPECT_EQ_UINT64(cases[i].want.counter_fp, state.last_value.counter_fp);
+      break;
+    case METRIC_TYPE_UP_DOWN:
+      EXPECT_EQ_UINT64(cases[i].want.up_down, got.up_down);
+      EXPECT_EQ_UINT64(cases[i].want.up_down, state.last_value.up_down);
+      break;
+    case METRIC_TYPE_UP_DOWN_FP:
+      EXPECT_EQ_DOUBLE(cases[i].want.up_down_fp, got.up_down_fp);
+      EXPECT_EQ_UINT64(cases[i].want.up_down_fp, state.last_value.up_down_fp);
       break;
     case METRIC_TYPE_UNTYPED:
       LOG(false, "invalid metric type");
@@ -535,30 +543,30 @@ DEF_TEST(value_to_rate) {
           .want = 10.0,
       },
       {
-          .name = "fpcounter_t init",
+          .name = "counter_fp init",
           .t0 = 0,
           .t1 = 10,
-          .type = METRIC_TYPE_FPCOUNTER,
-          .v0 = {.fpcounter = 0.},
-          .v1 = {.fpcounter = 10.},
+          .type = METRIC_TYPE_COUNTER_FP,
+          .v0 = {.counter_fp = 0.},
+          .v1 = {.counter_fp = 10.},
           .want_err = EAGAIN,
       },
       {
-          .name = "fpcounter_t increase",
+          .name = "counter_fp increase",
           .t0 = 10,
           .t1 = 20,
-          .type = METRIC_TYPE_FPCOUNTER,
-          .v0 = {.fpcounter = 10.},
-          .v1 = {.fpcounter = 50.5},
+          .type = METRIC_TYPE_COUNTER_FP,
+          .v0 = {.counter_fp = 10.},
+          .v1 = {.counter_fp = 50.5},
           .want = (50.5 - 10.) / (20. - 10.),
       },
       {
-          .name = "fpcounter_t reset",
+          .name = "counter_fp reset",
           .t0 = 20,
           .t1 = 30,
-          .type = METRIC_TYPE_FPCOUNTER,
-          .v0 = {.fpcounter = 100.0},
-          .v1 = {.fpcounter = 20.0},
+          .type = METRIC_TYPE_COUNTER_FP,
+          .v0 = {.counter_fp = 100.0},
+          .v1 = {.counter_fp = 20.0},
           .want_err = EAGAIN,
       },
   };

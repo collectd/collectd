@@ -341,13 +341,13 @@ int format_name(char *ret, int ret_len, const char *hostname,
               (vl)->type, (vl)->type_instance)
 int format_values(strbuf_t *buf, metric_t const *m, bool store_rates);
 
-int parse_value(const char *value, value_t *ret_value, int ds_type);
+int parse_value(const char *value, value_t *ret_value, metric_type_t type);
 
 /* parse_value_file reads "path" and parses its content as an integer or
  * floating point, depending on "ds_type". On success, the value is stored in
  * "ret_value" and zero is returned. On failure, a non-zero value is returned.
  */
-int parse_value_file(char const *path, value_t *ret_value, int ds_type);
+int parse_value_file(char const *path, value_t *ret_value, metric_type_t type);
 
 #if !HAVE_GETPWNAM_R
 struct passwd;

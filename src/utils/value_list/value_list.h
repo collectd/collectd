@@ -34,7 +34,7 @@
 
 #define DS_TYPE_COUNTER METRIC_TYPE_COUNTER
 #define DS_TYPE_GAUGE METRIC_TYPE_GAUGE
-#define DS_TYPE_DERIVE (65536 + METRIC_ATTR_CUMULATIVE + 1)
+#define DS_TYPE_DERIVE METRIC_TYPE_UP_DOWN
 
 #define DS_TYPE_TO_STRING(t)                                                   \
   (t == DS_TYPE_COUNTER)  ? "counter"                                          \

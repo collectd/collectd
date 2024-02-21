@@ -65,7 +65,7 @@ DEF_TEST(format_metric_family_name) {
   } cases[] = {
       {
           .name = "(lambda).function.executions(#)",
-          .type = METRIC_TYPE_UNTYPED,
+          .type = METRIC_TYPE_GAUGE,
           .want = "lambda_function_executions",
       },
       {
@@ -203,7 +203,7 @@ DEF_TEST(format_metric_family) {
           .pfam =
               {
                   .name = "unit.test",
-                  .type = METRIC_TYPE_UNTYPED,
+                  .type = METRIC_TYPE_GAUGE,
                   .metrics =
                       &(prometheus_metric_t){
                           .label =
@@ -223,7 +223,7 @@ DEF_TEST(format_metric_family) {
                   .metrics_num = 1,
               },
           .want = "# HELP unit_test\n"
-                  "# TYPE unit_test untyped\n"
+                  "# TYPE unit_test gauge\n"
                   "unit_test{job=\"example.com\",instance=\"\",metric_name="
                   "\"unit.test\"} 42\n"
                   "\n",
@@ -233,7 +233,7 @@ DEF_TEST(format_metric_family) {
           .pfam =
               {
                   .name = "unit.test",
-                  .type = METRIC_TYPE_UNTYPED,
+                  .type = METRIC_TYPE_GAUGE,
                   .metrics =
                       &(prometheus_metric_t){
                           .resource =
@@ -256,17 +256,67 @@ DEF_TEST(format_metric_family) {
                                       },
                                   .num = 1,
                               },
-                          .value =
-                              (value_t){
-                                  .gauge = 42,
-                              },
+                          .value.gauge = 42,
+                      },
+                  .metrics_num = 1,
+              },
+          // clang-format off
+          .want =
+            "# HELP unit_test\n"
+            "# TYPE unit_test gauge\n"
+            "unit_test{job=\"service name\",instance=\"service instance id\",metric_name=\"unit.test\"} 42\n"
+            "\n",
+          // clang-format on
+      },
+      {
+          .name = "METRIC_TYPE_COUNTER_FP",
+          .pfam =
+              {
+                  .name = "unit_test",
+                  .type = METRIC_TYPE_COUNTER_FP,
+                  .metrics =
+                      (prometheus_metric_t[]){
+                          {.value.counter_fp = 42.0},
+                      },
+                  .metrics_num = 1,
+              },
+          .want = "# HELP unit_test_total\n"
+                  "# TYPE unit_test_total counter\n"
+                  "unit_test_total{job=\"example.com\",instance=\"\"} 42\n"
+                  "\n",
+      },
+      {
+          .name = "METRIC_TYPE_UP_DOWN",
+          .pfam =
+              {
+                  .name = "unit_test",
+                  .type = METRIC_TYPE_UP_DOWN,
+                  .metrics =
+                      (prometheus_metric_t[]){
+                          {.value.up_down = 42},
                       },
                   .metrics_num = 1,
               },
           .want = "# HELP unit_test\n"
-                  "# TYPE unit_test untyped\n"
-                  "unit_test{job=\"service name\",instance=\"service instance "
-                  "id\",metric_name=\"unit.test\"} 42\n"
+                  "# TYPE unit_test gauge\n"
+                  "unit_test{job=\"example.com\",instance=\"\"} 42\n"
+                  "\n",
+      },
+      {
+          .name = "METRIC_TYPE_UP_DOWN_FP",
+          .pfam =
+              {
+                  .name = "unit_test",
+                  .type = METRIC_TYPE_UP_DOWN_FP,
+                  .metrics =
+                      (prometheus_metric_t[]){
+                          {.value.up_down_fp = 42.0},
+                      },
+                  .metrics_num = 1,
+              },
+          .want = "# HELP unit_test\n"
+                  "# TYPE unit_test gauge\n"
+                  "unit_test{job=\"example.com\",instance=\"\"} 42\n"
                   "\n",
       },
   };

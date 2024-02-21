@@ -114,11 +114,17 @@ static int json_add_value(yajl_gen g, metric_t const *m,
     }
     return 0;
   }
-  case METRIC_TYPE_FPCOUNTER:
-    CHECK(yajl_gen_double(g, m->value.fpcounter));
-    return 0;
   case METRIC_TYPE_COUNTER:
     CHECK(yajl_gen_integer(g, (long long int)m->value.counter));
+    return 0;
+  case METRIC_TYPE_COUNTER_FP:
+    CHECK(yajl_gen_double(g, m->value.counter_fp));
+    return 0;
+  case METRIC_TYPE_UP_DOWN:
+    CHECK(yajl_gen_integer(g, (long long int)m->value.up_down));
+    return 0;
+  case METRIC_TYPE_UP_DOWN_FP:
+    CHECK(yajl_gen_double(g, m->value.up_down_fp));
     return 0;
   case METRIC_TYPE_UNTYPED:
     break;

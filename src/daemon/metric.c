@@ -52,14 +52,26 @@
 int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
   switch (type) {
   case METRIC_TYPE_GAUGE:
-  case METRIC_TYPE_FPCOUNTER:
+    if (isnan(v.gauge)) {
+      return strbuf_print(buf, "nan");
+    }
     return strbuf_printf(buf, GAUGE_FORMAT, v.gauge);
   case METRIC_TYPE_COUNTER:
     return strbuf_printf(buf, "%" PRIu64, v.counter);
-  default:
-    ERROR("Unknown metric value type: %d", (int)type);
-    return EINVAL;
+  case METRIC_TYPE_COUNTER_FP:
+    return strbuf_printf(buf, GAUGE_FORMAT, v.counter_fp);
+  case METRIC_TYPE_UP_DOWN:
+    return strbuf_printf(buf, "%" PRId64, v.up_down);
+  case METRIC_TYPE_UP_DOWN_FP:
+    if (isnan(v.up_down_fp)) {
+      return strbuf_print(buf, "nan");
+    }
+    return strbuf_printf(buf, GAUGE_FORMAT, v.up_down_fp);
+  case METRIC_TYPE_UNTYPED:
+    break;
   }
+  ERROR("Unknown metric value type: %d", (int)type);
+  return EINVAL;
 }
 
 static int label_name_compare(void const *a, void const *b) {

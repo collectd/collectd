@@ -139,7 +139,7 @@ typedef struct {
 
   /* count is a scaled counter, so that all states in sum increase by 1000000
    * per second. */
-  fpcounter_t count;
+  double count;
   bool has_count;
   rate_to_value_state_t to_count;
 } usage_state_t;
@@ -488,9 +488,9 @@ static void usage_finalize(usage_t *u) {
       gauge_t ratio = us->rate / cpu_rate;
       value_t v = {0};
       int status = rate_to_value(&v, ratio, &us->to_count,
-                                 METRIC_TYPE_FPCOUNTER, u->time);
+                                 METRIC_TYPE_COUNTER_FP, u->time);
       if (status == 0) {
-        us->count = v.fpcounter;
+        us->count = v.counter_fp;
         us->has_count = true;
       }
 
@@ -504,16 +504,16 @@ static void usage_finalize(usage_t *u) {
     us->count = NAN;
     if (!us->has_rate) {
       /* Ensure that us->to_count is initialized. */
-      rate_to_value(&(value_t){0}, 0.0, &us->to_count, METRIC_TYPE_FPCOUNTER,
+      rate_to_value(&(value_t){0}, 0.0, &us->to_count, METRIC_TYPE_COUNTER_FP,
                     u->time);
       continue;
     }
 
     value_t v = {0};
     int status = rate_to_value(&v, state_ratio[s], &us->to_count,
-                               METRIC_TYPE_FPCOUNTER, u->time);
+                               METRIC_TYPE_COUNTER_FP, u->time);
     if (status == 0) {
-      us->count = v.fpcounter;
+      us->count = v.counter_fp;
       us->has_count = true;
     }
   }
@@ -554,7 +554,7 @@ static gauge_t usage_ratio(usage_t *u, size_t cpu, state_t state) {
   return usage_rate(u, cpu, state) / global_rate;
 }
 
-static fpcounter_t usage_count(usage_t *u, size_t cpu, state_t state) {
+static double usage_count(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
 
   usage_state_t us;
@@ -598,7 +598,7 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
       .name = "system.cpu.time",
       .help = "Microseconds each logical CPU spent in each state",
       .unit = "s",
-      .type = METRIC_TYPE_FPCOUNTER,
+      .type = METRIC_TYPE_COUNTER_FP,
   };
 
   metric_t m = {0};
@@ -610,18 +610,18 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
 
   if (report_by_state) {
     for (state_t state = 0; state < STATE_ACTIVE; state++) {
-      fpcounter_t usage = usage_count(u, cpu_num, state);
+      double usage = usage_count(u, cpu_num, state);
       if (isnan(usage)) {
         continue;
       }
       metric_family_append(&fam, label_state, cpu_state_names[state],
-                           (value_t){.fpcounter = usage}, &m);
+                           (value_t){.counter_fp = usage}, &m);
     }
   } else {
-    fpcounter_t usage = usage_count(u, cpu_num, STATE_ACTIVE);
+    double usage = usage_count(u, cpu_num, STATE_ACTIVE);
     if (!isnan(usage)) {
       metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
-                           (value_t){.fpcounter = usage}, &m);
+                           (value_t){.counter_fp = usage}, &m);
     }
   }
 

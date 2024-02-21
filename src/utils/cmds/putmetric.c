@@ -47,7 +47,11 @@ static int set_option(metric_t *m, char const *key, char const *value,
     } else if (strcasecmp("COUNTER", value) == 0) {
       m->family->type = METRIC_TYPE_COUNTER;
     } else if (strcasecmp("FPCOUNTER", value) == 0) {
-      m->family->type = METRIC_TYPE_FPCOUNTER;
+      m->family->type = METRIC_TYPE_COUNTER_FP;
+    } else if (strcasecmp("UP_DOWN_COUNTER", value) == 0) {
+      m->family->type = METRIC_TYPE_UP_DOWN;
+    } else if (strcasecmp("UP_DOWN_COUNTER_FP", value) == 0) {
+      m->family->type = METRIC_TYPE_UP_DOWN_FP;
     } else {
       return CMD_ERROR;
     }
@@ -247,11 +251,17 @@ int cmd_format_putmetric(strbuf_t *buf, metric_t const *m) { /* {{{ */
   case METRIC_TYPE_COUNTER:
     strbuf_print(buf, " type=COUNTER");
     break;
-  case METRIC_TYPE_FPCOUNTER:
+  case METRIC_TYPE_COUNTER_FP:
     strbuf_print(buf, " type=FPCOUNTER");
     break;
   case METRIC_TYPE_GAUGE:
     strbuf_print(buf, " type=GAUGE");
+    break;
+  case METRIC_TYPE_UP_DOWN:
+    strbuf_print(buf, " type=UP_DOWN_COUNTER");
+    break;
+  case METRIC_TYPE_UP_DOWN_FP:
+    strbuf_print(buf, " type=UP_DOWN_COUNTER_FP");
     break;
   case METRIC_TYPE_UNTYPED:
     /* no op */

@@ -87,22 +87,58 @@ DEF_TEST(uc_get_rate) {
           .want = (23. + 18. + 1.) / (110. - 100.),
       },
       {
-          .name = "fpcounter",
-          .first_value = (value_t){.fpcounter = 4.2},
-          .second_value = (value_t){.fpcounter = 10.2},
+          .name = "counter_fp",
+          .first_value = (value_t){.counter_fp = 4.2},
+          .second_value = (value_t){.counter_fp = 10.2},
           .first_time = TIME_T_TO_CDTIME_T(100),
           .second_time = TIME_T_TO_CDTIME_T(110),
-          .type = METRIC_TYPE_FPCOUNTER,
+          .type = METRIC_TYPE_COUNTER_FP,
           .want = (10.2 - 4.2) / (110 - 100),
       },
       {
-          .name = "fpcounter with reset",
-          .first_value = (value_t){.fpcounter = 100000.0},
-          .second_value = (value_t){.fpcounter = 0.2},
+          .name = "counter_fp with reset",
+          .first_value = (value_t){.counter_fp = 100000.0},
+          .second_value = (value_t){.counter_fp = 0.2},
           .first_time = TIME_T_TO_CDTIME_T(100),
           .second_time = TIME_T_TO_CDTIME_T(110),
-          .type = METRIC_TYPE_FPCOUNTER,
+          .type = METRIC_TYPE_COUNTER_FP,
           .want = NAN,
+      },
+      {
+          .name = "up_down",
+          .first_value = (value_t){.up_down = 10},
+          .second_value = (value_t){.up_down = 20},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_UP_DOWN,
+          .want = 20,
+      },
+      {
+          .name = "decreasing up_down",
+          .first_value = (value_t){.up_down = 1000},
+          .second_value = (value_t){.up_down = 215},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_UP_DOWN,
+          .want = 215,
+      },
+      {
+          .name = "up_down_fp",
+          .first_value = (value_t){.up_down_fp = 1.0},
+          .second_value = (value_t){.up_down_fp = 2.0},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_UP_DOWN_FP,
+          .want = 2.0,
+      },
+      {
+          .name = "decreasing up_down_fp",
+          .first_value = (value_t){.up_down_fp = 100.0},
+          .second_value = (value_t){.up_down_fp = 21.5},
+          .first_time = TIME_T_TO_CDTIME_T(100),
+          .second_time = TIME_T_TO_CDTIME_T(110),
+          .type = METRIC_TYPE_UP_DOWN_FP,
+          .want = 21.5,
       },
   };
 
@@ -130,9 +166,11 @@ DEF_TEST(uc_get_rate) {
     EXPECT_EQ_INT(0, uc_update(&fam));
     gauge_t got = 0;
     EXPECT_EQ_INT(0, uc_get_rate(&m, &got));
-    gauge_t want = NAN;
-    if (fam.type == METRIC_TYPE_GAUGE) {
-      want = cases[i].first_value.gauge;
+    gauge_t want = cases[i].first_value.gauge;
+    if (IS_MONOTONIC(fam.type)) {
+      want = NAN;
+    } else if (fam.type == METRIC_TYPE_UP_DOWN) {
+      want = (gauge_t)cases[i].first_value.up_down;
     }
     EXPECT_EQ_DOUBLE(want, got);
 

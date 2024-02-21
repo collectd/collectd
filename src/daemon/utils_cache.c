@@ -281,6 +281,11 @@ int uc_check_timeout(void) {
 
 static int uc_update_rate(metric_t const *m, cache_entry_t *ce) {
   switch (m->family->type) {
+  case METRIC_TYPE_GAUGE: {
+    ce->values_gauge = m->value.gauge;
+    return 0;
+  }
+
   case METRIC_TYPE_COUNTER: {
     // Counter overflows and counter resets are signaled to plugins by resetting
     // "first_time". Since we can't distinguish between an overflow and a
@@ -297,24 +302,29 @@ static int uc_update_rate(metric_t const *m, cache_entry_t *ce) {
     return 0;
   }
 
-  case METRIC_TYPE_FPCOUNTER: {
+  case METRIC_TYPE_COUNTER_FP: {
     // For floating point counters, the logic is slightly different from
     // integer counters. Floating point counters don't have a (meaningful)
     // overflow, and we will always assume a counter reset.
-    if (ce->last_value.fpcounter > m->value.fpcounter) {
+    if (ce->last_value.counter_fp > m->value.counter_fp) {
       // counter reset
       ce->first_time = m->time;
       ce->first_value = m->value;
       ce->values_gauge = NAN;
       return 0;
     }
-    gauge_t diff = m->value.fpcounter - ce->last_value.fpcounter;
+    gauge_t diff = m->value.counter_fp - ce->last_value.counter_fp;
     ce->values_gauge = diff / CDTIME_T_TO_DOUBLE(m->time - ce->last_time);
     return 0;
   }
 
-  case METRIC_TYPE_GAUGE: {
-    ce->values_gauge = m->value.gauge;
+  case METRIC_TYPE_UP_DOWN: {
+    ce->values_gauge = (gauge_t)m->value.up_down;
+    return 0;
+  }
+
+  case METRIC_TYPE_UP_DOWN_FP: {
+    ce->values_gauge = (gauge_t)m->value.up_down_fp;
     return 0;
   }
 
@@ -465,9 +475,21 @@ int uc_get_rate(metric_t const *m, gauge_t *ret) {
   if (m == NULL || m->family == NULL || ret == NULL) {
     return EINVAL;
   }
-  if (m->family->type == METRIC_TYPE_GAUGE) {
+  switch (m->family->type) {
+  case METRIC_TYPE_GAUGE:
     *ret = m->value.gauge;
     return 0;
+  case METRIC_TYPE_COUNTER:
+  case METRIC_TYPE_COUNTER_FP:
+    break;
+  case METRIC_TYPE_UP_DOWN:
+    *ret = (gauge_t)m->value.up_down;
+    return 0;
+  case METRIC_TYPE_UP_DOWN_FP:
+    *ret = (gauge_t)m->value.up_down_fp;
+    return 0;
+  case METRIC_TYPE_UNTYPED:
+    return EINVAL;
   }
 
   strbuf_t buf = STRBUF_CREATE;
