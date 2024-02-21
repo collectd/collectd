@@ -134,6 +134,8 @@ DEF_TEST(format_metric_family_name) {
 }
 
 DEF_TEST(format_metric_family) {
+  hostname_set("example.com");
+
   struct {
     char const *name;
     prometheus_metric_family_t pfam;
@@ -164,7 +166,7 @@ DEF_TEST(format_metric_family) {
               },
           .want = "# HELP unit_test_total\n"
                   "# TYPE unit_test_total counter\n"
-                  "unit_test_total 42\n"
+                  "unit_test_total{job=\"example.com\",instance=\"\"} 42\n"
                   "\n",
       },
       {
@@ -193,7 +195,7 @@ DEF_TEST(format_metric_family) {
               },
           .want = "# HELP unittest\n"
                   "# TYPE unittest gauge\n"
-                  "unittest{foo=\"bar\"} 42\n"
+                  "unittest{job=\"example.com\",instance=\"\",foo=\"bar\"} 42\n"
                   "\n",
       },
       {
@@ -222,7 +224,8 @@ DEF_TEST(format_metric_family) {
               },
           .want = "# HELP unit_test\n"
                   "# TYPE unit_test untyped\n"
-                  "unit_test{metric_name=\"unit.test\"} 42\n"
+                  "unit_test{job=\"example.com\",instance=\"\",metric_name="
+                  "\"unit.test\"} 42\n"
                   "\n",
       },
       {
@@ -282,6 +285,8 @@ DEF_TEST(format_metric_family) {
 }
 
 DEF_TEST(target_info) {
+  hostname_set("example.com");
+
   struct {
     char const *name;
     label_set_t *resources;
@@ -300,7 +305,8 @@ DEF_TEST(target_info) {
           .resources_num = 1,
           .want = "# HELP target_info Target metadata\n"
                   "# TYPE target_info gauge\n"
-                  "target_info{foo=\"bar\"} 1\n\n",
+                  "target_info{job=\"example.com\",instance=\"\",foo=\"bar\"} "
+                  "1\n\n",
       },
       {
           .name = "identical resources get deduplicated",
@@ -318,7 +324,8 @@ DEF_TEST(target_info) {
           .resources_num = 2,
           .want = "# HELP target_info Target metadata\n"
                   "# TYPE target_info gauge\n"
-                  "target_info{foo=\"bar\"} 1\n\n",
+                  "target_info{job=\"example.com\",instance=\"\",foo=\"bar\"} "
+                  "1\n\n",
       },
       {
           .name = "service.name gets translated to job",
@@ -332,7 +339,7 @@ DEF_TEST(target_info) {
           .resources_num = 1,
           .want = "# HELP target_info Target metadata\n"
                   "# TYPE target_info gauge\n"
-                  "target_info{job=\"unittest\"} 1\n\n",
+                  "target_info{job=\"unittest\",instance=\"\"} 1\n\n",
       },
       {
           .name = "service.instance.id gets translated to instance",
@@ -346,7 +353,7 @@ DEF_TEST(target_info) {
           .resources_num = 1,
           .want = "# HELP target_info Target metadata\n"
                   "# TYPE target_info gauge\n"
-                  "target_info{instance=\"42\"} 1\n\n",
+                  "target_info{job=\"example.com\",instance=\"42\"} 1\n\n",
       },
       {
           .name = "multiple resources",
@@ -589,6 +596,44 @@ DEF_TEST(end_to_end) {
 	    "# TYPE unit_test_total counter\n"
 	    "unit_test_total{job=\"name1\",instance=\"instance2\"} 23\n"
 	    "unit_test_total{job=\"name1\",instance=\"instance1\"} 42\n"
+	    "\n"
+	    "# collectd/write_prometheus " PACKAGE_VERSION " at example.com\n",
+          // clang-format on
+      },
+      {
+          .name = "job defaults to hostname_g, instance defaults to an empty "
+                  "string",
+          .fams =
+              &(metric_family_t){
+                  .name = "unit.test",
+                  .type = METRIC_TYPE_GAUGE,
+                  .resource =
+                      {
+                          .ptr =
+                              (label_pair_t[]){
+                                  {"host.name", "example.org"},
+                              },
+                          .num = 1,
+                      },
+                  .metric =
+                      {
+                          .ptr =
+                              &(metric_t){
+                                  .value.gauge = 42,
+                              },
+                          .num = 1,
+                      },
+              },
+          .fams_num = 1,
+          // clang-format off
+          .want =
+            "# HELP target_info Target metadata\n"
+	    "# TYPE target_info gauge\n"
+	    "target_info{job=\"example.com\",instance=\"\",host_name=\"example.org\"} 1\n"
+	    "\n"
+	    "# HELP unit_test\n"
+	    "# TYPE unit_test gauge\n"
+	    "unit_test{job=\"example.com\",instance=\"\"} 42\n"
 	    "\n"
 	    "# collectd/write_prometheus " PACKAGE_VERSION " at example.com\n",
           // clang-format on
