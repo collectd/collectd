@@ -159,7 +159,7 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
     /* Counter resets are handled in format_time_series(). */
     assert(m->value.counter_fp >= start_value.counter_fp);
 
-    fpcounter_t diff = m->value.counter_fp - start_value.counter_fp;
+    double diff = m->value.counter_fp - start_value.counter_fp;
     int status = json_string(gen, "doubleValue") || yajl_gen_double(gen, diff);
     if (status != 0) {
       return status;

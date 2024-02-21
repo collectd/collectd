@@ -139,7 +139,7 @@ typedef struct {
 
   /* count is a scaled counter, so that all states in sum increase by 1000000
    * per second. */
-  fpcounter_t count;
+  double count;
   bool has_count;
   rate_to_value_state_t to_count;
 } usage_state_t;
@@ -554,7 +554,7 @@ static gauge_t usage_ratio(usage_t *u, size_t cpu, state_t state) {
   return usage_rate(u, cpu, state) / global_rate;
 }
 
-static fpcounter_t usage_count(usage_t *u, size_t cpu, state_t state) {
+static double usage_count(usage_t *u, size_t cpu, state_t state) {
   usage_finalize(u);
 
   usage_state_t us;
@@ -610,7 +610,7 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
 
   if (report_by_state) {
     for (state_t state = 0; state < STATE_ACTIVE; state++) {
-      fpcounter_t usage = usage_count(u, cpu_num, state);
+      double usage = usage_count(u, cpu_num, state);
       if (isnan(usage)) {
         continue;
       }
@@ -618,7 +618,7 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
                            (value_t){.counter_fp = usage}, &m);
     }
   } else {
-    fpcounter_t usage = usage_count(u, cpu_num, STATE_ACTIVE);
+    double usage = usage_count(u, cpu_num, STATE_ACTIVE);
     if (!isnan(usage)) {
       metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
                            (value_t){.counter_fp = usage}, &m);

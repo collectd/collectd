@@ -543,7 +543,7 @@ DEF_TEST(value_to_rate) {
           .want = 10.0,
       },
       {
-          .name = "fpcounter_t init",
+          .name = "double init",
           .t0 = 0,
           .t1 = 10,
           .type = METRIC_TYPE_COUNTER_FP,
@@ -552,7 +552,7 @@ DEF_TEST(value_to_rate) {
           .want_err = EAGAIN,
       },
       {
-          .name = "fpcounter_t increase",
+          .name = "double increase",
           .t0 = 10,
           .t1 = 20,
           .type = METRIC_TYPE_COUNTER_FP,
@@ -561,7 +561,7 @@ DEF_TEST(value_to_rate) {
           .want = (50.5 - 10.) / (20. - 10.),
       },
       {
-          .name = "fpcounter_t reset",
+          .name = "double reset",
           .t0 = 20,
           .t1 = 30,
           .type = METRIC_TYPE_COUNTER_FP,
