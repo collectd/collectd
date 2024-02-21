@@ -1,3 +1,21 @@
+2024-02-21, Version 6.0.0.rc3
+	* Daemon: Two new metric types have been added: "up down counters" in
+	  integer and floating point variants. Thanks to @octo. #4287
+	* OpenTelemetry plugin: This new plugin provides the ability to export
+	  as well as receive metrics via OTLP. It supersedes the
+	  *write_open_telemetry plugin*. Thanks to @octo. #4271
+	* Write Prometheus plugin: A possible deadlock due to a leaked mutex has
+	  been fixed. Thanks to @octo. #4285
+	* Write Prometheus plugin: Bugs in the handling of metrics from multiple
+	  resources as well as printing of metrics without labels have been
+	  fixed. Thanks to @octo. #4284
+	* gpu_sysman plugin: Use real collectd metric functions unit tests.
+	  Thanks to @eero-t. #4223
+	* memory plugin: The `system.linux.memory.available` metric has been
+	  added. Thanks to @octo. #4275
+	* swap plugin: The `system.paging.faults` metric has been added. Thanks
+	  to @octo. #4278
+
 2024-02-07, Version 6.0.0.rc2
 	* Daemon: The `plugin_dispatch_metric_family()` function has been
 	  changed to handle metric families with zero metrics gracefully. Thanks
