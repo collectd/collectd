@@ -319,12 +319,12 @@ static int uc_update_rate(metric_t const *m, cache_entry_t *ce) {
   }
 
   case METRIC_TYPE_UP_DOWN_COUNTER: {
-    ce->values_gauge = (gauge_t) m->value.up_down_counter;
+    ce->values_gauge = (gauge_t)m->value.up_down_counter;
     return 0;
   }
 
   case METRIC_TYPE_UP_DOWN_COUNTER_FP: {
-    ce->values_gauge = (gauge_t) m->value.up_down_counter_fp;
+    ce->values_gauge = (gauge_t)m->value.up_down_counter_fp;
     return 0;
   }
 

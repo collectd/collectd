@@ -254,13 +254,16 @@ static int df_read(void) {
 
     if (report_usage) {
       metric_family_append(&fam_usage, state_label, state_used,
-                           (value_t){.up_down_counter = blk_used * blocksize}, &m);
+                           (value_t){.up_down_counter = blk_used * blocksize},
+                           &m);
 
       metric_family_append(&fam_usage, state_label, state_free,
-                           (value_t){.up_down_counter = blk_free * blocksize}, &m);
+                           (value_t){.up_down_counter = blk_free * blocksize},
+                           &m);
 
-      metric_family_append(&fam_usage, state_label, state_reserved,
-                           (value_t){.up_down_counter = blk_reserved * blocksize}, &m);
+      metric_family_append(
+          &fam_usage, state_label, state_reserved,
+          (value_t){.up_down_counter = blk_reserved * blocksize}, &m);
     }
 
     if (report_utilization) {
@@ -294,14 +297,16 @@ static int df_read(void) {
           gauge_t f = 1.0 / (gauge_t)statbuf.f_files;
 
           metric_family_append(&fam_inode_utilization, state_label, state_used,
-                               (value_t){.gauge = ((gauge_t)inode_used) * f}, &m);
+                               (value_t){.gauge = ((gauge_t)inode_used) * f},
+                               &m);
 
           metric_family_append(&fam_inode_utilization, state_label, state_free,
-                               (value_t){.gauge = ((gauge_t)inode_free) * f}, &m);
+                               (value_t){.gauge = ((gauge_t)inode_free) * f},
+                               &m);
 
-          metric_family_append(&fam_inode_utilization, state_label,
-                               state_reserved,
-                               (value_t){.gauge = ((gauge_t)inode_reserved) * f}, &m);
+          metric_family_append(
+              &fam_inode_utilization, state_label, state_reserved,
+              (value_t){.gauge = ((gauge_t)inode_reserved) * f}, &m);
         } else {
           metric_reset(&m);
           retval = -1;
