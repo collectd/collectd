@@ -73,8 +73,8 @@ static void metric_to_number_data_point(NumberDataPoint *dp,
   case METRIC_TYPE_COUNTER:
     dp->set_as_int((int64_t)m->value.counter);
     return;
-  case METRIC_TYPE_UP_DOWN_COUNTER:
-    dp->set_as_int((int64_t)m->value.up_down_counter);
+  case METRIC_TYPE_UP_DOWN:
+    dp->set_as_int((int64_t)m->value.up_down);
     return;
   case METRIC_TYPE_FPCOUNTER:
     dp->set_as_double(m->value.fpcounter);
@@ -138,7 +138,7 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
     return;
   case METRIC_TYPE_COUNTER:
   case METRIC_TYPE_FPCOUNTER:
-  case METRIC_TYPE_UP_DOWN_COUNTER:
+  case METRIC_TYPE_UP_DOWN:
   case METRIC_TYPE_UP_DOWN_COUNTER_FP:
     set_sum(m, fam);
     return;

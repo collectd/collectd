@@ -48,10 +48,10 @@ typedef enum {
   // The rate of change is meaningful, the absolute value is not.
   METRIC_TYPE_FPCOUNTER =
       METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE | METRIC_ATTR_MONOTONIC,
-  // METRIC_TYPE_UP_DOWN_COUNTER are absolute integer metrics that can
+  // METRIC_TYPE_UP_DOWN are absolute integer metrics that can
   // (meaningfully) be summed up. Examples are filesystem space used and
   // physical memory.
-  METRIC_TYPE_UP_DOWN_COUNTER = METRIC_ATTR_CUMULATIVE,
+  METRIC_TYPE_UP_DOWN = METRIC_ATTR_CUMULATIVE,
   // METRIC_TYPE_UP_DOWN_COUNTER_FP are absolute floating point metrics that can
   // (meaningfully) be summed up.
   METRIC_TYPE_UP_DOWN_COUNTER_FP = METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE,
@@ -61,7 +61,7 @@ typedef enum {
   (t == METRIC_TYPE_GAUGE)                ? "gauge"                            \
   : (t == METRIC_TYPE_COUNTER)            ? "counter"                          \
   : (t == METRIC_TYPE_FPCOUNTER)          ? "fpcounter"                        \
-  : (t == METRIC_TYPE_UP_DOWN_COUNTER)    ? "up_down_counter"                  \
+  : (t == METRIC_TYPE_UP_DOWN)            ? "up_down"                          \
   : (t == METRIC_TYPE_UP_DOWN_COUNTER_FP) ? "up_down_counter_fp"               \
                                           : "unknown"
 
@@ -79,9 +79,9 @@ union value_u {
   gauge_t gauge;
   counter_t counter;
   fpcounter_t fpcounter;
-  up_down_counter_t up_down_counter;
+  up_down_counter_t up_down;
   up_down_counter_fp_t up_down_counter_fp;
-  // For collectd 5 compatiblity. Treated the same as up_down_counter.
+  // For collectd 5 compatiblity. Treated the same as up_down.
   derive_t derive;
 };
 typedef union value_u value_t;

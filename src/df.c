@@ -161,7 +161,7 @@ static int df_read(void) {
   metric_family_t fam_usage = {
       .name = "system.filesystem.usage",
       .unit = "By",
-      .type = METRIC_TYPE_UP_DOWN_COUNTER,
+      .type = METRIC_TYPE_UP_DOWN,
   };
   metric_family_t fam_utilization = {
       .name = "system.filesystem.utilization",
@@ -171,7 +171,7 @@ static int df_read(void) {
   metric_family_t fam_inode_usage = {
       .name = "system.filesystem.inodes.usage",
       .unit = "{inode}",
-      .type = METRIC_TYPE_UP_DOWN_COUNTER,
+      .type = METRIC_TYPE_UP_DOWN,
   };
   metric_family_t fam_inode_utilization = {
       .name = "system.filesystem.inodes.utilization",
@@ -254,16 +254,13 @@ static int df_read(void) {
 
     if (report_usage) {
       metric_family_append(&fam_usage, state_label, state_used,
-                           (value_t){.up_down_counter = blk_used * blocksize},
-                           &m);
+                           (value_t){.up_down = blk_used * blocksize}, &m);
 
       metric_family_append(&fam_usage, state_label, state_free,
-                           (value_t){.up_down_counter = blk_free * blocksize},
-                           &m);
+                           (value_t){.up_down = blk_free * blocksize}, &m);
 
-      metric_family_append(
-          &fam_usage, state_label, state_reserved,
-          (value_t){.up_down_counter = blk_reserved * blocksize}, &m);
+      metric_family_append(&fam_usage, state_label, state_reserved,
+                           (value_t){.up_down = blk_reserved * blocksize}, &m);
     }
 
     if (report_utilization) {
@@ -315,13 +312,13 @@ static int df_read(void) {
       }
       if (report_usage) {
         metric_family_append(&fam_inode_usage, state_label, state_used,
-                             (value_t){.up_down_counter = inode_used}, &m);
+                             (value_t){.up_down = inode_used}, &m);
 
         metric_family_append(&fam_inode_usage, state_label, state_free,
-                             (value_t){.up_down_counter = inode_free}, &m);
+                             (value_t){.up_down = inode_free}, &m);
 
         metric_family_append(&fam_inode_usage, state_label, state_reserved,
-                             (value_t){.up_down_counter = inode_reserved}, &m);
+                             (value_t){.up_down = inode_reserved}, &m);
       }
     }
 

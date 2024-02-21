@@ -166,9 +166,9 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
     }
     break;
   }
-  case METRIC_TYPE_UP_DOWN_COUNTER: {
+  case METRIC_TYPE_UP_DOWN: {
     char integer[64] = {0};
-    ssnprintf(integer, sizeof(integer), "%" PRId64, m->value.up_down_counter);
+    ssnprintf(integer, sizeof(integer), "%" PRId64, m->value.up_down);
 
     int status = json_string(gen, "int64Value") || json_string(gen, integer);
     if (status != 0) {
@@ -203,7 +203,7 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
 static int format_metric_kind(yajl_gen gen, metric_t const *m) {
   switch (m->family->type) {
   case METRIC_TYPE_GAUGE:
-  case METRIC_TYPE_UP_DOWN_COUNTER:
+  case METRIC_TYPE_UP_DOWN:
   case METRIC_TYPE_UP_DOWN_COUNTER_FP:
     return json_string(gen, "GAUGE");
   case METRIC_TYPE_COUNTER:
@@ -229,7 +229,7 @@ static int format_value_type(yajl_gen gen, metric_t const *m) {
   case METRIC_TYPE_FPCOUNTER:
   case METRIC_TYPE_UP_DOWN_COUNTER_FP:
     return json_string(gen, "DOUBLE");
-  case METRIC_TYPE_UP_DOWN_COUNTER:
+  case METRIC_TYPE_UP_DOWN:
   case METRIC_TYPE_COUNTER:
     return json_string(gen, "INT64");
   case METRIC_TYPE_UNTYPED:
@@ -413,7 +413,7 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
       return EAGAIN;
     }
     break;
-  case METRIC_TYPE_UP_DOWN_COUNTER:
+  case METRIC_TYPE_UP_DOWN:
     break;
   case METRIC_TYPE_UP_DOWN_COUNTER_FP:
     if (!isfinite(m->value.up_down_counter_fp)) {

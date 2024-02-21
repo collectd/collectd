@@ -105,21 +105,21 @@ DEF_TEST(uc_get_rate) {
           .want = NAN,
       },
       {
-          .name = "up_down_counter",
-          .first_value = (value_t){.up_down_counter = 10},
-          .second_value = (value_t){.up_down_counter = 20},
+          .name = "up_down",
+          .first_value = (value_t){.up_down = 10},
+          .second_value = (value_t){.up_down = 20},
           .first_time = TIME_T_TO_CDTIME_T(100),
           .second_time = TIME_T_TO_CDTIME_T(110),
-          .type = METRIC_TYPE_UP_DOWN_COUNTER,
+          .type = METRIC_TYPE_UP_DOWN,
           .want = 20,
       },
       {
-          .name = "decreasing up_down_counter",
-          .first_value = (value_t){.up_down_counter = 1000},
-          .second_value = (value_t){.up_down_counter = 215},
+          .name = "decreasing up_down",
+          .first_value = (value_t){.up_down = 1000},
+          .second_value = (value_t){.up_down = 215},
           .first_time = TIME_T_TO_CDTIME_T(100),
           .second_time = TIME_T_TO_CDTIME_T(110),
-          .type = METRIC_TYPE_UP_DOWN_COUNTER,
+          .type = METRIC_TYPE_UP_DOWN,
           .want = 215,
       },
       {
@@ -169,8 +169,8 @@ DEF_TEST(uc_get_rate) {
     gauge_t want = cases[i].first_value.gauge;
     if (IS_MONOTONIC(fam.type)) {
       want = NAN;
-    } else if (fam.type == METRIC_TYPE_UP_DOWN_COUNTER) {
-      want = (gauge_t)cases[i].first_value.up_down_counter;
+    } else if (fam.type == METRIC_TYPE_UP_DOWN) {
+      want = (gauge_t)cases[i].first_value.up_down;
     }
     EXPECT_EQ_DOUBLE(want, got);
 

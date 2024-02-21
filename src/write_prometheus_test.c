@@ -286,14 +286,14 @@ DEF_TEST(format_metric_family) {
                   "\n",
       },
       {
-          .name = "METRIC_TYPE_UP_DOWN_COUNTER",
+          .name = "METRIC_TYPE_UP_DOWN",
           .pfam =
               {
                   .name = "unit_test",
-                  .type = METRIC_TYPE_UP_DOWN_COUNTER,
+                  .type = METRIC_TYPE_UP_DOWN,
                   .metrics =
                       (prometheus_metric_t[]){
-                          {.value.up_down_counter = 42},
+                          {.value.up_down = 42},
                       },
                   .metrics_num = 1,
               },

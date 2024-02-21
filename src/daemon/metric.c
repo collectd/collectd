@@ -60,8 +60,8 @@ int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
     return strbuf_printf(buf, "%" PRIu64, v.counter);
   case METRIC_TYPE_FPCOUNTER:
     return strbuf_printf(buf, GAUGE_FORMAT, v.fpcounter);
-  case METRIC_TYPE_UP_DOWN_COUNTER:
-    return strbuf_printf(buf, "%" PRId64, v.up_down_counter);
+  case METRIC_TYPE_UP_DOWN:
+    return strbuf_printf(buf, "%" PRId64, v.up_down);
   case METRIC_TYPE_UP_DOWN_COUNTER_FP:
     if (isnan(v.up_down_counter_fp)) {
       return strbuf_print(buf, "nan");

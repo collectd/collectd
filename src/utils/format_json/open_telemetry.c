@@ -104,9 +104,9 @@ static int number_data_point(yajl_gen g, metric_t const *m) {
     CHECK(json_add_string(g, "asDouble"));
     CHECK(yajl_gen_double(g, m->value.fpcounter));
     break;
-  case METRIC_TYPE_UP_DOWN_COUNTER:
+  case METRIC_TYPE_UP_DOWN:
     CHECK(json_add_string(g, "asInt"));
-    CHECK(yajl_gen_integer(g, (long long int)m->value.up_down_counter));
+    CHECK(yajl_gen_integer(g, (long long int)m->value.up_down));
     break;
   case METRIC_TYPE_UP_DOWN_COUNTER_FP:
     CHECK(json_add_string(g, "asDouble"));
@@ -180,7 +180,7 @@ static int metric(yajl_gen g, metric_family_t const *fam) {
     break;
   case METRIC_TYPE_COUNTER:
   case METRIC_TYPE_FPCOUNTER:
-  case METRIC_TYPE_UP_DOWN_COUNTER:
+  case METRIC_TYPE_UP_DOWN:
   case METRIC_TYPE_UP_DOWN_COUNTER_FP:
     CHECK(json_add_string(g, "sum"));
     CHECK(sum(g, fam));

@@ -175,7 +175,7 @@ static int memory_dispatch(up_down_counter_t values[STATE_MAX]) {
       .name = "system.memory.usage",
       .help = "Reports memory in use by state",
       .unit = "By",
-      .type = METRIC_TYPE_UP_DOWN_COUNTER,
+      .type = METRIC_TYPE_UP_DOWN,
   };
   up_down_counter_t total = 0;
 
@@ -212,10 +212,10 @@ static int memory_dispatch(up_down_counter_t values[STATE_MAX]) {
         .name = "system.memory.limit",
         .help = "Total memory available in the system.",
         .unit = "By",
-        .type = METRIC_TYPE_UP_DOWN_COUNTER,
+        .type = METRIC_TYPE_UP_DOWN,
     };
     metric_family_metric_append(&fam_limit, (metric_t){
-                                                .value.up_down_counter = total,
+                                                .value.up_down = total,
                                             });
 
     int status = plugin_dispatch_metric_family(&fam_limit);
