@@ -269,14 +269,14 @@ DEF_TEST(format_metric_family) {
           // clang-format on
       },
       {
-          .name = "METRIC_TYPE_FPCOUNTER",
+          .name = "METRIC_TYPE_COUNTER_FP",
           .pfam =
               {
                   .name = "unit_test",
-                  .type = METRIC_TYPE_FPCOUNTER,
+                  .type = METRIC_TYPE_COUNTER_FP,
                   .metrics =
                       (prometheus_metric_t[]){
-                          {.value.fpcounter = 42.0},
+                          {.value.counter_fp = 42.0},
                       },
                   .metrics_num = 1,
               },

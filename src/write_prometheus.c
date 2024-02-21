@@ -296,7 +296,7 @@ static void format_metric_family(strbuf_t *buf,
     type = "gauge";
     break;
   case METRIC_TYPE_COUNTER:
-  case METRIC_TYPE_FPCOUNTER:
+  case METRIC_TYPE_COUNTER_FP:
     type = "counter";
     break;
   case METRIC_TYPE_UNTYPED:

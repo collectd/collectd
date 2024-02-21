@@ -389,7 +389,7 @@ static int disk_read(void) {
       .name = "system.disk.operation_time",
       .help = "Sum of the time each operation took to complete",
       .unit = "s",
-      .type = METRIC_TYPE_FPCOUNTER,
+      .type = METRIC_TYPE_COUNTER_FP,
   };
   metric_family_t fam_merged = {
       .name = "system.disk.merged",
@@ -401,7 +401,7 @@ static int disk_read(void) {
       .name = "system.disk.io_time",
       .help = "Time disk spent activated",
       .unit = "s",
-      .type = METRIC_TYPE_FPCOUNTER,
+      .type = METRIC_TYPE_COUNTER_FP,
   };
   metric_family_t fam_disk_io_weighted_time = {
       .name = "system.disk.weighted_io_time",
@@ -411,7 +411,7 @@ static int disk_read(void) {
               "this field. This can provide an easy measure of both I/O "
               "completion time and the backlog that may be accumulating.",
       .unit = "s",
-      .type = METRIC_TYPE_FPCOUNTER,
+      .type = METRIC_TYPE_COUNTER_FP,
   };
   metric_family_t fam_disk_pending_operations = {
       .name = "system.disk.pending_operations",
@@ -592,10 +592,10 @@ static int disk_read(void) {
     if ((read_time_ns != -1LL) || (write_time_ns != -1LL)) {
       metric_family_append(
           &fam_ops_time, direction_label, read_direction,
-          (value_t){.fpcounter = ((fpcounter_t)read_time_ns) / 1e9}, &m);
+          (value_t){.counter_fp = ((fpcounter_t)read_time_ns) / 1e9}, &m);
       metric_family_append(
           &fam_ops_time, direction_label, write_direction,
-          (value_t){.fpcounter = ((fpcounter_t)write_time_ns) / 1e9}, &m);
+          (value_t){.counter_fp = ((fpcounter_t)write_time_ns) / 1e9}, &m);
     }
     metric_reset(&m);
   }
@@ -721,10 +721,10 @@ static int disk_read(void) {
         devstat_compute_etime(&snap_iter->duration[DEVSTAT_WRITE], NULL);
     if ((read_time_s != 0) || (write_time_s != 0)) {
       metric_family_append(&fam_ops_time, direction_label, read_direction,
-                           (value_t){.fpcounter = (fpcounter_t)read_time_s},
+                           (value_t){.counter_fp = (fpcounter_t)read_time_s},
                            &m);
       metric_family_append(&fam_ops_time, direction_label, write_direction,
-                           (value_t){.fpcounter = (fpcounter_t)write_time_s},
+                           (value_t){.counter_fp = (fpcounter_t)write_time_s},
                            &m);
     }
 
@@ -736,13 +736,13 @@ static int disk_read(void) {
             DSM_QUEUE_LENGTH, &queue_length, DSM_NONE) != 0) {
       WARNING("%s", devstat_errbuf);
     } else {
-      m.value.fpcounter = (fpcounter_t)busy_time;
+      m.value.counter_fp = (fpcounter_t)busy_time;
       metric_family_metric_append(&fam_disk_io_time, m);
 
       m.value.gauge = (gauge_t)utilization;
       metric_family_metric_append(&fam_utilization, m);
 
-      m.value.fpcounter = (fpcounter_t)total_duration_s;
+      m.value.counter_fp = (fpcounter_t)total_duration_s;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
 
       m.value.gauge = (gauge_t)queue_length;
@@ -899,10 +899,10 @@ static int disk_read(void) {
     if ((read_time_ms != 0) || (write_time_ms != 0)) {
       metric_family_append(
           &fam_ops_time, direction_label, read_direction,
-          (value_t){.fpcounter = ((fpcounter_t)read_time_ms) / 1000}, &m);
+          (value_t){.counter_fp = ((fpcounter_t)read_time_ms) / 1000}, &m);
       metric_family_append(
           &fam_ops_time, direction_label, write_direction,
-          (value_t){.fpcounter = ((fpcounter_t)write_time_ms) / 1000}, &m);
+          (value_t){.counter_fp = ((fpcounter_t)write_time_ms) / 1000}, &m);
     }
 
     if (read_merged != 0 || write_merged != 0) {
@@ -918,12 +918,12 @@ static int disk_read(void) {
     }
 
     if (io_time_ms != 0) {
-      m.value.fpcounter = ((fpcounter_t)io_time_ms) / 1000.0;
+      m.value.counter_fp = ((fpcounter_t)io_time_ms) / 1000.0;
       metric_family_metric_append(&fam_disk_io_time, m);
     }
 
     if (weighted_time_ms != 0) {
-      m.value.fpcounter = ((fpcounter_t)weighted_time_ms) / 1000.0;
+      m.value.counter_fp = ((fpcounter_t)weighted_time_ms) / 1000.0;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
     }
 
@@ -1012,11 +1012,11 @@ static int disk_read(void) {
 
     if (strncmp(ksp[i]->ks_class, "disk", strlen("disk")) == 0) {
       hrtime_t run_time_ns = kio.rtime;
-      m.value.fpcounter = ((fpcounter_t)run_time_ns) / 1e9;
+      m.value.counter_fp = ((fpcounter_t)run_time_ns) / 1e9;
       metric_family_metric_append(&fam_disk_io_time, m);
 
       hrtime_t weighted_io_time_ns = kio.rlentime;
-      m.value.fpcounter = ((fpcounter_t)weighted_io_time_ns) / 1e9;
+      m.value.counter_fp = ((fpcounter_t)weighted_io_time_ns) / 1e9;
       metric_family_metric_append(&fam_disk_io_weighted_time, m);
 
       uint_t ops_waiting = kio.wcnt;
@@ -1112,10 +1112,10 @@ static int disk_read(void) {
                              _system_configuration.Xfrac;
     metric_family_append(
         &fam_ops_time, direction_label, read_direction,
-        (value_t){.fpcounter = ((fpcounter_t)read_time_ns) / 1e9}, &m);
+        (value_t){.counter_fp = ((fpcounter_t)read_time_ns) / 1e9}, &m);
     metric_family_append(
         &fam_ops_time, direction_label, write_direction,
-        (value_t){.fpcounter = ((fpcounter_t)write_time_ns) / 1e9}, &m);
+        (value_t){.counter_fp = ((fpcounter_t)write_time_ns) / 1e9}, &m);
 
     metric_reset(&m);
   }
@@ -1176,8 +1176,8 @@ static int disk_read(void) {
     metric_family_append(&fam_ops, direction_label, write_direction,
                          (value_t){.counter = drives[i].wxfer}, &m);
 
-    m.value.fpcounter = ((fpcounter_t)drives[i].time_sec) +
-                        ((fpcounter_t)drives[i].time_usec) / 1e6;
+    m.value.counter_fp = ((fpcounter_t)drives[i].time_sec) +
+                         ((fpcounter_t)drives[i].time_usec) / 1e6;
     metric_family_metric_append(&fam_disk_io_time, m);
 
     metric_reset(&m);

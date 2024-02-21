@@ -50,7 +50,7 @@ DEF_TEST(sd_format_metric_descriptor) {
       },
       {
           .name = "fpcounter_metric",
-          .type = METRIC_TYPE_FPCOUNTER,
+          .type = METRIC_TYPE_COUNTER_FP,
           .want = "{\"type\":\"custom.googleapis.com/collectd/"
                   "fpcounter_metric\",\"metricKind\":\"CUMULATIVE\","
                   "\"valueType\":\"DOUBLE\",\"labels\":[]}",

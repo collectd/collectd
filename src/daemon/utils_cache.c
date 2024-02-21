@@ -302,18 +302,18 @@ static int uc_update_rate(metric_t const *m, cache_entry_t *ce) {
     return 0;
   }
 
-  case METRIC_TYPE_FPCOUNTER: {
+  case METRIC_TYPE_COUNTER_FP: {
     // For floating point counters, the logic is slightly different from
     // integer counters. Floating point counters don't have a (meaningful)
     // overflow, and we will always assume a counter reset.
-    if (ce->last_value.fpcounter > m->value.fpcounter) {
+    if (ce->last_value.counter_fp > m->value.counter_fp) {
       // counter reset
       ce->first_time = m->time;
       ce->first_value = m->value;
       ce->values_gauge = NAN;
       return 0;
     }
-    gauge_t diff = m->value.fpcounter - ce->last_value.fpcounter;
+    gauge_t diff = m->value.counter_fp - ce->last_value.counter_fp;
     ce->values_gauge = diff / CDTIME_T_TO_DOUBLE(m->time - ce->last_time);
     return 0;
   }
@@ -480,7 +480,7 @@ int uc_get_rate(metric_t const *m, gauge_t *ret) {
     *ret = m->value.gauge;
     return 0;
   case METRIC_TYPE_COUNTER:
-  case METRIC_TYPE_FPCOUNTER:
+  case METRIC_TYPE_COUNTER_FP:
     break;
   case METRIC_TYPE_UP_DOWN:
     *ret = (gauge_t)m->value.up_down;

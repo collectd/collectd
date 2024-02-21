@@ -964,8 +964,8 @@ int parse_value(char const *value, value_t *ret_value, metric_type_t type) {
     ret_value->counter = (counter_t)strtoull(value, &endptr, 0);
     break;
 
-  case METRIC_TYPE_FPCOUNTER:
-    ret_value->fpcounter = (fpcounter_t)strtod(value, &endptr);
+  case METRIC_TYPE_COUNTER_FP:
+    ret_value->counter_fp = (fpcounter_t)strtod(value, &endptr);
     break;
 
   case METRIC_TYPE_UP_DOWN:
@@ -1209,7 +1209,7 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
   /* Counter can't handle negative rates. Reset "last time" to zero, so that
    * the next valid rate will re-initialize the structure. */
   if ((rate < 0.0) &&
-      (type == METRIC_TYPE_COUNTER || type == METRIC_TYPE_FPCOUNTER)) {
+      (type == METRIC_TYPE_COUNTER || type == METRIC_TYPE_COUNTER_FP)) {
     memset(state, 0, sizeof(*state));
     return EINVAL;
   }
@@ -1234,8 +1234,8 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
       state->last_value.counter = (counter_t)rate;
       state->residual = rate - ((gauge_t)state->last_value.counter);
       break;
-    case METRIC_TYPE_FPCOUNTER:
-      state->last_value.fpcounter = (fpcounter_t)rate;
+    case METRIC_TYPE_COUNTER_FP:
+      state->last_value.counter_fp = (fpcounter_t)rate;
       state->residual = 0;
       break;
     case METRIC_TYPE_UP_DOWN:
@@ -1265,9 +1265,9 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     state->residual = delta_gauge - ((gauge_t)delta);
     break;
   }
-  case METRIC_TYPE_FPCOUNTER: {
+  case METRIC_TYPE_COUNTER_FP: {
     fpcounter_t delta = (fpcounter_t)delta_gauge;
-    state->last_value.fpcounter += delta;
+    state->last_value.counter_fp += delta;
     state->residual = 0;
     break;
   }
@@ -1304,12 +1304,12 @@ static int calculate_rate(gauge_t *ret_rate, value_t value, metric_type_t type,
     *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
     return 0;
   }
-  case METRIC_TYPE_FPCOUNTER: {
-    if (state->last_value.fpcounter > value.fpcounter) {
+  case METRIC_TYPE_COUNTER_FP: {
+    if (state->last_value.counter_fp > value.counter_fp) {
       *ret_rate = NAN;
       return EAGAIN;
     }
-    fpcounter_t diff = value.fpcounter - state->last_value.fpcounter;
+    fpcounter_t diff = value.counter_fp - state->last_value.counter_fp;
     *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
     return 0;
   }

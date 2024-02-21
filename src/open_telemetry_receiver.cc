@@ -156,8 +156,8 @@ static grpc::Status unmarshal_data_point(NumberDataPoint dp,
   switch (dp.value_case()) {
   case NumberDataPoint::kAsDouble:
     if (is_cumulative) {
-      fam->type = METRIC_TYPE_FPCOUNTER;
-      m.value.fpcounter = dp.as_double();
+      fam->type = METRIC_TYPE_COUNTER_FP;
+      m.value.counter_fp = dp.as_double();
       break;
     }
     m.value.gauge = dp.as_double();

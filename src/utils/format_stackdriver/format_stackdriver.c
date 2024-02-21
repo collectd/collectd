@@ -155,11 +155,11 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
     }
     break;
   }
-  case METRIC_TYPE_FPCOUNTER: {
+  case METRIC_TYPE_COUNTER_FP: {
     /* Counter resets are handled in format_time_series(). */
-    assert(m->value.fpcounter >= start_value.fpcounter);
+    assert(m->value.counter_fp >= start_value.counter_fp);
 
-    fpcounter_t diff = m->value.fpcounter - start_value.fpcounter;
+    fpcounter_t diff = m->value.counter_fp - start_value.counter_fp;
     int status = json_string(gen, "doubleValue") || yajl_gen_double(gen, diff);
     if (status != 0) {
       return status;
@@ -207,7 +207,7 @@ static int format_metric_kind(yajl_gen gen, metric_t const *m) {
   case METRIC_TYPE_UP_DOWN_FP:
     return json_string(gen, "GAUGE");
   case METRIC_TYPE_COUNTER:
-  case METRIC_TYPE_FPCOUNTER:
+  case METRIC_TYPE_COUNTER_FP:
     return json_string(gen, "CUMULATIVE");
   case METRIC_TYPE_UNTYPED:
     break;
@@ -226,7 +226,7 @@ static int format_metric_kind(yajl_gen gen, metric_t const *m) {
 static int format_value_type(yajl_gen gen, metric_t const *m) {
   switch (m->family->type) {
   case METRIC_TYPE_GAUGE:
-  case METRIC_TYPE_FPCOUNTER:
+  case METRIC_TYPE_COUNTER_FP:
   case METRIC_TYPE_UP_DOWN_FP:
     return json_string(gen, "DOUBLE");
   case METRIC_TYPE_UP_DOWN:
@@ -407,7 +407,7 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
     }
     break;
   case METRIC_TYPE_COUNTER:
-  case METRIC_TYPE_FPCOUNTER:
+  case METRIC_TYPE_COUNTER_FP:
     // for cumulative metrics the interval must not be zero.
     if (start.time == m->time) {
       return EAGAIN;

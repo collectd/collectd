@@ -163,7 +163,7 @@ static char const *metric_type_to_string(metric_type_t type) {
     return "GAUGE";
   case METRIC_TYPE_COUNTER:
     return "COUNTER";
-  case METRIC_TYPE_FPCOUNTER:
+  case METRIC_TYPE_COUNTER_FP:
     return "FPCOUNTER";
   case METRIC_TYPE_UP_DOWN:
     return "UP_DOWN_COUNTER";

@@ -488,9 +488,9 @@ static void usage_finalize(usage_t *u) {
       gauge_t ratio = us->rate / cpu_rate;
       value_t v = {0};
       int status = rate_to_value(&v, ratio, &us->to_count,
-                                 METRIC_TYPE_FPCOUNTER, u->time);
+                                 METRIC_TYPE_COUNTER_FP, u->time);
       if (status == 0) {
-        us->count = v.fpcounter;
+        us->count = v.counter_fp;
         us->has_count = true;
       }
 
@@ -504,16 +504,16 @@ static void usage_finalize(usage_t *u) {
     us->count = NAN;
     if (!us->has_rate) {
       /* Ensure that us->to_count is initialized. */
-      rate_to_value(&(value_t){0}, 0.0, &us->to_count, METRIC_TYPE_FPCOUNTER,
+      rate_to_value(&(value_t){0}, 0.0, &us->to_count, METRIC_TYPE_COUNTER_FP,
                     u->time);
       continue;
     }
 
     value_t v = {0};
     int status = rate_to_value(&v, state_ratio[s], &us->to_count,
-                               METRIC_TYPE_FPCOUNTER, u->time);
+                               METRIC_TYPE_COUNTER_FP, u->time);
     if (status == 0) {
-      us->count = v.fpcounter;
+      us->count = v.counter_fp;
       us->has_count = true;
     }
   }
@@ -598,7 +598,7 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
       .name = "system.cpu.time",
       .help = "Microseconds each logical CPU spent in each state",
       .unit = "s",
-      .type = METRIC_TYPE_FPCOUNTER,
+      .type = METRIC_TYPE_COUNTER_FP,
   };
 
   metric_t m = {0};
@@ -615,13 +615,13 @@ static void commit_cpu_usage(usage_t *u, size_t cpu_num) {
         continue;
       }
       metric_family_append(&fam, label_state, cpu_state_names[state],
-                           (value_t){.fpcounter = usage}, &m);
+                           (value_t){.counter_fp = usage}, &m);
     }
   } else {
     fpcounter_t usage = usage_count(u, cpu_num, STATE_ACTIVE);
     if (!isnan(usage)) {
       metric_family_append(&fam, label_state, cpu_state_names[STATE_ACTIVE],
-                           (value_t){.fpcounter = usage}, &m);
+                           (value_t){.counter_fp = usage}, &m);
     }
   }
 
