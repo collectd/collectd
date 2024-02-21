@@ -72,14 +72,13 @@ typedef double gauge_t;
 typedef uint64_t counter_t;
 typedef double fpcounter_t;
 typedef int64_t derive_t;
-typedef int64_t up_down_counter_t;
 typedef double up_down_counter_fp_t;
 
 union value_u {
   gauge_t gauge;
   counter_t counter;
   fpcounter_t counter_fp;
-  up_down_counter_t up_down;
+  int64_t up_down;
   up_down_counter_fp_t up_down_fp;
   // For collectd 5 compatiblity. Treated the same as up_down.
   derive_t derive;
