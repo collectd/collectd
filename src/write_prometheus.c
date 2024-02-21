@@ -197,19 +197,19 @@ static int format_label_pair(strbuf_t *buf, label_pair_t l, bool *first_label) {
 
 static int format_label_set(strbuf_t *buf, label_set_t labels, char const *job,
                             char const *instance) {
-  bool first_label = true;
-  int status = 0;
+  if (job == NULL) {
+    job = hostname_g;
+  }
+  if (instance == NULL) {
+    instance = "";
+  }
 
-  if (job != NULL) {
-    status =
-        status || format_label_pair(buf, (label_pair_t){"job", (char *)job},
-                                    &first_label);
-  }
-  if (instance != NULL) {
-    status = status || format_label_pair(
-                           buf, (label_pair_t){"instance", (char *)instance},
-                           &first_label);
-  }
+  bool first_label = true;
+  int status =
+      format_label_pair(buf, (label_pair_t){"job", (char *)job},
+                        &first_label) ||
+      format_label_pair(buf, (label_pair_t){"instance", (char *)instance},
+                        &first_label);
 
   for (size_t i = 0; i < labels.num; i++) {
     status = status || format_label_pair(buf, labels.ptr[i], &first_label);
@@ -434,10 +434,16 @@ static void target_info(strbuf_t *buf,
       job = strdup(v);
       label_set_update(resource, "service.name", NULL);
     }
+    if (job == NULL) {
+      job = strdup(hostname_g);
+    }
 
     if ((v = label_set_get(*resource, "service.instance.id")) != NULL) {
       instance = strdup(v);
       label_set_update(resource, "service.instance.id", NULL);
+    }
+    if (instance == NULL) {
+      instance = strdup("");
     }
 
     strbuf_print(buf, "target_info{");
