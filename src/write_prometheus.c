@@ -229,10 +229,6 @@ static int format_metric(strbuf_t *buf, prometheus_metric_t const *pm,
    * not replace any characters. */
   int status =
       strbuf_print_restricted(buf, metric_family_name, VALID_NAME_CHARS, '_');
-  if (job == NULL && instance == NULL && pm->label.num == 0) {
-    return status;
-  }
-
   status = status || strbuf_print(buf, "{");
   status = status || format_label_set(buf, pm->label, job, instance);
   status = status || strbuf_print(buf, "}");
