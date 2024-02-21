@@ -292,7 +292,7 @@ static void format_metric_family(strbuf_t *buf,
   switch (pfam->type) {
   case METRIC_TYPE_GAUGE:
   case METRIC_TYPE_UP_DOWN:
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN_FP:
     type = "gauge";
     break;
   case METRIC_TYPE_COUNTER:

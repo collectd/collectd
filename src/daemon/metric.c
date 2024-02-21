@@ -62,11 +62,11 @@ int value_marshal_text(strbuf_t *buf, value_t v, metric_type_t type) {
     return strbuf_printf(buf, GAUGE_FORMAT, v.fpcounter);
   case METRIC_TYPE_UP_DOWN:
     return strbuf_printf(buf, "%" PRId64, v.up_down);
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
-    if (isnan(v.up_down_counter_fp)) {
+  case METRIC_TYPE_UP_DOWN_FP:
+    if (isnan(v.up_down_fp)) {
       return strbuf_print(buf, "nan");
     }
-    return strbuf_printf(buf, GAUGE_FORMAT, v.up_down_counter_fp);
+    return strbuf_printf(buf, GAUGE_FORMAT, v.up_down_fp);
   case METRIC_TYPE_UNTYPED:
     break;
   }

@@ -79,8 +79,8 @@ static void metric_to_number_data_point(NumberDataPoint *dp,
   case METRIC_TYPE_FPCOUNTER:
     dp->set_as_double(m->value.fpcounter);
     return;
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
-    dp->set_as_double(m->value.up_down_counter_fp);
+  case METRIC_TYPE_UP_DOWN_FP:
+    dp->set_as_double(m->value.up_down_fp);
     return;
   case METRIC_TYPE_UNTYPED:
     // Fall through. This case signals the compiler that we're checking all
@@ -139,7 +139,7 @@ static void add_metric(ScopeMetrics *sm, metric_family_t const *fam) {
   case METRIC_TYPE_COUNTER:
   case METRIC_TYPE_FPCOUNTER:
   case METRIC_TYPE_UP_DOWN:
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN_FP:
     set_sum(m, fam);
     return;
   case METRIC_TYPE_UNTYPED:

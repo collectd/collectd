@@ -303,14 +303,14 @@ DEF_TEST(format_metric_family) {
                   "\n",
       },
       {
-          .name = "METRIC_TYPE_UP_DOWN_COUNTER_FP",
+          .name = "METRIC_TYPE_UP_DOWN_FP",
           .pfam =
               {
                   .name = "unit_test",
-                  .type = METRIC_TYPE_UP_DOWN_COUNTER_FP,
+                  .type = METRIC_TYPE_UP_DOWN_FP,
                   .metrics =
                       (prometheus_metric_t[]){
-                          {.value.up_down_counter_fp = 42.0},
+                          {.value.up_down_fp = 42.0},
                       },
                   .metrics_num = 1,
               },

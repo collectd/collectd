@@ -74,8 +74,8 @@ static int format_metric_value(strbuf_t *sb, metric_t const *m,
   }
 
   if ((m->family->type == METRIC_TYPE_GAUGE && isnan(m->value.gauge)) ||
-      (m->family->type == METRIC_TYPE_UP_DOWN_COUNTER_FP &&
-       isnan(m->value.up_down_counter_fp))) {
+      (m->family->type == METRIC_TYPE_UP_DOWN_FP &&
+       isnan(m->value.up_down_fp))) {
     return EAGAIN;
   }
 

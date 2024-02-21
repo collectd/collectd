@@ -167,7 +167,7 @@ static char const *metric_type_to_string(metric_type_t type) {
     return "FPCOUNTER";
   case METRIC_TYPE_UP_DOWN:
     return "UP_DOWN_COUNTER";
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN_FP:
     return "UP_DOWN_COUNTER_FP";
   case METRIC_TYPE_UNTYPED:
     break;

@@ -452,11 +452,9 @@ DEF_TEST(rate_to_value) {
       EXPECT_EQ_UINT64(cases[i].want.up_down, got.up_down);
       EXPECT_EQ_UINT64(cases[i].want.up_down, state.last_value.up_down);
       break;
-    case METRIC_TYPE_UP_DOWN_COUNTER_FP:
-      EXPECT_EQ_DOUBLE(cases[i].want.up_down_counter_fp,
-                       got.up_down_counter_fp);
-      EXPECT_EQ_UINT64(cases[i].want.up_down_counter_fp,
-                       state.last_value.up_down_counter_fp);
+    case METRIC_TYPE_UP_DOWN_FP:
+      EXPECT_EQ_DOUBLE(cases[i].want.up_down_fp, got.up_down_fp);
+      EXPECT_EQ_UINT64(cases[i].want.up_down_fp, state.last_value.up_down_fp);
       break;
     case METRIC_TYPE_UNTYPED:
       LOG(false, "invalid metric type");

@@ -52,18 +52,18 @@ typedef enum {
   // (meaningfully) be summed up. Examples are filesystem space used and
   // physical memory.
   METRIC_TYPE_UP_DOWN = METRIC_ATTR_CUMULATIVE,
-  // METRIC_TYPE_UP_DOWN_COUNTER_FP are absolute floating point metrics that can
+  // METRIC_TYPE_UP_DOWN_FP are absolute floating point metrics that can
   // (meaningfully) be summed up.
-  METRIC_TYPE_UP_DOWN_COUNTER_FP = METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE,
+  METRIC_TYPE_UP_DOWN_FP = METRIC_ATTR_DOUBLE | METRIC_ATTR_CUMULATIVE,
 } metric_type_t;
 
 #define METRIC_TYPE_TO_STRING(t)                                               \
-  (t == METRIC_TYPE_GAUGE)                ? "gauge"                            \
-  : (t == METRIC_TYPE_COUNTER)            ? "counter"                          \
-  : (t == METRIC_TYPE_FPCOUNTER)          ? "fpcounter"                        \
-  : (t == METRIC_TYPE_UP_DOWN)            ? "up_down"                          \
-  : (t == METRIC_TYPE_UP_DOWN_COUNTER_FP) ? "up_down_counter_fp"               \
-                                          : "unknown"
+  (t == METRIC_TYPE_GAUGE)        ? "gauge"                                    \
+  : (t == METRIC_TYPE_COUNTER)    ? "counter"                                  \
+  : (t == METRIC_TYPE_FPCOUNTER)  ? "fpcounter"                                \
+  : (t == METRIC_TYPE_UP_DOWN)    ? "up_down"                                  \
+  : (t == METRIC_TYPE_UP_DOWN_FP) ? "up_down_fp"                               \
+                                  : "unknown"
 
 #define IS_DOUBLE(t) ((t)&METRIC_ATTR_DOUBLE)
 #define IS_MONOTONIC(t) ((t)&METRIC_ATTR_MONOTONIC)
@@ -80,7 +80,7 @@ union value_u {
   counter_t counter;
   fpcounter_t fpcounter;
   up_down_counter_t up_down;
-  up_down_counter_fp_t up_down_counter_fp;
+  up_down_counter_fp_t up_down_fp;
   // For collectd 5 compatiblity. Treated the same as up_down.
   derive_t derive;
 };

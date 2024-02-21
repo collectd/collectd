@@ -972,9 +972,8 @@ int parse_value(char const *value, value_t *ret_value, metric_type_t type) {
     ret_value->up_down = (up_down_counter_t)strtoll(value, &endptr, 0);
     break;
 
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
-    ret_value->up_down_counter_fp =
-        (up_down_counter_fp_t)strtod(value, &endptr);
+  case METRIC_TYPE_UP_DOWN_FP:
+    ret_value->up_down_fp = (up_down_counter_fp_t)strtod(value, &endptr);
     break;
 
   case METRIC_TYPE_UNTYPED:
@@ -1243,8 +1242,8 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
       state->last_value.up_down = (up_down_counter_t)floor(rate);
       state->residual = rate - ((gauge_t)state->last_value.up_down);
       break;
-    case METRIC_TYPE_UP_DOWN_COUNTER_FP:
-      state->last_value.up_down_counter_fp = (up_down_counter_fp_t)rate;
+    case METRIC_TYPE_UP_DOWN_FP:
+      state->last_value.up_down_fp = (up_down_counter_fp_t)rate;
       state->residual = 0;
       break;
     case METRIC_TYPE_UNTYPED:
@@ -1278,9 +1277,9 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     state->residual = delta_gauge - ((gauge_t)delta);
     break;
   }
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP: {
+  case METRIC_TYPE_UP_DOWN_FP: {
     up_down_counter_fp_t delta = (up_down_counter_fp_t)delta_gauge;
-    state->last_value.up_down_counter_fp += delta;
+    state->last_value.up_down_fp += delta;
     state->residual = 0;
     break;
   }
@@ -1319,9 +1318,8 @@ static int calculate_rate(gauge_t *ret_rate, value_t value, metric_type_t type,
     *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
     return 0;
   }
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP: {
-    up_down_counter_fp_t diff =
-        value.up_down_counter_fp - state->last_value.up_down_counter_fp;
+  case METRIC_TYPE_UP_DOWN_FP: {
+    up_down_counter_fp_t diff = value.up_down_fp - state->last_value.up_down_fp;
     *ret_rate = ((gauge_t)diff) / ((gauge_t)interval);
     return 0;
   }

@@ -397,7 +397,7 @@ plugin_value_list_to_metric_family(value_list_t const *vl, data_set_t const *ds,
   STRBUF_DESTROY(buf);
 
   if (ds->ds[index].type == DS_TYPE_GAUGE) {
-    fam->type = METRIC_TYPE_UP_DOWN_COUNTER_FP;
+    fam->type = METRIC_TYPE_UP_DOWN_FP;
   } else {
     fam->type = METRIC_TYPE_COUNTER;
   }

@@ -108,9 +108,9 @@ static int number_data_point(yajl_gen g, metric_t const *m) {
     CHECK(json_add_string(g, "asInt"));
     CHECK(yajl_gen_integer(g, (long long int)m->value.up_down));
     break;
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN_FP:
     CHECK(json_add_string(g, "asDouble"));
-    CHECK(yajl_gen_integer(g, m->value.up_down_counter_fp));
+    CHECK(yajl_gen_integer(g, m->value.up_down_fp));
     break;
   case METRIC_TYPE_UNTYPED:
     ERROR("format_json_open_telemetry: Unexpected metric type: %d",
@@ -181,7 +181,7 @@ static int metric(yajl_gen g, metric_family_t const *fam) {
   case METRIC_TYPE_COUNTER:
   case METRIC_TYPE_FPCOUNTER:
   case METRIC_TYPE_UP_DOWN:
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN_FP:
     CHECK(json_add_string(g, "sum"));
     CHECK(sum(g, fam));
     break;

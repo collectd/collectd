@@ -176,9 +176,9 @@ static int format_typed_value(yajl_gen gen, metric_t const *m,
     }
     break;
   }
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP: {
+  case METRIC_TYPE_UP_DOWN_FP: {
     int status = json_string(gen, "doubleValue") ||
-                 yajl_gen_double(gen, m->value.up_down_counter_fp);
+                 yajl_gen_double(gen, m->value.up_down_fp);
     if (status != 0) {
       return status;
     }
@@ -204,7 +204,7 @@ static int format_metric_kind(yajl_gen gen, metric_t const *m) {
   switch (m->family->type) {
   case METRIC_TYPE_GAUGE:
   case METRIC_TYPE_UP_DOWN:
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN_FP:
     return json_string(gen, "GAUGE");
   case METRIC_TYPE_COUNTER:
   case METRIC_TYPE_FPCOUNTER:
@@ -227,7 +227,7 @@ static int format_value_type(yajl_gen gen, metric_t const *m) {
   switch (m->family->type) {
   case METRIC_TYPE_GAUGE:
   case METRIC_TYPE_FPCOUNTER:
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
+  case METRIC_TYPE_UP_DOWN_FP:
     return json_string(gen, "DOUBLE");
   case METRIC_TYPE_UP_DOWN:
   case METRIC_TYPE_COUNTER:
@@ -415,8 +415,8 @@ static int format_time_series(yajl_gen gen, metric_t const *m,
     break;
   case METRIC_TYPE_UP_DOWN:
     break;
-  case METRIC_TYPE_UP_DOWN_COUNTER_FP:
-    if (!isfinite(m->value.up_down_counter_fp)) {
+  case METRIC_TYPE_UP_DOWN_FP:
+    if (!isfinite(m->value.up_down_fp)) {
       return EAGAIN;
     }
     break;
