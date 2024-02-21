@@ -1015,7 +1015,7 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
 /* because of family name change, each RAS metric needs to be submitted +
  * reseted separately */
 static void ras_submit(gpu_device_t *gpu, const char *name, const char *help,
-                       const char *type, const char *subdev, double value) {
+                       const char *type, const char *subdev, uint64_t value) {
   metric_family_t fam = {
       .type = METRIC_TYPE_COUNTER,
       /*
