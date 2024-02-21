@@ -465,7 +465,7 @@ static int memory_read_internal(int64_t values[STATE_MAX]) {
       continue;
     }
 
-    int64_t v = (int64_t)(1024 * atoll(fields[1]));
+    int64_t v = 1024 * atoll(fields[1]);
 
     if (strcmp(fields[0], "MemTotal:") == 0) {
       mem_total = v;
@@ -547,12 +547,12 @@ static int memory_read_internal(int64_t values[STATE_MAX]) {
     mem_lock = 0;
   }
 
-  values[STATE_USED] = (int64_t)(mem_used * pagesize);
-  values[STATE_FREE] = (int64_t)(mem_free * pagesize);
-  values[STATE_LOCKED] = (int64_t)(mem_lock * pagesize);
-  values[STATE_KERNEL] = (int64_t)((mem_kern * pagesize) - arcsize);
-  values[STATE_UNUSED] = (int64_t)(mem_unus * pagesize);
-  values[STATE_ARC] = (int64_t)arcsize;
+  values[STATE_USED] = mem_used * pagesize;
+  values[STATE_FREE] = mem_free * pagesize;
+  values[STATE_LOCKED] = mem_lock * pagesize;
+  values[STATE_KERNEL] = (mem_kern * pagesize) - arcsize;
+  values[STATE_UNUSED] = mem_unus * pagesize;
+  values[STATE_ARC] = arcsize;
   /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL && __OpenBSD__
