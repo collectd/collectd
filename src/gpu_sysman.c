@@ -1,7 +1,7 @@
 /**
  * collectd - src/gpu_sysman.c
  *
- * Copyright(c) 2020-2023 Intel Corporation. All rights reserved.
+ * Copyright(c) 2020-2024 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -775,11 +775,19 @@ static int gpu_init(void) {
  * Resets metric family after dispatch */
 static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
   struct timespec ts;
+  /* cdtime() is not monotonic */
   clock_gettime(CLOCK_MONOTONIC, &ts);
+
   const char *pci_bdf = gpu->pci_bdf;
   /* logmetrics readability: skip common BDF address prefix */
-  if (strncmp("0000:", pci_bdf, 5) == 0) {
+  if (strncmp(pci_bdf, "0000:", 5) == 0) {
     pci_bdf += 5;
+  }
+
+  const char *name = fam->name;
+  /* logmetrics readability: skip common metric prefix */
+  if (strncmp(name, METRIC_PREFIX, strlen(METRIC_PREFIX)) == 0) {
+    name += strlen(METRIC_PREFIX);
   }
 
   for (size_t i = 0; i < fam->metric.num; i++) {
@@ -797,7 +805,7 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
         }
       }
       INFO("[%7ld.%03ld] %s: %s / %s [%ld]: %.3f", ts.tv_sec,
-           ts.tv_nsec / 1000000, pci_bdf, fam->name, type, i,
+           ts.tv_nsec / 1000000, pci_bdf, name, type, i,
            fam->type == METRIC_TYPE_COUNTER ? m->value.counter
                                             : m->value.gauge);
     }
