@@ -158,8 +158,8 @@ static bool call_limit(int callbit, const char *name) {
  */
 
 /* mock up handle values to set & check against */
-#define DRV_HANDLE ((ze_driver_handle_t)(0x123456))
-#define DEV_HANDLE ((ze_device_handle_t)(0xecced))
+#define DRV_HANDLE ((zes_driver_handle_t)(0x123456))
+#define DEV_HANDLE ((zes_device_handle_t)(0xecced))
 #define VAL_HANDLE 0xcaffa
 
 /* driver/device initialization status */
@@ -172,17 +172,17 @@ typedef enum {
 
 static initialized_t initialized = L0_NOT_INITIALIZED;
 
-ze_result_t zeInit(ze_init_flags_t flags) {
-  if (call_limit(0, "zeInit"))
+ze_result_t zesInit(zes_init_flags_t flags) {
+  if (call_limit(0, "zesInit"))
     return ZE_RESULT_ERROR_DEVICE_LOST;
-  if (flags && flags != ZE_INIT_FLAG_GPU_ONLY)
+  if (flags)
     return ZE_RESULT_ERROR_INVALID_ENUMERATION;
   initialized = L0_IS_INITIALIZED;
   return ZE_RESULT_SUCCESS;
 }
 
-ze_result_t zeDriverGet(uint32_t *count, ze_driver_handle_t *handles) {
-  if (call_limit(1, "zeDriverGet"))
+ze_result_t zesDriverGet(uint32_t *count, zes_driver_handle_t *handles) {
+  if (call_limit(1, "zesDriverGet"))
     return ZE_RESULT_ERROR_DEVICE_LOST;
   if (initialized < L0_IS_INITIALIZED)
     return ZE_RESULT_ERROR_UNINITIALIZED;
@@ -200,9 +200,9 @@ ze_result_t zeDriverGet(uint32_t *count, ze_driver_handle_t *handles) {
   return ZE_RESULT_SUCCESS;
 }
 
-ze_result_t zeDeviceGet(ze_driver_handle_t drv, uint32_t *count,
-                        ze_device_handle_t *handles) {
-  if (call_limit(2, "zeDeviceGet"))
+ze_result_t zesDeviceGet(zes_driver_handle_t drv, uint32_t *count,
+                         zes_device_handle_t *handles) {
+  if (call_limit(2, "zesDeviceGet"))
     return ZE_RESULT_ERROR_DEVICE_LOST;
   if (drv != DRV_HANDLE)
     return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
@@ -225,7 +225,7 @@ ze_result_t zeDeviceGet(ze_driver_handle_t drv, uint32_t *count,
 /* mock up level-zero core device handling API, called during gpu_init() */
 
 static ze_result_t dev_args_check(int callbit, const char *name,
-                                  ze_device_handle_t dev, void *type) {
+                                  zes_device_handle_t dev, void *type) {
   if (call_limit(callbit, name))
     return ZE_RESULT_ERROR_DEVICE_LOST;
   if (dev != DEV_HANDLE)
@@ -237,21 +237,10 @@ static ze_result_t dev_args_check(int callbit, const char *name,
   return ZE_RESULT_SUCCESS;
 }
 
-ze_result_t zeDeviceGetProperties(ze_device_handle_t dev,
-                                  ze_device_properties_t *props) {
-  ze_result_t ret = dev_args_check(3, "zeDeviceGetProperties", dev, props);
-  if (ret == ZE_RESULT_SUCCESS) {
-    assert(!props->pNext);
-    memset(props, 0, sizeof(*props));
-    props->type = ZE_DEVICE_TYPE_GPU;
-  }
-  return ret;
-}
-
 ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
                                         ze_device_memory_properties_t *props) {
   ze_result_t ret =
-      dev_args_check(4, "zeDeviceGetMemoryProperties", dev, count);
+      dev_args_check(3, "zeDeviceGetMemoryProperties", dev, count);
   if (ret != ZE_RESULT_SUCCESS)
     return ret;
   if (!*count) {
@@ -279,15 +268,15 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
     return ret;                                                                \
   }
 
-DEV_GET_SET_STRUCT(5, zesDeviceGetProperties, zes_device_properties_t, )
-DEV_GET_SET_STRUCT(6, zesDevicePciGetProperties, zes_pci_properties_t, )
-DEV_GET_SET_STRUCT(7, zesDeviceGetState, zes_device_state_t,
+DEV_GET_SET_STRUCT(4, zesDeviceGetProperties, zes_device_properties_t, )
+DEV_GET_SET_STRUCT(5, zesDevicePciGetProperties, zes_pci_properties_t, )
+DEV_GET_SET_STRUCT(6, zesDeviceGetState, zes_device_state_t,
                    to_zero->reset = (ZES_RESET_REASON_FLAG_WEDGED |
                                      ZES_RESET_REASON_FLAG_REPAIR))
-DEV_GET_SET_STRUCT(8, zesDeviceGetEccState, zes_device_ecc_properties_t,
+DEV_GET_SET_STRUCT(7, zesDeviceGetEccState, zes_device_ecc_properties_t,
                    to_zero->currentState = ZES_DEVICE_ECC_STATE_ENABLED)
 
-#define INIT_CALL_FUNCS 9
+#define INIT_CALL_FUNCS 8
 #define INIT_CALL_BITS (((uint64_t)1 << INIT_CALL_FUNCS) - 1)
 
 /* ------------------------------------------------------------------------- */

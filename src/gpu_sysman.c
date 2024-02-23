@@ -68,11 +68,11 @@
 /* plugin specific callback error return values */
 #define RET_NO_METRICS -1
 #define RET_INVALID_CONFIG -2
-#define RET_ZE_INIT_FAIL -3
+#define RET_ZES_INIT_FAIL -3
 #define RET_NO_DRIVERS -4
-#define RET_ZE_DRIVER_GET_FAIL -5
-#define RET_ZE_DEVICE_GET_FAIL -6
-#define RET_ZE_DEVICE_PROPS_FAIL -7
+#define RET_ZES_DRIVER_GET_FAIL -5
+#define RET_ZES_DEVICE_GET_FAIL -6
+#define RET_ZES_DEVICE_PROPS_FAIL -7
 #define RET_NO_GPUS -9
 
 /* GPU metrics to disable */
@@ -467,6 +467,8 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
   INFO("HW identification:");
   zes_device_properties_t props = {.pNext = NULL};
   if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
+    /* TODO: deprecated substructure, but there's no replacement for getting
+     * PCI device ID (required by k8s Intel GPU plugin)! */
     const ze_device_properties_t *core = &props.core;
     snprintf(buf, sizeof(buf), "0x%x", core->deviceId);
     *pci_dev = sstrdup(buf); // used only if present
@@ -496,6 +498,7 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
 
   /* HW info for all memories */
   uint32_t i, mem_count = 0;
+  /* TODO: core not initialized, does this need to be dropped? */
   ze_device_handle_t mdev = (ze_device_handle_t)dev;
   if (ret = zeDeviceGetMemoryProperties(mdev, &mem_count, NULL),
       ret != ZE_RESULT_SUCCESS) {
@@ -597,18 +600,18 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
  * Return RET_OK for success, or (negative) error value if any of the device
  * count queries fails
  */
-static int gpu_scan(ze_driver_handle_t *drivers, uint32_t driver_count,
+static int gpu_scan(zes_driver_handle_t *drivers, uint32_t driver_count,
                     uint32_t *scan_count) {
   assert(!gpus);
   *scan_count = 0;
   for (uint32_t drv_idx = 0; drv_idx < driver_count; drv_idx++) {
 
     uint32_t dev_count = 0;
-    ze_result_t ret = zeDeviceGet(drivers[drv_idx], &dev_count, NULL);
+    ze_result_t ret = zesDeviceGet(drivers[drv_idx], &dev_count, NULL);
     if (ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get device count for driver %d => 0x%x",
             drv_idx, ret);
-      return RET_ZE_DEVICE_GET_FAIL;
+      return RET_ZES_DEVICE_GET_FAIL;
     }
     if (config.gpuinfo) {
       INFO("driver %d: %d devices", drv_idx, dev_count);
@@ -635,7 +638,7 @@ static int gpu_scan(ze_driver_handle_t *drivers, uint32_t driver_count,
  * Return RET_OK for success if at least one GPU device info fetch succeeded,
  * otherwise (negative) error value for last error encountered
  */
-static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
+static int gpu_fetch(zes_driver_handle_t *drivers, uint32_t driver_count,
                      uint32_t *scan_count, uint32_t *scan_ignored) {
   assert(!gpus);
   assert(*scan_count > 0);
@@ -647,41 +650,40 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
 
   for (uint32_t drv_idx = 0; drv_idx < driver_count; drv_idx++) {
     uint32_t dev_count = 0;
-    if (ret = zeDeviceGet(drivers[drv_idx], &dev_count, NULL),
+    if (ret = zesDeviceGet(drivers[drv_idx], &dev_count, NULL),
         ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get device count for driver %d => 0x%x",
             drv_idx, ret);
-      retval = RET_ZE_DEVICE_GET_FAIL;
+      retval = RET_ZES_DEVICE_GET_FAIL;
       continue;
     }
-    ze_device_handle_t *devs;
+    zes_device_handle_t *devs;
     devs = scalloc(dev_count, sizeof(*devs));
-    if (ret = zeDeviceGet(drivers[drv_idx], &dev_count, devs),
+    if (ret = zesDeviceGet(drivers[drv_idx], &dev_count, devs),
         ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get %d devices for driver %d => 0x%x",
             dev_count, drv_idx, ret);
       free(devs);
       devs = NULL;
-      retval = RET_ZE_DEVICE_GET_FAIL;
+      retval = RET_ZES_DEVICE_GET_FAIL;
       continue;
     }
     /* Get all GPU devices for the driver */
     for (uint32_t dev_idx = 0; dev_idx < dev_count; dev_idx++) {
-      ze_device_properties_t props = {.pNext = NULL};
-      if (ret = zeDeviceGetProperties(devs[dev_idx], &props),
+      zes_device_properties_t props = {.pNext = NULL};
+      if (ret = zesDeviceGetProperties(devs[dev_idx], &props),
           ret != ZE_RESULT_SUCCESS) {
         ERROR(PLUGIN_NAME
               ": failed to get driver %d device %d properties => 0x%x",
               drv_idx, dev_idx, ret);
-        retval = RET_ZE_DEVICE_PROPS_FAIL;
+        retval = RET_ZES_DEVICE_PROPS_FAIL;
         continue;
       }
-      assert(ZE_DEVICE_TYPE_GPU == props.type);
       if (count >= *scan_count) {
         ignored++;
         continue;
       }
-      gpus[count].handle = (zes_device_handle_t)devs[dev_idx];
+      gpus[count].handle = devs[dev_idx];
       if (!add_gpu_labels(&(gpus[count]), devs[dev_idx])) {
         ERROR(PLUGIN_NAME ": failed to get driver %d device %d information",
               drv_idx, dev_idx);
@@ -717,28 +719,27 @@ static int gpu_init(void) {
     return RET_OK;
   }
   ze_result_t ret;
-  setenv("ZES_ENABLE_SYSMAN", "1", 1);
-  if (ret = zeInit(ZE_INIT_FLAG_GPU_ONLY), ret != ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": Level Zero API init failed => 0x%x", ret);
-    return RET_ZE_INIT_FAIL;
+  if (ret = zesInit(0), ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": Level Zero Sysman init failed => 0x%x", ret);
+    return RET_ZES_INIT_FAIL;
   }
   /* Discover all the drivers */
   uint32_t driver_count = 0;
-  if (ret = zeDriverGet(&driver_count, NULL), ret != ZE_RESULT_SUCCESS) {
+  if (ret = zesDriverGet(&driver_count, NULL), ret != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get L0 GPU drivers count => 0x%x", ret);
-    return RET_ZE_DRIVER_GET_FAIL;
+    return RET_ZES_DRIVER_GET_FAIL;
   }
   if (!driver_count) {
     ERROR(PLUGIN_NAME ": no drivers found with Level-Zero Sysman API");
     return RET_NO_DRIVERS;
   }
-  ze_driver_handle_t *drivers;
+  zes_driver_handle_t *drivers;
   drivers = scalloc(driver_count, sizeof(*drivers));
-  if (ret = zeDriverGet(&driver_count, drivers), ret != ZE_RESULT_SUCCESS) {
+  if (ret = zesDriverGet(&driver_count, drivers), ret != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d L0 drivers => 0x%x", driver_count,
           ret);
     free(drivers);
-    return RET_ZE_DRIVER_GET_FAIL;
+    return RET_ZES_DRIVER_GET_FAIL;
   }
   /* scan number of Sysman provided GPUs... */
   int fail;
