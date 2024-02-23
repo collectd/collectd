@@ -7490,6 +7490,10 @@ L<http://www.postgresql.org/docs/manuals/>.
     <Writer sqlstore>
       Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
       StoreRates true
+      # Meta data can be added to the 10th argument as a JSON string
+      # Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);"
+      # MetaData true
+      # MetaData "network:username" "network:ip_address"
     </Writer>
 
     <Database foo>
@@ -7774,6 +7778,11 @@ C<gauge>.
 An array of the submitted values. The dimensions of the value name and value
 arrays match.
 
+=item B<$10>
+
+A JSON string which stores meta data. This argument is optional, will be added
+only when MetaData config is specified.
+
 =back
 
 In general, it is advisable to create and call a custom function in the
@@ -7786,6 +7795,12 @@ for details).
 If set to B<true> (the default), convert counter values to rates. If set to
 B<false> counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
+
+=item B<MetaData> B<false>|B<true>|B<keys>
+
+If set to B<true>, meta data formatted by JSON will be passed to $10 of
+Statement. Or you can choose specific meta data by listing each keys instead of
+B<true>.
 
 =back
 
