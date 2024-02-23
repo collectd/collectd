@@ -809,19 +809,6 @@ static void compose_name(char *buf, size_t bufsize, const char *name,
   assert(len < bufsize);
 }
 
-static double get_value(metric_type_t type, value_t value) {
-  switch (type) {
-  case METRIC_TYPE_COUNTER:
-    return value.counter;
-    break;
-  case METRIC_TYPE_GAUGE:
-    return value.gauge;
-    break;
-  default:
-    assert(0);
-  }
-}
-
 /* matches constructed metric names against validation array ones and
  * updates the values accordingly
  */
@@ -833,7 +820,7 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
   metric_t *metric = fam->metric.ptr;
 
   for (size_t m = 0; m < fam->metric.num; m++) {
-    double value = get_value(fam->type, metric[m].value);
+    double value = metric2double(fam->type, metric[m].value);
     compose_name(name, sizeof(name), fam->name, &metric[m]);
     if (globs.verbose & VERBOSE_METRICS) {
       fprintf(stderr, "METRIC: %s: %g\n", name, value);

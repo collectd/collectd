@@ -770,6 +770,24 @@ static int gpu_init(void) {
   return gpu_config_init(count);
 }
 
+static double metric2double(metric_type_t type, value_t value) {
+  switch (type) {
+  case METRIC_TYPE_GAUGE:
+    return value.gauge;
+  case METRIC_TYPE_COUNTER:
+    return value.counter;
+  case METRIC_TYPE_COUNTER_FP:
+    return value.counter_fp;
+  case METRIC_TYPE_UP_DOWN:
+    return value.up_down;
+  case METRIC_TYPE_UP_DOWN_FP:
+    return value.up_down_fp;
+  case METRIC_TYPE_UNTYPED:
+    break;
+  }
+  assert(0);
+}
+
 /* Add device labels to all metrics in given metric family and submit family to
  * collectd, and log the metric if metric logging is enabled.
  * Resets metric family after dispatch */
@@ -806,8 +824,7 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
       }
       INFO("[%7ld.%03ld] %s: %s / %s [%ld]: %.3f", ts.tv_sec,
            ts.tv_nsec / 1000000, pci_bdf, name, type, i,
-           fam->type == METRIC_TYPE_COUNTER ? m->value.counter
-                                            : m->value.gauge);
+           metric2double(fam->type, m->value));
     }
 
     /* add extra per-metric labels */
