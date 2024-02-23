@@ -1416,9 +1416,9 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
         (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
       /* https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv419zes_mem_bandwidth_t
        */
-      uint64_t writes = bw.writeCounter - old->writeCounter;
-      uint64_t reads = bw.readCounter - old->readCounter;
-      uint64_t timediff = bw.timestamp - old->timestamp;
+      counter_t writes = counter_diff(old->writeCounter, bw.writeCounter);
+      counter_t reads = counter_diff(old->readCounter, bw.readCounter);
+      counter_t timediff = counter_diff(old->timestamp, bw.timestamp);
 
       if (config.output & OUTPUT_RATE) {
         double factor = 1.0e6 / timediff;
@@ -2121,9 +2121,9 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
         (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
       /* https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-fabric-port-throughput-t
        */
-      uint64_t writes = bw.txCounter - old->txCounter;
-      uint64_t reads = bw.rxCounter - old->rxCounter;
-      uint64_t timediff = bw.timestamp - old->timestamp;
+      counter_t writes = counter_diff(old->txCounter, bw.txCounter);
+      counter_t reads = counter_diff(old->rxCounter, bw.rxCounter);
+      counter_t timediff = counter_diff(old->timestamp, bw.timestamp);
 
       if (config.output & OUTPUT_RATE) {
         double factor = 1.0e6 / timediff;
@@ -2237,8 +2237,8 @@ static bool gpu_powers(gpu_device_t *gpu) {
     if (old->timestamp && counter.timestamp > old->timestamp &&
         (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
 
-      uint64_t energy_diff = counter.energy - old->energy;
-      double time_diff = counter.timestamp - old->timestamp;
+      counter_t energy_diff = counter_diff(old->energy, counter.energy);
+      double time_diff = counter_diff(old->timestamp, counter.timestamp);
 
       if (config.output & OUTPUT_RATE) {
         /* microJoules / microSeconds => watts */
