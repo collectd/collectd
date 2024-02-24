@@ -991,11 +991,11 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
       .name = "process.memory.usage",
       .help = "The amount of physical memory in use (RSS).",
       .unit = "By",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
       .resource = resource,
   };
   metric_family_metric_append(&fam_rss, (metric_t){
-                                            .value.gauge = pse->vmem_rss,
+                                            .value.up_down = pse->vmem_rss,
                                         });
   plugin_dispatch_metric_family(&fam_rss);
   metric_family_metric_reset(&fam_rss);
@@ -1004,11 +1004,11 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
       .name = "process.memory.virtual",
       .help = "The amount of committed virtual memory.",
       .unit = "By",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
       .resource = resource,
   };
   metric_family_metric_append(&fam_vmem, (metric_t){
-                                             .value.gauge = pse->vmem_size,
+                                             .value.up_down = pse->vmem_size,
                                          });
   plugin_dispatch_metric_family(&fam_vmem);
   metric_family_metric_reset(&fam_vmem);
@@ -1017,11 +1017,11 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
       .name = "process.memory.stack",
       .help = "The size of the process' stack.",
       .unit = "By",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
       .resource = resource,
   };
   metric_family_metric_append(&fam_stack, (metric_t){
-                                              .value.gauge = pse->stack_size,
+                                              .value.up_down = pse->stack_size,
                                           });
   plugin_dispatch_metric_family(&fam_stack);
   metric_family_metric_reset(&fam_stack);
@@ -1078,11 +1078,11 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
       .name = "process.threads",
       .help = "Process threads count.",
       .unit = "{thread}",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
       .resource = resource,
   };
   metric_family_metric_append(&fam_threads, (metric_t){
-                                                .value.gauge = pse->num_lwp,
+                                                .value.up_down = pse->num_lwp,
                                             });
   plugin_dispatch_metric_family(&fam_threads);
   metric_family_metric_reset(&fam_threads);
@@ -1091,11 +1091,11 @@ static void ps_dispatch_procstat_entry(procstat_t const *ps,
       .name = "process.open_file_descriptors",
       .help = "Number of file descriptors in use by the process.",
       .unit = "{count}",
-      .type = METRIC_TYPE_GAUGE,
+      .type = METRIC_TYPE_UP_DOWN,
       .resource = resource,
   };
   metric_family_metric_append(&fam_fd, (metric_t){
-                                           .value.gauge = pse->num_fd,
+                                           .value.up_down = pse->num_fd,
                                        });
   plugin_dispatch_metric_family(&fam_fd);
   metric_family_metric_reset(&fam_fd);
