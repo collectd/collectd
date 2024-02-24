@@ -33,3 +33,13 @@ jobs:
         [[ -e "${GITHUB_REF_NAME:?}.tar.bz2" ]] && gh release upload "${GITHUB_REF_NAME:?}" "${GITHUB_REF_NAME:?}.tar.bz2"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Trigger website update
+      run: |
+        if [[ -e "${GITHUB_REF_NAME:?}.tar.bz2" ]]; then
+          declare -r VERSION="${GITHUB_REF_NAME#collectd-}"
+          declare -r DOWNLOAD_URL="$(gh release view "${GITHUB_REF_NAME}" -R collectd/collectd --json assets --jq '.assets[0].url')"
+          declare -r SHA256SUM="$(sha256sum "${GITHUB_REF_NAME}.tar.bz2" | awk '{ print $1; }')"
+          gh workflow run release.yml -R collectd/collectd.github.io --ref main -F "version=${VERSION}" -F "download_url=${DOWNLOAD_URL}" -F "sha256sum=${SHA256SUM}"
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.COLLECTD_BOT_TOKEN }}
