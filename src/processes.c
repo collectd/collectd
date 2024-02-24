@@ -915,7 +915,6 @@ static void ps_dispatch_cpu(label_set_t resource, procstat_entry_t const *pse) {
   }
 
   gauge_t cpus = (gauge_t)sysconf(_SC_NPROCESSORS_ONLN);
-  gauge_t factor = 1.0 / (cpus * 1000000.0);
 
   metric_family_t fam_cpu_util = {
       .name = "process.cpu.utilization",
@@ -927,9 +926,9 @@ static void ps_dispatch_cpu(label_set_t resource, procstat_entry_t const *pse) {
       .resource = resource,
   };
   metric_family_append(&fam_cpu_util, "state", "user",
-                       (value_t){.gauge = pse->cpu_user_rate * factor}, NULL);
+                       (value_t){.gauge = pse->cpu_user_rate / cpus}, NULL);
   metric_family_append(&fam_cpu_util, "state", "system",
-                       (value_t){.gauge = pse->cpu_system_rate * factor}, NULL);
+                       (value_t){.gauge = pse->cpu_system_rate / cpus}, NULL);
   plugin_dispatch_metric_family(&fam_cpu_util);
   metric_family_metric_reset(&fam_cpu_util);
 }
