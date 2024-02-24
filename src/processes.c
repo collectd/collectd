@@ -221,7 +221,6 @@ typedef struct {
 /* procstat_entry_t represents a process/thread cached in between reads. */
 typedef struct procstat_entry_s {
   unsigned long id;
-  unsigned char age;
   // The time the process started after system boot.
   // Value is in jiffies.
   unsigned long long starttime;
