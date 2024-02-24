@@ -864,8 +864,8 @@ static int ps_init(void) {
   return 0;
 } /* int ps_init */
 
-static int process_resource(procstat_t const *ps, procstat_entry_t const *pse,
-                            label_set_t *ret_resource) {
+static bool process_resource(procstat_t const *ps, procstat_entry_t const *pse,
+                             label_set_t *ret_resource) {
   bool have_id = false;
 
 #if HAVE_REGEX_H
@@ -893,7 +893,7 @@ static int process_resource(procstat_t const *ps, procstat_entry_t const *pse,
     have_id = true;
   }
 
-  return have_id ? 0 : -1;
+  return have_id;
 }
 
 static void ps_dispatch_cpu(label_set_t resource, procstat_entry_t const *pse) {
@@ -976,9 +976,10 @@ static void ps_dispatch_delay(label_set_t resource,
 static void ps_dispatch_procstat_entry(procstat_t const *ps,
                                        procstat_entry_t const *pse) {
   label_set_t resource = {0};
-  int status = process_resource(ps, pse, &resource);
-  if (status != 0) {
+  bool ok = process_resource(ps, pse, &resource);
+  if (!ok) {
     ERROR("processes plugin: Creating resource attributes failed.");
+    return;
   } else {
     strbuf_t buf = STRBUF_CREATE;
     label_set_format(&buf, resource);
