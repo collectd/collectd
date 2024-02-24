@@ -580,7 +580,6 @@ static int ps_get_cmdline(long pid, char const *name, char *buf,
     snprintf(buf, buf_len, "[%s]", name);
     return 0;
   }
-  assert(status > 0);
   /* n is the number of bytes in the buffer, including the final null byte. */
   size_t n = (size_t)status;
 
