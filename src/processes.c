@@ -2740,7 +2740,7 @@ static int ps_read_aix(gauge_t process_count[static STATE_MAX]) {
 
       process_entry_t pse = {
           .id = procentry[i].pi_pid,
-          .command_line = cargs,
+          .command_line = cmdline,
           .num_lwp = procentry[i].pi_thcount,
           .num_proc = 1,
       };
@@ -2815,7 +2815,7 @@ static int ps_read_aix(gauge_t process_count[static STATE_MAX]) {
       pse.cswitch_vol = -1;
       pse.cswitch_invol = -1;
 
-      ps_list_add(cmdline, cargs, &pse);
+      ps_list_add(cmdline, &pse);
     } /* for (i = 0 .. nprocs) */
 
     if (nprocs < MAXPROCENTRY)
