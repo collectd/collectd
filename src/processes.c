@@ -2207,7 +2207,7 @@ static int ps_read_linux(gauge_t process_count[static STATE_MAX]) {
   closedir(proc);
 
   char buffer[4096] = {0};
-  ssize_t n = read_text_file_contents("/proc/stat", buffer, sizeof(buffer) - 1);
+  ssize_t n = read_text_file_contents("/proc/stat", buffer, sizeof(buffer));
   if (n <= 0) {
     ERROR("processes plugin: reading \"/proc/stat\" failed.");
     return -1;
