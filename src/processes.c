@@ -192,8 +192,8 @@ typedef struct {
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
 
-  fpcounter_t cpu_user_counter;
-  fpcounter_t cpu_system_counter;
+  double cpu_user_counter;
+  double cpu_system_counter;
 
   /* io data */
   derive_t io_rchar;
@@ -240,8 +240,8 @@ typedef struct procstat_entry_s {
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
 
-  fpcounter_t cpu_user_counter;
-  fpcounter_t cpu_system_counter;
+  double cpu_user_counter;
+  double cpu_system_counter;
   value_to_rate_state_t cpu_user_state;
   value_to_rate_state_t cpu_system_state;
   gauge_t cpu_user_rate;
@@ -260,10 +260,10 @@ typedef struct procstat_entry_s {
 
   /* Linux Delay Accounting. Unit is s/s. */
   bool has_delay;
-  fpcounter_t delay_cpu;
-  fpcounter_t delay_blkio;
-  fpcounter_t delay_swapin;
-  fpcounter_t delay_freepages;
+  double delay_cpu;
+  double delay_blkio;
+  double delay_swapin;
+  double delay_freepages;
 
   struct procstat_entry_s *next;
 } procstat_entry_t;
@@ -531,10 +531,10 @@ static void ps_add_entry_to_procstat(procstat_t *ps, char const *cmdline,
 
   pse->has_delay = entry->has_delay;
 #if HAVE_LIBTASKSTATS
-  pse->delay_cpu = ((fpcounter_t)entry->delay.cpu_ns) / 1e9;
-  pse->delay_blkio = ((fpcounter_t)entry->delay.blkio_ns) / 1e9;
-  pse->delay_swapin = ((fpcounter_t)entry->delay.swapin_ns) / 1e9;
-  pse->delay_freepages = ((fpcounter_t)entry->delay.freepages_ns) / 1e9;
+  pse->delay_cpu = ((double)entry->delay.cpu_ns) / 1e9;
+  pse->delay_blkio = ((double)entry->delay.blkio_ns) / 1e9;
+  pse->delay_swapin = ((double)entry->delay.swapin_ns) / 1e9;
+  pse->delay_freepages = ((double)entry->delay.freepages_ns) / 1e9;
 #endif
 
   pse->num_lwp = (gauge_t)entry->num_lwp;
@@ -550,12 +550,12 @@ static void ps_add_entry_to_procstat(procstat_t *ps, char const *cmdline,
 
   pse->cpu_user_counter = entry->cpu_user_counter;
   value_to_rate(&pse->cpu_user_rate,
-                (value_t){.fpcounter = entry->cpu_user_counter},
-                METRIC_TYPE_FPCOUNTER, now, &pse->cpu_user_state);
+                (value_t){.counter_fp = entry->cpu_user_counter},
+                METRIC_TYPE_COUNTER_FP, now, &pse->cpu_user_state);
   pse->cpu_system_counter = entry->cpu_system_counter;
   value_to_rate(&pse->cpu_system_rate,
-                (value_t){.fpcounter = entry->cpu_system_counter},
-                METRIC_TYPE_FPCOUNTER, now, &pse->cpu_system_state);
+                (value_t){.counter_fp = entry->cpu_system_counter},
+                METRIC_TYPE_COUNTER_FP, now, &pse->cpu_system_state);
 }
 
 #if KERNEL_LINUX
@@ -900,13 +900,13 @@ static void ps_dispatch_cpu(label_set_t resource, procstat_entry_t const *pse) {
       .name = "process.cpu.time",
       .help = "Total CPU seconds broken down by different states.",
       .unit = "s",
-      .type = METRIC_TYPE_FPCOUNTER,
+      .type = METRIC_TYPE_COUNTER_FP,
       .resource = resource,
   };
   metric_family_append(&fam_cpu_time, "state", "user",
-                       (value_t){.fpcounter = pse->cpu_user_counter}, NULL);
+                       (value_t){.counter_fp = pse->cpu_user_counter}, NULL);
   metric_family_append(&fam_cpu_time, "state", "system",
-                       (value_t){.fpcounter = pse->cpu_system_counter}, NULL);
+                       (value_t){.counter_fp = pse->cpu_system_counter}, NULL);
   plugin_dispatch_metric_family(&fam_cpu_time);
   metric_family_metric_reset(&fam_cpu_time);
 
@@ -939,7 +939,7 @@ static void ps_dispatch_delay(label_set_t resource,
       .name = "process.delay.time",
       .help = "Time the process spend waiting for external components.",
       .unit = "s",
-      .type = METRIC_TYPE_FPCOUNTER,
+      .type = METRIC_TYPE_COUNTER_FP,
       .resource = resource,
   };
   struct {
@@ -948,19 +948,19 @@ static void ps_dispatch_delay(label_set_t resource,
   } metrics[] = {
       {
           .type_label = "cpu",
-          .value.fpcounter = pse->delay_cpu,
+          .value.counter_fp = pse->delay_cpu,
       },
       {
           .type_label = "blkio",
-          .value.fpcounter = pse->delay_blkio,
+          .value.counter_fp = pse->delay_blkio,
       },
       {
           .type_label = "swapin",
-          .value.fpcounter = pse->delay_swapin,
+          .value.counter_fp = pse->delay_swapin,
       },
       {
           .type_label = "freepages",
-          .value.fpcounter = pse->delay_freepages,
+          .value.counter_fp = pse->delay_freepages,
       },
   };
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
@@ -1599,10 +1599,10 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
                                            : stack_ptr - stack_start;
   }
 
-  fpcounter_t clock_ticks = (fpcounter_t)sysconf(_SC_CLK_TCK);
+  double clock_ticks = (double)sysconf(_SC_CLK_TCK);
 
-  ps->cpu_user_counter = ((fpcounter_t)cpu_user_counter) / clock_ticks;
-  ps->cpu_system_counter = ((fpcounter_t)cpu_system_counter) / clock_ticks;
+  ps->cpu_user_counter = ((double)cpu_user_counter) / clock_ticks;
+  ps->cpu_system_counter = ((double)cpu_system_counter) / clock_ticks;
   ps->vmem_size = (unsigned long)vmem_size;
   ps->vmem_rss = (unsigned long)(vmem_rss * pagesize_g);
   ps->stack_size = (unsigned long)stack_size;
@@ -1763,8 +1763,8 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   }
 
   /* Convert system time and user time from nanoseconds to seconds. */
-  ps->cpu_system_counter = ((fpcounter_t)myStatus->pr_stime.tv_nsec) / 1e9;
-  ps->cpu_user_counter = ((fpcounter_t)myStatus->pr_utime.tv_nsec) / 1e9;
+  ps->cpu_system_counter = ((double)myStatus->pr_stime.tv_nsec) / 1e9;
+  ps->cpu_user_counter = ((double)myStatus->pr_utime.tv_nsec) / 1e9;
 
   /*
    * Convert rssize from KB to bytes to be consistent w/ the linux module
@@ -2033,9 +2033,9 @@ static int ps_read_thread_info(gauge_t process_count[static STATE_MAX]) {
         pse.vmem_majflt_counter = task_events_info.faults;
 
         pse.cpu_user_counter =
-            ((fpcounter_t)task_absolutetime_info.total_user) / 1e9;
+            ((double)task_absolutetime_info.total_user) / 1e9;
         pse.cpu_system_counter =
-            ((fpcounter_t)task_absolutetime_info.total_system) / 1e9;
+            ((double)task_absolutetime_info.total_system) / 1e9;
 
         /* context switch counters not implemented */
         pse.cswitch_vol = -1;
@@ -2322,11 +2322,11 @@ static int ps_read_freebsd(gauge_t process_count[static STATE_MAX]) {
        */
       if (procs[i].ki_flag & P_INMEM) {
         pse.cpu_user_counter =
-            ((fpcounter_t)procs[i].ki_rusage.ru_utime.tv_sec) +
-            ((fpcounter_t)procs[i].ki_rusage.ru_utime.tv_usec) / 1e6;
+            ((double)procs[i].ki_rusage.ru_utime.tv_sec) +
+            ((double)procs[i].ki_rusage.ru_utime.tv_usec) / 1e6;
         pse.cpu_system_counter =
-            ((fpcounter_t)procs[i].ki_rusage.ru_stime.tv_sec) +
-            ((fpcounter_t)procs[i].ki_rusage.ru_stime.tv_usec) / 1e6;
+            ((double)procs[i].ki_rusage.ru_stime.tv_sec) +
+            ((double)procs[i].ki_rusage.ru_stime.tv_usec) / 1e6;
       }
 
       /* no I/O data */
@@ -2479,10 +2479,10 @@ static int ps_read_netbsd(gauge_t process_count[static STATE_MAX]) {
        * leave them 0.
        */
       if (procs[i].p_flag & P_INMEM) {
-        pse.cpu_user_counter = ((fpcounter_t)procs[i].p_uutime_sec) +
-                               ((fpcounter_t)procs[i].p_uutime_usec) / 1e6;
-        pse.cpu_system_counter = ((fpcounter_t)procs[i].p_ustime_sec) +
-                                 ((fpcounter_t)procs[i].p_ustime_usec) / 1e6;
+        pse.cpu_user_counter = ((double)procs[i].p_uutime_sec) +
+                               ((double)procs[i].p_uutime_usec) / 1e6;
+        pse.cpu_system_counter = ((double)procs[i].p_ustime_sec) +
+                                 ((double)procs[i].p_ustime_usec) / 1e6;
       }
 
       /* no I/O data */
@@ -2636,10 +2636,10 @@ static int ps_read_openbsd(gauge_t process_count[static STATE_MAX]) {
       pse.vmem_minflt_counter = procs[i].p_uru_minflt;
       pse.vmem_majflt_counter = procs[i].p_uru_majflt;
 
-      pse.cpu_user_counter = ((fpcounter_t)procs[i].p_uutime_sec) +
-                             ((fpcounter_t)procs[i].p_uutime_usec) / 1e6;
-      pse.cpu_system_counter = ((fpcounter_t)procs[i].p_ustime_sec) +
-                               ((fpcounter_t)procs[i].p_ustime_usec) / 1e6;
+      pse.cpu_user_counter = ((double)procs[i].p_uutime_sec) +
+                             ((double)procs[i].p_uutime_usec) / 1e6;
+      pse.cpu_system_counter = ((double)procs[i].p_ustime_sec) +
+                               ((double)procs[i].p_ustime_usec) / 1e6;
 
       /* no I/O data */
       pse.io_rchar = -1;
@@ -2786,11 +2786,11 @@ static int ps_read_aix(gauge_t process_count[static STATE_MAX]) {
        * both of the struct timeval contain nanoseconds instead of microseconds.
        */
       pse.cpu_user_counter =
-          ((fpcounter_t)procentry[i].pi_ru.ru_utime.tv_sec) +
-          ((fpcounter_t)procentry[i].pi_ru.ru_utime.tv_usec) / 1e9;
+          ((double)procentry[i].pi_ru.ru_utime.tv_sec) +
+          ((double)procentry[i].pi_ru.ru_utime.tv_usec) / 1e9;
       pse.cpu_system_counter =
-          ((fpcounter_t)procentry[i].pi_ru.ru_stime.tv_sec) +
-          ((fpcounter_t)procentry[i].pi_ru.ru_stime.tv_usec) / 1e9;
+          ((double)procentry[i].pi_ru.ru_stime.tv_sec) +
+          ((double)procentry[i].pi_ru.ru_stime.tv_usec) / 1e9;
 
       pse.vmem_minflt_counter = procentry[i].pi_minflt;
       pse.vmem_majflt_counter = procentry[i].pi_majflt;
