@@ -2402,8 +2402,6 @@ static int ps_read_netbsd(gauge_t process_count[static STATE_MAX]) {
   int l, nlwps;
   struct kinfo_lwp *kl;
 
-  procstat_t *ps_ptr;
-
   ps_list_reset();
 
   /* Open the kvm interface, get a descriptor */
@@ -2553,8 +2551,9 @@ static int ps_read_netbsd(gauge_t process_count[static STATE_MAX]) {
 
   kvm_close(kd);
 
-  for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+  for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next) {
+    ps_submit_proc_list(ps);
+  }
 
   return 0;
 }
@@ -2688,8 +2687,9 @@ static int ps_read_openbsd(gauge_t process_count[static STATE_MAX]) {
 
   kvm_close(kd);
 
-  for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+  for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next) {
+    ps_submit_proc_list(ps);
+  }
 
   return 0;
 }
@@ -2909,8 +2909,9 @@ static int ps_read_solaris(gauge_t process_count[static STATE_MAX]) {
   } /* while(readdir) */
   closedir(proc);
 
-  for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
-    ps_submit_proc_list(ps_ptr);
+  for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next) {
+    ps_submit_proc_list(ps);
+  }
 
   read_fork_rate();
 
