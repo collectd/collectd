@@ -1554,6 +1554,10 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
     return -1;
   }
 
+  /* The fields in /proc/<pid>/stat are described in the proc(5) manpage. The
+   * code just skipped over fields above, so field[0] is documented as field "3"
+   * in the manual page. */
+
   *state = fields[0][0];
 
   if (*state == 'Z') {
