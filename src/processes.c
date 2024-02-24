@@ -1143,24 +1143,6 @@ static void ps_submit_proc_list(procstat_t *ps) {
   for (procstat_entry_t *pse = ps->instances; pse != NULL; pse = pse->next) {
     ps_dispatch_procstat_entry(ps, pse);
   }
-
-#if 0
-  sstrncpy(vl.type, "ps_data", sizeof(vl.type));
-  vl.values[0].gauge = pse->vmem_data;
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
-
-  sstrncpy(vl.type, "ps_code", sizeof(vl.type));
-  vl.values[0].gauge = pse->vmem_code;
-  vl.values_len = 1;
-  plugin_dispatch_values(&vl);
-
-  sstrncpy(vl.type, "ps_count", sizeof(vl.type));
-  vl.values[0].gauge = ps->num_proc;
-  vl.values[1].gauge = pse->num_lwp;
-  vl.values_len = 2;
-  plugin_dispatch_values(&vl);
-#endif
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
