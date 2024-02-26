@@ -387,6 +387,66 @@ static void log_uuid(const char *prefix, const uint8_t *byte, int len) {
   INFO("%s", buf);
 }
 
+static const char *map_mem_location(zes_mem_loc_t location) {
+  /* default is "unknown", in case spec / L0 backend has added new items
+   * since this code was last updated */
+  switch (location) {
+  case ZES_MEM_LOC_SYSTEM:
+    return "system";
+  case ZES_MEM_LOC_DEVICE:
+    return "device";
+  default:
+    return "unknown";
+  }
+}
+
+static const char *map_mem_type(zes_mem_type_t type) {
+  switch (type) {
+  case ZES_MEM_TYPE_HBM:
+    return "HBM";
+  case ZES_MEM_TYPE_DDR:
+    return "DDR";
+  case ZES_MEM_TYPE_DDR3:
+    return "DDR3";
+  case ZES_MEM_TYPE_DDR4:
+    return "DDR4";
+  case ZES_MEM_TYPE_DDR5:
+    return "DDR5";
+  case ZES_MEM_TYPE_LPDDR:
+    return "LPDDR";
+  case ZES_MEM_TYPE_LPDDR3:
+    return "LPDDR3";
+  case ZES_MEM_TYPE_LPDDR4:
+    return "LPDDR4";
+  case ZES_MEM_TYPE_LPDDR5:
+    return "LPDDR5";
+  case ZES_MEM_TYPE_GDDR4:
+    return "GDDR4";
+  case ZES_MEM_TYPE_GDDR5:
+    return "GDDR5";
+  case ZES_MEM_TYPE_GDDR5X:
+    return "GDDR5X";
+  case ZES_MEM_TYPE_GDDR6:
+    return "GDDR6";
+  case ZES_MEM_TYPE_GDDR6X:
+    return "GDDR6X";
+  case ZES_MEM_TYPE_GDDR7:
+    return "GDDR7";
+  case ZES_MEM_TYPE_SRAM:
+    return "SRAM";
+  case ZES_MEM_TYPE_L1:
+    return "L1";
+  case ZES_MEM_TYPE_L3:
+    return "L3";
+  case ZES_MEM_TYPE_GRF:
+    return "GRF";
+  case ZES_MEM_TYPE_SLM:
+    return "SLM";
+  default:
+    return "unknown";
+  }
+}
+
 /* If GPU info setting is enabled, log Sysman API provided info for
  * given GPU, and set PCI device ID to 'pci_dev'.  On success, return
  * true and set GPU PCI address to 'pci_bdf' as string in BDF notation:
@@ -496,32 +556,41 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
     WARNING(PLUGIN_NAME ": failed to get GPU device properties => 0x%x", ret);
   }
 
-  /* HW info for all memories */
+  /* get memory modules */
   uint32_t i, mem_count = 0;
-  /* TODO: core not initialized, does this need to be dropped? */
-  ze_device_handle_t mdev = (ze_device_handle_t)dev;
-  if (ret = zeDeviceGetMemoryProperties(mdev, &mem_count, NULL),
-      ret != ZE_RESULT_SUCCESS) {
-    WARNING(PLUGIN_NAME ": failed to get memory properties count => 0x%x", ret);
+  ret = zesDeviceEnumMemoryModules(dev, &mem_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get memory modules count => 0x%x", ret);
     return true;
   }
-  ze_device_memory_properties_t *mems = scalloc(mem_count, sizeof(*mems));
-  if (ret = zeDeviceGetMemoryProperties(mdev, &mem_count, mems),
-      ret != ZE_RESULT_SUCCESS) {
-    WARNING(PLUGIN_NAME ": failed to get %d memory properties => 0x%x",
-            mem_count, ret);
+  zes_mem_handle_t *mems;
+  mems = scalloc(mem_count, sizeof(*mems));
+  ret = zesDeviceEnumMemoryModules(dev, &mem_count, mems);
+  if (ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get %d memory modules => 0x%x", mem_count,
+            ret);
     free(mems);
     return true;
   }
+
+  /* HW info for all memories */
   for (i = 0; i < mem_count; i++) {
-    const char *memname = mems[i].name;
-    if (!(memname && *memname)) {
-      memname = "Unknown";
+    zes_mem_properties_t props = {.pNext = NULL};
+    /* properties call here would mess unit-testing for metric values */
+#ifndef SYSMAN_UNIT_TEST_BUILD
+    ret = zesMemoryGetProperties(mems[i], &props);
+#endif
+    if (ret != ZE_RESULT_SUCCESS) {
+      WARNING(PLUGIN_NAME ": failed to get memory %d properties => 0x%x", i,
+              ret);
+      continue;
     }
-    INFO("Memory - %s:", memname);
-    INFO("- size:       %lu MiB", mems[i].totalSize / (1024 * 1024));
-    INFO("- bus width:  %u", mems[i].maxBusWidth);
-    INFO("- max clock:  %u", mems[i].maxClockRate);
+    const char *location = map_mem_location(props.location);
+    const char *type = map_mem_type(props.type);
+    INFO("Memory[%i] - %s / %s:", i, location, type);
+    INFO("- size:       %lu MiB", props.physicalSize / (1024 * 1024));
+    INFO("- channels:   %u ", props.numChannels);
+    INFO("- bus width:  %u", props.busWidth);
   }
   free(mems);
   return true;
@@ -1032,84 +1101,8 @@ static ze_result_t set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
   if (ret != ZE_RESULT_SUCCESS) {
     return ret;
   }
-  const char *location;
-  switch (props.location) {
-  case ZES_MEM_LOC_SYSTEM:
-    location = "system";
-    break;
-  case ZES_MEM_LOC_DEVICE:
-    location = "device";
-    break;
-  default:
-    location = "unknown";
-  }
-  const char *type;
-  switch (props.type) {
-  case ZES_MEM_TYPE_HBM:
-    type = "HBM";
-    break;
-  case ZES_MEM_TYPE_DDR:
-    type = "DDR";
-    break;
-  case ZES_MEM_TYPE_DDR3:
-    type = "DDR3";
-    break;
-  case ZES_MEM_TYPE_DDR4:
-    type = "DDR4";
-    break;
-  case ZES_MEM_TYPE_DDR5:
-    type = "DDR5";
-    break;
-  case ZES_MEM_TYPE_LPDDR:
-    type = "LPDDR";
-    break;
-  case ZES_MEM_TYPE_LPDDR3:
-    type = "LPDDR3";
-    break;
-  case ZES_MEM_TYPE_LPDDR4:
-    type = "LPDDR4";
-    break;
-  case ZES_MEM_TYPE_LPDDR5:
-    type = "LPDDR5";
-    break;
-  case ZES_MEM_TYPE_GDDR4:
-    type = "GDDR4";
-    break;
-  case ZES_MEM_TYPE_GDDR5:
-    type = "GDDR5";
-    break;
-  case ZES_MEM_TYPE_GDDR5X:
-    type = "GDDR5X";
-    break;
-  case ZES_MEM_TYPE_GDDR6:
-    type = "GDDR6";
-    break;
-  case ZES_MEM_TYPE_GDDR6X:
-    type = "GDDR6X";
-    break;
-  case ZES_MEM_TYPE_GDDR7:
-    type = "GDDR7";
-    break;
-  case ZES_MEM_TYPE_SRAM:
-    type = "SRAM";
-    break;
-  case ZES_MEM_TYPE_L1:
-    type = "L1";
-    break;
-  case ZES_MEM_TYPE_L3:
-    type = "L3";
-    break;
-  case ZES_MEM_TYPE_GRF:
-    type = "GRF";
-    break;
-  case ZES_MEM_TYPE_SLM:
-    type = "SLM";
-    break;
-  default:
-    type = "unknown";
-  }
-  metric_label_set(metric, "type", type);
-  metric_label_set(metric, "location", location);
+  metric_label_set(metric, "type", map_mem_type(props.type));
+  metric_label_set(metric, "location", map_mem_location(props.location));
   metric_set_subdev(metric, props.onSubdevice, props.subdeviceId);
   return ZE_RESULT_SUCCESS;
 }

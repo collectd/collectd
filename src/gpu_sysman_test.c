@@ -72,6 +72,7 @@
  * - Plugin init, shutdown and re-init works without problems
  */
 
+#define SYSMAN_UNIT_TEST_BUILD 1
 #include "gpu_sysman.c" /* test this */
 
 /* include metric functions + their dependencies directly, instead of
@@ -237,24 +238,6 @@ static ze_result_t dev_args_check(int callbit, const char *name,
   return ZE_RESULT_SUCCESS;
 }
 
-ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
-                                        ze_device_memory_properties_t *props) {
-  ze_result_t ret =
-      dev_args_check(3, "zeDeviceGetMemoryProperties", dev, count);
-  if (ret != ZE_RESULT_SUCCESS)
-    return ret;
-  if (!*count) {
-    *count = 1;
-    return ZE_RESULT_SUCCESS;
-  }
-  *count = 1;
-  if (!props)
-    return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
-  assert(!props->pNext);
-  memset(props, 0, sizeof(*props));
-  return ZE_RESULT_SUCCESS;
-}
-
 /* mock up level-zero sysman device handling API, called during gpu_init() */
 
 #define DEV_GET_SET_STRUCT(callbit, getname, structtype, setval)               \
@@ -268,15 +251,15 @@ ze_result_t zeDeviceGetMemoryProperties(ze_device_handle_t dev, uint32_t *count,
     return ret;                                                                \
   }
 
-DEV_GET_SET_STRUCT(4, zesDeviceGetProperties, zes_device_properties_t, )
-DEV_GET_SET_STRUCT(5, zesDevicePciGetProperties, zes_pci_properties_t, )
-DEV_GET_SET_STRUCT(6, zesDeviceGetState, zes_device_state_t,
+DEV_GET_SET_STRUCT(3, zesDeviceGetProperties, zes_device_properties_t, )
+DEV_GET_SET_STRUCT(4, zesDevicePciGetProperties, zes_pci_properties_t, )
+DEV_GET_SET_STRUCT(5, zesDeviceGetState, zes_device_state_t,
                    to_zero->reset = (ZES_RESET_REASON_FLAG_WEDGED |
                                      ZES_RESET_REASON_FLAG_REPAIR))
-DEV_GET_SET_STRUCT(7, zesDeviceGetEccState, zes_device_ecc_properties_t,
+DEV_GET_SET_STRUCT(6, zesDeviceGetEccState, zes_device_ecc_properties_t,
                    to_zero->currentState = ZES_DEVICE_ECC_STATE_ENABLED)
 
-#define INIT_CALL_FUNCS 8
+#define INIT_CALL_FUNCS 7
 #define INIT_CALL_BITS (((uint64_t)1 << INIT_CALL_FUNCS) - 1)
 
 /* ------------------------------------------------------------------------- */
