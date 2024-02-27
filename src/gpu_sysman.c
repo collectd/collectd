@@ -447,6 +447,25 @@ static const char *map_mem_type(zes_mem_type_t type) {
   }
 }
 
+/* returns NULL if health is unknown, to avoid adding useless labels */
+static const char *map_mem_health(zes_mem_health_t value) {
+  if (value == ZES_MEM_HEALTH_UNKNOWN) {
+    return NULL;
+  }
+  switch (value) {
+  case ZES_MEM_HEALTH_OK:
+    return "ok";
+  case ZES_MEM_HEALTH_DEGRADED:
+    return "degraded";
+  case ZES_MEM_HEALTH_CRITICAL:
+    return "critical";
+  case ZES_MEM_HEALTH_REPLACE:
+    return "replace";
+  default:
+    return "unknown";
+  }
+}
+
 /* If GPU info setting is enabled, log Sysman API provided info for
  * given GPU, and set PCI device ID to 'pci_dev'.  On success, return
  * true and set GPU PCI address to 'pci_bdf' as string in BDF notation:
@@ -576,21 +595,44 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
   /* HW info for all memories */
   for (i = 0; i < mem_count; i++) {
     zes_mem_properties_t props = {.pNext = NULL};
-    /* properties call here would mess unit-testing for metric values */
-#ifndef SYSMAN_UNIT_TEST_BUILD
+#ifndef SYSMAN_UNIT_TEST_BUILD /* call here would mess unit-testing */
     ret = zesMemoryGetProperties(mems[i], &props);
 #endif
     if (ret != ZE_RESULT_SUCCESS) {
-      WARNING(PLUGIN_NAME ": failed to get memory %d properties => 0x%x", i,
-              ret);
+      WARNING(PLUGIN_NAME ": mem %d props query fail => 0x%x", i, ret);
       continue;
     }
+
     const char *location = map_mem_location(props.location);
     const char *type = map_mem_type(props.type);
-    INFO("Memory[%i] - %s / %s:", i, location, type);
-    INFO("- size:       %lu MiB", props.physicalSize / (1024 * 1024));
-    INFO("- channels:   %u ", props.numChannels);
-    INFO("- bus width:  %u", props.busWidth);
+    INFO("Memory-%i:", i);
+    INFO("- type:      %s", type);
+    INFO("- location:  %s", location);
+    if (props.onSubdevice) {
+      INFO("- subdevice: %u", props.subdeviceId);
+    }
+    if (props.busWidth > 0 && props.numChannels) {
+      INFO("- bus width: %u", props.busWidth);
+      INFO("- channels:  %u", props.numChannels);
+    }
+    if (props.physicalSize > 0) {
+      INFO("- size:      %lu MiB", props.physicalSize / (1024 * 1024));
+    }
+
+    zes_mem_state_t state = {0};
+#ifndef SYSMAN_UNIT_TEST_BUILD /* call here would mess unit-testing */
+    ret = zesMemoryGetState(mems[i], &state);
+#endif
+    if (ret != ZE_RESULT_SUCCESS) {
+      WARNING(PLUGIN_NAME ": mem %d state query fail => 0x%x", i, ret);
+      continue;
+    }
+    INFO("Memory state:");
+    INFO("- allocatable: %lu MiB", state.size / (1024 * 1024));
+    const char *health = map_mem_health(state.health);
+    if (health) {
+      INFO("- status:      %s", health);
+    }
   }
   free(mems);
   return true;
@@ -1181,25 +1223,8 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       break;
     }
     /* get health status from last i.e. zeroeth sample */
-    zes_mem_health_t value = gpu->memory[0][i].health;
-    if (value != ZES_MEM_HEALTH_UNKNOWN) {
-      const char *health;
-      switch (value) {
-      case ZES_MEM_HEALTH_OK:
-        health = "ok";
-        break;
-      case ZES_MEM_HEALTH_DEGRADED:
-        health = "degraded";
-        break;
-      case ZES_MEM_HEALTH_CRITICAL:
-        health = "critical";
-        break;
-      case ZES_MEM_HEALTH_REPLACE:
-        health = "replace";
-        break;
-      default:
-        health = "unknown";
-      }
+    const char *health = map_mem_health(gpu->memory[0][i].health);
+    if (health) {
       metric_label_set(&metric, "health", health);
     }
     double mem_used;
