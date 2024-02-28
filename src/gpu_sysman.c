@@ -56,6 +56,7 @@
 #endif
 
 #include "collectd.h"
+/* comment avoiding local clang-format conflict with collectd CI one */
 #include "plugin.h"
 #include "utils/common/common.h"
 
