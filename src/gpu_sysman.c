@@ -490,38 +490,37 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
     return true;
   }
 
-  INFO("Level-Zero Sysman API GPU info");
+  INFO("\nLevel-Zero Sysman API GPU info");
   INFO("==============================");
 
   INFO("PCI info:");
-  if (ret == ZE_RESULT_SUCCESS) {
-    INFO("- PCI B/D/F:  %s", *pci_bdf);
-    const zes_pci_speed_t *speed = &pci.maxSpeed;
-    INFO("- PCI gen:    %d", speed->gen);
-    INFO("- PCI width:  %d", speed->width);
+  INFO("- PCI B/D/F: %s", *pci_bdf);
+  const zes_pci_speed_t *speed = &pci.maxSpeed;
+  if (speed->gen > 0 && speed->width > 0 && speed->maxBandwidth > 0) {
+    INFO("- PCI gen:   %d", speed->gen);
+    INFO("- PCI width: %d", speed->width);
     double max = speed->maxBandwidth / (double)(1024 * 1024 * 1024);
-    INFO("- max BW:     %.2f GiB/s (all lines)", max);
-  } else {
-    INFO("- unavailable");
+    INFO("- max BW:    %.2f GiB/s (all lines)", max);
   }
 
   INFO("HW state:");
   zes_device_state_t state = {.pNext = NULL};
   /* Note: there's also zesDevicePciGetState() for PCI link status */
   if (ret = zesDeviceGetState(dev, &state), ret == ZE_RESULT_SUCCESS) {
-    INFO("- repaired: %s",
-         (state.repaired == ZES_REPAIR_STATUS_PERFORMED) ? "yes" : "no");
     if (state.reset != 0) {
       INFO("- device RESET required");
       if (state.reset & ZES_RESET_REASON_FLAG_WEDGED) {
-        INFO(" - HW is wedged");
+        INFO("  - HW is wedged");
       }
       if (state.reset & ZES_RESET_REASON_FLAG_REPAIR) {
-        INFO(" - HW needs to complete repairs");
+        INFO("  - HW needs to complete repairs");
       }
     } else {
       INFO("- no RESET required");
     }
+    /* align with ECC state */
+    INFO("- repaired:  %s",
+         (state.repaired == ZES_REPAIR_STATUS_PERFORMED) ? "yes" : "no");
   } else {
     INFO("- unavailable");
     WARNING(PLUGIN_NAME ": failed to get GPU device state => 0x%x", ret);
