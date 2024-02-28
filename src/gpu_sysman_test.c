@@ -244,7 +244,8 @@ static ze_result_t dev_args_check(int callbit, const char *name,
   ze_result_t getname(zes_device_handle_t dev, structtype *to_zero) {          \
     ze_result_t ret = dev_args_check(callbit, #getname, dev, to_zero);         \
     if (ret == ZE_RESULT_SUCCESS) {                                            \
-      assert(!to_zero->pNext);                                                 \
+      assert(to_zero->pNext == NULL ||                                         \
+             to_zero->stype == ZES_STRUCTURE_TYPE_DEVICE_PROPERTIES);          \
       memset(to_zero, 0, sizeof(*to_zero));                                    \
       setval;                                                                  \
     }                                                                          \
