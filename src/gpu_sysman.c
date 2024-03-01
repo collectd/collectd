@@ -822,7 +822,8 @@ static int gpu_fetch(zes_driver_handle_t *drivers, uint32_t driver_count,
   return retval;
 }
 
-/* Scan Sysman for GPU devices
+/* Scan Sysman for GPU devices:
+ * https://spec.oneapi.io/level-zero/latest/sysman/PROG.html#initialization
  * Return RET_OK for success, (negative) error value otherwise
  */
 static int gpu_init(void) {
@@ -831,6 +832,10 @@ static int gpu_init(void) {
     return RET_OK;
   }
   ze_result_t ret;
+  /* backend versions supporting zesInit(), but older than 23.26.26690.12
+   * still need this env var.
+   */
+  setenv("ZES_ENABLE_SYSMAN", "1", 1);
   if (ret = zesInit(0), ret != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": Level Zero Sysman init failed => 0x%x", ret);
     return RET_ZES_INIT_FAIL;
