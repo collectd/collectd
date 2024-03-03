@@ -108,6 +108,7 @@ static int pagesize;
 
 static bool values_absolute = true;
 static bool values_percentage;
+static bool report_dirty_friends;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -117,6 +118,8 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &values_absolute);
     else if (strcasecmp("ValuesPercentage", child->key) == 0)
       cf_util_get_boolean(child, &values_percentage);
+    else if (strcasecmp("ReportMem4IOwrite", child->key) == 0)
+      cf_util_get_boolean(child, &report_dirty_friends);
     else
       ERROR("memory plugin: Invalid configuration option: "
             "\"%s\".",
@@ -186,7 +189,7 @@ static int memory_init(void) {
   } while (0)
 
 #if KERNEL_LINUX
-static void memory_submit_available(gauge_t value) {
+static void memory_submit_single(gauge_t value, const char *type_instance) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.gauge = value};
@@ -194,7 +197,7 @@ static void memory_submit_available(gauge_t value) {
 
   sstrncpy(vl.plugin, "memory", sizeof(vl.plugin));
   sstrncpy(vl.type, "memory", sizeof(vl.type));
-  sstrncpy(vl.type_instance, "available", sizeof(vl.type_instance));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
 }
@@ -350,6 +353,8 @@ static int memory_read_internal(value_list_t *vl) {
   gauge_t mem_cached = 0;
   gauge_t mem_free = 0;
   gauge_t mem_available = 0;
+  gauge_t mem_dirty = 0;
+  gauge_t mem_writeback = 0;
   gauge_t mem_slab_total = 0;
   gauge_t mem_slab_reclaimable = 0;
   gauge_t mem_slab_unreclaimable = 0;
@@ -370,6 +375,10 @@ static int memory_read_internal(value_list_t *vl) {
       val = &mem_buffered;
     else if (strncasecmp(buffer, "Cached:", 7) == 0)
       val = &mem_cached;
+    else if (strncasecmp(buffer, "Dirty:", 6) == 0)
+      val = &mem_dirty;
+    else if (strncasecmp(buffer, "Writeback:", 10) == 0)
+      val = &mem_writeback;
     else if (strncasecmp(buffer, "Slab:", 5) == 0)
       val = &mem_slab_total;
     else if (strncasecmp(buffer, "SReclaimable:", 13) == 0) {
@@ -418,8 +427,13 @@ static int memory_read_internal(value_list_t *vl) {
                   mem_cached, "free", mem_free, "slab", mem_slab_total);
 
   if (mem_available_info)
-    memory_submit_available(mem_available);
-    /* #endif KERNEL_LINUX */
+    memory_submit_single(mem_available, "available");
+
+  if (report_dirty_friends) {
+    memory_submit_single(mem_dirty, "dirty");
+    memory_submit_single(mem_writeback, "writeback");
+  }
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
   /* Most of the additions here were taken as-is from the k9toolkit from

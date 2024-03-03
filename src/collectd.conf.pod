@@ -5169,6 +5169,12 @@ percent of physical memory used. Defaults to B<false>.
 This is useful for deploying I<collectd> in a heterogeneous environment in
 which the sizes of physical memory vary.
 
+=item B<ReportMem4IOwrite> B<false>|B<true>
+
+Enables or disables reporting of "Dirty" and "Writeback" metrics. Which are
+always absolute numbers in bytes and do not count in B<ValuesPercentage>.
+Defaults to B<false>.
+
 =back
 
 =head2 Plugin C<modbus>
