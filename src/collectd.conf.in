@@ -906,6 +906,7 @@
 #	Irq 8
 #	Irq 9
 #	IgnoreSelected true
+#	ReportCPU false
 #</Plugin>
 
 #<Plugin java>

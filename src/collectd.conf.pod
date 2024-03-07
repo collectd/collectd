@@ -4380,6 +4380,11 @@ few ones. This option enables you to do that: By setting B<IgnoreSelected> to
 I<true> the effect of B<Irq> is inverted: All selected interrupts are ignored
 and all other interrupts are collected.
 
+=item B<ReportCPU> B<true>|B<false>
+
+By setting this option to B<true>, the B<irq>-plugin will collect data with
+per CPU usage. Defaults to B<false>, data is all CPUs sum.
+
 =back
 
 =head2 Plugin C<java>
