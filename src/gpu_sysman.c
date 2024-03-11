@@ -45,9 +45,9 @@
 #include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
 
-/* whether to add "dev_file" label to metrics for Kubernetes Intel GPU plugin,
- * needs (POSIX.1-2001) basename() + glob() and (POSIX.1-2008) getline()
- * functions.
+/* "dev_file" label (for k8s Intel GPU plugin) and "pci_dev" label
+ * (for k8s Intel resource driver) need (POSIX.1-2001/-2008)
+ *  glob() + basename() functions.
  */
 #define ADD_DEV_FILE 1
 #if ADD_DEV_FILE
@@ -96,8 +96,9 @@ typedef struct {
 typedef struct {
   /* GPU info for metric labels */
   char *pci_bdf;  // required, acts as device ID
-  char *pci_dev;  // if GpuInfo, TODO: rename to "dev_name"
+  char *pci_dev;  // if ADD_DEV_FILE
   char *dev_file; // if ADD_DEV_FILE
+  char *dev_name; // if GpuInfo
   /* number of types for metrics without allocs */
   uint32_t ras_count;
   uint32_t temp_count;
@@ -244,6 +245,8 @@ static int gpu_config_free(void) {
     gpus[i].pci_dev = NULL;
     free(gpus[i].dev_file);
     gpus[i].dev_file = NULL;
+    free(gpus[i].dev_name);
+    gpus[i].dev_name = NULL;
   }
 #undef FREE_GPU_SAMPLING_ARRAYS
 #undef FREE_GPU_ARRAY
@@ -467,14 +470,14 @@ static const char *map_mem_health(zes_mem_health_t value) {
 }
 
 /* If GPU info setting is enabled, log Sysman API provided info for
- * given GPU, and set device name to 'pci_dev'.  On success, return
+ * given GPU, and set device name to 'dev_name'.  On success, return
  * true and set GPU PCI address to 'pci_bdf' as string in BDF notation:
  * https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
  */
-static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
+static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
   char buf[32];
 
-  *pci_bdf = *pci_dev = NULL;
+  *pci_bdf = *dev_name = NULL;
   zes_pci_properties_t pci = {.pNext = NULL};
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
@@ -552,7 +555,7 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
 
   INFO("HW identification:");
   if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
-    *pci_dev = sstrdup(props.modelName); // used only if present
+    *dev_name = sstrdup(props.modelName); // used only if present
 
     INFO("- vendor:  %s", props.vendorName);
     INFO("- brand:   %s", props.brandName);
@@ -645,12 +648,12 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
  */
 static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
   assert(gpu);
-  char *pci_bdf, *pci_dev;
-  if (!gpu_info(dev, &pci_bdf, &pci_dev) || !pci_bdf) {
+  char *pci_bdf, *dev_name;
+  if (!gpu_info(dev, &pci_bdf, &dev_name) || !pci_bdf) {
     return false;
   }
   gpu->pci_bdf = pci_bdf;
-  gpu->pci_dev = pci_dev;
+  gpu->dev_name = dev_name;
   /*
    * scan devfs and sysfs to find primary GPU device file node matching
    * given BDF, and if one is found, use that as device file name.
@@ -660,7 +663,7 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
    * has no GPU access.
    */
 #if ADD_DEV_FILE
-#define BDF_LINE "PCI_SLOT_NAME="
+#define BDF_PREFIX "PCI_SLOT_NAME="
 #define DEVFS_GLOB "/dev/dri/card*"
   glob_t devfs;
   if (glob(DEVFS_GLOB, 0, NULL, &devfs) != 0) {
@@ -668,36 +671,52 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
     globfree(&devfs);
     return true;
   }
-  const size_t prefix_size = strlen(BDF_LINE);
-  for (size_t i = 0; i < devfs.gl_pathc; i++) {
-    char path[PATH_MAX], *dev_file;
-    dev_file = basename(devfs.gl_pathv[i]);
 
-    FILE *fp;
-    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/uevent", dev_file);
-    if (!(fp = fopen(path, "r"))) {
-      INFO(PLUGIN_NAME ": device <-> BDF mapping, file missing: %s", path);
+  for (size_t i = 0; i < devfs.gl_pathc; i++) {
+    char *dev_file = basename(devfs.gl_pathv[i]);
+    if (strchr(dev_file, '-')) {
+      /* <device>-<display>, not <device> dir */
       continue;
     }
-    ssize_t nread;
-    size_t len = 0;
-    char *line = NULL;
-    while ((nread = getline(&line, &len, fp)) > 0) {
-      if (strncmp(line, BDF_LINE, prefix_size) != 0) {
-        continue;
-      }
-      line[nread - 1] = '\0'; // remove newline
-      if (strcmp(line + prefix_size, pci_bdf) == 0) {
-        INFO(PLUGIN_NAME ": %s <-> %s", dev_file, pci_bdf);
-        gpu->dev_file = sstrdup(dev_file);
-        break;
-      }
+
+    char path[64], buf[1024];
+    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/uevent", dev_file);
+    if (read_text_file_contents(path, buf, sizeof(buf)) <= 0) {
+      INFO(PLUGIN_NAME ": device <-> BDF mapping file missing: %s", path);
+      continue;
     }
-    free(line);
-    fclose(fp);
-    if (gpu->dev_file) {
-      break;
+
+    /* get current device BDF info */
+    char *info = strstr(buf, BDF_PREFIX);
+    if (!info) {
+      INFO(PLUGIN_NAME ": " BDF_PREFIX " line missing from %s", path);
+      continue;
     }
+    info += sizeof(BDF_PREFIX) - 1;
+    char *end = strchr(info, '\n');
+    if (!end) {
+      INFO(PLUGIN_NAME ": unterminated " BDF_PREFIX " line in %s", path);
+      continue;
+    }
+    *end = '\0';
+
+    /* did we find correct device/file name? */
+    if (strcmp(info, pci_bdf) != 0) {
+      continue;
+    }
+    gpu->dev_file = sstrdup(dev_file);
+
+    /* get also its PCI ID */
+    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/device",
+             gpu->dev_file);
+    if (read_text_file_contents(path, buf, sizeof(buf)) > 0) {
+      strstripnewline(buf);
+      INFO(PLUGIN_NAME ": %s (%s) <-> %s", dev_file, buf, pci_bdf);
+      gpu->pci_dev = strdup(buf);
+    } else {
+      INFO(PLUGIN_NAME ": %s <-> %s", dev_file, pci_bdf);
+    }
+    break;
   }
   globfree(&devfs);
 #undef DEVFS_GLOB
@@ -948,11 +967,14 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
 
     /* add extra per-metric labels */
     metric_label_set(m, "pci_bdf", gpu->pci_bdf);
+    if (gpu->pci_dev) {
+      metric_label_set(m, "pci_dev", gpu->pci_dev);
+    }
     if (gpu->dev_file) {
       metric_label_set(m, "dev_file", gpu->dev_file);
     }
-    if (gpu->pci_dev) {
-      metric_label_set(m, "dev_name", gpu->pci_dev);
+    if (gpu->dev_name) {
+      metric_label_set(m, "dev_name", gpu->dev_name);
     }
   }
 
