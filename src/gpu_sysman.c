@@ -42,21 +42,24 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
 
+/* includes config.h with HAVE_*_H defines, needed by check below */
+#include "collectd.h"
+
+#if HAVE_GLOB_H && HAVE_LIBGEN_H
 /* "dev_file" label (for k8s Intel GPU plugin) and "pci_dev" label
  * (for k8s Intel resource driver) need (POSIX.1-2001/-2008)
  *  glob() + basename() functions.
  */
 #define ADD_DEV_FILE 1
-#if ADD_DEV_FILE
 #include <glob.h>
 #include <libgen.h>
+#else
+#pragma message                                                                \
+    "glob / libgen headers missing => no 'dev_file' / 'pci_dev' labels"
 #endif
 
-#include "collectd.h"
-/* comment avoiding local clang-format conflict with collectd CI one */
 #include "plugin.h"
 #include "utils/common/common.h"
 

@@ -163,6 +163,7 @@ AC_CHECK_HEADERS_ONCE([ \
   fs_info.h \
   fshelp.h \
   grp.h \
+  glob.h \
   kstat.h \
   kvm.h \
   libgen.h \
