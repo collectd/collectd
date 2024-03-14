@@ -809,19 +809,6 @@ static void compose_name(char *buf, size_t bufsize, const char *name,
   assert(len < bufsize);
 }
 
-static double get_value(metric_type_t type, value_t value) {
-  switch (type) {
-  case METRIC_TYPE_COUNTER:
-    return value.counter;
-    break;
-  case METRIC_TYPE_GAUGE:
-    return value.gauge;
-    break;
-  default:
-    assert(0);
-  }
-}
-
 /* matches constructed metric names against validation array ones and
  * updates the values accordingly
  */
@@ -833,7 +820,7 @@ int plugin_dispatch_metric_family(metric_family_t const *fam) {
   metric_t *metric = fam->metric.ptr;
 
   for (size_t m = 0; m < fam->metric.num; m++) {
-    double value = get_value(fam->type, metric[m].value);
+    double value = metric2double(fam->type, metric[m].value);
     compose_name(name, sizeof(name), fam->name, &metric[m]);
     if (globs.verbose & VERBOSE_METRICS) {
       fprintf(stderr, "METRIC: %s: %g\n", name, value);
@@ -1425,6 +1412,7 @@ int main(int argc, const char **argv) {
 
   assert(registry.config("DisableSeparateErrors", "false") == 0);
   set_verbose(VERBOSE_CALLS_METRICS, VERBOSE_METRICS_NORMAL);
+  assert(registry.config("LogMetrics", "true") == 0);
   assert(registry.init() == 0);
 
   fprintf(stderr, "Query all metrics for the first time, with separate errors "
@@ -1436,6 +1424,7 @@ int main(int argc, const char **argv) {
   assert(globs.warnings == 0);
   /* per-time counters do not report on first round */
   assert(validate_and_reset_saved_metrics(1, 0) > 0);
+  assert(registry.config("LogMetrics", "false") == 0);
   fprintf(stderr, "metrics query round 1: PASS\n\n");
 
   api_calls = globs.api_calls;

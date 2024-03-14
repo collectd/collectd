@@ -1,7 +1,7 @@
 /**
  * collectd - src/gpu_sysman.c
  *
- * Copyright(c) 2020-2023 Intel Corporation. All rights reserved.
+ * Copyright(c) 2020-2024 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,6 +40,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
@@ -55,6 +56,7 @@
 #endif
 
 #include "collectd.h"
+/* comment avoiding local clang-format conflict with collectd CI one */
 #include "plugin.h"
 #include "utils/common/common.h"
 
@@ -141,6 +143,7 @@ static gpu_device_t *gpus;
 static uint32_t gpu_count;
 static struct {
   bool gpuinfo;
+  bool logmetrics;
   gpu_disable_t disabled;
   output_t output;
   uint32_t samples;
@@ -159,8 +162,9 @@ static struct {
 #define KEY_DISABLE_TEMP "DisableTemperature"
 #define KEY_DISABLE_THROTTLE "DisableThrottleTime"
 
-#define KEY_METRICS_OUTPUT "MetricsOutput"
 #define KEY_LOG_GPU_INFO "LogGpuInfo"
+#define KEY_LOG_METRICS "LogMetrics"
+#define KEY_METRICS_OUTPUT "MetricsOutput"
 #define KEY_SAMPLES "Samples"
 #define MAX_SAMPLES 64
 
@@ -767,19 +771,73 @@ static int gpu_init(void) {
   return gpu_config_init(count);
 }
 
+static double metric2double(metric_type_t type, value_t value) {
+  switch (type) {
+  case METRIC_TYPE_GAUGE:
+    return value.gauge;
+  case METRIC_TYPE_COUNTER:
+    return value.counter;
+  case METRIC_TYPE_COUNTER_FP:
+    return value.counter_fp;
+  case METRIC_TYPE_UP_DOWN:
+    return value.up_down;
+  case METRIC_TYPE_UP_DOWN_FP:
+    return value.up_down_fp;
+  case METRIC_TYPE_UNTYPED:
+    break;
+  }
+  assert(0);
+}
+
 /* Add device labels to all metrics in given metric family and submit family to
- * collectd.  Resets metric family after dispatch */
+ * collectd, and log the metric if metric logging is enabled.
+ * Resets metric family after dispatch */
 static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
-  metric_t *m = fam->metric.ptr;
+  struct timespec ts;
+  /* cdtime() is not monotonic */
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  const char *pci_bdf = gpu->pci_bdf;
+  /* logmetrics readability: skip common BDF address prefix */
+  if (strncmp(pci_bdf, "0000:", 5) == 0) {
+    pci_bdf += 5;
+  }
+
+  const char *name = fam->name;
+  /* logmetrics readability: skip common metric prefix */
+  if (strncmp(name, METRIC_PREFIX, strlen(METRIC_PREFIX)) == 0) {
+    name += strlen(METRIC_PREFIX);
+  }
+
   for (size_t i = 0; i < fam->metric.num; i++) {
-    metric_label_set(m + i, "pci_bdf", gpu->pci_bdf);
+    metric_t *m = fam->metric.ptr + i;
+
+    /* log metric values in addition to dispatching them? */
+    if (config.logmetrics) {
+      const char *type = "<type>";
+      char *labels[] = {"direction", "location", "type"};
+      for (size_t i = 0; i < STATIC_ARRAY_SIZE(labels); i++) {
+        char const *l = metric_label_get(m, labels[i]);
+        if (l != NULL) {
+          type = l;
+          break;
+        }
+      }
+      INFO("[%7ld.%03ld] %s: %s / %s [%ld]: %.3f", ts.tv_sec,
+           ts.tv_nsec / 1000000, pci_bdf, name, type, i,
+           metric2double(fam->type, m->value));
+    }
+
+    /* add extra per-metric labels */
+    metric_label_set(m, "pci_bdf", gpu->pci_bdf);
     if (gpu->dev_file) {
-      metric_label_set(m + i, "dev_file", gpu->dev_file);
+      metric_label_set(m, "dev_file", gpu->dev_file);
     }
     if (gpu->pci_dev) {
-      metric_label_set(m + i, "pci_dev", gpu->pci_dev);
+      metric_label_set(m, "pci_dev", gpu->pci_dev);
     }
   }
+
   int status = plugin_dispatch_metric_family(fam);
   if (status != 0) {
     ERROR(PLUGIN_NAME ": gpu_submit(%s, %s) failed: %s", gpu->pci_bdf,
@@ -2518,6 +2576,8 @@ static int gpu_config_parse(const char *key, const char *value) {
     config.disabled.throttle = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_LOG_GPU_INFO) == 0) {
     config.gpuinfo = IS_TRUE(value);
+  } else if (strcasecmp(key, KEY_LOG_METRICS) == 0) {
+    config.logmetrics = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_METRICS_OUTPUT) == 0) {
     config.output = 0;
     static const char delim[] = ",:/ ";
@@ -2571,13 +2631,11 @@ static int gpu_config_parse(const char *key, const char *value) {
 void module_register(void) {
   /* NOTE: key strings *must* be static */
   static const char *config_keys[] = {
-      KEY_DISABLE_ENGINE,       KEY_DISABLE_ENGINE_SINGLE,
-      KEY_DISABLE_FABRIC,       KEY_DISABLE_FREQ,
-      KEY_DISABLE_MEM,          KEY_DISABLE_MEMBW,
-      KEY_DISABLE_POWER,        KEY_DISABLE_RAS,
-      KEY_DISABLE_RAS_SEPARATE, KEY_DISABLE_TEMP,
-      KEY_DISABLE_THROTTLE,     KEY_METRICS_OUTPUT,
-      KEY_LOG_GPU_INFO,         KEY_SAMPLES};
+      KEY_DISABLE_ENGINE, KEY_DISABLE_ENGINE_SINGLE, KEY_DISABLE_FABRIC,
+      KEY_DISABLE_FREQ,   KEY_DISABLE_MEM,           KEY_DISABLE_MEMBW,
+      KEY_DISABLE_POWER,  KEY_DISABLE_RAS,           KEY_DISABLE_RAS_SEPARATE,
+      KEY_DISABLE_TEMP,   KEY_DISABLE_THROTTLE,      KEY_METRICS_OUTPUT,
+      KEY_LOG_GPU_INFO,   KEY_LOG_METRICS,           KEY_SAMPLES};
   const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
   plugin_register_config(PLUGIN_NAME, gpu_config_parse, config_keys,

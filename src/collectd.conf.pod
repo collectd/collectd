@@ -3777,6 +3777,18 @@ If enabled, plugin logs at start some information about plugin
 settings, all the GPUs detected through Sysman API, and enables
 "pci_dev" PCI device ID label for the metrics.
 
+=item B<LogMetrics>
+
+If enabled, all metric values are also printed to collectd log
+(standard output by default).  This can be useful for local real-time
+monitoring / debugging of specific GPU metric values, as one does not
+need to enable any write plugins.
+
+Output is most readable when only one metric type + "MetricsOutput"
+variant are enabled, and collectd (container) sees only single GPU.
+Alternatively one could grep the output for the relevant GPU, metric
+type and its output variant, but that adds delay to the output.
+
 =item B<MetricsOutput>
 
 Set of "base", "rate", and "ratio" strings, separated by comma, colon,
