@@ -41,6 +41,7 @@ filecount
 fscache
 #gmond
 gps
+gpu_sysman
 #grpc
 hddtemp
 hugepages
@@ -57,7 +58,7 @@ load
 logfile
 log_logstash
 logparser
-#lua
+lua
 madwifi
 #match_empty_counter
 #match_hashed
@@ -89,6 +90,7 @@ nut
 olsrd
 onewire
 #openldap
+open_telemetry
 openvpn
 ovs_events
 ovs_stats
@@ -147,7 +149,7 @@ write_influxdb_udp
 write_log
 #write_mongodb
 write_prometheus
-#write_redis
+write_redis
 #write_riemann
 #write_sensu
 write_stackdriver

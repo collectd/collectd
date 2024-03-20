@@ -45,6 +45,7 @@ load
 logfile
 log_logstash
 logparser
+lua
 madwifi
 mbmon
 mcelog
@@ -105,6 +106,7 @@ write_http
 write_influxdb_udp
 write_log
 write_prometheus
+write_redis
 write_stackdriver
 xencpu
 zfs_arc
