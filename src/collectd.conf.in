@@ -849,6 +849,7 @@
 #<Plugin "intel_rdt">
 #  MonIPCEnabled true
 #  MonLLCRefEnabled false
+#  MonLLCMissEnabled false
 #  Cores "0-2"
 #  Processes "sshd"
 #</Plugin>

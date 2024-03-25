@@ -47,11 +47,12 @@
 #if PQOS_VERSION >= 40400
 #define RDT_EVENTS                                                             \
   (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
-   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_REF)
+   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_REF | \
+   PQOS_PERF_EVENT_LLC_MISS)
 #else
 #define RDT_EVENTS                                                             \
   (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
-   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW)
+   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_MISS)
 #endif
 
 #define RDT_MAX_SOCKETS 8
@@ -89,6 +90,7 @@ struct rdt_ctx_s {
 #if PQOS_VERSION >= 40400
   bool mon_llc_ref_enabled;
 #endif
+  bool mon_llc_miss_enabled;
   core_groups_list_t cores;
   enum pqos_mon_event events[RDT_MAX_CORES];
   struct pqos_mon_data *pcgroups[RDT_MAX_CORES];
@@ -163,6 +165,18 @@ static void rdt_submit(const struct pqos_mon_data *group) {
       rdt_submit_gauge(desc, "bytes", "llc_ref", value);
   }
 #endif
+
+  if (events & PQOS_PERF_EVENT_LLC_MISS) {
+#if PQOS_VERSION >= 40400
+    uint64_t value;
+
+    int ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_MISS, &value, NULL);
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_gauge(desc, "bytes", "llc_miss", value);
+#else
+    rdt_submit_gauge(desc, "ipc", NULL, values->llc_misses);
+#endif
+  }
 
   if (events & PQOS_MON_EVENT_LMEM_BW) {
     const struct pqos_monitor *mon = NULL;
@@ -585,6 +599,10 @@ static int rdt_config_events(rdt_ctx_t *rdt) {
   if (!rdt->mon_llc_ref_enabled)
     events &= ~(PQOS_PERF_EVENT_LLC_REF);
 #endif
+
+  /* LLC misses monitoring is disabled */
+  if (!rdt->mon_llc_miss_enabled)
+    events &= ~(PQOS_PERF_EVENT_LLC_MISS);
 
   DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
 
@@ -1269,6 +1287,8 @@ static int rdt_config(oconfig_item_t *ci) {
     } else if (strcasecmp("MonLLCRefEnabled", child->key) == 0) {
       cf_util_get_boolean(child, &g_rdt->mon_llc_ref_enabled);
 #endif
+    } else if (strcasecmp("MonLLCMissEnabled", child->key) == 0) {
+      cf_util_get_boolean(child, &g_rdt->mon_llc_miss_enabled);
     } else {
       ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
     }
