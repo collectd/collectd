@@ -160,9 +160,9 @@ static void rdt_submit(const struct pqos_mon_data *group) {
   if (events & PQOS_PERF_EVENT_LLC_REF) {
     uint64_t value;
 
-    int ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_REF, &value, NULL);
+    int ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_REF, NULL, &value);
     if (ret == PQOS_RETVAL_OK)
-      rdt_submit_gauge(desc, "bytes", "llc_ref", value);
+      rdt_submit_derive(desc, "bytes", "llc_ref", value);
   }
 #endif
 
