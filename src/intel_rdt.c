@@ -174,7 +174,7 @@ static void rdt_submit(const struct pqos_mon_data *group) {
     if (ret == PQOS_RETVAL_OK)
       rdt_submit_gauge(desc, "bytes", "llc_miss", value);
 #else
-    rdt_submit_gauge(desc, "ipc", NULL, values->llc_misses);
+    rdt_submit_gauge(desc, "bytes", "llc_miss", values->llc_misses);
 #endif
   }
 
