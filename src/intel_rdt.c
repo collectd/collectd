@@ -44,15 +44,14 @@
 
 #define RDT_PLUGIN "intel_rdt"
 
-#if PQOS_VERSION >= 40400
-#define RDT_EVENTS                                                             \
-  (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
-   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_REF | \
-   PQOS_PERF_EVENT_LLC_MISS)
-#else
-#define RDT_EVENTS                                                             \
+#define RDT_EVENTS_BASE                                                        \
   (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
    PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_MISS)
+
+#if PQOS_VERSION >= 40400
+#define RDT_EVENTS (RDT_EVENTS_BASE | PQOS_PERF_EVENT_LLC_REF)
+#else
+#define RDT_EVENTS RDT_EVENTS_BASE
 #endif
 
 #define RDT_MAX_SOCKETS 8
