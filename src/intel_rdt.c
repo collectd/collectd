@@ -170,11 +170,11 @@ static void rdt_submit(const struct pqos_mon_data *group) {
 #if PQOS_VERSION >= 40400
     uint64_t value;
 
-    int ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_MISS, &value, NULL);
+    int ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_MISS, NULL, &value);
     if (ret == PQOS_RETVAL_OK)
-      rdt_submit_gauge(desc, "bytes", "llc_miss", value);
+      rdt_submit_derive(desc, "bytes", "llc_miss", value);
 #else
-    rdt_submit_gauge(desc, "bytes", "llc_miss", values->llc_misses);
+    rdt_submit_derive(desc, "bytes", "llc_miss", values->llc_misses_delta);
 #endif
   }
 
