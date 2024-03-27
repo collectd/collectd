@@ -28,6 +28,9 @@
  * - https://spec.oneapi.com/level-zero/latest/sysman/PROG.html
  * - https://spec.oneapi.io/level-zero/latest/sysman/api.html
  *
+ * Metrics names and labels are based on Open Telemetry spec:
+ * https://opentelemetry.io/docs/specs/semconv/system/hardware-metrics/#hwgpu---gpu-metrics
+ *
  * Error handling:
  * - Allocations are done using collectd scalloc(), smalloc() and sstrdup()
  *   helpers which log an error and exit on allocation failures
@@ -61,10 +64,11 @@
 #endif
 
 #include "plugin.h"
+#include "resource.h"
 #include "utils/common/common.h"
 
 #define PLUGIN_NAME "gpu_sysman"
-#define METRIC_PREFIX "collectd_" PLUGIN_NAME "_"
+#define METRIC_PREFIX "hw.gpu."
 
 /* collectd plugin API callback finished OK */
 #define RET_OK 0
@@ -97,11 +101,8 @@ typedef struct {
 
 /* handles for the GPU devices discovered by Sysman library */
 typedef struct {
-  /* GPU info for metric labels */
-  char *pci_bdf;  // required, acts as device ID
-  char *pci_dev;  // if ADD_DEV_FILE
-  char *dev_file; // if ADD_DEV_FILE
-  char *dev_name; // if GpuInfo
+  /* GPU resource attributes: PCI device ID, BDF, dev & file name */
+  label_set_t attribs;
   /* number of types for metrics without allocs */
   uint32_t ras_count;
   uint32_t temp_count;
@@ -242,14 +243,8 @@ static int gpu_config_free(void) {
     /* zero rest of counters & free name */
     gpus[i].ras_count = 0;
     gpus[i].temp_count = 0;
-    free(gpus[i].pci_bdf);
-    gpus[i].pci_bdf = NULL;
-    free(gpus[i].pci_dev);
-    gpus[i].pci_dev = NULL;
-    free(gpus[i].dev_file);
-    gpus[i].dev_file = NULL;
-    free(gpus[i].dev_name);
-    gpus[i].dev_name = NULL;
+    /* free resource attributes */
+    label_set_reset(&(gpus[i].attribs));
   }
 #undef FREE_GPU_SAMPLING_ARRAYS
 #undef FREE_GPU_ARRAY
@@ -645,34 +640,27 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
   return true;
 }
 
-/* Add (given) BDF string and device file name to GPU struct for metric labels.
+/*
+ * Scan devfs and sysfs to find primary GPU device file node matching given
+ * BDF, and if one is found, Return (allocated) pointers to corresponding
+ * device file name + device PCI ID, or NULLs.
  *
- * Return false if (required) BDF string is missing, true otherwise.
+ * NOTE: scanning can log only INFO messages, because ERRORs and WARNINGs
+ * would FAIL unit test that are run as part of build, if build environment
+ * has no GPU access.
  */
-static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
-  assert(gpu);
-  char *pci_bdf, *dev_name;
-  if (!gpu_info(dev, &pci_bdf, &dev_name) || !pci_bdf) {
-    return false;
-  }
-  gpu->pci_bdf = pci_bdf;
-  gpu->dev_name = dev_name;
-  /*
-   * scan devfs and sysfs to find primary GPU device file node matching
-   * given BDF, and if one is found, use that as device file name.
-   *
-   * NOTE: scanning can log only INFO messages, because ERRORs and WARNINGs
-   * would FAIL unit test that are run as part of build, if build environment
-   * has no GPU access.
-   */
+static void get_sysfs_info(const char *pci_bdf, char **pci_dev_out,
+                           char **dev_file_out) {
+  *pci_dev_out = *dev_file_out = NULL;
 #if ADD_DEV_FILE
 #define BDF_PREFIX "PCI_SLOT_NAME="
 #define DEVFS_GLOB "/dev/dri/card*"
+
   glob_t devfs;
   if (glob(DEVFS_GLOB, 0, NULL, &devfs) != 0) {
     INFO(PLUGIN_NAME ": device <-> BDF mapping, no matches for: " DEVFS_GLOB);
     globfree(&devfs);
-    return true;
+    return;
   }
 
   for (size_t i = 0; i < devfs.gl_pathc; i++) {
@@ -707,24 +695,65 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
     if (strcmp(info, pci_bdf) != 0) {
       continue;
     }
-    gpu->dev_file = sstrdup(dev_file);
+    *dev_file_out = sstrdup(dev_file);
 
     /* get also its PCI ID */
-    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/device",
-             gpu->dev_file);
+    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/device", dev_file);
     if (read_text_file_contents(path, buf, sizeof(buf)) > 0) {
       strstripnewline(buf);
       INFO(PLUGIN_NAME ": %s (%s) <-> %s", dev_file, buf, pci_bdf);
-      gpu->pci_dev = strdup(buf);
+      *pci_dev_out = strdup(buf);
     } else {
       INFO(PLUGIN_NAME ": %s <-> %s", dev_file, pci_bdf);
     }
+
     break;
   }
   globfree(&devfs);
 #undef DEVFS_GLOB
 #undef BDF_LINE
 #endif
+}
+
+/* Add device info to GPU attribute labels.
+ *
+ * Return false if (required) BDF string is missing, true otherwise.
+ */
+static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
+  assert(gpu);
+
+  label_set_t *attribs = &(gpu->attribs);
+  int err = label_set_clone(attribs, default_resource_attributes());
+  assert(err == 0);
+
+  char *pci_bdf, *dev_name;
+  if (!gpu_info(dev, &pci_bdf, &dev_name) || !pci_bdf) {
+    return false;
+  }
+
+  if (dev_name) {
+    label_set_update(attribs, "dev_name", dev_name);
+    free(dev_name);
+  }
+
+  char *pci_dev, *dev_file;
+  get_sysfs_info(pci_bdf, &pci_dev, &dev_file);
+
+  if (dev_file) {
+    label_set_update(attribs, "dev_file", dev_file);
+    free(dev_file);
+  }
+
+  if (pci_dev) {
+    label_set_update(attribs, "pci_dev", pci_dev);
+    free(pci_dev);
+  }
+
+  /* "instance" label differentiates metrics from same device for OTEL */
+  label_set_update(attribs, "service.instance.id", pci_bdf);
+  label_set_update(attribs, "pci_bdf", pci_bdf);
+  free(pci_bdf);
+
   return true;
 }
 
@@ -929,15 +958,14 @@ static double metric2double(metric_type_t type, value_t value) {
   assert(0);
 }
 
-/* Add device labels to all metrics in given metric family and submit family to
- * collectd, and log the metric if metric logging is enabled.
- * Resets metric family after dispatch */
-static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
+static void log_family_metrics(metric_family_t *fam) {
   struct timespec ts;
   /* cdtime() is not monotonic */
   clock_gettime(CLOCK_MONOTONIC, &ts);
 
-  const char *pci_bdf = gpu->pci_bdf;
+  const char *pci_bdf = label_set_get(fam->resource, "pci_bdf");
+  assert(pci_bdf);
+
   /* logmetrics readability: skip common BDF address prefix */
   if (strncmp(pci_bdf, "0000:", 5) == 0) {
     pci_bdf += 5;
@@ -952,39 +980,34 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
   for (size_t i = 0; i < fam->metric.num; i++) {
     metric_t *m = fam->metric.ptr + i;
 
-    /* log metric values in addition to dispatching them? */
-    if (config.logmetrics) {
-      const char *type = "<type>";
-      char *labels[] = {"direction", "location", "type"};
-      for (size_t i = 0; i < STATIC_ARRAY_SIZE(labels); i++) {
-        char const *l = metric_label_get(m, labels[i]);
-        if (l != NULL) {
-          type = l;
-          break;
-        }
+    const char *type = "<type>";
+    char *labels[] = {"direction", "location", "type"};
+    for (size_t i = 0; i < STATIC_ARRAY_SIZE(labels); i++) {
+      char const *l = metric_label_get(m, labels[i]);
+      if (l != NULL) {
+        type = l;
+        break;
       }
-      INFO("[%7ld.%03ld] %s: %s / %s [%ld]: %.3f", ts.tv_sec,
-           ts.tv_nsec / 1000000, pci_bdf, name, type, i,
-           metric2double(fam->type, m->value));
     }
+    INFO("[%7ld.%03ld] %s: %s / %s [%ld]: %.3f", ts.tv_sec,
+         ts.tv_nsec / 1000000, pci_bdf, name, type, i,
+         metric2double(fam->type, m->value));
+  }
+}
 
-    /* add extra per-metric labels */
-    metric_label_set(m, "pci_bdf", gpu->pci_bdf);
-    if (gpu->pci_dev) {
-      metric_label_set(m, "pci_dev", gpu->pci_dev);
-    }
-    if (gpu->dev_file) {
-      metric_label_set(m, "dev_file", gpu->dev_file);
-    }
-    if (gpu->dev_name) {
-      metric_label_set(m, "dev_name", gpu->dev_name);
-    }
+/* Add GPU resource attribs to given metric family, log its metrics
+ * if metric logging is enabled, and submit family to collectd.
+ * Resets metric family after dispatch */
+static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
+  fam->resource = gpu->attribs;
+  if (config.logmetrics) {
+    log_family_metrics(fam);
   }
 
   int status = plugin_dispatch_metric_family(fam);
   if (status != 0) {
-    ERROR(PLUGIN_NAME ": gpu_submit(%s, %s) failed: %s", gpu->pci_bdf,
-          fam->name, strerror(status));
+    ERROR(PLUGIN_NAME ": gpu_submit() for metric '%s' (%s) failed: %s",
+          fam->name, fam->unit, strerror(status));
   }
   metric_family_metric_reset(fam);
 }
@@ -992,7 +1015,7 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
 /* because of family name change, each RAS metric needs to be submitted +
  * reseted separately */
 static void ras_submit(gpu_device_t *gpu, const char *name, const char *help,
-                       const char *type, const char *subdev, double value) {
+                       const char *type, const char *subdev, uint64_t value) {
   metric_family_t fam = {
       .type = METRIC_TYPE_COUNTER,
       /*
@@ -1011,12 +1034,13 @@ static void ras_submit(gpu_device_t *gpu, const char *name, const char *help,
        */
       .name = (char *)name,
       .help = (char *)help,
+      .unit = "{error}",
   };
   metric_t m = {0};
 
   m.value.counter = value;
   if (type) {
-    metric_label_set(&m, "type", type);
+    metric_label_set(&m, "hw.error.type", type);
   }
   if (subdev) {
     metric_label_set(&m, "sub_dev", subdev);
@@ -1101,46 +1125,46 @@ static bool gpu_ras(gpu_device_t *gpu) {
         // https://spec.oneapi.io/level-zero/latest/sysman/PROG.html#querying-ras-errors
       case ZES_RAS_ERROR_CAT_RESET:
         help = "Total count of HW accelerator resets attempted by the driver";
-        catname = METRIC_PREFIX "resets_total";
+        catname = METRIC_PREFIX "errors.resets";
         correctable = false;
         break;
       case ZES_RAS_ERROR_CAT_PROGRAMMING_ERRORS:
         help =
             "Total count of (non-correctable) HW exceptions generated by the "
             "way workloads program the HW";
-        catname = METRIC_PREFIX "programming_errors_total";
+        catname = METRIC_PREFIX "errors.programming";
         correctable = false;
         break;
       case ZES_RAS_ERROR_CAT_DRIVER_ERRORS:
         help =
             "total count of (non-correctable) low-level driver communication "
             "errors";
-        catname = METRIC_PREFIX "driver_errors_total";
+        catname = METRIC_PREFIX "errors.driver";
         correctable = false;
         break;
         // categories which can have both correctable and uncorrectable errors
       case ZES_RAS_ERROR_CAT_COMPUTE_ERRORS:
         help = "Total count of errors that have occurred in the (shader) "
                "accelerator HW";
-        catname = METRIC_PREFIX "compute_errors_total";
+        catname = METRIC_PREFIX "errors.compute";
         break;
       case ZES_RAS_ERROR_CAT_NON_COMPUTE_ERRORS:
         help = "Total count of errors that have occurred in the fixed-function "
                "accelerator HW";
-        catname = METRIC_PREFIX "fixed_function_errors_total";
+        catname = METRIC_PREFIX "errors.fixed_function";
         break;
       case ZES_RAS_ERROR_CAT_CACHE_ERRORS:
         help = "Total count of ECC errors that have occurred in the on-chip "
                "caches";
-        catname = METRIC_PREFIX "cache_errors_total";
+        catname = METRIC_PREFIX "errors.cache";
         break;
       case ZES_RAS_ERROR_CAT_DISPLAY_ERRORS:
         help = "Total count of ECC errors that have occurred in the display";
-        catname = METRIC_PREFIX "display_errors_total";
+        catname = METRIC_PREFIX "errors.display";
         break;
       default:
         help = "Total count of errors in unsupported categories";
-        catname = METRIC_PREFIX "unknown_errors_total";
+        catname = METRIC_PREFIX "errors.unknown";
       }
       if (correctable) {
         ras_submit(gpu, catname, help, type, subdev, value);
@@ -1148,7 +1172,7 @@ static bool gpu_ras(gpu_device_t *gpu) {
         ras_submit(gpu, catname, help, NULL, subdev, value);
       }
     }
-    catname = METRIC_PREFIX "all_errors_total";
+    catname = METRIC_PREFIX "errors.all";
     help = "Total count of errors in all categories";
     ras_submit(gpu, catname, help, type, subdev, total);
     ok = true;
@@ -1216,13 +1240,15 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
 
   metric_family_t fam_bytes = {
       .help = "Sampled memory usage (in bytes)",
-      .name = METRIC_PREFIX "memory_used_bytes",
-      .type = METRIC_TYPE_GAUGE,
+      .name = METRIC_PREFIX "memory.usage",
+      .type = METRIC_TYPE_UP_DOWN,
+      .unit = "By",
   };
   metric_family_t fam_ratio = {
       .help = "Sampled memory usage ratio (0-1)",
-      .name = METRIC_PREFIX "memory_usage_ratio",
+      .name = METRIC_PREFIX "memory.utilization",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "1",
   };
   metric_t metric = {0};
 
@@ -1264,7 +1290,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       /* Sysman reports just memory size & free amounts => calculate used */
       mem_used = mem_size - mem_free;
       if (config.output & OUTPUT_BASE) {
-        metric.value.gauge = mem_used;
+        metric.value.up_down = mem_used;
         metric_family_metric_append(&fam_bytes, metric);
         reported_base = true;
       }
@@ -1292,7 +1318,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       mem_used = mem_size - free_max;
       metric_label_set(&metric, "function", "min");
       if (config.output & OUTPUT_BASE) {
-        metric.value.gauge = mem_used;
+        metric.value.up_down = mem_used;
         metric_family_metric_append(&fam_bytes, metric);
         reported_base = true;
       }
@@ -1305,7 +1331,7 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       mem_used = mem_size - free_min;
       metric_label_set(&metric, "function", "max");
       if (config.output & OUTPUT_BASE) {
-        metric.value.gauge = mem_used;
+        metric.value.up_down = mem_used;
         metric_family_metric_append(&fam_bytes, metric);
         reported_base = true;
       }
@@ -1327,14 +1353,25 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
   return ok;
 }
 
-static void add_bw_gauges(metric_t *metric, metric_family_t *fam, double reads,
+static void add_bw_rates(metric_t *metric, metric_family_t *fam, int64_t reads,
+                         int64_t writes) {
+  metric->value.up_down = reads;
+  metric_label_set(metric, "direction", "receive");
+  metric_family_metric_append(fam, *metric);
+
+  metric->value.up_down = writes;
+  metric_label_set(metric, "direction", "transmit");
+  metric_family_metric_append(fam, *metric);
+}
+
+static void add_bw_ratios(metric_t *metric, metric_family_t *fam, double reads,
                           double writes) {
   metric->value.gauge = reads;
-  metric_label_set(metric, "direction", "read");
+  metric_label_set(metric, "direction", "receive");
   metric_family_metric_append(fam, *metric);
 
   metric->value.gauge = writes;
-  metric_label_set(metric, "direction", "write");
+  metric_label_set(metric, "direction", "transmit");
   metric_family_metric_append(fam, *metric);
 }
 
@@ -1367,20 +1404,26 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     gpu->membw_count = mem_count;
   }
 
+  /* names based on network metrics:
+   * https://opentelemetry.io/docs/specs/semconv/system/hardware-metrics/#hwnetwork---network-adapter-metrics
+   */
   metric_family_t fam_ratio = {
       .help = "Average memory bandwidth usage ratio (0-1) over query interval",
-      .name = METRIC_PREFIX "memory_bw_ratio",
+      .name = METRIC_PREFIX "memory.bandwidth.utilization",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "1",
   };
   metric_family_t fam_rate = {
       .help = "Memory bandwidth usage rate (in bytes per second)",
-      .name = METRIC_PREFIX "memory_bw_bytes_per_second",
-      .type = METRIC_TYPE_GAUGE,
+      .name = METRIC_PREFIX "memory.io.rate",
+      .type = METRIC_TYPE_UP_DOWN,
+      .unit = "By/s",
   };
   metric_family_t fam_counter = {
       .help = "Memory bandwidth usage total (in bytes)",
-      .name = METRIC_PREFIX "memory_bw_bytes_total",
+      .name = METRIC_PREFIX "memory.io",
       .type = METRIC_TYPE_COUNTER,
+      .unit = "By",
   };
   metric_t metric = {0};
 
@@ -1403,11 +1446,11 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
     }
     if (config.output & OUTPUT_BASE) {
       metric.value.counter = bw.writeCounter;
-      metric_label_set(&metric, "direction", "write");
+      metric_label_set(&metric, "direction", "transmit");
       metric_family_metric_append(&fam_counter, metric);
 
       metric.value.counter = bw.readCounter;
-      metric_label_set(&metric, "direction", "read");
+      metric_label_set(&metric, "direction", "receive");
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
@@ -1416,18 +1459,18 @@ static bool gpu_mems_bw(gpu_device_t *gpu) {
         (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
       /* https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv419zes_mem_bandwidth_t
        */
-      uint64_t writes = bw.writeCounter - old->writeCounter;
-      uint64_t reads = bw.readCounter - old->readCounter;
-      uint64_t timediff = bw.timestamp - old->timestamp;
+      counter_t writes = counter_diff(old->writeCounter, bw.writeCounter);
+      counter_t reads = counter_diff(old->readCounter, bw.readCounter);
+      counter_t timediff = counter_diff(old->timestamp, bw.timestamp);
 
       if (config.output & OUTPUT_RATE) {
         double factor = 1.0e6 / timediff;
-        add_bw_gauges(&metric, &fam_rate, factor * reads, factor * writes);
+        add_bw_rates(&metric, &fam_rate, factor * reads, factor * writes);
         reported_rate = true;
       }
       if ((config.output & OUTPUT_RATIO) && old->maxBandwidth) {
         double factor = 1.0e6 / (old->maxBandwidth * timediff);
-        add_bw_gauges(&metric, &fam_ratio, factor * reads, factor * writes);
+        add_bw_ratios(&metric, &fam_ratio, factor * reads, factor * writes);
         reported_ratio = true;
       }
     }
@@ -1547,14 +1590,16 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
   }
 
   metric_family_t fam_freq = {
-      .help = "Sampled HW frequency (in MHz)",
-      .name = METRIC_PREFIX "frequency_mhz",
+      .help = "Sampled HW frequency (in Hz)",
+      .name = METRIC_PREFIX "frequency",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "Hz",
   };
   metric_family_t fam_ratio = {
       .help = "Sampled HW frequency ratio vs (non-overclocked) max frequency",
-      .name = METRIC_PREFIX "frequency_ratio",
+      .name = METRIC_PREFIX "frequency.ratio",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "1",
   };
   metric_t metric = {0};
 
@@ -1586,14 +1631,14 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
 
     if (config.samples < 2) {
       set_freq_throttled_label(&metric, gpu->frequency[0][i].throttleReasons);
-      /* negative value = unsupported:
-       * https://spec.oneapi.com/level-zero/latest/sysman/api.html#_CPPv416zes_freq_state_t
+      /* Values are in MHz. Negative value = unsupported:
+       * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-freq-state-t
        */
       value = gpu->frequency[0][i].request;
       if (value >= 0) {
         metric_label_set(&metric, "type", "request");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = value;
+          metric.value.gauge = 1e6 * value;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1607,7 +1652,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
       if (value >= 0) {
         metric_label_set(&metric, "type", "actual");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = value;
+          metric.value.gauge = 1e6 * value;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1646,7 +1691,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_label_set(&metric, "type", "request");
         metric_label_set(&metric, "function", "min");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = req_min;
+          metric.value.gauge = 1e6 * req_min;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1657,7 +1702,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         }
         metric_label_set(&metric, "function", "max");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = req_max;
+          metric.value.gauge = 1e6 * req_max;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1671,7 +1716,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         metric_label_set(&metric, "type", "actual");
         metric_label_set(&metric, "function", "min");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = act_min;
+          metric.value.gauge = 1e6 * act_min;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1682,7 +1727,7 @@ static bool gpu_freqs(gpu_device_t *gpu, unsigned int cache_idx) {
         }
         metric_label_set(&metric, "function", "max");
         if (config.output & OUTPUT_BASE) {
-          metric.value.gauge = act_max;
+          metric.value.gauge = 1e6 * act_max;
           metric_family_metric_append(&fam_freq, metric);
           reported_base = true;
         }
@@ -1752,13 +1797,15 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
   metric_family_t fam_ratio = {
       .help =
           "Ratio (0-1) of HW frequency being throttled during query interval",
-      .name = METRIC_PREFIX "throttled_ratio",
+      .name = METRIC_PREFIX "throttled",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "1",
   };
   metric_family_t fam_counter = {
-      .help = "Total time HW frequency has been throttled (in microseconds)",
-      .name = METRIC_PREFIX "throttled_usecs_total",
-      .type = METRIC_TYPE_COUNTER,
+      .help = "Total time HW frequency has been throttled (in seconds)",
+      .name = METRIC_PREFIX "throttled.time",
+      .type = METRIC_TYPE_COUNTER_FP,
+      .unit = "s",
   };
   metric_t metric = {0};
 
@@ -1782,15 +1829,17 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       break;
     }
     if (config.output & OUTPUT_BASE) {
-      /* cannot convert microsecs to secs as counters are integers */
-      metric.value.counter = throttle.throttleTime;
+      /* times are in microseconds:
+       * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-freq-throttle-time-t
+       */
+      metric.value.counter_fp = throttle.throttleTime / 1e6;
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
     zes_freq_throttle_time_t *old = &gpu->throttle[i];
     if (old->timestamp && throttle.timestamp > old->timestamp &&
         (config.output & OUTPUT_RATIO)) {
-      /* micro seconds => throttle ratio */
+      /* throttle time & timestamp are both in microsecs */
       metric.value.gauge = (throttle.throttleTime - old->throttleTime) /
                            (double)(throttle.timestamp - old->timestamp);
       metric_family_metric_append(&fam_ratio, metric);
@@ -1839,13 +1888,15 @@ static bool gpu_temps(gpu_device_t *gpu) {
 
   metric_family_t fam_temp = {
       .help = "Temperature sensor value (in Celsius) when queried",
-      .name = METRIC_PREFIX "temperature_celsius",
+      .name = METRIC_PREFIX "temperature",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "Cel",
   };
   metric_family_t fam_ratio = {
       .help = "Temperature sensor value ratio to its max value when queried",
-      .name = METRIC_PREFIX "temperature_ratio",
+      .name = METRIC_PREFIX "temperature.ratio",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "1",
   };
   metric_t metric = {0};
 
@@ -2008,21 +2059,27 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
     gpu->fabric_count = port_count;
   }
 
+  /* names based on network metrics:
+   * https://opentelemetry.io/docs/specs/semconv/system/hardware-metrics/#hwnetwork---network-adapter-metrics
+   */
   metric_family_t fam_ratio = {
       .help =
           "Average fabric port bandwidth usage ratio (0-1) over query interval",
-      .name = METRIC_PREFIX "fabric_port_ratio",
+      .name = METRIC_PREFIX "fabric.bandwidth.utilization",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "1",
   };
   metric_family_t fam_rate = {
       .help = "Fabric port throughput rate (in bytes per second)",
-      .name = METRIC_PREFIX "fabric_port_bytes_per_second",
-      .type = METRIC_TYPE_GAUGE,
+      .name = METRIC_PREFIX "fabric.io.rate",
+      .type = METRIC_TYPE_UP_DOWN,
+      .unit = "By/s",
   };
   metric_family_t fam_counter = {
       .help = "Fabric port throughput total (in bytes)",
-      .name = METRIC_PREFIX "fabric_port_bytes_total",
+      .name = METRIC_PREFIX "fabric.io",
       .type = METRIC_TYPE_COUNTER,
+      .unit = "By",
   };
   metric_t metric = {0};
 
@@ -2105,11 +2162,11 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
 
     if (config.output & OUTPUT_BASE) {
       metric.value.counter = bw.txCounter;
-      metric_label_set(&metric, "direction", "write");
+      metric_label_set(&metric, "direction", "transmit");
       metric_family_metric_append(&fam_counter, metric);
 
       metric.value.counter = bw.rxCounter;
-      metric_label_set(&metric, "direction", "read");
+      metric_label_set(&metric, "direction", "receive");
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
@@ -2121,13 +2178,13 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
         (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
       /* https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-fabric-port-throughput-t
        */
-      uint64_t writes = bw.txCounter - old->txCounter;
-      uint64_t reads = bw.rxCounter - old->rxCounter;
-      uint64_t timediff = bw.timestamp - old->timestamp;
+      counter_t writes = counter_diff(old->txCounter, bw.txCounter);
+      counter_t reads = counter_diff(old->rxCounter, bw.rxCounter);
+      counter_t timediff = counter_diff(old->timestamp, bw.timestamp);
 
       if (config.output & OUTPUT_RATE) {
         double factor = 1.0e6 / timediff;
-        add_bw_gauges(&metric, &fam_rate, factor * reads, factor * writes);
+        add_bw_rates(&metric, &fam_rate, factor * reads, factor * writes);
         reported_rate = true;
       }
       if (config.output & OUTPUT_RATIO) {
@@ -2136,7 +2193,7 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
         if (maxr > 0 && maxw > 0) {
           double rfactor = 1.0e6 / (maxr * timediff);
           double wfactor = 1.0e6 / (maxw * timediff);
-          add_bw_gauges(&metric, &fam_ratio, rfactor * reads, wfactor * writes);
+          add_bw_ratios(&metric, &fam_ratio, rfactor * reads, wfactor * writes);
           reported_ratio = true;
         }
       }
@@ -2189,18 +2246,21 @@ static bool gpu_powers(gpu_device_t *gpu) {
   metric_family_t fam_ratio = {
       .help = "Ratio of average power usage vs sustained or burst "
               "power limit",
-      .name = METRIC_PREFIX "power_ratio",
+      .name = METRIC_PREFIX "power.utilization",
       .type = METRIC_TYPE_GAUGE,
+      .unit = "1",
   };
   metric_family_t fam_power = {
       .help = "Average power usage (in Watts) over query interval",
-      .name = METRIC_PREFIX "power_watts",
-      .type = METRIC_TYPE_GAUGE,
+      .name = METRIC_PREFIX "power",
+      .type = METRIC_TYPE_UP_DOWN_FP,
+      .unit = "W",
   };
   metric_family_t fam_energy = {
-      .help = "Total energy consumption since boot (in microjoules)",
-      .name = METRIC_PREFIX "energy_ujoules_total",
-      .type = METRIC_TYPE_COUNTER,
+      .help = "Total energy consumption since boot (in joules)",
+      .type = METRIC_TYPE_COUNTER_FP,
+      .name = METRIC_PREFIX "energy",
+      .unit = "J",
   };
   metric_t metric = {0};
 
@@ -2229,7 +2289,7 @@ static bool gpu_powers(gpu_device_t *gpu) {
     }
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
     if (config.output & OUTPUT_BASE) {
-      metric.value.counter = counter.energy;
+      metric.value.counter_fp = counter.energy / 1e6;
       metric_family_metric_append(&fam_energy, metric);
       reported_base = true;
     }
@@ -2237,12 +2297,14 @@ static bool gpu_powers(gpu_device_t *gpu) {
     if (old->timestamp && counter.timestamp > old->timestamp &&
         (config.output & (OUTPUT_RATIO | OUTPUT_RATE))) {
 
-      uint64_t energy_diff = counter.energy - old->energy;
-      double time_diff = counter.timestamp - old->timestamp;
+      counter_t energy_diff = counter_diff(old->energy, counter.energy);
+      double time_diff = counter_diff(old->timestamp, counter.timestamp);
 
       if (config.output & OUTPUT_RATE) {
-        /* microJoules / microSeconds => watts */
-        metric.value.gauge = energy_diff / time_diff;
+        /* microJoules / microSeconds => watts
+         * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-power-energy-counter-t
+         */
+        metric.value.up_down_fp = energy_diff / time_diff;
         metric_family_metric_append(&fam_power, metric);
         reported_rate = true;
       }
@@ -2342,14 +2404,16 @@ static bool gpu_engines(gpu_device_t *gpu) {
   metric_family_t fam_ratio = {
       .help = "Average GPU engine / group utilization ratio (0-1) over query "
               "interval",
-      .name = METRIC_PREFIX "engine_ratio",
       .type = METRIC_TYPE_GAUGE,
+      .name = METRIC_PREFIX "engine.utilization",
+      .unit = "1",
   };
   metric_family_t fam_counter = {
       .help = "GPU engine / group execution time (activity) total (in "
-              "microseconds)",
-      .name = METRIC_PREFIX "engine_use_usecs_total",
-      .type = METRIC_TYPE_COUNTER,
+              "seconds)",
+      .type = METRIC_TYPE_COUNTER_FP,
+      .name = METRIC_PREFIX "engine.time",
+      .unit = "s",
   };
   metric_t metric = {0};
 
@@ -2449,7 +2513,10 @@ static bool gpu_engines(gpu_device_t *gpu) {
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
     metric_label_set(&metric, "type", vname);
     if (config.output & OUTPUT_BASE) {
-      metric.value.counter = stats.activeTime;
+      /* Intel L0 backend provides times in microsecs:
+       * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-engine-stats-t
+       */
+      metric.value.counter_fp = stats.activeTime / 1e6;
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
