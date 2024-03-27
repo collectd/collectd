@@ -4033,6 +4033,7 @@ B<Synopsis:>
   <Plugin "intel_rdt">
     MonIPCEnabled true
     MonLLCRefEnabled false
+    MonLLCMissEnabled false
     Cores "0-2" "3,4,6" "8-10,15"
     Processes "sshd,qemu-system-x86" "bash"
   </Plugin>
@@ -4058,6 +4059,12 @@ default), IPC monitoring statistics will be collected by intel_rdt plugin.
 Determines whether or not to enable LLC references monitoring. If set to
 B<false> (the default), LLC references monitoring statistics will not be
 collected by intel_rdt plugin.
+
+=item B<MonLLCMissEnabled> B<true>|B<false>
+
+Determines whether or not to enable LLC misses  monitoring. If set to B<false>
+(the default), LLC misses monitoring statistics will not be collected by
+intel_rdt plugin.
 
 =item B<Cores> I<cores groups>
 
