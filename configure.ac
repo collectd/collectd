@@ -163,6 +163,7 @@ AC_CHECK_HEADERS_ONCE([ \
   fs_info.h \
   fshelp.h \
   grp.h \
+  glob.h \
   kstat.h \
   kvm.h \
   libgen.h \
@@ -2111,6 +2112,10 @@ PKG_CHECK_MODULES([LEVEL_ZERO], [level-zero],
   [with_level_zero="no (pkg-config could not find 'level-zero')"]
 )
 
+if ! pkg-config --atleast-version=1.9.4 level-zero; then
+  with_level_zero="no (version $(pkg-config --version level-zero) < 1.9.4)"
+fi
+
 if test "x$with_level_zero" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $LEVEL_ZERO_CFLAGS"
@@ -2126,9 +2131,9 @@ if test "x$with_level_zero" = "xyes"; then
   SAVE_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $LEVEL_ZERO_LIBS"
 
-  AC_CHECK_LIB([ze_loader], zeInit,
+  AC_CHECK_LIB([ze_loader], zesInit,
     [with_level_zero="yes"],
-    [with_level_zero="no (libze_loader symbol 'zeInit' not found)"]
+    [with_level_zero="no (libze_loader symbol 'zesInit' not found)"]
   )
   LDFLAGS="$SAVE_LDFLAGS"
 fi

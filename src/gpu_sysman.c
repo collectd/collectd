@@ -42,21 +42,24 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
 
-/* whether to add "dev_file" label to metrics for Kubernetes Intel GPU plugin,
- * needs (POSIX.1-2001) basename() + glob() and (POSIX.1-2008) getline()
- * functions.
+/* includes config.h with HAVE_*_H defines, needed by check below */
+#include "collectd.h"
+
+#if HAVE_GLOB_H && HAVE_LIBGEN_H
+/* "dev_file" label (for k8s Intel GPU plugin) and "pci_dev" label
+ * (for k8s Intel resource driver) need (POSIX.1-2001/-2008)
+ *  glob() + basename() functions.
  */
 #define ADD_DEV_FILE 1
-#if ADD_DEV_FILE
 #include <glob.h>
 #include <libgen.h>
+#else
+#pragma message                                                                \
+    "glob / libgen headers missing => no 'dev_file' / 'pci_dev' labels"
 #endif
 
-#include "collectd.h"
-/* comment avoiding local clang-format conflict with collectd CI one */
 #include "plugin.h"
 #include "utils/common/common.h"
 
@@ -68,11 +71,11 @@
 /* plugin specific callback error return values */
 #define RET_NO_METRICS -1
 #define RET_INVALID_CONFIG -2
-#define RET_ZE_INIT_FAIL -3
+#define RET_ZES_INIT_FAIL -3
 #define RET_NO_DRIVERS -4
-#define RET_ZE_DRIVER_GET_FAIL -5
-#define RET_ZE_DEVICE_GET_FAIL -6
-#define RET_ZE_DEVICE_PROPS_FAIL -7
+#define RET_ZES_DRIVER_GET_FAIL -5
+#define RET_ZES_DEVICE_GET_FAIL -6
+#define RET_ZES_DEVICE_PROPS_FAIL -7
 #define RET_NO_GPUS -9
 
 /* GPU metrics to disable */
@@ -95,9 +98,10 @@ typedef struct {
 /* handles for the GPU devices discovered by Sysman library */
 typedef struct {
   /* GPU info for metric labels */
-  char *pci_bdf;  // required
-  char *pci_dev;  // if GpuInfo
+  char *pci_bdf;  // required, acts as device ID
+  char *pci_dev;  // if ADD_DEV_FILE
   char *dev_file; // if ADD_DEV_FILE
+  char *dev_name; // if GpuInfo
   /* number of types for metrics without allocs */
   uint32_t ras_count;
   uint32_t temp_count;
@@ -244,6 +248,8 @@ static int gpu_config_free(void) {
     gpus[i].pci_dev = NULL;
     free(gpus[i].dev_file);
     gpus[i].dev_file = NULL;
+    free(gpus[i].dev_name);
+    gpus[i].dev_name = NULL;
   }
 #undef FREE_GPU_SAMPLING_ARRAYS
 #undef FREE_GPU_ARRAY
@@ -387,15 +393,94 @@ static void log_uuid(const char *prefix, const uint8_t *byte, int len) {
   INFO("%s", buf);
 }
 
+static const char *map_mem_location(zes_mem_loc_t location) {
+  /* default is "unknown", in case spec / L0 backend has added new items
+   * since this code was last updated */
+  switch (location) {
+  case ZES_MEM_LOC_SYSTEM:
+    return "system";
+  case ZES_MEM_LOC_DEVICE:
+    return "device";
+  default:
+    return "unknown";
+  }
+}
+
+static const char *map_mem_type(zes_mem_type_t type) {
+  switch (type) {
+  case ZES_MEM_TYPE_HBM:
+    return "HBM";
+  case ZES_MEM_TYPE_DDR:
+    return "DDR";
+  case ZES_MEM_TYPE_DDR3:
+    return "DDR3";
+  case ZES_MEM_TYPE_DDR4:
+    return "DDR4";
+  case ZES_MEM_TYPE_DDR5:
+    return "DDR5";
+  case ZES_MEM_TYPE_LPDDR:
+    return "LPDDR";
+  case ZES_MEM_TYPE_LPDDR3:
+    return "LPDDR3";
+  case ZES_MEM_TYPE_LPDDR4:
+    return "LPDDR4";
+  case ZES_MEM_TYPE_LPDDR5:
+    return "LPDDR5";
+  case ZES_MEM_TYPE_GDDR4:
+    return "GDDR4";
+  case ZES_MEM_TYPE_GDDR5:
+    return "GDDR5";
+  case ZES_MEM_TYPE_GDDR5X:
+    return "GDDR5X";
+  case ZES_MEM_TYPE_GDDR6:
+    return "GDDR6";
+  case ZES_MEM_TYPE_GDDR6X:
+    return "GDDR6X";
+  case ZES_MEM_TYPE_GDDR7:
+    return "GDDR7";
+  case ZES_MEM_TYPE_SRAM:
+    return "SRAM";
+  case ZES_MEM_TYPE_L1:
+    return "L1";
+  case ZES_MEM_TYPE_L3:
+    return "L3";
+  case ZES_MEM_TYPE_GRF:
+    return "GRF";
+  case ZES_MEM_TYPE_SLM:
+    return "SLM";
+  default:
+    return "unknown";
+  }
+}
+
+/* returns NULL if health is unknown, to avoid adding useless labels */
+static const char *map_mem_health(zes_mem_health_t value) {
+  if (value == ZES_MEM_HEALTH_UNKNOWN) {
+    return NULL;
+  }
+  switch (value) {
+  case ZES_MEM_HEALTH_OK:
+    return "ok";
+  case ZES_MEM_HEALTH_DEGRADED:
+    return "degraded";
+  case ZES_MEM_HEALTH_CRITICAL:
+    return "critical";
+  case ZES_MEM_HEALTH_REPLACE:
+    return "replace";
+  default:
+    return "unknown";
+  }
+}
+
 /* If GPU info setting is enabled, log Sysman API provided info for
- * given GPU, and set PCI device ID to 'pci_dev'.  On success, return
+ * given GPU, and set device name to 'dev_name'.  On success, return
  * true and set GPU PCI address to 'pci_bdf' as string in BDF notation:
  * https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
  */
-static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
+static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
   char buf[32];
 
-  *pci_bdf = *pci_dev = NULL;
+  *pci_bdf = *dev_name = NULL;
   zes_pci_properties_t pci = {.pNext = NULL};
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
@@ -411,38 +496,37 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
     return true;
   }
 
-  INFO("Level-Zero Sysman API GPU info");
+  INFO("\nLevel-Zero Sysman API GPU info");
   INFO("==============================");
 
   INFO("PCI info:");
-  if (ret == ZE_RESULT_SUCCESS) {
-    INFO("- PCI B/D/F:  %s", *pci_bdf);
-    const zes_pci_speed_t *speed = &pci.maxSpeed;
-    INFO("- PCI gen:    %d", speed->gen);
-    INFO("- PCI width:  %d", speed->width);
+  INFO("- PCI B/D/F: %s", *pci_bdf);
+  const zes_pci_speed_t *speed = &pci.maxSpeed;
+  if (speed->gen > 0 && speed->width > 0 && speed->maxBandwidth > 0) {
+    INFO("- PCI gen:   %d", speed->gen);
+    INFO("- PCI width: %d", speed->width);
     double max = speed->maxBandwidth / (double)(1024 * 1024 * 1024);
-    INFO("- max BW:     %.2f GiB/s (all lines)", max);
-  } else {
-    INFO("- unavailable");
+    INFO("- max BW:    %.2f GiB/s (all lines)", max);
   }
 
   INFO("HW state:");
   zes_device_state_t state = {.pNext = NULL};
   /* Note: there's also zesDevicePciGetState() for PCI link status */
   if (ret = zesDeviceGetState(dev, &state), ret == ZE_RESULT_SUCCESS) {
-    INFO("- repaired: %s",
-         (state.repaired == ZES_REPAIR_STATUS_PERFORMED) ? "yes" : "no");
     if (state.reset != 0) {
       INFO("- device RESET required");
       if (state.reset & ZES_RESET_REASON_FLAG_WEDGED) {
-        INFO(" - HW is wedged");
+        INFO("  - HW is wedged");
       }
       if (state.reset & ZES_RESET_REASON_FLAG_REPAIR) {
-        INFO(" - HW needs to complete repairs");
+        INFO("  - HW needs to complete repairs");
       }
     } else {
       INFO("- no RESET required");
     }
+    /* align with ECC state */
+    INFO("- repaired:  %s",
+         (state.repaired == ZES_REPAIR_STATUS_PERFORMED) ? "yes" : "no");
   } else {
     INFO("- unavailable");
     WARNING(PLUGIN_NAME ": failed to get GPU device state => 0x%x", ret);
@@ -464,61 +548,98 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
   }
   INFO("- ECC state: %s", eccstate);
 
-  INFO("HW identification:");
-  zes_device_properties_t props = {.pNext = NULL};
-  if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
-    const ze_device_properties_t *core = &props.core;
-    snprintf(buf, sizeof(buf), "0x%x", core->deviceId);
-    *pci_dev = sstrdup(buf); // used only if present
-    INFO("- name:       %s", core->name);
-    INFO("- vendor ID:  0x%x", core->vendorId);
-    INFO("- device ID:  0x%x", core->deviceId);
-    log_uuid("- UUID:       0x", core->uuid.id, sizeof(core->uuid.id));
-    INFO("- serial#:    %s", props.serialNumber);
-    INFO("- board#:     %s", props.boardNumber);
-    INFO("- brand:      %s", props.brandName);
-    INFO("- model:      %s", props.modelName);
-    INFO("- vendor:     %s", props.vendorName);
+  zes_device_ext_properties_t ext = {
+      .stype = ZES_STRUCTURE_TYPE_DEVICE_EXT_PROPERTIES,
+  };
+  zes_device_properties_t props = {
+      .stype = ZES_STRUCTURE_TYPE_DEVICE_PROPERTIES,
+      .pNext = &ext,
+  };
 
-    INFO("UMD/KMD driver info:");
-    INFO("- version:    %s", props.driverVersion);
-    INFO("- max alloc:  %lu MiB", core->maxMemAllocSize / (1024 * 1024));
+  INFO("HW identification:");
+  if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
+    *dev_name = sstrdup(props.modelName); // used only if present
+
+    INFO("- vendor:  %s", props.vendorName);
+    INFO("- brand:   %s", props.brandName);
+    INFO("- model:   %s", props.modelName);
+    log_uuid("- UUID:    0x", ext.uuid.id, sizeof(ext.uuid.id));
+    INFO("- board#:  %s", props.boardNumber);
+    INFO("- serial#: %s", props.serialNumber);
 
     INFO("HW info:");
-    INFO("- # sub devs: %u", props.numSubdevices);
-    INFO("- core clock: %u", core->coreClockRate);
-    INFO("- EUs:        %u", core->numEUsPerSubslice *
-                                 core->numSubslicesPerSlice * core->numSlices);
+    if (ext.flags & ZES_DEVICE_PROPERTY_FLAG_INTEGRATED) {
+      INFO("- integrated");
+    } else {
+      INFO("- discrete");
+      INFO("- subdevices: %u", props.numSubdevices);
+    }
+
+    INFO("UMD/KMD driver info:");
+    INFO("- version: %s", props.driverVersion);
   } else {
     INFO("- unavailable");
     WARNING(PLUGIN_NAME ": failed to get GPU device properties => 0x%x", ret);
   }
 
-  /* HW info for all memories */
+  /* get memory modules */
   uint32_t i, mem_count = 0;
-  ze_device_handle_t mdev = (ze_device_handle_t)dev;
-  if (ret = zeDeviceGetMemoryProperties(mdev, &mem_count, NULL),
-      ret != ZE_RESULT_SUCCESS) {
-    WARNING(PLUGIN_NAME ": failed to get memory properties count => 0x%x", ret);
+  ret = zesDeviceEnumMemoryModules(dev, &mem_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get memory modules count => 0x%x", ret);
     return true;
   }
-  ze_device_memory_properties_t *mems = scalloc(mem_count, sizeof(*mems));
-  if (ret = zeDeviceGetMemoryProperties(mdev, &mem_count, mems),
-      ret != ZE_RESULT_SUCCESS) {
-    WARNING(PLUGIN_NAME ": failed to get %d memory properties => 0x%x",
-            mem_count, ret);
+  zes_mem_handle_t *mems;
+  mems = scalloc(mem_count, sizeof(*mems));
+  ret = zesDeviceEnumMemoryModules(dev, &mem_count, mems);
+  if (ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get %d memory modules => 0x%x", mem_count,
+            ret);
     free(mems);
     return true;
   }
+
+  /* HW info for all memories */
   for (i = 0; i < mem_count; i++) {
-    const char *memname = mems[i].name;
-    if (!(memname && *memname)) {
-      memname = "Unknown";
+    zes_mem_properties_t props = {.pNext = NULL};
+#ifndef SYSMAN_UNIT_TEST_BUILD /* call here would mess unit-testing */
+    ret = zesMemoryGetProperties(mems[i], &props);
+#endif
+    if (ret != ZE_RESULT_SUCCESS) {
+      WARNING(PLUGIN_NAME ": mem %d props query fail => 0x%x", i, ret);
+      continue;
     }
-    INFO("Memory - %s:", memname);
-    INFO("- size:       %lu MiB", mems[i].totalSize / (1024 * 1024));
-    INFO("- bus width:  %u", mems[i].maxBusWidth);
-    INFO("- max clock:  %u", mems[i].maxClockRate);
+
+    const char *location = map_mem_location(props.location);
+    const char *type = map_mem_type(props.type);
+    INFO("Memory-%i:", i);
+    INFO("- type:      %s", type);
+    INFO("- location:  %s", location);
+    if (props.onSubdevice) {
+      INFO("- subdevice: %u", props.subdeviceId);
+    }
+    if (props.busWidth > 0 && props.numChannels) {
+      INFO("- bus width: %u", props.busWidth);
+      INFO("- channels:  %u", props.numChannels);
+    }
+    if (props.physicalSize > 0) {
+      INFO("- size:      %lu MiB", props.physicalSize / (1024 * 1024));
+    }
+
+    zes_mem_state_t state = {0};
+#ifndef SYSMAN_UNIT_TEST_BUILD /* call here would mess unit-testing */
+    ret = zesMemoryGetState(mems[i], &state);
+#endif
+    if (ret != ZE_RESULT_SUCCESS) {
+      WARNING(PLUGIN_NAME ": mem %d state query fail => 0x%x", i, ret);
+      continue;
+    }
+    INFO("Memory state:");
+    INFO("- allocatable: %lu MiB", state.size / (1024 * 1024));
+    const char *health = map_mem_health(state.health);
+    if (health) {
+      INFO("- status:      %s", health);
+    }
   }
   free(mems);
   return true;
@@ -530,12 +651,12 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **pci_dev) {
  */
 static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
   assert(gpu);
-  char *pci_bdf, *pci_dev;
-  if (!gpu_info(dev, &pci_bdf, &pci_dev) || !pci_bdf) {
+  char *pci_bdf, *dev_name;
+  if (!gpu_info(dev, &pci_bdf, &dev_name) || !pci_bdf) {
     return false;
   }
   gpu->pci_bdf = pci_bdf;
-  gpu->pci_dev = pci_dev;
+  gpu->dev_name = dev_name;
   /*
    * scan devfs and sysfs to find primary GPU device file node matching
    * given BDF, and if one is found, use that as device file name.
@@ -545,7 +666,7 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
    * has no GPU access.
    */
 #if ADD_DEV_FILE
-#define BDF_LINE "PCI_SLOT_NAME="
+#define BDF_PREFIX "PCI_SLOT_NAME="
 #define DEVFS_GLOB "/dev/dri/card*"
   glob_t devfs;
   if (glob(DEVFS_GLOB, 0, NULL, &devfs) != 0) {
@@ -553,36 +674,52 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
     globfree(&devfs);
     return true;
   }
-  const size_t prefix_size = strlen(BDF_LINE);
-  for (size_t i = 0; i < devfs.gl_pathc; i++) {
-    char path[PATH_MAX], *dev_file;
-    dev_file = basename(devfs.gl_pathv[i]);
 
-    FILE *fp;
-    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/uevent", dev_file);
-    if (!(fp = fopen(path, "r"))) {
-      INFO(PLUGIN_NAME ": device <-> BDF mapping, file missing: %s", path);
+  for (size_t i = 0; i < devfs.gl_pathc; i++) {
+    char *dev_file = basename(devfs.gl_pathv[i]);
+    if (strchr(dev_file, '-')) {
+      /* <device>-<display>, not <device> dir */
       continue;
     }
-    ssize_t nread;
-    size_t len = 0;
-    char *line = NULL;
-    while ((nread = getline(&line, &len, fp)) > 0) {
-      if (strncmp(line, BDF_LINE, prefix_size) != 0) {
-        continue;
-      }
-      line[nread - 1] = '\0'; // remove newline
-      if (strcmp(line + prefix_size, pci_bdf) == 0) {
-        INFO(PLUGIN_NAME ": %s <-> %s", dev_file, pci_bdf);
-        gpu->dev_file = sstrdup(dev_file);
-        break;
-      }
+
+    char path[64], buf[1024];
+    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/uevent", dev_file);
+    if (read_text_file_contents(path, buf, sizeof(buf)) <= 0) {
+      INFO(PLUGIN_NAME ": device <-> BDF mapping file missing: %s", path);
+      continue;
     }
-    free(line);
-    fclose(fp);
-    if (gpu->dev_file) {
-      break;
+
+    /* get current device BDF info */
+    char *info = strstr(buf, BDF_PREFIX);
+    if (!info) {
+      INFO(PLUGIN_NAME ": " BDF_PREFIX " line missing from %s", path);
+      continue;
     }
+    info += sizeof(BDF_PREFIX) - 1;
+    char *end = strchr(info, '\n');
+    if (!end) {
+      INFO(PLUGIN_NAME ": unterminated " BDF_PREFIX " line in %s", path);
+      continue;
+    }
+    *end = '\0';
+
+    /* did we find correct device/file name? */
+    if (strcmp(info, pci_bdf) != 0) {
+      continue;
+    }
+    gpu->dev_file = sstrdup(dev_file);
+
+    /* get also its PCI ID */
+    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/device",
+             gpu->dev_file);
+    if (read_text_file_contents(path, buf, sizeof(buf)) > 0) {
+      strstripnewline(buf);
+      INFO(PLUGIN_NAME ": %s (%s) <-> %s", dev_file, buf, pci_bdf);
+      gpu->pci_dev = strdup(buf);
+    } else {
+      INFO(PLUGIN_NAME ": %s <-> %s", dev_file, pci_bdf);
+    }
+    break;
   }
   globfree(&devfs);
 #undef DEVFS_GLOB
@@ -597,18 +734,18 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
  * Return RET_OK for success, or (negative) error value if any of the device
  * count queries fails
  */
-static int gpu_scan(ze_driver_handle_t *drivers, uint32_t driver_count,
+static int gpu_scan(zes_driver_handle_t *drivers, uint32_t driver_count,
                     uint32_t *scan_count) {
   assert(!gpus);
   *scan_count = 0;
   for (uint32_t drv_idx = 0; drv_idx < driver_count; drv_idx++) {
 
     uint32_t dev_count = 0;
-    ze_result_t ret = zeDeviceGet(drivers[drv_idx], &dev_count, NULL);
+    ze_result_t ret = zesDeviceGet(drivers[drv_idx], &dev_count, NULL);
     if (ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get device count for driver %d => 0x%x",
             drv_idx, ret);
-      return RET_ZE_DEVICE_GET_FAIL;
+      return RET_ZES_DEVICE_GET_FAIL;
     }
     if (config.gpuinfo) {
       INFO("driver %d: %d devices", drv_idx, dev_count);
@@ -635,7 +772,7 @@ static int gpu_scan(ze_driver_handle_t *drivers, uint32_t driver_count,
  * Return RET_OK for success if at least one GPU device info fetch succeeded,
  * otherwise (negative) error value for last error encountered
  */
-static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
+static int gpu_fetch(zes_driver_handle_t *drivers, uint32_t driver_count,
                      uint32_t *scan_count, uint32_t *scan_ignored) {
   assert(!gpus);
   assert(*scan_count > 0);
@@ -647,41 +784,40 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
 
   for (uint32_t drv_idx = 0; drv_idx < driver_count; drv_idx++) {
     uint32_t dev_count = 0;
-    if (ret = zeDeviceGet(drivers[drv_idx], &dev_count, NULL),
+    if (ret = zesDeviceGet(drivers[drv_idx], &dev_count, NULL),
         ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get device count for driver %d => 0x%x",
             drv_idx, ret);
-      retval = RET_ZE_DEVICE_GET_FAIL;
+      retval = RET_ZES_DEVICE_GET_FAIL;
       continue;
     }
-    ze_device_handle_t *devs;
+    zes_device_handle_t *devs;
     devs = scalloc(dev_count, sizeof(*devs));
-    if (ret = zeDeviceGet(drivers[drv_idx], &dev_count, devs),
+    if (ret = zesDeviceGet(drivers[drv_idx], &dev_count, devs),
         ret != ZE_RESULT_SUCCESS) {
       ERROR(PLUGIN_NAME ": failed to get %d devices for driver %d => 0x%x",
             dev_count, drv_idx, ret);
       free(devs);
       devs = NULL;
-      retval = RET_ZE_DEVICE_GET_FAIL;
+      retval = RET_ZES_DEVICE_GET_FAIL;
       continue;
     }
     /* Get all GPU devices for the driver */
     for (uint32_t dev_idx = 0; dev_idx < dev_count; dev_idx++) {
-      ze_device_properties_t props = {.pNext = NULL};
-      if (ret = zeDeviceGetProperties(devs[dev_idx], &props),
+      zes_device_properties_t props = {.pNext = NULL};
+      if (ret = zesDeviceGetProperties(devs[dev_idx], &props),
           ret != ZE_RESULT_SUCCESS) {
         ERROR(PLUGIN_NAME
               ": failed to get driver %d device %d properties => 0x%x",
               drv_idx, dev_idx, ret);
-        retval = RET_ZE_DEVICE_PROPS_FAIL;
+        retval = RET_ZES_DEVICE_PROPS_FAIL;
         continue;
       }
-      assert(ZE_DEVICE_TYPE_GPU == props.type);
       if (count >= *scan_count) {
         ignored++;
         continue;
       }
-      gpus[count].handle = (zes_device_handle_t)devs[dev_idx];
+      gpus[count].handle = devs[dev_idx];
       if (!add_gpu_labels(&(gpus[count]), devs[dev_idx])) {
         ERROR(PLUGIN_NAME ": failed to get driver %d device %d information",
               drv_idx, dev_idx);
@@ -708,7 +844,8 @@ static int gpu_fetch(ze_driver_handle_t *drivers, uint32_t driver_count,
   return retval;
 }
 
-/* Scan Sysman for GPU devices
+/* Scan Sysman for GPU devices:
+ * https://spec.oneapi.io/level-zero/latest/sysman/PROG.html#initialization
  * Return RET_OK for success, (negative) error value otherwise
  */
 static int gpu_init(void) {
@@ -717,28 +854,31 @@ static int gpu_init(void) {
     return RET_OK;
   }
   ze_result_t ret;
+  /* backend versions supporting zesInit(), but older than 23.26.26690.12
+   * still need this env var.
+   */
   setenv("ZES_ENABLE_SYSMAN", "1", 1);
-  if (ret = zeInit(ZE_INIT_FLAG_GPU_ONLY), ret != ZE_RESULT_SUCCESS) {
-    ERROR(PLUGIN_NAME ": Level Zero API init failed => 0x%x", ret);
-    return RET_ZE_INIT_FAIL;
+  if (ret = zesInit(0), ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": Level Zero Sysman init failed => 0x%x", ret);
+    return RET_ZES_INIT_FAIL;
   }
   /* Discover all the drivers */
   uint32_t driver_count = 0;
-  if (ret = zeDriverGet(&driver_count, NULL), ret != ZE_RESULT_SUCCESS) {
+  if (ret = zesDriverGet(&driver_count, NULL), ret != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get L0 GPU drivers count => 0x%x", ret);
-    return RET_ZE_DRIVER_GET_FAIL;
+    return RET_ZES_DRIVER_GET_FAIL;
   }
   if (!driver_count) {
     ERROR(PLUGIN_NAME ": no drivers found with Level-Zero Sysman API");
     return RET_NO_DRIVERS;
   }
-  ze_driver_handle_t *drivers;
+  zes_driver_handle_t *drivers;
   drivers = scalloc(driver_count, sizeof(*drivers));
-  if (ret = zeDriverGet(&driver_count, drivers), ret != ZE_RESULT_SUCCESS) {
+  if (ret = zesDriverGet(&driver_count, drivers), ret != ZE_RESULT_SUCCESS) {
     ERROR(PLUGIN_NAME ": failed to get %d L0 drivers => 0x%x", driver_count,
           ret);
     free(drivers);
-    return RET_ZE_DRIVER_GET_FAIL;
+    return RET_ZES_DRIVER_GET_FAIL;
   }
   /* scan number of Sysman provided GPUs... */
   int fail;
@@ -830,11 +970,14 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
 
     /* add extra per-metric labels */
     metric_label_set(m, "pci_bdf", gpu->pci_bdf);
+    if (gpu->pci_dev) {
+      metric_label_set(m, "pci_dev", gpu->pci_dev);
+    }
     if (gpu->dev_file) {
       metric_label_set(m, "dev_file", gpu->dev_file);
     }
-    if (gpu->pci_dev) {
-      metric_label_set(m, "pci_dev", gpu->pci_dev);
+    if (gpu->dev_name) {
+      metric_label_set(m, "dev_name", gpu->dev_name);
     }
   }
 
@@ -1031,84 +1174,8 @@ static ze_result_t set_mem_labels(zes_mem_handle_t mem, metric_t *metric) {
   if (ret != ZE_RESULT_SUCCESS) {
     return ret;
   }
-  const char *location;
-  switch (props.location) {
-  case ZES_MEM_LOC_SYSTEM:
-    location = "system";
-    break;
-  case ZES_MEM_LOC_DEVICE:
-    location = "device";
-    break;
-  default:
-    location = "unknown";
-  }
-  const char *type;
-  switch (props.type) {
-  case ZES_MEM_TYPE_HBM:
-    type = "HBM";
-    break;
-  case ZES_MEM_TYPE_DDR:
-    type = "DDR";
-    break;
-  case ZES_MEM_TYPE_DDR3:
-    type = "DDR3";
-    break;
-  case ZES_MEM_TYPE_DDR4:
-    type = "DDR4";
-    break;
-  case ZES_MEM_TYPE_DDR5:
-    type = "DDR5";
-    break;
-  case ZES_MEM_TYPE_LPDDR:
-    type = "LPDDR";
-    break;
-  case ZES_MEM_TYPE_LPDDR3:
-    type = "LPDDR3";
-    break;
-  case ZES_MEM_TYPE_LPDDR4:
-    type = "LPDDR4";
-    break;
-  case ZES_MEM_TYPE_LPDDR5:
-    type = "LPDDR5";
-    break;
-  case ZES_MEM_TYPE_GDDR4:
-    type = "GDDR4";
-    break;
-  case ZES_MEM_TYPE_GDDR5:
-    type = "GDDR5";
-    break;
-  case ZES_MEM_TYPE_GDDR5X:
-    type = "GDDR5X";
-    break;
-  case ZES_MEM_TYPE_GDDR6:
-    type = "GDDR6";
-    break;
-  case ZES_MEM_TYPE_GDDR6X:
-    type = "GDDR6X";
-    break;
-  case ZES_MEM_TYPE_GDDR7:
-    type = "GDDR7";
-    break;
-  case ZES_MEM_TYPE_SRAM:
-    type = "SRAM";
-    break;
-  case ZES_MEM_TYPE_L1:
-    type = "L1";
-    break;
-  case ZES_MEM_TYPE_L3:
-    type = "L3";
-    break;
-  case ZES_MEM_TYPE_GRF:
-    type = "GRF";
-    break;
-  case ZES_MEM_TYPE_SLM:
-    type = "SLM";
-    break;
-  default:
-    type = "unknown";
-  }
-  metric_label_set(metric, "type", type);
-  metric_label_set(metric, "location", location);
+  metric_label_set(metric, "type", map_mem_type(props.type));
+  metric_label_set(metric, "location", map_mem_location(props.location));
   metric_set_subdev(metric, props.onSubdevice, props.subdeviceId);
   return ZE_RESULT_SUCCESS;
 }
@@ -1187,25 +1254,8 @@ static bool gpu_mems(gpu_device_t *gpu, unsigned int cache_idx) {
       break;
     }
     /* get health status from last i.e. zeroeth sample */
-    zes_mem_health_t value = gpu->memory[0][i].health;
-    if (value != ZES_MEM_HEALTH_UNKNOWN) {
-      const char *health;
-      switch (value) {
-      case ZES_MEM_HEALTH_OK:
-        health = "ok";
-        break;
-      case ZES_MEM_HEALTH_DEGRADED:
-        health = "degraded";
-        break;
-      case ZES_MEM_HEALTH_CRITICAL:
-        health = "critical";
-        break;
-      case ZES_MEM_HEALTH_REPLACE:
-        health = "replace";
-        break;
-      default:
-        health = "unknown";
-      }
+    const char *health = map_mem_health(gpu->memory[0][i].health);
+    if (health) {
       metric_label_set(&metric, "health", health);
     }
     double mem_used;
