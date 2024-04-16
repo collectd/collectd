@@ -583,7 +583,7 @@ typedef struct {
 
 static metrics_validation_t valid_metrics[] = {
     /* gauge value changes */
-    {"all_errors_total", true, false, RAS_INIT, RAS_INC, 0, 0.0},
+    {"all_errors", true, false, RAS_INIT, RAS_INC, 0, 0.0},
     {"frequency_mhz/actual/current/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0,
      0.0},
     {"frequency_mhz/actual/current/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0,
@@ -624,14 +624,14 @@ static metrics_validation_t valid_metrics[] = {
     {"temperature_ratio", true, false, TEMP_RATIO_INIT, TEMP_RATIO_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
-    {"energy_joules_total", true, false, COUNTER_START / 1e6, COUNTER_INC / 1e6,
-     0, 0.0},
+    {"energy_joules", true, false, COUNTER_START / 1e6, COUNTER_INC / 1e6, 0,
+     0.0},
     {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"engine_use_seconds_total/all", true, false, COUNTER_START / 1e6,
+    {"engine_use_seconds/all", true, false, COUNTER_START / 1e6,
      COUNTER_INC / 1e6, 0, 0.0},
-    {"fabric_port_bytes_total/healthy/off/read", true, false, 2 * COUNTER_START,
+    {"fabric_port_bytes/healthy/off/read", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
-    {"fabric_port_bytes_total/healthy/off/write", true, false, COUNTER_START,
+    {"fabric_port_bytes/healthy/off/write", true, false, COUNTER_START,
      COUNTER_INC, 0, 0.0},
     {"fabric_port_bytes_per_second/healthy/off/read", true, false,
      2 * COUNTER_RATE, 0, 0, 0.0},
@@ -641,9 +641,9 @@ static metrics_validation_t valid_metrics[] = {
      0, 0, 0.0},
     {"fabric_port_ratio/healthy/off/write", true, false, COUNTER_MAX_RATIO, 0,
      0, 0.0},
-    {"memory_bw_bytes_total/HBM/system/read", true, false, 2 * COUNTER_START,
+    {"memory_bw_bytes/HBM/system/read", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
-    {"memory_bw_bytes_total/HBM/system/write", true, false, COUNTER_START,
+    {"memory_bw_bytes/HBM/system/write", true, false, COUNTER_START,
      COUNTER_INC, 0, 0.0},
     {"memory_bw_bytes_per_second/HBM/system/read", true, false,
      2 * COUNTER_RATE, 0, 0, 0.0},
@@ -656,7 +656,7 @@ static metrics_validation_t valid_metrics[] = {
     {"power_ratio", true, false, COUNTER_INC / POWER_LIMIT / TIME_INC, 0, 0,
      0.0},
     {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"throttled_seconds_total/gpu", true, false, COUNTER_START / 1e6,
+    {"throttled_seconds/gpu", true, false, COUNTER_START / 1e6,
      COUNTER_INC / 1e6, 0, 0.0},
     {"throttled_ratio/gpu", true, false, COUNTER_RATIO, 0, 0, 0.0},
 };
