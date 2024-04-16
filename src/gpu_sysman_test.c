@@ -74,6 +74,7 @@
 
 #define SYSMAN_UNIT_TEST_BUILD 1
 #include "gpu_sysman.c" /* test this */
+#include "testing.h"
 
 /* include metric functions + their dependencies directly, instead of
  * building & linking libcommon.a (like normal collectd builds do)?
@@ -623,10 +624,11 @@ static metrics_validation_t valid_metrics[] = {
     {"temperature_ratio", true, false, TEMP_RATIO_INIT, TEMP_RATIO_INC, 0, 0.0},
 
     /* while counters increase, per-time incremented value should stay same */
-    {"energy_ujoules_total", true, false, COUNTER_START, COUNTER_INC, 0, 0.0},
+    {"energy_joules_total", true, false, COUNTER_START / 1e6, COUNTER_INC / 1e6,
+     0, 0.0},
     {"engine_ratio/all", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"engine_use_usecs_total/all", true, false, COUNTER_START, COUNTER_INC, 0,
-     0.0},
+    {"engine_use_seconds_total/all", true, false, COUNTER_START / 1e6,
+     COUNTER_INC / 1e6, 0, 0.0},
     {"fabric_port_bytes_total/healthy/off/read", true, false, 2 * COUNTER_START,
      2 * COUNTER_INC, 0, 0.0},
     {"fabric_port_bytes_total/healthy/off/write", true, false, COUNTER_START,
@@ -654,10 +656,19 @@ static metrics_validation_t valid_metrics[] = {
     {"power_ratio", true, false, COUNTER_INC / POWER_LIMIT / TIME_INC, 0, 0,
      0.0},
     {"power_watts", true, false, COUNTER_RATIO, 0, 0, 0.0},
-    {"throttled_usecs_total/gpu", true, false, COUNTER_START, COUNTER_INC, 0,
-     0.0},
+    {"throttled_seconds_total/gpu", true, false, COUNTER_START / 1e6,
+     COUNTER_INC / 1e6, 0, 0.0},
     {"throttled_ratio/gpu", true, false, COUNTER_RATIO, 0, 0, 0.0},
 };
+
+static int expect_double_eq(double expect, double actual) {
+  /* WA for "unused-variable" warning on testing.h */
+  fail_count__++;
+  /* macro returns -1 on non-equality, continues if equal */
+  EXPECT_EQ_DOUBLE(expect, actual);
+  fail_count__--;
+  return 0;
+}
 
 /* VALIDATE: reset tracked metrics values and return count of how many
  * metrics were not set since last reset.
@@ -729,7 +740,7 @@ static int validate_and_reset_saved_metrics(unsigned int base_rounds,
       incrounds += multisampled / config.samples;
     }
     double expected = metric->value_init + incrounds * metric->value_inc;
-    if (last != expected) {
+    if (expect_double_eq(expected, last) != 0) {
       fprintf(
           stderr,
           "ERROR: expected %g, but got value %g for metric '%s' on round %d\n",
