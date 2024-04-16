@@ -1767,9 +1767,9 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_counter = {
-      .help = "Total time HW frequency has been throttled (in microseconds)",
-      .name = METRIC_PREFIX "throttled_usecs_total",
-      .type = METRIC_TYPE_COUNTER,
+      .help = "Total time HW frequency has been throttled (in seconds)",
+      .name = METRIC_PREFIX "throttled_seconds_total",
+      .type = METRIC_TYPE_COUNTER_FP,
   };
   metric_t metric = {0};
 
@@ -1793,15 +1793,17 @@ static bool gpu_freqs_throttle(gpu_device_t *gpu) {
       break;
     }
     if (config.output & OUTPUT_BASE) {
-      /* cannot convert microsecs to secs as counters are integers */
-      metric.value.counter = throttle.throttleTime;
+      /* times are in microseconds:
+       * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-freq-throttle-time-t
+       */
+      metric.value.counter_fp = throttle.throttleTime / 1e6;
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
     zes_freq_throttle_time_t *old = &gpu->throttle[i];
     if (old->timestamp && throttle.timestamp > old->timestamp &&
         (config.output & OUTPUT_RATIO)) {
-      /* micro seconds => throttle ratio */
+      /* throttle time & timestamp are both in microsecs */
       metric.value.gauge = (throttle.throttleTime - old->throttleTime) /
                            (double)(throttle.timestamp - old->timestamp);
       metric_family_metric_append(&fam_ratio, metric);
@@ -2209,9 +2211,9 @@ static bool gpu_powers(gpu_device_t *gpu) {
       .type = METRIC_TYPE_UP_DOWN_FP,
   };
   metric_family_t fam_energy = {
-      .help = "Total energy consumption since boot (in microjoules)",
-      .name = METRIC_PREFIX "energy_ujoules_total",
-      .type = METRIC_TYPE_COUNTER,
+      .help = "Total energy consumption since boot (in joules)",
+      .name = METRIC_PREFIX "energy_joules_total",
+      .type = METRIC_TYPE_COUNTER_FP,
   };
   metric_t metric = {0};
 
@@ -2240,7 +2242,7 @@ static bool gpu_powers(gpu_device_t *gpu) {
     }
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
     if (config.output & OUTPUT_BASE) {
-      metric.value.counter = counter.energy;
+      metric.value.counter_fp = counter.energy / 1e6;
       metric_family_metric_append(&fam_energy, metric);
       reported_base = true;
     }
@@ -2359,10 +2361,10 @@ static bool gpu_engines(gpu_device_t *gpu) {
       .type = METRIC_TYPE_GAUGE,
   };
   metric_family_t fam_counter = {
-      .help = "GPU engine / group execution time (activity) total (in "
-              "microseconds)",
-      .name = METRIC_PREFIX "engine_use_usecs_total",
-      .type = METRIC_TYPE_COUNTER,
+      .help = "GPU engine / group execution (use / activity) time total (in "
+              "seconds)",
+      .name = METRIC_PREFIX "engine_use_seconds_total",
+      .type = METRIC_TYPE_COUNTER_FP,
   };
   metric_t metric = {0};
 
@@ -2462,7 +2464,10 @@ static bool gpu_engines(gpu_device_t *gpu) {
     metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
     metric_label_set(&metric, "type", vname);
     if (config.output & OUTPUT_BASE) {
-      metric.value.counter = stats.activeTime;
+      /* Intel L0 backend provides times in microsecs:
+       * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-engine-stats-t
+       */
+      metric.value.counter_fp = stats.activeTime / 1e6;
       metric_family_metric_append(&fam_counter, metric);
       reported_base = true;
     }
