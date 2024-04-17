@@ -371,18 +371,17 @@ static int gpu_config_init(unsigned int count) {
   return RET_OK;
 }
 
-/* log given UUID (without dashes):
+/* return given UUID as allocated ASCII hex string (without dashes):
  * https://en.wikipedia.org/wiki/Universally_unique_identifier
  */
-static void log_uuid(const char *prefix, const uint8_t *byte, int len) {
-  int offset = strlen(prefix);
-  char buf[offset + 2 * len + 1];
-  sstrncpy(buf, prefix, sizeof(buf));
+static char *get_uuid(const uint8_t *byte, int len) {
+  char *uuid = smalloc(2 * len + 1);
+  int offset = 0;
   while (len-- > 0) {
-    sprintf(buf + offset, "%02x", *byte++);
+    sprintf(uuid + offset, "%02x", *byte++);
     offset += 2;
   }
-  INFO("%s", buf);
+  return uuid;
 }
 
 static const char *map_mem_location(zes_mem_loc_t location) {
@@ -465,14 +464,16 @@ static const char *map_mem_health(zes_mem_health_t value) {
 }
 
 /* If GPU info setting is enabled, log Sysman API provided info for
- * given GPU, and set device name to 'dev_name'.  On success, return
- * true and set GPU PCI address to 'pci_bdf' as string in BDF notation:
+ * given GPU, and set device properties to 'props' struct.
+ * On success, return true, allocate UUID string to 'uuid' and GPU
+ * PCI address to 'pci_bdf' as BDF notation string:
  * https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
  */
-static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
+static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **uuid,
+                     zes_device_properties_t *props) {
   char buf[32];
 
-  *pci_bdf = *dev_name = NULL;
+  *uuid = *pci_bdf = NULL;
   zes_pci_properties_t pci = {.pNext = NULL};
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
@@ -483,13 +484,46 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
     ERROR(PLUGIN_NAME ": failed to get GPU PCI device properties => 0x%x", ret);
     return false;
   }
+
+  zes_device_ext_properties_t ext = {
+      .stype = ZES_STRUCTURE_TYPE_DEVICE_EXT_PROPERTIES,
+  };
+  props->stype = ZES_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+  props->pNext = &ext;
+
+  if (ret = zesDeviceGetProperties(dev, props), ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get GPU device properties => 0x%x", ret);
+    return false;
+  }
+
+  *uuid = get_uuid(ext.uuid.id, sizeof(ext.uuid.id));
   *pci_bdf = sstrdup(buf);
+
   if (!config.gpuinfo) {
     return true;
   }
 
   INFO("\nLevel-Zero Sysman API GPU info");
   INFO("==============================");
+
+  INFO("HW identification:");
+  INFO("- model:   '%s'", props->modelName);
+  INFO("- brand:   '%s'", props->brandName);
+  INFO("- vendor:  '%s'", props->vendorName);
+  INFO("- board#:  '%s'", props->boardNumber);
+  INFO("- serial#: '%s'", props->serialNumber);
+  INFO("- UUID:    0x%s", *uuid);
+
+  INFO("HW info:");
+  if (ext.flags & ZES_DEVICE_PROPERTY_FLAG_INTEGRATED) {
+    INFO("- integrated");
+  } else {
+    INFO("- discrete");
+    INFO("- subdevices: %u", props->numSubdevices);
+  }
+
+  INFO("UMD/KMD driver info:");
+  INFO("- version: %s", props->driverVersion);
 
   INFO("PCI info:");
   INFO("- PCI B/D/F: %s", *pci_bdf);
@@ -539,40 +573,6 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
     }
   }
   INFO("- ECC state: %s", eccstate);
-
-  zes_device_ext_properties_t ext = {
-      .stype = ZES_STRUCTURE_TYPE_DEVICE_EXT_PROPERTIES,
-  };
-  zes_device_properties_t props = {
-      .stype = ZES_STRUCTURE_TYPE_DEVICE_PROPERTIES,
-      .pNext = &ext,
-  };
-
-  INFO("HW identification:");
-  if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
-    *dev_name = sstrdup(props.modelName); // used only if present
-
-    INFO("- vendor:  %s", props.vendorName);
-    INFO("- brand:   %s", props.brandName);
-    INFO("- model:   %s", props.modelName);
-    log_uuid("- UUID:    0x", ext.uuid.id, sizeof(ext.uuid.id));
-    INFO("- board#:  %s", props.boardNumber);
-    INFO("- serial#: %s", props.serialNumber);
-
-    INFO("HW info:");
-    if (ext.flags & ZES_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-      INFO("- integrated");
-    } else {
-      INFO("- discrete");
-      INFO("- subdevices: %u", props.numSubdevices);
-    }
-
-    INFO("UMD/KMD driver info:");
-    INFO("- version: %s", props.driverVersion);
-  } else {
-    INFO("- unavailable");
-    WARNING(PLUGIN_NAME ": failed to get GPU device properties => 0x%x", ret);
-  }
 
   /* get memory modules */
   uint32_t i, mem_count = 0;
@@ -723,15 +723,36 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
   int err = label_set_clone(attribs, default_resource_attributes());
   assert(err == 0);
 
-  char *pci_bdf, *dev_name;
-  if (!gpu_info(dev, &pci_bdf, &dev_name) || !pci_bdf) {
+  char *uuid, *pci_bdf;
+  zes_device_properties_t props;
+  memset(&props, 0, sizeof(props));
+  if (!gpu_info(dev, &pci_bdf, &uuid, &props) || !pci_bdf || !uuid) {
     return false;
   }
 
-  if (dev_name) {
-    label_set_update(attribs, "dev_name", dev_name);
-    free(dev_name);
+  /* add L0 Sysman device properties to recommended OTEL resource attributes:
+   * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-device-properties-t
+   * https://opentelemetry.io/docs/specs/semconv/system/hardware-metrics/#hwgpu---gpu-metrics
+   */
+  const struct {
+    const char *name;
+    const char *value;
+  } labels[] = {
+      // {"firmware_version", ??},
+      {"driver_version", (const char *)&props.driverVersion},
+      {"serial_number", (const char *)&props.serialNumber},
+      {"vendor", (const char *)&props.vendorName},
+      {"name", (const char *)&props.modelName},
+      {"id", (const char *)uuid},
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(labels); i++) {
+    const char *value = labels[i].value;
+    if (value && value[0]) {
+      label_set_update(attribs, labels[i].name, value);
+    }
   }
+  free(uuid);
 
   char *pci_dev, *dev_file;
   get_sysfs_info(pci_bdf, &pci_dev, &dev_file);
