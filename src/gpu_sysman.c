@@ -66,6 +66,7 @@
 
 #define PLUGIN_NAME "gpu_sysman"
 #define METRIC_PREFIX "collectd_" PLUGIN_NAME "_"
+#define MAX_LABEL_LEN 1024
 
 /* collectd plugin API callback finished OK */
 #define RET_OK 0
@@ -464,16 +465,16 @@ static const char *map_mem_health(zes_mem_health_t value) {
 }
 
 /* If GPU info setting is enabled, log Sysman API provided info for
- * given GPU, and set device properties to 'props' struct.
+ * given GPU, and set device & FW properties to 'props' & 'fw_names'.
  * On success, return true, allocate UUID string to 'uuid' and GPU
  * PCI address to 'pci_bdf' as BDF notation string:
  * https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
  */
 static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **uuid,
-                     zes_device_properties_t *props) {
+                     zes_device_properties_t *props, char **fw_names) {
   char buf[32];
 
-  *uuid = *pci_bdf = NULL;
+  *uuid = *fw_names = *pci_bdf = NULL;
   zes_pci_properties_t pci = {.pNext = NULL};
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
@@ -634,6 +635,55 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **uuid,
     }
   }
   free(mems);
+
+  /* get FW info */
+  uint32_t fw_count = 0;
+  if (ret = zesDeviceEnumFirmwares(dev, &fw_count, NULL),
+      ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get firmware count => 0x%x", ret);
+    return true;
+  }
+  if (fw_count == 0) {
+    return true;
+  }
+  zes_firmware_handle_t *firmwares;
+  firmwares = scalloc(fw_count, sizeof(*firmwares));
+  if (ret = zesDeviceEnumFirmwares(dev, &fw_count, firmwares),
+      ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get %d FW info => 0x%x", fw_count, ret);
+    free(firmwares);
+    return true;
+  }
+
+  int offset = 0, space = MAX_LABEL_LEN;
+  *fw_names = smalloc(space);
+  *fw_names[0] = '\0';
+  const char *separator = "";
+
+  /* show FW info(s) */
+  for (i = 0; i < fw_count; i++) {
+    zes_firmware_properties_t props = {.pNext = NULL};
+    if (ret = zesFirmwareGetProperties(firmwares[i], &props),
+        ret != ZE_RESULT_SUCCESS) {
+      continue;
+    }
+    INFO("Firmware-%i:", i);
+    INFO("- name:      %s", props.name);
+    INFO("- version:   %s", props.version);
+    INFO("- flashable: %s", props.canControl ? "yes" : "no");
+    int len = snprintf(*fw_names + offset, space, "%s%s: %s", separator,
+                       props.name, props.version);
+    if (len <= 0 || len > space) {
+      WARNING(PLUGIN_NAME ": failed to add (max %d chars to) FW info => %d",
+              space, len);
+    } else {
+      offset += len;
+      space -= len;
+    }
+    separator = "; ";
+  }
+  free(firmwares);
+
   return true;
 }
 
@@ -723,10 +773,10 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
   int err = label_set_clone(attribs, default_resource_attributes());
   assert(err == 0);
 
-  char *uuid, *pci_bdf;
+  char *uuid, *pci_bdf, *fw_names;
   zes_device_properties_t props;
   memset(&props, 0, sizeof(props));
-  if (!gpu_info(dev, &pci_bdf, &uuid, &props) || !pci_bdf || !uuid) {
+  if (!gpu_info(dev, &pci_bdf, &uuid, &props, &fw_names) || !pci_bdf || !uuid) {
     return false;
   }
 
@@ -738,7 +788,7 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
     const char *name;
     const char *value;
   } labels[] = {
-      // {"firmware_version", ??},
+      {"firmware_version", (const char *)fw_names},
       {"driver_version", (const char *)&props.driverVersion},
       {"serial_number", (const char *)&props.serialNumber},
       {"vendor", (const char *)&props.vendorName},
@@ -752,6 +802,7 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
       label_set_update(attribs, labels[i].name, value);
     }
   }
+  free(fw_names);
   free(uuid);
 
   char *pci_dev, *dev_file;

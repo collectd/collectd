@@ -166,7 +166,10 @@ static bool call_limit(int callbit, const char *name) {
 /* mock up handle values to set & check against */
 #define DRV_HANDLE ((zes_driver_handle_t)(0x123456))
 #define DEV_HANDLE ((zes_device_handle_t)(0xecced))
-#define VAL_HANDLE 0xcaffa
+#define VAL_HANDLE 0x0caffa00
+#define HANDLE2VAL(handle) ((intptr_t)handle & ~0xff)
+#define IDX2HANDLE(idx) (VAL_HANDLE | (idx & 0xff))
+#define HANDLE2IDX(handle) ((intptr_t)handle & 0xff)
 
 /* driver/device initialization status */
 typedef enum {
@@ -265,10 +268,6 @@ DEV_GET_SET_STRUCT(5, zesDeviceGetState, zes_device_state_t,
 DEV_GET_SET_STRUCT(6, zesDeviceGetEccState, zes_device_ecc_properties_t,
                    to_zero->currentState = ZES_DEVICE_ECC_STATE_ENABLED)
 
-#define INIT_CALL_FUNCS 7
-#define INIT_CALL_BITS (((uint64_t)1 << INIT_CALL_FUNCS) - 1)
-
-/* ------------------------------------------------------------------------- */
 /* mock up Sysman API metrics querying functions */
 
 static ze_result_t metric_args_check(int callbit, const char *name,
@@ -279,7 +278,7 @@ static ze_result_t metric_args_check(int callbit, const char *name,
    */
   if (call_limit(callbit, name))
     return ZE_RESULT_ERROR_NOT_AVAILABLE;
-  if (handle != (void *)VAL_HANDLE)
+  if (HANDLE2VAL(handle) != VAL_HANDLE)
     return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;
   if (!type)
     return ZE_RESULT_ERROR_INVALID_NULL_POINTER;
@@ -287,6 +286,57 @@ static ze_result_t metric_args_check(int callbit, const char *name,
     return ZE_RESULT_ERROR_UNINITIALIZED;
   return ZE_RESULT_SUCCESS;
 }
+
+#define METRIC_ADD_ENUM(callbit, handletype, enumname, all)                    \
+  ze_result_t enumname(zes_device_handle_t dev, uint32_t *count,               \
+                       handletype *handles) {                                  \
+    ze_result_t ret = dev_args_check(callbit, #enumname, dev, count);          \
+    if (ret != ZE_RESULT_SUCCESS)                                              \
+      return ret;                                                              \
+    if (!*count) {                                                             \
+      *count = all;                                                            \
+      return ZE_RESULT_SUCCESS;                                                \
+    }                                                                          \
+    if (*count > all) {                                                        \
+      return ZE_RESULT_ERROR_INVALID_NULL_HANDLE;                              \
+    }                                                                          \
+    if (!handles)                                                              \
+      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
+    for (size_t i = 0; i < all; i++) {                                         \
+      handles[i] = (handletype)IDX2HANDLE(i);                                  \
+    }                                                                          \
+    return ZE_RESULT_SUCCESS;                                                  \
+  }
+
+#define METRIC_ADD_PROP(callbit, handletype, propname, proptype, propvar, all) \
+  ze_result_t propname(handletype handle, proptype *prop) {                    \
+    ze_result_t ret = metric_args_check(callbit, #propname, handle, prop);     \
+    if (ret == ZE_RESULT_SUCCESS) {                                            \
+      assert(!prop->pNext);                                                    \
+      size_t idx = HANDLE2IDX(handle);                                         \
+      assert(idx < all);                                                       \
+      *prop = *(&propvar + idx);                                               \
+      prop->onSubdevice = true;                                                \
+    }                                                                          \
+    return ret;                                                                \
+  }
+
+static zes_firmware_properties_t fw_props[] = {
+    {.name = "FW1", .version = "1"},
+    {.name = "FW2", .version = "2"},
+};
+
+METRIC_ADD_ENUM(7, zes_firmware_handle_t, zesDeviceEnumFirmwares,
+                STATIC_ARRAY_SIZE(fw_props))
+METRIC_ADD_PROP(8, zes_firmware_handle_t, zesFirmwareGetProperties,
+                zes_firmware_properties_t, fw_props[0],
+                STATIC_ARRAY_SIZE(fw_props))
+
+#define INIT_CALL_FUNCS 9
+#define INIT_CALL_BITS (((uint64_t)1 << INIT_CALL_FUNCS) - 1)
+
+/* ------------------------------------------------------------------------- */
+/* mocked run-time functions called after gpu_init(), and their values */
 
 #define COUNTER_START 100000 // 100ms
 #define COUNTER_INC 20000    // 20ms
@@ -329,32 +379,13 @@ static ze_result_t metric_args_check(int callbit, const char *name,
  * - global variable for intial state values
  * - two increment operations for the global state variable members (or void)
  */
-#define ADD_METRIC(callbit, getname, handletype, propname, proptype, propvar,  \
+#define ADD_METRIC(callbit, enumname, handletype, propname, proptype, propvar, \
                    statename, statetype, statevar, stateinc1, stateinc2)       \
-  ze_result_t getname(zes_device_handle_t dev, uint32_t *count,                \
-                      handletype *handles) {                                   \
-    ze_result_t ret = dev_args_check(callbit, #getname, dev, count);           \
-    if (ret != ZE_RESULT_SUCCESS)                                              \
-      return ret;                                                              \
-    if (!*count) {                                                             \
-      *count = 1;                                                              \
-      return ZE_RESULT_SUCCESS;                                                \
-    }                                                                          \
-    *count = 1;                                                                \
-    if (!handles)                                                              \
-      return ZE_RESULT_ERROR_INVALID_NULL_POINTER;                             \
-    handles[0] = (handletype)VAL_HANDLE;                                       \
-    return ZE_RESULT_SUCCESS;                                                  \
-  }                                                                            \
-  ze_result_t propname(handletype handle, proptype *prop) {                    \
-    ze_result_t ret = metric_args_check(callbit + 1, #propname, handle, prop); \
-    if (ret == ZE_RESULT_SUCCESS) {                                            \
-      assert(!prop->pNext);                                                    \
-      *prop = propvar;                                                         \
-      prop->onSubdevice = true;                                                \
-    }                                                                          \
-    return ret;                                                                \
-  }                                                                            \
+                                                                               \
+  METRIC_ADD_ENUM(callbit, handletype, enumname, 1)                            \
+                                                                               \
+  METRIC_ADD_PROP(callbit + 1, handletype, propname, proptype, propvar, 1)     \
+                                                                               \
   ze_result_t statename(handletype handle, statetype *state) {                 \
     ze_result_t ret =                                                          \
         metric_args_check(callbit + 2, #statename, handle, state);             \
