@@ -172,7 +172,7 @@ static int tg_parse_number_callback(void *ctx, const char *number,
   } else if (parse_context->inside_key_message_chat_id) {
     parse_context->chat_id[parse_context->chat_id_count] =
         strndup(number, number_len);
-    if (parse_context->chat_id == NULL) {
+    if (parse_context->chat_id[parse_context->chat_id_count] == NULL) {
       ERROR("notify_telegram: strndup failed.");
       return PARSE_FAIL;
     }
@@ -648,7 +648,8 @@ static int notify_telegram_init(void) {
     char params[MAX_PARAMS_SIZE] = "";
     snprintf(params, MAX_PARAMS_SIZE,
              "url=%s:%s%s&allowed_updates=[\"message\"]", webhook_host,
-             webhook_port ? webhook_port : "443", webhook_url ? webhook_url : "");
+             webhook_port ? webhook_port : "443",
+             webhook_url ? webhook_url : "");
     CURL *handle = curl_easy_init();
     curl_easy_setopt(handle, CURLOPT_POSTFIELDS, params);
     curl_easy_setopt(handle, CURLOPT_URL, url);
