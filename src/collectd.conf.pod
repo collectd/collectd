@@ -6672,6 +6672,66 @@ Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nag
 
 =back
 
+=head2 Plugin C<notify_telegram>
+
+The I<notify_telegram> plugin uses I<libcurl> and Telegram Bot API to send notifications to a configured telegram users.
+It also can send config instruction with ChatID in response to all users by long polling or webhooks using I<libcurl>, I<libyajl>, I<libmicrohttpd>.
+
+I<libcurl> is available from L<http://curl.haxx.se/libcurl/>.
+I<libyajl> is available from L<http://lloyd.github.com/yajl/>.
+I<libmicrohttpd> is available from L<https://www.gnu.org/software/libmicrohttpd/>.
+
+Read more about Telegram Bot API L<https://core.telegram.org/bots/api>.
+
+Available configuration options:
+
+=over 9
+
+=item B<BotToken> I<Token>
+
+Telegram Bot token.
+
+=item B<RecipientChatID> I<ID>
+
+Configures the telegram chats to which the notifications should be send.
+May be repeated to send notifications to multiple chats.
+
+=item B<ProxyURL> I<URL>
+
+Telegram proxy adress to connect to.
+
+Default: C<https://api.telegram.org/bot>
+
+=item B<DisableGettingUpdates> I<true>|I<false>
+
+Disable the processing of messages from users to the bot.
+
+Default: C<false>
+
+=item B<WebhookHost> I<Host>
+
+The host to which Telegram will send updates via webhooks. Do not specify if you do not want to use the webhooks.
+
+=item B<WebhookPort> I<Port>
+
+Port for webhook host. Do not specify if you do not want to use the webhooks.
+
+Default: C<443>
+
+=item B<WebhookURL> I<URL>
+
+The URL after the host and port to which Telegram will send updates via webhooks. Do not specify if you do not want to use the webhooks.
+
+=item B<MHDDaemonHost> I<Host>
+
+The host for starting the http server. Do not specify if you do not want to use the webhooks.
+
+=item B<MHDDaemonPort> I<Port>
+
+The port for starting the http server. Do not specify if you do not want to use the webhooks.
+
+=back
+
 =head2 Plugin C<ntpd>
 
 The C<ntpd> plugin collects per-peer ntp data such as time offset and time

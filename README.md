@@ -671,6 +671,10 @@ Features
     - notify_nagios
       Submit notifications as passive check results to a local nagios instance.
 
+    - notify_telegram
+      Send telegram message with the notification to the configured
+      recipients.
+
     - exec
       Execute a program or script to handle the notification.
       See collectd-exec(5).
