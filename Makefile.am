@@ -1360,6 +1360,17 @@ lua_la_SOURCES = \
 lua_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBLUA_CFLAGS)
 lua_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
+
+test_plugin_lua_SOURCES = src/lua_test.c src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_lua_CFLAGS = $(AM_CFLAGS) \
+	$(BUILD_WITH_LIBLUA_CFLAGS)
+test_plugin_lua_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBLUA_LDFLAGS)
+test_plugin_lua_LDADD = liboconfig.la libplugin_mock.la \
+	$(BUILD_WITH_LIBLUA_LIBS)
+check_PROGRAMS += test_plugin_lua
+TESTS += test_plugin_lua
 endif
 
 if BUILD_PLUGIN_MADWIFI
