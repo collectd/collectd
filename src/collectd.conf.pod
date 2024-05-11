@@ -6674,12 +6674,8 @@ Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nag
 
 =head2 Plugin C<notify_telegram>
 
-The I<notify_telegram> plugin uses I<libcurl> and Telegram Bot API to send notifications to a configured telegram users.
-It also can send config instruction with ChatID in response to all users by long polling or webhooks using I<libcurl>, I<libyajl>, I<libmicrohttpd>.
-
-I<libcurl> is available from L<http://curl.haxx.se/libcurl/>.
-I<libyajl> is available from L<http://lloyd.github.com/yajl/>.
-I<libmicrohttpd> is available from L<https://www.gnu.org/software/libmicrohttpd/>.
+The I<notify_telegram> plugin uses I<libcurl> and Telegram Bot API to send notifications to configured Telegram users.
+It also can send config instruction with ChatID in response to all users, either by long polling, or by using webhooks that utilize I<libcurl>, I<libyajl>, I<libmicrohttpd>.
 
 Read more about Telegram Bot API L<https://core.telegram.org/bots/api>.
 
@@ -6693,7 +6689,7 @@ Telegram Bot token.
 
 =item B<RecipientChatID> I<ID>
 
-Configures the telegram chats to which the notifications should be send.
+Configures the Telegram chats to which the notifications should be send.
 May be repeated to send notifications to multiple chats.
 
 =item B<ProxyURL> I<URL>
