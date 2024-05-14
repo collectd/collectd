@@ -153,9 +153,6 @@ static int rdt_get_value(const struct pqos_mon_data *group,
 
 #else
   const struct pqos_event_values *values = &group->values;
-#if PQOS_VERSION < 40000
-  const enum pqos_mon_event events = group->event;
-#endif
 
   ret = PQOS_RETVAL_OK;
 
@@ -174,7 +171,7 @@ static int rdt_get_value(const struct pqos_mon_data *group,
     break;
   case PQOS_MON_EVENT_RMEM_BW:
 #if PQOS_VERSION < 40000
-    if (events & (PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_LMEM_BW))
+    if (group->event & (PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_LMEM_BW))
       *value = values->mbm_total - values->mbm_local;
 #else
     *value = values->mbm_remote;
@@ -203,9 +200,6 @@ static int rdt_get_value(const struct pqos_mon_data *group,
 }
 
 static void rdt_submit(const struct pqos_mon_data *group) {
-#if PQOS_VERSION < 40400
-  const struct pqos_event_values *values = &group->values;
-#endif
   const char *desc = (const char *)group->context;
   const enum pqos_mon_event events = group->event;
 
@@ -224,7 +218,7 @@ static void rdt_submit(const struct pqos_mon_data *group) {
 #if PQOS_VERSION >= 40400
     ret = pqos_mon_get_ipc(group, &value);
 #else
-    value = values->ipc;
+    value = group->values.ipc;
 #endif
 
     if (ret == PQOS_RETVAL_OK)
