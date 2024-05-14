@@ -44,14 +44,14 @@
 
 #define RDT_PLUGIN "intel_rdt"
 
+#define RDT_EVENTS_BASE                                                        \
+  (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
+   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_MISS)
+
 #if PQOS_VERSION >= 40400
-#define RDT_EVENTS                                                             \
-  (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
-   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_REF)
+#define RDT_EVENTS (RDT_EVENTS_BASE | PQOS_PERF_EVENT_LLC_REF)
 #else
-#define RDT_EVENTS                                                             \
-  (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
-   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW)
+#define RDT_EVENTS RDT_EVENTS_BASE
 #endif
 
 #define RDT_MAX_SOCKETS 8
@@ -89,6 +89,7 @@ struct rdt_ctx_s {
 #if PQOS_VERSION >= 40400
   bool mon_llc_ref_enabled;
 #endif
+  bool mon_llc_miss_enabled;
   core_groups_list_t cores;
   enum pqos_mon_event events[RDT_MAX_CORES];
   struct pqos_mon_data *pcgroups[RDT_MAX_CORES];
@@ -143,75 +144,127 @@ static void rdt_submit_gauge(const char *cgroup, const char *type,
   plugin_dispatch_values(&vl);
 }
 
-static void rdt_submit(const struct pqos_mon_data *group) {
+static int rdt_get_value(const struct pqos_mon_data *group,
+                         const enum pqos_mon_event event_id, uint64_t *value) {
+  int ret;
+
+#if PQOS_VERSION >= 40400
+  ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_REF, value, NULL);
+
+#else
   const struct pqos_event_values *values = &group->values;
+
+  ret = PQOS_RETVAL_OK;
+
+  switch (event_id) {
+  case PQOS_MON_EVENT_L3_OCCUP:
+    *value = values->llc;
+    break;
+  case PQOS_PERF_EVENT_LLC_MISS:
+    *value = values->llc_misses;
+    break;
+  case PQOS_MON_EVENT_LMEM_BW:
+    *value = values->mbm_local;
+    break;
+  case PQOS_MON_EVENT_TMEM_BW:
+    *value = values->mbm_total;
+    break;
+  case PQOS_MON_EVENT_RMEM_BW:
+#if PQOS_VERSION < 40000
+    if (group->event & (PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_LMEM_BW))
+      *value = values->mbm_total - values->mbm_local;
+#else
+    *value = values->mbm_remote;
+#endif
+  default:
+    ret = PQOS_RETVAL_ERROR;
+    break;
+  }
+#endif
+
+  if (ret != PQOS_RETVAL_OK)
+    return ret;
+
+  // Apply scale factor
+  if (event_id == PQOS_MON_EVENT_LMEM_BW ||
+      event_id == PQOS_MON_EVENT_TMEM_BW ||
+      event_id == PQOS_MON_EVENT_RMEM_BW) {
+    const struct pqos_monitor *mon = NULL;
+
+    ret = pqos_cap_get_event(g_rdt->pqos_cap, event_id, &mon);
+    if (ret == PQOS_RETVAL_OK && mon->scale_factor != 0)
+      *value = *value * mon->scale_factor;
+  }
+
+  return ret;
+}
+
+static void rdt_submit(const struct pqos_mon_data *group) {
   const char *desc = (const char *)group->context;
   const enum pqos_mon_event events = group->event;
 
-  if (events & PQOS_MON_EVENT_L3_OCCUP)
-    rdt_submit_gauge(desc, "bytes", "llc", values->llc);
+  if (events & PQOS_MON_EVENT_L3_OCCUP) {
+    uint64_t value;
 
-  if (events & PQOS_PERF_EVENT_IPC)
-    rdt_submit_gauge(desc, "ipc", NULL, values->ipc);
+    int ret = rdt_get_value(group, PQOS_MON_EVENT_L3_OCCUP, &value);
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_gauge(desc, "bytes", "llc", value);
+  }
+
+  if (events & PQOS_PERF_EVENT_IPC) {
+    double value;
+    int ret = PQOS_RETVAL_OK;
+
+#if PQOS_VERSION >= 40400
+    ret = pqos_mon_get_ipc(group, &value);
+#else
+    value = group->values.ipc;
+#endif
+
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_gauge(desc, "ipc", NULL, value);
+  }
 
 #if PQOS_VERSION >= 40400
   if (events & PQOS_PERF_EVENT_LLC_REF) {
     uint64_t value;
 
-    int ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_REF, &value, NULL);
+    int ret = rdt_get_value(group, PQOS_PERF_EVENT_LLC_REF, &value);
     if (ret == PQOS_RETVAL_OK)
-      rdt_submit_gauge(desc, "bytes", "llc_ref", value);
+      rdt_submit_derive(desc, "bytes", "llc_ref", value);
   }
 #endif
 
+  if (events & PQOS_PERF_EVENT_LLC_MISS) {
+    uint64_t value;
+
+    int ret = rdt_get_value(group, PQOS_PERF_EVENT_LLC_MISS, &value);
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_derive(desc, "bytes", "llc_miss", value);
+  }
+
   if (events & PQOS_MON_EVENT_LMEM_BW) {
-    const struct pqos_monitor *mon = NULL;
+    uint64_t value;
 
-    int retval =
-        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_LMEM_BW, &mon);
-    if (retval == PQOS_RETVAL_OK) {
-      uint64_t value = values->mbm_local;
-
-      if (mon->scale_factor != 0)
-        value = value * mon->scale_factor;
-
+    int ret = rdt_get_value(group, PQOS_MON_EVENT_LMEM_BW, &value);
+    if (ret == PQOS_RETVAL_OK)
       rdt_submit_derive(desc, "memory_bandwidth", "local", value);
-    }
   }
 
   if (events & PQOS_MON_EVENT_TMEM_BW) {
-    const struct pqos_monitor *mon = NULL;
+    uint64_t value;
 
-    int retval =
-        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_TMEM_BW, &mon);
-    if (retval == PQOS_RETVAL_OK) {
-      uint64_t value = values->mbm_total;
-
-      if (mon->scale_factor != 0)
-        value = value * mon->scale_factor;
-
+    int ret = rdt_get_value(group, PQOS_MON_EVENT_TMEM_BW, &value);
+    if (ret == PQOS_RETVAL_OK)
       rdt_submit_derive(desc, "memory_bandwidth", "total", value);
-    }
   }
 
   if (events & PQOS_MON_EVENT_RMEM_BW) {
-    const struct pqos_monitor *mon = NULL;
+    uint64_t value;
 
-    int retval =
-        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_RMEM_BW, &mon);
-    if (retval == PQOS_RETVAL_OK) {
-      uint64_t value = values->mbm_remote;
-
-#if PQOS_VERSION < 40000
-      if (events & (PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_LMEM_BW))
-        value = values->mbm_total - values->mbm_local;
-#endif
-
-      if (mon->scale_factor != 0)
-        value = value * mon->scale_factor;
-
+    int ret = rdt_get_value(group, PQOS_MON_EVENT_RMEM_BW, &value);
+    if (ret == PQOS_RETVAL_OK)
       rdt_submit_derive(desc, "memory_bandwidth", "remote", value);
-    }
   }
 }
 
@@ -585,6 +638,10 @@ static int rdt_config_events(rdt_ctx_t *rdt) {
   if (!rdt->mon_llc_ref_enabled)
     events &= ~(PQOS_PERF_EVENT_LLC_REF);
 #endif
+
+  /* LLC misses monitoring is disabled */
+  if (!rdt->mon_llc_miss_enabled)
+    events &= ~(PQOS_PERF_EVENT_LLC_MISS);
 
   DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
 
@@ -1269,6 +1326,8 @@ static int rdt_config(oconfig_item_t *ci) {
     } else if (strcasecmp("MonLLCRefEnabled", child->key) == 0) {
       cf_util_get_boolean(child, &g_rdt->mon_llc_ref_enabled);
 #endif
+    } else if (strcasecmp("MonLLCMissEnabled", child->key) == 0) {
+      cf_util_get_boolean(child, &g_rdt->mon_llc_miss_enabled);
     } else {
       ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
     }
