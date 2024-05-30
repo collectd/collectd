@@ -1054,6 +1054,7 @@
 #<Plugin memory>
 #	ValuesAbsolute true
 #	ValuesPercentage false
+#	ReportMem4IOwrite false
 #</Plugin>
 
 #<Plugin mmc>
