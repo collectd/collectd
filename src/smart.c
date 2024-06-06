@@ -287,7 +287,7 @@ static int get_vendor_id(const char *dev, char const *name) {
 
   err = ioctl(fd, NVME_IOCTL_ADMIN_CMD,
               &(struct nvme_admin_cmd){.opcode = NVME_ADMIN_IDENTIFY,
-                                       .nsid = NVME_NSID_ALL,
+                                       .nsid = 0,
                                        .addr = (unsigned long)&vid,
                                        .data_len = sizeof(vid),
                                        .cdw10 = 1,
