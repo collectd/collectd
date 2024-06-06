@@ -31,6 +31,7 @@ fhcount
 filecount
 fscache
 gps
+gpu_sysman
 hddtemp
 hugepages
 infiniband
@@ -45,6 +46,7 @@ load
 logfile
 log_logstash
 logparser
+lua
 madwifi
 mbmon
 mcelog
@@ -106,6 +108,7 @@ write_http
 write_influxdb_udp
 write_log
 write_prometheus
+write_redis
 write_stackdriver
 zfs_arc
 zookeeper
