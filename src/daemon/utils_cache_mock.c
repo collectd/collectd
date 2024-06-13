@@ -49,6 +49,10 @@ int uc_get_value_by_name(const char *name, value_t **ret_values,
   return ENOTSUP;
 }
 
+int uc_set_state(const data_set_t *ds, const value_list_t *vl, int state) {
+  return ENOTSUP;
+}
+
 int uc_meta_data_get_signed_int(const value_list_t *vl, const char *key,
                                 int64_t *value) {
   return -ENOENT;
