@@ -69,6 +69,7 @@ struct wh_callback_s {
   int low_speed_limit;
   time_t low_speed_time;
   int timeout;
+  char *proxy;
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON 1
@@ -286,6 +287,9 @@ static int wh_callback_init(wh_callback_t *cb) /* {{{ */
     curl_easy_setopt(cb->curl, CURLOPT_UNIX_SOCKET_PATH, cb->unix_socket_path);
   }
 #endif // CURL_VERSION_UNIX_SOCKETS
+
+  if (cb->proxy != NULL)
+    curl_easy_setopt(cb->curl, CURLOPT_PROXY, cb->proxy);
 
   wh_reset_buffer(cb);
 
@@ -854,6 +858,8 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int(child, &cb->timeout);
     else if (strcasecmp("LogHttpError", child->key) == 0)
       status = cf_util_get_boolean(child, &cb->log_http_error);
+    else if (strcasecmp("Proxy", child->key) == 0)
+      status = cf_util_get_string(child, &cb->proxy);
     else if (strcasecmp("Header", child->key) == 0)
       status = wh_config_append_string("Header", &cb->headers, child);
     else if (strcasecmp("Attribute", child->key) == 0) {
