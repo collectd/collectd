@@ -18,8 +18,8 @@
  *   Pierre Lebleu <pierre.lebleu at pile-engineering.com>
  */
 
-#include <inttypes.h>
 #include "collectd.h"
+#include <inttypes.h>
 
 #include "plugin.h"
 #include "utils/common/common.h"
