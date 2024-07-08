@@ -278,6 +278,12 @@ Features
       Memory utilization: Memory occupied by running processes, page cache,
       buffer cache and free.
 
+    - mesh
+      Collect various metrics related to Wifi mesh performance (e.g. established
+      peer links, dropped frames, forwarded frames). The statistics are read
+      from the Linux sysfs and require the Linux kernel to be compiled with
+      CONFIG_MAC80211_DEBUGFS=y.
+
     - mic
       Collects CPU usage, memory usage, temperatures and power consumption from
       Intel Many Integrated Core (MIC) CPUs.
