@@ -25,7 +25,7 @@
 #include "utils/common/common.h"
 
 #if !KERNEL_LINUX
-#error "No applicable input method."
+#error "This module only supports the Linux implementation of ieee8021"
 #endif
 
 #define PLUGIN_NAME "mesh"
@@ -41,10 +41,19 @@
 #define DROPPED_FRAMES_NO_ROUTE                                                \
   "dropped_frames_no_route" // The number of dropped frames due to unrouteable
 #define DROPPED_FRAMES_TTL                                                     \
-  "dropped_frames_ttl"                // The number of dropped frames due to TTL
-#define FWDED_FRAMES "fwded_frames"   // The number of forwarded frames
-#define FWDED_UNICAST "fwded_unicast" // The number of unicast forwarded frames
-#define FWDED_MCAST "fwded_mcast" // The number of multicast forwarded frames
+  "dropped_frames_ttl" // The number of dropped frames due to TTL
+#define FORWARDED_FRAMES "fwded_frames" // The number of forwarded frames
+#define FORWARDED_UNICAST                                                      \
+  "fwded_unicast" // The number of unicast forwarded frames
+#define FORWARDED_MCAST                                                        \
+  "fwded_mcast" // The number of multicast forwarded frames
+
+/*
+ * Metric labels
+ */
+#define LABEL_NAME "name"
+#define LABEL_REASON "reason"
+#define LABEL_TYPE "type"
 
 /*
  * The config key strings
@@ -61,6 +70,37 @@ struct mesh_list {
   struct mesh_list *next;
 }; /* mesh_list */
 typedef struct mesh_list mesh_list_t;
+
+typedef enum {
+  MESH_FAM_DROPPED,
+  MESH_FAM_FORWARDED,
+  MESH_FAM_PEERS,
+  MESH_FAM_MAX,
+} mesh_family_t;
+
+static metric_family_t g_families[MESH_FAM_MAX] = {
+    [MESH_FAM_DROPPED] =
+        {
+            .name = "hw.network.packets.dropped",
+            .help = "",
+            .unit = "{packet}",
+            .type = METRIC_TYPE_COUNTER,
+        },
+    [MESH_FAM_FORWARDED] =
+        {
+            .name = "hw.network.packets.forwarded",
+            .help = "",
+            .unit = "{packet}",
+            .type = METRIC_TYPE_COUNTER,
+        },
+    [MESH_FAM_PEERS] =
+        {
+            .name = "hw.network.peers",
+            .help = "",
+            .unit = "{packet}",
+            .type = METRIC_TYPE_GAUGE,
+        },
+};
 
 static mesh_list_t *g_mesh_list;
 
@@ -125,19 +165,28 @@ static int mesh_config(oconfig_item_t *ci) {
   return ret;
 } /* int mesh_config */
 
-static int mesh_submit(const mesh_list_t *m, const char *type, value_t value) {
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
+static int mesh_submit(const mesh_list_t *ml, const mesh_family_t type,
+                       metric_t m) {
+  metric_family_t *fam = &g_families[type];
+  int ret;
 
-  values[0] = value;
+  metric_label_set(&m, LABEL_NAME, ml->net_name);
 
-  vl.values = values;
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
-  sstrncpy(vl.type_instance, m->net_name, sizeof(vl.type_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
+  if ((ret = metric_family_metric_append(fam, m)) != 0) {
+    ERROR(PLUGIN_NAME " plugin: metric_family_append failed for %s: %s",
+          fam->name, STRERROR(ret));
+    return ret;
+  }
 
-  return plugin_dispatch_values(&vl);
+  if ((ret = plugin_dispatch_metric_family(fam)) != 0) {
+    ERROR(PLUGIN_NAME
+          " plugin: plugin_dispatch_metric_family failed for %s: %s",
+          fam->name, STRERROR(ret));
+  }
+
+  metric_family_metric_reset(fam);
+
+  return ret;
 } /* int mesh_submit */
 
 static int mesh_read_gauge_attr_from_file(const char *fname, gauge_t *value) {
@@ -145,7 +194,7 @@ static int mesh_read_gauge_attr_from_file(const char *fname, gauge_t *value) {
   int n;
 
   if ((f = fopen(fname, "r")) == NULL) {
-    ERROR(PLUGIN_NAME ": cannot open `%s'", fname);
+    ERROR(PLUGIN_NAME " plugin: cannot open `%s'", fname);
     return EACCES;
   }
 
@@ -153,7 +202,7 @@ static int mesh_read_gauge_attr_from_file(const char *fname, gauge_t *value) {
   fclose(f);
 
   if (n != 1) {
-    ERROR(PLUGIN_NAME " : did not find a double in %s", fname);
+    ERROR(PLUGIN_NAME " plugin: did not find a double in %s", fname);
     return EINVAL;
   }
 
@@ -165,7 +214,7 @@ static int mesh_read_derive_attr_from_file(const char *fname, derive_t *value) {
   int n;
 
   if ((f = fopen(fname, "r")) == NULL) {
-    ERROR(PLUGIN_NAME ": cannot open `%s'", fname);
+    ERROR(PLUGIN_NAME " plugin: cannot open `%s'", fname);
     return EACCES;
   }
 
@@ -173,7 +222,7 @@ static int mesh_read_derive_attr_from_file(const char *fname, derive_t *value) {
   fclose(f);
 
   if (n != 1) {
-    ERROR(PLUGIN_NAME " : did not find a int64_t in %s", fname);
+    ERROR(PLUGIN_NAME " plugin: did not find a int64_t in %s", fname);
     return EINVAL;
   }
 
@@ -191,154 +240,166 @@ static int mesh_read_gauge_attr(const mesh_list_t *m, const char *attr,
   return mesh_read_gauge_attr_from_file(str, value);
 } /* int mesh_read_gauge_attr */
 
-static inline int mesh_read_estab_plinks(const mesh_list_t *m) {
+static inline int mesh_read_estab_plinks(const mesh_list_t *ml) {
   int ret;
-  value_t value;
+  metric_t m;
 
-  DEBUG(PLUGIN_NAME ": Reading attribute " ESTAB_PLINKS " for device %s",
-        m->net_name);
+  DEBUG(PLUGIN_NAME " plugin: Reading attribute " ESTAB_PLINKS " for device %s",
+        ml->net_name);
 
-  if ((ret = mesh_read_gauge_attr(m, ESTAB_PLINKS, &value.gauge)) != 0) {
-    ERROR(PLUGIN_NAME " : Unable to read " ESTAB_PLINKS);
+  if ((ret = mesh_read_gauge_attr(ml, ESTAB_PLINKS, &m.value.gauge)) != 0) {
+    ERROR(PLUGIN_NAME " plugin: Unable to read " ESTAB_PLINKS);
     return ret;
   }
 
-  return mesh_submit(m, ESTAB_PLINKS, value);
+  return mesh_submit(ml, MESH_FAM_PEERS, m);
 } /* int mesh_read_estab_plinks */
 
-static int mesh_read_stats_attr(const mesh_list_t *m, const char *attr,
+static int mesh_read_stats_attr(const mesh_list_t *ml, const char *attr,
                                 derive_t *value) {
-  char str[sizeof(SYS_PATH) + strlen(m->phy_name) + sizeof("/netdev:") +
-           strlen(m->net_name) + sizeof("/mesh_stats/") + strlen(attr) + 1];
+  char str[sizeof(SYS_PATH) + strlen(ml->phy_name) + sizeof("/netdev:") +
+           strlen(ml->net_name) + sizeof("/mesh_stats/") + strlen(attr) + 1];
 
-  snprintf(str, sizeof(str), SYS_PATH "%s/netdev:%s/mesh_stats/%s", m->phy_name,
-           m->net_name, attr);
+  snprintf(str, sizeof(str), SYS_PATH "%s/netdev:%s/mesh_stats/%s",
+           ml->phy_name, ml->net_name, attr);
 
   return mesh_read_derive_attr_from_file(str, value);
 } /* int mesh_read_stats_attr */
 
-static int mesh_read_dropped_frames_congestion(const mesh_list_t *m) {
+static int mesh_read_dropped_frames_congestion(const mesh_list_t *ml) {
   int ret;
-  value_t value;
+  metric_t m;
 
-  DEBUG(PLUGIN_NAME ": Reading attribute " DROPPED_FRAMES_CONGESTION
+  DEBUG(PLUGIN_NAME " plugin: Reading attribute " DROPPED_FRAMES_CONGESTION
                     " for device %s",
-        m->net_name);
+        ml->net_name);
 
-  ret = mesh_read_stats_attr(m, DROPPED_FRAMES_CONGESTION, &value.derive);
+  ret = mesh_read_stats_attr(ml, DROPPED_FRAMES_CONGESTION, &m.value.derive);
 
   if (ret != 0) {
-    ERROR(PLUGIN_NAME " : Unable to read " DROPPED_FRAMES_CONGESTION);
+    ERROR(PLUGIN_NAME " plugin: Unable to read " DROPPED_FRAMES_CONGESTION);
     return ret;
   }
 
-  return mesh_submit(m, DROPPED_FRAMES_CONGESTION, value);
+  metric_label_set(&m, LABEL_REASON, "congestion");
+
+  return mesh_submit(ml, MESH_FAM_DROPPED, m);
 } /* int mesh_read_dropped_frames_congestion */
 
-static int mesh_read_dropped_frames_no_route(const mesh_list_t *m) {
+static int mesh_read_dropped_frames_no_route(const mesh_list_t *ml) {
   int ret;
-  value_t value;
+  metric_t m;
 
-  DEBUG(PLUGIN_NAME ": Reading attribute " DROPPED_FRAMES_NO_ROUTE
+  DEBUG(PLUGIN_NAME " plugin: Reading attribute " DROPPED_FRAMES_NO_ROUTE
                     " for device %s",
-        m->net_name);
+        ml->net_name);
 
-  ret = mesh_read_stats_attr(m, DROPPED_FRAMES_NO_ROUTE, &value.derive);
+  ret = mesh_read_stats_attr(ml, DROPPED_FRAMES_NO_ROUTE, &m.value.derive);
 
   if (ret != 0) {
-    ERROR(PLUGIN_NAME " : Unable to read " DROPPED_FRAMES_NO_ROUTE);
+    ERROR(PLUGIN_NAME " plugin: Unable to read " DROPPED_FRAMES_NO_ROUTE);
     return ret;
   }
 
-  return mesh_submit(m, DROPPED_FRAMES_NO_ROUTE, value);
+  metric_label_set(&m, LABEL_REASON, "no_route");
+
+  return mesh_submit(ml, MESH_FAM_DROPPED, m);
 } /* int mesh_read_dropped_frames_no_route */
 
-static int mesh_read_dropped_frames_ttl(const mesh_list_t *m) {
+static int mesh_read_dropped_frames_ttl(const mesh_list_t *ml) {
   int ret;
-  value_t value;
+  metric_t m;
 
-  DEBUG(PLUGIN_NAME ": Reading attribute " DROPPED_FRAMES_TTL " for device %s",
-        m->net_name);
+  DEBUG(PLUGIN_NAME " plugin: Reading attribute " DROPPED_FRAMES_TTL
+                    " for device %s",
+        ml->net_name);
 
-  ret = mesh_read_stats_attr(m, DROPPED_FRAMES_TTL, &value.derive);
+  ret = mesh_read_stats_attr(ml, DROPPED_FRAMES_TTL, &m.value.derive);
 
   if (ret != 0) {
-    ERROR(PLUGIN_NAME " : Unable to read " DROPPED_FRAMES_TTL);
+    ERROR(PLUGIN_NAME " plugin: Unable to read " DROPPED_FRAMES_TTL);
     return ret;
   }
 
-  return mesh_submit(m, DROPPED_FRAMES_TTL, value);
+  metric_label_set(&m, LABEL_REASON, "ttl");
+
+  return mesh_submit(ml, MESH_FAM_DROPPED, m);
 } /* int mesh_read_dropped_frames_ttl */
 
-static int mesh_read_fwded_frames(const mesh_list_t *m) {
+static int mesh_read_forwarded_frames(const mesh_list_t *ml) {
   int ret;
-  value_t value;
+  metric_t m;
 
-  DEBUG(PLUGIN_NAME ": Reading attribute " FWDED_FRAMES " for device %s",
-        m->net_name);
+  DEBUG(PLUGIN_NAME " plugin: Reading attribute " FORWARDED_FRAMES
+                    " for device %s",
+        ml->net_name);
 
-  ret = mesh_read_stats_attr(m, FWDED_FRAMES, &value.derive);
+  ret = mesh_read_stats_attr(ml, FORWARDED_FRAMES, &m.value.derive);
 
   if (ret != 0) {
-    ERROR(PLUGIN_NAME " : Unable to read " FWDED_FRAMES);
+    ERROR(PLUGIN_NAME " plugin: Unable to read " FORWARDED_FRAMES);
     return ret;
   }
 
-  return mesh_submit(m, FWDED_FRAMES, value);
-} /* int mesh_read_fwded_frames */
+  return mesh_submit(ml, MESH_FAM_FORWARDED, m);
+} /* int mesh_read_forwarded_frames */
 
-static int mesh_read_fwded_unicast(const mesh_list_t *m) {
+static int mesh_read_forwarded_unicast(const mesh_list_t *ml) {
   int ret;
-  value_t value;
+  metric_t m;
 
-  DEBUG(PLUGIN_NAME ": Reading attribute " FWDED_UNICAST " for device %s",
-        m->net_name);
+  DEBUG(PLUGIN_NAME " plugin: Reading attribute " FORWARDED_UNICAST
+                    " for device %s",
+        ml->net_name);
 
-  ret = mesh_read_stats_attr(m, FWDED_UNICAST, &value.derive);
+  ret = mesh_read_stats_attr(ml, FORWARDED_UNICAST, &m.value.derive);
 
   if (ret != 0) {
-    ERROR(PLUGIN_NAME " : Unable to read " FWDED_UNICAST);
+    ERROR(PLUGIN_NAME " plugin: Unable to read " FORWARDED_UNICAST);
     return ret;
   }
 
-  return mesh_submit(m, FWDED_UNICAST, value);
-} /* int mesh_read_fwded_unicast */
+  metric_label_set(&m, LABEL_TYPE, "unicast");
 
-static int mesh_read_fwded_mcast(const mesh_list_t *m) {
+  return mesh_submit(ml, MESH_FAM_FORWARDED, m);
+} /* int mesh_read_forwarded_unicast */
+
+static int mesh_read_forwarded_mcast(const mesh_list_t *ml) {
   int ret;
-  value_t value;
+  metric_t m;
 
-  DEBUG(PLUGIN_NAME ": Reading attribute " FWDED_MCAST " for device %s",
-        m->net_name);
+  DEBUG(PLUGIN_NAME " plugin: Reading attribute " FORWARDED_MCAST
+                    " for device %s",
+        ml->net_name);
 
-  ret = mesh_read_stats_attr(m, FWDED_MCAST, &value.derive);
+  ret = mesh_read_stats_attr(ml, FORWARDED_MCAST, &m.value.derive);
 
   if (ret != 0) {
-    ERROR(PLUGIN_NAME " : Unable to read " FWDED_MCAST);
+    ERROR(PLUGIN_NAME " plugin: Unable to read " FORWARDED_MCAST);
     return ret;
   }
 
-  return mesh_submit(m, FWDED_MCAST, value);
-} /* int mesh_read_fwded_mcast */
+  metric_label_set(&m, LABEL_TYPE, "multicast");
 
-typedef int (*mesh_reader_t)(const mesh_list_t *);
-
-static const mesh_reader_t g_mesh_readers[] = {
-    mesh_read_estab_plinks,
-    mesh_read_dropped_frames_congestion,
-    mesh_read_dropped_frames_no_route,
-    mesh_read_dropped_frames_ttl,
-    mesh_read_fwded_frames,
-    mesh_read_fwded_unicast,
-    mesh_read_fwded_mcast,
-};
+  return mesh_submit(ml, MESH_FAM_FORWARDED, m);
+} /* int mesh_read_forwarded_mcast */
 
 static int mesh_read(void) {
+  typedef int (*mesh_reader_t)(const mesh_list_t *);
+  static const mesh_reader_t mesh_readers[] = {
+      mesh_read_estab_plinks,
+      mesh_read_dropped_frames_congestion,
+      mesh_read_dropped_frames_no_route,
+      mesh_read_dropped_frames_ttl,
+      mesh_read_forwarded_frames,
+      mesh_read_forwarded_unicast,
+      mesh_read_forwarded_mcast,
+  };
   int ret = 0;
 
   for (const mesh_list_t *m = g_mesh_list; m != NULL; m = m->next) {
-    for (int i = 0; i < STATIC_ARRAY_SIZE(g_mesh_readers); i++) {
-      ret = g_mesh_readers[i](m);
+    for (int i = 0; i < STATIC_ARRAY_SIZE(mesh_readers); i++) {
+      ret = mesh_readers[i](m);
 
       if (ret != 0)
         break;
