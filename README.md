@@ -43,7 +43,7 @@ Features
       Various sensors in the Aquaero 5 water cooling board made by Aquacomputer.
 
     - ascent
-      Statistics about Ascent, a free server for the game `World of Warcraft`.
+      Statistics about Ascent, a free server for the game "World of Warcraft".
 
     - barometer
       Reads absolute barometric pressure, air pressure reduced to sea level and
@@ -233,7 +233,7 @@ Features
       IRQ counters: Frequency in which certain interrupts occur.
 
     - java
-      Integrates a `Java Virtual Machine` (JVM) to execute plugins in Java
+      Integrates a Java Virtual Machine (JVM) to execute plugins in Java
       bytecode.
       See docs/BUILD.java.md for detailed build instructions.
 
@@ -452,7 +452,7 @@ Features
       Listens to rsyslog events and submits matched values.
 
     - swap
-      Pages swapped out onto hard disk or whatever is called `swap` by the OS..
+      Pages swapped out onto hard disk or whatever is called `swap` by the OS.
 
     - table
       Parse table-like structured files.
@@ -475,7 +475,7 @@ Features
       TeamSpeak2 server statistics.
 
     - ted
-      Plugin to read values from `The Energy Detective` (TED).
+      plugin to read values from "the energy detective" (ted).
 
     - thermal
       Linux ACPI thermal zone information.
@@ -545,7 +545,7 @@ Features
     - csv
       Write to comma separated values (CSV) files. This needs lots of
       diskspace but is extremely portable and can be analysed with almost
-      every program that can analyse anything. Even Microsoft's Excel..
+      every program that can analyse anything. Even Microsoft's Excel.
 
     - grpc
       Send and receive values over the network using the gRPC framework.
@@ -572,7 +572,7 @@ Features
 
     - rrdcached
       Output to round-robin-database (RRD) files using the RRDtool caching
-      daemon (RRDcacheD) - see rrdcached(1). That daemon provides a general
+      daemon (RRDcacheD) - see `rrdcached(1)`. That daemon provides a general
       implementation of the caching done by the `rrdtool` plugin.
 
     - rrdtool
@@ -763,7 +763,7 @@ Operation
   * Sample scripts to generate graphs reside in `contrib/` in the source
     package or somewhere near `/usr/share/doc/collectd` in most distributions.
     Please be aware that those script are meant as a starting point for your
-    own experiments.. Some of them require the `RRDs` Perl module.
+    own experiments. Some of them require the `RRDs` Perl module.
     (`librrds-perl` on Debian) If you have written a more sophisticated
     solution please share it with us.
 
@@ -776,8 +776,8 @@ Operation
 collectd and chkrootkit
 -----------------------
 
-  If you are using the `dns` plugin chkrootkit(1) will report collectd as a
-  packet sniffer ("<iface>: PACKET SNIFFER(/usr/sbin/collectd[<pid>])"). The
+  If you are using the `dns` plugin, `chkrootkit(1)` will report `collectd` as a
+  packet sniffer (`<iface>: PACKET SNIFFER(/usr/sbin/collectd[<pid>])`). The
   plugin captures all UDP packets on port 53 to analyze the DNS traffic. In
   this case, collectd is a legitimate sniffer and the report should be
   considered to be a false positive. However, you might want to check that
@@ -838,7 +838,7 @@ Prerequisites
     Used by the `oracle` plugin.
 
   * libhiredis (optional)
-    Used by the redis plugin. Please note that you require a 0.10.0 version
+    Used by the `redis` plugin. Please note that you require a 0.10.0 version
     or higher. <https://github.com/redis/hiredis>
 
   * libcurl (optional)
@@ -872,7 +872,7 @@ Prerequisites
     <http://developer.berlios.de/projects/gpsd/>
 
   * libi2c-dev (optional)
-    Used for the plugin `barometer`, provides just the i2c-dev.h header file
+    Used for the plugin `barometer`, provides just the `i2c-dev.h` header file
     for user space i2c development.
 
   * libiptc (optional)
@@ -886,12 +886,12 @@ Prerequisites
   * libjevents (optional)
     The jevents library is used by the `intel_pmu` plugin to access the Linux
     kernel perf interface.
-    Note: the library should be build with -fPIC flag to be linked with
+    Note: the library should be build with `-fPIC` flag to be linked with
     intel_pmu shared object correctly.
     <https://github.com/andikleen/pmu-tools>
 
   * libjvm (optional)
-    Library that encapsulates the `Java Virtual Machine` (JVM). This library is
+    Library that encapsulates the Java Virtual Machine (JVM). This library is
     used by the `java` plugin to execute Java bytecode.
     See docs/BUILD.java.md for detailed build instructions.
     <http://openjdk.java.net/> (and others)
@@ -1013,7 +1013,7 @@ Prerequisites
     <https://github.com/edenhill/librdkafka>
 
   * librouteros (optional)
-    Used by the `routeros` plugin to connect to a device running `RouterOS`.
+    Used by the `routeros` plugin to connect to a device running _RouterOS_.
     <http://octo.it/librouteros/>
 
   * librrd (optional)
@@ -1031,9 +1031,9 @@ Prerequisites
     <http://www.lm-sensors.org/>
 
   * libsigrok (optional)
-    Used by the `sigrok` plugin. In addition, libsigrok depends on glib,
-    libzip, and optionally (depending on which drivers are enabled) on
-    libusb, libftdi and libudev.
+    Used by the `sigrok` plugin. In addition, `libsigrok` depends on `glib`,
+    `libzip`, and optionally (depending on which drivers are enabled) on
+    `libusb`, `libftdi` and `libudev`.
 
   * libslurm (optional)
     Used by the `slurm` plugin.
@@ -1096,7 +1096,7 @@ Configuring / Compiling / Installing
   By default, the configure script will check for all build dependencies and
   disable all plugins whose requirements cannot be fulfilled (any other plugin
   will be enabled). To enable a plugin, install missing dependencies (see
-  section `Prerequisites` above) and rerun `configure`. If you specify the
+  section [Prerequisites](#prerequisites) above) and rerun `configure`. If you specify the
   `--enable-<plugin>` configure option, the script will fail if the depen-
   dencies for the specified plugin are not met. In that case you can force the
   plugin to be built using the `--enable-<plugin>=force` configure option.
@@ -1111,7 +1111,7 @@ Configuring / Compiling / Installing
 
   By default, collectd will be installed into `/opt/collectd`. You can adjust
   this setting by specifying the `--prefix` configure option - see INSTALL for
-  details. If you pass DESTDIR=<path> to `make install`, <path> will be
+  details. If you pass `DESTDIR=<path>` to `make install`, `<path>` will be
   prefixed to all installation directories. This might be useful when creating
   packages for collectd.
 
@@ -1215,5 +1215,5 @@ Author
 
   Florian octo Forster <octo at collectd.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
-  and many contributors (see `AUTHORS`).
+  and many contributors (see [AUTHORS](https://github.com/collectd/collectd/graphs/contributors)).
 
