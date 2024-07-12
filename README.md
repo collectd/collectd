@@ -43,7 +43,7 @@ Features
       Various sensors in the Aquaero 5 water cooling board made by Aquacomputer.
 
     - ascent
-      Statistics about Ascent, a free server for the game `World of Warcraft'.
+      Statistics about Ascent, a free server for the game `World of Warcraft`.
 
     - barometer
       Reads absolute barometric pressure, air pressure reduced to sea level and
@@ -55,7 +55,7 @@ Features
       batteries.
 
     - bind
-      Name server and resolver statistics from the `statistics-channel'
+      Name server and resolver statistics from the `statistics-channel`
       interface of BIND 9.5, 9,6 and later.
 
     - buddyinfo
@@ -113,7 +113,7 @@ Features
       Collects Intel Optane DC Presistent Memory (DCPMM) performance and health statistics.
 
     - df
-      Mountpoint usage (Basically the values `df(1)' delivers)
+      Mountpoint usage (Basically the values `df(1)` delivers)
 
     - disk
       Disk utilization: Sectors read/written, number of read/write actions,
@@ -233,7 +233,7 @@ Features
       IRQ counters: Frequency in which certain interrupts occur.
 
     - java
-      Integrates a `Java Virtual Machine' (JVM) to execute plugins in Java
+      Integrates a `Java Virtual Machine` (JVM) to execute plugins in Java
       bytecode.
       See docs/BUILD.java.md for detailed build instructions.
 
@@ -293,8 +293,7 @@ Features
       from multiple "slaves" so gateway devices can be used.
 
     - multimeter
-      Information provided by serial multimeters, such as the `Metex
-      M-4650CR'.
+      Information provided by serial multimeters, such as the `Metex M-4650CR`.
 
     - mysql
       MySQL server statistics: Commands issued, handlers triggered, thread
@@ -318,7 +317,7 @@ Features
       NFS Procedures: Which NFS command were called how often.
 
     - nginx
-      Collects statistics from `nginx' (speak: engine X), a HTTP and mail
+      Collects statistics from `nginx` (speak: engine X), a HTTP and mail
       server/proxy.
 
     - ntpd
@@ -453,7 +452,7 @@ Features
       Listens to rsyslog events and submits matched values.
 
     - swap
-      Pages swapped out onto hard disk or whatever is called `swap' by the OS..
+      Pages swapped out onto hard disk or whatever is called `swap` by the OS..
 
     - table
       Parse table-like structured files.
@@ -476,7 +475,7 @@ Features
       TeamSpeak2 server statistics.
 
     - ted
-      Plugin to read values from `The Energy Detective' (TED).
+      Plugin to read values from `The Energy Detective` (TED).
 
     - thermal
       Linux ACPI thermal zone information.
@@ -574,7 +573,7 @@ Features
     - rrdcached
       Output to round-robin-database (RRD) files using the RRDtool caching
       daemon (RRDcacheD) - see rrdcached(1). That daemon provides a general
-      implementation of the caching done by the `rrdtool' plugin.
+      implementation of the caching done by the `rrdtool` plugin.
 
     - rrdtool
       Output to round-robin-database (RRD) files using librrd. See rrdtool(1).
@@ -749,27 +748,27 @@ Features
 Operation
 ---------
 
-  * collectd's configuration file can be found at `sysconfdir'/collectd.conf.
-    Run `collectd -h' for a list of built-in defaults. See `collectd.conf(5)'
+  * collectd's configuration file can be found at `sysconfdir/collectd.conf`.
+    Run `collectd -h` for a list of built-in defaults. See `collectd.conf(5)`
     for a list of options and a syntax description.
 
-  * When the `csv' or `rrdtool' plugins are loaded they'll write the values to
-    files. The usual place for these files is beneath `/var/lib/collectd'.
+  * When the `csv` or `rrdtool` plugins are loaded they'll write the values to
+    files. The usual place for these files is beneath `/var/lib/collectd`.
 
   * When using some of the plugins, collectd needs to run as user root, since
     only root can do certain things, such as craft ICMP packages needed to ping
     other hosts. collectd should NOT be installed setuid root since it can be
     used to overwrite valuable files!
 
-  * Sample scripts to generate graphs reside in `contrib/' in the source
-    package or somewhere near `/usr/share/doc/collectd' in most distributions.
+  * Sample scripts to generate graphs reside in `contrib/` in the source
+    package or somewhere near `/usr/share/doc/collectd` in most distributions.
     Please be aware that those script are meant as a starting point for your
-    own experiments.. Some of them require the `RRDs' Perl module.
-    (`librrds-perl' on Debian) If you have written a more sophisticated
+    own experiments.. Some of them require the `RRDs` Perl module.
+    (`librrds-perl` on Debian) If you have written a more sophisticated
     solution please share it with us.
 
-  * The RRAs of the automatically created RRD files depend on the `step'
-    and `heartbeat' settings given. If change these settings you may need to
+  * The RRAs of the automatically created RRD files depend on the `step`
+    and `heartbeat` settings given. If change these settings you may need to
     re-create the files, losing all data. Please be aware of that when changing
     the values and read the rrdtool(1) manpage thoroughly.
 
@@ -777,7 +776,7 @@ Operation
 collectd and chkrootkit
 -----------------------
 
-  If you are using the `dns' plugin chkrootkit(1) will report collectd as a
+  If you are using the `dns` plugin chkrootkit(1) will report collectd as a
   packet sniffer ("<iface>: PACKET SNIFFER(/usr/sbin/collectd[<pid>])"). The
   plugin captures all UDP packets on port 53 to analyze the DNS traffic. In
   this case, collectd is a legitimate sniffer and the report should be
@@ -809,71 +808,71 @@ Prerequisites
     don't need these packages in that case.
 
   * aerotools-ng (optional)
-    Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
-    is used by the `aerotools-ng' toolkit, is not compiled as a shared object
+    Used by the `aquaero` plugin. Currently, the `libaquaero5` library, which
+    is used by the `aerotools-ng` toolkit, is not compiled as a shared object
     nor does it feature an installation routine. Therefore, you need to point
-    collectd's configure script at the source directory of the `aerotools-ng'
+    collectd's configure script at the source directory of the `aerotools-ng`
     project.
     <https://github.com/lynix/aerotools-ng>
 
   * CoreFoundation.framework and IOKit.framework (optional)
-    For compiling on Darwin in general and the `apple_sensors' plugin in
+    For compiling on Darwin in general and the `apple_sensors` plugin in
     particular.
     <http://developer.apple.com/corefoundation/>
 
   * CUDA (optional)
-    Used by the `gpu_nvidia' plugin
+    Used by the `gpu_nvidia` plugin
     <https://developer.nvidia.com/cuda-downloads>
 
   * libatasmart (optional)
-    Used by the `smart' plugin.
+    Used by the `smart` plugin.
     <http://git.0pointer.de/?p=libatasmart.git>
 
   * libcap (optional)
-    The `turbostat' plugin can optionally build Linux Capabilities support,
+    The `turbostat` plugin can optionally build Linux Capabilities support,
     which avoids full privileges requirement (aka. running as root) to read
     values.
     <http://sites.google.com/site/fullycapable/>
 
   * libclntsh (optional)
-    Used by the `oracle' plugin.
+    Used by the `oracle` plugin.
 
   * libhiredis (optional)
     Used by the redis plugin. Please note that you require a 0.10.0 version
     or higher. <https://github.com/redis/hiredis>
 
   * libcurl (optional)
-    If you want to use the `apache', `ascent', `bind', `curl', `curl_json',
-    `curl_xml', `nginx', or `write_http' plugin.
+    If you want to use the `apache`, `ascent`, `bind`, `curl`, `curl_json`,
+    `curl_xml`, `nginx`, or `write_http` plugin.
     <http://curl.haxx.se/>
 
   * libdbi (optional)
-    Used by the `dbi' plugin to connect to various databases.
+    Used by the `dbi` plugin to connect to various databases.
     <http://libdbi.sourceforge.net/>
 
   * libesmtp (optional)
-    For the `notify_email' plugin.
+    For the `notify_email` plugin.
     <http://www.stafford.uklinux.net/libesmtp/>
 
   * libganglia (optional)
-    Used by the `gmond' plugin to process data received from Ganglia.
+    Used by the `gmond` plugin to process data received from Ganglia.
     <http://ganglia.info/>
 
   * libgrpc (optional)
-    Used by the `grpc' plugin. gRPC requires a C++ compiler supporting the
+    Used by the `grpc` plugin. gRPC requires a C++ compiler supporting the
     C++11 standard.
     <https://grpc.io/>
 
   * libgcrypt (optional)
-    Used by the `network' plugin for encryption and authentication.
+    Used by the `network` plugin for encryption and authentication.
     <http://www.gnupg.org/>
 
   * libgps (optional)
-    Used by the `gps' plugin.
+    Used by the `gps` plugin.
     <http://developer.berlios.de/projects/gpsd/>
 
   * libi2c-dev (optional)
-    Used for the plugin `barometer', provides just the i2c-dev.h header file
+    Used for the plugin `barometer`, provides just the i2c-dev.h header file
     for user space i2c development.
 
   * libiptc (optional)
@@ -881,32 +880,32 @@ Prerequisites
     <http://netfilter.org/>
 
   * libjansson (optional)
-    Parse JSON data. This is used for the `capabilities' and `dpdk_telemetry` plugins.
+    Parse JSON data. This is used for the `capabilities` and `dpdk_telemetry` plugins.
     <http://www.digip.org/jansson/>
 
   * libjevents (optional)
-    The jevents library is used by the `intel_pmu' plugin to access the Linux
+    The jevents library is used by the `intel_pmu` plugin to access the Linux
     kernel perf interface.
     Note: the library should be build with -fPIC flag to be linked with
     intel_pmu shared object correctly.
     <https://github.com/andikleen/pmu-tools>
 
   * libjvm (optional)
-    Library that encapsulates the `Java Virtual Machine' (JVM). This library is
-    used by the `java' plugin to execute Java bytecode.
+    Library that encapsulates the `Java Virtual Machine` (JVM). This library is
+    used by the `java` plugin to execute Java bytecode.
     See docs/BUILD.java.md for detailed build instructions.
     <http://openjdk.java.net/> (and others)
 
   * libldap (optional)
-    Used by the `openldap' plugin.
+    Used by the `openldap` plugin.
     <http://www.openldap.org/>
 
   * liblua (optional)
-    Used by the `lua' plugin. Currently, Lua 5.1 and later are supported.
+    Used by the `lua` plugin. Currently, Lua 5.1 and later are supported.
     <https://www.lua.org/>
 
   * libmemcached (optional)
-    Used by the `memcachec' plugin to connect to a memcache daemon.
+    Used by the `memcachec` plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
 
   * libmicrohttpd (optional)
@@ -914,57 +913,57 @@ Prerequisites
     <http://www.gnu.org/software/libmicrohttpd/>
 
   * libmnl (optional)
-    Used by the `netlink' plugin.
+    Used by the `netlink` plugin.
     <http://www.netfilter.org/projects/libmnl/>
 
   * libmodbus (optional)
-    Used by the `modbus' plugin to communicate with Modbus/TCP devices. The
-    `modbus' plugin works with version 2.0.3 of the library – due to frequent
+    Used by the `modbus` plugin to communicate with Modbus/TCP devices. The
+    `modbus` plugin works with version 2.0.3 of the library – due to frequent
     API changes other versions may or may not compile cleanly.
     <http://www.libmodbus.org/>
 
   * libmysqlclient (optional)
-    Unsurprisingly used by the `mysql' plugin.
+    Unsurprisingly used by the `mysql` plugin.
     <http://dev.mysql.com/>
 
   * libnetapp (optional)
-    Required for the `netapp' plugin.
+    Required for the `netapp` plugin.
     This library is part of the “Manage ONTAP SDK” published by NetApp.
 
   * libnetsnmp (optional)
-    For the `snmp' and 'snmp_agent' plugins.
+    For the `snmp` and `snmp_agent` plugins.
     <http://www.net-snmp.org/>
 
   * libnetsnmpagent (optional)
-    Required for the 'snmp_agent' plugin.
+    Required for the `snmp_agent` plugin.
     <http://www.net-snmp.org/>
 
   * libnotify (optional)
-    For the `notify_desktop' plugin.
+    For the `notify_desktop` plugin.
     <http://www.galago-project.org/>
 
   * libopenipmi (optional)
-    Used by the `ipmi' plugin to prove IPMI devices.
+    Used by the `ipmi` plugin to prove IPMI devices.
     <http://openipmi.sourceforge.net/>
 
   * liboping (optional)
-    Used by the `ping' plugin to send and receive ICMP packets.
+    Used by the `ping` plugin to send and receive ICMP packets.
     <http://octo.it/liboping/>
 
   * libowcapi (optional)
-    Used by the `onewire' plugin to read values from onewire sensors (or the
+    Used by the `onewire` plugin to read values from onewire sensors (or the
     owserver(1) daemon).
     <http://www.owfs.org/>
 
   * libpcap (optional)
-    Used to capture packets by the `dns' plugin.
+    Used to capture packets by the `dns` plugin.
     <http://www.tcpdump.org/>
 
   * libperfstat (optional)
     Used by various plugins to gather statistics under AIX.
 
   * libperl (optional)
-    Obviously used by the `perl' plugin. The library has to be compiled with
+    Obviously used by the `perl` plugin. The library has to be compiled with
     ithread support (introduced in Perl 5.6.0).
     <http://www.perl.org/>
 
@@ -975,52 +974,52 @@ Prerequisites
     use the install path to resolve the dependency here.
 
   * libpq (optional)
-    The PostgreSQL C client library used by the `postgresql' plugin.
+    The PostgreSQL C client library used by the `postgresql` plugin.
     <http://www.postgresql.org/>
 
   * libpqos (optional)
     The PQoS library for Intel(R) Resource Director Technology used by the
-    `intel_rdt' plugin.
+    `intel_rdt` plugin.
     <https://github.com/01org/intel-cmt-cat>
 
   * libprotobuf, protoc 3.0+ (optional)
-    Used by the `grpc' plugin to generate service stubs and code to handle
+    Used by the `grpc` plugin to generate service stubs and code to handle
     network packets of collectd's protobuf-based network protocol.
     <https://developers.google.com/protocol-buffers/>
 
   * libprotobuf-c, protoc-c (optional)
-    Used by the `pinba' plugin to generate a parser for the network packets
+    Used by the `pinba` plugin to generate a parser for the network packets
     sent by the Pinba PHP extension.
     <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
-    Used by the `python' plugin. Currently, Python 2.6 and later and Python 3
+    Used by the `python` plugin. Currently, Python 2.6 and later and Python 3
     are supported.
     <http://www.python.org/>
 
   * libqpid-proton (optional)
-    Used by the `amqp1' plugin for AMQP 1.0 connections, for example to
+    Used by the `amqp1` plugin for AMQP 1.0 connections, for example to
     Qdrouterd.
     <http://qpid.apache.org/>
 
   * librabbitmq (optional; also called “rabbitmq-c”)
-    Used by the `amqp' plugin for AMQP 0.9.1 connections, for example to
+    Used by the `amqp` plugin for AMQP 0.9.1 connections, for example to
     RabbitMQ.
     <http://hg.rabbitmq.com/rabbitmq-c/>
 
   * librdkafka (optional; also called “rdkafka”)
-    Used by the `write_kafka' plugin for producing messages and sending them
+    Used by the `write_kafka` plugin for producing messages and sending them
     to a Kafka broker.
     <https://github.com/edenhill/librdkafka>
 
   * librouteros (optional)
-    Used by the `routeros' plugin to connect to a device running `RouterOS'.
+    Used by the `routeros` plugin to connect to a device running `RouterOS`.
     <http://octo.it/librouteros/>
 
   * librrd (optional)
-    Used by the `rrdtool' and `rrdcached' plugins. The latter requires RRDtool
+    Used by the `rrdtool` and `rrdcached` plugins. The latter requires RRDtool
     client support which was added after version 1.3 of RRDtool. Versions 1.0,
-    1.2 and 1.3 are known to work with the `rrdtool' plugin.
+    1.2 and 1.3 are known to work with the `rrdtool` plugin.
     <http://oss.oetiker.ch/rrdtool/>
 
   * librt, libsocket, libkstat, libdevinfo (optional)
@@ -1028,11 +1027,11 @@ Prerequisites
     <http://developers.sun.com/solaris/>
 
   * libsensors (optional)
-    To read from `lm_sensors', see the `sensors' plugin.
+    To read from `lm_sensors`, see the `sensors` plugin.
     <http://www.lm-sensors.org/>
 
   * libsigrok (optional)
-    Used by the `sigrok' plugin. In addition, libsigrok depends on glib,
+    Used by the `sigrok` plugin. In addition, libsigrok depends on glib,
     libzip, and optionally (depending on which drivers are enabled) on
     libusb, libftdi and libudev.
 
@@ -1050,11 +1049,11 @@ Prerequisites
     <http://www.i-scream.org/libstatgrab/>
 
   * libtokyotyrant (optional)
-    Used by the `tokyotyrant' plugin.
+    Used by the `tokyotyrant` plugin.
     <http://1978th.net/tokyotyrant/>
 
   * libupsclient/nut (optional)
-    For the `nut' plugin which queries nut's `upsd'.
+    For the `nut` plugin which queries nut's `upsd`.
     <http://networkupstools.org/>
 
   * libvirt (optional)
@@ -1062,64 +1061,64 @@ Prerequisites
     <http://libvirt.org/>
 
   * libxml2 (optional)
-    Parse XML data. This is needed for the `ascent', `bind', `curl_xml' and
-    `virt' plugins.
+    Parse XML data. This is needed for the `ascent`, `bind`, `curl_xml` and
+    `virt` plugins.
     <http://xmlsoft.org/>
 
   * libxen (optional)
-    Used by the `xencpu' plugin.
+    Used by the `xencpu` plugin.
     <http://xenbits.xensource.com/>
 
   * libxmms (optional)
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `ceph', `curl_json', 'ovs_events',
-    'ovs_stats' and `log_logstash' plugins.
+    Parse JSON data. This is needed for the `ceph`, `curl_json`, `ovs_events`,
+    `ovs_stats` and `log_logstash` plugins.
     <http://github.com/lloyd/yajl>
 
   * libvarnish (optional)
      Fetches statistics from a Varnish instance. This is needed for the
-     `varnish' plugin.
+     `varnish` plugin.
      <http://varnish-cache.org>
 
   * riemann-c-client (optional)
-     For the `write_riemann' plugin.
+     For the `write_riemann` plugin.
      <https://github.com/algernon/riemann-c-client>
 
 Configuring / Compiling / Installing
 ------------------------------------
 
   To configure, build and install collectd with the default settings, run
-  `./configure && make && make install'.  For a complete list of configure
-  options and their description, run `./configure --help'.
+  `./configure && make && make install`.  For a complete list of configure
+  options and their description, run `./configure --help`.
 
   By default, the configure script will check for all build dependencies and
   disable all plugins whose requirements cannot be fulfilled (any other plugin
   will be enabled). To enable a plugin, install missing dependencies (see
-  section `Prerequisites' above) and rerun `configure'. If you specify the
-  `--enable-<plugin>' configure option, the script will fail if the depen-
+  section `Prerequisites` above) and rerun `configure`. If you specify the
+  `--enable-<plugin>` configure option, the script will fail if the depen-
   dencies for the specified plugin are not met. In that case you can force the
-  plugin to be built using the `--enable-<plugin>=force' configure option.
+  plugin to be built using the `--enable-<plugin>=force` configure option.
   This will most likely fail though unless you're working in a very unusual
   setup and you really know what you're doing. If you specify the
-  `--disable-<plugin>' configure option, the plugin will not be built. If you
-  specify the `--enable-all-plugins' or `--disable-all-plugins' configure
+  `--disable-<plugin>` configure option, the plugin will not be built. If you
+  specify the `--enable-all-plugins` or `--disable-all-plugins` configure
   options, all plugins will be enabled or disabled respectively by default.
   Explicitly enabling or disabling a plugin overwrites the default for the
   specified plugin. These options are meant for package maintainers and should
   not be used in everyday situations.
 
-  By default, collectd will be installed into `/opt/collectd'. You can adjust
-  this setting by specifying the `--prefix' configure option - see INSTALL for
-  details. If you pass DESTDIR=<path> to `make install', <path> will be
+  By default, collectd will be installed into `/opt/collectd`. You can adjust
+  this setting by specifying the `--prefix` configure option - see INSTALL for
+  details. If you pass DESTDIR=<path> to `make install`, <path> will be
   prefixed to all installation directories. This might be useful when creating
   packages for collectd.
 
 Generating the configure script
 -------------------------------
 
-Collectd ships with a `build.sh' script to generate the `configure'
+Collectd ships with a `build.sh` script to generate the `configure`
 script shipped with releases.
 
 To generate the `configure` script, you'll need the following dependencies:
@@ -1131,7 +1130,7 @@ To generate the `configure` script, you'll need the following dependencies:
 - libtool
 - pkg-config
 
-The `build.sh' script takes no arguments.
+The `build.sh` script takes no arguments.
 
 
 Building on Windows
@@ -1153,7 +1152,7 @@ You will need to install the following Cygwin packages:
 - mingw64-x86_64-zlib
 - pkg-config
 
-To build, just run the `build.sh' script in your Cygwin terminal. By default, it installs
+To build, just run the `build.sh` script in your Cygwin terminal. By default, it installs
 to "C:/Program Files/collectd". You can change the location by setting the INSTALL_DIR
 variable:
 
@@ -1173,12 +1172,12 @@ Crosscompiling
   libc, have a problem with that.
 
   Luckily, with GCC it's possible to work around that problem: One can define
-  NAN as being (0.0 / 0.0) and `isnan' as `f != f'. However, to test this
-  ``implementation'' the configure script needs to compile and run a short
+  NAN as being (0.0 / 0.0) and `isnan` as `f != f`. However, to test this
+  ``implementation`` the configure script needs to compile and run a short
   test program. Obviously running a test program when doing a cross-
   compilation is, well, challenging.
 
-  If you run into this problem, you can use the `--with-nan-emulation'
+  If you run into this problem, you can use the `--with-nan-emulation`
   configure option to force the use of this implementation. We can't promise
   that the compiled binary actually behaves as it should, but since NANs
   are likely never passed to the libm you have a good chance to be lucky.
@@ -1188,12 +1187,12 @@ Crosscompiling
   needs to know how to convert doubles into the memory layout used by x86. The
   configure script tries to figure this out by compiling and running a few
   small test programs. This is of course not possible when cross-compiling.
-  You can use the `--with-fp-layout' option to tell the configure script which
+  You can use the `--with-fp-layout` option to tell the configure script which
   conversion method to assume. Valid arguments are:
 
-    * `nothing'    (12345678 -> 12345678)
-    * `endianflip' (12345678 -> 87654321)
-    * `intswap'    (12345678 -> 56781234)
+    * `nothing`    (12345678 -> 12345678)
+    * `endianflip` (12345678 -> 87654321)
+    * `intswap`    (12345678 -> 56781234)
 
 
 Contact
@@ -1216,5 +1215,5 @@ Author
 
   Florian octo Forster <octo at collectd.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
-  and many contributors (see `AUTHORS').
+  and many contributors (see `AUTHORS`).
 
