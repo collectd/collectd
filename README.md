@@ -1173,7 +1173,7 @@ Crosscompiling
 
   Luckily, with GCC it's possible to work around that problem: One can define
   NAN as being (0.0 / 0.0) and `isnan` as `f != f`. However, to test this
-  ``implementation`` the configure script needs to compile and run a short
+  "implementation" the configure script needs to compile and run a short
   test program. Obviously running a test program when doing a cross-
   compilation is, well, challenging.
 
@@ -1215,5 +1215,4 @@ Author
 
   Florian octo Forster <octo at collectd.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
-  and many contributors (see [AUTHORS](https://github.com/collectd/collectd/graphs/contributors)).
-
+  and many other [authors](AUTHORS) and [contributors](https://github.com/collectd/collectd/graphs/contributors).
