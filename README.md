@@ -1204,7 +1204,7 @@ Contact
 
   For questions, development information and basically all other concerns please
   send an email to collectd's mailing list at
-  <list at collectd.org>.
+  (list at collectd.org).
 
   For live discussion and more personal contact visit us in IRC, we're in
   channel #collectd on freenode.
@@ -1213,6 +1213,6 @@ Contact
 Author
 ------
 
-  Florian octo Forster <octo at collectd.org>,
-  Sebastian tokkee Harl <sh at tokkee.org>,
+  Florian octo Forster (octo at collectd.org),
+  Sebastian tokkee Harl (sh at tokkee.org),
   and many other [authors](AUTHORS) and [contributors](https://github.com/collectd/collectd/graphs/contributors).
