@@ -72,6 +72,7 @@
 #endif /* ! WCOREDUMP */
 
 static int loop;
+static int quit;
 static int restart;
 
 static const char *pidfile;
@@ -203,11 +204,11 @@ static int collectd_start(char **argv) {
   exit(-1);
 } /* collectd_start */
 
-static int collectd_stop(void) {
+static int collectd_stop(int signo) {
   if (collectd_pid == 0)
     return 0;
 
-  if (kill(collectd_pid, SIGTERM) != 0) {
+  if (kill(collectd_pid, signo) != 0) {
     syslog(LOG_ERR, "Error: kill() failed: %s", strerror(errno));
     return -1;
   }
@@ -223,6 +224,12 @@ static void sig_hup_handler(int __attribute__((unused)) signo) {
   ++restart;
   return;
 } /* sig_hup_handler */
+
+static void sig_quit_handler(int __attribute__((unused)) signo) {
+  ++quit;
+  ++loop;
+  return;
+} /* sig_quit_handler */
 
 static void log_status(int status) {
   if (WIFEXITED(status)) {
@@ -341,6 +348,14 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  sa.sa_handler = sig_quit_handler;
+
+  if (sigaction(SIGQUIT, &sa, NULL) != 0) {
+    syslog(LOG_ERR, "Error: sigaction() failed: %s", strerror(errno));
+    free(collectd_argv);
+    return 1;
+  }
+
   sa.sa_handler = sig_hup_handler;
 
   if (sigaction(SIGHUP, &sa, NULL) != 0) {
@@ -360,8 +375,12 @@ int main(int argc, char **argv) {
     assert(collectd_pid >= 0);
     while ((collectd_pid != waitpid(collectd_pid, &status, 0)) &&
            errno == EINTR)
-      if (loop != 0 || restart != 0)
-        collectd_stop();
+      if (loop != 0 || restart != 0) {
+        if (quit)
+          collectd_stop(SIGKILL);
+        else
+          collectd_stop(SIGTERM);
+      }
 
     collectd_pid = 0;
 
