@@ -249,6 +249,8 @@ typedef struct procstat_entry_s {
   value_to_rate_state_t delay_blkio;
   value_to_rate_state_t delay_swapin;
   value_to_rate_state_t delay_freepages;
+  /* taskstats v14 */
+  value_to_rate_state_t delay_irq;
 #endif
 
   struct procstat_entry_s *next;
@@ -292,11 +294,14 @@ typedef struct procstat {
   gauge_t delay_blkio;
   gauge_t delay_swapin;
   gauge_t delay_freepages;
+  gauge_t delay_irq;
 
   bool report_fd_num;
   bool report_maps_num;
   bool report_ctx_switch;
+  /* delay accounting */
   bool report_delay;
+  bool report_delay_irq;
 
   struct procstat *next;
   struct procstat_entry_s *instances;
@@ -309,6 +314,7 @@ static bool report_ctx_switch;
 static bool report_fd_num;
 static bool report_maps_num;
 static bool report_delay;
+static bool report_delay_irq;
 static bool report_sys_ctxt_switch;
 
 #if HAVE_THREAD_INFO
@@ -381,6 +387,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
   new->report_maps_num = report_maps_num;
   new->report_ctx_switch = report_ctx_switch;
   new->report_delay = report_delay;
+  new->report_delay_irq = report_delay_irq;
 
 #if HAVE_REGEX_H
   if (regexp != NULL) {
@@ -519,6 +526,8 @@ static void ps_update_delay(procstat_t *out, procstat_entry_t *prev,
                       curr->delay.swapin_ns, now);
   ps_update_delay_one(&out->delay_freepages, &prev->delay_freepages,
                       curr->delay.freepages_ns, now);
+  ps_update_delay_one(&out->delay_irq, &prev->delay_irq, curr->delay.irq_ns,
+                      now);
 }
 #endif
 
@@ -636,6 +645,7 @@ static void ps_list_reset(void) {
     ps->delay_blkio = NAN;
     ps->delay_swapin = NAN;
     ps->delay_freepages = NAN;
+    ps->delay_irq = NAN;
 
     pse_prev = NULL;
     pse = ps->instances;
@@ -679,6 +689,13 @@ static void ps_tune_instance(oconfig_item_t *ci, procstat_t *ps) {
 #else
       WARNING("processes plugin: The plugin has been compiled without support "
               "for the \"CollectDelayAccounting\" option.");
+#endif
+    } else if (strcasecmp(c->key, "CollectDelayAccountingIRQ") == 0) {
+#if HAVE_LIBTASKSTATS
+      cf_util_get_boolean(c, &ps->report_delay_irq);
+#else
+      WARNING("processes plugin: The plugin has been compiled without support "
+              "for the \"CollectDelayAccountingIRQ\" option.");
 #endif
     } else {
       ERROR("processes plugin: Option \"%s\" not allowed here.", c->key);
@@ -747,6 +764,13 @@ static int ps_config(oconfig_item_t *ci) {
 #else
       WARNING("processes plugin: The plugin has been compiled without support "
               "for the \"CollectDelayAccounting\" option.");
+#endif
+    } else if (strcasecmp(c->key, "CollectDelayAccountingIRQ") == 0) {
+#if HAVE_LIBTASKSTATS
+      cf_util_get_boolean(c, &report_delay_irq);
+#else
+      WARNING("processes plugin: The plugin has been compiled without support "
+              "for the \"CollectDelayAccountingIRQ\" option.");
 #endif
     } else if (strcasecmp(c->key, "CollectSystemContextSwitch") == 0) {
       cf_util_get_boolean(c, &report_sys_ctxt_switch);
@@ -965,6 +989,21 @@ static void ps_submit_proc_list(procstat_t *ps) {
     vl.values[0].gauge = delay_metrics[i].rate_ns / delay_factor;
     vl.values_len = 1;
     plugin_dispatch_values(&vl);
+  }
+
+  if (ps->report_delay_irq) {
+    struct {
+      const char *type_instance;
+      gauge_t rate_ns;
+    } delay_metrics_extra = {"delay-irq", ps->delay_irq};
+    if (!isnan(delay_metrics_extra.rate_ns)) {
+      sstrncpy(vl.type, "delay_rate", sizeof(vl.type));
+      sstrncpy(vl.type_instance, delay_metrics_extra.type_instance,
+               sizeof(vl.type_instance));
+      vl.values[0].gauge = delay_metrics_extra.rate_ns / delay_factor;
+      vl.values_len = 1;
+      plugin_dispatch_values(&vl);
+    }
   }
 
   DEBUG(

@@ -303,5 +303,10 @@ int ts_delay_by_tgid(ts_t *ts, uint32_t tgid, ts_delay_t *out) {
       .swapin_ns = raw.swapin_delay_total,
       .freepages_ns = raw.freepages_delay_total,
   };
+
+#if TASKSTATS_VERSION >= 14
+  out->irq_ns = raw.irq_delay_total;
+#endif
+
   return 0;
 }
