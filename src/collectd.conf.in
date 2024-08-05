@@ -1471,6 +1471,7 @@
 #	CollectContextSwitch true
 #	CollectMemoryMaps true
 #	CollectDelayAccounting false
+#	CollectDelayAccountingIRQ false
 #	CollectSystemContextSwitch false
 #	Process "name"
 #	ProcessMatch "name" "regex"
