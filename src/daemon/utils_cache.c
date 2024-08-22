@@ -387,7 +387,7 @@ static int uc_update_metric(metric_t const *m) {
   /* Update the history if it exists. TODO: Does history need to be an array? */
   if (ce->history != NULL) {
     assert(ce->history_index < ce->history_length);
-    ce->history[0] = ce->values_gauge;
+    ce->history[ce->history_index] = ce->values_gauge;
 
     assert(ce->history_length > 0);
     ce->history_index = (ce->history_index + 1) % ce->history_length;
