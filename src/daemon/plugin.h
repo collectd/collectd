@@ -214,13 +214,13 @@ typedef int (*plugin_notification_cb)(const notification_t *, user_data_t *);
  *  plugin_set_dir
  *
  * DESCRIPTION
- *  Sets the current `plugindir'
+ *  Sets the current 'plugindir'
  *
  * ARGUMENTS
- *  `dir'       Path to the plugin directory
+ *  'dir'       Path to the plugin directory
  *
  * NOTES
- *  If `dir' is NULL the compiled in default `PLUGINDIR' is used.
+ *  If 'dir' is NULL the compiled in default 'PLUGINDIR' is used.
  */
 void plugin_set_dir(const char *dir);
 
@@ -229,14 +229,14 @@ void plugin_set_dir(const char *dir);
  *  plugin_load
  *
  * DESCRIPTION
- *  Searches the current `plugindir' (see `plugin_set_dir') for the plugin
- *  named $type and loads it. Afterwards the plugin's `module_register'
- *  function is called, which then calls `plugin_register' to register callback
+ *  Searches the current 'plugindir' (see 'plugin_set_dir') for the plugin
+ *  named $type and loads it. Afterwards the plugin's 'module_register'
+ *  function is called, which then calls 'plugin_register' to register callback
  *  functions.
  *
  * ARGUMENTS
- *  `name'      Name of the plugin to load.
- *  `global'    Make this plugins symbols available for other shared libraries.
+ *  'name'      Name of the plugin to load.
+ *  'global'    Make this plugins symbols available for other shared libraries.
  *
  * RETURN VALUE
  *  Returns zero upon success, a value greater than zero if no plugin was found
@@ -260,7 +260,7 @@ int plugin_shutdown_all(void);
  *
  * DESCRIPTION
  *  Calls the write function of the given plugin with the provided data set and
- *  value list. It differs from `plugin_dispatch_values' in that it does not
+ *  value list. It differs from 'plugin_dispatch_values' in that it does not
  *  update the cache, does not do threshold checking, call the chain subsystem
  *  and so on. It looks up the requested plugin and invokes the function, end
  *  of story.
@@ -269,16 +269,16 @@ int plugin_shutdown_all(void);
  *  plugin     Name of the plugin. If NULL, the value is sent to all registered
  *             write functions.
  *  ds         Pointer to the data_set_t structure. If NULL, the data set is
- *             looked up according to the `type' member in the `vl' argument.
+ *             looked up according to the 'type' member in the 'vl' argument.
  *  vl         The actual value to be processed. Must not be NULL.
  *
  * RETURN VALUE
- *  Returns zero upon success or non-zero if an error occurred. If `plugin' is
+ *  Returns zero upon success or non-zero if an error occurred. If 'plugin' is
  *  NULL and more than one plugin is called, an error is only returned if *all*
  *  plugins fail.
  *
  * NOTES
- *  This is the function used by the `write' built-in target. May be used by
+ *  This is the function used by the 'write' built-in target. May be used by
  *  other target plugins.
  */
 int plugin_write(const char *plugin, const data_set_t *ds,
@@ -287,8 +287,8 @@ int plugin_write(const char *plugin, const data_set_t *ds,
 int plugin_flush(const char *plugin, cdtime_t timeout, const char *identifier);
 
 /*
- * The `plugin_register_*' functions are used to make `config', `init',
- * `read', `write' and `shutdown' functions known to the plugin
+ * The 'plugin_register_*' functions are used to make 'config', 'init',
+ * 'read', 'write' and 'shutdown' functions known to the plugin
  * infrastructure. Also, the data-formats are made public like this.
  */
 int plugin_register_config(const char *name,
@@ -353,11 +353,11 @@ void plugin_log_available_writers(void);
  * DESCRIPTION
  *  This function is called by reading processes with the values they've
  *  aquired. The function fetches the data-set definition (that has been
- *  registered using `plugin_register_data_set') and calls _all_ registered
+ *  registered using 'plugin_register_data_set') and calls _all_ registered
  *  write-functions.
  *
  * ARGUMENTS
- *  `vl'        Value list of the values that have been read by a `read'
+ *  'vl'        Value list of the values that have been read by a 'read'
  *              function.
  */
 int plugin_dispatch_values(value_list_t const *vl);
