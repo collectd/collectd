@@ -530,20 +530,4 @@ Get collectd up and running quickly with these steps:
    - Data aggregation
    - Storage optimization
 
-## Getting Help
-
-### Support Channels
-
-1. **Community Support**
-   - GitHub Issues: Technical problems and feature requests
-   - Mailing List: General discussion and announcements
-   - IRC: Real-time chat with community
-   - Stack Overflow: Q&A with 'collectd' tag
-
-2. **Commercial Support**
-   - Various companies offer commercial support
-   - Professional services available
-   - Custom development
-   - Training and consultation
-
 [Back to top](#collectd---the-system-statistics-collection-daemon)
