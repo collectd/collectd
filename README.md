@@ -296,7 +296,7 @@ Features
       Information provided by serial multimeters, such as the `Metex M-4650CR`.
 
     - mysql
-      MySQL server statistics: Commands issued, handlers triggered, thread
+      MariaDB and MySQL server statistics: Commands issued, handlers triggered, thread
       usage, query cache utilization and traffic/octets sent and received.
 
     - netapp
