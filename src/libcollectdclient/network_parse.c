@@ -63,6 +63,8 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 #endif
 
+#include <alloca.h>
+
 /* forward declaration because parse_sign_sha256()/parse_encrypt_aes256() and
  * network_parse() need to call each other. */
 static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
@@ -412,9 +414,12 @@ static int parse_sign_sha256(void *signature, size_t signature_len,
   if (buffer_next(b, hash, sizeof(hash)))
     return EINVAL;
 
-  char username[b->len + 1];
-  memset(username, 0, sizeof(username));
-  if (buffer_next(b, username, sizeof(username) - 1)) {
+  const size_t username_len = (b->len + 1) * sizeof(char);
+  char *username = alloca(username_len);
+  if (!username)
+    return ENOMEM;
+  memset(username, 0, username_len);
+  if (buffer_next(b, username, username_len - 1)) {
     return EINVAL;
   }
 
@@ -536,8 +541,11 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
     }
     sz -= 4;
 
-    uint8_t payload[sz];
-    if (buffer_next(b, payload, sizeof(payload)))
+    const size_t payload_len = sz * sizeof(uint8_t);
+    uint8_t *payload = alloca(payload_len);
+    if (!payload)
+      return ENOMEM;
+    if (buffer_next(b, payload, payload_len))
       return EINVAL;
 
     switch (type) {
@@ -546,7 +554,7 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
     case TYPE_PLUGIN_INSTANCE:
     case TYPE_TYPE:
     case TYPE_TYPE_INSTANCE: {
-      if (parse_identifier(type, payload, sizeof(payload), &state)) {
+      if (parse_identifier(type, payload, payload_len, &state)) {
         DEBUG("lcc_network_parse(): parse_identifier failed.\n");
         return EINVAL;
       }
@@ -557,7 +565,7 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
     case TYPE_INTERVAL_HR:
     case TYPE_TIME:
     case TYPE_TIME_HR: {
-      if (parse_time(type, payload, sizeof(payload), &state)) {
+      if (parse_time(type, payload, payload_len, &state)) {
         DEBUG("lcc_network_parse(): parse_time failed.\n");
         return EINVAL;
       }
@@ -566,7 +574,7 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
 
     case TYPE_VALUES: {
       lcc_value_list_t vl = state;
-      if (parse_values(payload, sizeof(payload), &vl)) {
+      if (parse_values(payload, payload_len, &vl)) {
         free(vl.values);
         free(vl.values_types);
         DEBUG("lcc_network_parse(): parse_values failed.\n");
@@ -589,7 +597,7 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
 
     case TYPE_SIGN_SHA256: {
       int status =
-          parse_sign_sha256(payload, sizeof(payload), b->data, b->len, opts);
+          parse_sign_sha256(payload, payload_len, b->data, b->len, opts);
       if (status != 0) {
         DEBUG("lcc_network_parse(): parse_sign_sha256() = %d\n", status);
         return -1;
@@ -601,7 +609,7 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
     }
 
     case TYPE_ENCR_AES256: {
-      int status = parse_encrypt_aes256(payload, sizeof(payload), opts);
+      int status = parse_encrypt_aes256(payload, payload_len, opts);
       if (status != 0) {
         DEBUG("lcc_network_parse(): parse_encrypt_aes256() = %d\n", status);
         return -1;
