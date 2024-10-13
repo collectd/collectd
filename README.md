@@ -124,7 +124,7 @@ sudo make install
 apt-get install collectd
 
 # RHEL/CentOS
-yum install collectd
+dnf install collectd
 
 # macOS (Homebrew)
 brew install collectd
