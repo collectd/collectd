@@ -57,7 +57,7 @@ mindmap
 
 ### Key Features:
 
-- **Low overhead**: Written in C for maximum performance and minimal system impact
+- **Low overhead**: For details, see [FAQ](#frequently-asked-questions)
 - **Extensible plugin architecture**: Easy to add new data sources and output methods
 - **Networking support**: Ability to send and receive data over the network
 - **High-resolution metrics**: Sub-second resolution for collected data
