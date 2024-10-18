@@ -8106,6 +8106,7 @@ B<Synopsis:>
    CollectFileDescriptor  true
    CollectContextSwitch   true
    CollectDelayAccounting false
+   CollectDelayAccountingIRQ false
    CollectSystemContextSwitch false
    Process "name"
    ProcessMatch "name" "regex"
@@ -8154,6 +8155,22 @@ Disabled by default.
 This option is only available on Linux, requires the C<libmnl> library and
 requires the C<CAP_NET_ADMIN> capability at runtime.
 
+=item B<CollectDelayAccountingIRQ> I<Boolean>
+
+If enabled, collect Linux Delay Accounting information for matching processes.
+Delay IRQ provides the time processes wait for the CPU running in IRQ context.
+The metric is reported as "seconds per second"
+using the C<delay_rate> type, e.g. C<delay_rate-delay-irq>.
+Disabled by default.
+
+This option is only available on Linux, requires the C<libmnl> library and
+requires the C<CAP_NET_ADMIN> capability at runtime.
+
+Note that if you are using your customized Linux system, please make sure
+`/usr/include/linux/taskstats.h` (in C<libmnl> by default) is equal to
+`/your_cutomized_linux_source_path/include/uapi/linux/taskstats.h`.
+Otherwise metrics in B<CollectDelayAccounting> would not work.
+
 =item B<CollectFileDescriptor> I<Boolean>
 
 Collect number of file descriptors of matched processes.
@@ -8175,7 +8192,8 @@ blocks.
 =back
 
 The B<CollectContextSwitch>, B<CollectDelayAccounting>,
-B<CollectFileDescriptor> and B<CollectMemoryMaps> options may be used inside
+B<CollectDelayAccountingIRQ>, B<CollectFileDescriptor>
+and B<CollectMemoryMaps> options may be used inside
 B<Process> and B<ProcessMatch> blocks. When used there, these options affect
 reporting the corresponding processes only. Outside of B<Process> and
 B<ProcessMatch> blocks these options set the default value for subsequent
