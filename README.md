@@ -49,8 +49,8 @@ mindmap
       Encryption
       Access control
     Integration
-      Grafana
       Prometheus
+        Grafana
       Elasticsearch
       Kibana
 ```
