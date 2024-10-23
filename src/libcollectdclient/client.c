@@ -309,7 +309,7 @@ static int lcc_receive(lcc_connection_t *c, /* {{{ */
     ptr++;
 
   /* Now copy the message. */
-  strncpy(res.message, ptr, sizeof(res.message));
+  strncpy(res.message, ptr, sizeof(res.message) - 1);
   res.message[sizeof(res.message) - 1] = '\0';
 
   /* Error or no lines follow: We're done. */
