@@ -163,7 +163,7 @@ static char *sstrerror(int errnum, char *buf, size_t buflen) {
                 buflen);
     }
   }
-    /* #endif STRERROR_R_CHAR_P */
+  /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
