@@ -177,8 +177,70 @@ DEF_TEST(notification) {
   return expect_json_labels(got, labels, STATIC_ARRAY_SIZE(labels));
 }
 
+DEF_TEST(metadata) {
+  char *expected =
+      "{\"string1\":\"a string data1\",\"string2\":\"a string data2\"}";
+  char actual[1024];
+  size_t buffer_fill = 0, buffer_free = 1024;
+
+  meta_data_t *meta = meta_data_create();
+  meta_data_add_string(meta, "string1", "a string data1");
+  meta_data_add_string(meta, "string2", "a string data2");
+
+  CHECK_ZERO(
+      format_json_meta_data(actual, &buffer_fill, &buffer_free, meta, NULL, 0));
+
+  EXPECT_EQ_STR(expected, actual);
+
+  meta_data_destroy(meta);
+  return 0;
+}
+
+DEF_TEST(metadata_with_keys) {
+  char *expected =
+      "{\"string1\":\"a string data1\",\"string3\":\"a string data3\"}";
+  char actual[1024];
+  char *keys[] = {"string1", "string3"};
+  size_t buffer_fill = 0, buffer_free = 1024;
+
+  meta_data_t *meta = meta_data_create();
+  meta_data_add_string(meta, "string1", "a string data1");
+  meta_data_add_string(meta, "string2", "a string data2");
+  meta_data_add_string(meta, "string3", "a string data3");
+
+  CHECK_ZERO(
+      format_json_meta_data(actual, &buffer_fill, &buffer_free, meta, keys, 2));
+  printf("actual: %s\n", actual);
+
+  EXPECT_EQ_STR(expected, actual);
+
+  meta_data_destroy(meta);
+  return 0;
+}
+
+DEF_TEST(metadata_with_no_matched_key) {
+  char *expected = "";
+  char actual[1024] = {0};
+  char *keys[] = {"string4"};
+  size_t buffer_fill = 0, buffer_free = 1024;
+
+  meta_data_t *meta = meta_data_create();
+  meta_data_add_string(meta, "string1", "a string data1");
+  meta_data_add_string(meta, "string2", "a string data2");
+
+  EXPECT_EQ_INT(ENOENT, format_json_meta_data(actual, &buffer_fill,
+                                              &buffer_free, meta, keys, 1));
+  EXPECT_EQ_STR(expected, actual);
+
+  meta_data_destroy(meta);
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(notification);
+  RUN_TEST(metadata);
+  RUN_TEST(metadata_with_keys);
+  RUN_TEST(metadata_with_no_matched_key);
 
   END_TEST;
 }
