@@ -291,6 +291,13 @@ degrees Celsius. The default value is, of course, B<0.0>.
 
 This value is not applied to counter-values.
 
+=item B<ScaleOID> I<OID>
+
+All values returned by the SNMP-agent are multiplied by the returned value of
+I<OID>. MIBs such as HOST-RESOURCES return storage sizes hrStorageSize and
+storage used hrStorageUsed in multiples of hrStorageAllocationUnits, which can
+vary by device and type of storage.
+
 =item B<Ignore> I<Value> [, I<Value> ...]
 
 The ignore values allows one to ignore TypeInstances based on their name and
