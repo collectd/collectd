@@ -9555,6 +9555,40 @@ B<FAILURE> will only send failures to syslog.
 
 =back
 
+=head2 Plugin C<systemd>
+
+The I<systemd> plugin collects systemd metrics of specified services and
+slices. Metrics are collected if the corresponding accounting flag is true
+(see L<systemd.service(5)>). For example, CPUUsageNSec is collected when
+CPUAccounting is true. Collected metrics and corresponding flags are
+CPUAccounting, CPUUsageNSec, MemoryAccounting, MemoryAvailable, MemoryCurrent,
+MemoryPeak, MemorySwapCurrent, MemoryZSwapCurrent, MemorySwapPeak,
+IOAccounting, IOReadBytes, IOReadOperations, IOWriteBytes, IOWriteOperations,
+IPAccounting, IPEgressBytes, IPEgressPackets, IPIngressBytes, IPIngressPackets,
+TasksAccounting, TasksCurrent (see L<org.freedesktop.systemd1(5)>).
+
+B<Synopsis:>
+
+  <Plugin systemd>
+    Service "some.service"
+    Slice "some.slice"
+    Service "another.service"
+  </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Service> I<service>
+
+Sets the service to collect metrics from it.
+
+=item B<Slice> I<slice>
+
+Sets the slice to collect metrics from it.
+
+=back
+
 =head2 Plugin C<table>
 
 The C<table plugin> provides generic means to parse tabular data and dispatch

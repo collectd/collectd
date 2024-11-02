@@ -2103,6 +2103,15 @@ syslog_la_SOURCES = src/syslog.c
 syslog_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_SYSTEMD
+pkglib_LTLIBRARIES += systemd.la
+systemd_la_SOURCES = src/systemd.c
+systemd_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSYSTEMD_CFLAGS) \
+	$(BUILD_WITH_LIBXML2_CFLAGS)
+systemd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+systemd_la_LIBADD = $(BUILD_WITH_LIBSYSTEMD_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+endif
+
 if BUILD_PLUGIN_TABLE
 pkglib_LTLIBRARIES += table.la
 table_la_SOURCES = src/table.c
