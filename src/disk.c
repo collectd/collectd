@@ -107,6 +107,9 @@ typedef struct diskstats {
   derive_t avg_read_time;
   derive_t avg_write_time;
 
+  derive_t reqsize_read;
+  derive_t reqsize_write;
+
   derive_t io_time;
 
   bool has_merged;
@@ -863,25 +866,25 @@ static int disk_read(void) {
       weighted_time = atof(fields[13]);
     }
 
-    {
-      derive_t diff_read_sectors;
-      derive_t diff_write_sectors;
+    
+    derive_t diff_read_sectors;
+    derive_t diff_write_sectors;
 
-      /* If the counter wraps around, it's only 32 bits.. */
-      if (read_sectors < ds->read_sectors)
-        diff_read_sectors = 1 + read_sectors + (UINT_MAX - ds->read_sectors);
-      else
-        diff_read_sectors = read_sectors - ds->read_sectors;
-      if (write_sectors < ds->write_sectors)
-        diff_write_sectors = 1 + write_sectors + (UINT_MAX - ds->write_sectors);
-      else
-        diff_write_sectors = write_sectors - ds->write_sectors;
+    /* If the counter wraps around, it's only 32 bits.. */
+    if (read_sectors < ds->read_sectors)
+      diff_read_sectors = 1 + read_sectors + (UINT_MAX - ds->read_sectors);
+    else
+      diff_read_sectors = read_sectors - ds->read_sectors;
+    if (write_sectors < ds->write_sectors)
+      diff_write_sectors = 1 + write_sectors + (UINT_MAX - ds->write_sectors);
+    else
+      diff_write_sectors = write_sectors - ds->write_sectors;
 
-      ds->read_bytes += 512 * diff_read_sectors;
-      ds->write_bytes += 512 * diff_write_sectors;
-      ds->read_sectors = read_sectors;
-      ds->write_sectors = write_sectors;
-    }
+    ds->read_bytes += 512 * diff_read_sectors;
+    ds->write_bytes += 512 * diff_write_sectors;
+    ds->read_sectors = read_sectors;
+    ds->write_sectors = write_sectors;
+    
 
     /* Calculate the average time an io-op needs to complete */
     if (is_disk) {
@@ -920,9 +923,12 @@ static int disk_read(void) {
 
       if (diff_read_ops != 0)
         ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
+        ds->reqsize_read += disk_calc_time_incr(diff_read_sectors, diff_read_ops);
       if (diff_write_ops != 0)
         ds->avg_write_time +=
             disk_calc_time_incr(diff_write_time, diff_write_ops);
+        ds->reqsize_write +=
+            disk_calc_time_incr(diff_write_sectors, diff_write_ops);
 
       ds->read_ops = read_ops;
       ds->read_time = read_time;
@@ -1010,6 +1016,9 @@ static int disk_read(void) {
         disk_submit_single(output_name, "disk_flush_ops", flush_ops);
         disk_submit_single(output_name, "disk_flush_time", flush_time);
       }
+      if ((ds->reqsize_read != 0) || (ds->reqsize_write != 0))
+        disk_submit(output_name, "disk_req_sz",ds->reqsize_read,
+                    ds->reqsize_write);
 
       submit_utilization(output_name, diff_io_time);
     } /* if (is_disk) */
