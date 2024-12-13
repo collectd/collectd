@@ -852,7 +852,7 @@ static int mysql_read(user_data_t *ud) {
         gauge_submit("mysql_bpool_bytes", "dirty", val, db);
 
       /* data */
-      if (strcmp(key, "Innodb_data_fsyncs") == 0)
+      else if (strcmp(key, "Innodb_data_fsyncs") == 0)
         derive_submit("mysql_innodb_data", "fsyncs", val, db);
       else if (strcmp(key, "Innodb_data_read") == 0)
         derive_submit("mysql_innodb_data", "read", val, db);
