@@ -906,6 +906,10 @@ static int mysql_read(user_data_t *ud) {
         derive_submit("mysql_innodb_rows", "read", val, db);
       else if (strcmp(key, "Innodb_rows_updated") == 0)
         derive_submit("mysql_innodb_rows", "updated", val, db);
+
+      /* checkpoint */
+      else if (strcmp(key, "Innodb_checkpoint_age") == 0)
+        gauge_submit("mysql_innodb_checkpoint_age", NULL, val, db);
     } else if (strncmp(key, "Select_", strlen("Select_")) == 0) {
       derive_submit("mysql_select", key + strlen("Select_"), val, db);
     } else if (strncmp(key, "Sort_", strlen("Sort_")) == 0) {
