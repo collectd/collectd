@@ -125,6 +125,7 @@ static diskstats_t *disklist;
 
 static bool report_discard;
 static bool report_flush;
+static bool report_req;
 /* #endif KERNEL_LINUX */
 #elif KERNEL_FREEBSD
 static struct gmesh geom_tree;
@@ -170,9 +171,9 @@ static char *conf_udev_name_attr;
 static struct udev *handle_udev;
 #endif
 
-static const char *config_keys[] = {"Disk",           "UseBSDName",
-                                    "IgnoreSelected", "UdevNameAttr",
-                                    "ReportDiscard",  "ReportFlush"};
+static const char *config_keys[] = {
+    "Disk",          "UseBSDName",  "IgnoreSelected", "UdevNameAttr",
+    "ReportDiscard", "ReportFlush", "ReportReq"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist;
@@ -221,6 +222,13 @@ static int disk_config(const char *key, const char *value) {
     report_flush = IS_TRUE(value);
 #else
     WARNING("disk plugin: The \"ReportFlush\" option is only supported "
+            "on Linux and will be ignored.");
+#endif
+  } else if (strcasecmp("ReportReq", key) == 0) {
+#if KERNEL_LINUX
+    report_req = IS_TRUE(value);
+#else
+    WARNING("disk plugin: The  \"ReportReq\" option is only supported "
             "on Linux and will be ignored.");
 #endif
   } else {
@@ -866,7 +874,6 @@ static int disk_read(void) {
       weighted_time = atof(fields[13]);
     }
 
-    
     derive_t diff_read_sectors;
     derive_t diff_write_sectors;
 
@@ -884,7 +891,6 @@ static int disk_read(void) {
     ds->write_bytes += 512 * diff_write_sectors;
     ds->read_sectors = read_sectors;
     ds->write_sectors = write_sectors;
-    
 
     /* Calculate the average time an io-op needs to complete */
     if (is_disk) {
@@ -921,14 +927,18 @@ static int disk_read(void) {
       else
         diff_io_time = io_time - ds->io_time;
 
-      if (diff_read_ops != 0)
+      if (diff_read_ops != 0) {
         ds->avg_read_time += disk_calc_time_incr(diff_read_time, diff_read_ops);
-        ds->reqsize_read += disk_calc_time_incr(diff_read_sectors, diff_read_ops);
-      if (diff_write_ops != 0)
+        ds->reqsize_read +=
+            disk_calc_time_incr(diff_read_sectors, diff_read_ops);
+      }
+
+      if (diff_write_ops != 0) {
         ds->avg_write_time +=
             disk_calc_time_incr(diff_write_time, diff_write_ops);
         ds->reqsize_write +=
             disk_calc_time_incr(diff_write_sectors, diff_write_ops);
+      }
 
       ds->read_ops = read_ops;
       ds->read_time = read_time;
@@ -1016,10 +1026,10 @@ static int disk_read(void) {
         disk_submit_single(output_name, "disk_flush_ops", flush_ops);
         disk_submit_single(output_name, "disk_flush_time", flush_time);
       }
-      if ((ds->reqsize_read != 0) || (ds->reqsize_write != 0))
-        disk_submit(output_name, "disk_req_sz",ds->reqsize_read,
+      if (report_req) {
+        disk_submit(output_name, "disk_req_sz", ds->reqsize_read,
                     ds->reqsize_write);
-
+      }
       submit_utilization(output_name, diff_io_time);
     } /* if (is_disk) */
 
