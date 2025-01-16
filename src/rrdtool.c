@@ -163,80 +163,50 @@ static int srrd_update(char *filename, char *template, int argc,
 } /* int srrd_update */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
 
-static int value_list_to_string_multiple(char *buffer, int buffer_len,
-                                         const data_set_t *ds,
-                                         const value_list_t *vl) {
-  int offset;
+static int metric_to_string(char *buffer, int buffer_size, metric_t const *m) {
   int status;
-  time_t tt;
+  time_t tt = CDTIME_T_TO_TIME_T(m->time);
+  metric_type_t type = m->family->type;
 
-  memset(buffer, '\0', buffer_len);
-
-  tt = CDTIME_T_TO_TIME_T(vl->time);
-  status = ssnprintf(buffer, buffer_len, "%u", (unsigned int)tt);
-  if ((status < 1) || (status >= buffer_len))
-    return -1;
-  offset = status;
-
-  for (size_t i = 0; i < ds->ds_num; i++) {
-    if (ds->ds[i].type == DS_TYPE_COUNTER)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                         (uint64_t)vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":" GAUGE_FORMAT,
-                         vl->values[i].gauge);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
-                         vl->values[i].derive);
-    else
-      return -1;
-
-    if ((status < 1) || (status >= (buffer_len - offset)))
-      return -1;
-
-    offset += status;
-  } /* for ds->ds_num */
-
-  return 0;
-} /* int value_list_to_string_multiple */
-
-static int value_list_to_string(char *buffer, int buffer_len,
-                                const data_set_t *ds, const value_list_t *vl) {
-  int status;
-  time_t tt;
-
-  if (ds->ds_num != 1)
-    return value_list_to_string_multiple(buffer, buffer_len, ds, vl);
-
-  tt = CDTIME_T_TO_TIME_T(vl->time);
-  switch (ds->ds[0].type) {
-  case DS_TYPE_DERIVE:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIi64, (unsigned)tt,
-                       vl->values[0].derive);
+  switch (type) {
+  case METRIC_TYPE_GAUGE:
+    status = ssnprintf(buffer, buffer_size, "%u:" GAUGE_FORMAT, (unsigned)tt,
+                       m->value.gauge);
     break;
-  case DS_TYPE_GAUGE:
-    status = ssnprintf(buffer, buffer_len, "%u:" GAUGE_FORMAT, (unsigned)tt,
-                       vl->values[0].gauge);
+  case METRIC_TYPE_COUNTER:
+    status = ssnprintf(buffer, buffer_size, "%u:%" PRIu64, (unsigned)tt,
+                       m->value.counter);
     break;
-  case DS_TYPE_COUNTER:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
-                       (uint64_t)vl->values[0].counter);
+  case METRIC_TYPE_COUNTER_FP:
+    status = ssnprintf(buffer, buffer_size, "%u:%lf", (unsigned)tt,
+                       m->value.counter_fp);
+    break;
+  case METRIC_TYPE_UP_DOWN:
+    status = ssnprintf(buffer, buffer_size, "%u:%" PRIi64, (unsigned)tt,
+                       m->value.up_down);
+    break;
+  case METRIC_TYPE_UP_DOWN_FP:
+    status = ssnprintf(buffer, buffer_size, "%u:%lf", (unsigned)tt,
+                       m->value.up_down_fp);
     break;
   default:
     return EINVAL;
   }
 
-  if ((status < 1) || (status >= buffer_len))
+  if ((status < 1) || (status >= buffer_size))
     return ENOMEM;
 
   return 0;
-} /* int value_list_to_string */
+} /* int metric_to_string */
 
-static int value_list_to_filename(char *buffer, size_t buffer_size,
-                                  value_list_t const *vl) {
+static int metric_to_filename(char *buffer, size_t buffer_size,
+                              metric_t const *m) {
+  // FIXME: escape label values ("/" -> ?)
+
   char const suffix[] = ".rrd";
   int status;
-  size_t len;
+  label_set_t const *resource = &m->family->resource;
+  label_set_t const *label = &m->label;
 
   if (datadir != NULL) {
     size_t datadir_len = strlen(datadir) + 1;
@@ -252,21 +222,38 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
     buffer_size -= datadir_len;
   }
 
-  status = FORMAT_VL(buffer, buffer_size, vl);
-  if (status != 0)
-    return status;
+  status = ssnprintf(buffer, buffer_size, "%s", m->family->name);
+  if ((status < 1) || (status >= buffer_size))
+    return ENOMEM;
 
-  len = strlen(buffer);
-  assert(len < buffer_size);
-  buffer += len;
-  buffer_size -= len;
+  buffer += status;
+  buffer_size -= status;
+
+  for (size_t i = 0; i < resource->num; ++i) {
+    status = ssnprintf(buffer, buffer_size, "/%s", resource->ptr[i].value);
+    if ((status < 1) || (status >= buffer_size))
+      return ENOMEM;
+
+    buffer += status;
+    buffer_size -= status;
+  }
+
+  for (size_t i = 0; i < label->num; ++i) {
+    status = ssnprintf(buffer, buffer_size, "/%s", label->ptr[i].value);
+    if ((status < 1) || (status >= buffer_size))
+      return ENOMEM;
+
+    buffer += status;
+    buffer_size -= status;
+  }
 
   if (buffer_size <= sizeof(suffix))
     return ENOMEM;
 
   memcpy(buffer, suffix, sizeof(suffix));
+
   return 0;
-} /* int value_list_to_filename */
+} /* int metric_to_filename */
 
 static void *rrd_queue_thread(void __attribute__((unused)) * data) {
   struct timeval tv_next_update;
@@ -768,48 +755,53 @@ static int rrd_compare_numeric(const void *a_ptr, const void *b_ptr) {
     return 0;
 } /* int rrd_compare_numeric */
 
-static int rrd_write(const data_set_t *ds, const value_list_t *vl,
+static int rrd_write(metric_family_t const *fam,
                      user_data_t __attribute__((unused)) * user_data) {
 
   if (do_shutdown)
     return 0;
 
-  if (0 != strcmp(ds->type, vl->type)) {
-    ERROR("rrdtool plugin: DS type does not match value list type");
-    return -1;
-  }
-
   char filename[PATH_MAX];
-  if (value_list_to_filename(filename, sizeof(filename), vl) != 0) {
-    ERROR("rrdtool plugin: failed to build filename");
-    return -1;
-  }
-
-  char values[32 * (ds->ds_num + 1)];
-  if (value_list_to_string(values, sizeof(values), ds, vl) != 0) {
-    ERROR("rrdtool plugin: failed to build values string");
-    return -1;
-  }
-
+  char values[32];
   struct stat statbuf = {0};
-  if (stat(filename, &statbuf) == -1) {
-    if (errno == ENOENT) {
-      if (cu_rrd_create_file(filename, ds, vl, &rrdcreate_config) != 0) {
-        ERROR("rrdtool plugin: cu_rrd_create_file (%s) failed.", filename);
-        return -1;
-      } else if (rrdcreate_config.async) {
-        return 0;
-      }
-    } else {
-      ERROR("rrdtool plugin: stat(%s) failed: %s", filename, STRERRNO);
+
+  for (size_t i = 0; i < fam->metric.num; ++i) {
+    const metric_t *m = &fam->metric.ptr[i];
+
+    if (metric_to_filename(filename, sizeof(filename), m) != 0) {
+      ERROR("rrdtool plugin: failed to build filename");
       return -1;
     }
-  } else if (!S_ISREG(statbuf.st_mode)) {
-    ERROR("rrdtool plugin: stat(%s): Not a regular file!", filename);
-    return -1;
+
+    if (metric_to_string(values, sizeof(values), m) != 0) {
+      ERROR("rrdtool plugin: failed to build values string");
+      return -1;
+    }
+
+    if (stat(filename, &statbuf) == -1) {
+      if (errno == ENOENT) {
+        if (cu_rrd_create_file(filename, m, &rrdcreate_config) != 0) {
+          ERROR("rrdtool plugin: cu_rrd_create_file (%s) failed.", filename);
+          return -1;
+        } else if (rrdcreate_config.async) {
+          return 0;
+        }
+      } else {
+        ERROR("rrdtool plugin: stat(%s) failed: %s", filename, STRERRNO);
+        return -1;
+      }
+    } else if (!S_ISREG(statbuf.st_mode)) {
+      ERROR("rrdtool plugin: stat(%s): Not a regular file!", filename);
+      return -1;
+    }
+
+    if (rrd_cache_insert(filename, values, m->time) != 0) {
+      ERROR("rrdtool plugin: failed to write values");
+      return -1;
+    }
   }
 
-  return rrd_cache_insert(filename, values, vl->time);
+  return 0;
 } /* int rrd_write */
 
 static int rrd_flush(cdtime_t timeout, const char *identifier,
