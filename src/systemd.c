@@ -5,8 +5,8 @@
 #include "systemd/sd-bus.h"
 #include "utils/common/common.h"
 
-#include <libxml/xpath.h>
 #include "libxml/parser.h"
+#include <libxml/xpath.h>
 
 typedef struct {
   char *name;
