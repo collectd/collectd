@@ -5,8 +5,8 @@
 #include "systemd/sd-bus.h"
 #include "utils/common/common.h"
 
-#include "libxml/parser.h"
 #include <libxml/xpath.h>
+#include "libxml/parser.h"
 
 typedef struct {
   char *name;
@@ -414,7 +414,7 @@ static int get_prop(sd_bus *bus, char const *interface, char const *unit,
   return r;
 }
 
-static int systemd_read() {
+static int systemd_read(void) {
   int r;
   sd_bus_error sd_bus_err = SD_BUS_ERROR_NULL;
   for (unit *unit_it = units; unit_it != units + units_num; ++unit_it) {
@@ -496,7 +496,7 @@ fail:
   return r;
 }
 
-static int systemd_shutdown() {
+static int systemd_shutdown(void) {
   sd_bus_unref(bus);
   for (unit *unit_it = units; unit_it != units + units_num; ++unit_it) {
     free(unit_it->path);
@@ -505,7 +505,7 @@ static int systemd_shutdown() {
   return EXIT_SUCCESS;
 }
 
-void module_register() {
+void module_register(void) {
   plugin_register_complex_config("systemd", systemd_config);
   plugin_register_read("systemd", systemd_read);
   plugin_register_shutdown("systemd", systemd_shutdown);
