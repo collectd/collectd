@@ -44,10 +44,6 @@ void pr_delete_comment_entry(pr_comment_entry_t *comment) {
   free(comment);
 }
 
-void pr_delete_comment(pr_comment_t *comment) {
-  pr_delete_comment_entry(comment);
-}
-
 void pr_delete_item(pr_item_t *item) {
   switch (item->tp) {
   case (PR_METRIC_FAMILY_ITEM): {
@@ -55,7 +51,7 @@ void pr_delete_item(pr_item_t *item) {
     break;
   }
   case (PR_COMMENT_ITEM): {
-    pr_delete_comment(item->body.comment);
+    pr_delete_comment_entry(item->body.comment);
     break;
   }
   }
@@ -284,7 +280,7 @@ pr_item_t *pr_create_comment_item(char *text) {
     return NULL;
   }
   memset(item, 0, sizeof(*item));
-  pr_comment_t *comment = malloc(sizeof(*comment));
+  pr_comment_entry_t *comment = malloc(sizeof(*comment));
   if (!comment) {
     pr_delete_item(item);
     ERROR("Couldn't allocate memory for comment");
@@ -294,7 +290,7 @@ pr_item_t *pr_create_comment_item(char *text) {
   comment->text = strdup(text);
   if (!comment->text) {
     pr_delete_item(item);
-    pr_delete_comment(comment);
+    pr_delete_comment_entry(comment);
     ERROR("Couldn't allocate memory for comment text");
     return NULL;
   }
