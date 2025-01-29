@@ -27,33 +27,33 @@ typedef struct pr_label_s {
   struct pr_label_s *next;
 } pr_label_t;
 
-typedef struct pr_timestamp_s {
+typedef struct {
   bool has_value;
   int64_t value;
 } pr_timestamp_t;
 
-typedef struct pr_metric_entry_s {
+typedef struct {
   char *name;
   pr_label_t *labels;
   double value;
   pr_timestamp_t *timestamp;
 } pr_metric_entry_t;
 
-typedef struct pr_comment_entry_s {
+typedef struct {
   char *text;
 } pr_comment_entry_t;
 
-typedef struct pr_type_entry_s {
+typedef struct {
   char *name;
   pr_metric_type_t tp;
 } pr_type_entry_t;
 
-typedef struct pr_help_entry_s {
+typedef struct {
   char *name;
   char *hint;
 } pr_help_entry_t;
 
-typedef struct pr_entry_s {
+typedef struct {
   pr_entry_type_t tp;
   union {
     pr_metric_entry_t *metric;
@@ -63,18 +63,14 @@ typedef struct pr_entry_s {
   } body;
 } pr_entry_t;
 
-typedef struct pr_item_s pr_item_t;
-
-typedef struct pr_metric_s pr_metric_t;
-
 typedef struct pr_metric_s {
   pr_label_t *labels;
   double value;
   pr_timestamp_t *timestamp;
-  pr_metric_t *next;
+  struct pr_metric_s *next;
 } pr_metric_t;
 
-typedef struct pr_metric_family_s {
+typedef struct {
   char *name;
   char *help;
   pr_metric_type_t tp;
@@ -87,10 +83,10 @@ typedef struct pr_item_s {
     pr_metric_family_t *metric_family;
     pr_comment_entry_t *comment;
   } body;
-  pr_item_t *next;
+  struct pr_item_s *next;
 } pr_item_t;
 
-typedef struct pr_item_list_s {
+typedef struct {
   pr_item_t *begin;
 } pr_item_list_t;
 
