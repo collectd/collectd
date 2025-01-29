@@ -335,16 +335,11 @@ static int get_metrics(void) {
   return 0;
 }
 
-static pthread_mutex_t pr_metrics_lock;
-
 static int prometheus_read(void) {
-  pthread_mutex_lock(&pr_metrics_lock);
   if (get_metrics() != 0) {
     ERROR("Failed to fetch metrics from Prometheus.");
-    pthread_mutex_unlock(&pr_metrics_lock);
     return -1;
   }
-  pthread_mutex_unlock(&pr_metrics_lock);
   return 0;
 }
 
