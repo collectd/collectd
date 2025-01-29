@@ -8440,7 +8440,7 @@ This plugin has the following config options:
 
 =item B<URL> I<Prometheus_instance_URL>
 
-Sets the URL of the prometheus instance output.
+Sets the URL of the Prometheus instance output.
 
 =item B<User> I<Username>
 
