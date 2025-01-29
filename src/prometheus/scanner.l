@@ -1,5 +1,6 @@
 %{
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include "ast.h"
 
@@ -35,10 +36,7 @@ int yywrap(void) {
 }
 
 char* replace_escaped_chars(char* text, size_t text_size) {
-    char* res = calloc(text_size + 1, sizeof(*res));
-    if (!res) {
-        return NULL;
-    }
+    char* res = scalloc(text_size + 1, sizeof(*res));
     size_t res_iter = 0;
     for (size_t i = 0; i < text_size; i++) {
         if (text[i] == '\\') {
@@ -146,10 +144,7 @@ NaN {
 }
 
 <TYPE>[a-zA-Z_][a-zA-Z0-9_]* {
-    yylval.string = strdup(yytext);
-    if (!yylval.string) {
-        return EXIT_FAILURE;
-    }
+    yylval.string = sstrdup(yytext);
     return NAME;
 }
 
@@ -159,36 +154,24 @@ NaN {
 
 <COMMENT_TEXT>[^\n]* {
     BEGIN(INITIAL);
-    yylval.string = strndup(yytext + 1, strlen(yytext) - 1);
-    if (!yylval.string) {
-        return EXIT_FAILURE;
-    }
+    yylval.string = sstrndup(yytext + 1, strlen(yytext) - 1);
     return COMMENT;
 }
 
 <HELP_NAME>[a-zA-Z_][a-zA-Z0-9_]* {
     BEGIN(HELP_HINT);
-    yylval.string = strdup(yytext);
-    if (!yylval.string) {
-        return EXIT_FAILURE;
-    }
+    yylval.string = sstrdup(yytext);
     return NAME;
 }
 
 <HELP_HINT>[^\n]* {
     BEGIN(INITIAL);
-    yylval.string = strndup(yytext + 1, strlen(yytext) - 1);
-    if (!yylval.string) {
-        return EXIT_FAILURE;
-    }
+    yylval.string = sstrndup(yytext + 1, strlen(yytext) - 1);
     return METRIC_HELP;
 }
 
 \"(\\[\"\\nrt]|[^\"\\])*\" {
     yylval.string = replace_escaped_chars(yytext + 1, strlen(yytext) - 2);
-    if (yylval.string == NULL) {
-        return lexer_error("Couldn't allocate memory for string without escaped chars\n", EXIT_FAILURE);
-    }
     return LABEL_VALUE;
 }
 
@@ -219,10 +202,7 @@ NaN {
 }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
-    yylval.string = strdup(yytext);
-    if (!yylval.string) {
-        return EXIT_FAILURE;
-    }
+    yylval.string = sstrdup(yytext);
     return NAME;
 }
 

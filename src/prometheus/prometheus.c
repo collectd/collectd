@@ -7,8 +7,6 @@
 
 #include <curl/curl.h>
 
-#include <errno.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -71,39 +69,36 @@ static size_t prometheus_write_callback(void *ptr, size_t size, size_t nmemb,
   return len;
 }
 
-static int config_set(char **var, const char *value) {
+static void config_set(char **var, const char *value) {
   if (*var != NULL) {
     free(*var);
     *var = NULL;
   }
-
-  if ((*var = strdup(value)) == NULL)
-    return 1;
-  else
-    return 0;
+  *var = sstrdup(value);
 }
 
 static int config(const char *key, const char *value) {
   if (strcasecmp(key, "url") == 0)
-    return config_set(&url, value);
+    config_set(&url, value);
   else if (strcasecmp(key, "user") == 0)
-    return config_set(&user, value);
+    config_set(&user, value);
   else if (strcasecmp(key, "password") == 0)
-    return config_set(&pass, value);
+    config_set(&pass, value);
   else if (strcasecmp(key, "verifypeer") == 0)
-    return config_set(&verify_peer, value);
+    config_set(&verify_peer, value);
   else if (strcasecmp(key, "verifyhost") == 0)
-    return config_set(&verify_host, value);
+    config_set(&verify_host, value);
   else if (strcasecmp(key, "cacert") == 0)
-    return config_set(&cacert, value);
+    config_set(&cacert, value);
   else if (strcasecmp(key, "timeout") == 0)
-    return config_set(&timeout, value);
+    config_set(&timeout, value);
   else if (strcasecmp(key, "socket") == 0)
-    return config_set(&sock, value);
+    config_set(&sock, value);
   else if (strcasecmp(key, "jwttoken") == 0)
-    return config_set(&jwt_token, value);
+    config_set(&jwt_token, value);
   else
     return -1;
+  return 0;
 }
 
 static int prometheus_init(void) {
@@ -186,11 +181,7 @@ static int prometheus_init(void) {
 
 static metric_t *convert_pr_metric_to_metric(pr_metric_t *pr_metric,
                                              metric_type_t metric_type) {
-  metric_t *metric = malloc(sizeof(*metric));
-  if (!metric) {
-    ERROR("Couldn't allocate memory for metric");
-    return NULL;
-  }
+  metric_t *metric = smalloc(sizeof(*metric));
   memset(metric, 0, sizeof(*metric));
   pr_label_t *cur_pr_label = pr_metric->labels;
   while (cur_pr_label) {
@@ -256,15 +247,9 @@ static int convert_pr_fam_to_fam(pr_metric_family_t *pr_fam,
     return EXIT_FAILURE;
   }
   }
-  fam->name = strdup(pr_fam->name);
-  if (!fam->name) {
-    return EXIT_FAILURE;
-  }
+  fam->name = sstrdup(pr_fam->name);
   if (pr_fam->help) {
-    fam->help = strdup(pr_fam->help);
-    if (!fam->help) {
-      return EXIT_FAILURE;
-    }
+    fam->help = sstrdup(pr_fam->help);
   }
   pr_metric_t *pr_cur_metric = pr_fam->metric_list;
   while (pr_cur_metric) {
@@ -290,11 +275,7 @@ static int dispatch_pr_items(pr_item_list_t *pr_items) {
     switch (cur_item->tp) {
     case (PR_METRIC_FAMILY_ITEM): {
       pr_metric_family_t *pr_metric_family = cur_item->body.metric_family;
-      metric_family_t *fam = malloc(sizeof(*fam));
-      if (!fam) {
-        ERROR("Couldn't allocate memory for fam");
-        return EXIT_FAILURE;
-      }
+      metric_family_t *fam = smalloc(sizeof(*fam));
       memset(fam, 0, sizeof(*fam));
       if (convert_pr_fam_to_fam(pr_metric_family, fam) != 0) {
         metric_family_free(fam);

@@ -1,5 +1,6 @@
 %{
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include "ast.h"
 
@@ -94,10 +95,6 @@ item_list:
     entry
     {
         $$ = pr_create_item_list();
-        if (!$$) {
-            pr_delete_entry($1);
-            return EXIT_FAILURE;
-        }
         if (pr_add_entry_to_item_list($$, $1) < 0) {
             pr_delete_entry($1);
             return EXIT_FAILURE;
@@ -119,27 +116,15 @@ entry:
     metric
     {
         $$ = pr_create_entry_from_metric($1);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     | comment {
         $$ = pr_create_entry_from_comment($1);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     | type {
         $$ = pr_create_entry_from_type($1);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     | help {
         $$ = pr_create_entry_from_help($1);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     ;
 
@@ -147,9 +132,6 @@ metric:
     NAME label_list numeric_value timestamp
     {
         $$ = pr_create_metric_entry($1, $2, $3, $4);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     ;
 
@@ -168,16 +150,10 @@ timestamp:
     INTEGER_NUMBER
     {
         $$ = pr_create_value_timestamp($1);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     |
     {
         $$ = pr_create_empty_timestamp();
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     ;
 
@@ -185,9 +161,6 @@ comment:
    COMMENT
     {
         $$ = pr_create_comment_entry($1);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     ;
 
@@ -219,26 +192,17 @@ label:
     NAME EQUALS LABEL_VALUE
     {
         $$ = pr_create_label($1, $3);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
     ;
 
 type:
     TYPE_DECLARATION NAME METRIC_TYPE {
         $$ = pr_create_type_entry($2, $3);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
 
 help:
     HELP_DECLARATION NAME METRIC_HELP {
         $$ = pr_create_help_entry($2, $3);
-        if (!$$) {
-            return EXIT_FAILURE;
-        }
     }
 
 %%
