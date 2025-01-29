@@ -81,13 +81,11 @@ typedef struct pr_metric_family_s {
   pr_metric_t *metric_list;
 } pr_metric_family_t;
 
-typedef pr_comment_entry_t pr_comment_t;
-
 typedef struct pr_item_s {
   pr_item_type_t tp;
   union {
     pr_metric_family_t *metric_family;
-    pr_comment_t *comment;
+    pr_comment_entry_t *comment;
   } body;
   pr_item_t *next;
 } pr_item_t;
