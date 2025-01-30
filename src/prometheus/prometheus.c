@@ -243,7 +243,11 @@ static int convert_pr_fam_to_fam(pr_metric_family_t *pr_fam,
     break;
   }
   default: {
-    ERROR("Unknown Prometheus metric family type");
+    ERROR("Unknown Prometheus metric family type: %d. One of the values "
+          "counter (%d), gauge (%d), untyped (%d), summary (%d) or histogram "
+          "(%d) was expected",
+          pr_fam->tp, PR_COUNTER, PR_GAUGE, PR_UNTYPED, PR_SUMMARY,
+          PR_HISTOGRAM);
     return EXIT_FAILURE;
   }
   }
