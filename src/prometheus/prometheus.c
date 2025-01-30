@@ -21,10 +21,10 @@ extern pr_item_list_t *pr_items;
 static int parse_metrics(char *lexer_buffer) {
   set_lexer_buffer(lexer_buffer);
   if (yyparse() != 0) {
-    ERROR("prometheus plugin: Failed while parsing");
+    ERROR("Prometheus plugin: Failed while parsing");
     return EXIT_FAILURE;
   }
-  INFO("prometheus plugin: Parsing completed successfully.");
+  INFO("Prometheus plugin: Parsing completed successfully.");
   return 0;
 }
 
@@ -106,7 +106,7 @@ static int prometheus_init(void) {
     curl_easy_cleanup(curl);
 
   if ((curl = curl_easy_init()) == NULL) {
-    ERROR("prometheus plugin: curl_easy_init failed.");
+    ERROR("Prometheus plugin: curl_easy_init failed.");
     return -1;
   }
 
@@ -124,7 +124,7 @@ static int prometheus_init(void) {
     int status = ssnprintf(credentials, sizeof(credentials), "%s:%s", user,
                            pass == NULL ? "" : pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
-      ERROR("prometheus plugin: Credentials would have been truncated.");
+      ERROR("Prometheus plugin: Credentials would have been truncated.");
       return -1;
     }
 
@@ -170,7 +170,7 @@ static int prometheus_init(void) {
   int status = ssnprintf(jwt_header, sizeof(jwt_header),
                          "Authorization: Bearer %s", jwt_token);
   if ((status < 0) || ((size_t)status >= sizeof(jwt_header))) {
-    ERROR("prometheus plugin: jwt token would have been truncated.");
+    ERROR("Prometheus plugin: jwt token would have been truncated.");
     return -1;
   }
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER,
@@ -207,7 +207,7 @@ static metric_t *convert_pr_metric_to_metric(pr_metric_t *pr_metric,
     break;
   }
   default: {
-    ERROR("Unsupported prometheus value representation");
+    ERROR("Unsupported Prometheus value representation");
     metric_reset(metric);
     free(metric);
     return NULL;
@@ -243,7 +243,7 @@ static int convert_pr_fam_to_fam(pr_metric_family_t *pr_fam,
     break;
   }
   default: {
-    ERROR("Unknown prometheus metric family type");
+    ERROR("Unknown Prometheus metric family type");
     return EXIT_FAILURE;
   }
   }
@@ -283,7 +283,7 @@ static int dispatch_pr_items(pr_item_list_t *pr_items) {
       }
       int status = plugin_dispatch_metric_family(fam);
       if (status != 0) {
-        ERROR("prometheus plugin: plugin_dispatch_metric_family failed: %s",
+        ERROR("Prometheus plugin: plugin_dispatch_metric_family failed: %s",
               STRERROR(status));
       }
       metric_family_free(fam);
