@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 extern int yyparse(void);
 extern void set_lexer_buffer(const char *str);
@@ -120,15 +121,20 @@ static int prometheus_init(void) {
     curl_easy_setopt(curl, CURLOPT_USERNAME, user);
     curl_easy_setopt(curl, CURLOPT_PASSWORD, (pass == NULL) ? "" : pass);
 #else
-    static char credentials[1024];
-    int status = ssnprintf(credentials, sizeof(credentials), "%s:%s", user,
+    size_t credentials_size = strlen(user) + sizeof(":") + strlen(pass);
+    char *credentials = smalloc(credentials_size + 1);
+    ERROR("%s:%s", user, pass);
+    int status = ssnprintf(credentials, credentials_size, "%s:%s", user,
                            pass == NULL ? "" : pass);
-    if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
-      ERROR("Prometheus plugin: Credentials would have been truncated.");
+    if ((status < 0) || ((size_t)status > credentials_size)) {
+      ERROR("Prometheus plugin: Error has occurred while serializing "
+            "credentials. Status: %d",
+            status);
       return -1;
     }
-
+    credentials[credentials_size] = '\0';
     curl_easy_setopt(curl, CURLOPT_USERPWD, credentials);
+    free(credentials);
 #endif
   }
 
@@ -165,17 +171,21 @@ static int prometheus_init(void) {
     curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, sock);
   }
 #endif
-
-  static char jwt_header[512];
-  int status = ssnprintf(jwt_header, sizeof(jwt_header),
-                         "Authorization: Bearer %s", jwt_token);
-  if ((status < 0) || ((size_t)status >= sizeof(jwt_header))) {
-    ERROR("Prometheus plugin: jwt token would have been truncated.");
-    return -1;
+  if (jwt_token != NULL) {
+    size_t jwt_header_size = strlen(jwt_token) + 50;
+    char *jwt_header = smalloc(jwt_header_size + 1);
+    int status = ssnprintf(jwt_header, jwt_header_size,
+                           "Authorization: Bearer %s", jwt_token);
+    if ((status < 0) || ((size_t)status >= jwt_header_size)) {
+      ERROR("Prometheus plugin: Error has occurred while serializing "
+            "jwt token. Status: %d",
+            status);
+      return -1;
+    }
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER,
+                     curl_slist_append(NULL, jwt_header));
+    free(jwt_header);
   }
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER,
-                   curl_slist_append(NULL, jwt_header));
-
   return 0;
 }
 
