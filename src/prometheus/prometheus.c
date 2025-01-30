@@ -42,8 +42,10 @@ static char *sock;
 static char *jwt_token;
 
 static CURL *curl;
-static char prometheus_buffer[1048576];
+static char *prometheus_buffer;
 static size_t prometheus_buffer_len;
+static size_t prometheus_buffer_capacity;
+
 static char prometheus_curl_error[CURL_ERROR_SIZE];
 
 static const char *config_keys[] = {"URL",        "User",       "Password",
@@ -54,12 +56,14 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static size_t prometheus_write_callback(void *ptr, size_t size, size_t nmemb,
                                         void *stream) {
   size_t len = size * nmemb;
-
-  if ((prometheus_buffer_len + len) >= sizeof(prometheus_buffer)) {
-    assert(sizeof(prometheus_buffer) > prometheus_buffer_len);
-    len = (sizeof(prometheus_buffer) - 1) - prometheus_buffer_len;
+  if (prometheus_buffer_len + len >= prometheus_buffer_capacity) {
+    size_t new_prometheus_buffer_capacity = prometheus_buffer_len + len + 1;
+    if (new_prometheus_buffer_capacity < 2 * prometheus_buffer_capacity) {
+      new_prometheus_buffer_capacity = 2 * prometheus_buffer_capacity;
+    }
+    prometheus_buffer_capacity = new_prometheus_buffer_capacity;
+    prometheus_buffer = realloc(prometheus_buffer, prometheus_buffer_capacity);
   }
-
   if (len == 0)
     return len;
 
