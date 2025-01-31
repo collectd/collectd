@@ -64,7 +64,7 @@ jobs:
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Upload config.log
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.container_tag }}-${{ github.run_id }}-config-log
         path: config.log
@@ -79,7 +79,7 @@ jobs:
         echo "$?" >make-check.status
       continue-on-error: true
     - name: Upload log files
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.container_tag }}-${{ github.run_id }}-logs
         path: "*.log"
@@ -130,7 +130,7 @@ jobs:
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Upload config.log
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.container_tag }}-${{ github.run_id }}-config-log
         path: config.log
@@ -143,7 +143,7 @@ jobs:
         echo "$?" >make-check.status
       continue-on-error: true
     - name: Upload log files
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.container_tag }}-${{ github.run_id }}-logs
         path: "*.log"
