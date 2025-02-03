@@ -163,7 +163,7 @@ static char *sstrerror(int errnum, char *buf, size_t buflen) {
                 buflen);
     }
   }
-    /* #endif STRERROR_R_CHAR_P */
+  /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
@@ -309,7 +309,7 @@ static int lcc_receive(lcc_connection_t *c, /* {{{ */
     ptr++;
 
   /* Now copy the message. */
-  strncpy(res.message, ptr, sizeof(res.message));
+  strncpy(res.message, ptr, sizeof(res.message) - 1);
   res.message[sizeof(res.message) - 1] = '\0';
 
   /* Error or no lines follow: We're done. */
