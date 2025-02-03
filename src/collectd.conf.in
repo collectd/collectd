@@ -2086,6 +2086,15 @@
 #	</Node>
 #</Plugin>
 
+#<Plugin write_parquet>
+#	BaseDir "/home/example/dir"
+#	FileDuration 7200
+#	Compression "Off"
+#	BufferSize 10000
+#	BufferDuration 600
+#</Plugin>
+
+
 #<Plugin write_prometheus>
 #	Port "9103"
 #</Plugin>

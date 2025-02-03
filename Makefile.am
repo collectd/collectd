@@ -2372,6 +2372,14 @@ write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 write_mongodb_la_LIBADD = $(BUILD_WITH_LIBMONGOC_LIBS)
 endif
 
+if BUILD_PLUGIN_WRITE_PARQUET
+pkglib_LTLIBRARIES += write_parquet.la
+write_parquet_la_SOURCES = src/write_parquet.cc
+write_parquet_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPARQUET_CPPFLAGS)
+write_parquet_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPARQUET_LDFLAGS)
+write_parquet_la_LIBADD = $(BUILD_WITH_LIBPARQUET_LIBS)
+endif
+
 if BUILD_PLUGIN_WRITE_PROMETHEUS
 pkglib_LTLIBRARIES += write_prometheus.la
 write_prometheus_la_SOURCES = src/write_prometheus.c

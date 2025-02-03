@@ -11258,6 +11258,53 @@ want to use authentication all three fields must be set.
 
 =back
 
+
+=head2 Plugin C<write_parquet>
+
+The I<write_parquet plugin> will save values as I<Apache Parquet> file format.
+
+B<Synopsis:>
+
+ <Plugin write_parquet>
+    BaseDir "/home/example/dir"
+    FileDuration 7200
+    Compression "Off"
+    BufferSize 10000
+    BufferDuration 600
+ </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<BaseDir> I<Path>
+
+Path to directory in filesystem to save all files in. Defaults to C<".">.
+
+=item B<FileDuration> I<Seconds>
+
+Minimal amount of time between creating new file to write in. Defaults to C<3600>.
+
+=item B<Compression> I<off|uncompressed|gzip|zstd|brotli>
+
+I<Off> option is alias to I<Uncompressed>
+Set the file compression algorithm. Default value is I<Uncompressed>
+
+=item B<BufferSize> I<NumRows>
+
+If set to 0, directly writes to file.
+Defines maximal number of metric values to be contained before writing.
+Each generated file has its own buffer, but together they cannot
+contain more than <BufferSize>
+
+=item B<BufferDuration> I<Seconds>
+
+Determines time for buffered values to be stored.
+If the file`s lifetime has expired earlier than buffer`s one,
+I<BufferDuration> is ignored and all data will be flushed before closing file.
+
+=back
+
 =head2 Plugin C<write_prometheus>
 
 The I<write_prometheus plugin> implements a tiny webserver that can be scraped

@@ -4255,6 +4255,92 @@ AC_SUBST([BUILD_WITH_LIBOWCAPI_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBOWCAPI_LIBS])
 # }}}
 
+# --with-libparquet {{{
+AC_ARG_WITH([libparquet],
+  [AS_HELP_STRING([--with-libparquet@<:@=PREFIX@:>@], [Path to libparquet.])],
+  [
+    with_libparquet="$withval"
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_libparquet_cppflags="-I$withval/include"
+      with_libparquet_ldflags="-L$withval/lib"
+      with_libparquet="yes"
+    fi
+    if test "x$withval" = "xno"; then
+      with_libparquet="no (disabled on command line)"
+    fi
+  ],
+  [withval="yes"]
+)
+if test "x$withval" = "xyes"; then
+PKG_CHECK_MODULES([PARQUET], [arrow parquet],
+  [with_libparquet="yes"],
+  [with_libparquet="no (pkg-config could not find libparquet)"]
+)
+fi
+if test "x$withval" != "xno"; then
+  AC_MSG_CHECKING([whether $CXX accepts -std=c++17])
+  if test_cxx_flags -std=c++17; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+    with_libparquet="no (requires C++17 support)"
+    fi
+fi
+if test "x$with_libparquet" = "xyes"; then
+  AC_LANG_PUSH(C++)
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="-std=c++17 $with_libparquet_cppflags $CPPFLAGS"
+  AC_CHECK_HEADERS([arrow/api.h parquet/arrow/writer.h],
+    [with_libparquet="yes"],
+    [with_libparquet="no"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  AC_LANG_POP(C++)
+fi
+if test "x$with_libparquet" = "xyes"; then
+  AC_LANG_PUSH(C++)
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  CPPFLAGS="-std=c++17 $with_libparquet_cppflags $CPPFLAGS"
+  LDFLAGS="$with_libparquet_ldflags"
+  if test "x$PARQUET_LIBS" = "x"; then
+    LIBS="-larrow -lparquet"
+  else
+    LIBS="$PARQUET_LIBS"
+  fi
+  AC_LINK_IFELSE(
+    [
+      AC_LANG_PROGRAM(
+        [[
+        #include <arrow/api.h>
+        #include <parquet/arrow/writer.h>
+        arrow::Status st;
+        parquet::WriterProperties::Builder builder;
+        ]]
+      )
+    ],
+    [
+      with_libparquet="yes"
+      if test "x$PARQUET_LIBS" = "x"; then
+        PARQUET_LIBS="-larrow -lparquet"
+      fi
+    ],
+    [with_libparquet="no (libparquet not found)"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
+  AC_LANG_POP(C++)
+fi
+BUILD_WITH_LIBPARQUET_CPPFLAGS="-std=c++17 $with_libparquet_cppflags"
+BUILD_WITH_LIBPARQUET_LDFLAGS="$with_libparquet_ldflags"
+BUILD_WITH_LIBPARQUET_LIBS="-larrow -lparquet"
+AC_SUBST([BUILD_WITH_LIBPARQUET_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBPARQUET_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBPARQUET_LIBS])
+# }}}
+
 # --with-libpcap {{{
 AC_ARG_WITH([libpcap],
   [AS_HELP_STRING([--with-libpcap@<:@=PREFIX@:>@], [Path to libpcap.])],
@@ -6910,6 +6996,7 @@ plugin_write_influxdb_udp="yes"
 plugin_write_kafka="$with_librdkafka"
 plugin_write_log="no"
 plugin_write_mongodb="$with_libmongoc"
+plugin_write_parquet="no"
 plugin_write_prometheus="no"
 plugin_write_redis="yes"
 plugin_write_riemann="$with_libriemann_client"
@@ -6959,6 +7046,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_vmem="yes"
   plugin_vserver="yes"
   plugin_wireless="yes"
+  plugin_write_parquet="$with_libparquet"
   plugin_zfs_arc="yes"
 
   if test "x$ac_cv_header_linux_ip_vs_h" = "xyes"; then
@@ -7616,6 +7704,7 @@ AC_PLUGIN([write_influxdb_udp],  [$plugin_write_influxdb_udp],[Influxdb udp outp
 AC_PLUGIN([write_kafka],         [$plugin_write_kafka],       [Kafka output plugin])
 AC_PLUGIN([write_log],           [$plugin_write_log],         [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$plugin_write_mongodb],     [MongoDB output plugin])
+AC_PLUGIN([write_parquet],       [$plugin_write_parquet],     [File output plugin])
 AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus],  [Prometheus write plugin])
 AC_PLUGIN([write_redis],         [$plugin_write_redis],       [Redis output plugin])
 AC_PLUGIN([write_riemann],       [$plugin_write_riemann],     [Riemann output plugin])
@@ -7857,6 +7946,7 @@ AC_MSG_RESULT([    libnvidia-ml  . . . . $with_cuda])
 AC_MSG_RESULT([    libopenipmi . . . . . $with_libopenipmipthread])
 AC_MSG_RESULT([    liboping  . . . . . . $with_liboping])
 AC_MSG_RESULT([    libowcapi . . . . . . $with_libowcapi])
+AC_MSG_RESULT([    libparquet  . . . . . $with_libparquet])
 AC_MSG_RESULT([    libpcap . . . . . . . $with_libpcap])
 AC_MSG_RESULT([    libperfstat . . . . . $with_perfstat])
 AC_MSG_RESULT([    libperl . . . . . . . $with_libperl])
@@ -8063,6 +8153,7 @@ AC_MSG_RESULT([    write_influxdb_udp. . $enable_write_influxdb_udp])
 AC_MSG_RESULT([    write_kafka . . . . . $enable_write_kafka])
 AC_MSG_RESULT([    write_log . . . . . . $enable_write_log])
 AC_MSG_RESULT([    write_mongodb . . . . $enable_write_mongodb])
+AC_MSG_RESULT([    write_parquet . . . . $enable_write_parquet])
 AC_MSG_RESULT([    write_prometheus. . . $enable_write_prometheus])
 AC_MSG_RESULT([    write_redis . . . . . $enable_write_redis])
 AC_MSG_RESULT([    write_riemann . . . . $enable_write_riemann])
