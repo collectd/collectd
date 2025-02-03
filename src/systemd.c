@@ -284,10 +284,9 @@ static bool was_slice = false;
 static int introspect_prop(xmlXPathContextPtr xpath_ctx,
                            char const interface[static 1], char **prop) {
   char query[128];
-  sprintf(query,
-          "//interface[@name=\"%s\"]/"
-          "property[@name=\"%s\"]",
-          interface, *prop);
+  snprintf(query, sizeof(query),
+           "//interface[@name=\"%s\"]/property[@name=\"%s\"]", interface,
+           *prop);
   xmlXPathObjectPtr xpath_obj =
       xmlXPathEvalExpression(BAD_CAST(query), xpath_ctx);
   if (xpath_obj == NULL) {
