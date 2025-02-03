@@ -9581,11 +9581,11 @@ B<Options:>
 
 =item B<Service> I<service>
 
-Sets the service to collect metrics from it.
+Collect metrics from specified service.
 
 =item B<Slice> I<slice>
 
-Sets the slice to collect metrics from it.
+Collect metrics from specified slice.
 
 =back
 
