@@ -7621,7 +7621,7 @@ AC_PLUGIN([swap],                [$plugin_swap],              [Swap usage statis
 AC_PLUGIN([synproxy],            [$plugin_synproxy],          [Synproxy stats plugin])
 AC_PLUGIN([sysevent],            [$plugin_sysevent],          [rsyslog events])
 AC_PLUGIN([syslog],              [$plugin_syslog],            [Syslog logging plugin])
-AC_PLUGIN([systemd],             [$plugin_systemd],           [Systemd plugin hey])
+AC_PLUGIN([systemd],             [$plugin_systemd],           [Systemd plugin])
 AC_PLUGIN([table],               [$plugin_table],             [Parsing of tabular data])
 AC_PLUGIN([tail],                [$plugin_tail],              [Parsing of logfiles])
 AC_PLUGIN([tail_csv],            [$plugin_tail_csv],          [Parsing of CSV files])
