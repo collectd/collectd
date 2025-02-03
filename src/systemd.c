@@ -474,7 +474,7 @@ static int systemd_read(void) {
             m = (metric_t){.value.gauge = val};
             break;
           default:
-            ERROR("Unimplemented collectd type");
+            ERROR("Unimplemented collectd type: %d", metrics_it->collectd_type);
             goto fail;
           }
           metric_label_set(&m, "path", unit_it->path);
