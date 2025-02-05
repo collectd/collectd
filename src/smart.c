@@ -151,7 +151,8 @@ static int create_ignorelist_by_serial(ignorelist_t *il) {
         name++;
 
       if (ignorelist_match(ignorelist, name) == 0) {
-        // Allow ignored devices with no serial to carry over to serial ignore list
+        // Allow ignored devices with no serial to carry over to serial ignore
+        // list
         if (!serial)
           serial = name;
         ignorelist_add(ignorelist_by_serial, serial);
