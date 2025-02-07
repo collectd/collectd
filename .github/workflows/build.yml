@@ -56,9 +56,9 @@ jobs:
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Upload config.log
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.container_tag }}
+        name: configure log for ${{ matrix.container_tag }} ${{ matrix.configure_flags }}
         path: config.log
     - name: Build collectd
       run: make -j$(nproc) -sk
@@ -69,9 +69,9 @@ jobs:
         echo "$?" >make-check.status
       continue-on-error: true
     - name: Upload log files
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.container_tag }}
+        name: Build logs ${{ matrix.container_tag }} ${{ matrix.configure_flags }}
         path: "*.log"
     - name: Report check status
       run: exit $(< make-check.status)
@@ -115,9 +115,9 @@ jobs:
     - name: Run configure script
       run: ./configure $CONFIGURE_FLAGS
     - name: Upload config.log
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.container_tag }}
+        name: configure log for ${{ matrix.container_tag }} ${{ matrix.configure_flags }}
         path: config.log
     - name: Build collectd
       run: make -j$(nproc) -sk
@@ -128,9 +128,9 @@ jobs:
         echo "$?" >make-check.status
       continue-on-error: true
     - name: Upload log files
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.container_tag }}
+        name: Build logs ${{ matrix.container_tag }} ${{ matrix.configure_flags }}
         path: "*.log"
     - name: Report check status
       run: exit $(< make-check.status)
