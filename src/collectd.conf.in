@@ -176,6 +176,7 @@
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NOTIFY_NAGIOS_TRUE@LoadPlugin notify_nagios
+#@BUILD_PLUGIN_NOTIFY_TELEGRAM_TRUE@LoadPlugin notify_telegram
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 #@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
@@ -1281,6 +1282,19 @@
 
 #<Plugin notify_nagios>
 #	CommandFile "/usr/local/nagios/var/rw/nagios.cmd"
+#</Plugin>
+
+#<Plugin notify_telegram>
+#	BotToken "telegram-bot-token"
+#	ProxyURL "https://api.telegram.org/bot"
+#	DisableGettingUpdates false
+#	WebhookHost "https://real.url.com"
+#	WebhookPort "443"
+#	WebhookURL "/bot/telegram-bot-token"
+#	MHDDaemonHost "localhost"
+#	MHDDaemonPort "8000"
+#	RecipientChatID "123123123"
+#	RecipientChatID "-1424242424242"
 #</Plugin>
 
 #<Plugin ntpd>
