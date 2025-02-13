@@ -435,10 +435,11 @@ static int dpdk_helper_link_status_get(dpdk_helper_ctx_t *phc) {
   for (unsigned int i = 0; i < ec->nb_ports; i++) {
     if (ec->config.link_status.enabled_port_mask & (1 << i)) {
       struct rte_eth_link link;
+      int ret;
       ec->link_info[i].read_time = cdtime();
-      rte_eth_link_get_nowait(i, &link);
-      if ((link.link_status == ETH_LINK_NA) ||
-          (link.link_status != ec->link_info[i].link_status)) {
+      ret = rte_eth_link_get_nowait(i, &link);
+      if (ret >= 0 && (link.link_status == ETH_LINK_NA ||
+                       link.link_status != ec->link_info[i].link_status)) {
         ec->link_info[i].link_status = link.link_status;
         ec->link_info[i].status_updated = 1;
         DPDK_CHILD_LOG(" === PORT %d Link Status: %s\n", i,
