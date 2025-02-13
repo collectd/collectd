@@ -421,9 +421,14 @@ static int systemd_config(oconfig_item_t *ci) {
 
   for (size_t i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *child = ci->children + i;
-
     unit unit;
+
     unit.is_slice = !strcmp(child->key, "Slice");
+    if (!unit.is_slice && strcmp(child->key, "Service")) {
+      ERROR("Invalid config item: %s", child->key);
+      return FAIL;
+    }
+
     if (get_unit_path(child, &unit.path) == FAIL)
       return FAIL;
 
