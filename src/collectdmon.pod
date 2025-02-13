@@ -57,6 +57,11 @@ termination and then shut down.
 This signal causes B<collectdmon> to terminate B<collectd>, wait for its
 termination and then restart it.
 
+=item B<SIGQUIT>
+
+This signal causes B<collectdmon> to terminate B<collectd> with B<SIGKILL>,
+wait for its termination and then shut down.
+
 =back
 
 =head1 SEE ALSO
