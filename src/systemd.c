@@ -3,7 +3,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#include "systemd/sd-bus.h"
+#include <systemd/sd-bus.h>
 
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
