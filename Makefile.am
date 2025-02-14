@@ -1937,6 +1937,17 @@ rrdtool_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdtool_la_LIBADD = $(BUILD_WITH_LIBRRD_LIBS)
 endif
 
+if BUILD_PLUGIN_S3SENDER
+pkglib_LTLIBRARIES += s3sender.la
+s3sender_la_SOURCES = \
+	src/s3sender.c \
+	src/s3sender_impl.cpp \
+	src/s3sender_impl.h
+s3sender_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBS3SENDER_CPPFLAGS)
+s3sender_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBS3SENDER_LDFLAGS) -lipc
+s3sender_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBS3SENDER_LIBS)
+endif
+
 if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = src/sensors.c
