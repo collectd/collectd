@@ -212,6 +212,7 @@
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_SYSEVENT_TRUE@LoadPlugin sysevent
+#@BUILD_PLUGIN_SYSTEMD_TRUE@LoadPlugin systemd
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
 #@BUILD_PLUGIN_TAIL_CSV_TRUE@LoadPlugin tail_csv
@@ -1776,6 +1777,12 @@
 #       BufferLength 10
 #       RegexFilter "regex"
 #</Plugin>
+
+# <Plugin systemd>
+# 	Service "some.service"
+# 	Slice "some.slice"
+# 	Service "another.service"
+# </Plugin>
 
 #<Plugin table>
 #	<Table "/proc/slabinfo">
