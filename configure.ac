@@ -6824,6 +6824,7 @@ plugin_mdevents="no"
 plugin_memcachec="$with_libmemcached"
 plugin_memcached="yes"
 plugin_memory="no"
+plugin_mesh="no"
 plugin_mic="$with_mic"
 plugin_mmc="no"
 plugin_modbus="$with_libmodbus"
@@ -6945,6 +6946,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_mcelog="yes"
   plugin_mdevents="yes"
   plugin_memory="yes"
+  plugin_mesh="yes"
   plugin_nfs="yes"
   plugin_numa="yes"
   plugin_processes="yes"
@@ -7529,6 +7531,7 @@ AC_PLUGIN([mdevents],            [$plugin_mdevents],          [Events from md (L
 AC_PLUGIN([memcachec],           [$plugin_memcachec],         [memcachec statistics])
 AC_PLUGIN([memcached],           [$plugin_memcached],         [memcached statistics])
 AC_PLUGIN([memory],              [$plugin_memory],            [Memory usage])
+AC_PLUGIN([mesh],                [$plugin_mesh],              [Wifi Mesh])
 AC_PLUGIN([mic],                 [$plugin_mic],               [Intel Many Integrated Core stats])
 AC_PLUGIN([modbus],              [$plugin_modbus],            [Modbus plugin])
 AC_PLUGIN([mqtt],                [$plugin_mqtt],              [MQTT output plugin])
@@ -7977,6 +7980,7 @@ AC_MSG_RESULT([    mdevents  . . . . . . $enable_mdevents])
 AC_MSG_RESULT([    memcachec . . . . . . $enable_memcachec])
 AC_MSG_RESULT([    memcached . . . . . . $enable_memcached])
 AC_MSG_RESULT([    memory  . . . . . . . $enable_memory])
+AC_MSG_RESULT([    mesh  . . . . . . . . $enable_mesh])
 AC_MSG_RESULT([    mic . . . . . . . . . $enable_mic])
 AC_MSG_RESULT([    mmc . . . . . . . . . $enable_mmc])
 AC_MSG_RESULT([    modbus  . . . . . . . $enable_modbus])
