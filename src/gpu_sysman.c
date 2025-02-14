@@ -61,10 +61,12 @@
 #endif
 
 #include "plugin.h"
+#include "resource.h"
 #include "utils/common/common.h"
 
 #define PLUGIN_NAME "gpu_sysman"
 #define METRIC_PREFIX "collectd_" PLUGIN_NAME "_"
+#define MAX_LABEL_LEN 1024
 
 /* collectd plugin API callback finished OK */
 #define RET_OK 0
@@ -97,11 +99,8 @@ typedef struct {
 
 /* handles for the GPU devices discovered by Sysman library */
 typedef struct {
-  /* GPU info for metric labels */
-  char *pci_bdf;  // required, acts as device ID
-  char *pci_dev;  // if ADD_DEV_FILE
-  char *dev_file; // if ADD_DEV_FILE
-  char *dev_name; // if GpuInfo
+  /* GPU resource attributes: PCI device ID, BDF, dev & file name */
+  label_set_t attribs;
   /* number of types for metrics without allocs */
   uint32_t ras_count;
   uint32_t temp_count;
@@ -242,14 +241,8 @@ static int gpu_config_free(void) {
     /* zero rest of counters & free name */
     gpus[i].ras_count = 0;
     gpus[i].temp_count = 0;
-    free(gpus[i].pci_bdf);
-    gpus[i].pci_bdf = NULL;
-    free(gpus[i].pci_dev);
-    gpus[i].pci_dev = NULL;
-    free(gpus[i].dev_file);
-    gpus[i].dev_file = NULL;
-    free(gpus[i].dev_name);
-    gpus[i].dev_name = NULL;
+    /* free resource attributes */
+    label_set_reset(&(gpus[i].attribs));
   }
 #undef FREE_GPU_SAMPLING_ARRAYS
 #undef FREE_GPU_ARRAY
@@ -379,18 +372,17 @@ static int gpu_config_init(unsigned int count) {
   return RET_OK;
 }
 
-/* log given UUID (without dashes):
+/* return given UUID as allocated ASCII hex string (without dashes):
  * https://en.wikipedia.org/wiki/Universally_unique_identifier
  */
-static void log_uuid(const char *prefix, const uint8_t *byte, int len) {
-  int offset = strlen(prefix);
-  char buf[offset + 2 * len + 1];
-  sstrncpy(buf, prefix, sizeof(buf));
+static char *get_uuid(const uint8_t *byte, int len) {
+  char *uuid = smalloc(2 * len + 1);
+  int offset = 0;
   while (len-- > 0) {
-    sprintf(buf + offset, "%02x", *byte++);
+    sprintf(uuid + offset, "%02x", *byte++);
     offset += 2;
   }
-  INFO("%s", buf);
+  return uuid;
 }
 
 static const char *map_mem_location(zes_mem_loc_t location) {
@@ -473,14 +465,16 @@ static const char *map_mem_health(zes_mem_health_t value) {
 }
 
 /* If GPU info setting is enabled, log Sysman API provided info for
- * given GPU, and set device name to 'dev_name'.  On success, return
- * true and set GPU PCI address to 'pci_bdf' as string in BDF notation:
+ * given GPU, and set device & FW properties to 'props' & 'fw_names'.
+ * On success, return true, allocate UUID string to 'uuid' and GPU
+ * PCI address to 'pci_bdf' as BDF notation string:
  * https://wiki.xen.org/wiki/Bus:Device.Function_(BDF)_Notation
  */
-static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
+static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **uuid,
+                     zes_device_properties_t *props, char **fw_names) {
   char buf[32];
 
-  *pci_bdf = *dev_name = NULL;
+  *uuid = *fw_names = *pci_bdf = NULL;
   zes_pci_properties_t pci = {.pNext = NULL};
   ze_result_t ret = zesDevicePciGetProperties(dev, &pci);
   if (ret == ZE_RESULT_SUCCESS) {
@@ -491,13 +485,46 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
     ERROR(PLUGIN_NAME ": failed to get GPU PCI device properties => 0x%x", ret);
     return false;
   }
+
+  zes_device_ext_properties_t ext = {
+      .stype = ZES_STRUCTURE_TYPE_DEVICE_EXT_PROPERTIES,
+  };
+  props->stype = ZES_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+  props->pNext = &ext;
+
+  if (ret = zesDeviceGetProperties(dev, props), ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get GPU device properties => 0x%x", ret);
+    return false;
+  }
+
+  *uuid = get_uuid(ext.uuid.id, sizeof(ext.uuid.id));
   *pci_bdf = sstrdup(buf);
+
   if (!config.gpuinfo) {
     return true;
   }
 
   INFO("\nLevel-Zero Sysman API GPU info");
   INFO("==============================");
+
+  INFO("HW identification:");
+  INFO("- model:   '%s'", props->modelName);
+  INFO("- brand:   '%s'", props->brandName);
+  INFO("- vendor:  '%s'", props->vendorName);
+  INFO("- board#:  '%s'", props->boardNumber);
+  INFO("- serial#: '%s'", props->serialNumber);
+  INFO("- UUID:    0x%s", *uuid);
+
+  INFO("HW info:");
+  if (ext.flags & ZES_DEVICE_PROPERTY_FLAG_INTEGRATED) {
+    INFO("- integrated");
+  } else {
+    INFO("- discrete");
+    INFO("- subdevices: %u", props->numSubdevices);
+  }
+
+  INFO("UMD/KMD driver info:");
+  INFO("- version: %s", props->driverVersion);
 
   INFO("PCI info:");
   INFO("- PCI B/D/F: %s", *pci_bdf);
@@ -547,40 +574,6 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
     }
   }
   INFO("- ECC state: %s", eccstate);
-
-  zes_device_ext_properties_t ext = {
-      .stype = ZES_STRUCTURE_TYPE_DEVICE_EXT_PROPERTIES,
-  };
-  zes_device_properties_t props = {
-      .stype = ZES_STRUCTURE_TYPE_DEVICE_PROPERTIES,
-      .pNext = &ext,
-  };
-
-  INFO("HW identification:");
-  if (ret = zesDeviceGetProperties(dev, &props), ret == ZE_RESULT_SUCCESS) {
-    *dev_name = sstrdup(props.modelName); // used only if present
-
-    INFO("- vendor:  %s", props.vendorName);
-    INFO("- brand:   %s", props.brandName);
-    INFO("- model:   %s", props.modelName);
-    log_uuid("- UUID:    0x", ext.uuid.id, sizeof(ext.uuid.id));
-    INFO("- board#:  %s", props.boardNumber);
-    INFO("- serial#: %s", props.serialNumber);
-
-    INFO("HW info:");
-    if (ext.flags & ZES_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-      INFO("- integrated");
-    } else {
-      INFO("- discrete");
-      INFO("- subdevices: %u", props.numSubdevices);
-    }
-
-    INFO("UMD/KMD driver info:");
-    INFO("- version: %s", props.driverVersion);
-  } else {
-    INFO("- unavailable");
-    WARNING(PLUGIN_NAME ": failed to get GPU device properties => 0x%x", ret);
-  }
 
   /* get memory modules */
   uint32_t i, mem_count = 0;
@@ -642,37 +635,79 @@ static bool gpu_info(zes_device_handle_t dev, char **pci_bdf, char **dev_name) {
     }
   }
   free(mems);
+
+  /* get FW info */
+  uint32_t fw_count = 0;
+  if (ret = zesDeviceEnumFirmwares(dev, &fw_count, NULL),
+      ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get firmware count => 0x%x", ret);
+    return true;
+  }
+  if (fw_count == 0) {
+    return true;
+  }
+  zes_firmware_handle_t *firmwares;
+  firmwares = scalloc(fw_count, sizeof(*firmwares));
+  if (ret = zesDeviceEnumFirmwares(dev, &fw_count, firmwares),
+      ret != ZE_RESULT_SUCCESS) {
+    WARNING(PLUGIN_NAME ": failed to get %d FW info => 0x%x", fw_count, ret);
+    free(firmwares);
+    return true;
+  }
+
+  int offset = 0, space = MAX_LABEL_LEN;
+  *fw_names = smalloc(space);
+  *fw_names[0] = '\0';
+  const char *separator = "";
+
+  /* show FW info(s) */
+  for (i = 0; i < fw_count; i++) {
+    zes_firmware_properties_t props = {.pNext = NULL};
+    if (ret = zesFirmwareGetProperties(firmwares[i], &props),
+        ret != ZE_RESULT_SUCCESS) {
+      continue;
+    }
+    INFO("Firmware-%i:", i);
+    INFO("- name:      %s", props.name);
+    INFO("- version:   %s", props.version);
+    INFO("- flashable: %s", props.canControl ? "yes" : "no");
+    int len = snprintf(*fw_names + offset, space, "%s%s: %s", separator,
+                       props.name, props.version);
+    if (len <= 0 || len > space) {
+      WARNING(PLUGIN_NAME ": failed to add (max %d chars to) FW info => %d",
+              space, len);
+    } else {
+      offset += len;
+      space -= len;
+    }
+    separator = "; ";
+  }
+  free(firmwares);
+
   return true;
 }
 
-/* Add (given) BDF string and device file name to GPU struct for metric labels.
+/*
+ * Scan devfs and sysfs to find primary GPU device file node matching given
+ * BDF, and if one is found, Return (allocated) pointers to corresponding
+ * device file name + device PCI ID, or NULLs.
  *
- * Return false if (required) BDF string is missing, true otherwise.
+ * NOTE: scanning can log only INFO messages, because ERRORs and WARNINGs
+ * would FAIL unit test that are run as part of build, if build environment
+ * has no GPU access.
  */
-static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
-  assert(gpu);
-  char *pci_bdf, *dev_name;
-  if (!gpu_info(dev, &pci_bdf, &dev_name) || !pci_bdf) {
-    return false;
-  }
-  gpu->pci_bdf = pci_bdf;
-  gpu->dev_name = dev_name;
-  /*
-   * scan devfs and sysfs to find primary GPU device file node matching
-   * given BDF, and if one is found, use that as device file name.
-   *
-   * NOTE: scanning can log only INFO messages, because ERRORs and WARNINGs
-   * would FAIL unit test that are run as part of build, if build environment
-   * has no GPU access.
-   */
+static void get_sysfs_info(const char *pci_bdf, char **pci_dev_out,
+                           char **dev_file_out) {
+  *pci_dev_out = *dev_file_out = NULL;
 #if ADD_DEV_FILE
 #define BDF_PREFIX "PCI_SLOT_NAME="
 #define DEVFS_GLOB "/dev/dri/card*"
+
   glob_t devfs;
   if (glob(DEVFS_GLOB, 0, NULL, &devfs) != 0) {
     INFO(PLUGIN_NAME ": device <-> BDF mapping, no matches for: " DEVFS_GLOB);
     globfree(&devfs);
-    return true;
+    return;
   }
 
   for (size_t i = 0; i < devfs.gl_pathc; i++) {
@@ -707,24 +742,87 @@ static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
     if (strcmp(info, pci_bdf) != 0) {
       continue;
     }
-    gpu->dev_file = sstrdup(dev_file);
+    *dev_file_out = sstrdup(dev_file);
 
     /* get also its PCI ID */
-    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/device",
-             gpu->dev_file);
+    snprintf(path, sizeof(path), "/sys/class/drm/%s/device/device", dev_file);
     if (read_text_file_contents(path, buf, sizeof(buf)) > 0) {
       strstripnewline(buf);
       INFO(PLUGIN_NAME ": %s (%s) <-> %s", dev_file, buf, pci_bdf);
-      gpu->pci_dev = strdup(buf);
+      *pci_dev_out = strdup(buf);
     } else {
       INFO(PLUGIN_NAME ": %s <-> %s", dev_file, pci_bdf);
     }
+
     break;
   }
   globfree(&devfs);
 #undef DEVFS_GLOB
 #undef BDF_LINE
 #endif
+}
+
+/* Add device info to GPU attribute labels.
+ *
+ * Return false if (required) BDF string is missing, true otherwise.
+ */
+static bool add_gpu_labels(gpu_device_t *gpu, zes_device_handle_t dev) {
+  assert(gpu);
+
+  label_set_t *attribs = &(gpu->attribs);
+  int err = label_set_clone(attribs, default_resource_attributes());
+  assert(err == 0);
+
+  char *uuid, *pci_bdf, *fw_names;
+  zes_device_properties_t props;
+  memset(&props, 0, sizeof(props));
+  if (!gpu_info(dev, &pci_bdf, &uuid, &props, &fw_names) || !pci_bdf || !uuid) {
+    return false;
+  }
+
+  /* add L0 Sysman device properties to recommended OTEL resource attributes:
+   * https://spec.oneapi.io/level-zero/latest/sysman/api.html#zes-device-properties-t
+   * https://opentelemetry.io/docs/specs/semconv/system/hardware-metrics/#hwgpu---gpu-metrics
+   */
+  const struct {
+    const char *name;
+    const char *value;
+  } labels[] = {
+      {"firmware_version", (const char *)fw_names},
+      {"driver_version", (const char *)&props.driverVersion},
+      {"serial_number", (const char *)&props.serialNumber},
+      {"vendor", (const char *)&props.vendorName},
+      {"name", (const char *)&props.modelName},
+      {"id", (const char *)uuid},
+  };
+
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(labels); i++) {
+    const char *value = labels[i].value;
+    if (value && value[0]) {
+      label_set_update(attribs, labels[i].name, value);
+    }
+  }
+  free(fw_names);
+  free(uuid);
+
+  char *pci_dev, *dev_file;
+  get_sysfs_info(pci_bdf, &pci_dev, &dev_file);
+
+  if (dev_file) {
+    label_set_update(attribs, "dev_file", dev_file);
+    free(dev_file);
+  }
+
+  if (pci_dev) {
+    label_set_update(attribs, "pci_dev", pci_dev);
+    free(pci_dev);
+  }
+
+  /* "instance" label differentiates metrics from same device for OTEL */
+  label_set_update(attribs, "service.instance.id", pci_bdf);
+  label_set_update(attribs, "pci_bdf", pci_bdf);
+  free(pci_bdf);
+
   return true;
 }
 
@@ -929,15 +1027,14 @@ static double metric2double(metric_type_t type, value_t value) {
   assert(0);
 }
 
-/* Add device labels to all metrics in given metric family and submit family to
- * collectd, and log the metric if metric logging is enabled.
- * Resets metric family after dispatch */
-static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
+static void log_family_metrics(metric_family_t *fam) {
   struct timespec ts;
   /* cdtime() is not monotonic */
   clock_gettime(CLOCK_MONOTONIC, &ts);
 
-  const char *pci_bdf = gpu->pci_bdf;
+  const char *pci_bdf = label_set_get(fam->resource, "pci_bdf");
+  assert(pci_bdf);
+
   /* logmetrics readability: skip common BDF address prefix */
   if (strncmp(pci_bdf, "0000:", 5) == 0) {
     pci_bdf += 5;
@@ -952,39 +1049,34 @@ static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
   for (size_t i = 0; i < fam->metric.num; i++) {
     metric_t *m = fam->metric.ptr + i;
 
-    /* log metric values in addition to dispatching them? */
-    if (config.logmetrics) {
-      const char *type = "<type>";
-      char *labels[] = {"direction", "location", "type"};
-      for (size_t i = 0; i < STATIC_ARRAY_SIZE(labels); i++) {
-        char const *l = metric_label_get(m, labels[i]);
-        if (l != NULL) {
-          type = l;
-          break;
-        }
+    const char *type = "<type>";
+    char *labels[] = {"direction", "location", "type"};
+    for (size_t i = 0; i < STATIC_ARRAY_SIZE(labels); i++) {
+      char const *l = metric_label_get(m, labels[i]);
+      if (l != NULL) {
+        type = l;
+        break;
       }
-      INFO("[%7ld.%03ld] %s: %s / %s [%ld]: %.3f", ts.tv_sec,
-           ts.tv_nsec / 1000000, pci_bdf, name, type, i,
-           metric2double(fam->type, m->value));
     }
+    INFO("[%7ld.%03ld] %s: %s / %s [%ld]: %.3f", ts.tv_sec,
+         ts.tv_nsec / 1000000, pci_bdf, name, type, i,
+         metric2double(fam->type, m->value));
+  }
+}
 
-    /* add extra per-metric labels */
-    metric_label_set(m, "pci_bdf", gpu->pci_bdf);
-    if (gpu->pci_dev) {
-      metric_label_set(m, "pci_dev", gpu->pci_dev);
-    }
-    if (gpu->dev_file) {
-      metric_label_set(m, "dev_file", gpu->dev_file);
-    }
-    if (gpu->dev_name) {
-      metric_label_set(m, "dev_name", gpu->dev_name);
-    }
+/* Add GPU resource attribs to given metric family, log its metrics
+ * if metric logging is enabled, and submit family to collectd.
+ * Resets metric family after dispatch */
+static void gpu_submit(gpu_device_t *gpu, metric_family_t *fam) {
+  fam->resource = gpu->attribs;
+  if (config.logmetrics) {
+    log_family_metrics(fam);
   }
 
   int status = plugin_dispatch_metric_family(fam);
   if (status != 0) {
-    ERROR(PLUGIN_NAME ": gpu_submit(%s, %s) failed: %s", gpu->pci_bdf,
-          fam->name, strerror(status));
+    ERROR(PLUGIN_NAME ": gpu_submit() for metric '%s' (%s) failed: %s",
+          fam->name, fam->unit, strerror(status));
   }
   metric_family_metric_reset(fam);
 }

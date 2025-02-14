@@ -51,7 +51,8 @@ static void otel_resource_attributes(void) {
     return;
   }
 
-  size_t tmp_sz = strlen(ra) + 1;
+  /* second +1 is WA for GCC -Wstringop-truncation bug with sstrncpy() */
+  size_t tmp_sz = strlen(ra) + 1 + 1;
   char tmp[tmp_sz];
   sstrncpy(tmp, ra, sizeof(tmp));
 
