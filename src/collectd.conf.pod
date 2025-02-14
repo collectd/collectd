@@ -3037,6 +3037,10 @@ Requires Linux Kernel version > 4.18+.
 Whether to submit flush metrics (/proc/diskstats 19-20), on Linux only.
 Requires Linux Kernel version > 5.5+.
 
+=item B<ReportReq> B<true>|B<false>
+
+Whether to submit read/write requests that were issued to the device.
+
 =back
 
 =head2 Plugin C<dns>
