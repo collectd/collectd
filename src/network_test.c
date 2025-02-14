@@ -21,6 +21,7 @@
 
 #define TEST_PLUGIN_NETWORK 1
 
+#include "daemon/plugin_mock.c"
 #include "network.c" /* (sic) */
 
 #include "testing.h"
