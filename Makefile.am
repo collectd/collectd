@@ -831,8 +831,9 @@ endif
 if BUILD_PLUGIN_CHRONY
 pkglib_LTLIBRARIES += chrony.la
 chrony_la_SOURCES = src/chrony.c
-chrony_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-chrony_la_LIBADD = -lm
+chrony_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBCHRONY_CPPFLAGS)
+chrony_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBCHRONY_LDFLAGS)
+chrony_la_LIBADD = -lchrony
 endif
 
 if BUILD_PLUGIN_CHECK_UPTIME

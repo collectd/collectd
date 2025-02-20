@@ -2318,6 +2318,54 @@ AC_SUBST([BUILD_WITH_SQLITE3_LDFLAGS])
 AC_SUBST([BUILD_WITH_SQLITE3_LIBS])
 # }}}
 
+# --with-libchrony {{{
+AC_ARG_WITH([libchrony],
+  [AS_HELP_STRING([--with-libchrony@<:@=PREFIX@:>@], [Path to libchrony.])],
+  [
+    if test "x$withval" = "xyes"; then
+      with_libchrony="yes"
+    else if test "x$withval" = "xno"; then
+      with_libchrony="no"
+    else
+      with_libchrony="yes"
+      LIBCHRONY_CPPFLAGS="-I$withval/include"
+      LIBCHRONY_LDFLAGS="-L$withval/lib"
+    fi; fi
+  ],
+  [with_libchrony="yes"]
+)
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBCHRONY_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBCHRONY_LDFLAGS"
+
+if test "x$with_libchrony" = "xyes"; then
+  AC_CHECK_HEADERS([chrony.h],
+    [with_libchrony="yes"],
+    [with_libchrony="no (chrony.h not found)"]
+  )
+fi
+
+if test "x$with_libchrony" = "xyes"; then
+  AC_CHECK_LIB([chrony], [chrony_open_socket],
+    [with_libchrony="yes"],
+    [with_libchrony="no (symbol 'chrony_open_socket' not found)"]
+  )
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libchrony" = "xyes"; then
+  BUILD_WITH_LIBCHRONY_CPPFLAGS="$LIBCHRONY_CPPFLAGS"
+  BUILD_WITH_LIBCHRONY_LDFLAGS="$LIBCHRONY_LDFLAGS"
+fi
+
+AC_SUBST([BUILD_WITH_LIBCHRONY_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBCHRONY_LDFLAGS])
+# }}}
+
 # --with-libcurl {{{
 with_curl_config="curl-config"
 with_curl_cflags=""
@@ -7247,7 +7295,7 @@ AC_PLUGIN([buddyinfo],           [$plugin_buddyinfo],         [buddyinfo statist
 AC_PLUGIN([capabilities],        [$plugin_capabilities],      [Platform static capabilities])
 AC_PLUGIN([ceph],                [$plugin_ceph],              [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],           [CGroups CPU usage accounting])
-AC_PLUGIN([chrony],              [yes],                       [Chrony statistics])
+AC_PLUGIN([chrony],              [$with_libchrony],           [Chrony statistics])
 AC_PLUGIN([check_uptime],        [yes],                       [Notify about uptime reset])
 AC_PLUGIN([connectivity],        [$plugin_connectivity],      [Network interface up/down events])
 AC_PLUGIN([conntrack],           [$plugin_conntrack],         [nf_conntrack statistics])
