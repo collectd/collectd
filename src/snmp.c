@@ -1260,21 +1260,21 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
   char *src;
   size_t num_chars;
 
-  if (vb->type == ASN_OCTET_STR)
+  if (vb->type == ASN_OCTET_STR) {
     src = (char *)vb->val.string;
-  else if (vb->type == ASN_BIT_STR)
+  } else if (vb->type == ASN_BIT_STR) {
     src = (char *)vb->val.bitstring;
-  else if (vb->type == ASN_IPADDRESS)
+  } else if (vb->type == ASN_IPADDRESS) {
     return ssnprintf(dst, dst_size,
                      "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
                      (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
                      (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
-  else if (vb->type == ASN_OBJECT_ID)
+  } else if (vb->type == ASN_OBJECT_ID) {
     return snprint_objid(dst, dst_size, vb->val.objid,
                          vb->val_len / sizeof(oid)) >= 0
                ? 0
                : EINVAL;
-  else {
+  } else {
     dst[0] = 0;
     return EINVAL;
   }
