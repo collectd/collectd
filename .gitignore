@@ -90,7 +90,6 @@ bindings/perl/pm_to_blib
 
 # IDE stuff
 .vscode
-.data
 
 # cscope stuff
 cscope.*
