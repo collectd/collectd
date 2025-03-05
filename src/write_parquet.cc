@@ -6,9 +6,6 @@ extern "C" {
 #include "utils/common/common.h"
 
 #include "utils/strbuf/strbuf.h"
-
-#include <fcntl.h>
-#include <stdio.h>
 }
 
 #include <arrow/api.h>
@@ -35,6 +32,7 @@ using std::chrono::system_clock;
 using time_point = system_clock::time_point;
 using node_shared_ptr = std::shared_ptr<parquet::schema::GroupNode>;
 
+
 static const char *config_keys[] = {"basedir", "fileduration", "compression",
                                     "buffersize", "bufferduration"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -53,16 +51,26 @@ static parquet::WriterProperties::Builder properties_builder{};
 static node_shared_ptr schema_int =
         std::static_pointer_cast<parquet::schema::GroupNode>(
                 parquet::schema::GroupNode::Make(
-                        "integer", parquet::Repetition::OPTIONAL,
-                        {parquet::schema::PrimitiveNode::Make(
-                                "value", parquet::Repetition::OPTIONAL, parquet::Type::INT64,
-                                parquet::ConvertedType::INT_64)}));
+                        "value",
+                        parquet::Repetition::OPTIONAL,
+                        {
+                                parquet::schema::PrimitiveNode::Make(
+                                        "value",
+                                        parquet::Repetition::OPTIONAL,
+                                        parquet::Type::INT64,
+                                        parquet::ConvertedType::INT_64)
+                        }
+                )
+        );
 
 static node_shared_ptr schema_double =
         std::static_pointer_cast<parquet::schema::GroupNode>(
-                parquet::schema::GroupNode::Make("double",
-                                                 parquet::Repetition::OPTIONAL,
-                                                 {parquet::schema::Double("value")}));
+                parquet::schema::GroupNode::Make(
+                        "value",
+                        parquet::Repetition::OPTIONAL,
+                        {parquet::schema::Double("value")}
+                )
+        );
 
 /**
  * Convert time_point to std::string with given strftime format, output string
@@ -72,11 +80,9 @@ static node_shared_ptr schema_double =
  * @param format strftime conversion format
  * @return time point as std::string
  */
-static std::string wf_time_point_to_string(time_point point,
-                                           const std::string &format) {
+static std::string wf_time_point_to_string(time_point point, const std::string &format) {
     tm time_tm = {0};
-    char time_buf[24] =
-            {}; // %Y%m%dT%H%M%S.parquet -> 20241231T150109.parquet -> 23 symbols
+    char time_buf[24] = {}; // %Y%m%dT%H%M%S.parquet -> 20241231T150109.parquet -> 23 symbols
 
     time_t now = system_clock::to_time_t(point);
     localtime_r(&now, &time_tm);
@@ -88,12 +94,11 @@ static std::string wf_time_point_to_string(time_point point,
 namespace { // Anonymous namespace
 enum class MetricValueType {
     DOUBLE,
-    INT64,
+    INT64
 };
 
 /**
- * Class to create, contain and rename files with settled period(see global
- * variable file_duration).
+ * Class to create, contain and rename files with settled period(global variable file_duration).
  */
 class File {
 private:
@@ -104,8 +109,7 @@ private:
     std::shared_ptr<arrow::io::FileOutputStream> file{};
 
 public:
-    File(const std::filesystem::path &path)
-            : path(path), path_str((path / filename).string()) {
+    File(const std::filesystem::path &path) : path(path), path_str((path / filename).c_str()) {
         recreate();
     };
 
@@ -127,15 +131,12 @@ public:
         if (not file or file->closed()) {
             return 0;
         }
-        RETURN_ON_ERROR(file->Close().code(), "file closing (%s) failed: %i",
-                        path_str.c_str());
-        std::string time_str =
-                wf_time_point_to_string(creation_time, "%Y%m%dT%H%M%S.parquet");
+        RETURN_ON_ERROR(file->Close().code(), "file closing (%s) failed: %i", path_str.c_str());
+        std::string time_str = wf_time_point_to_string(creation_time, "%Y%m%dT%H%M%S.parquet");
 
         std::error_code error_code{};
         std::filesystem::rename(path_str, path / time_str, error_code);
-        RETURN_ON_ERROR(error_code.value(), "file renaming (%s) failed: %i",
-                        path_str.c_str());
+        RETURN_ON_ERROR(error_code.value(), "file renaming (%s) failed: %i", path_str.c_str());
         return 0;
     }
 
@@ -147,8 +148,7 @@ public:
      */
     int recreate() {
         auto opening_result = arrow::io::FileOutputStream::Open(path_str, false);
-        RETURN_ON_ERROR(opening_result.status().code(),
-                        "file opening (%s) failed: %i", path_str.c_str());
+        RETURN_ON_ERROR(opening_result.status().code(), "file opening (%s) failed: %i", path_str.c_str());
         file = std::move(opening_result.ValueOrDie());
 
         creation_time = system_clock::now();
@@ -156,15 +156,15 @@ public:
     }
 
     /**
-     * File getter
+     * File writing stream getter
      *
-     * @return file
+     * @return arrow::io::FileOutputStream
      */
     std::shared_ptr<arrow::io::FileOutputStream> stream() { return file; }
 };
 
 /**
- * An abstract class for unifying the interfaces for writing double and int64_t.
+ * An abstract class for unifying interfaces for writing double and int64_t.
  */
 class IWriter {
 public:
@@ -183,8 +183,7 @@ public:
  * Class to write metric in File, provide buffer with constraints on size and
  * lifetime.
  *
- * @tparam DataType Type to be written in parquet file, should be one of double
- * or int64_t
+ * @tparam DataType Type to be written in parquet file, should be one of double or int64_t
  */
 template<typename DataType>
 class Writer : public IWriter {
@@ -198,10 +197,12 @@ private:
     std::vector<DataType> buffer{};
 
 public:
-    Writer(const std::filesystem::path &path, node_shared_ptr schema_)
-            : file(path), schema(std::move(schema_)) {
+    Writer(const std::filesystem::path &path, node_shared_ptr schema_) : file(path), schema(std::move(schema_)) {
         writer = parquet::StreamWriter{parquet::ParquetFileWriter::Open(
-                file.stream(), schema, properties_builder.build())};
+                file.stream(),
+                schema,
+                properties_builder.build()
+        )};
     };
 
     /**
@@ -215,8 +216,9 @@ public:
 
     /**
      * Flush all values from buffer to file.
-     * Remember, what parquet is a binary data format with strong constraints on
-     * header and footer. So, to check the values in the active file after flush
+     *
+     * Remember what parquet is a binary data format with strong constraints on
+     * header and footer. So, to check values in the active file after flush
      * you must correctly close the file with calling close()
      */
     void flush() override {
@@ -256,9 +258,8 @@ public:
     }
 
     /**
-     * Add data to buffer. If buffer is fulfilled(or has capacity = 0) writes to
-     * file. Uses mutex to avoid race condition while writing/creating/renaming
-     * file.
+     * Add data to buffer. If buffer is fulfilled(or has capacity = 0) writes to file.
+     * Uses mutex to avoid race condition while writing/creating/renaming file.
      *
      * @param raw_data Value to be saved
      * @return 0 on success, else error code
@@ -307,26 +308,25 @@ public:
      * @return shared pointer on Writer corresponding to the input metric
      */
     template<typename DataType>
-    std::shared_ptr<IWriter> get(const std::string &name,
-                                 const node_shared_ptr &schema) {
+    std::shared_ptr<IWriter> get(const std::string &name, const node_shared_ptr &schema) {
         if (dirs.find(name) != dirs.end()) {
             return dirs.at(name);
         }
         std::error_code error_code{};
         std::filesystem::create_directories(base_directory / name, error_code);
         if (error_code) {
-            P_ERROR("directory creating (%s) error: %s",
-                    (base_directory / name).c_str(), error_code.message().c_str());
+            P_ERROR("directory creating (%s) error: %s", (base_directory / name).c_str(), error_code.message().c_str());
+            return nullptr;
         }
-        dirs.emplace(name, std::make_shared<Writer<DataType>>(base_directory / name,
-                                                              schema));
-        return dirs.at(name);
+        std::shared_ptr<IWriter> writer = std::make_shared<Writer<DataType>>(base_directory / name, schema);
+        dirs.emplace(name, writer);
+        return writer;
     }
 
     /**
      * Getter on dirs
      *
-     * @return reference on std::map. containing all created Writers
+     * @return reference to std::map. containing all created Writers
      */
     std::map<std::string, std::shared_ptr<IWriter>> &get_all() { return dirs; }
 };
@@ -469,8 +469,7 @@ static int wf_init_callback() {
     return 0;
 }
 
-static int wf_flush_callback(cdtime_t timeout, const char *identifier,
-                             user_data_t *user_data) {
+static int wf_flush_callback(cdtime_t timeout, const char *identifier, user_data_t *user_data) {
     if (timeout > 0) {
         return 0;
     }

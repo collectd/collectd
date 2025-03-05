@@ -11262,6 +11262,8 @@ want to use authentication all three fields must be set.
 =head2 Plugin C<write_parquet>
 
 The I<write_parquet plugin> will save values as I<Apache Parquet> file format.
+For each metric creates directory with template C<"I<host name>/I<metric family name>/I<metric labels>".>
+
 
 B<Synopsis:>
 
@@ -11295,7 +11297,7 @@ Set the file compression algorithm. Default value is I<Uncompressed>
 If set to 0, directly writes to file.
 Defines maximal number of metric values to be contained before writing.
 Each generated file has its own buffer, but together they cannot
-contain more than <BufferSize>
+contain more than I<BufferSize>
 
 =item B<BufferDuration> I<Seconds>
 
