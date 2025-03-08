@@ -6340,6 +6340,10 @@ signature):
    </Server>
  </Plugin>
 
+Packets are sent once full.  If data is produced slowly then packets can arrive
+at the server late enough to cause C<FAILURE> notifications about missing
+values.
+
 =over 4
 
 =item B<E<lt>Server> I<Host> [I<Port>]B<E<gt>>
