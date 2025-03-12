@@ -1472,6 +1472,7 @@
 #	CollectMemoryMaps true
 #	CollectDelayAccounting false
 #	CollectSystemContextSwitch false
+#	SkipNonRunningProcess false
 #	Process "name"
 #	ProcessMatch "name" "regex"
 #	<Process "collectd">
