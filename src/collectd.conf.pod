@@ -6524,6 +6524,22 @@ more of the following options to B<false> (all of them default to B<true>).
 
 =back
 
+=head2 Plugin C<nftables>
+
+=over 4
+
+=item B<Table> I<Chain> [I<Comment>]
+
+The I<nftables plugin> collects information about the packet and byte count
+of rules inside your ruleset, given a table and chain.
+
+If only I<Table> and I<Chain> are specified the plugin will only match rules
+with a comment, and use it as type instance.
+
+You can optionally specify I<Comment>, to filter rules given its comment.
+
+=back
+
 =head2 Plugin C<nginx>
 
 This plugin collects the number of connections and requests handled by the
@@ -13172,6 +13188,7 @@ L<collectd-unixsock(5)>,
 L<types.db(5)>,
 L<hddtemp(8)>,
 L<iptables(8)>,
+L<nft(8)>,
 L<kstat(3KSTAT)>,
 L<mbmon(1)>,
 L<psql(1)>,
