@@ -1,4 +1,3 @@
-
 extern "C" {
 #include "collectd.h"
 
@@ -68,14 +67,14 @@ static node_shared_ptr schema_double =
  * @param format strftime conversion format
  * @return time point as std::string
  */
-static std::string wf_time_point_to_string(time_point point,
+static std::string wp_time_point_to_string(time_point point,
                                            const std::string &format) {
   tm time_tm = {0};
-  char time_buf[24] =
-      {}; // %Y%m%dT%H%M%S.parquet -> 20241231T150109.parquet -> 23 symbols
+  // %Y%m%dT%H%M%S.parquet -> 20241231T150109.parquet -> 23 symbols
+  char time_buf[24] = {};
 
-  time_t now = system_clock::to_time_t(point);
-  localtime_r(&now, &time_tm);
+  time_t point_time_t = system_clock::to_time_t(point);
+  localtime_r(&point_time_t, &time_tm);
   strftime(time_buf, sizeof(time_buf), format.c_str(), &time_tm);
 
   return time_buf;
@@ -89,23 +88,21 @@ enum class MetricValueType { DOUBLE, INT64 };
  * file_duration).
  */
 class File {
-private:
+public:
+  std::shared_ptr<arrow::io::OutputStream> file{};
   std::filesystem::path path{};
   std::string path_str{};
-
   time_point creation_time{};
-  std::shared_ptr<arrow::io::FileOutputStream> file{};
 
-public:
-  File(const std::filesystem::path &path)
-      : path(path), path_str((path / filename).c_str()) {
-    recreate();
-  };
+  explicit File(const std::filesystem::path &path)
+      : path(path), path_str((path / filename).c_str()){};
+
+  ~File() { rename(); }
 
   /**
-   * Check if the file exists longer than it should be supported.
+   * Check if file exists longer than it should be supported.
    *
-   * @return true if the file was created no longer than file_duration
+   * @return true if file was created no longer than file_duration
    */
   bool is_active() {
     return system_clock::now() - creation_time < file_duration;
@@ -122,13 +119,34 @@ public:
     }
     RETURN_ON_ERROR(file->Close().code(), "file closing (%s) failed: %i",
                     path_str.c_str());
+#ifndef MOCK_OPEN_FILE
     std::string time_str =
-        wf_time_point_to_string(creation_time, "%Y%m%dT%H%M%S.parquet");
+        wp_time_point_to_string(creation_time, "%Y%m%dT%H%M%S.parquet");
 
     std::error_code error_code{};
     std::filesystem::rename(path_str, path / time_str, error_code);
     RETURN_ON_ERROR(error_code.value(), "file renaming (%s) failed: %i",
                     path_str.c_str());
+#endif
+    return 0;
+  }
+
+  /**
+   * Open file with the given path.
+   * Or create buffer if MOCK_OPEN_FILE defined.
+   *
+   * @param path path to file
+   * @return 0 on success, error code else
+   */
+  int open(const std::string &filepath) {
+#ifndef MOCK_OPEN_FILE
+    auto opening_result = arrow::io::FileOutputStream::Open(filepath, false);
+#else
+    auto opening_result = arrow::io::BufferOutputStream::Create();
+#endif
+    RETURN_ON_ERROR(opening_result.status().code(),
+                    "file opening (%s) failed: %d", filepath.c_str());
+    file = std::move(opening_result.ValueOrDie());
     return 0;
   }
 
@@ -139,25 +157,20 @@ public:
    * @return 0 on success, else error code
    */
   int recreate() {
-    auto opening_result = arrow::io::FileOutputStream::Open(path_str, false);
-    RETURN_ON_ERROR(opening_result.status().code(),
-                    "file opening (%s) failed: %i", path_str.c_str());
-    file = std::move(opening_result.ValueOrDie());
-
     creation_time = system_clock::now();
-    return 0;
+    return open(path_str);
   }
 
   /**
    * File writing stream getter
    *
-   * @return arrow::io::FileOutputStream
+   * @return arrow::io::OutputStream
    */
-  std::shared_ptr<arrow::io::FileOutputStream> stream() { return file; }
+  std::shared_ptr<arrow::io::OutputStream> stream() const { return file; }
 };
 
 /**
- * An abstract class for unifying interfaces for writing double and int64_t.
+ * An abstract class to unify interfaces for writing double and int64_t.
  */
 class IWriter {
 public:
@@ -173,14 +186,14 @@ public:
 };
 
 /**
- * Class to write metric in File, provide buffer with constraints on size and
+ * Class to write metric in file, provide buffer with constraints on size and
  * lifetime.
  *
  * @tparam DataType Type to be written in parquet file, should be one of double
  * or int64_t
  */
 template <typename DataType> class Writer : public IWriter {
-private:
+public:
   File file;
   parquet::StreamWriter writer;
   node_shared_ptr schema;
@@ -189,9 +202,9 @@ private:
   time_point buffer_flush_time{};
   std::vector<DataType> buffer{};
 
-public:
   Writer(const std::filesystem::path &path, node_shared_ptr schema_)
       : file(path), schema(std::move(schema_)) {
+    file.recreate();
     writer = parquet::StreamWriter{parquet::ParquetFileWriter::Open(
         file.stream(), schema, properties_builder.build())};
   };
@@ -213,10 +226,17 @@ public:
    * you must correctly close the file with calling close()
    */
   void flush() override {
+    int wrote_count = 0;
     for (DataType value : buffer) {
-      writer << value << parquet::EndRow;
+      try {
+        writer << value << parquet::EndRow;
+        wrote_count++;
+      } catch (parquet::ParquetException &exception) {
+        P_ERROR("error while writing data: %s", exception.what());
+        break;
+      }
     }
-    buffer_size.fetch_sub(buffer.size());
+    buffer_size.fetch_sub(wrote_count);
     buffer_flush_time = system_clock::now();
     buffer.clear();
   }
@@ -234,18 +254,21 @@ public:
   }
 
   /**
-   * Close the file, flushing buffered data.
-   * Open (or create) a new file named filename and configure the
-   * ParquetFileWriter.
+   * Close the file and flush buffered data.
+   * Open (or create) a new file named filename(global varialbe)
+   * and configure the ParquetFileWriter.
    *
    * @return 0 on success, else error code
    */
   int open() override {
     close();
-    int err = file.recreate();
+    if (int err = file.recreate(); err != 0) {
+      writer = parquet::StreamWriter{};
+      return err;
+    }
     writer = parquet::StreamWriter{parquet::ParquetFileWriter::Open(
         file.stream(), schema, properties_builder.build())};
-    return err;
+    return 0;
   }
 
   /**
@@ -268,13 +291,22 @@ public:
       flush();
     }
 
-    uint64_t new_size = buffer_size.fetch_add(1);
-    if (new_size >= buffer_capacity) {
-      flush();
-      buffer_size.fetch_add(-1);
-      writer << data << parquet::EndRow;
-    } else {
+    uint64_t order = buffer_size.fetch_add(1);
+    uint64_t current_buffer_size = buffer.size();
+    if (order < buffer_capacity) {
       buffer.push_back(data);
+      return 0;
+    }
+    flush();
+    if (order - current_buffer_size < buffer_capacity) {
+      buffer.push_back(data);
+      return 0;
+    }
+    buffer_size.fetch_sub(1);
+    try {
+      writer << data << parquet::EndRow;
+    } catch (parquet::ParquetException &exception) {
+      P_ERROR("error while writing data: %s", exception.what());
     }
     return 0;
   }
@@ -305,6 +337,7 @@ public:
     if (dirs.find(name) != dirs.end()) {
       return dirs.at(name);
     }
+#ifndef MOCK_OPEN_FILE
     std::error_code error_code{};
     std::filesystem::create_directories(base_directory / name, error_code);
     if (error_code) {
@@ -312,6 +345,7 @@ public:
               (base_directory / name).c_str(), error_code.message().c_str());
       return nullptr;
     }
+#endif
     std::shared_ptr<IWriter> writer =
         std::make_shared<Writer<DataType>>(base_directory / name, schema);
     dirs.emplace(name, writer);
@@ -321,7 +355,7 @@ public:
   /**
    * Getter on dirs
    *
-   * @return reference to std::map. containing all created Writers
+   * @return reference to std::map containing all created Writers
    */
   std::map<std::string, std::shared_ptr<IWriter>> &get_all() { return dirs; }
 };
@@ -330,12 +364,12 @@ public:
 static DirectoriesHandler handler{};
 
 /**
- * Return value of metric with MetricValueType DOUBLE
+ * Return value of metric with MetricValueType DOUBLE.
  *
  * @param mt metric, which value will be returned
  * @return value
  */
-static double wf_parse_metric_double(const metric_t *mt) {
+static double wp_parse_metric_double(const metric_t *mt) {
   switch (mt->family->type) {
   case METRIC_TYPE_GAUGE:
     return mt->value.gauge;
@@ -346,16 +380,16 @@ static double wf_parse_metric_double(const metric_t *mt) {
   default:
     break;
   }
-  return 0;
+  return NAN;
 }
 
 /**
- * Return value of metric with MetricValueType INT64
+ * Return value of metric with MetricValueType INT64.
  *
  * @param mt metric, which value will be returned
  * @return value
  */
-static int64_t wf_parse_metric_int(const metric_t *mt) {
+static int64_t wp_parse_metric_int(const metric_t *mt) {
   switch (mt->family->type) {
   case METRIC_TYPE_COUNTER:
     return mt->value.counter;
@@ -368,12 +402,12 @@ static int64_t wf_parse_metric_int(const metric_t *mt) {
 }
 
 /**
- * Determines metric`s value type
+ * Determines metric`s value type.
  *
  * @param mt metric
  * @return type of metric
  */
-static MetricValueType wf_get_metric_type(const metric_t *mt) {
+static MetricValueType wp_get_metric_type(const metric_t *mt) {
   switch (mt->family->type) {
   case METRIC_TYPE_GAUGE:
     return MetricValueType::DOUBLE;
@@ -391,7 +425,15 @@ static MetricValueType wf_get_metric_type(const metric_t *mt) {
   return MetricValueType::DOUBLE;
 }
 
-static int wf_write_callback(metric_family_t const *fam,
+/**
+ * Write metrics from metric family to files.
+ * Always expects the metric family resource "host.name".
+ *
+ * @param fam a metric family with values to be written
+ * @param user_data unused
+ * @return 0 on success, error code else
+ */
+static int wp_write_callback(metric_family_t const *fam,
                              user_data_t *user_data) {
   auto host = label_set_get(fam->resource, "host.name");
   if (not host) {
@@ -413,19 +455,30 @@ static int wf_write_callback(metric_family_t const *fam,
       label_pair_t *lab = mt->label.ptr + j;
       full_path /= lab->value;
     }
-    MetricValueType type = wf_get_metric_type(mt);
+    MetricValueType type = wp_get_metric_type(mt);
     if (type == MetricValueType::DOUBLE) {
       auto writer = handler.get<double>(full_path.string(), schema_double);
-      writer->write(wf_parse_metric_double(mt));
+      if (writer) {
+        writer->write(wp_parse_metric_double(mt));
+      }
     } else if (type == MetricValueType::INT64) {
       auto writer = handler.get<int64_t>(full_path.string(), schema_int);
-      writer->write(wf_parse_metric_int(mt));
+      if (writer) {
+        writer->write(wp_parse_metric_int(mt));
+      }
     }
   }
   return 0;
 }
 
-static int wf_config_callback(const char *key, const char *value) {
+/**
+ * Setup configuration options, which stored in `config_keys`.
+ *
+ * @param key option name
+ * @param value option value
+ * @return 0 on success, error code else
+ */
+static int wp_config_callback(const char *key, const char *value) {
   if (strcasecmp("basedir", key) == 0) {
     base_directory = value;
   } else if (strcasecmp("fileduration", key) == 0) {
@@ -455,7 +508,16 @@ static int wf_config_callback(const char *key, const char *value) {
   return 0;
 }
 
-static int wf_init_callback() {
+/**
+ * Check necessary conditions after setting up config.
+ *
+ * @return 0 on success, error code else
+ */
+static int wp_init_callback() {
+  if (file_duration.count() == 0) {
+    P_ERROR("Invalid file existing duration");
+    return EINVAL;
+  }
   if (buffer_duration > file_duration) {
     P_ERROR("Buffer containing duration(%lu) must be less than file existing "
             "time(%lu)",
@@ -465,33 +527,59 @@ static int wf_init_callback() {
   return 0;
 }
 
-static int wf_flush_callback(cdtime_t timeout, const char *identifier,
+/**
+ * Flushes stored values from buffer to files. Correctly closes files
+ * and creates new ones.
+ * No-op if timeout not equal to zero.
+ *
+ * @param timeout time filtering parameter
+ * @param identifier ignored
+ * @param user_data unused
+ * @return 0 on success, error code else
+ */
+static int wp_flush_callback(cdtime_t timeout, const char *identifier,
                              user_data_t *user_data) {
   if (timeout > 0) {
     return 0;
   }
+  int any_error = 0;
   for (auto &[path, writer] : handler.get_all()) {
-    writer->flush();
-  }
-  return 0;
-}
-
-static int wf_shutdown_callback() {
-  for (auto &[path, writer] : handler.get_all()) {
-    if (int err = writer->close()) {
-      return err;
+    if (not writer) {
+      continue;
+    }
+    // closes old writer inside
+    if (int err = writer->open()) {
+      any_error = err;
     }
   }
-  return 0;
+  return any_error;
+}
+
+/**
+ * Flushes stored data and correctly closes files.
+ *
+ * @return 0 on success, error code else
+ */
+static int wp_shutdown_callback() {
+  int any_error = 0;
+  for (auto &[path, writer] : handler.get_all()) {
+    if (not writer) {
+      continue;
+    }
+    if (int err = writer->close()) {
+      any_error = err;
+    }
+  }
+  return any_error;
 }
 
 extern "C" {
 void module_register(void) {
-  plugin_register_config("write_parquet", wf_config_callback, config_keys,
+  plugin_register_config("write_parquet", wp_config_callback, config_keys,
                          config_keys_num);
-  plugin_register_init("write_parquet", wf_init_callback);
-  plugin_register_write("write_parquet", wf_write_callback, NULL);
-  plugin_register_flush("write_parquet", wf_flush_callback, NULL);
-  plugin_register_shutdown("write_parquet", wf_shutdown_callback);
+  plugin_register_init("write_parquet", wp_init_callback);
+  plugin_register_write("write_parquet", wp_write_callback, NULL);
+  plugin_register_flush("write_parquet", wp_flush_callback, NULL);
+  plugin_register_shutdown("write_parquet", wp_shutdown_callback);
 }
 }
