@@ -31,18 +31,21 @@ using std::chrono::system_clock;
 using time_point = system_clock::time_point;
 using node_shared_ptr = std::shared_ptr<parquet::schema::GroupNode>;
 
-static const char *config_keys[] = {"basedir", "fileduration", "compression",
-                                    "buffersize", "bufferduration"};
+static const char *config_keys[] = {"basedir",     "fileduration",
+                                    "compression", "compressionlevel",
+                                    "buffersize",  "bufferduration"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-
 static std::filesystem::path base_directory = "";
 
 static const inline std::string filename = "active.parquet";
-static std::chrono::seconds file_duration = std::chrono::seconds(3600);
 
+static std::chrono::seconds file_duration = std::chrono::seconds(3600);
 static std::chrono::seconds buffer_duration = std::chrono::seconds(300);
+
 static uint64_t buffer_capacity = 10000;
 static std::atomic<uint64_t> buffer_size = 0;
+
+static int compression_level = 1;
 
 static parquet::WriterProperties::Builder properties_builder{};
 
@@ -501,6 +504,8 @@ static int wp_config_callback(const char *key, const char *value) {
       P_ERROR("Invalid compression type (%s)", value);
       return EINVAL;
     }
+  } else if (strcasecmp("compressionlevel", key) == 0) {
+    compression_level = std::strtoul(value, nullptr, 10);
   } else {
     P_ERROR("Invalid configuration option (%s)", key);
     return -EINVAL;
@@ -524,6 +529,30 @@ static int wp_init_callback() {
             buffer_duration.count(), file_duration.count());
     return EINVAL;
   }
+  switch (properties_builder.build()->compression(
+      parquet::schema::ColumnPath::FromDotString("value"))) {
+  case parquet::Compression::BROTLI:
+    if (1 > compression_level or compression_level > 11) {
+      P_ERROR("for BROTLI compression level must be in [1;11]");
+      return EINVAL;
+    }
+    break;
+  case parquet::Compression::ZSTD:
+    if (1 > compression_level or compression_level > 22) {
+      P_ERROR("for ZSTD compression level must be in [1;22]");
+      return EINVAL;
+    }
+    break;
+  case parquet::Compression::GZIP:
+    if (1 > compression_level or compression_level > 9) {
+      P_ERROR("for GZIP compression level must be in [1;9]");
+      return EINVAL;
+    }
+    break;
+  default:
+    break;
+  }
+  properties_builder.compression_level(compression_level);
   return 0;
 }
 

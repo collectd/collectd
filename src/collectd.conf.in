@@ -2089,7 +2089,8 @@
 #<Plugin write_parquet>
 #	BaseDir "/home/example/dir"
 #	FileDuration 7200
-#	Compression "Off"
+#	Compression "GZIP"
+#	CompressionLevel 3
 #	BufferSize 10000
 #	BufferDuration 600
 #</Plugin>

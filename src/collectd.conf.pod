@@ -11292,6 +11292,11 @@ Minimal amount of time between creating new file to write in. Defaults to C<3600
 I<Off> option is alias to I<Uncompressed>
 Set the file compression algorithm. Default value is I<Uncompressed>
 
+=item B<CompressionLevel> I<Level>
+
+Ignored when B<Compression> set to I<Uncompressed>.
+Set the file compression level. Default value is I<1>
+
 =item B<BufferSize> I<NumRows>
 
 If set to 0, directly writes to file.
