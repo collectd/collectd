@@ -12,6 +12,7 @@ extern "C" {
 #include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <iostream>
 #include <map>
 #include <mutex>
 #include <parquet/arrow/writer.h>
@@ -549,6 +550,8 @@ static int wp_init_callback() {
       return EINVAL;
     }
     break;
+  case parquet::Compression::UNCOMPRESSED:
+    return 0;
   default:
     break;
   }

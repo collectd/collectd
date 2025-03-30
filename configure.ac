@@ -4289,17 +4289,6 @@ fi
 if test "x$with_libparquet" = "xyes"; then
   AC_LANG_PUSH(C++)
   SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="-std=c++17 $with_libparquet_cppflags $CPPFLAGS"
-  AC_CHECK_HEADERS([arrow/api.h parquet/arrow/writer.h],
-    [with_libparquet="yes"],
-    [with_libparquet="no"]
-  )
-  CPPFLAGS="$SAVE_CPPFLAGS"
-  AC_LANG_POP(C++)
-fi
-if test "x$with_libparquet" = "xyes"; then
-  AC_LANG_PUSH(C++)
-  SAVE_CPPFLAGS="$CPPFLAGS"
   SAVE_LDFLAGS="$LDFLAGS"
   SAVE_LIBS="$LIBS"
   CPPFLAGS="-std=c++17 $with_libparquet_cppflags $CPPFLAGS"

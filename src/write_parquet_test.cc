@@ -138,6 +138,28 @@ DEF_TEST(config_invalid) {
   res = wp_init_callback();
   EXPECT_EQ_INT(EINVAL, res);
 
+  res = wp_config_callback("fileduration", "5000");
+  EXPECT_EQ_INT(0, res);
+
+  res = wp_config_callback("compression", "brotli");
+  EXPECT_EQ_INT(0, res);
+  res = wp_config_callback("compressionLevel", "12");
+  EXPECT_EQ_INT(0, res);
+  res = wp_init_callback();
+  EXPECT_EQ_INT(EINVAL, res);
+
+  res = wp_config_callback("compression", "gzip");
+  EXPECT_EQ_INT(0, res);
+  res = wp_init_callback();
+  EXPECT_EQ_INT(EINVAL, res);
+
+  res = wp_config_callback("compression", "zstd");
+  EXPECT_EQ_INT(0, res);
+  res = wp_config_callback("compressionLevel", "23");
+  EXPECT_EQ_INT(0, res);
+  res = wp_init_callback();
+  EXPECT_EQ_INT(EINVAL, res);
+
   res = wp_config_callback("compression", "Integer");
   EXPECT_EQ_INT(EINVAL, res);
 
@@ -167,6 +189,10 @@ DEF_TEST(config_correct) {
   EXPECT_EQ_INT(
       parquet::Compression::ZSTD,
       props->compression(parquet::schema::ColumnPath::FromDotString("value")));
+  res = wp_config_callback("compressionLevel", "9");
+  EXPECT_EQ_INT(0, res);
+  res = wp_init_callback();
+  EXPECT_EQ_INT(0, res);
 
   res = wp_config_callback("compression", "off");
   EXPECT_EQ_INT(0, res);
@@ -174,6 +200,8 @@ DEF_TEST(config_correct) {
   EXPECT_EQ_INT(
       parquet::Compression::UNCOMPRESSED,
       props->compression(parquet::schema::ColumnPath::FromDotString("value")));
+  res = wp_init_callback();
+  EXPECT_EQ_INT(0, res);
 
   res = wp_config_callback("compression", "BROTLI");
   EXPECT_EQ_INT(0, res);
@@ -181,6 +209,8 @@ DEF_TEST(config_correct) {
   EXPECT_EQ_INT(
       parquet::Compression::BROTLI,
       props->compression(parquet::schema::ColumnPath::FromDotString("value")));
+  res = wp_init_callback();
+  EXPECT_EQ_INT(0, res);
 
   res = wp_config_callback("compression", "gzip");
   EXPECT_EQ_INT(0, res);
@@ -188,6 +218,8 @@ DEF_TEST(config_correct) {
   EXPECT_EQ_INT(
       parquet::Compression::GZIP,
       props->compression(parquet::schema::ColumnPath::FromDotString("value")));
+  res = wp_init_callback();
+  EXPECT_EQ_INT(0, res);
 
   return 0;
 }
@@ -230,7 +262,7 @@ DEF_TEST(write_all_metrics_to_buffer) {
   return check_result(1000, 'i', get_buffer('i', writer));
 }
 
-DEF_TEST(write_with_correct_comression_type) {
+DEF_TEST(write_with_correct_compression_type) {
   file_duration = std::chrono::seconds(1000);
   properties_builder.compression(parquet::Compression::BROTLI);
 
@@ -513,7 +545,7 @@ int main() {
   RUN_TEST(config_correct);
   RUN_TEST(file_recreation);
   RUN_TEST(write_all_metrics_to_buffer);
-  RUN_TEST(write_with_correct_comression_type);
+  RUN_TEST(write_with_correct_compression_type);
   RUN_TEST(write_without_buffer);
   RUN_TEST(recreate_writer);
   RUN_TEST(many_writers);
