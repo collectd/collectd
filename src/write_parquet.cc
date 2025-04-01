@@ -10,9 +10,8 @@ extern "C" {
 #include <arrow/api.h>
 #include <arrow/io/file.h>
 #include <atomic>
-#include <chrono>
+#include <cmath>
 #include <filesystem>
-#include <iostream>
 #include <map>
 #include <mutex>
 #include <parquet/arrow/writer.h>
@@ -28,8 +27,6 @@ extern "C" {
     }                                                                          \
   } while (0)
 
-using std::chrono::system_clock;
-using time_point = system_clock::time_point;
 using node_shared_ptr = std::shared_ptr<parquet::schema::GroupNode>;
 
 static const char *config_keys[] = {"basedir",     "fileduration",
@@ -40,8 +37,8 @@ static std::filesystem::path base_directory = "";
 
 static const inline std::string filename = "active.parquet";
 
-static std::chrono::seconds file_duration = std::chrono::seconds(3600);
-static std::chrono::seconds buffer_duration = std::chrono::seconds(300);
+static cdtime_t file_duration = MS_TO_CDTIME_T(3600 * 1000);
+static cdtime_t buffer_duration = MS_TO_CDTIME_T(3600 * 1000);
 
 static uint64_t buffer_capacity = 10000;
 static std::atomic<uint64_t> buffer_size = 0;
@@ -71,13 +68,13 @@ static node_shared_ptr schema_double =
  * @param format strftime conversion format
  * @return time point as std::string
  */
-static std::string wp_time_point_to_string(time_point point,
+static std::string wp_time_point_to_string(cdtime_t point,
                                            const std::string &format) {
   tm time_tm = {0};
   // %Y%m%dT%H%M%S.parquet -> 20241231T150109.parquet -> 23 symbols
   char time_buf[24] = {};
 
-  time_t point_time_t = system_clock::to_time_t(point);
+  time_t point_time_t = CDTIME_T_TO_TIME_T(point);
   localtime_r(&point_time_t, &time_tm);
   strftime(time_buf, sizeof(time_buf), format.c_str(), &time_tm);
 
@@ -96,7 +93,7 @@ public:
   std::shared_ptr<arrow::io::OutputStream> file{};
   std::filesystem::path path{};
   std::string path_str{};
-  time_point creation_time{};
+  cdtime_t creation_time{};
 
   explicit File(const std::filesystem::path &path)
       : path(path), path_str((path / filename).c_str()){};
@@ -108,9 +105,7 @@ public:
    *
    * @return true if file was created no longer than file_duration
    */
-  bool is_active() {
-    return system_clock::now() - creation_time < file_duration;
-  }
+  bool is_active(cdtime_t now) { return now < creation_time + file_duration; }
 
   /**
    * Change name from filename to it`s creation timestamp.
@@ -161,7 +156,7 @@ public:
    * @return 0 on success, else error code
    */
   int recreate() {
-    creation_time = system_clock::now();
+    creation_time = cdtime();
     return open(path_str);
   }
 
@@ -184,7 +179,7 @@ public:
 
   virtual int open() = 0;
 
-  virtual int write(std::variant<int64_t, double>) = 0;
+  virtual int write(std::variant<int64_t, double>, cdtime_t creation_time) = 0;
 
   virtual ~IWriter() = default;
 };
@@ -203,7 +198,7 @@ public:
   node_shared_ptr schema;
   std::mutex file_mutex;
 
-  time_point buffer_flush_time{};
+  cdtime_t buffer_flush_time{};
   std::vector<DataType> buffer{};
 
   Writer(const std::filesystem::path &path, node_shared_ptr schema_)
@@ -218,8 +213,8 @@ public:
    *
    * @return true if the first row is added no longer than buffer_duration
    */
-  bool is_buffer_active() {
-    return system_clock::now() - buffer_flush_time < buffer_duration;
+  bool is_buffer_active(cdtime_t now) {
+    return now < buffer_duration + buffer_flush_time;
   }
 
   /**
@@ -241,7 +236,7 @@ public:
       }
     }
     buffer_size.fetch_sub(wrote_count);
-    buffer_flush_time = system_clock::now();
+    buffer_flush_time = cdtime();
     buffer.clear();
   }
 
@@ -281,17 +276,20 @@ public:
    * file.
    *
    * @param raw_data Value to be saved
+   * @param creation_time time point when data was entered
    * @return 0 on success, else error code
    */
-  int write(std::variant<int64_t, double> raw_data) override {
+  int write(std::variant<int64_t, double> raw_data,
+            cdtime_t creation_time) override {
     std::lock_guard lock(file_mutex);
     DataType data = std::get<DataType>(raw_data);
-    if (not file.is_active()) {
+    if (not file.is_active(creation_time)) {
+      // flushes buffer inside
       if (int err = open()) {
         return err;
       }
     }
-    if (not is_buffer_active()) {
+    if (not is_buffer_active(creation_time)) {
       flush();
     }
 
@@ -463,12 +461,12 @@ static int wp_write_callback(metric_family_t const *fam,
     if (type == MetricValueType::DOUBLE) {
       auto writer = handler.get<double>(full_path.string(), schema_double);
       if (writer) {
-        writer->write(wp_parse_metric_double(mt));
+        writer->write(wp_parse_metric_double(mt), mt->time);
       }
     } else if (type == MetricValueType::INT64) {
       auto writer = handler.get<int64_t>(full_path.string(), schema_int);
       if (writer) {
-        writer->write(wp_parse_metric_int(mt));
+        writer->write(wp_parse_metric_int(mt), mt->time);
       }
     }
   }
@@ -486,9 +484,9 @@ static int wp_config_callback(const char *key, const char *value) {
   if (strcasecmp("basedir", key) == 0) {
     base_directory = value;
   } else if (strcasecmp("fileduration", key) == 0) {
-    file_duration = std::chrono::seconds(std::strtoul(value, nullptr, 10));
+    file_duration = MS_TO_CDTIME_T(1000 * std::strtoul(value, nullptr, 10));
   } else if (strcasecmp("bufferduration", key) == 0) {
-    buffer_duration = std::chrono::seconds(std::strtoul(value, nullptr, 10));
+    buffer_duration = MS_TO_CDTIME_T(1000 * std::strtoul(value, nullptr, 10));
   } else if (strcasecmp("buffersize", key) == 0) {
     buffer_capacity = std::strtoul(value, nullptr, 10);
   } else if (strcasecmp("compression", key) == 0) {
@@ -520,14 +518,15 @@ static int wp_config_callback(const char *key, const char *value) {
  * @return 0 on success, error code else
  */
 static int wp_init_callback() {
-  if (file_duration.count() == 0) {
+  if (file_duration == 0) {
     P_ERROR("Invalid file existing duration");
     return EINVAL;
   }
   if (buffer_duration > file_duration) {
     P_ERROR("Buffer containing duration(%lu) must be less than file existing "
             "time(%lu)",
-            buffer_duration.count(), file_duration.count());
+            CDTIME_T_TO_MS(buffer_duration) / 1000,
+            CDTIME_T_TO_MS(file_duration) / 1000);
     return EINVAL;
   }
   switch (properties_builder.build()->compression(

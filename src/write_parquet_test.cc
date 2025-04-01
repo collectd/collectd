@@ -1,4 +1,5 @@
 #include <arrow/io/memory.h>
+#include <chrono>
 #include <parquet/arrow/reader.h>
 #include <parquet/stream_reader.h>
 #include <thread>
@@ -54,11 +55,9 @@ static std::shared_ptr<arrow::Buffer> get_buffer(char type, IWriter &writer) {
       .ValueOrDie();
 }
 
-static std::string ms_to_string(uint64_t ms, std::string &pattern) {
-  (void)pattern;
-  return wp_time_point_to_string(std::chrono::system_clock::from_time_t(
-                                     CDTIME_T_TO_TIME_T(MS_TO_CDTIME_T(ms))),
-                                 pattern);
+static std::string ms_to_string(uint64_t ms, const std::string &pattern) {
+  cdtime_t time = MS_TO_CDTIME_T(ms);
+  return wp_time_point_to_string(time, pattern);
 }
 
 DEF_TEST(time_formating) {
@@ -169,7 +168,7 @@ DEF_TEST(config_invalid) {
 DEF_TEST(config_correct) {
   int res = wp_config_callback("fileduration", "7000");
   EXPECT_EQ_INT(0, res);
-  EXPECT_EQ_INT(7000, file_duration.count());
+  EXPECT_EQ_INT(7000, CDTIME_T_TO_MS(file_duration) / 1000);
 
   res = wp_config_callback("basedir", "test/");
   EXPECT_EQ_INT(0, res);
@@ -181,7 +180,7 @@ DEF_TEST(config_correct) {
 
   res = wp_config_callback("bufferduration", "3600");
   EXPECT_EQ_INT(0, res);
-  EXPECT_EQ_INT(3600, buffer_duration.count());
+  EXPECT_EQ_INT(3600, CDTIME_T_TO_MS(buffer_duration) / 1000);
 
   res = wp_config_callback("compression", "zstd");
   EXPECT_EQ_INT(0, res);
@@ -225,34 +224,34 @@ DEF_TEST(config_correct) {
 }
 
 DEF_TEST(file_recreation) {
-  file_duration = std::chrono::seconds(0);
+  file_duration = 0;
 
   File file("./(/non/existent/way/42/)/");
 
   file.recreate();
-  EXPECT_EQ_INT(0, file.is_active());
+  cdtime_t now = cdtime();
 
-  file_duration = std::chrono::seconds(5);
+  EXPECT_EQ_INT(0, file.is_active(now));
 
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-  EXPECT_EQ_INT(1, file.is_active());
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-  EXPECT_EQ_INT(1, file.is_active());
-  std::this_thread::sleep_for(std::chrono::seconds(5));
-  EXPECT_EQ_INT(0, file.is_active());
+  file_duration = MS_TO_CDTIME_T(5 * 1000);
+
+  EXPECT_EQ_INT(1, file.is_active(now));
+  EXPECT_EQ_INT(1, file.is_active(now + MS_TO_CDTIME_T(4200)));
+  EXPECT_EQ_INT(0, file.is_active(now + MS_TO_CDTIME_T(5000)));
 
   return 0;
 }
 
 DEF_TEST(write_all_metrics_to_buffer) {
   buffer_capacity = 1000;
-  buffer_duration = std::chrono::seconds(1000);
-  file_duration = std::chrono::seconds(1000);
+  buffer_duration = MS_TO_CDTIME_T(1000 * 1000);
+  file_duration = MS_TO_CDTIME_T(1000 * 1000);
 
   Writer<int64_t> writer("./(/non/existent/way/42/)/", schema_int);
+  cdtime_t now = cdtime();
 
   for (int64_t i = 0; i < 1000; i++) {
-    writer.write(i);
+    writer.write(i, now);
   }
   EXPECT_EQ_INT(1000, buffer_size.load());
 
@@ -263,12 +262,13 @@ DEF_TEST(write_all_metrics_to_buffer) {
 }
 
 DEF_TEST(write_with_correct_compression_type) {
-  file_duration = std::chrono::seconds(1000);
+  file_duration = MS_TO_CDTIME_T(1000 * 1000);
   properties_builder.compression(parquet::Compression::BROTLI);
 
   Writer<int64_t> writer("./(/non/existent/way/42/)/", schema_int);
+  cdtime_t now = cdtime();
 
-  writer.write(1);
+  writer.write(1, now);
   writer.close();
 
   auto file_reader = parquet::ParquetFileReader::Open(
@@ -282,14 +282,15 @@ DEF_TEST(write_with_correct_compression_type) {
 }
 
 DEF_TEST(write_without_buffer) {
-  file_duration = std::chrono::seconds(1000);
-  buffer_duration = std::chrono::seconds(100);
+  file_duration = MS_TO_CDTIME_T(1000 * 1000);
+  buffer_duration = MS_TO_CDTIME_T(100 * 1000);
   buffer_capacity = 0;
 
   Writer<int64_t> writer("./(/non/existent/way/42/)/", schema_int);
+  cdtime_t now = cdtime();
 
   for (int i = 0; i < 10000; i++) {
-    writer.write(i);
+    writer.write(i, now);
     EXPECT_EQ_INT(0, buffer_size);
   }
   writer.close();
@@ -298,16 +299,18 @@ DEF_TEST(write_without_buffer) {
 }
 
 DEF_TEST(recreate_writer) {
-  file_duration = std::chrono::seconds(1000);
-  buffer_duration = std::chrono::seconds(510);
+  file_duration = MS_TO_CDTIME_T(1000 * 1000);
+  buffer_duration = MS_TO_CDTIME_T(510 * 1000);
   buffer_capacity = 7000;
 
   Writer<int64_t> writer("./(/non/existent/way/42/)/", schema_int);
+  cdtime_t now = cdtime();
+
   auto old_buffer = std::static_pointer_cast<arrow::io::BufferOutputStream>(
       writer.file.stream());
 
   for (int i = 0; i < 10000; i++) {
-    writer.write(i);
+    writer.write(i, now);
   }
   EXPECT_EQ_INT(3000, buffer_size);
 
@@ -319,7 +322,7 @@ DEF_TEST(recreate_writer) {
   }
 
   for (int i = 0; i < 2000; i++) {
-    writer.write(i);
+    writer.write(i, now);
   }
   EXPECT_EQ_INT(2000, buffer_size);
 
@@ -336,14 +339,15 @@ DEF_TEST(many_writers) {
   handler.get<double>("d2", schema_double);
   handler.get<double>("d3", schema_double);
   handler.get<int64_t>("i4", schema_int);
+  cdtime_t now = cdtime();
 
   int modulo = buffer_capacity;
   for (auto &[name, writer] : handler.get_all()) {
     for (int i = 0; i < 1000; i++) {
       if (name[0] == 'i') {
-        writer->write(i);
+        writer->write(i, now);
       } else {
-        writer->write(i + 0.0);
+        writer->write(i + 0.0, now);
       }
       EXPECT_EQ_INT((buffer_capacity - modulo) +
                         (modulo == 0 ? 0 : 1 + i % modulo),
@@ -369,6 +373,7 @@ DEF_TEST(flush_callback) {
   handler.get<double>("d2", schema_double);
   handler.get<double>("d3", schema_double);
   handler.get<int64_t>("i4", schema_int);
+  cdtime_t now = cdtime();
 
   int modulo = buffer_capacity;
 
@@ -379,9 +384,9 @@ DEF_TEST(flush_callback) {
   for (auto &[name, writer] : handler.get_all()) {
     for (int i = 0; i < 1000; i++) {
       if (name[0] == 'i') {
-        writer->write(i);
+        writer->write(i, now);
       } else {
-        writer->write(i + 0.0);
+        writer->write(i + 0.0, now);
       }
       EXPECT_EQ_INT((buffer_capacity - modulo) +
                         (modulo == 0 ? 0 : 1 + i % modulo),
@@ -430,15 +435,16 @@ DEF_TEST(shutdown_callback) {
   handler.get<double>("d2", schema_double);
   handler.get<double>("d3", schema_double);
   handler.get<int64_t>("i4", schema_int);
+  cdtime_t now = cdtime();
 
   int modulo = buffer_capacity;
 
   for (auto &[name, writer] : handler.get_all()) {
     for (int i = 0; i < 1000; i++) {
       if (name[0] == 'i') {
-        writer->write(i);
+        writer->write(i, now);
       } else {
-        writer->write(i + 0.0);
+        writer->write(i + 0.0, now);
       }
       EXPECT_EQ_INT((buffer_capacity - modulo) +
                         (modulo == 0 ? 0 : 1 + i % modulo),
