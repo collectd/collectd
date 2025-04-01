@@ -235,6 +235,13 @@ public:
         break;
       }
     }
+    if (wrote_count) {
+      try {
+        writer << parquet::EndRowGroup;
+      } catch (parquet::ParquetException &exception) {
+        P_ERROR("error while writing data: %s", exception.what());
+      }
+    }
     buffer_size.fetch_sub(wrote_count);
     buffer_flush_time = cdtime();
     buffer.clear();
