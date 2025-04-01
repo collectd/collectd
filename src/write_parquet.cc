@@ -428,6 +428,27 @@ static MetricValueType wp_get_metric_type(const metric_t *mt) {
 }
 
 /**
+ * Removes "./\\" from beginning and ending of path
+ *
+ * @param path path to be cleaned
+ * @return std::string_view of path without
+ */
+static std::string clear_path(std::string_view path) {
+  while (not path.empty() and
+         (path[0] == '/' or path[0] == '\\' or path[0] == '.')) {
+    path.remove_prefix(1);
+  }
+  size_t size = path.size();
+  while (not path.empty() and
+         (path[size - 1] == '/' or path[size - 1] == '\\' or
+          path[size - 1] == '.')) {
+    path.remove_suffix(1);
+    size--;
+  }
+  return std::string(path);
+}
+
+/**
  * Write metrics from metric family to files.
  * Always expects the metric family resource "host.name".
  *
@@ -443,19 +464,16 @@ static int wp_write_callback(metric_family_t const *fam,
     return ENOENT;
   }
   std::filesystem::path base;
-  std::string_view clear_host = host;
-  while (!clear_host.empty() and clear_host.back() == '.') {
-    clear_host.remove_suffix(1);
-  }
-  base /= clear_host;
-  base /= fam->name;
+
+  base /= clear_path(host);
+  base /= clear_path(fam->name);
 
   for (size_t i = 0; i < fam->metric.num; i++) {
     metric_t *mt = fam->metric.ptr + i;
     std::filesystem::path full_path = base;
     for (size_t j = 0; j < mt->label.num; j++) {
       label_pair_t *lab = mt->label.ptr + j;
-      full_path /= lab->value;
+      full_path /= clear_path(lab->value);
     }
     MetricValueType type = wp_get_metric_type(mt);
     if (type == MetricValueType::DOUBLE) {
