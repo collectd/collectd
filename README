@@ -591,6 +591,9 @@ Features
     - write_mongodb
       Sends data to MongoDB, a NoSQL database.
 
+    - write_parquet
+      Write values in Apache Parquet files, a binary columnar data format.
+
     - write_prometheus
       Publish values using an embedded HTTP server, in a format compatible
       with Prometheus' collectd_exporter.
