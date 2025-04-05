@@ -45,7 +45,7 @@
 #endif
 
 #define O_RDWR 02
-#define NVME_SMART_CDW10 0x00800002
+#define NVME_SMART_CDW10(numdl) (((((numdl) >> 2) - 1) << 16) | 0x00000002)
 #define SHIFT_BYTE_LEFT 256
 #define PLUGIN_NAME "smart"
 struct nvme_admin_cmd {
@@ -331,7 +331,7 @@ static int smart_read_nvme_disk(const char *dev, char const *name) {
                                           .nsid = NVME_NSID_ALL,
                                           .addr = (unsigned long)&smart_log,
                                           .data_len = sizeof(smart_log),
-                                          .cdw10 = NVME_SMART_CDW10});
+                                          .cdw10 = NVME_SMART_CDW10(sizeof(smart_log))});
   if (status < 0) {
     ERROR(PLUGIN_NAME ": ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n",
           strerror(errno));

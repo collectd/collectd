@@ -56,7 +56,7 @@ int ioctl(int __fd, unsigned long int __request, ...) {
           (struct nvme_additional_smart_log *)addr;
       intel_smart_log->program_fail_cnt.norm = 100;
       return 0;
-    } else if (admin_cmd->cdw10 == NVME_SMART_CDW10) {
+    } else if (admin_cmd->cdw10 == NVME_SMART_CDW10(sizeof(union nvme_smart_log))) {
       // set generic smart attributes
       union nvme_smart_log *smart_log = (union nvme_smart_log *)addr;
       smart_log->data.critical_warning = 0;
