@@ -46,7 +46,7 @@ instruction set manually:
         git clone git://dpdk.org/dpdk
 
  *  Checkout the [DPDK system
-    requirements](http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html) and make
+    requirements](https://doc.dpdk.org/guides/linux_gsg/sys_reqs.html) and make
     sure you have the required tools and hugepage setup as specified there.
 
     **Note:** It's recommended to use the 1GB hugepage setup for best
