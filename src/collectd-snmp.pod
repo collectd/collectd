@@ -22,6 +22,16 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Shift -1
       Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
     </Data>
+    <Data "hr_memory_used">
+      Table true
+      Plugin "memory"
+      PluginInstanceOID "HOST-RESOURCES-MIB::hrStorageIndex"
+      Type "memory"
+      TypeInstance "used"
+      Values "HOST-RESOURCES-MIB::hrStorageUsed"
+      FilterOID "HOST-RESOURCES-MIB::hrStorageType"
+      FilterValues "HOST-RESOURCES-TYPES::hrStorageRam"
+    </Data>
     <Data "std_traffic">
       Table true
       Type "if_octets"
