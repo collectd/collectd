@@ -177,6 +177,9 @@
 typedef struct process_entry_s {
   unsigned long id;
   char name[PROCSTAT_NAME_LEN];
+  // The time the process started after system boot.
+  // Value is in jiffies.
+  unsigned long long starttime;
 
   unsigned long num_proc;
   unsigned long num_lwp;
@@ -220,6 +223,9 @@ typedef struct process_entry_s {
 typedef struct procstat_entry_s {
   unsigned long id;
   unsigned char age;
+  // The time the process started after system boot.
+  // Value is in jiffies.
+  unsigned long long starttime;
 
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
@@ -291,6 +297,7 @@ typedef struct procstat {
   bool report_maps_num;
   bool report_ctx_switch;
   bool report_delay;
+  bool skip_non_running_procs;
 
   struct procstat *next;
   struct procstat_entry_s *instances;
@@ -303,6 +310,8 @@ static bool report_ctx_switch;
 static bool report_fd_num;
 static bool report_maps_num;
 static bool report_delay;
+static bool report_sys_ctxt_switch;
+static bool skip_non_running_procs;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -374,6 +383,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
   new->report_maps_num = report_maps_num;
   new->report_ctx_switch = report_ctx_switch;
   new->report_delay = report_delay;
+  new->skip_non_running_procs = skip_non_running_procs;
 
 #if HAVE_REGEX_H
   if (regexp != NULL) {
@@ -535,13 +545,20 @@ static void ps_list_add(const char *name, const char *cmdline,
       if ((pse->id == entry->id) || (pse->next == NULL))
         break;
 
-    if ((pse == NULL) || (pse->id != entry->id)) {
+    if ((pse == NULL) || (pse->id != entry->id) ||
+        (pse->starttime != entry->starttime)) {
+      if (pse != NULL && pse->id == entry->id) {
+        WARNING("pid %lu reused between two reads, ignoring existing "
+                "procstat_entry for %s",
+                pse->id, name);
+      }
       procstat_entry_t *new;
 
       new = calloc(1, sizeof(*new));
       if (new == NULL)
         return;
       new->id = entry->id;
+      new->starttime = entry->starttime;
 
       if (pse == NULL)
         ps->instances = new;
@@ -666,6 +683,8 @@ static void ps_tune_instance(oconfig_item_t *ci, procstat_t *ps) {
       WARNING("processes plugin: The plugin has been compiled without support "
               "for the \"CollectDelayAccounting\" option.");
 #endif
+    } else if (strcasecmp(c->key, "SkipNonRunningProcess") == 0) {
+      cf_util_get_boolean(c, &ps->skip_non_running_procs);
     } else {
       ERROR("processes plugin: Option \"%s\" not allowed here.", c->key);
     }
@@ -734,6 +753,10 @@ static int ps_config(oconfig_item_t *ci) {
       WARNING("processes plugin: The plugin has been compiled without support "
               "for the \"CollectDelayAccounting\" option.");
 #endif
+    } else if (strcasecmp(c->key, "CollectSystemContextSwitch") == 0) {
+      cf_util_get_boolean(c, &report_sys_ctxt_switch);
+    } else if (strcasecmp(c->key, "SkipNonRunningProcess") == 0) {
+      cf_util_get_boolean(c, &skip_non_running_procs);
     } else {
       ERROR("processes plugin: The `%s' configuration option is not "
             "understood and will be ignored.",
@@ -823,6 +846,11 @@ static void ps_submit_state(const char *state, double value) {
 
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void ps_submit_proc_list(procstat_t *ps) {
+  if (ps->skip_non_running_procs && ps->num_lwp == 0) {
+    DEBUG("processes: Skip submit data from a non-running process %s",
+          ps->name);
+    return;
+  }
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[2];
 
@@ -974,14 +1002,14 @@ static void ps_submit_proc_list(procstat_t *ps) {
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
-static void ps_submit_fork_rate(derive_t value) {
+static void ps_submit_global_stat(const char *type_name, derive_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "processes", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, "", sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "fork_rate", sizeof(vl.type));
+  sstrncpy(vl.type, type_name, sizeof(vl.type));
   sstrncpy(vl.type_instance, "", sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
@@ -1444,24 +1472,17 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   ps->cswitch_vol = -1;
   ps->cswitch_invol = -1;
+  ps->starttime = strtoull(fields[19], NULL, 10);
 
   /* success */
   return 0;
 } /* int ps_read_process (...) */
 
-static int procs_running(void) {
-  char buffer[65536] = {};
+static int procs_running(const char *buffer) {
   char id[] = "procs_running "; /* white space terminated */
   char *running;
   char *endptr = NULL;
   long result = 0L;
-
-  ssize_t status;
-
-  status = read_file_contents("/proc/stat", buffer, sizeof(buffer) - 1);
-  if (status <= 0) {
-    return -1;
-  }
 
   /* the data contains :
    * the literal string 'procs_running',
@@ -1471,7 +1492,7 @@ static int procs_running(void) {
    */
   running = strstr(buffer, id);
   if (!running) {
-    WARNING("procs_running not found");
+    WARNING("'procs_running ' not found in /proc/stat");
     return -1;
   }
   running += strlen(id);
@@ -1574,42 +1595,59 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   return buf;
 } /* char *ps_get_cmdline (...) */
 
-static int read_fork_rate(void) {
-  FILE *proc_stat;
-  char buffer[1024];
+static int read_fork_rate(const char *buffer) {
   value_t value;
-  bool value_valid = 0;
+  char id[] = "processes ";
+  char *processes;
 
-  proc_stat = fopen("/proc/stat", "r");
-  if (proc_stat == NULL) {
-    ERROR("processes plugin: fopen (/proc/stat) failed: %s", STRERRNO);
+  int status;
+  char *fields[2];
+  int fields_num;
+  const int expected = STATIC_ARRAY_SIZE(fields);
+
+  processes = strstr(buffer, id);
+  if (!processes) {
+    WARNING("'processes ' not found in /proc/stat");
     return -1;
   }
 
-  while (fgets(buffer, sizeof(buffer), proc_stat) != NULL) {
-    int status;
-    char *fields[3];
-    int fields_num;
-
-    fields_num = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
-    if (fields_num != 2)
-      continue;
-
-    if (strcmp("processes", fields[0]) != 0)
-      continue;
-
-    status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
-    if (status == 0)
-      value_valid = 1;
-
-    break;
-  }
-  fclose(proc_stat);
-
-  if (!value_valid)
+  fields_num = strsplit(processes, fields, expected);
+  if (fields_num != expected)
     return -1;
 
-  ps_submit_fork_rate(value.derive);
+  status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+  if (status != 0)
+    return -1;
+
+  ps_submit_global_stat("fork_rate", value.derive);
+  return 0;
+}
+
+static int read_sys_ctxt_switch(const char *buffer) {
+  value_t value;
+  char id[] = "ctxt ";
+  char *ctxt;
+
+  int status;
+  char *fields[2];
+  int fields_num;
+  const int expected = STATIC_ARRAY_SIZE(fields);
+
+  ctxt = strstr(buffer, id);
+  if (!ctxt) {
+    WARNING("'ctxt ' not found in /proc/stat");
+    return -1;
+  }
+
+  fields_num = strsplit(ctxt, fields, expected);
+  if (fields_num != expected)
+    return -1;
+
+  status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+  if (status != 0)
+    return -1;
+
+  ps_submit_global_stat("contextswitch", value.derive);
   return 0;
 }
 #endif /*KERNEL_LINUX */
@@ -1792,7 +1830,7 @@ static int read_fork_rate(void) {
     }
   }
 
-  ps_submit_fork_rate(result);
+  ps_submit_global_stat("fork_rate", result);
   return 0;
 }
 #endif /* KERNEL_SOLARIS */
@@ -2082,6 +2120,7 @@ static int ps_read(void) {
   DIR *proc;
   long pid;
 
+  char buffer[65536] = {};
   char cmdline[CMDLINE_BUFFER_SIZE];
 
   int status;
@@ -2113,9 +2152,6 @@ static int ps_read(void) {
     }
 
     switch (state) {
-    case 'R':
-      running++;
-      break;
     case 'S':
       sleeping++;
       break;
@@ -2139,6 +2175,10 @@ static int ps_read(void) {
 
   closedir(proc);
 
+  if (read_file_contents("/proc/stat", buffer, sizeof(buffer) - 1) <= 0) {
+    ERROR("Cannot read `/proc/stat`");
+    return -1;
+  }
   /* get procs_running from /proc/stat
    * scanning /proc/stat AND computing other process stats takes too much time.
    * Consequently, the number of running processes based on the occurences
@@ -2147,7 +2187,7 @@ static int ps_read(void) {
    * stat(s).
    * The 'procs_running' number in /proc/stat on the other hand is more
    * accurate, and can be retrieved in a single 'read' call. */
-  running = procs_running();
+  running = procs_running(buffer);
 
   ps_submit_state("running", running);
   ps_submit_state("sleeping", sleeping);
@@ -2159,8 +2199,10 @@ static int ps_read(void) {
   for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
     ps_submit_proc_list(ps_ptr);
 
-  read_fork_rate();
-  /* #endif KERNEL_LINUX */
+  read_fork_rate(buffer);
+  if (report_sys_ctxt_switch)
+    read_sys_ctxt_switch(buffer);
+    /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
   int running = 0;

@@ -127,6 +127,7 @@
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
+#@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin epics
 #@BUILD_PLUGIN_ETHSTAT_TRUE@LoadPlugin ethstat
 #@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
 #@BUILD_PLUGIN_FHCOUNT_TRUE@LoadPlugin fhcount
@@ -428,7 +429,7 @@
 #  ReportGuestState false
 #  SubtractGuestState true
 #</Plugin>
-#
+
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
@@ -682,6 +683,8 @@
 #	IgnoreSelected false
 #	UseBSDName false
 #	UdevNameAttr "DEVNAME"
+#	ReportDiscard false
+#	ReportFlush false
 #</Plugin>
 
 #<Plugin dns>
@@ -735,6 +738,14 @@
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
+#</Plugin>
+
+#<Plugin epics>
+#	<Variable "Cavity1:Temp">
+#		Type "gauge"
+#	</Variable>
+#
+#	Label "Cavity1:Name"
 #</Plugin>
 
 #<Plugin ethstat>
@@ -837,6 +848,8 @@
 
 #<Plugin "intel_rdt">
 #  MonIPCEnabled true
+#  MonLLCRefEnabled false
+#  MonLLCMissEnabled false
 #  Cores "0-2"
 #  Processes "sshd"
 #</Plugin>
@@ -1458,6 +1471,8 @@
 #	CollectContextSwitch true
 #	CollectMemoryMaps true
 #	CollectDelayAccounting false
+#	CollectSystemContextSwitch false
+#	SkipNonRunningProcess false
 #	Process "name"
 #	ProcessMatch "name" "regex"
 #	<Process "collectd">
@@ -1468,7 +1483,7 @@
 #	<ProcessMatch "name" "regex">
 #		CollectFileDescriptor false
 #		CollectContextSwitch true
-#	</Process>
+#	</ProcessMatch>
 #</Plugin>
 
 #<Plugin "procevent">
@@ -2030,6 +2045,7 @@
 #  Server "localhost"
 #  TimePrecision "ms"
 #  StoreRates true
+#  WriteMetadata false
 #  MaxPacketSize 32768
 #  TimeToLive 128
 #</Plugin>

@@ -75,8 +75,12 @@
 #include <sys/protosw.h>
 #endif
 
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000) // Before macOS 12 Monterey
+#define IOMainPort IOMasterPort
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H
-static mach_port_t io_master_port = MACH_PORT_NULL;
+static mach_port_t io_main_port = MACH_PORT_NULL;
 /* This defaults to false for backwards compatibility. Please fix in the next
  * major version. */
 static bool use_bsd_name;
@@ -108,11 +112,16 @@ typedef struct diskstats {
   bool has_merged;
   bool has_in_progress;
   bool has_io_time;
+  bool has_discard;
+  bool has_flush;
 
   struct diskstats *next;
 } diskstats_t;
 
 static diskstats_t *disklist;
+
+static bool report_discard;
+static bool report_flush;
 /* #endif KERNEL_LINUX */
 #elif KERNEL_FREEBSD
 static struct gmesh geom_tree;
@@ -158,8 +167,9 @@ static char *conf_udev_name_attr;
 static struct udev *handle_udev;
 #endif
 
-static const char *config_keys[] = {"Disk", "UseBSDName", "IgnoreSelected",
-                                    "UdevNameAttr"};
+static const char *config_keys[] = {"Disk",           "UseBSDName",
+                                    "IgnoreSelected", "UdevNameAttr",
+                                    "ReportDiscard",  "ReportFlush"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist;
@@ -196,6 +206,20 @@ static int disk_config(const char *key, const char *value) {
     WARNING("disk plugin: The \"UdevNameAttr\" option is only supported "
             "if collectd is built with libudev support");
 #endif
+  } else if (strcasecmp("ReportDiscard", key) == 0) {
+#if KERNEL_LINUX
+    report_discard = IS_TRUE(value);
+#else
+    WARNING("disk plugin: The \"ReportDiscard\" option is only supported "
+            "on Linux and will be ignored.");
+#endif
+  } else if (strcasecmp("ReportFlush", key) == 0) {
+#if KERNEL_LINUX
+    report_flush = IS_TRUE(value);
+#else
+    WARNING("disk plugin: The \"ReportFlush\" option is only supported "
+            "on Linux and will be ignored.");
+#endif
   } else {
     return -1;
   }
@@ -207,15 +231,15 @@ static int disk_init(void) {
 #if HAVE_IOKIT_IOKITLIB_H
   kern_return_t status;
 
-  if (io_master_port != MACH_PORT_NULL) {
-    mach_port_deallocate(mach_task_self(), io_master_port);
-    io_master_port = MACH_PORT_NULL;
+  if (io_main_port != MACH_PORT_NULL) {
+    mach_port_deallocate(mach_task_self(), io_main_port);
+    io_main_port = MACH_PORT_NULL;
   }
 
-  status = IOMasterPort(MACH_PORT_NULL, &io_master_port);
+  status = IOMainPort(MACH_PORT_NULL, &io_main_port);
   if (status != kIOReturnSuccess) {
-    ERROR("IOMasterPort failed: %s", mach_error_string(status));
-    io_master_port = MACH_PORT_NULL;
+    ERROR("IOMainPort failed: %s", mach_error_string(status));
+    io_main_port = MACH_PORT_NULL;
     return -1;
   }
   /* #endif HAVE_IOKIT_IOKITLIB_H */
@@ -303,6 +327,21 @@ static int disk_shutdown(void) {
 #endif /* KERNEL_LINUX */
   return 0;
 } /* int disk_shutdown */
+
+#if KERNEL_LINUX
+static void disk_submit_single(const char *plugin_instance, const char *type,
+                               derive_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.derive = value};
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "disk", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+
+  plugin_dispatch_values(&vl);
+} /* void disk_submit_single */
+#endif
 
 static void disk_submit(const char *plugin_instance, const char *type,
                         derive_t read, derive_t write) {
@@ -466,7 +505,7 @@ static int disk_read(void) {
 
   /* Get the list of all disk objects. */
   if (IOServiceGetMatchingServices(
-          io_master_port, IOServiceMatching(kIOBlockStorageDriverClass),
+          io_main_port, IOServiceMatching(kIOBlockStorageDriverClass),
           &disk_list) != kIOReturnSuccess) {
     ERROR("disk plugin: IOServiceGetMatchingServices failed.");
     return -1;
@@ -736,10 +775,17 @@ static int disk_read(void) {
   derive_t io_time = 0;
   derive_t weighted_time = 0;
   derive_t diff_io_time = 0;
+  derive_t discard_ops = 0;
+  derive_t discard_merged = 0;
+  derive_t discard_sectors = 0;
+  derive_t discard_time = 0;
+  derive_t flush_ops = 0;
+  derive_t flush_time = 0;
   int is_disk = 0;
 
   diskstats_t *ds, *pre_ds;
 
+  /* https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats */
   if ((fh = fopen("/proc/diskstats", "r")) == NULL) {
     ERROR("disk plugin: fopen(\"/proc/diskstats\"): %s", STRERRNO);
     return -1;
@@ -784,6 +830,21 @@ static int disk_read(void) {
       write_sectors = atoll(fields[6]);
     } else {
       assert(numfields >= 14);
+
+      /* Kernel 4.18+, Discards */
+      if (numfields >= 18) {
+        discard_ops = atoll(fields[14]);
+        discard_merged = atoll(fields[15]);
+        discard_sectors = atoll(fields[16]);
+        discard_time = atoll(fields[17]);
+      }
+
+      /* Kernel 5.5+, Flush */
+      if (numfields >= 20) {
+        flush_ops = atoll(fields[18]);
+        flush_time = atoll(fields[19]);
+      }
+
       read_ops = atoll(fields[3]);
       write_ops = atoll(fields[7]);
 
@@ -878,6 +939,13 @@ static int disk_read(void) {
       if (io_time)
         ds->has_io_time = true;
 
+      ds->has_discard =
+          discard_ops || discard_merged || discard_sectors || discard_time;
+
+      /* There is chance 'has_flush' is true while 'has_discard' remains false
+       */
+      ds->has_flush = flush_ops || flush_time;
+
     } /* if (is_disk) */
 
     /* Skip first cycle for newly-added disk */
@@ -931,6 +999,17 @@ static int disk_read(void) {
         submit_in_progress(output_name, in_progress);
       if (ds->has_io_time)
         submit_io_time(output_name, io_time, weighted_time);
+      if (report_discard && ds->has_discard) {
+        disk_submit_single(output_name, "disk_discard_ops", discard_ops);
+        disk_submit_single(output_name, "disk_discard_merged", discard_merged);
+        disk_submit_single(output_name, "disk_discard_sectors",
+                           discard_sectors);
+        disk_submit_single(output_name, "disk_discard_time", discard_time);
+      }
+      if (report_flush && ds->has_flush) {
+        disk_submit_single(output_name, "disk_flush_ops", flush_ops);
+        disk_submit_single(output_name, "disk_flush_time", flush_time);
+      }
 
       submit_utilization(output_name, diff_io_time);
     } /* if (is_disk) */

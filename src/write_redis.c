@@ -170,7 +170,9 @@ static void wr_config_free(void *ptr) /* {{{ */
     node->conn = NULL;
   }
 
+  pthread_mutex_destroy(&node->lock);
   sfree(node->host);
+  sfree(node->prefix);
   sfree(node);
 } /* }}} void wr_config_free */
 

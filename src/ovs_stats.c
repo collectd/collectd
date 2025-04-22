@@ -371,12 +371,12 @@ static void ovs_stats_submit_interfaces(port_list_t *port) {
   }
 }
 
-static int ovs_stats_get_port_stat_value(port_list_t *port,
-                                         iface_counter index) {
+static derive_t ovs_stats_get_port_stat_value(port_list_t *port,
+                                              iface_counter index) {
   if (port == NULL)
     return 0;
 
-  int value = 0;
+  derive_t value = 0;
 
   for (interface_list_t *iface = port->iface; iface != NULL;
        iface = iface->next) {

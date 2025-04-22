@@ -179,7 +179,7 @@ static char *format_labels(char *buffer, size_t buffer_size,
   return buffer;
 }
 
-/* format_protobuf iterates over all metric families in "metrics" and adds them
+/* format_text iterates over all metric families in "metrics" and adds them
  * to a buffer in plain text format. */
 static void format_text(ProtobufCBuffer *buffer) {
   pthread_mutex_lock(&metrics_lock);
@@ -233,18 +233,20 @@ static void format_text(ProtobufCBuffer *buffer) {
 
 /* http_handler is the callback called by the microhttpd library. It essentially
  * handles all HTTP request aspects and creates an HTTP response. */
-static MHD_RESULT http_handler(void *cls, struct MHD_Connection *connection,
-                               const char *url, const char *method,
-                               const char *version, const char *upload_data,
-                               size_t *upload_data_size,
+static MHD_RESULT http_handler(__attribute__((unused)) void *cls,
+                               struct MHD_Connection *connection,
+                               __attribute__((unused)) const char *url,
+                               const char *method,
+                               __attribute__((unused)) const char *version,
+                               __attribute__((unused)) const char *upload_data,
+                               __attribute__((unused)) size_t *upload_data_size,
                                void **connection_state) {
   if (strcmp(method, MHD_HTTP_METHOD_GET) != 0) {
     return MHD_NO;
   }
 
-  /* On the first call for each connection, return without anything further.
-   * Apparently not everything has been initialized yet or so; the docs are not
-   * very specific on the issue. */
+  /* According to documentation, first call for each connection is after headers
+   * have been parsed, and should be used only for reporting errors */
   if (*connection_state == NULL) {
     /* keep track of connection state */
     *connection_state = &"called";
@@ -757,7 +759,7 @@ static int prom_open_socket(int addrfamily) {
   struct addrinfo *res;
   int status = getaddrinfo(httpd_host, service,
                            &(struct addrinfo){
-                               .ai_flags = AI_PASSIVE | AI_ADDRCONFIG,
+                               .ai_flags = AI_PASSIVE,
                                .ai_family = addrfamily,
                                .ai_socktype = SOCK_STREAM,
                            },
@@ -895,7 +897,7 @@ static int prom_config(oconfig_item_t *ci) {
 
 static int prom_init() {
   if (metrics == NULL) {
-    metrics = c_avl_create((void *)strcmp);
+    metrics = c_avl_create((int (*)(const void *, const void *))strcmp);
     if (metrics == NULL) {
       ERROR("write_prometheus plugin: c_avl_create() failed.");
       return -1;

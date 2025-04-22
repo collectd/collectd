@@ -79,6 +79,7 @@ typedef struct sockent {
 static int wifxudp_config_ttl;
 static size_t wifxudp_config_packet_size = NET_DEFAULT_PACKET_SIZE;
 static bool wifxudp_config_store_rates;
+static bool wifxudp_config_write_meta;
 static format_influxdb_time_precision_t wifxudp_config_time_precision = MS;
 
 static sockent_t *sending_sockets;
@@ -87,7 +88,7 @@ static sockent_t *sending_sockets;
 static char *send_buffer;
 static char *send_buffer_ptr;
 static int send_buffer_fill;
-static cdtime_t send_buffer_last_update;
+static cdtime_t send_buffer_first_write;
 static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int set_ttl(const sockent_t *se, const struct addrinfo *ai) {
@@ -306,7 +307,7 @@ static void write_influxdb_udp_init_buffer(void) {
   memset(send_buffer, 0, wifxudp_config_packet_size);
   send_buffer_ptr = send_buffer;
   send_buffer_fill = 0;
-  send_buffer_last_update = 0;
+  send_buffer_first_write = 0;
 } /* write_influxdb_udp_init_buffer */
 
 static void write_influxdb_udp_send_buffer(sockent_t *sending_socket,
@@ -354,9 +355,9 @@ write_influxdb_udp_write(const data_set_t *ds, const value_list_t *vl,
                          user_data_t __attribute__((unused)) * user_data) {
   char buffer[NET_DEFAULT_PACKET_SIZE];
 
-  int status = format_influxdb_value_list(buffer, NET_DEFAULT_PACKET_SIZE, ds,
-                                          vl, wifxudp_config_store_rates,
-                                          wifxudp_config_time_precision);
+  int status = format_influxdb_value_list(
+      buffer, NET_DEFAULT_PACKET_SIZE, ds, vl, wifxudp_config_time_precision,
+      wifxudp_config_store_rates, wifxudp_config_write_meta);
 
   if (status < 0) {
     ERROR("write_influxdb_udp plugin: write_influxdb_udp_write failed.");
@@ -372,7 +373,8 @@ write_influxdb_udp_write(const data_set_t *ds, const value_list_t *vl,
 
   send_buffer_fill += status;
   send_buffer_ptr += status;
-  send_buffer_last_update = cdtime();
+  if (send_buffer_first_write == 0)
+    send_buffer_first_write = cdtime();
 
   if (wifxudp_config_packet_size - send_buffer_fill < 120)
     /* No room for a new point of average size in buffer,
@@ -509,6 +511,8 @@ static int write_influxdb_udp_config(oconfig_item_t *ci) {
       wifxudp_config_set_time_precision(child);
     else if (strcasecmp("StoreRates", child->key) == 0)
       cf_util_get_boolean(child, &wifxudp_config_store_rates);
+    else if (strcasecmp("WriteMetadata", child->key) == 0)
+      cf_util_get_boolean(child, &wifxudp_config_write_meta);
     else {
       WARNING("write_influxdb_udp plugin: "
               "Option `%s' is not allowed here.",
@@ -574,7 +578,7 @@ static int write_influxdb_udp_flush(cdtime_t timeout,
   if (send_buffer_fill > 0) {
     if (timeout > 0) {
       cdtime_t now = cdtime();
-      if ((send_buffer_last_update + timeout) > now) {
+      if ((send_buffer_first_write + timeout) > now) {
         pthread_mutex_unlock(&send_buffer_lock);
         return 0;
       }

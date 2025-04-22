@@ -72,9 +72,10 @@ static int format_influxdb_escape_string(char *buffer, size_t buffer_size,
   return dst_pos;
 } /* int format_influxdb_escape_string */
 
-int format_influxdb_value_list(
-    char *buffer, int buffer_len, const data_set_t *ds, const value_list_t *vl,
-    bool store_rates, format_influxdb_time_precision_t time_precision) {
+int format_influxdb_value_list(char *buffer, int buffer_len,
+                               const data_set_t *ds, const value_list_t *vl,
+                               format_influxdb_time_precision_t time_precision,
+                               bool store_rates, bool write_meta) {
   int status;
   int offset = 0;
   gauge_t *rates = NULL;
@@ -116,7 +117,7 @@ int format_influxdb_value_list(
     BUFFER_ADD(",type_instance=");
     BUFFER_ADD_ESCAPE(vl->type_instance);
   }
-  if (vl->meta) {
+  if (write_meta && vl->meta) {
     for (meta_entry_t *it = meta_data_iter(vl->meta); it != NULL;
          it = meta_data_iter_next(it)) {
       const char *key = meta_data_iter_key(it);

@@ -33,6 +33,12 @@
 /* do not automatically get the thread specific Perl interpreter */
 #define PERL_NO_GET_CONTEXT
 
+#if defined(__clang__) && defined(__clang_major__)
+#if __clang_major__ >= 12
+#pragma clang diagnostic ignored "-Wcompound-token-split-by-macro"
+#endif
+#endif
+
 #include "collectd.h"
 #include <stdbool.h>
 

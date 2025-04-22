@@ -3027,6 +3027,16 @@ data about the whole disk and each partition being mixed together incorrectly.
 In this case, you can use B<ID_COLLECTD> attribute that is provided by
 I<contrib/99-storage-collectd.rules> udev rule file instead.
 
+=item B<ReportDiscard> B<true>|B<false>
+
+Whether to submit discard metrics (/proc/diskstats 15-18), on Linux only.
+Requires Linux Kernel version > 4.18+.
+
+=item B<ReportFlush> B<true>|B<false>
+
+Whether to submit flush metrics (/proc/diskstats 19-20), on Linux only.
+Requires Linux Kernel version > 5.5+.
+
 =back
 
 =head2 Plugin C<dns>
@@ -3315,6 +3325,51 @@ Sets the maximum number of connections that can be handled in parallel. Since
 this many threads will be started immediately setting this to a very high
 value will waste valuable resources. Defaults to B<5> and will be forced to be
 at most B<16384> to prevent typos and dumb mistakes.
+
+=back
+
+=head2 Plugin C<epics>
+
+The I<epics plugin> collects data from EPICS (Experimental Physics and
+Industrial Control System) message bus.
+
+Note that in addition to the plugin configuration, the host OS has to be
+configured to be part of the message bus: caRepeater daemon is up and running
+and appropriate EPICS environment variables are set, if required. Consult EPICS
+documentation for details.
+
+B<Synopsis:>
+
+ <Plugin epics>
+   <Variable "Cavity1:Temp">
+     Type "gauge"
+   </Variable>
+   Label "Cavity1:Name"
+ </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item E<lt>B<Variable> I<PVName>E<gt>
+
+The plugin configuration consists of multiple E<lt>B<Variable>E<gt> blocks,
+each per monitored EPICS Process Variable (PV). The variables are constantly
+monitored and their values are latched once per I<global Interval>.
+
+=item B<Type> I<Type>
+
+This is mandatory option to specify internal collectd type for this particular
+PV. PV data type announced by EPICS and the I<Type> specified here must be in a
+reasonable agreement.
+
+=item B<Label> I<PVName>
+
+Additionally, string-typed PV can be monitored as a B<Label>. For instance,
+this can potentially be useful for tracking an experiment ID. Note that in
+addition to configuring B<Label> the appropriate label-avare collectd writing
+plugin has to be enabled. For instance, I<write_prometheus plugin>,
+I<write_influxdb_udp plugin>, or I<write_http plugin> with InfluxDB B<Format>.
 
 =back
 
@@ -3977,6 +4032,8 @@ B<Synopsis:>
 
   <Plugin "intel_rdt">
     MonIPCEnabled true
+    MonLLCRefEnabled false
+    MonLLCMissEnabled false
     Cores "0-2" "3,4,6" "8-10,15"
     Processes "sshd,qemu-system-x86" "bash"
   </Plugin>
@@ -3996,6 +4053,18 @@ recommended to set interval higher than 1 sec.
 
 Determines whether or not to enable IPC monitoring. If set to B<true> (the
 default), IPC monitoring statistics will be collected by intel_rdt plugin.
+
+=item B<MonLLCRefEnabled> B<true>|B<false>
+
+Determines whether or not to enable LLC references monitoring. If set to
+B<false> (the default), LLC references monitoring statistics will not be
+collected by intel_rdt plugin.
+
+=item B<MonLLCMissEnabled> B<true>|B<false>
+
+Determines whether or not to enable LLC misses  monitoring. If set to B<false>
+(the default), LLC misses monitoring statistics will not be collected by
+intel_rdt plugin.
 
 =item B<Cores> I<cores groups>
 
@@ -4723,20 +4792,21 @@ B<Options:>
 
 Names of events to be monitored, separated by spaces. Possible events include:
 
-Event Name        | Class of event
-------------------+---------------
-DeviceDisappeared | FAILURE
-RebuildStarted    | OKAY
-RebuildNN         | OKAY
-RebuildFinished   | WARNING
-Fail              | FAILURE
-FailSpare         | WARNING
-SpareActive       | OKAY
-NewArray          | OKAY
-DegradedArray     | FAILURE
-MoveSpare         | WARNING
-SparesMissing     | WARNING
-TestMessage       | OKAY
+ 
+  Event Name        | Class of event
+  ------------------+---------------
+  DeviceDisappeared | FAILURE
+  RebuildStarted    | OKAY
+  RebuildNN         | OKAY
+  RebuildFinished   | WARNING
+  Fail              | FAILURE
+  FailSpare         | WARNING
+  SpareActive       | OKAY
+  NewArray          | OKAY
+  DegradedArray     | FAILURE
+  MoveSpare         | WARNING
+  SparesMissing     | WARNING
+  TestMessage       | OKAY
 
 User should set the events that should be monitored as a strings separated by spaces,
 for example Events "DeviceDisappeared Fail DegradedArray".
@@ -8036,6 +8106,7 @@ B<Synopsis:>
    CollectFileDescriptor  true
    CollectContextSwitch   true
    CollectDelayAccounting false
+   CollectSystemContextSwitch false
    Process "name"
    ProcessMatch "name" "regex"
    <Process "collectd">
@@ -8093,6 +8164,18 @@ Disabled by default.
 Collect the number of memory mapped files of the process.
 The limit for this number is configured via F</proc/sys/vm/max_map_count> in
 the Linux kernel.
+
+=item B<CollectSystemContextSwitch> I<Boolean>
+
+Collect the number of context switches at the system level.
+Collect ctxt fields from /proc/stat in linux systems.
+Can be configured only outside the B<Process> and B<ProcessMatch>
+blocks.
+
+=item B<SkipNonRunningProcess> I<Boolean>
+
+Skip submitting metrics for Zombie and non running processes.
+Disabled by default.
 
 =back
 
@@ -11256,6 +11339,7 @@ miliseconds while plugin instance, type and type instance are sent as tags.
    Server "influxdb2.fqdn"
    TimePrecision "ms"
    StoreRates "yes"
+   WriteMetadata "no"
  </Plugin>
 
 =over 4
@@ -11296,6 +11380,11 @@ UDP.
 
 If set to B<true>, convert absolute, counter and derive values to rates. If set
 to B<false> (the default) absolute, counter and derive values are sent as is.
+
+=item B<WriteMetadata> B<true|false>
+
+Defaults to B<false>. If set to B<true>, send aditional tags to influxdb with
+collectd value metadata.
 
 =back
 

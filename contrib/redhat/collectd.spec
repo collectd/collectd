@@ -107,6 +107,7 @@
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
+%define with_mmc 0%{!?_without_mmc:1}
 %define with_modbus 0%{!?_without_modbus:1}
 %define with_mqtt 0%{!?_without_mqtt:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
@@ -136,6 +137,7 @@
 %define with_procevent 0%{!?_without_procevent:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
+%define with_ras 0%{!?_without_ras:1}
 %define with_redis 0%{!?_without_redis:1}
 %define with_rrdcached 0%{!?_without_rrdcached:1}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
@@ -566,7 +568,11 @@ using the Intelligent Platform Management Interface (IPMI).
 Summary:	IPtables plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+%if 0%{?fedora} || 0%{?rhel} >= 9
+BuildRequires:	iptables-legacy-devel
+%else
 BuildRequires:	iptables-devel
+%endif
 %description iptables
 The IPtables plugin can gather statistics from your ip_tables based packet
 filter (aka. firewall) for both the IPv4 and the IPv6 protocol. It can collect
@@ -636,6 +642,19 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 %description mic
 The mic plugin collects CPU usage, memory usage, temperatures and power
 consumption from Intel Many Integrated Core (MIC) CPUs.
+%endif
+
+%if %{with_mmc}
+%package mmc
+Summary:       MMC plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	systemd-devel
+%description mmc
+Reads the life time estimates reported by eMMC 5.0+ devices and some more
+detailed health metrics, like bad block and erase counts or power cycles,
+for Micron and SanDisk eMMCs and some Swissbit MMC cards (MANFID=0x5D
+OEMID=0x5342).
 %endif
 
 %if %{with_modbus}
@@ -761,6 +780,7 @@ Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 BuildRequires:	perl-ExtUtils-Embed
+BuildRequires:	perl-macros
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
@@ -832,6 +852,16 @@ BuildRequires: python2-devel
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
 application programming interface (API) to Python-scripts.
+%endif
+
+%if %{with_ras}
+%package ras
+Summary:	RAS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	sqlite-devel
+%description ras
+The RAS plugin gathers and counts errors provided by RASDaemon.
 %endif
 
 %if %{with_redis}
@@ -1552,6 +1582,12 @@ Collectd utilities
 %define _with_mic --disable-mic
 %endif
 
+%if %{with_mmc}
+%define _with_mmc --enable-mmc
+%else
+%define _with_mmc --disable-mmc
+%endif
+
 %if %{with_modbus}
 %define _with_modbus --enable-modbus
 %else
@@ -1760,6 +1796,12 @@ Collectd utilities
 %define _with_redfish --enable-redfish
 %else
 %define _with_redfish --disable-redfish
+%endif
+
+%if %{with_ras}
+%define _with_ras --enable-ras
+%else
+%define _with_ras --disable-ras
 %endif
 
 %if %{with_redis}
@@ -2173,6 +2215,7 @@ Collectd utilities
 	%{?_with_memcached} \
 	%{?_with_memory} \
 	%{?_with_mic} \
+	%{?_with_mmc} \
 	%{?_with_modbus} \
 	%{?_with_mqtt} \
 	%{?_with_multimeter} \
@@ -2207,6 +2250,7 @@ Collectd utilities
 	%{?_with_procevent} \
 	%{?_with_protocols} \
 	%{?_with_python} \
+	%{?_with_ras} \
 	%{?_with_redfish} \
 	%{?_with_redis} \
 	%{?_with_routeros} \
@@ -2364,7 +2408,7 @@ fi
 
 
 %files
-%doc AUTHORS COPYING ChangeLog README
+%doc AUTHORS COPYING ChangeLog README.md
 %config(noreplace) %{_sysconfdir}/collectd.conf
 %if 0%{?fedora} || 0%{?rhel} >= 7
 %{_unitdir}/collectd.service
@@ -2812,6 +2856,11 @@ fi
 %{_libdir}/%{name}/mic.so
 %endif
 
+%if %{with_mmc}
+%files mmc
+%{_libdir}/%{name}/mmc.so
+%endif
+
 %if %{with_modbus}
 %files modbus
 %{_libdir}/%{name}/modbus.so
@@ -2906,6 +2955,11 @@ fi
 %files python
 %{_mandir}/man5/collectd-python*
 %{_libdir}/%{name}/python.so
+%endif
+
+%if %{with_ras}
+%files ras
+%{_libdir}/%{name}/ras.so
 %endif
 
 %if %{with_redis}

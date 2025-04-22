@@ -974,6 +974,12 @@ if test "x$have_strptime" = "xyes" && test "x$c_cv_have_strptime_default" = "xno
               #ifndef _XOPEN_SOURCE
               # define _XOPEN_SOURCE 500
               #endif
+              # ifndef _BSD_SOURCE
+              #  define _BSD_SOURCE
+              # endif
+              # ifndef _DEFAULT_SOURCE
+              #  define _DEFAULT_SOURCE
+              # endif
               #include <time.h>
             ]],
             [[
@@ -1024,6 +1030,12 @@ AC_CACHE_CHECK([for timegm],
 # ifndef _XOPEN_SOURCE
 #  define _XOPEN_SOURCE 500
 # endif
+# ifndef _BSD_SOURCE
+#  define _BSD_SOURCE
+# endif
+# ifndef _DEFAULT_SOURCE
+#  define _DEFAULT_SOURCE
+# endif
 #endif
 #include <time.h>
 ]]],
@@ -1039,50 +1051,9 @@ AC_CACHE_CHECK([for timegm],
   )
 )
 
-if test "x$c_cv_have_timegm" != "xyes"
-then
-  AC_CACHE_CHECK([for timegm with _BSD_SOURCE],
-    [c_cv_have_timegm_bsd],
-    AC_LINK_IFELSE(
-      [AC_LANG_PROGRAM(
-[[[
-#if STRPTIME_NEEDS_STANDARDS
-# ifndef _ISOC99_SOURCE
-#  define _ISOC99_SOURCE 1
-# endif
-# ifndef _POSIX_C_SOURCE
-#  define _POSIX_C_SOURCE 200112L
-# endif
-# ifndef _XOPEN_SOURCE
-#  define _XOPEN_SOURCE 500
-# endif
-#endif
-#ifndef _BSD_SOURCE
-# define _BSD_SOURCE 1
-#endif
-#include <time.h>
-]]],
-[[[
- time_t t = timegm(&(struct tm){0});
- if (t == ((time_t) -1)) {
-   return 1;
- }
-]]]
-      )],
-      [c_cv_have_timegm_bsd="yes"
-       c_cv_have_timegm="yes"],
-      [c_cv_have_timegm_bsd="no"]
-    )
-  )
-fi
-
 if test "x$c_cv_have_timegm" = "xyes"
 then
   AC_DEFINE(HAVE_TIMEGM, 1, [Define if the timegm(3) function is available.])
-  if test "x$c_cv_have_timegm_bsd" = "xyes"
-  then
-    AC_DEFINE(TIMEGM_NEEDS_BSD, 1, [Set to true if timegm is only exported in BSD mode.])
-  fi
 fi
 
 CFLAGS="$SAVE_CFLAGS"
@@ -2069,6 +2040,20 @@ if test "x$with_kvm_openfiles" = "xyes"; then
   with_libkvm="yes"
 fi
 
+AC_CHECK_HEADERS([libpfctl.h],,,
+[
+  #include <sys/queue.h>
+  #include <sys/types.h>
+  #include <netinet/in.h>
+  #include <net/if.h>
+  #include <net/pfvar.h>
+])
+AC_CHECK_LIB([pfctl], [pfctl_status_counter],
+  [with_libpfctl="yes"],
+  [with_libpfctl="no"]
+)
+AM_CONDITIONAL([BUILD_WITH_LIBPFCTL], [test "x$with_libpfctl" = "xyes"])
+
 # --with-cuda {{{
 AC_ARG_WITH([cuda],
   [AS_HELP_STRING([--with-cuda@<:@=PREFIX@:>@], [Path to cuda.])],
@@ -2105,6 +2090,35 @@ fi
 AC_SUBST([BUILD_WITH_CUDA_CPPFLAGS])
 AC_SUBST([BUILD_WITH_CUDA_LDFLAGS])
 AC_SUBST([BUILD_WITH_CUDA_LIBS])
+
+# }}}
+
+# --with-epics-base {{{
+AC_ARG_WITH([epics-base],
+  [AS_HELP_STRING([--with-epics-base@<:@=PREFIX@:>@], [Path to epics-base.])],
+  [
+    with_epics_base="$withval"
+    if test "x$withval" = "xno"; then
+      with_epics_base="no (disabled on command line)"
+    fi
+  ],
+  [with_epics_base="yes"]
+)
+
+if test "x$with_epics_base" = "xyes"; then
+PKG_CHECK_MODULES([EPICS_BASE], [epics-base],
+  [with_epics_base="yes"],
+  [with_epics_base="no (pkg-config could not find epics-base)"]
+)
+fi
+
+if test "x$with_epics_base" = "xyes"; then
+  BUILD_WITH_EPICS_BASE_CFLAGS="$EPICS_BASE_CFLAGS"
+  BUILD_WITH_EPICS_BASE_LIBS="$EPICS_BASE_LIBS -lca"
+fi
+
+AC_SUBST([BUILD_WITH_EPICS_BASE_CFLAGS])
+AC_SUBST([BUILD_WITH_EPICS_BASE_LIBS])
 
 # }}}
 
@@ -2662,15 +2676,34 @@ if test "x$with_libganglia" = "xyes"; then
   fi
 fi
 
+AC_CHECK_HEADERS([rpc/types.h],
+  [have_rpc_types_h="yes"],
+  [have_rpc_types_h="no"]
+)
+AS_UNSET([ac_cv_header_rpc_types_h])
+if test "x$have_rpc_types_h" = "xno"; then
+  # SunRPC has been removed from glibc.
+  # Replacement headers are in the "tirpc" subdirectory.
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS -I/usr/include/tirpc"
+
+  AC_CHECK_HEADERS([rpc/types.h],
+    [GANGLIA_CPPFLAGS="$GANGLIA_CPPFLAGS -I/usr/include/tirpc"],
+    [with_libganglia="no (rpc/types.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
 CPPFLAGS="$CPPFLAGS $GANGLIA_CPPFLAGS"
 LDFLAGS="$LDFLAGS $GANGLIA_LDFLAGS"
 
 if test "x$with_libganglia" = "xyes"; then
-  AC_CHECK_HEADERS([gm_protocol.h],
+  AC_CHECK_HEADERS([ganglia.h],
     [with_libganglia="yes"],
-    [with_libganglia="no (gm_protocol.h not found)"]
+    [with_libganglia="no (ganglia.h not found)"]
   )
 fi
 
@@ -2834,20 +2867,20 @@ PKG_CHECK_MODULES([GRPCPP], [grpc++],
 fi
 
 if test "x$withval" != "xno"; then
-  AC_MSG_CHECKING([whether $CXX accepts -std=c++11])
-  if test_cxx_flags -std=c++11; then
+  AC_MSG_CHECKING([whether $CXX accepts -std=c++14])
+  if test_cxx_flags -std=c++14; then
     AC_MSG_RESULT([yes])
   else
     AC_MSG_RESULT([no])
-    with_libgrpcpp="no (requires C++11 support)"
-    with_libprotobuf="no (<google/protobuf/util/time_util.h> requires C++11 support)"
+    with_libgrpcpp="no (requires C++14 support)"
+    with_libprotobuf="no (<absl/base/policy_checks.h> requires C++14 support)"
   fi
 fi
 
 if test "x$with_libgrpcpp" = "xyes"; then
   AC_LANG_PUSH(C++)
   SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
+  CPPFLAGS="-std=c++14 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
   AC_CHECK_HEADERS([grpc++/grpc++.h],
     [with_libgrpcpp="yes"],
     [with_libgrpcpp="no (<grpc++/grpc++.h> not found)"]
@@ -2861,7 +2894,7 @@ if test "x$with_libgrpcpp" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   SAVE_LDFLAGS="$LDFLAGS"
   SAVE_LIBS="$LIBS"
-  CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
+  CPPFLAGS="-std=c++14 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
   LDFLAGS="$with_libgrpcpp_ldflags"
   if test "x$GRPCPP_LIBS" = "x"; then
     LIBS="-lgrpc++"
@@ -2889,7 +2922,7 @@ if test "x$with_libgrpcpp" = "xyes"; then
   AC_LANG_POP(C++)
 fi
 
-BUILD_WITH_LIBGRPCPP_CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS"
+BUILD_WITH_LIBGRPCPP_CPPFLAGS="-std=c++14 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS"
 BUILD_WITH_LIBGRPCPP_LDFLAGS="$with_libgrpcpp_ldflags"
 BUILD_WITH_LIBGRPCPP_LIBS="$GRPCPP_LIBS"
 AC_SUBST([BUILD_WITH_LIBGRPCPP_CPPFLAGS])
@@ -3231,7 +3264,14 @@ else
                                     [
                                       PKG_CHECK_MODULES([LUA], [lua51],
                                         [with_liblua="yes"],
-                                        [with_liblua="no (pkg-config cannot find liblua)"]
+                                        [
+                                          PKG_CHECK_MODULES([LUA], [luajit],
+                                            [
+                                              with_liblua="yes"
+                                            ],
+                                            [with_liblua="no (pkg-config cannot find libluajit)"]
+					  )
+					]
                                       )
                                     ]
                                   )
@@ -4826,7 +4866,7 @@ if test "x$withval" != "xno"; then
   AC_CHECK_LIB([protobuf], [main],
     [
       SAVE_CPPFLAGS="$CPPFLAGS"
-      CPPFLAGS="-std=c++11 $with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
+      CPPFLAGS="-std=c++14 $with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
       if test "x$PROTOBUF_LIBS" = "x"
       then
         PROTOBUF_LIBS="-lprotobuf"
@@ -5076,10 +5116,12 @@ if test "x$with_librabbitmq" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
 
-  AC_CHECK_HEADERS([amqp.h],
-    [with_librabbitmq="yes"],
-    [with_librabbitmq="no (amqp.h not found)"]
-  )
+  with_librabbitmq="no (amqp.h and rabbitmq-c/amqp.h not found)"
+  AC_CHECK_HEADERS([rabbitmq-c/amqp.h], [with_librabbitmq="yes"], [])
+  AC_CHECK_HEADERS([amqp.h], [with_librabbitmq="yes"], [])
+
+  AC_CHECK_HEADERS([rabbitmq-c/framing.h rabbitmq-c/ssl_socket.h rabbitmq-c/tcp_socket.h \
+                    amqp_framing.h amqp_ssl_socket.h amqp_tcp_socket.h])
 
   CPPFLAGS="$SAVE_CPPFLAGS"
 fi
@@ -5100,7 +5142,11 @@ if test "x$with_librabbitmq" = "xyes"; then
       #include <stdio.h>
       #include <stdint.h>
       #include <inttypes.h>
-      #include <amqp.h>
+      #if HAVE_RABBITMQ_C_AMQP_H
+      # include <rabbitmq-c/amqp.h>
+      #else
+      # include <amqp.h>
+      #endif
     ]]
   )
   CPPFLAGS="$SAVE_CPPFLAGS"
@@ -5114,41 +5160,6 @@ if test "x$with_librabbitmq" = "xyes"; then
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
-fi
-
-if test "x$with_librabbitmq" = "xyes"; then
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  SAVE_LDFLAGS="$LDFLAGS"
-  SAVE_LIBS="$LIBS"
-  CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
-  LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
-  LIBS="-lrabbitmq"
-
-  AC_CHECK_HEADERS([amqp_tcp_socket.h amqp_socket.h])
-  AC_CHECK_FUNC([amqp_tcp_socket_new],
-    [
-      AC_DEFINE([HAVE_AMQP_TCP_SOCKET], [1],
-        [Define if librabbitmq provides the new TCP socket interface.])
-    ]
-  )
-
-  AC_CHECK_DECLS([amqp_socket_close],
-    [],
-    [],
-    [[
-      #include <amqp.h>
-      #ifdef HAVE_AMQP_TCP_SOCKET_H
-      # include <amqp_tcp_socket.h>
-      #endif
-      #ifdef HAVE_AMQP_SOCKET_H
-      # include <amqp_socket.h>
-      #endif
-    ]]
-  )
-
-  CPPFLAGS="$SAVE_CPPFLAGS"
-  LDFLAGS="$SAVE_LDFLAGS"
-  LIBS="$SAVE_LIBS"
 fi
 
 if test "x$with_librabbitmq" = "xyes"; then
@@ -5875,6 +5886,7 @@ if test "x$with_libupsclient" = "xyes"; then
     [[
       #include <stdlib.h>
       #include <stdio.h>
+      #include <time.h>
       #include <upsclient.h>
     ]]
   )
@@ -5917,6 +5929,7 @@ if test "x$with_libupsclient" = "xyes"; then
      for port_arg in 'uint16_t' 'int' ; do
         AC_COMPILE_IFELSE([
             AC_LANG_PROGRAM([
+#include <time.h>
 #include <upsclient.h>
 /* int upscli_splitname(const char *buf, char **upsname, char **hostname, <port_arg> *port); */
             ],[
@@ -5948,6 +5961,7 @@ return(res);
      for size_arg in 'size_t' 'unsigned int' 'int' ; do
         AC_COMPILE_IFELSE([
             AC_LANG_PROGRAM([
+#include <time.h>
 #include <upsclient.h>
 /* int upscli_list_next(UPSCONN_t *ups, <size_arg> numq, const char **query, <size_arg> *numa, char ***answer); */
 
@@ -6389,12 +6403,12 @@ fi
 if test "x$with_libvirt" = "xyes"; then
   with_libvirt_cflags="`$PKG_CONFIG --cflags libvirt`"
   if test $? -ne 0; then
-    with_libvirt="no"
+    with_libvirt="no (pkg-config --cflags failed)"
   fi
 
   with_libvirt_ldflags="`$PKG_CONFIG --libs libvirt`"
   if test $? -ne 0; then
-    with_libvirt="no"
+    with_libvirt="no (pkg-config --cflags failed)"
   fi
 fi
 
@@ -6776,6 +6790,7 @@ plugin_dpdkevents="no"
 plugin_dpdkstat="no"
 plugin_dpdk_telemetry="no"
 plugin_entropy="no"
+plugin_epics="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
@@ -7176,6 +7191,13 @@ fi
 
 if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"; then
   plugin_virt="yes"
+else
+  plugin_virt="no"
+  if test "x$with_libvirt" != "xyes"; then
+    plugin_virt="$with_libvirt"
+  elif test "x$with_libxml2" != "xyes"; then
+    plugin_virt="$with_libxml2"
+  fi
 fi
 
 if test "x$with_libxenctrl" = "xyes"; then
@@ -7248,6 +7270,7 @@ AC_PLUGIN([dpdk_telemetry],      [$plugin_dpdk_telemetry],    [Metrics from DPDK
 AC_PLUGIN([drbd],                [$plugin_drbd],              [DRBD statistics])
 AC_PLUGIN([email],               [yes],                       [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],           [Entropy statistics])
+AC_PLUGIN([epics],               [$with_epics_base],          [EPICS CA plugin])
 AC_PLUGIN([ethstat],             [$plugin_ethstat],           [Stats from NIC driver])
 AC_PLUGIN([exec],                [yes],                       [Execution of external programs])
 AC_PLUGIN([fhcount],             [$plugin_fhcount],           [File handles statistics])
@@ -7581,6 +7604,7 @@ AC_MSG_RESULT([    YACC  . . . . . . . . $YACC])
 AC_MSG_RESULT([    YFLAGS  . . . . . . . $YFLAGS])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Libraries:])
+AC_MSG_RESULT([    epics . . . . . . . . $with_epics_base])
 AC_MSG_RESULT([    intel mic . . . . . . $with_mic])
 AC_MSG_RESULT([    libaquaero5 . . . . . $with_libaquaero5])
 AC_MSG_RESULT([    libatasmart . . . . . $with_libatasmart])
@@ -7698,6 +7722,7 @@ AC_MSG_RESULT([    drbd  . . . . . . . . $enable_drbd])
 AC_MSG_RESULT([    email . . . . . . . . $enable_email])
 AC_MSG_RESULT([    entropy . . . . . . . $enable_entropy])
 AC_MSG_RESULT([    ethstat . . . . . . . $enable_ethstat])
+AC_MSG_RESULT([    epics . . . . . . . . $enable_epics])
 AC_MSG_RESULT([    exec  . . . . . . . . $enable_exec])
 AC_MSG_RESULT([    fhcount . . . . . . . $enable_fhcount])
 AC_MSG_RESULT([    filecount . . . . . . $enable_filecount])

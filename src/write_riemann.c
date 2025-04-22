@@ -214,7 +214,7 @@ static riemann_message_t *wrr_notification_to_message(notification_t const *n) {
 
 #if RCC_VERSION_NUMBER >= 0x010A00
   riemann_event_set(event, RIEMANN_EVENT_FIELD_TIME_MICROS,
-                    (int64_t)CDTIME_T_TO_US(n->time));
+                    (int64_t)CDTIME_T_TO_US(n->time), RIEMANN_EVENT_FIELD_NONE);
 #endif
 
   if (n->host[0] != 0)
@@ -315,7 +315,8 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
 
 #if RCC_VERSION_NUMBER >= 0x010A00
   riemann_event_set(event, RIEMANN_EVENT_FIELD_TIME_MICROS,
-                    (int64_t)CDTIME_T_TO_US(vl->time));
+                    (int64_t)CDTIME_T_TO_US(vl->time),
+                    RIEMANN_EVENT_FIELD_NONE);
 #endif
 
   if (host->check_thresholds) {

@@ -311,8 +311,16 @@ DEF_TEST(parse_values) {
         .meta = NULL,
     };
 
+    size_t buf_sz = strlen(cases[i].buffer) + 1;
+    char buf[buf_sz];
+    sstrncpy(buf, cases[i].buffer, sizeof(buf));
+
     int status = parse_values(cases[i].buffer, &vl, &ds);
     EXPECT_EQ_INT(cases[i].status, status);
+
+    /* Ensure cases[i].buffer remains unmodified. */
+    EXPECT_EQ_STR(buf, cases[i].buffer);
+
     if (status != 0)
       continue;
 

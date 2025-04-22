@@ -294,7 +294,7 @@ static pthread_t dispatch_thread_id;
 static char *send_buffer;
 static char *send_buffer_ptr;
 static int send_buffer_fill;
-static cdtime_t send_buffer_last_update;
+static cdtime_t send_buffer_first_write;
 static value_list_t send_buffer_vl = VALUE_LIST_INIT;
 static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -443,8 +443,17 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
 
   if (address != NULL) {
     char host[48];
-    status = getnameinfo((struct sockaddr *)address,
-                         sizeof(struct sockaddr_storage), host, sizeof(host),
+    size_t len = sizeof(struct sockaddr_storage);
+
+#ifdef __NetBSD__
+    if (address->ss_family == AF_INET) {
+      len = sizeof(struct sockaddr_in);
+    } else if (address->ss_family == AF_INET6) {
+      len = sizeof(struct sockaddr_in6);
+    }
+#endif
+
+    status = getnameinfo((struct sockaddr *)address, len, host, sizeof(host),
                          NULL, 0, NI_NUMERICHOST | NI_NUMERICSERV);
     if (status != 0) {
       ERROR("network plugin: getnameinfo failed: %s", gai_strerror(status));
@@ -1133,7 +1142,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_sign_sha256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
@@ -1288,7 +1297,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_encr_aes256 */
-  /* #endif HAVE_GCRYPT_H */
+/* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
@@ -1697,7 +1706,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-      /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+    /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "
@@ -2391,7 +2400,7 @@ static void network_init_buffer(void) {
   memset(send_buffer, 0, network_config_packet_size);
   send_buffer_ptr = send_buffer;
   send_buffer_fill = 0;
-  send_buffer_last_update = 0;
+  send_buffer_first_write = 0;
 
   memset(&send_buffer_vl, 0, sizeof(send_buffer_vl));
 } /* int network_init_buffer */
@@ -2706,7 +2715,8 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
     /* status == bytes added to the buffer */
     send_buffer_fill += status;
     send_buffer_ptr += status;
-    send_buffer_last_update = cdtime();
+    if (send_buffer_first_write == 0)
+      send_buffer_first_write = cdtime();
 
     stats_values_sent++;
   } else {
@@ -2893,11 +2903,11 @@ static int network_config_add_listen(const oconfig_item_t *ci) /* {{{ */
       network_config_set_security_level(child, &se->data.server.security_level);
     else
 #endif /* HAVE_GCRYPT_H */
-        if (strcasecmp("Interface", child->key) == 0)
-      network_config_set_interface(child, &se->interface);
-    else {
-      WARNING("network plugin: Option `%s' is not allowed here.", child->key);
-    }
+      if (strcasecmp("Interface", child->key) == 0)
+        network_config_set_interface(child, &se->interface);
+      else {
+        WARNING("network plugin: Option `%s' is not allowed here.", child->key);
+      }
   }
 
 #if HAVE_GCRYPT_H
@@ -2973,15 +2983,15 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
       network_config_set_security_level(child, &se->data.client.security_level);
     else
 #endif /* HAVE_GCRYPT_H */
-        if (strcasecmp("Interface", child->key) == 0)
-      network_config_set_interface(child, &se->interface);
-    else if (strcasecmp("BindAddress", child->key) == 0)
-      network_config_set_bind_address(child, &se->data.client.bind_addr);
-    else if (strcasecmp("ResolveInterval", child->key) == 0)
-      cf_util_get_cdtime(child, &se->data.client.resolve_interval);
-    else {
-      WARNING("network plugin: Option `%s' is not allowed here.", child->key);
-    }
+      if (strcasecmp("Interface", child->key) == 0)
+        network_config_set_interface(child, &se->interface);
+      else if (strcasecmp("BindAddress", child->key) == 0)
+        network_config_set_bind_address(child, &se->data.client.bind_addr);
+      else if (strcasecmp("ResolveInterval", child->key) == 0)
+        cf_util_get_cdtime(child, &se->data.client.resolve_interval);
+      else {
+        WARNING("network plugin: Option `%s' is not allowed here.", child->key);
+      }
   }
 
 #if HAVE_GCRYPT_H
@@ -3303,7 +3313,7 @@ static int network_flush(cdtime_t timeout,
   if (send_buffer_fill > 0) {
     if (timeout > 0) {
       cdtime_t now = cdtime();
-      if ((send_buffer_last_update + timeout) > now) {
+      if ((send_buffer_first_write + timeout) > now) {
         pthread_mutex_unlock(&send_buffer_lock);
         return 0;
       }

@@ -493,6 +493,22 @@ static int json_add_string(yajl_gen g, char const *str) /* {{{ */
     }                                                                          \
   } while (0)
 
+#define JSON_ADD_LABEL(g, str)                                                 \
+  do {                                                                         \
+    char *label = strdup(str);                                                 \
+    if (label == NULL)                                                         \
+      return -1;                                                               \
+    int len = strlen(str);                                                     \
+    for (int i = 0; i < len; i++)                                              \
+      if (label[i] == ':')                                                     \
+        label[i] = '_';                                                        \
+    yajl_gen_status status = json_add_string(g, label);                        \
+    free(label);                                                               \
+    if (status != yajl_gen_status_ok) {                                        \
+      return -1;                                                               \
+    }                                                                          \
+  } while (0)
+
 #define CHECK_SUCCESS(cmd)                                                     \
   do {                                                                         \
     yajl_gen_status s = (cmd);                                                 \
@@ -506,7 +522,7 @@ static int format_json_meta(yajl_gen g, notification_meta_t *meta) /* {{{ */
   if (meta == NULL)
     return 0;
 
-  JSON_ADD(g, meta->name);
+  JSON_ADD_LABEL(g, meta->name);
   switch (meta->type) {
   case NM_TYPE_STRING:
     JSON_ADD(g, meta->nm_value.nm_string);
@@ -577,13 +593,6 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
     JSON_ADD(g, n->type_instance);
   }
 
-  JSON_ADD(g, "severity");
-  JSON_ADD(g, (n->severity == NOTIF_FAILURE)
-                  ? "FAILURE"
-                  : (n->severity == NOTIF_WARNING)
-                        ? "WARNING"
-                        : (n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN");
-
   JSON_ADD(g, "service");
   JSON_ADD(g, "collectd");
 
@@ -595,6 +604,11 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   JSON_ADD(g, "annotations");
   CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN annotations */
 
+  JSON_ADD(g, "severity");
+  JSON_ADD(g, (n->severity == NOTIF_FAILURE)   ? "FAILURE"
+              : (n->severity == NOTIF_WARNING) ? "WARNING"
+              : (n->severity == NOTIF_OKAY)    ? "OKAY"
+                                               : "UNKNOWN");
   JSON_ADD(g, "summary");
   JSON_ADD(g, n->message);
 
@@ -607,6 +621,12 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   JSON_ADD(g, "startsAt");
   if (format_time(g, n->time) != 0) {
     return -1;
+  }
+  if (n->severity == NOTIF_OKAY) {
+    JSON_ADD(g, "endsAt");
+    if (format_time(g, n->time) != 0) {
+      return -1;
+    }
   }
 
   CHECK_SUCCESS(yajl_gen_map_close(g));   /* END alert */
@@ -687,8 +707,10 @@ int format_json_notification(char *buffer, size_t buffer_size, /* {{{ */
   return 0;
 } /* }}} format_json_notification */
 #else
-int format_json_notification(char *buffer, size_t buffer_size, /* {{{ */
-                             notification_t const *n) {
+int format_json_notification(__attribute__((unused)) char *buffer,
+                             __attribute__((unused))
+                             size_t buffer_size, /* {{{ */
+                             __attribute__((unused)) notification_t const *n) {
   ERROR("format_json_notification: Not available (requires libyajl).");
   return ENOTSUP;
 } /* }}} int format_json_notification */

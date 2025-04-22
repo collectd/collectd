@@ -52,6 +52,7 @@ EXTRA_DIST = \
 	proto/collectd.proto \
 	proto/prometheus.proto \
 	proto/types.proto \
+	README.md \
 	src/collectd-email.pod \
 	src/collectd-exec.pod \
 	src/collectd-java.pod \
@@ -156,6 +157,7 @@ check_PROGRAMS = \
 	test_meta_data \
 	test_utils_avltree \
 	test_utils_cmds \
+	test_utils_cmds_putval \
 	test_utils_heap \
 	test_utils_latency \
 	test_utils_message_parser \
@@ -520,6 +522,13 @@ test_utils_cmds_SOURCES = \
 	src/utils/cmds/cmds_test.c \
 	src/testing.h
 test_utils_cmds_LDADD = \
+	libcmds.la \
+	libplugin_mock.la
+
+test_utils_cmds_putval_SOURCES = \
+	src/utils/cmds/putval_test.c \
+	src/testing.h
+test_utils_cmds_putval_LDADD = \
 	libcmds.la \
 	libplugin_mock.la
 
@@ -1055,6 +1064,14 @@ entropy_la_SOURCES = src/entropy.c
 entropy_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_EPICS
+pkglib_LTLIBRARIES += epics.la
+epics_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_EPICS_BASE_CFLAGS)
+epics_la_SOURCES = src/epics.c
+epics_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+epics_la_LIBADD = -lpthread $(BUILD_WITH_EPICS_BASE_LIBS)
+endif
+
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
 exec_la_SOURCES = src/exec.c
@@ -1343,6 +1360,17 @@ lua_la_SOURCES = \
 lua_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBLUA_CFLAGS)
 lua_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
+
+test_plugin_lua_SOURCES = src/lua_test.c src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_lua_CFLAGS = $(AM_CFLAGS) \
+	$(BUILD_WITH_LIBLUA_CFLAGS)
+test_plugin_lua_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBLUA_LDFLAGS)
+test_plugin_lua_LDADD = liboconfig.la libplugin_mock.la \
+	$(BUILD_WITH_LIBLUA_LIBS)
+check_PROGRAMS += test_plugin_lua
+TESTS += test_plugin_lua
 endif
 
 if BUILD_PLUGIN_MADWIFI
@@ -1744,6 +1772,9 @@ if BUILD_PLUGIN_PF
 pkglib_LTLIBRARIES += pf.la
 pf_la_SOURCES = src/pf.c
 pf_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+if BUILD_WITH_LIBPFCTL
+pf_la_LDFLAGS += -lpfctl
+endif
 endif
 
 if BUILD_PLUGIN_PINBA
@@ -2225,8 +2256,8 @@ virt_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML
 
 test_plugin_virt_SOURCES = src/virt_test.c src/daemon/configfile.c \
 	src/daemon/types_list.c
-test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
-	$(BUILD_WITH_LIBVIRT_CPPFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+test_plugin_virt_CFLAGS = $(AM_CFLAGS) \
+	$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBVIRT_LDFLAGS) $(BUILD_WITH_LIBXML2_LDFLAGS)
 test_plugin_virt_LDADD = liboconfig.la libplugin_mock.la \

@@ -57,7 +57,13 @@ df_inodes               value:GAUGE:0:U
 dilution_of_precision   value:GAUGE:0:U
 disk_allocation         value:GAUGE:0:U
 disk_capacity           value:GAUGE:0:U
+disk_discard_ops        value:DERIVE:0:U
+disk_discard_merged     value:DERIVE:0:U
+disk_discard_sectors    value:DERIVE:0:U
+disk_discard_time       value:DERIVE:0:U
 disk_error              value:GAUGE:0:U
+disk_flush_ops          value:DERIVE:0:U
+disk_flush_time         value:DERIVE:0:U
 disk_io_time            io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 disk_latency            read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged             read:DERIVE:0:U, write:DERIVE:0:U
@@ -203,6 +209,7 @@ mysql_sort              value:DERIVE:0:U
 mysql_sort_merge_passes value:DERIVE:0:U
 mysql_sort_rows         value:DERIVE:0:U
 mysql_slow_queries      value:DERIVE:0:U
+questions               value:GAUGE:0:U
 nfs_procedure           value:DERIVE:0:U
 nginx_connections       value:GAUGE:0:U
 nginx_requests          value:DERIVE:0:U

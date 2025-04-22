@@ -185,6 +185,21 @@ static int memory_init(void) {
       plugin_dispatch_multivalue(vl, true, DS_TYPE_GAUGE, __VA_ARGS__, NULL);  \
   } while (0)
 
+#if KERNEL_LINUX
+static void memory_submit_available(gauge_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.gauge = value};
+  vl.values_len = 1;
+
+  sstrncpy(vl.plugin, "memory", sizeof(vl.plugin));
+  sstrncpy(vl.type, "memory", sizeof(vl.type));
+  sstrncpy(vl.type_instance, "available", sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+}
+#endif
+
 static int memory_read_internal(value_list_t *vl) {
 #if HAVE_HOST_STATISTICS
   kern_return_t status;
@@ -394,22 +409,16 @@ static int memory_read_internal(value_list_t *vl) {
    * They sum up to the value of Slab, which is available on older & newer
    * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
    * if not. */
-  if (mem_available_info && detailed_slab_info)
-    MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
-                  mem_cached, "free", mem_free, "available", mem_available,
-                  "slab_unrecl", mem_slab_unreclaimable, "slab_recl",
-                  mem_slab_reclaimable);
-  else if (mem_available_info)
-    MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
-                  mem_cached, "free", mem_free, "slab", mem_slab_total,
-                  "available", mem_available);
-  else if (detailed_slab_info)
+  if (detailed_slab_info)
     MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
                   mem_cached, "free", mem_free, "slab_unrecl",
                   mem_slab_unreclaimable, "slab_recl", mem_slab_reclaimable);
   else
     MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
                   mem_cached, "free", mem_free, "slab", mem_slab_total);
+
+  if (mem_available_info)
+    memory_submit_available(mem_available);
     /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
