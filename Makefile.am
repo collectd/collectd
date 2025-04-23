@@ -581,8 +581,7 @@ libcollectdclient_la_LDFLAGS += -shared -no-undefined
 libcollectdclient_la_LIBADD += -lgnu -lws2_32 -liphlpapi
 endif
 if BUILD_WITH_LIBGCRYPT
-libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
-libcollectdclient_la_LDFLAGS += $(GCRYPT_LDFLAGS)
+libcollectdclient_la_CPPFLAGS += $(GCRYPT_CFLAGS)
 libcollectdclient_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
@@ -594,8 +593,7 @@ test_libcollectd_network_parse_CPPFLAGS = \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient
 if BUILD_WITH_LIBGCRYPT
-test_libcollectd_network_parse_CPPFLAGS += $(GCRYPT_CPPFLAGS)
-test_libcollectd_network_parse_LDFLAGS = $(GCRYPT_LDFLAGS)
+test_libcollectd_network_parse_CPPFLAGS += $(GCRYPT_CFLAGS)
 test_libcollectd_network_parse_LDADD = $(GCRYPT_LIBS)
 endif
 
@@ -1581,8 +1579,7 @@ if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
 if BUILD_WITH_LIBGCRYPT
-network_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
-network_la_LDFLAGS += $(GCRYPT_LDFLAGS)
+network_la_CPPFLAGS += $(GCRYPT_CFLAGS)
 network_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
@@ -1591,8 +1588,8 @@ test_plugin_network_SOURCES = \
 	src/utils_fbhash.c \
 	src/daemon/configfile.c \
 	src/daemon/types_list.c
-test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CPPFLAGS)
-test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS) $(GCRYPT_LDFLAGS)
+test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CFLAGS)
+test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_network_LDADD = \
 	libavltree.la \
 	liboconfig.la \
