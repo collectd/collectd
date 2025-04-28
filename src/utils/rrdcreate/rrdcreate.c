@@ -135,7 +135,7 @@ static srrd_create_args_t *srrd_create_args_create(const char *filename,
 /* * * * * * * * * *
  * WARNING:  Magic *
  * * * * * * * * * */
-static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
+static int rra_get(char ***ret, metric_t const *m,
                    const rrdcreate_config_t *cfg) {
   char **rra_def;
   int rra_num;
@@ -165,7 +165,7 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
   if (cfg->stepsize > 0)
     ss = cfg->stepsize;
   else
-    ss = (int)CDTIME_T_TO_TIME_T(vl->interval);
+    ss = (int)CDTIME_T_TO_TIME_T(m->interval);
   if (ss <= 0) {
     *ret = NULL;
     return -1;
@@ -238,74 +238,42 @@ static void ds_free(int ds_num, char **ds_def) /* {{{ */
 } /* }}} void ds_free */
 
 static int ds_get(char ***ret, /* {{{ */
-                  const data_set_t *ds, const value_list_t *vl,
-                  const rrdcreate_config_t *cfg) {
-  char **ds_def;
-  size_t ds_num;
+                  metric_t const *m, const rrdcreate_config_t *cfg) {
+  metric_family_t *fam = m->family;
 
-  char min[32];
-  char max[32];
+  char **ds_def;
+
   char buffer[128];
 
-  assert(ds->ds_num > 0);
-
-  ds_def = calloc(ds->ds_num, sizeof(*ds_def));
+  ds_def = calloc(1, sizeof(*ds_def));
   if (ds_def == NULL) {
     P_ERROR("ds_get: calloc failed: %s", STRERRNO);
     return -1;
   }
 
-  for (ds_num = 0; ds_num < ds->ds_num; ds_num++) {
-    data_source_t *d = ds->ds + ds_num;
-    const char *type;
-    int status;
+  const char *type;
+  int status;
 
-    ds_def[ds_num] = NULL;
-
-    if (d->type == DS_TYPE_COUNTER)
-      type = "COUNTER";
-    else if (d->type == DS_TYPE_GAUGE)
-      type = "GAUGE";
-    else if (d->type == DS_TYPE_DERIVE)
-      type = "DERIVE";
-    else {
-      P_ERROR("ds_get: Unknown DS type: %i", d->type);
-      break;
-    }
-
-    if (isnan(d->min)) {
-      sstrncpy(min, "U", sizeof(min));
-    } else
-      ssnprintf(min, sizeof(min), "%f", d->min);
-
-    if (isnan(d->max)) {
-      sstrncpy(max, "U", sizeof(max));
-    } else
-      ssnprintf(max, sizeof(max), "%f", d->max);
-
-    status = ssnprintf(
-        buffer, sizeof(buffer), "DS:%s:%s:%i:%s:%s", d->name, type,
-        (cfg->heartbeat > 0) ? cfg->heartbeat
-                             : (int)CDTIME_T_TO_TIME_T(2 * vl->interval),
-        min, max);
-    if ((status < 1) || ((size_t)status >= sizeof(buffer)))
-      break;
-
-    ds_def[ds_num] = sstrdup(buffer);
-  } /* for ds_num = 0 .. ds->ds_num */
-
-  if (ds_num != ds->ds_num) {
-    ds_free(ds_num, ds_def);
-    return -1;
-  }
-
-  if (ds_num == 0) {
-    sfree(ds_def);
+  if (fam->type == METRIC_TYPE_COUNTER)
+    type = "COUNTER";
+  else if (fam->type == METRIC_TYPE_GAUGE)
+    type = "GAUGE";
+  else {
+    P_ERROR("ds_get: Unknown DS type: %i", fam->type);
     return 0;
   }
 
+  status = ssnprintf(buffer, sizeof(buffer), "DS:%s:%s:%i:U:U", fam->name, type,
+                     (cfg->heartbeat > 0)
+                         ? cfg->heartbeat
+                         : (int)CDTIME_T_TO_TIME_T(2 * m->interval));
+  if ((status < 1) || ((size_t)status >= sizeof(buffer)))
+    return 0;
+
+  ds_def[0] = sstrdup(buffer);
+
   *ret = ds_def;
-  return ds_num;
+  return 1;
 } /* }}} int ds_get */
 
 #if HAVE_THREADSAFE_LIBRRD
@@ -570,8 +538,7 @@ static int srrd_create_async(const char *filename, /* {{{ */
  * Public functions
  */
 int cu_rrd_create_file(const char *filename, /* {{{ */
-                       const data_set_t *ds, const value_list_t *vl,
-                       const rrdcreate_config_t *cfg) {
+                       const metric_t *m, const rrdcreate_config_t *cfg) {
   char **argv;
   int argc;
   char **rra_def = NULL;
@@ -585,12 +552,12 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
   if (check_create_dir(filename))
     return -1;
 
-  if ((rra_num = rra_get(&rra_def, vl, cfg)) < 1) {
+  if ((rra_num = rra_get(&rra_def, m, cfg)) < 1) {
     P_ERROR("cu_rrd_create_file failed: Could not calculate RRAs");
     return -1;
   }
 
-  if ((ds_num = ds_get(&ds_def, ds, vl, cfg)) < 1) {
+  if ((ds_num = ds_get(&ds_def, m, cfg)) < 1) {
     P_ERROR("cu_rrd_create_file failed: Could not calculate DSes");
     rra_free(rra_num, rra_def);
     return -1;
@@ -609,7 +576,7 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
   memcpy(argv + ds_num, rra_def, rra_num * sizeof(char *));
   argv[ds_num + rra_num] = NULL;
 
-  last_up = CDTIME_T_TO_TIME_T(vl->time);
+  last_up = CDTIME_T_TO_TIME_T(m->time);
   if (last_up <= 0)
     last_up = time(NULL);
   last_up -= 1;
@@ -617,7 +584,7 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
   if (cfg->stepsize > 0)
     stepsize = cfg->stepsize;
   else
-    stepsize = (unsigned long)CDTIME_T_TO_TIME_T(vl->interval);
+    stepsize = (unsigned long)CDTIME_T_TO_TIME_T(m->interval);
 
   if (cfg->async) {
     status = srrd_create_async(filename, stepsize, last_up, argc,
