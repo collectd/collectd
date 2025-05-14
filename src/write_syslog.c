@@ -591,6 +591,7 @@ static int ws_config_tsd(oconfig_item_t *ci) {
       ERROR("write_syslog plugin: Invalid configuration "
             "option: %s.",
             child->key);
+      ws_callback_free(cb);
       return -1;
     }
   }
