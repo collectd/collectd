@@ -285,6 +285,10 @@ static int logparser_config_message(const oconfig_item_t *ci, char *filename,
       ret = cf_util_get_string(child, &parser->def_type_inst);
     else if (strcasecmp("DefaultSeverity", child->key) == 0) {
       ret = cf_util_get_string(child, &severity);
+      if (ret != 0) {
+        ERROR(PLUGIN_NAME ": Error getting DefaultSeverity value");
+        goto error;
+      }
       if (strcasecmp(LOGPARSER_SEV_OK_STR, severity) == 0)
         parser->def_severity = NOTIF_OKAY;
       else if (strcasecmp(LOGPARSER_SEV_WARN_STR, severity) == 0)
