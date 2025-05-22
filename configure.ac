@@ -2685,48 +2685,27 @@ AC_SUBST(GANGLIA_LIBS)
 # }}}
 
 # --with-libgcrypt {{{
-GCRYPT_CPPFLAGS="$GCRYPT_CPPFLAGS"
-GCRYPT_LDFLAGS="$GCRYPT_LDFLAGS"
-GCRYPT_LIBS="$GCRYPT_LIBS"
 AC_ARG_WITH([libgcrypt],
-  [AS_HELP_STRING([--with-libgcrypt@<:@=PREFIX@:>@], [Path to libgcrypt.])],
+  [AS_HELP_STRING([--with-libgcrypt], [Use libgcrypt (default is auto)])],
   [
-    if test -f "$withval" && test -x "$withval"; then
-      with_libgcrypt_config="$withval"
-      with_libgcrypt="yes"
-    else if test -f "$withval/bin/gcrypt-config" && test -x "$withval/bin/gcrypt-config"; then
-      with_libgcrypt_config="$withval/bin/gcrypt-config"
-      with_libgcrypt="yes"
-    else if test -d "$withval"; then
-      GCRYPT_CPPFLAGS="$GCRYPT_CPPFLAGS -I$withval/include"
-      GCRYPT_LDFLAGS="$GCRYPT_LDFLAGS -L$withval/lib"
-      with_libgcrypt="yes"
-    else
-      with_libgcrypt_config="gcrypt-config"
-      with_libgcrypt="$withval"
-    fi; fi; fi
+    with_libgcrypt="$withval"
+    if test "x$withval" = "xno"; then
+      with_libgcrypt="no (disabled on command line)"
+    fi
   ],
-  [
-    with_libgcrypt_config="libgcrypt-config"
-    with_libgcrypt="yes"
-  ]
+  [with_libgcrypt="yes"]
 )
 
-if test "x$with_libgcrypt" = "xyes" && test "x$with_libgcrypt_config" != "x"; then
-  if test "x$GCRYPT_CPPFLAGS" = "x"; then
-    GCRYPT_CPPFLAGS=`"$with_libgcrypt_config" --cflags 2>/dev/null`
-  fi
-
-  if test "x$GCRYPT_LIBS" = "x"; then
-    GCRYPT_LIBS=`"$with_libgcrypt_config" --libs 2>/dev/null`
-  fi
+if test "x$with_libgcrypt" = "xyes"; then
+  PKG_CHECK_MODULES([GCRYPT], [libgcrypt],
+    [],
+    [with_libgcrypt="no (pkg-config could not find libgcrypt)"]
+  )
 fi
 
 SAVE_CPPFLAGS="$CPPFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
 SAVE_LIBS="$LIBS"
-CPPFLAGS="$CPPFLAGS $GCRYPT_CPPFLAGS"
-LDFLAGS="$LDFLAGS $GCRYPT_LDFLAGS"
+CPPFLAGS="$CPPFLAGS $GCRYPT_CFLAGS"
 LIBS="$LIBS $GCRYPT_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"; then
@@ -2737,18 +2716,16 @@ if test "x$with_libgcrypt" = "xyes"; then
 fi
 
 if test "x$with_libgcrypt" = "xyes"; then
-  AC_CHECK_LIB(gcrypt, gcry_md_hash_buffer,
+  AC_CHECK_FUNC([gcry_md_hash_buffer],
     [with_libgcrypt="yes"],
     [with_libgcrypt="no (symbol gcry_md_hash_buffer not found)"]
   )
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
-LDFLAGS="$SAVE_LDFLAGS"
 LIBS="$SAVE_LIBS"
 
-AC_SUBST([GCRYPT_CPPFLAGS])
-AC_SUBST([GCRYPT_LDFLAGS])
+AC_SUBST([GCRYPT_CFLAGS])
 AC_SUBST([GCRYPT_LIBS])
 AM_CONDITIONAL([BUILD_WITH_LIBGCRYPT], [test "x$with_libgcrypt" = "xyes"])
 # }}}
