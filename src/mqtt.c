@@ -647,13 +647,14 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
         } else if (strcasecmp("JSON", format) == 0) {
           conf->format = MQTT_FORMAT_JSON;
         } else {
-          WARNING("mqtt plugin: Invalid format: %s. Must be 'Command' or 'JSON'.", format);
+          WARNING(
+              "mqtt plugin: Invalid format: %s. Must be 'Command' or 'JSON'.",
+              format);
           status = -1;
         }
       }
       sfree(format);
-    }
-    else if (strcasecmp("CACert", child->key) == 0)
+    } else if (strcasecmp("CACert", child->key) == 0)
       cf_util_get_string(child, &conf->cacertificatefile);
     else if (strcasecmp("CertificateFile", child->key) == 0)
       cf_util_get_string(child, &conf->certificatefile);
