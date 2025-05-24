@@ -33,6 +33,7 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "utils/format_json/format_json.h"
 #include "utils_complain.h"
 
 #include <mosquitto.h>
@@ -43,6 +44,9 @@
 #define MQTT_DEFAULT_PORT 1883
 #define MQTT_DEFAULT_TOPIC_PREFIX "collectd"
 #define MQTT_DEFAULT_TOPIC "collectd/#"
+
+#define MQTT_FORMAT_COMMAND 0
+#define MQTT_FORMAT_JSON 1
 #ifndef MQTT_KEEPALIVE
 #define MQTT_KEEPALIVE 60
 #endif
@@ -76,6 +80,7 @@ struct mqtt_client_conf {
   char *topic_prefix;
   bool store_rates;
   bool retain;
+  int format;
 
   /* For subscribing */
   pthread_t thread;
@@ -306,6 +311,9 @@ static int mqtt_connect(mqtt_client_conf_t *conf) {
 
 #if LIBMOSQUITTO_MAJOR != 0
   if (conf->cacertificatefile) {
+    conf->qos = 0;
+    conf->format = MQTT_FORMAT_COMMAND;
+    conf->cacertificatefile = NULL;
     status = mosquitto_tls_set(conf->mosq, conf->cacertificatefile, NULL,
                                conf->certificatefile, conf->certificatekeyfile,
                                /* pw_callback */ NULL);
@@ -526,10 +534,18 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
     return status;
   }
 
-  status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
-  if (status != 0) {
-    ERROR("mqtt plugin: format_values failed with status %d.", status);
-    return status;
+  if (conf->format == MQTT_FORMAT_JSON) {
+    size_t bfree = sizeof(payload);
+    size_t bfill = 0;
+    format_json_initialize(payload, &bfill, &bfree);
+    format_json_value_list(payload, &bfill, &bfree, ds, vl, conf->store_rates);
+    format_json_finalize(payload, &bfill, &bfree);
+  } else {
+    status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
+    if (status != 0) {
+      ERROR("mqtt plugin: format_values failed with status %d.", status);
+      return status;
+    }
   }
 
   status = publish(conf, topic, payload, strlen(payload));
@@ -581,6 +597,7 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
   conf->port = MQTT_DEFAULT_PORT;
   conf->client_id = NULL;
   conf->qos = 0;
+  conf->format = MQTT_FORMAT_COMMAND;
   conf->topic_prefix = strdup(MQTT_DEFAULT_TOPIC_PREFIX);
   conf->store_rates = true;
 
@@ -621,6 +638,21 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
       cf_util_get_boolean(child, &conf->store_rates);
     else if (strcasecmp("Retain", child->key) == 0)
       cf_util_get_boolean(child, &conf->retain);
+    else if (strcasecmp("Format", child->key) == 0) {
+      char *format = NULL;
+      status = cf_util_get_string(child, &format);
+      if (status == 0) {
+        if (strcasecmp("Command", format) == 0) {
+          conf->format = MQTT_FORMAT_COMMAND;
+        } else if (strcasecmp("JSON", format) == 0) {
+          conf->format = MQTT_FORMAT_JSON;
+        } else {
+          WARNING("mqtt plugin: Invalid format: %s. Must be 'Command' or 'JSON'.", format);
+          status = -1;
+        }
+      }
+      sfree(format);
+    }
     else if (strcasecmp("CACert", child->key) == 0)
       cf_util_get_string(child, &conf->cacertificatefile);
     else if (strcasecmp("CertificateFile", child->key) == 0)
