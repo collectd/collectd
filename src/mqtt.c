@@ -535,11 +535,12 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   if (conf->format == MQTT_FORMAT_JSON) {
-    size_t bfree = sizeof(payload);
-    size_t bfill = 0;
-    format_json_initialize(payload, &bfill, &bfree);
-    format_json_value_list(payload, &bfill, &bfree, ds, vl, conf->store_rates);
-    format_json_finalize(payload, &bfill, &bfree);
+    status = values_to_compact_json(payload, sizeof(payload), ds, vl,
+                                    conf->store_rates);
+    if (status != 0) {
+      ERROR("mqtt plugin: JSON formatting failed with status %d.", status);
+      return status;
+    }
   } else {
     status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
     if (status != 0) {
