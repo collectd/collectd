@@ -6816,6 +6816,7 @@ plugin_nginx="$with_libcurl"
 plugin_notify_desktop="$with_libnotify"
 plugin_notify_email="$with_libesmtp"
 plugin_notify_nagios="yes"
+plugin_notify_telegram="no"
 plugin_ntpd="yes"
 plugin_numa="no"
 plugin_nut="$with_libupsclient"
@@ -7070,6 +7071,10 @@ if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
   if test "x$have_strptime" = "xyes"; then
     plugin_bind="yes"
   fi
+fi
+
+if test "x$with_libcurl" = "xyes" && test "x$with_libssl" = "xyes" && test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes" && test "x$with_libmicrohttpd" = "xyes"; then
+  plugin_notify_telegram="yes"
 fi
 
 if test "x$with_libcurl" != "xyes"; then
@@ -7521,6 +7526,7 @@ AC_PLUGIN([nginx],               [$plugin_nginx],             [nginx statistics]
 AC_PLUGIN([notify_desktop],      [$plugin_notify_desktop],    [Desktop notifications])
 AC_PLUGIN([notify_email],        [$plugin_notify_email],      [Email notifier])
 AC_PLUGIN([notify_nagios],       [$plugin_notify_nagios],     [Nagios notification plugin])
+AC_PLUGIN([notify_telegram],     [$plugin_notify_telegram],   [Telegram notifier])
 AC_PLUGIN([ntpd],                [$plugin_ntpd],              [NTPd statistics])
 AC_PLUGIN([numa],                [$plugin_numa],              [NUMA virtual memory statistics])
 AC_PLUGIN([nut],                 [$plugin_nut],               [Network UPS tools statistics])
@@ -7969,6 +7975,7 @@ AC_MSG_RESULT([    nginx . . . . . . . . $enable_nginx])
 AC_MSG_RESULT([    notify_desktop  . . . $enable_notify_desktop])
 AC_MSG_RESULT([    notify_email  . . . . $enable_notify_email])
 AC_MSG_RESULT([    notify_nagios . . . . $enable_notify_nagios])
+AC_MSG_RESULT([    notify_telegram . . . $enable_notify_telegram])
 AC_MSG_RESULT([    ntpd  . . . . . . . . $enable_ntpd])
 AC_MSG_RESULT([    numa  . . . . . . . . $enable_numa])
 AC_MSG_RESULT([    nut . . . . . . . . . $enable_nut])
