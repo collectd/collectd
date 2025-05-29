@@ -1127,6 +1127,14 @@ entropy_la_SOURCES = src/entropy.c
 entropy_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_EPICS
+pkglib_LTLIBRARIES += epics.la
+epics_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_EPICS_BASE_CFLAGS)
+epics_la_SOURCES = src/epics.c
+epics_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+epics_la_LIBADD = -lpthread $(BUILD_WITH_EPICS_BASE_LIBS)
+endif
+
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
 exec_la_SOURCES = src/exec.c
