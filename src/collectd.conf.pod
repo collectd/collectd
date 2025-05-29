@@ -5121,6 +5121,36 @@ setting is given, the B<Address> and B<Port> settings are ignored.
 
 =back
 
+=head2 Plugin C<mesh>
+
+The I<Mesh plugin> collects some statistics about the Wifi Mesh performance.
+The Linux kernel requires to be compile with CONFIG_MAC80211_DEBUGFS=y.
+
+B<Synopsis:>
+
+ <Plugin mesh>
+   <PhysicalDevice "phy0">
+     NetworkDevice "wlan0"
+   </PhysicalDevice>
+   <PhysicalDevice "phy1">
+     NetworkDevice "wlan1"
+   </PhysicalDevice>
+ </Plugin>
+
+=over 4
+
+=item B<PhysicalDevice> I<Name>
+
+Specifies a block containing the physical WiFi device name found under
+I</sys/kernel/debug/ieee80211/>.
+
+=item B<NetworkDevice> I<Name>
+
+Specifies the network interface associated with the WiFi mesh, typically
+found in the system's network configuration.
+
+=back
+
 =head2 Plugin C<mic>
 
 The B<mic plugin> gathers CPU statistics, memory usage and temperatures from
