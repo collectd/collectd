@@ -2176,6 +2176,33 @@
 #    Port "2181"
 #</Plugin>
 
+#<Chain "PostCache">
+#  <Target "target_onnx">
+#    OutputFamilyName "onnx.result"
+#    ModelPath "model.onnx"
+#    <Inputs "Inputs">
+#      <Input>
+#        Name "system.cpu.utilization{resource:host.name=\"localhost\",resource:service.name=\"unknown_service:collectd\",system.cpu.logical_number=\"0\",system.cpu.state=\"user\"}"
+#        Size 10
+#      </Input>
+#      <Input>
+#        Name "system.cpu.utilization{resource:host.name=\"localhost\",resource:service.name=\"unknown_service:collectd\",system.cpu.logical_number=\"1\",system.cpu.state=\"user\"}"
+#        Size 10
+#      </Input>
+#    </Inputs>
+#    <Outputs "Outputs">
+#      <Output>
+#        Name "output1"
+#      </Output>
+#      <Output>
+#        Name "output2"
+#      </Output>
+#    </Outputs>
+#  </Target>
+#  Target "write"
+#</Chain>
+
+
 ##############################################################################
 # Filter configuration                                                       #
 #----------------------------------------------------------------------------#
@@ -2193,6 +2220,7 @@
 
 # Load required targets:
 #@BUILD_PLUGIN_TARGET_NOTIFICATION_TRUE@LoadPlugin target_notification
+#@BUILD_PLUGIN_TARGET_ONNX_TRUE@LoadPlugin target_onnx
 #@BUILD_PLUGIN_TARGET_REPLACE_TRUE@LoadPlugin target_replace
 #@BUILD_PLUGIN_TARGET_SCALE_TRUE@LoadPlugin target_scale
 #@BUILD_PLUGIN_TARGET_SET_TRUE@LoadPlugin target_set

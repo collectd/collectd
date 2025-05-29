@@ -3541,6 +3541,59 @@ AC_SUBST([BUILD_WITH_LIBMONGOC_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBMONGOC_LIBS])
 # }}}
 
+# --with-libonnxruntime {{{
+with_libonnxruntime_cppflags=""
+with_libonnxruntime_ldflags=""
+AC_ARG_WITH([libonnxruntime], [AS_HELP_STRING([--with-libonnxruntime@<:@=PREFIX@:>@], [Path to libonnxruntime.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_libonnxruntime_cppflags="-I$withval/include"
+      with_libonnxruntime_ldflags="-L$withval/lib"
+      with_libonnxruntime="yes"
+    fi
+    if test "x$withval" = "xno"; then
+      with_libonnxruntime="no (disabled on command line)"
+    fi
+  ],
+  [withval="yes"]
+)
+if test "x$withval" = "xyes"; then
+  PKG_CHECK_MODULES([ONNXRUNTIME], [libonnxruntime],
+    [with_libonnxruntime="yes"],
+    [with_libonnxruntime="no (pkg-config could not find libonnxruntime)"]
+  )
+fi
+
+if test "x$ONNXRUNTIME_LIBS" = "x"; then
+  ONNXRUNTIME_LIBS="-lonnxruntime"
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
+CPPFLAGS="$with_onnxruntime_cppflags $ONNXRUNTIME_CFLAGS"
+LDFLAGS="$with_onnxruntime_ldflags $LDFLAGS"
+LIBS="$LIBS $ONNXRUNTIME_LIBS"
+
+if test "x$with_libonnruntime" = "xyes"; then
+  AC_CHECK_HEADERS([onnxruntime_c_api.h],
+   [with_libmicrohttpd="yes"],
+   [with_libmicrohttpd="no ("onnxruntime_c_api.h" not found)"]
+  )
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
+
+BUILD_WITH_LIBONNXRUNTIME_CPPFLAGS="$with_libonnxruntime_cppflags $ONNXRUNTIME_CFLAGS"
+BUILD_WITH_LIBONNXRUNTIME_LDFLAGS="$with_libonnxruntime_ldflags"
+BUILD_WITH_LIBONNXRUNTIME_LIBS="$ONNXRUNTIME_LIBS"
+AC_SUBST([BUILD_WITH_LIBONNXRUNTIME_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBONNXRUNTIME_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBONNXRUNTIME_LIBS])
+# }}}
+
 # --with-libmosquitto {{{
 AC_ARG_WITH([libmosquitto],
   [AS_HELP_STRING([--with-libmosquitto@<:@=PREFIX@:>@], [Path to libmosquitto.])],
@@ -6821,6 +6874,7 @@ plugin_numa="no"
 plugin_nut="$with_libupsclient"
 plugin_olsrd="yes"
 plugin_onewire="$with_libowcapi"
+plugin_target_onnx="$with_libonnxruntime"
 plugin_openldap="$with_libldap"
 plugin_open_telemetry="yes"
 plugin_openvpn="yes"
@@ -7568,6 +7622,7 @@ AC_PLUGIN([tape],                [$plugin_tape],              [Tape drive statis
 AC_PLUGIN([target_notification], [$plugin_target_notification],[The notification target])
 AC_PLUGIN([target_replace],      [$plugin_target_replace],    [The replace target])
 AC_PLUGIN([target_scale],        [$plugin_target_scale],      [The scale target])
+AC_PLUGIN([target_onnx],           [$plugin_target_onnx],         [Testing onnx target])
 AC_PLUGIN([target_set],          [$plugin_target_set],        [The set target])
 AC_PLUGIN([target_v5upgrade],    [$plugin_target_v5upgrade],  [The v5upgrade target])
 AC_PLUGIN([tcpconns],            [$plugin_tcpconns],          [TCP connection statistics])
@@ -7831,6 +7886,7 @@ AC_MSG_RESULT([    libnetsnmp  . . . . . $with_libnetsnmp])
 AC_MSG_RESULT([    libnetsnmpagent . . . $with_libnetsnmpagent])
 AC_MSG_RESULT([    libnotify . . . . . . $with_libnotify])
 AC_MSG_RESULT([    libnvidia-ml  . . . . $with_cuda])
+AC_MSG_RESULT([    libonnxruntime . . . .$with_libonnxruntime])
 AC_MSG_RESULT([    libopenipmi . . . . . $with_libopenipmipthread])
 AC_MSG_RESULT([    liboping  . . . . . . $with_liboping])
 AC_MSG_RESULT([    libowcapi . . . . . . $with_libowcapi])
@@ -8015,6 +8071,7 @@ AC_MSG_RESULT([    tape  . . . . . . . . $enable_tape])
 AC_MSG_RESULT([    target_notification . $enable_target_notification])
 AC_MSG_RESULT([    target_replace  . . . $enable_target_replace])
 AC_MSG_RESULT([    target_scale  . . . . $enable_target_scale])
+AC_MSG_RESULT([    target_onnx . . . . . $enable_target_onnx])
 AC_MSG_RESULT([    target_set  . . . . . $enable_target_set])
 AC_MSG_RESULT([    target_v5upgrade  . . $enable_target_v5upgrade])
 AC_MSG_RESULT([    tcpconns  . . . . . . $enable_tcpconns])
