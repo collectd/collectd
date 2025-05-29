@@ -1865,6 +1865,20 @@ powerdns_la_SOURCES = src/powerdns.c
 powerdns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_PROMETHEUS
+pkglib_LTLIBRARIES += prometheus.la
+prometheus_la_SOURCES = \
+  src/prometheus/prometheus.c \
+  src/prometheus/ast.c \
+  src/prometheus/ast.h \
+  src/prometheus/scanner.l \
+  src/prometheus/parser.y
+prometheus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+prometheus_la_LDFLAGS = $(PLUGIN_LDFLAGS) -avoid-version $(LEXLIB)
+prometheus_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
+BUILT_SOURCES += src/prometheus/parser.h
+endif
+
 if BUILD_PLUGIN_PYTHON
 pkglib_LTLIBRARIES += python.la
 python_la_SOURCES = \

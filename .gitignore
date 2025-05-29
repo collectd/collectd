@@ -53,6 +53,9 @@ ylwrap
 src/liboconfig/parser.c
 src/liboconfig/parser.h
 src/liboconfig/scanner.c
+src/prometheus/parser.c
+src/prometheus/parser.h
+src/prometheus/scanner.c
 
 # protobuf stuff:
 *.pb-c.[ch]

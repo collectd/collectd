@@ -6836,6 +6836,7 @@ plugin_postgresql="$with_libpq"
 plugin_powerdns="yes"
 plugin_processes="no"
 plugin_procevent="no"
+plugin_prometheus="$with_libcurl"
 plugin_protocols="no"
 plugin_python="no"
 plugin_redfish="$with_libredfish"
@@ -7542,6 +7543,7 @@ AC_PLUGIN([postgresql],          [$plugin_postgresql],        [PostgreSQL databa
 AC_PLUGIN([powerdns],            [$plugin_powerdns],          [PowerDNS statistics])
 AC_PLUGIN([processes],           [$plugin_processes],         [Process statistics])
 AC_PLUGIN([procevent],           [$plugin_procevent],         [Process event (start, stop) statistics])
+AC_PLUGIN([prometheus],          [$plugin_prometheus],        [prometheus statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],         [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],            [Embed a Python interpreter])
 AC_PLUGIN([redfish],             [$plugin_redfish],           [Redfish plugin])
@@ -7989,6 +7991,7 @@ AC_MSG_RESULT([    postgresql  . . . . . $enable_postgresql])
 AC_MSG_RESULT([    powerdns  . . . . . . $enable_powerdns])
 AC_MSG_RESULT([    processes . . . . . . $enable_processes])
 AC_MSG_RESULT([    procevent . . . . . . $enable_procevent])
+AC_MSG_RESULT([    prometheus  . . . . . $enable_prometheus])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
 AC_MSG_RESULT([    redfish . . . . . . . $enable_redfish])
