@@ -200,7 +200,7 @@ static int unix_connect(const char *sockfile, int *sockfd) {
     return -1;
   }
 
-  sstrncpy(sun.sun_path, sockfile, strlen(sockfile));
+  sstrncpy(sun.sun_path, sockfile, sizeof(sun.sun_path));
 
   do {
     rc = connect(sfd, (struct sockaddr *)&sun, sizeof(sun));
