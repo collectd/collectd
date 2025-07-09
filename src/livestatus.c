@@ -247,7 +247,7 @@ static int ls_parse(const char *lresponse, livestatus_status_t *lstatus) {
       continue;
     }
 
-    strncpy(fields[i], wstart, pchar - wstart);
+    memcpy(fields[i], wstart, pchar - wstart);
     wstart = ++pchar;
     i++;
 
