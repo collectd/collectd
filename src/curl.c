@@ -57,7 +57,7 @@ struct web_page_s /* {{{ */
   char *instance;
 
   char *url;
-  int address_family;
+  long address_family;
   char *user;
   char *pass;
   char *credentials;
