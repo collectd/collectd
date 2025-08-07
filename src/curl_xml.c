@@ -76,7 +76,7 @@ struct cx_s /* {{{ */
   char *host;
 
   char *url;
-  int address_family;
+  long address_family;
   char *user;
   char *pass;
   char *credentials;
