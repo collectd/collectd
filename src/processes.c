@@ -227,6 +227,9 @@ typedef struct procstat_entry_s {
   // Value is in jiffies.
   unsigned long long starttime;
 
+  cdtime_t now;
+  cdtime_t last_read;
+
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
 
@@ -245,10 +248,10 @@ typedef struct procstat_entry_s {
   derive_t cswitch_invol;
 
 #if HAVE_LIBTASKSTATS
-  value_to_rate_state_t delay_cpu;
-  value_to_rate_state_t delay_blkio;
-  value_to_rate_state_t delay_swapin;
-  value_to_rate_state_t delay_freepages;
+  uint64_t delay_cpu;
+  uint64_t delay_blkio;
+  uint64_t delay_swapin;
+  uint64_t delay_freepages;
 #endif
 
   struct procstat_entry_s *next;
@@ -298,6 +301,8 @@ typedef struct procstat {
   bool report_ctx_switch;
   bool report_delay;
   bool skip_non_running_procs;
+
+  cdtime_t last_submit;
 
   struct procstat *next;
   struct procstat_entry_s *instances;
@@ -493,15 +498,17 @@ static void ps_update_counter(derive_t *group_counter, derive_t *curr_counter,
 }
 
 #if HAVE_LIBTASKSTATS
-static void ps_update_delay_one(gauge_t *out_rate_sum,
-                                value_to_rate_state_t *state, uint64_t cnt,
-                                cdtime_t t) {
-  gauge_t rate = NAN;
-  int status = value_to_rate(&rate, (value_t){.counter = (counter_t)cnt},
-                             DS_TYPE_COUNTER, t, state);
-  if ((status != 0) || isnan(rate)) {
+static void ps_update_delay_one(gauge_t *out_rate_sum, uint64_t *prev_value,
+                                uint64_t curr_value, gauge_t interval) {
+
+  if ((interval == 0) || (*prev_value > curr_value)) {
+    *prev_value = curr_value;
     return;
   }
+
+  uint64_t diff = curr_value - *prev_value;
+  gauge_t rate = (gauge_t)diff / interval;
+  *prev_value = curr_value;
 
   if (isnan(*out_rate_sum)) {
     *out_rate_sum = rate;
@@ -512,16 +519,20 @@ static void ps_update_delay_one(gauge_t *out_rate_sum,
 
 static void ps_update_delay(procstat_t *out, procstat_entry_t *prev,
                             process_entry_t *curr) {
-  cdtime_t now = cdtime();
+
+  gauge_t interval = 0;
+  if (prev->last_read > 0) {
+    interval = CDTIME_T_TO_DOUBLE(prev->now - prev->last_read);
+  }
 
   ps_update_delay_one(&out->delay_cpu, &prev->delay_cpu, curr->delay.cpu_ns,
-                      now);
+                      interval);
   ps_update_delay_one(&out->delay_blkio, &prev->delay_blkio,
-                      curr->delay.blkio_ns, now);
+                      curr->delay.blkio_ns, interval);
   ps_update_delay_one(&out->delay_swapin, &prev->delay_swapin,
-                      curr->delay.swapin_ns, now);
+                      curr->delay.swapin_ns, interval);
   ps_update_delay_one(&out->delay_freepages, &prev->delay_freepages,
-                      curr->delay.freepages_ns, now);
+                      curr->delay.freepages_ns, interval);
 }
 #endif
 
@@ -564,6 +575,13 @@ static void ps_list_add(const char *name, const char *cmdline,
         ps->instances = new;
       else
         pse->next = new;
+
+      /* That is a new process in this group.
+       * We haven't seen it before, so assume all counters are not older than
+       * last group submit.
+       */
+      new->now = cdtime();
+      new->last_read = ps->last_submit;
 
       pse = new;
     }
@@ -659,6 +677,8 @@ static void ps_list_reset(void) {
         }
       } else {
         pse->age = 1;
+        pse->last_read = pse->now;
+        pse->now = cdtime();
         pse_prev = pse;
         pse = pse->next;
       }
@@ -978,6 +998,9 @@ static void ps_submit_proc_list(procstat_t *ps) {
     vl.values_len = 1;
     plugin_dispatch_values(&vl);
   }
+
+  /* Save time of last submission for delay_* metrics calculations */
+  ps->last_submit = cdtime();
 
   DEBUG(
       "name = %s; num_proc = %lu; num_lwp = %lu; num_fd = %lu; num_maps = %lu; "
