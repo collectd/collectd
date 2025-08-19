@@ -1802,7 +1802,9 @@ postgresql_la_SOURCES = \
 postgresql_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQ_CPPFLAGS)
 postgresql_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBPQ_LDFLAGS)
-postgresql_la_LIBADD = $(BUILD_WITH_LIBPQ_LIBS)
+postgresql_la_LIBADD = \
+	$(BUILD_WITH_LIBPQ_LIBS) \
+	libformat_json.la
 endif
 
 if BUILD_PLUGIN_POWERDNS

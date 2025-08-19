@@ -280,13 +280,19 @@ static int meta_data_keys_to_json(char *buffer, size_t buffer_size, /* {{{ */
 } /* }}} int meta_data_keys_to_json */
 
 static int meta_data_to_json(char *buffer, size_t buffer_size, /* {{{ */
-                             meta_data_t *meta) {
+                             meta_data_t *meta, char **metadata_keys,
+                             size_t metadata_keys_num) {
   char **keys = NULL;
   size_t keys_num;
   int status;
 
   if ((buffer == NULL) || (buffer_size == 0) || (meta == NULL))
     return EINVAL;
+
+  if (metadata_keys) {
+    return meta_data_keys_to_json(buffer, buffer_size, meta, metadata_keys,
+                                  metadata_keys_num);
+  }
 
   status = meta_data_toc(meta, &keys);
   if (status <= 0)
@@ -361,7 +367,8 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
   if (vl->meta != NULL) {
     char meta_buffer[buffer_size];
     memset(meta_buffer, 0, sizeof(meta_buffer));
-    status = meta_data_to_json(meta_buffer, sizeof(meta_buffer), vl->meta);
+    status =
+        meta_data_to_json(meta_buffer, sizeof(meta_buffer), vl->meta, NULL, 0);
     if (status != 0)
       return status;
 
@@ -386,6 +393,28 @@ static int format_json_value_list_nocheck(char *buffer, /* {{{ */
   int status;
 
   status = value_list_to_json(temp, sizeof(temp), ds, vl, store_rates);
+  if (status != 0)
+    return status;
+  temp_size = strlen(temp);
+
+  memcpy(buffer + (*ret_buffer_fill), temp, temp_size + 1);
+  (*ret_buffer_fill) += temp_size;
+  (*ret_buffer_free) -= temp_size;
+
+  return 0;
+} /* }}} int format_json_value_list_nocheck */
+
+static int format_json_meta_data_nocheck(char *buffer, /* {{{ */
+                                         size_t *ret_buffer_fill,
+                                         size_t *ret_buffer_free,
+                                         meta_data_t *meta, size_t temp_size,
+                                         char **metadata_keys,
+                                         size_t metadata_keys_num) {
+  char temp[temp_size];
+  int status;
+
+  status = meta_data_to_json(temp, sizeof(temp), meta, metadata_keys,
+                             metadata_keys_num);
   if (status != 0)
     return status;
   temp_size = strlen(temp);
@@ -463,6 +492,22 @@ int format_json_value_list(char *buffer, /* {{{ */
   return format_json_value_list_nocheck(buffer, ret_buffer_fill,
                                         ret_buffer_free, ds, vl, store_rates,
                                         (*ret_buffer_free) - 2);
+} /* }}} int format_json_value_list */
+
+int format_json_meta_data(char *buffer, /* {{{ */
+                          size_t *ret_buffer_fill, size_t *ret_buffer_free,
+                          meta_data_t *meta, char **metadata_keys,
+                          size_t metadata_keys_num) {
+  if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
+      (ret_buffer_free == NULL) || (meta == NULL))
+    return -EINVAL;
+
+  if (*ret_buffer_free < 3)
+    return -ENOMEM;
+
+  return format_json_meta_data_nocheck(buffer, ret_buffer_fill, ret_buffer_free,
+                                       meta, (*ret_buffer_free) - 2,
+                                       metadata_keys, metadata_keys_num);
 } /* }}} int format_json_value_list */
 
 #if HAVE_LIBYAJL
