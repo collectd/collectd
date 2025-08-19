@@ -6503,6 +6503,32 @@ sent octets and packets, the length of the receive queue and the number of
 values handled. When set to B<true>, the I<Network plugin> will make these
 statistics available. Defaults to B<false>.
 
+=item B<ReceiveQueueLimits> [I<LowNum>] I<HighNum>
+
+Packets are read by the I<receive thread> and then put into a queue to be 
+handled by the I<dispatch thread>. If the I<dispatch thread> is not fast 
+enough this queue will grow. In order to avoid running into memory issues 
+in such a case, you can limit the size of this queue.
+
+By default, there is no limit and memory may grow indefinitely. 
+
+You can set the limits using B<LowNum> and B<HighNum>. If there are I<HighNum> 
+packets in the queue, any new packet I<will> be dropped. If there are less 
+than I<LowNum> packets in the queue, all new packets I<will> be enqueued. If 
+the number of packets currently in the queue is between I<LowNum> and 
+I<HighNum>, the packet is dropped with a probability that is proportional to 
+the number of packets avobe the I<LowNum> (i.e. it increases linearly until 
+it reaches 100%).
+
+If B<HighNum> is set to non-zero and B<LowNum> is
+unset, the latter will default to half of B<HighNum>.
+
+If you do not want to randomly drop packets when the queue size is between
+I<LowNum> and I<HighNum>, set B<LowNum> and B<HighNum> to the same value.
+
+Enabling the B<CollectInternalStats> option is of great help to figure out the
+values to set B<LowNum> and B<HighNum> to.
+
 =back
 
 =head2 Plugin C<nfs>
