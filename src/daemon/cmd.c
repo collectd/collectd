@@ -45,6 +45,10 @@ static void sig_term_handler(int __attribute__((unused)) signal) {
   stop_collectd();
 }
 
+/* dummy SIGPIPE handler that will vanish on exec */
+static void sig_pipe_handler(int __attribute__((unused)) signal) {
+}
+
 static void sig_usr1_handler(int __attribute__((unused)) signal) {
   pthread_t thread;
   pthread_attr_t attr;
@@ -237,7 +241,12 @@ int main(int argc, char **argv) {
   }    /* if (config.daemonize) */
 #endif /* COLLECT_DAEMON */
 
-  struct sigaction sig_pipe_action = {.sa_handler = SIG_IGN};
+  /*
+   * install a dummy handler for SIGPIPE instead of ignoring the signal
+   * so that exec()ed sub-processes will not unexpectedly be run
+   * with SIGPIPE ignored.
+   */
+  struct sigaction sig_pipe_action = {.sa_handler = sig_pipe_handler};
 
   sigaction(SIGPIPE, &sig_pipe_action, NULL);
 
