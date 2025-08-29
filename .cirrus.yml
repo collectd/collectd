@@ -224,7 +224,7 @@ bleeding_edge_compilers_task:
 freebsd_task:
   freebsd_instance:
     matrix:
-      - image_family: freebsd-13-2
+      - image_family: freebsd-13-5
   allow_failures: false
   pkg_install_script:
     - >
