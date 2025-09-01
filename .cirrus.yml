@@ -97,7 +97,7 @@ bleeding_edge_compilers_task:
 FreeBSD_task:
   freebsd_instance:
     matrix:
-      - image_family: freebsd-13-2
+      - image_family: freebsd-13-5
   allow_failures: false
   env:
     VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
