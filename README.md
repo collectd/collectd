@@ -237,6 +237,9 @@ Features
       bytecode.
       See docs/BUILD.java.md for detailed build instructions.
 
+    - livestatus
+      Nagios / Naemon Livestatus internal statistics.
+
     - load
       System load average over the last 1, 5 and 15 minutes.
 
