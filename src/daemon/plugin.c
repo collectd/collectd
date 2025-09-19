@@ -2639,6 +2639,18 @@ int plugin_notification_meta_free(notification_meta_t *n) {
   return 0;
 } /* int plugin_notification_meta_free */
 
+int plugin_notification_meta_get_boolean(notification_meta_t *n,
+                                         const char *name, bool *value) {
+  for (notification_meta_t *meta = n; meta != NULL; meta = meta->next) {
+    if (meta->type == NM_TYPE_BOOLEAN &&
+        strncmp(name, meta->name, strlen(name)) == 0) {
+      *value = meta->nm_value.nm_boolean;
+      return 0;
+    }
+  }
+  return -ENOENT;
+} /* int plugin_notification_meta_get_boolean */
+
 static void plugin_ctx_destructor(void *ctx) {
   sfree(ctx);
 } /* void plugin_ctx_destructor */

@@ -22,7 +22,9 @@
  *   Aman Gupta <aman at tmm1.net>
  **/
 
+#ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
+#endif
 #define _BSD_SOURCE /* For struct ip_mreq */
 
 #include "collectd.h"
@@ -358,37 +360,29 @@ static bool check_send_okay(const value_list_t *vl) /* {{{ */
   return !received;
 } /* }}} bool check_send_okay */
 
-static bool check_notify_received(const notification_t *n) /* {{{ */
-{
-  for (notification_meta_t *ptr = n->meta; ptr != NULL; ptr = ptr->next)
-    if ((strcmp("network:received", ptr->name) == 0) &&
-        (ptr->type == NM_TYPE_BOOLEAN))
-      return (bool)ptr->nm_value.nm_boolean;
-
-  return 0;
-} /* }}} bool check_notify_received */
-
 static bool check_send_notify_okay(const notification_t *n) /* {{{ */
 {
-  static c_complain_t complain_forwarding = C_COMPLAIN_INIT_STATIC;
   bool received = 0;
+  int status;
+
+  if (network_config_forward)
+    return true;
 
   if (n->meta == NULL)
-    return 1;
+    return true;
 
-  received = check_notify_received(n);
-
-  if (network_config_forward && received) {
-    c_complain_once(
-        LOG_ERR, &complain_forwarding,
-        "network plugin: A notification has been received via the network "
-        "and forwarding is enabled. Forwarding of notifications is currently "
-        "not supported, because there is not loop-detection available. "
-        "Please contact the collectd mailing list if you need this "
-        "feature.");
+  status = plugin_notification_meta_get_boolean(n->meta, "network:received",
+                                                &received);
+  if (status == -ENOENT)
+    return true;
+  else if (status != 0) {
+    ERROR("network plugin: check_send_notify_okay: "
+          "plugin_notification_meta_get_boolean failed with status %i.",
+          status);
+    return true;
   }
 
-  /* By default, only *send* value lists that were not *received* by the
+  /* By default, only *send* notifications that were not *received* by the
    * network plugin. */
   return !received;
 } /* }}} bool check_send_notify_okay */
@@ -3067,8 +3061,12 @@ static int network_notification(const notification_t *n,
   size_t buffer_free = sizeof(buffer);
   int status;
 
-  if (!check_send_notify_okay(n))
+  if (!check_send_notify_okay(n)) {
+    DEBUG("network plugin: network_notification: "
+          "NOT sending %s.",
+          n->message);
     return 0;
+  }
 
   memset(buffer, 0, sizeof(buffer));
 
