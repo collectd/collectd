@@ -805,10 +805,12 @@
 #   DisableMemory false
 #   DisableMemoryBandwidth false
 #   DisableFabric false
+#   DisableFan false
 #   DisableFrequency false
 #   DisableThrottleTime false
 #   DisableTemperature false
 #   DisablePower false
+#   DisablePSU false
 #   DisableEngine false
 #   DisableEngineSingle false
 #   DisableErrors false

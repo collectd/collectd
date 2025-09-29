@@ -84,11 +84,13 @@ typedef struct {
   bool engine;
   bool engine_single;
   bool fabric;
+  bool fan;
   bool freq;
   bool mem;
   bool membw;
   bool power;
   bool power_ratio; // needs extra Sysman data compared to power
+  bool psu;
   bool ras;
   bool ras_separate;
   bool temp;
@@ -103,6 +105,8 @@ typedef struct {
   char *dev_file; // if ADD_DEV_FILE
   char *dev_name; // if GpuInfo
   /* number of types for metrics without allocs */
+  uint32_t fan_count;
+  uint32_t psu_count;
   uint32_t ras_count;
   uint32_t temp_count;
   /* number of types for each counter metric */
@@ -157,10 +161,12 @@ static struct {
 #define KEY_DISABLE_ENGINE "DisableEngine"
 #define KEY_DISABLE_ENGINE_SINGLE "DisableEngineSingle"
 #define KEY_DISABLE_FABRIC "DisableFabric"
+#define KEY_DISABLE_FAN "DisableFan"
 #define KEY_DISABLE_FREQ "DisableFrequency"
 #define KEY_DISABLE_MEM "DisableMemory"
 #define KEY_DISABLE_MEMBW "DisableMemoryBandwidth"
 #define KEY_DISABLE_POWER "DisablePower"
+#define KEY_DISABLE_PSU "DisablePSU"
 #define KEY_DISABLE_RAS "DisableErrors"
 #define KEY_DISABLE_RAS_SEPARATE "DisableSeparateErrors"
 #define KEY_DISABLE_TEMP "DisableTemperature"
@@ -240,6 +246,8 @@ static int gpu_config_free(void) {
     FREE_GPU_SAMPLING_ARRAYS(i, frequency);
     FREE_GPU_SAMPLING_ARRAYS(i, memory);
     /* zero rest of counters & free name */
+    gpus[i].fan_count = 0;
+    gpus[i].psu_count = 0;
     gpus[i].ras_count = 0;
     gpus[i].temp_count = 0;
     free(gpus[i].pci_bdf);
@@ -266,11 +274,13 @@ static unsigned int list_gpu_metrics(const gpu_disable_t *disabled) {
     const char *name;
   } names[] = {{disabled->engine, false, "Engine"},
                {disabled->fabric, false, "Fabric port"},
+               {disabled->fan, false, "Fan"},
                {disabled->freq, false, "Frequency"},
                {disabled->mem, false, "Memory"},
                {disabled->membw, false, "Memory BW"},
                {disabled->power, false, "Power"},
                {disabled->power_ratio, true, "Power ratio"},
+               {disabled->psu, false, "PSU"},
                {disabled->ras, false, "RAS/errors"},
                {disabled->temp, false, "Temperature"},
                {disabled->throttle, false, "Throttle time"}};
@@ -2171,6 +2181,243 @@ static bool gpu_fabrics(gpu_device_t *gpu) {
   return ok;
 }
 
+/* Report metrics for relevant fans, return true for success */
+static bool gpu_fans(gpu_device_t *gpu) {
+  uint32_t i, fan_count = 0;
+  zes_device_handle_t dev = gpu->handle;
+  ze_result_t ret = zesDeviceEnumFans(dev, &fan_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get fan count => 0x%x", ret);
+    return false;
+  }
+  zes_fan_handle_t *fans;
+  fans = scalloc(fan_count, sizeof(*fans));
+  if (ret = zesDeviceEnumFans(dev, &fan_count, fans),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d fans => 0x%x", fan_count, ret);
+    free(fans);
+    return false;
+  }
+  if (gpu->fan_count != fan_count) {
+    INFO(PLUGIN_NAME ": Sysman reports %d fans", fan_count);
+    gpu->fan_count = fan_count;
+  }
+  if (!(config.output & (OUTPUT_RATE | OUTPUT_RATIO))) {
+    ERROR(PLUGIN_NAME ": no fan output variants selected");
+    free(fans);
+    return false;
+  }
+
+  metric_family_t fam_speed = {
+      .help = "Fan speed (in RPMs) when queried",
+      .name = METRIC_PREFIX "fan_speed_rpms",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_ratio = {
+      .help = "Fan speed ratio (0-1) vs max",
+      .name = METRIC_PREFIX "fan_speed_ratio",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_t metric = {0};
+
+  bool reported_ratio = false, reported_speed = false, ok = false;
+  for (i = 0; i < fan_count; i++) {
+    int32_t speed;
+    if (ret = zesFanGetState(fans[i], ZES_FAN_SPEED_UNITS_RPM, &speed),
+        ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fan %d state => 0x%x", i, ret);
+      ok = false;
+      break;
+    }
+    if (speed < 0) {
+      ERROR(PLUGIN_NAME ": invalid or unsupported fan %d speed %d", i, speed);
+      ok = false;
+      break;
+    }
+
+    zes_fan_properties_t props = {.pNext = NULL};
+    if (ret = zesFanGetProperties(fans[i], &props), ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fan %d properties => 0x%x", i, ret);
+      ok = false;
+      break;
+    }
+    zes_fan_config_t conf = {.pNext = NULL};
+    if (ret = zesFanGetConfig(fans[i], &conf), ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get fan %d config => 0x%x", i, ret);
+      ok = false;
+      break;
+    }
+    const char *mode;
+    switch (conf.mode) {
+    case ZES_FAN_SPEED_MODE_DEFAULT:
+      mode = "hw-default";
+      break;
+    case ZES_FAN_SPEED_MODE_FIXED:
+      mode = "fixed";
+      break;
+    case ZES_FAN_SPEED_MODE_TABLE:
+      mode = "table";
+      break;
+    default:
+      mode = "unknown";
+    }
+    metric_label_set(&metric, "mode", mode);
+
+    if (props.maxPoints != -1) {
+      char buf[16];
+      snprintf(buf, sizeof(buf), "%d", props.maxPoints);
+      metric_label_set(&metric, "points", buf);
+    }
+    metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
+
+    metric.value.gauge = speed;
+    if (config.output & OUTPUT_RATE) {
+      metric_family_metric_append(&fam_speed, metric);
+      reported_speed = true;
+    }
+    if (props.maxRPM > 0 && (config.output & OUTPUT_RATIO)) {
+      metric.value.gauge = (double)speed / props.maxRPM;
+      metric_family_metric_append(&fam_ratio, metric);
+      reported_ratio = true;
+    }
+    metric_reset(&metric);
+    ok = true;
+  }
+  if (reported_speed) {
+    gpu_submit(gpu, &fam_speed);
+  }
+  if (reported_ratio) {
+    gpu_submit(gpu, &fam_ratio);
+  }
+  free(fans);
+  return ok;
+}
+
+/* Report metrics for relevant power supplies, return true for success */
+static bool gpu_psus(gpu_device_t *gpu) {
+  uint32_t i, psu_count = 0;
+  zes_device_handle_t dev = gpu->handle;
+  ze_result_t ret = zesDeviceEnumPsus(dev, &psu_count, NULL);
+  if (ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get power supply count => 0x%x", ret);
+    return false;
+  }
+  zes_psu_handle_t *psus;
+  psus = scalloc(psu_count, sizeof(*psus));
+  if (ret = zesDeviceEnumPsus(dev, &psu_count, psus),
+      ret != ZE_RESULT_SUCCESS) {
+    ERROR(PLUGIN_NAME ": failed to get %d power supplies => 0x%x", psu_count,
+          ret);
+    free(psus);
+    return false;
+  }
+  if (gpu->psu_count != psu_count) {
+    INFO(PLUGIN_NAME ": Sysman reports %d power supplies", psu_count);
+    gpu->psu_count = psu_count;
+  }
+
+  metric_family_t fam_temp = {
+      .help = "Power supply heatsink temperature (in Celsius) when queried",
+      .name = METRIC_PREFIX "psu_temperature_celsius",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_current = {
+      .help = "Current drawn from power supply (in amperes) when queried",
+      .name = METRIC_PREFIX "psu_current_amperes",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_family_t fam_ratio = {
+      .help = "Power supply current usage ratio (0-1) vs limit",
+      .name = METRIC_PREFIX "psu_current_ratio",
+      .type = METRIC_TYPE_GAUGE,
+  };
+  metric_t metric = {0};
+
+  bool reported_temp = false, reported_current = false, reported_ratio = false,
+       ok = false;
+  for (i = 0; i < psu_count; i++) {
+    zes_psu_properties_t props = {.pNext = NULL};
+    if (ret = zesPsuGetProperties(psus[i], &props), ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get power supply %d properties => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+    zes_psu_state_t state = {.pNext = NULL};
+    if (ret = zesPsuGetState(psus[i], &state), ret != ZE_RESULT_SUCCESS) {
+      ERROR(PLUGIN_NAME ": failed to get power supply %d state => 0x%x", i,
+            ret);
+      ok = false;
+      break;
+    }
+    const char *fan;
+    if (props.haveFan) {
+      if (state.fanFailed) {
+        fan = "failed";
+      } else {
+        fan = "ok";
+      }
+    } else {
+      fan = "no";
+    }
+    metric_label_set(&metric, "fan", fan);
+
+    const char *voltage;
+    switch (state.voltStatus) {
+    case ZES_PSU_VOLTAGE_STATUS_NORMAL:
+      voltage = "ok";
+      break;
+    case ZES_PSU_VOLTAGE_STATUS_OVER:
+      voltage = "over-voltage";
+      break;
+    case ZES_PSU_VOLTAGE_STATUS_UNDER:
+      voltage = "under-voltage";
+      break;
+    case ZES_PSU_VOLTAGE_STATUS_UNKNOWN:
+    default:
+      voltage = "unknown";
+    }
+    metric_label_set(&metric, "voltage", voltage);
+
+    metric_set_subdev(&metric, props.onSubdevice, props.subdeviceId);
+    if (state.temperature != -1) {
+      metric.value.gauge = state.temperature;
+      metric_family_metric_append(&fam_temp, metric);
+      reported_temp = true;
+    }
+    if (state.current != -1) {
+      metric.value.gauge = state.current / 1000.0; /* m-amps as amps */
+      metric_family_metric_append(&fam_current, metric);
+      reported_current = true;
+
+      if (props.ampLimit > 0 && (config.output & OUTPUT_RATIO)) {
+        metric.value.gauge = (double)state.current / props.ampLimit;
+        metric_family_metric_append(&fam_ratio, metric);
+        reported_ratio = true;
+      }
+    }
+    metric_reset(&metric);
+    ok = true;
+  }
+  if (reported_temp) {
+    gpu_submit(gpu, &fam_temp);
+  }
+  if (reported_current) {
+    gpu_submit(gpu, &fam_current);
+    if (reported_ratio) {
+      gpu_submit(gpu, &fam_ratio);
+    }
+  }
+  if (!(reported_temp || reported_current)) {
+    ERROR(PLUGIN_NAME
+          ": neither temperature nor current reported for any of the %d PSUs",
+          psu_count);
+    ok = false;
+  }
+  free(psus);
+  return ok;
+}
+
 /* Report power usage for relevant domains, return true for success */
 static bool gpu_powers(gpu_device_t *gpu) {
   uint32_t i, power_count = 0;
@@ -2577,6 +2824,10 @@ static int gpu_read(void) {
               i);
       disabled->fabric = true;
     }
+    if (!disabled->fan && !gpu_fans(gpu)) {
+      WARNING(PLUGIN_NAME ": GPU-%d fan query fail / no fans => disabled", i);
+      disabled->fan = true;
+    }
     if (!disabled->membw && !gpu_mems_bw(gpu)) {
       WARNING(PLUGIN_NAME ": GPU-%d mem BW query fail / no modules => disabled",
               i);
@@ -2586,6 +2837,10 @@ static int gpu_read(void) {
       WARNING(PLUGIN_NAME ": GPU-%d power query fail / no domains => disabled",
               i);
       disabled->power = true;
+    }
+    if (!disabled->psu && !gpu_psus(gpu)) {
+      WARNING(PLUGIN_NAME ": GPU-%d PSU query fail / no PSUs => disabled", i);
+      disabled->psu = true;
     }
     if (!disabled->ras && !gpu_ras(gpu)) {
       WARNING(PLUGIN_NAME ": GPU-%d errors query fail / no sets => disabled",
@@ -2604,9 +2859,10 @@ static int gpu_read(void) {
               i);
       gpu->disabled.throttle = true;
     }
-    if (disabled->engine && disabled->fabric && disabled->freq &&
-        disabled->mem && disabled->membw && disabled->power && disabled->ras &&
-        disabled->temp && disabled->throttle) {
+    if (disabled->engine && disabled->fabric && disabled->fan &&
+        disabled->freq && disabled->mem && disabled->membw && disabled->power &&
+        disabled->psu && disabled->ras && disabled->temp &&
+        disabled->throttle) {
       /* all metrics missing -> disable use of that GPU */
       ERROR(PLUGIN_NAME ": No metrics from GPU-%d, disabling its querying", i);
       disabled->all = true;
@@ -2626,6 +2882,8 @@ static int gpu_config_parse(const char *key, const char *value) {
     config.disabled.engine_single = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_FABRIC) == 0) {
     config.disabled.fabric = IS_TRUE(value);
+  } else if (strcasecmp(key, KEY_DISABLE_FAN) == 0) {
+    config.disabled.fan = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_FREQ) == 0) {
     config.disabled.freq = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_MEM) == 0) {
@@ -2634,6 +2892,8 @@ static int gpu_config_parse(const char *key, const char *value) {
     config.disabled.membw = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_POWER) == 0) {
     config.disabled.power = IS_TRUE(value);
+  } else if (strcasecmp(key, KEY_DISABLE_PSU) == 0) {
+    config.disabled.psu = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_RAS) == 0) {
     config.disabled.ras = IS_TRUE(value);
   } else if (strcasecmp(key, KEY_DISABLE_RAS_SEPARATE) == 0) {
@@ -2698,12 +2958,23 @@ static int gpu_config_parse(const char *key, const char *value) {
 
 void module_register(void) {
   /* NOTE: key strings *must* be static */
-  static const char *config_keys[] = {
-      KEY_DISABLE_ENGINE, KEY_DISABLE_ENGINE_SINGLE, KEY_DISABLE_FABRIC,
-      KEY_DISABLE_FREQ,   KEY_DISABLE_MEM,           KEY_DISABLE_MEMBW,
-      KEY_DISABLE_POWER,  KEY_DISABLE_RAS,           KEY_DISABLE_RAS_SEPARATE,
-      KEY_DISABLE_TEMP,   KEY_DISABLE_THROTTLE,      KEY_METRICS_OUTPUT,
-      KEY_LOG_GPU_INFO,   KEY_LOG_METRICS,           KEY_SAMPLES};
+  static const char *config_keys[] = {KEY_DISABLE_ENGINE,
+                                      KEY_DISABLE_ENGINE_SINGLE,
+                                      KEY_DISABLE_FABRIC,
+                                      KEY_DISABLE_FAN,
+                                      KEY_DISABLE_FREQ,
+                                      KEY_DISABLE_MEM,
+                                      KEY_DISABLE_MEMBW,
+                                      KEY_DISABLE_POWER,
+                                      KEY_DISABLE_PSU,
+                                      KEY_DISABLE_RAS,
+                                      KEY_DISABLE_RAS_SEPARATE,
+                                      KEY_DISABLE_TEMP,
+                                      KEY_DISABLE_THROTTLE,
+                                      KEY_METRICS_OUTPUT,
+                                      KEY_LOG_GPU_INFO,
+                                      KEY_LOG_METRICS,
+                                      KEY_SAMPLES};
   const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
   plugin_register_config(PLUGIN_NAME, gpu_config_parse, config_keys,

@@ -3835,6 +3835,10 @@ Disable memory bandwidth metrics collection.
 
 Disable fabric port metrics collection.
 
+=item B<DisableFan>
+
+Disable metrics collection related to fans.
+
 =item B<DisableFrequency>
 
 Disable actual / requested frequency metrics collection.
@@ -3846,6 +3850,10 @@ Disable frequency throttling time metric collection.
 =item B<DisablePower>
 
 Disable power usage metrics collection.
+
+=item B<DisablePSU>
+
+Disable power supply related metrics collection.
 
 =item B<DisableTemperature>
 
