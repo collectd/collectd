@@ -4093,7 +4093,7 @@ Mainly, IPFilter 5.x is supported with some limited compatibility for 4.x.
 
 The configuration consists of one or more B<Report> blocks specifying
 which statistics to collect.
-Most names correspond to the field names in C<struct ips_stats> with the 
+Most names correspond to the field names in C<struct ips_stat> with the
 C<iss_> prefix omitted.
 The names C<tcp>, C<udp> and C<icmp> refer to the corresponding members of the
 C<iss_proto> array.
