@@ -1,6 +1,6 @@
 /**
  * collectd - src/ipfilter.c
- * Copyright (C) 2022 Edgar Fuß, Mathematisches Institut der universität Bonn
+ * Copyright (C) 2022 Edgar Fuß, Mathematisches Institut der Universität Bonn
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
