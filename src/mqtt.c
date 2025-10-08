@@ -33,6 +33,7 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "utils/format_json/format_json.h"
 #include "utils_complain.h"
 
 #include <mosquitto.h>
@@ -541,6 +542,69 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
   return status;
 } /* mqtt_write */
 
+static int format_notification_topic(char *buf, size_t buf_len,
+                                     notification_t const *n,
+                                     mqtt_client_conf_t *conf) {
+  char name[MQTT_MAX_TOPIC_SIZE];
+  int status;
+  char *c;
+
+  if ((conf->topic_prefix == NULL) || (conf->topic_prefix[0] == 0)) {
+    // tempting but unsafe to use FORMAT_VL here
+    return format_name(buf, buf_len, n->host, n->plugin, n->plugin_instance,
+                       n->type, n->type_instance);
+  }
+
+  status = format_name(name, sizeof(name), n->host, n->plugin,
+                       n->plugin_instance, n->type, n->type_instance);
+  if (status != 0)
+    return status;
+
+  status = ssnprintf(buf, buf_len, "%s/%s/event", conf->topic_prefix, name);
+  if ((status < 0) || (((size_t)status) >= buf_len))
+    return ENOMEM;
+
+  while ((c = strchr(buf, '#')) || (c = strchr(buf, '+'))) {
+    *c = '_';
+  }
+
+  return 0;
+} /* format_notification_topic */
+
+static int mqtt_notification(const notification_t *n,
+                             user_data_t __attribute__((unused)) * user_data) {
+  DEBUG("mqtt plugin: notification");
+  mqtt_client_conf_t *conf;
+  char topic[MQTT_MAX_TOPIC_SIZE];
+  char payload[MQTT_MAX_MESSAGE_SIZE];
+  int status = 0;
+
+  if ((user_data == NULL) || (user_data->data == NULL))
+    return EINVAL;
+  conf = user_data->data;
+
+  status = format_notification_topic(topic, sizeof(topic), n, conf);
+  if (status != 0) {
+    ERROR("mqtt plugin: format_notification_topic failed with status %d.",
+          status);
+    return status;
+  }
+
+  status = format_json_notification(payload, sizeof(payload), n);
+  if (status != 0) {
+    ERROR("mqtt plugin: format_json_notification failed: %d", status);
+    return status;
+  }
+
+  status = publish(conf, topic, payload, strlen(payload));
+  if (status != 0) {
+    ERROR("mqtt plugin: publish failed: %s", mosquitto_strerror(status));
+    return status;
+  }
+
+  return status;
+} /* int mqtt_notification */
+
 /*
  * <Publish "name">
  *   Host "example.com"
@@ -640,6 +704,10 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
                         &(user_data_t){
                             .data = conf,
                         });
+  plugin_register_notification(cb_name, mqtt_notification,
+                               &(user_data_t){
+                                   .data = conf,
+                               });
   return 0;
 } /* mqtt_config_publisher */
 
