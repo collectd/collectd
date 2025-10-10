@@ -68,6 +68,9 @@ struct mqtt_client_conf {
   char *username;
   char *password;
   int qos;
+#define MQTT_FORMAT_PLAIN 0
+#define MQTT_FORMAT_JSON 1
+  uint8_t format;
   char *cacertificatefile;
   char *certificatefile;
   char *certificatekeyfile;
@@ -607,6 +610,29 @@ static int mqtt_notification(const notification_t *n,
   return status;
 } /* int mqtt_notification */
 
+static int config_set_format(mqtt_client_conf_t *conf, oconfig_item_t *ci) {
+  char *string;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    WARNING("mqtt plugin: The `%s' config option "
+            "needs exactly one string argument.",
+            ci->key);
+    return -1;
+  }
+
+  string = ci->values[0].value.string;
+  if (strcasecmp("Plain", string) == 0)
+    conf->format = MQTT_FORMAT_PLAIN;
+  else if (strcasecmp("JSON", string) == 0)
+    conf->format = MQTT_FORMAT_JSON;
+  else {
+    ERROR("mqtt plugin: Invalid format string: %s", string);
+    return -1;
+  }
+
+  return 0;
+} /* int config_set_format */
+
 /*
  * <Publish "name">
  *   Host "example.com"
@@ -619,6 +645,7 @@ static int mqtt_notification(const notification_t *n,
  *   Retain false
  *   SendNotifications false
  *   QoS 0
+ *   Format PLAIN
  *   CACert "ca.pem"                      Enables TLS if set
  *   CertificateFile "client-cert.pem"	  optional
  *   CertificateKeyFile "client-key.pem"  optional
@@ -648,6 +675,7 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
   conf->port = MQTT_DEFAULT_PORT;
   conf->client_id = NULL;
   conf->qos = 0;
+  conf->format = MQTT_FORMAT_PLAIN;
   conf->topic_prefix = strdup(MQTT_DEFAULT_TOPIC_PREFIX);
   conf->store_rates = true;
 
@@ -684,6 +712,8 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
         conf->qos = tmp;
     } else if (strcasecmp("Prefix", child->key) == 0)
       cf_util_get_string(child, &conf->topic_prefix);
+    else if (strcasecmp("Format", child->key) == 0)
+      config_set_format(conf, child);
     else if (strcasecmp("StoreRates", child->key) == 0)
       cf_util_get_boolean(child, &conf->store_rates);
     else if (strcasecmp("Retain", child->key) == 0)

@@ -1092,6 +1092,7 @@
 #		User "user"
 #		Password "secret"
 #		QoS 0
+#		Format PLAIN
 #		Prefix "collectd"
 #		StoreRates true
 #		Retain false

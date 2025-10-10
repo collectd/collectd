@@ -5445,6 +5445,10 @@ QoS setting the client is going to accept and defaults to B<2>. If the QoS flag
 on a message is larger than the maximum accepted QoS of a subscriber, the
 message's QoS will be downgraded.
 
+=item B<Format> I<Format> (Publish only)
+
+The output format to use. Defaults to C<PLAIN>.
+
 =item B<Prefix> I<Prefix> (Publish only)
 
 This plugin will use one topic per I<value list> which will looks like a path.
