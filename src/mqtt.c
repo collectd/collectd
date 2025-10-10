@@ -520,6 +520,8 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
   mqtt_client_conf_t *conf;
   char topic[MQTT_MAX_TOPIC_SIZE];
   char payload[MQTT_MAX_MESSAGE_SIZE];
+  size_t offset = 0;
+  size_t bfree = sizeof(payload);
   int status = 0;
 
   if ((user_data == NULL) || (user_data->data == NULL))
@@ -532,10 +534,21 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
     return status;
   }
 
-  status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
-  if (status != 0) {
-    ERROR("mqtt plugin: format_values failed with status %d.", status);
-    return status;
+  if (conf->format == MQTT_FORMAT_JSON) {
+    format_json_initialize(payload, &offset, &bfree);
+    format_json_value_list(payload, &offset, &bfree, ds, vl, conf->store_rates);
+    status = format_json_finalize(payload, &offset, &bfree);
+
+    if (status != 0) {
+      ERROR("mqtt plugin: format_json_finalize failed with status %d.", status);
+      return status;
+    }
+  } else { /* MQTT_FORMAT_PLAIN */
+    status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
+    if (status != 0) {
+      ERROR("mqtt plugin: format_values failed with status %d.", status);
+      return status;
+    }
   }
 
   status = publish(conf, topic, payload, strlen(payload));
