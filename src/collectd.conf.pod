@@ -5447,7 +5447,7 @@ message's QoS will be downgraded.
 
 =item B<Format> I<Format> (Publish only)
 
-The output format to use. Defaults to C<PLAIN>.
+The output format to use. Can be one of C<PLAIN> or C<JSON>. Defaults to C<PLAIN>.
 
 =item B<Prefix> I<Prefix> (Publish only)
 
