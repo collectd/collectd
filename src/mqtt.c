@@ -576,6 +576,68 @@ static int format_notification_topic(char *buf, size_t buf_len,
   return 0;
 } /* format_notification_topic */
 
+static int format_plain_notification(char *buffer, size_t buffer_size,
+                                     notification_t const *n) {
+  int status = 0;
+
+#define APPEND_VA(format, ...)                                                 \
+  if (buffer_size > 0) {                                                       \
+    status = ssnprintf(buffer, buffer_size, format "\r\n", __VA_ARGS__);       \
+    if (status >= 0) {                                                         \
+      buffer += status;                                                        \
+      buffer_size -= status;                                                   \
+    } else {                                                                   \
+      ERROR("mqtt plugin: notification buffer too large.");                    \
+      return ENOMEM;                                                           \
+    }                                                                          \
+  }
+
+  APPEND_VA("Time: %.3f", CDTIME_T_TO_DOUBLE(n->time));
+  switch (n->severity) {
+  case NOTIF_FAILURE:
+    APPEND_VA("Severity: %s", "FAILURE");
+    break;
+  case NOTIF_WARNING:
+    APPEND_VA("Severity: %s", "WARNING");
+    break;
+  case NOTIF_OKAY:
+    APPEND_VA("Severity: %s", "OKAY");
+    break;
+  default:
+    APPEND_VA("Severity: %s", "UNKNOWN");
+  }
+
+  for (notification_meta_t const *meta = n->meta; meta != NULL;
+       meta = meta->next) {
+    switch (meta->type) {
+    case NM_TYPE_STRING:
+      APPEND_VA("%s: %s", meta->name, meta->nm_value.nm_string);
+      break;
+    case NM_TYPE_SIGNED_INT:
+      APPEND_VA("%s: %" PRIi64, meta->name, meta->nm_value.nm_signed_int);
+      break;
+    case NM_TYPE_UNSIGNED_INT:
+      APPEND_VA("%s: %" PRIu64, meta->name, meta->nm_value.nm_unsigned_int);
+      break;
+    case NM_TYPE_DOUBLE:
+      APPEND_VA("%s: " GAUGE_FORMAT, meta->name, meta->nm_value.nm_double);
+      break;
+    case NM_TYPE_BOOLEAN:
+      APPEND_VA("%s: %s", meta->name,
+                meta->nm_value.nm_boolean ? "true" : "false");
+      break;
+    default:
+      WARNING("mqtt plugin: notification metadata type (%i) not supported.",
+              meta->type);
+      continue;
+    }
+  }
+
+  APPEND_VA("\r\nMessage: %s", n->message);
+
+  return 0;
+} /* format_plain_notification */
+
 static int mqtt_notification(const notification_t *n,
                              user_data_t __attribute__((unused)) * user_data) {
   DEBUG("mqtt plugin: notification");
@@ -595,10 +657,18 @@ static int mqtt_notification(const notification_t *n,
     return status;
   }
 
-  status = format_json_notification(payload, sizeof(payload), n);
-  if (status != 0) {
-    ERROR("mqtt plugin: format_json_notification failed: %d", status);
-    return status;
+  if (conf->format == MQTT_FORMAT_JSON) {
+    status = format_json_notification(payload, sizeof(payload), n);
+    if (status != 0) {
+      ERROR("mqtt plugin: format_json_notification failed: %d", status);
+      return status;
+    }
+  } else { /* MQTT_FORMAT_PLAIN */
+    status = format_plain_notification(payload, sizeof(payload), n);
+    if (status != 0) {
+      ERROR("mqtt plugin: format_plain_notification failed: %d", status);
+      return status;
+    }
   }
 
   status = publish(conf, topic, payload, strlen(payload));
