@@ -33,6 +33,7 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+
 #include "utils/format_json/format_json.h"
 #include "utils_complain.h"
 
@@ -77,6 +78,7 @@ struct mqtt_client_conf {
   char *topic_prefix;
   bool store_rates;
   bool retain;
+  bool send_notifications;
 
   /* For subscribing */
   pthread_t thread;
@@ -615,6 +617,7 @@ static int mqtt_notification(const notification_t *n,
  *   Prefix "collectd"
  *   StoreRates true
  *   Retain false
+ *   SendNotifications false
  *   QoS 0
  *   CACert "ca.pem"                      Enables TLS if set
  *   CertificateFile "client-cert.pem"	  optional
@@ -685,6 +688,8 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
       cf_util_get_boolean(child, &conf->store_rates);
     else if (strcasecmp("Retain", child->key) == 0)
       cf_util_get_boolean(child, &conf->retain);
+    else if (strcasecmp("SendNotifications", child->key) == 0)
+      cf_util_get_boolean(child, &conf->send_notifications);
     else if (strcasecmp("CACert", child->key) == 0)
       cf_util_get_string(child, &conf->cacertificatefile);
     else if (strcasecmp("CertificateFile", child->key) == 0)
@@ -704,10 +709,14 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
                         &(user_data_t){
                             .data = conf,
                         });
-  plugin_register_notification(cb_name, mqtt_notification,
-                               &(user_data_t){
-                                   .data = conf,
-                               });
+
+  if (conf->send_notifications) {
+    plugin_register_notification(cb_name, mqtt_notification,
+                                 &(user_data_t){
+                                     .data = conf,
+                                 });
+  }
+
   return 0;
 } /* mqtt_config_publisher */
 

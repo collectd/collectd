@@ -5464,6 +5464,16 @@ sent to each topic and deliver it to new subscribers. Defaults to B<false>.
 Controls whether C<DERIVE> and C<COUNTER> metrics are converted to a I<rate>
 before sending. Defaults to B<true>.
 
+=item B<SendNotifications> B<true>|B<false> (Publish only)
+
+Controls whether notifications are sent. Defaults to B<false>.
+
+Notifications are published to an C<event> subtopic for each type instance.
+
+Example:
+
+ collectd/host/interface-eth0/if_octets/event
+
 =item B<CleanSession> B<true>|B<false> (Subscribe only)
 
 Controls whether the MQTT "cleans" the session up after the subscriber
