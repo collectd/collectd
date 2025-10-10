@@ -1095,6 +1095,7 @@
 #		Prefix "collectd"
 #		StoreRates true
 #		Retain false
+#		SendNotifications false
 #		CACert "/etc/ssl/ca.crt"
 #		CertificateFile "/etc/ssl/client.crt"
 #		CertificateKeyFile "/etc/ssl/client.pem"
