@@ -44,6 +44,7 @@
 #define MQTT_DEFAULT_HOST "localhost"
 #define MQTT_DEFAULT_PORT 1883
 #define MQTT_DEFAULT_TOPIC_PREFIX "collectd"
+#define MQTT_DEFAULT_NOTIFICATION_PREFIX "collectd/event"
 #define MQTT_DEFAULT_TOPIC "collectd/#"
 #ifndef MQTT_KEEPALIVE
 #define MQTT_KEEPALIVE 60
@@ -79,6 +80,7 @@ struct mqtt_client_conf {
 
   /* For publishing */
   char *topic_prefix;
+  char *notification_prefix;
   bool store_rates;
   bool retain;
   bool send_notifications;
@@ -155,6 +157,7 @@ static void mqtt_free(mqtt_client_conf_t *conf) {
   sfree(conf->password);
   sfree(conf->client_id);
   sfree(conf->topic_prefix);
+  sfree(conf->notification_prefix);
   sfree(conf);
 }
 
@@ -567,7 +570,8 @@ static int format_notification_topic(char *buf, size_t buf_len,
   int status;
   char *c;
 
-  if ((conf->topic_prefix == NULL) || (conf->topic_prefix[0] == 0)) {
+  if ((conf->notification_prefix == NULL) ||
+      (conf->notification_prefix[0] == 0)) {
     // tempting but unsafe to use FORMAT_VL here
     return format_name(buf, buf_len, n->host, n->plugin, n->plugin_instance,
                        n->type, n->type_instance);
@@ -578,7 +582,7 @@ static int format_notification_topic(char *buf, size_t buf_len,
   if (status != 0)
     return status;
 
-  status = ssnprintf(buf, buf_len, "%s/%s/event", conf->topic_prefix, name);
+  status = ssnprintf(buf, buf_len, "%s/%s", conf->notification_prefix, name);
   if ((status < 0) || (((size_t)status) >= buf_len))
     return ENOMEM;
 
@@ -727,6 +731,7 @@ static int config_set_format(mqtt_client_conf_t *conf, oconfig_item_t *ci) {
  *   StoreRates true
  *   Retain false
  *   SendNotifications false
+ *   NotificationPrefix "collectd/event"
  *   QoS 0
  *   Format PLAIN
  *   CACert "ca.pem"                      Enables TLS if set
@@ -760,6 +765,7 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
   conf->qos = 0;
   conf->format = MQTT_FORMAT_PLAIN;
   conf->topic_prefix = strdup(MQTT_DEFAULT_TOPIC_PREFIX);
+  conf->notification_prefix = strdup(MQTT_DEFAULT_NOTIFICATION_PREFIX);
   conf->store_rates = true;
 
   status = pthread_mutex_init(&conf->lock, NULL);
@@ -803,6 +809,8 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
       cf_util_get_boolean(child, &conf->retain);
     else if (strcasecmp("SendNotifications", child->key) == 0)
       cf_util_get_boolean(child, &conf->send_notifications);
+    else if (strcasecmp("NotificationPrefix", child->key) == 0)
+      cf_util_get_string(child, &conf->notification_prefix);
     else if (strcasecmp("CACert", child->key) == 0)
       cf_util_get_string(child, &conf->cacertificatefile);
     else if (strcasecmp("CertificateFile", child->key) == 0)

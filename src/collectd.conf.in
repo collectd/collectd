@@ -1097,6 +1097,7 @@
 #		StoreRates true
 #		Retain false
 #		SendNotifications false
+#		NotificationPrefix "collectd/event"
 #		CACert "/etc/ssl/ca.crt"
 #		CertificateFile "/etc/ssl/client.crt"
 #		CertificateKeyFile "/etc/ssl/client.pem"
