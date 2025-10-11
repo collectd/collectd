@@ -5458,6 +5458,15 @@ An example topic name would be:
 
  collectd/cpu-0/cpu-user
 
+=item B<NotificationPrefix> I<Prefix> (Publish only)
+
+Like B<Prefix>, this plugin will use one topic per I<notification> instance.
+I<Prefix> is used as the first path element and defaults to B<collectd/event>.
+
+An example topic name would be:
+
+ collectd/event/host/interface-eth0/if_octets
+
 =item B<Retain> B<false>|B<true> (Publish only)
 
 Controls whether the MQTT broker will retain (keep a copy of) the last message
@@ -5472,11 +5481,7 @@ before sending. Defaults to B<true>.
 
 Controls whether notifications are sent. Defaults to B<false>.
 
-Notifications are published to an C<event> subtopic for each type instance.
-
-Example:
-
- collectd/host/interface-eth0/if_octets/event
+Notifications are published with a B<NotificationPrefix> for each type instance.
 
 =item B<CleanSession> B<true>|B<false> (Subscribe only)
 
