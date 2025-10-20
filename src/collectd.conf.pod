@@ -9992,6 +9992,51 @@ Defaults to ',' if not specified. The value can only be a single character.
 
 =back
 
+=head2 Plugin C<target_onnx>
+
+The C<target_onnx plugin> applies models in onnx format to plugin outputs and writes results as new metrics.
+
+=over 4
+
+=item B<ModelPath> I<String>
+
+Path to the onnx model file.
+
+=item B<OutputFamilyName> I<String>
+
+This is the name of the output metric family to write results to.
+
+=item B<Inputs> I<Input>
+
+This is the list of input metrics to use for the model.
+
+=over 4
+
+=item B<Input> I<String>
+
+This is the full name of the input metric to use for the model.
+For example, if the input metric is "system.cpu.utilization", the full name is "system.cpu.utilization{resource:host.name=\"localhost\",resource:service.name=\"unknown_service:collectd\",system.cpu.logical_number=\"0\",system.cpu.state=\"user\"}".
+
+=item B<Size> I<Integer>
+
+This is the size of the input metric to use for the model. It corresponds to the number of values taken from the history of the input metric.
+
+=back
+
+=item B<Outputs> I<Output>
+
+This is the list of output metrics to write results to.
+
+=over 4
+
+=item B<Output> I<String>
+
+This is the name of the output metric to write results to.
+
+=back
+
+=back
+
 =head2 Plugin C<teamspeak2>
 
 The C<teamspeak2 plugin> connects to the query port of a teamspeak2 server and

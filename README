@@ -687,6 +687,9 @@ Features
     - target_notification
       Create and dispatch a notification.
 
+    - target_onnx
+      Apply models in onnx format to plugin outputs and write results as new metrics.
+
     - target_replace
       Replace parts of an identifier using regular expressions.
 
@@ -695,6 +698,7 @@ Features
 
     - target_set
       Set (overwrite) entire parts of an identifier.
+
 
   * Miscellaneous plugins:
 
@@ -923,6 +927,10 @@ Prerequisites
   * libnotify (optional)
     For the `notify_desktop' plugin.
     <http://www.galago-project.org/>
+
+  * libonnxruntime (optional)
+    Used by the `target_onnx' plugin to run ONNX models.
+    <https://onnxruntime.ai/>
 
   * libopenipmi (optional)
     Used by the `ipmi' plugin to prove IPMI devices.
