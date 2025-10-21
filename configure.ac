@@ -5680,6 +5680,42 @@ AC_SUBST([BUILD_WITH_LIBSTATGRAB_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBSTATGRAB_LDFLAGS])
 # }}}
 
+
+# --with-libsystemd {{{
+AC_ARG_WITH([libsystemd],
+  [AS_HELP_STRING([--with-libsystemd@<:@=PREFIX@:>@], [Path to libsystemd.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_libsystemd_cflags="-I$withval/include"
+      with_libsystemd_ldflags="-L$withval/lib"
+      with_libsystemd="yes"
+    else
+      with_libsystemd="$withval"
+    fi
+  ],
+  [with_libsystemd="yes"]
+)
+
+if test "x$with_libsystemd" = "xyes"; then
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS $with_libsystemd_cflags"
+
+  AC_CHECK_HEADERS([systemd/sd-bus.h],
+    [with_libsystemd="yes"],
+    [with_libsystemd="no (systemd/sd-bus.h not found)"]
+  )
+
+  CFLAGS="$SAVE_CFLAGS"
+fi
+
+BUILD_WITH_LIBSYSTEMD_CFLAGS="$with_libsystemd_cflags"
+BUILD_WITH_LIBSYSTEMD_LDFLAGS="$with_libsystemd_ldflags"
+BUILD_WITH_LIBSYSTEMD_LIBS="-lsystemd"
+AC_SUBST(BUILD_WITH_LIBSYSTEMD_CFLAGS)
+AC_SUBST(BUILD_WITH_LIBSYSTEMD_LDFLAGS)
+AC_SUBST(BUILD_WITH_LIBSYSTEMD_LIBS)
+# }}}
+
 # --with-libtokyotyrant {{{
 AC_ARG_WITH([libtokyotyrant],
   [AS_HELP_STRING([--with-libtokyotyrant@<:@=PREFIX@:>@], [Path to libtokyotyrant.])],
@@ -6855,6 +6891,7 @@ plugin_swap="no"
 plugin_synproxy="no"
 plugin_sysevent="no"
 plugin_syslog="$have_syslog"
+plugin_systemd="$with_libsystemd"
 plugin_table="yes"
 plugin_tail_csv="yes"
 plugin_tail="yes"
@@ -7561,6 +7598,7 @@ AC_PLUGIN([swap],                [$plugin_swap],              [Swap usage statis
 AC_PLUGIN([synproxy],            [$plugin_synproxy],          [Synproxy stats plugin])
 AC_PLUGIN([sysevent],            [$plugin_sysevent],          [rsyslog events])
 AC_PLUGIN([syslog],              [$plugin_syslog],            [Syslog logging plugin])
+AC_PLUGIN([systemd],             [$plugin_systemd],           [Systemd plugin])
 AC_PLUGIN([table],               [$plugin_table],             [Parsing of tabular data])
 AC_PLUGIN([tail],                [$plugin_tail],              [Parsing of logfiles])
 AC_PLUGIN([tail_csv],            [$plugin_tail_csv],          [Parsing of CSV files])
@@ -8008,6 +8046,7 @@ AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
 AC_MSG_RESULT([    synproxy  . . . . . . $enable_synproxy])
 AC_MSG_RESULT([    sysevent. . . . . . . $enable_sysevent])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])
+AC_MSG_RESULT([    systemd . . . . . . . $enable_systemd])
 AC_MSG_RESULT([    table . . . . . . . . $enable_table])
 AC_MSG_RESULT([    tail_csv  . . . . . . $enable_tail_csv])
 AC_MSG_RESULT([    tail  . . . . . . . . $enable_tail])
