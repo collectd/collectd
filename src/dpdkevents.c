@@ -418,6 +418,7 @@ static int dpdk_events_config(oconfig_item_t *ci) {
 
 static int dpdk_helper_link_status_get(dpdk_helper_ctx_t *phc) {
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(phc);
+  int ret = 0;
 
 /* get Link Status values from DPDK */
 #if RTE_VERSION < RTE_VERSION_NUM(18, 05, 0, 0)
@@ -436,9 +437,13 @@ static int dpdk_helper_link_status_get(dpdk_helper_ctx_t *phc) {
     if (ec->config.link_status.enabled_port_mask & (1 << i)) {
       struct rte_eth_link link;
       ec->link_info[i].read_time = cdtime();
+#if RTE_VERSION >= RTE_VERSION_NUM(19, 11, 0, 0)
+      ret = rte_eth_link_get_nowait(i, &link);
+#else
       rte_eth_link_get_nowait(i, &link);
-      if ((link.link_status == ETH_LINK_NA) ||
-          (link.link_status != ec->link_info[i].link_status)) {
+#endif
+      if (ret == 0 && ((link.link_status == ETH_LINK_NA) ||
+                       (link.link_status != ec->link_info[i].link_status))) {
         ec->link_info[i].link_status = link.link_status;
         ec->link_info[i].status_updated = 1;
         DPDK_CHILD_LOG(" === PORT %d Link Status: %s\n", i,
