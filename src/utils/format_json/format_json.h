@@ -45,4 +45,8 @@ int format_json_finalize(char *buffer, size_t *ret_buffer_fill,
 int format_json_notification(char *buffer, size_t buffer_size,
                              notification_t const *n);
 
+int values_to_compact_json(char *buffer, size_t buffer_size,
+                           const data_set_t *ds, const value_list_t *vl,
+                           int store_rates);
+
 #endif /* UTILS_FORMAT_JSON_H */
