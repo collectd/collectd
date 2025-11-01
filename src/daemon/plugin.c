@@ -447,6 +447,46 @@ static int plugin_load_file(char const *file, bool global) {
   return 0;
 }
 
+/*
+ * Set the time of the next read for the given read function. If AlignRead is
+ * enabled, the next read time is set to a multiple of interval.
+ * AlignReadOffset delays the call of aligned read functions accordingly.
+ */
+static void plugin_set_next_read(read_func_t *rf, bool verbose) {
+  /* If read alignment is disabled, start reading immediately. */
+  if (!rf->rf_ctx.align_read) {
+    rf->rf_next_read = cdtime();
+    return;
+  }
+
+  cdtime_t read_offset = rf->rf_ctx.align_read_offset;
+  cdtime_t interval = rf->rf_interval;
+
+  /* read offset greater than or equal to interval does not make sense */
+  if (read_offset >= interval) {
+    if (verbose) {
+      WARNING("Plugin '%s': Ignoring read offset %.3lf for '%s'. It has to be "
+              "smaller than interval (%.3lf)!",
+              rf->rf_ctx.name, CDTIME_T_TO_DOUBLE(read_offset), rf->rf_name,
+              CDTIME_T_TO_DOUBLE(interval));
+    }
+    read_offset = 0;
+  }
+
+  cdtime_t now = cdtime();
+  rf->rf_next_read = now - (now % interval) + read_offset;
+  if (rf->rf_next_read < now) {
+    rf->rf_next_read += interval;
+  }
+
+  if (verbose) {
+    char date[26];
+    rfc3339_local(date, sizeof(date), rf->rf_next_read);
+    INFO("Plugin '%s': Read function '%s' starts at %s", rf->rf_ctx.name,
+         rf->rf_name, date);
+  }
+} /* void plugin_set_next_read */
+
 static void *plugin_read_thread(void __attribute__((unused)) * args) {
   while (read_loop != 0) {
     read_func_t *rf;
@@ -585,10 +625,9 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
 
     /* Check, if `rf_next_read' is in the past. */
     if (rf->rf_next_read < now) {
-      /* `rf_next_read' is in the past. Insert `now'
-       * so this value doesn't trail off into the
-       * past too much. */
-      rf->rf_next_read = now;
+      /* `rf_next_read' is in the past. Insert `now' or an aligned value in the
+       * future so this value doesn't trail off into the past too much. */
+      plugin_set_next_read(rf, false);
     }
 
     DEBUG("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
@@ -1092,7 +1131,7 @@ static int plugin_insert_read(read_func_t *rf) {
   int status;
   llentry_t *le;
 
-  rf->rf_next_read = cdtime();
+  plugin_set_next_read(rf, true);
   rf->rf_effective_interval = rf->rf_interval;
 
   pthread_mutex_lock(&read_lock);
