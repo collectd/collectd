@@ -4445,6 +4445,36 @@ independent from the I<JavaClass> argument passed to B<LoadPlugin>.
 
 =back
 
+=head2 Plugin livestatus
+
+Collect Nagios / Naemon Livestatus internal statistics.
+
+The following configuration options are available:
+
+=over 4
+
+=item B<LivestatusSocketFile> I</path/to/livestatus/socketfile>
+
+Path to the Livestatus communication socket. The collectd user must have read/write
+access to this socket.
+Defaults to B</var/cache/naemon/live>.
+
+=item B<OnFailureMaxRetry> I<Number>
+
+How many attempts will be made to retry a failed connection to the Livestatus socket.
+The parameter I<OnFailureBackOffSeconds> controls how many seconds the plugin will wait
+before retrying a new connection.
+This is very useful if your Nagios / Naemon daemon is reloaded frequently.
+Defaults to B<20>.
+
+=item B<OnFailureBackOffSeconds> I<Number>
+
+How many seconds the plugin will sleep before retrying a new connection to the Livestatus API.
+Defaults to B<1>.
+
+=back
+
+
 =head2 Plugin C<load>
 
 The I<Load plugin> collects the system load. These numbers give a rough overview
