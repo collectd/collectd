@@ -83,6 +83,9 @@ true \
 && rm -f src/libcollectdclient/Makefile.in \
 && rm -f src/libcollectdclient/collectd/lcc_features.h \
 && rm -f src/libcollectdclient/libcollectdclient.pc \
+&& rm -f src/prometheus/parser.c \
+&& rm -f src/prometheus/parser.h \
+&& rm -f src/prometheus/scanner.c \
 && rm -f bindings/Makefile \
 && rm -f bindings/Makefile.in \
 && rm -f -r bindings/java/.libs \
