@@ -4874,13 +4874,16 @@ AC_PATH_PROG([PROTOC], [protoc])
 have_protoc3="no"
 if test "x$PROTOC" != "x"; then
   AC_MSG_CHECKING([for protoc 3.0.0+])
-  if $PROTOC --version | $EGREP libprotoc.3 >/dev/null; then
-    protoc3="yes (`$PROTOC --version`)"
-    have_protoc3="yes"
-  else
-    protoc3="no (`$PROTOC --version`)"
-  fi
-  AC_MSG_RESULT([$protoc3])
+  AC_SUBST([PROTOC_VERSION], [`$PROTOC --version | cut -d ' ' -f 2`])
+  AX_COMPARE_VERSION([$PROTOC_VERSION],[ge],[3],
+    [
+      have_protoc3="yes"
+      AC_MSG_RESULT([yes ($PROTOC_VERSION)])
+    ],
+    [
+      AC_MSG_RESULT([no ($PROTOC_VERSION)])
+    ]
+  )
 fi
 AM_CONDITIONAL([HAVE_PROTOC3], [test "x$have_protoc3" = "xyes"])
 
