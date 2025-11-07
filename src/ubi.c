@@ -90,11 +90,14 @@ static void ubi_submit(const char *dev_name, const char *type, gauge_t value) {
 static int ubi_read_dev_attr(const char *dev_name, const char *attr,
                              int *value) {
   FILE *f;
-  char
-      str[sizeof(SYS_PATH) + strlen(dev_name) + sizeof("/") + strlen(attr) + 1];
+  const size_t str_len =
+      sizeof(SYS_PATH) + strlen(dev_name) + sizeof("/") + strlen(attr) + 1;
+  char *str = alloca(str_len);
+  if (!str)
+    return -1;
   int n;
 
-  snprintf(str, sizeof(str), SYS_PATH "%s/%s", dev_name, attr);
+  snprintf(str, str_len, SYS_PATH "%s/%s", dev_name, attr);
 
   if ((f = fopen(str, "r")) == NULL) {
     ERROR(PLUGIN_NAME ": cannot open [%s]", str);
