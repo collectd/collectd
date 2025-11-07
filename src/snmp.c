@@ -787,8 +787,7 @@ static int csnmp_config_add_host_priv_protocol(host_definition_t *hd,
     return -1;
   }
 
-  DEBUG("snmp plugin: host = %s; host->priv_protocol = %s;", hd->name,
-        hd->priv_protocol == usmAESPrivProtocol ? "AES" : "DES");
+  DEBUG("snmp plugin: host = %s; host->priv_protocol = AES;", hd->name);
 
   return 0;
 } /* int csnmp_config_add_host_priv_protocol */
