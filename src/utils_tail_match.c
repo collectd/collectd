@@ -76,7 +76,8 @@ static int simple_submit_match(cu_match_t *match, void *user_data) {
 
   if ((match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE) &&
       (match_value->values_num == 0))
-    values[0].gauge = NAN;
+    values[0].gauge =
+        (match_value->ds_type & UTILS_MATCH_CF_GAUGE_INC) ? 0 : NAN;
   else
     values[0] = match_value->value;
 
