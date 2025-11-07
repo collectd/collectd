@@ -45,7 +45,7 @@
 #endif
 
 #define O_RDWR 02
-#define NVME_SMART_CDW10 0x00800002
+#define NVME_SMART_CDW10(numdl) (((((numdl) >> 2) - 1) << 16) | 0x00000002)
 #define SHIFT_BYTE_LEFT 256
 #define PLUGIN_NAME "smart"
 struct nvme_admin_cmd {
@@ -320,18 +320,20 @@ static int smart_read_nvme_disk(const char *dev, char const *name) {
 
   /**
    * Prepare Get Log Page command
-   * Fill following fields (see NVMe 1.4 spec, section 5.14.1)
-   * - Number of DWORDS (bits 27:16) - the struct that will be passed for
-   *   filling has 512 bytes which gives 128 (0x80) DWORDS
+   * Fill following fields (see NVMe 2.1 spec, section 5.1.12)
+   * - Number of DWORDS (bits 31:16) - 0's based value.
+   *   This means that the value will be 0x7F for a 512 byte structure (0x80
+   * DWORD)
    * - Log Page Indentifier (bits 7:0) - for SMART the id is 0x02
    */
 
-  status = ioctl(fd, NVME_IOCTL_ADMIN_CMD,
-                 &(struct nvme_admin_cmd){.opcode = NVME_ADMIN_GET_LOG_PAGE,
-                                          .nsid = NVME_NSID_ALL,
-                                          .addr = (unsigned long)&smart_log,
-                                          .data_len = sizeof(smart_log),
-                                          .cdw10 = NVME_SMART_CDW10});
+  status = ioctl(
+      fd, NVME_IOCTL_ADMIN_CMD,
+      &(struct nvme_admin_cmd){.opcode = NVME_ADMIN_GET_LOG_PAGE,
+                               .nsid = NVME_NSID_ALL,
+                               .addr = (unsigned long)&smart_log,
+                               .data_len = sizeof(smart_log),
+                               .cdw10 = NVME_SMART_CDW10(sizeof(smart_log))});
   if (status < 0) {
     ERROR(PLUGIN_NAME ": ioctl for NVME_IOCTL_ADMIN_CMD failed with %s\n",
           strerror(errno));
