@@ -149,6 +149,84 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
   return 0;
 } /* }}} int values_to_json */
 
+int values_to_compact_json(char *buffer, size_t buffer_size, /* {{{ */
+                           const data_set_t *ds, const value_list_t *vl,
+                           int store_rates) {
+  char temp[512];
+  size_t offset = 0;
+  gauge_t *rates = NULL;
+  int status;
+
+  if ((ds == NULL) || (vl == NULL) || (ds->ds_num == 0))
+    return EINVAL;
+
+  if (store_rates) {
+    rates = uc_get_rate(ds, vl);
+    if (rates == NULL) {
+      WARNING("utils_format_json: uc_get_rate failed.");
+      return -1;
+    }
+  }
+
+  memset(buffer, 0, buffer_size);
+
+#define BUFFER_ADD(...)                                                        \
+  do {                                                                         \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
+    if (status < 0)                                                            \
+      goto error;                                                              \
+    else if (((size_t)status) >= (buffer_size - offset))                       \
+      goto error;                                                              \
+    else                                                                       \
+      offset += ((size_t)status);                                              \
+  } while (0)
+
+  BUFFER_ADD("{");
+
+  for (size_t i = 0; i < ds->ds_num; i++) {
+    if (i > 0)
+      BUFFER_ADD(",");
+
+    /* Add the data source name as the key */
+    status = json_escape_string(temp, sizeof(temp), ds->ds[i].name);
+    if (status != 0)
+      goto error;
+    BUFFER_ADD("%s:", temp);
+
+    /* Add the value */
+    if (ds->ds[i].type == DS_TYPE_GAUGE) {
+      if (isfinite(vl->values[i].gauge))
+        BUFFER_ADD(JSON_GAUGE_FORMAT, vl->values[i].gauge);
+      else
+        BUFFER_ADD("null");
+    } else if (store_rates) {
+      if (isfinite(rates[i]))
+        BUFFER_ADD(JSON_GAUGE_FORMAT, rates[i]);
+      else
+        BUFFER_ADD("null");
+    } else if (ds->ds[i].type == DS_TYPE_COUNTER) {
+      BUFFER_ADD("\"%" PRIu64 "\"", (uint64_t)vl->values[i].counter);
+    } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
+      BUFFER_ADD("\"%" PRIi64 "\"", vl->values[i].derive);
+    } else if (ds->ds[i].type == DS_TYPE_ABSOLUTE) {
+      BUFFER_ADD("\"%" PRIu64 "\"", vl->values[i].absolute);
+    } else {
+      BUFFER_ADD("null");
+    }
+  }
+
+  BUFFER_ADD("}");
+
+#undef BUFFER_ADD
+
+  sfree(rates);
+  return 0;
+
+error:
+  sfree(rates);
+  return -1;
+} /* }}} int values_to_compact_json */
+
 static int dstypes_to_json(char *buffer, size_t buffer_size, /* {{{ */
                            const data_set_t *ds) {
   size_t offset = 0;
