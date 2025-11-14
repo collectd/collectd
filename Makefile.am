@@ -1685,6 +1685,15 @@ notify_nagios_la_SOURCES = src/notify_nagios.c
 notify_nagios_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_NOTIFY_TELEGRAM
+pkglib_LTLIBRARIES += notify_telegram.la
+notify_telegram_la_SOURCES = src/notify_telegram.c
+notify_telegram_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+notify_telegram_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS) $(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
+notify_telegram_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
+notify_telegram_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS) $(BUILD_WITH_LIBMICROHTTPD_LIBS)
+endif
+
 if BUILD_PLUGIN_NTPD
 pkglib_LTLIBRARIES += ntpd.la
 ntpd_la_SOURCES = src/ntpd.c
