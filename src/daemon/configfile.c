@@ -106,6 +106,7 @@ static cf_global_option_t cf_global_options[] = {
     {"Hostname", NULL, 0, NULL},
     {"FQDNLookup", NULL, 0, "true"},
     {"Interval", NULL, 0, NULL},
+    {"AlignRead", NULL, 0, "false"},
     {"ReadThreads", NULL, 0, "5"},
     {"WriteThreads", NULL, 0, "5"},
     {"WriteQueueLimitHigh", NULL, 0, NULL},
@@ -302,7 +303,12 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
       cf_util_get_cdtime(child, &ctx.flush_interval);
     else if (strcasecmp("FlushTimeout", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.flush_timeout);
-    else {
+    else if (strcasecmp("AlignRead", child->key) == 0)
+      cf_util_get_boolean(child, &ctx.align_read);
+    else if (strcasecmp("AlignReadOffset", child->key) == 0) {
+      cf_util_get_cdtime(child, &ctx.align_read_offset);
+      ctx.align_read = true;
+    } else {
       WARNING("Ignoring unknown LoadPlugin option \"%s\" "
               "for plugin \"%s\"",
               child->key, name);
@@ -813,7 +819,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   return root;
 } /* oconfig_item_t *cf_read_generic */
-  /* #endif HAVE_WORDEXP_H */
+/* #endif HAVE_WORDEXP_H */
 
 #else  /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,

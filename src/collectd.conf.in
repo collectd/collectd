@@ -50,6 +50,16 @@
 #WriteQueueLimitHigh 1000000
 #WriteQueueLimitLow   800000
 
+#----------------------------------------------------------------------------#
+# When enabled, calls to read functions are temporally aligned to a multiple #
+# of 'Interval'. This may be overwritten on a per-plugin base by using the   #
+# 'AlignRead' option of the LoadPlugin block:                                #
+#   <LoadPlugin foo>                                                         #
+#       AlignRead true                                                       #
+#   </LoadPlugin>                                                            #
+#----------------------------------------------------------------------------#
+#AlignRead false
+
 ##############################################################################
 # Logging                                                                    #
 #----------------------------------------------------------------------------#
