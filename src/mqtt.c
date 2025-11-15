@@ -33,6 +33,8 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+
+#include "utils/format_json/format_json.h"
 #include "utils_complain.h"
 
 #include <mosquitto.h>
@@ -42,6 +44,7 @@
 #define MQTT_DEFAULT_HOST "localhost"
 #define MQTT_DEFAULT_PORT 1883
 #define MQTT_DEFAULT_TOPIC_PREFIX "collectd"
+#define MQTT_DEFAULT_NOTIFICATION_PREFIX "collectd/event"
 #define MQTT_DEFAULT_TOPIC "collectd/#"
 #ifndef MQTT_KEEPALIVE
 #define MQTT_KEEPALIVE 60
@@ -66,6 +69,9 @@ struct mqtt_client_conf {
   char *username;
   char *password;
   int qos;
+#define MQTT_FORMAT_PLAIN 0
+#define MQTT_FORMAT_JSON 1
+  uint8_t format;
   char *cacertificatefile;
   char *certificatefile;
   char *certificatekeyfile;
@@ -74,8 +80,10 @@ struct mqtt_client_conf {
 
   /* For publishing */
   char *topic_prefix;
+  char *notification_prefix;
   bool store_rates;
   bool retain;
+  bool send_notifications;
 
   /* For subscribing */
   pthread_t thread;
@@ -149,6 +157,7 @@ static void mqtt_free(mqtt_client_conf_t *conf) {
   sfree(conf->password);
   sfree(conf->client_id);
   sfree(conf->topic_prefix);
+  sfree(conf->notification_prefix);
   sfree(conf);
 }
 
@@ -514,6 +523,8 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
   mqtt_client_conf_t *conf;
   char topic[MQTT_MAX_TOPIC_SIZE];
   char payload[MQTT_MAX_MESSAGE_SIZE];
+  size_t offset = 0;
+  size_t bfree = sizeof(payload);
   int status = 0;
 
   if ((user_data == NULL) || (user_data->data == NULL))
@@ -526,10 +537,21 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
     return status;
   }
 
-  status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
-  if (status != 0) {
-    ERROR("mqtt plugin: format_values failed with status %d.", status);
-    return status;
+  if (conf->format == MQTT_FORMAT_JSON) {
+    format_json_initialize(payload, &offset, &bfree);
+    format_json_value_list(payload, &offset, &bfree, ds, vl, conf->store_rates);
+    status = format_json_finalize(payload, &offset, &bfree);
+
+    if (status != 0) {
+      ERROR("mqtt plugin: format_json_finalize failed with status %d.", status);
+      return status;
+    }
+  } else { /* MQTT_FORMAT_PLAIN */
+    status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
+    if (status != 0) {
+      ERROR("mqtt plugin: format_values failed with status %d.", status);
+      return status;
+    }
   }
 
   status = publish(conf, topic, payload, strlen(payload));
@@ -541,6 +563,163 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
   return status;
 } /* mqtt_write */
 
+static int format_notification_topic(char *buf, size_t buf_len,
+                                     notification_t const *n,
+                                     mqtt_client_conf_t *conf) {
+  char name[MQTT_MAX_TOPIC_SIZE];
+  int status;
+  char *c;
+
+  if ((conf->notification_prefix == NULL) ||
+      (conf->notification_prefix[0] == 0)) {
+    // tempting but unsafe to use FORMAT_VL here
+    return format_name(buf, buf_len, n->host, n->plugin, n->plugin_instance,
+                       n->type, n->type_instance);
+  }
+
+  status = format_name(name, sizeof(name), n->host, n->plugin,
+                       n->plugin_instance, n->type, n->type_instance);
+  if (status != 0)
+    return status;
+
+  status = ssnprintf(buf, buf_len, "%s/%s", conf->notification_prefix, name);
+  if ((status < 0) || (((size_t)status) >= buf_len))
+    return ENOMEM;
+
+  while ((c = strchr(buf, '#')) || (c = strchr(buf, '+'))) {
+    *c = '_';
+  }
+
+  return 0;
+} /* format_notification_topic */
+
+static int format_plain_notification(char *buffer, size_t buffer_size,
+                                     notification_t const *n) {
+  int status = 0;
+
+#define APPEND_VA(format, ...)                                                 \
+  if (buffer_size > 0) {                                                       \
+    status = ssnprintf(buffer, buffer_size, format "\r\n", __VA_ARGS__);       \
+    if (status >= 0) {                                                         \
+      buffer += status;                                                        \
+      buffer_size -= status;                                                   \
+    } else {                                                                   \
+      ERROR("mqtt plugin: notification buffer too large.");                    \
+      return ENOMEM;                                                           \
+    }                                                                          \
+  }
+
+  APPEND_VA("Time: %.3f", CDTIME_T_TO_DOUBLE(n->time));
+  switch (n->severity) {
+  case NOTIF_FAILURE:
+    APPEND_VA("Severity: %s", "FAILURE");
+    break;
+  case NOTIF_WARNING:
+    APPEND_VA("Severity: %s", "WARNING");
+    break;
+  case NOTIF_OKAY:
+    APPEND_VA("Severity: %s", "OKAY");
+    break;
+  default:
+    APPEND_VA("Severity: %s", "UNKNOWN");
+  }
+
+  for (notification_meta_t const *meta = n->meta; meta != NULL;
+       meta = meta->next) {
+    switch (meta->type) {
+    case NM_TYPE_STRING:
+      APPEND_VA("%s: %s", meta->name, meta->nm_value.nm_string);
+      break;
+    case NM_TYPE_SIGNED_INT:
+      APPEND_VA("%s: %" PRIi64, meta->name, meta->nm_value.nm_signed_int);
+      break;
+    case NM_TYPE_UNSIGNED_INT:
+      APPEND_VA("%s: %" PRIu64, meta->name, meta->nm_value.nm_unsigned_int);
+      break;
+    case NM_TYPE_DOUBLE:
+      APPEND_VA("%s: " GAUGE_FORMAT, meta->name, meta->nm_value.nm_double);
+      break;
+    case NM_TYPE_BOOLEAN:
+      APPEND_VA("%s: %s", meta->name,
+                meta->nm_value.nm_boolean ? "true" : "false");
+      break;
+    default:
+      WARNING("mqtt plugin: notification metadata type (%i) not supported.",
+              meta->type);
+      continue;
+    }
+  }
+
+  APPEND_VA("\r\nMessage: %s", n->message);
+
+  return 0;
+} /* format_plain_notification */
+
+static int mqtt_notification(const notification_t *n,
+                             user_data_t __attribute__((unused)) * user_data) {
+  DEBUG("mqtt plugin: notification");
+  mqtt_client_conf_t *conf;
+  char topic[MQTT_MAX_TOPIC_SIZE];
+  char payload[MQTT_MAX_MESSAGE_SIZE];
+  int status = 0;
+
+  if ((user_data == NULL) || (user_data->data == NULL))
+    return EINVAL;
+  conf = user_data->data;
+
+  status = format_notification_topic(topic, sizeof(topic), n, conf);
+  if (status != 0) {
+    ERROR("mqtt plugin: format_notification_topic failed with status %d.",
+          status);
+    return status;
+  }
+
+  if (conf->format == MQTT_FORMAT_JSON) {
+    status = format_json_notification(payload, sizeof(payload), n);
+    if (status != 0) {
+      ERROR("mqtt plugin: format_json_notification failed: %d", status);
+      return status;
+    }
+  } else { /* MQTT_FORMAT_PLAIN */
+    status = format_plain_notification(payload, sizeof(payload), n);
+    if (status != 0) {
+      ERROR("mqtt plugin: format_plain_notification failed: %d", status);
+      return status;
+    }
+  }
+
+  status = publish(conf, topic, payload, strlen(payload));
+  if (status != 0) {
+    ERROR("mqtt plugin: publish failed: %s", mosquitto_strerror(status));
+    return status;
+  }
+
+  return status;
+} /* int mqtt_notification */
+
+static int config_set_format(mqtt_client_conf_t *conf, oconfig_item_t *ci) {
+  char *string;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    WARNING("mqtt plugin: The `%s' config option "
+            "needs exactly one string argument.",
+            ci->key);
+    return -1;
+  }
+
+  string = ci->values[0].value.string;
+  if (strcasecmp("Plain", string) == 0)
+    conf->format = MQTT_FORMAT_PLAIN;
+  else if (strcasecmp("JSON", string) == 0)
+    conf->format = MQTT_FORMAT_JSON;
+  else {
+    ERROR("mqtt plugin: Invalid format string: %s", string);
+    return -1;
+  }
+
+  return 0;
+} /* int config_set_format */
+
 /*
  * <Publish "name">
  *   Host "example.com"
@@ -551,7 +730,10 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
  *   Prefix "collectd"
  *   StoreRates true
  *   Retain false
+ *   SendNotifications false
+ *   NotificationPrefix "collectd/event"
  *   QoS 0
+ *   Format PLAIN
  *   CACert "ca.pem"                      Enables TLS if set
  *   CertificateFile "client-cert.pem"	  optional
  *   CertificateKeyFile "client-key.pem"  optional
@@ -581,7 +763,9 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
   conf->port = MQTT_DEFAULT_PORT;
   conf->client_id = NULL;
   conf->qos = 0;
+  conf->format = MQTT_FORMAT_PLAIN;
   conf->topic_prefix = strdup(MQTT_DEFAULT_TOPIC_PREFIX);
+  conf->notification_prefix = strdup(MQTT_DEFAULT_NOTIFICATION_PREFIX);
   conf->store_rates = true;
 
   status = pthread_mutex_init(&conf->lock, NULL);
@@ -617,10 +801,16 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
         conf->qos = tmp;
     } else if (strcasecmp("Prefix", child->key) == 0)
       cf_util_get_string(child, &conf->topic_prefix);
+    else if (strcasecmp("Format", child->key) == 0)
+      config_set_format(conf, child);
     else if (strcasecmp("StoreRates", child->key) == 0)
       cf_util_get_boolean(child, &conf->store_rates);
     else if (strcasecmp("Retain", child->key) == 0)
       cf_util_get_boolean(child, &conf->retain);
+    else if (strcasecmp("SendNotifications", child->key) == 0)
+      cf_util_get_boolean(child, &conf->send_notifications);
+    else if (strcasecmp("NotificationPrefix", child->key) == 0)
+      cf_util_get_string(child, &conf->notification_prefix);
     else if (strcasecmp("CACert", child->key) == 0)
       cf_util_get_string(child, &conf->cacertificatefile);
     else if (strcasecmp("CertificateFile", child->key) == 0)
@@ -640,6 +830,14 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
                         &(user_data_t){
                             .data = conf,
                         });
+
+  if (conf->send_notifications) {
+    plugin_register_notification(cb_name, mqtt_notification,
+                                 &(user_data_t){
+                                     .data = conf,
+                                 });
+  }
+
   return 0;
 } /* mqtt_config_publisher */
 

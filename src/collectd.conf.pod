@@ -5445,6 +5445,10 @@ QoS setting the client is going to accept and defaults to B<2>. If the QoS flag
 on a message is larger than the maximum accepted QoS of a subscriber, the
 message's QoS will be downgraded.
 
+=item B<Format> I<Format> (Publish only)
+
+The output format to use. Can be one of C<PLAIN> or C<JSON>. Defaults to C<PLAIN>.
+
 =item B<Prefix> I<Prefix> (Publish only)
 
 This plugin will use one topic per I<value list> which will looks like a path.
@@ -5453,6 +5457,15 @@ I<Prefix> is used as the first path element and defaults to B<collectd>.
 An example topic name would be:
 
  collectd/cpu-0/cpu-user
+
+=item B<NotificationPrefix> I<Prefix> (Publish only)
+
+Like B<Prefix>, this plugin will use one topic per I<notification> instance.
+I<Prefix> is used as the first path element and defaults to B<collectd/event>.
+
+An example topic name would be:
+
+ collectd/event/host/interface-eth0/if_octets
 
 =item B<Retain> B<false>|B<true> (Publish only)
 
@@ -5463,6 +5476,12 @@ sent to each topic and deliver it to new subscribers. Defaults to B<false>.
 
 Controls whether C<DERIVE> and C<COUNTER> metrics are converted to a I<rate>
 before sending. Defaults to B<true>.
+
+=item B<SendNotifications> B<true>|B<false> (Publish only)
+
+Controls whether notifications are sent. Defaults to B<false>.
+
+Notifications are published with a B<NotificationPrefix> for each type instance.
 
 =item B<CleanSession> B<true>|B<false> (Subscribe only)
 
