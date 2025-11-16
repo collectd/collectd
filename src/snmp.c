@@ -156,11 +156,9 @@ static int csnmp_oid_compare(oid_t const *left, oid_t const *right) {
 }
 
 static int csnmp_oid_suffix(oid_t *dst, oid_t const *src, oid_t const *root) {
-  /* Make sure "src" is in "root"s subtree. */
-  if (src->oid_len <= root->oid_len)
-    return EINVAL;
-  if (snmp_oid_ncompare(root->oid, root->oid_len, src->oid, src->oid_len,
-                        /* n = */ root->oid_len) != 0)
+  if ((src->oid_len <= root->oid_len) ||
+      (snmp_oid_ncompare(root->oid, root->oid_len, src->oid, src->oid_len,
+                         root->oid_len) != 0))
     return EINVAL;
 
   memset(dst, 0, sizeof(*dst));
@@ -168,6 +166,20 @@ static int csnmp_oid_suffix(oid_t *dst, oid_t const *src, oid_t const *root) {
   memcpy(dst->oid, &src->oid[root->oid_len],
          dst->oid_len * sizeof(dst->oid[0]));
   return 0;
+}
+
+static bool csnmp_suffix_within(oid_t const *prefix, oid_t const *full) {
+  if (prefix->oid_len == 0)
+    return full->oid_len == 0;
+  if (prefix->oid_len > full->oid_len)
+    return false;
+
+  return (snmp_oid_ncompare(prefix->oid, prefix->oid_len, full->oid,
+                            full->oid_len, prefix->oid_len) == 0);
+}
+
+static bool csnmp_suffixes_align(oid_t const *left, oid_t const *right) {
+  return csnmp_suffix_within(left, right) || csnmp_suffix_within(right, left);
 }
 
 static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
@@ -1444,6 +1456,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
     /* Update plugin_instance_cell_ptr to point expected suffix */
     if (plugin_instance_cells != NULL) {
       while ((plugin_instance_cell_ptr != NULL) &&
+             !csnmp_suffixes_align(&plugin_instance_cell_ptr->suffix,
+                                   &current_suffix) &&
              (csnmp_oid_compare(&plugin_instance_cell_ptr->suffix,
                                 &current_suffix) < 0))
         plugin_instance_cell_ptr = plugin_instance_cell_ptr->next;
@@ -1453,8 +1467,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
         continue;
       }
 
-      if (csnmp_oid_compare(&plugin_instance_cell_ptr->suffix,
-                            &current_suffix) > 0) {
+      if (!csnmp_suffixes_align(&plugin_instance_cell_ptr->suffix,
+                                &current_suffix)) {
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
@@ -1465,6 +1479,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
     if (hostname_cells != NULL) {
       while (
           (hostname_cell_ptr != NULL) &&
+          !csnmp_suffixes_align(&hostname_cell_ptr->suffix, &current_suffix) &&
           (csnmp_oid_compare(&hostname_cell_ptr->suffix, &current_suffix) < 0))
         hostname_cell_ptr = hostname_cell_ptr->next;
 
@@ -1473,7 +1488,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
         continue;
       }
 
-      if (csnmp_oid_compare(&hostname_cell_ptr->suffix, &current_suffix) > 0) {
+      if (!csnmp_suffixes_align(&hostname_cell_ptr->suffix, &current_suffix)) {
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
@@ -1483,6 +1498,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
     /* Update filter_cell_ptr to point expected suffix */
     if (filter_cells != NULL) {
       while ((filter_cell_ptr != NULL) &&
+             !csnmp_suffixes_align(&filter_cell_ptr->suffix, &current_suffix) &&
              (csnmp_oid_compare(&filter_cell_ptr->suffix, &current_suffix) < 0))
         filter_cell_ptr = filter_cell_ptr->next;
 
@@ -1491,7 +1507,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
         continue;
       }
 
-      if (csnmp_oid_compare(&filter_cell_ptr->suffix, &current_suffix) > 0) {
+      if (!csnmp_suffixes_align(&filter_cell_ptr->suffix, &current_suffix)) {
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
@@ -1503,14 +1519,15 @@ static int csnmp_dispatch_table(host_definition_t *host,
     for (i = 0; i < data->values_len; i++) {
       while (
           (value_cell_ptr[i] != NULL) &&
+          !csnmp_suffixes_align(&value_cell_ptr[i]->suffix, &current_suffix) &&
           (csnmp_oid_compare(&value_cell_ptr[i]->suffix, &current_suffix) < 0))
         value_cell_ptr[i] = value_cell_ptr[i]->next;
 
       if (value_cell_ptr[i] == NULL) {
         have_more = 0;
         break;
-      } else if (csnmp_oid_compare(&value_cell_ptr[i]->suffix,
-                                   &current_suffix) > 0) {
+      } else if (!csnmp_suffixes_align(&value_cell_ptr[i]->suffix,
+                                       &current_suffix)) {
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
@@ -1541,17 +1558,17 @@ static int csnmp_dispatch_table(host_definition_t *host,
                                &value_cell_ptr[i]->suffix) == 0);
     }
     assert((type_instance_cell_ptr == NULL) ||
-           (csnmp_oid_compare(&type_instance_cell_ptr->suffix,
-                              &value_cell_ptr[0]->suffix) == 0));
+           csnmp_suffixes_align(&type_instance_cell_ptr->suffix,
+                                &value_cell_ptr[0]->suffix));
     assert((plugin_instance_cell_ptr == NULL) ||
-           (csnmp_oid_compare(&plugin_instance_cell_ptr->suffix,
-                              &value_cell_ptr[0]->suffix) == 0));
+           csnmp_suffixes_align(&plugin_instance_cell_ptr->suffix,
+                                &value_cell_ptr[0]->suffix));
     assert((hostname_cell_ptr == NULL) ||
-           (csnmp_oid_compare(&hostname_cell_ptr->suffix,
-                              &value_cell_ptr[0]->suffix) == 0));
+           csnmp_suffixes_align(&hostname_cell_ptr->suffix,
+                                &value_cell_ptr[0]->suffix));
     assert((filter_cell_ptr == NULL) ||
-           (csnmp_oid_compare(&filter_cell_ptr->suffix,
-                              &value_cell_ptr[0]->suffix) == 0));
+           csnmp_suffixes_align(&filter_cell_ptr->suffix,
+                                &value_cell_ptr[0]->suffix));
 #endif
 
     /* Check the value in filter column */
