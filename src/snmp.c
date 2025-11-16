@@ -178,6 +178,11 @@ static bool csnmp_suffix_within(oid_t const *prefix, oid_t const *full) {
                             full->oid_len, prefix->oid_len) == 0);
 }
 
+static bool csnmp_suffixes_align(oid_t const *left, oid_t const *right) {
+  return csnmp_suffix_within(left, right) ||
+         csnmp_suffix_within(right, left);
+}
+
 static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
                                oid_t const *o) {
   char oid_str[MAX_OID_LEN][16];
