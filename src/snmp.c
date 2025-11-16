@@ -179,8 +179,7 @@ static bool csnmp_suffix_within(oid_t const *prefix, oid_t const *full) {
 }
 
 static bool csnmp_suffixes_align(oid_t const *left, oid_t const *right) {
-  return csnmp_suffix_within(left, right) ||
-         csnmp_suffix_within(right, left);
+  return csnmp_suffix_within(left, right) || csnmp_suffix_within(right, left);
 }
 
 static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
@@ -1478,7 +1477,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
     /* Update hostname_cell_ptr to point expected suffix */
     if (hostname_cells != NULL) {
-      while ((hostname_cell_ptr != NULL) &&
+      while (
+          (hostname_cell_ptr != NULL) &&
           !csnmp_suffixes_align(&hostname_cell_ptr->suffix, &current_suffix) &&
           (csnmp_oid_compare(&hostname_cell_ptr->suffix, &current_suffix) < 0))
         hostname_cell_ptr = hostname_cell_ptr->next;
@@ -1517,9 +1517,10 @@ static int csnmp_dispatch_table(host_definition_t *host,
     /* Update all the value_cell_ptr to point at the entry with the same
      * trailing partial OID */
     for (i = 0; i < data->values_len; i++) {
-      while ((value_cell_ptr[i] != NULL) &&
-             !csnmp_suffixes_align(&value_cell_ptr[i]->suffix, &current_suffix) &&
-             (csnmp_oid_compare(&value_cell_ptr[i]->suffix, &current_suffix) < 0))
+      while (
+          (value_cell_ptr[i] != NULL) &&
+          !csnmp_suffixes_align(&value_cell_ptr[i]->suffix, &current_suffix) &&
+          (csnmp_oid_compare(&value_cell_ptr[i]->suffix, &current_suffix) < 0))
         value_cell_ptr[i] = value_cell_ptr[i]->next;
 
       if (value_cell_ptr[i] == NULL) {
