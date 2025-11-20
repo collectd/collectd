@@ -168,6 +168,13 @@ int plugin_notification_meta_add_boolean(__attribute__((unused))
                                          __attribute__((unused)) _Bool value) {
   return ENOTSUP;
 }
+int plugin_notification_meta_get_boolean(__attribute__((unused))
+                                         notification_meta_t *n,
+                                         __attribute__((unused))
+                                         const char *name,
+                                         __attribute__((unused)) _Bool *value) {
+  return -ENOENT;
+}
 
 int plugin_notification_meta_copy(__attribute__((unused)) notification_t *dst,
                                   __attribute__((unused))
