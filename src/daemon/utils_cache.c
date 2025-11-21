@@ -79,6 +79,7 @@ struct uc_iter_s {
 
 static c_avl_tree_t *cache_tree;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
+static _Bool time_rates = 1;
 
 static int cache_compare(const cache_entry_t *a, const cache_entry_t *b) {
 #if COLLECT_DEBUG
@@ -177,9 +178,14 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
 
     case DS_TYPE_ABSOLUTE:
       ce->values_gauge[i] = NAN;
-      if (vl->interval > 0)
-        ce->values_gauge[i] =
-            ((double)vl->values[i].absolute) / CDTIME_T_TO_DOUBLE(vl->interval);
+      if (vl->interval > 0) {
+        if (time_rates) {
+          ce->values_gauge[i] = ((double)vl->values[i].absolute) /
+                                CDTIME_T_TO_DOUBLE(vl->interval);
+        } else {
+          ce->values_gauge[i] = (double)vl->values[i].absolute;
+        }
+      }
       ce->values_raw[i].absolute = vl->values[i].absolute;
       break;
 
@@ -216,9 +222,14 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
 } /* int uc_insert */
 
 int uc_init(void) {
+  const char *str;
   if (cache_tree == NULL)
     cache_tree =
         c_avl_create((int (*)(const void *, const void *))cache_compare);
+
+  str = global_option_get("SampleBasedRates");
+  if (IS_TRUE(str))
+    time_rates = 0;
 
   return 0;
 } /* int uc_init */
@@ -361,8 +372,12 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
     case DS_TYPE_COUNTER: {
       counter_t diff =
           counter_diff(ce->values_raw[i].counter, vl->values[i].counter);
-      ce->values_gauge[i] =
-          ((double)diff) / (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
+      if (time_rates) {
+        ce->values_gauge[i] =
+            ((double)diff) / (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
+      } else {
+        ce->values_gauge[i] = ((double)diff);
+      }
       ce->values_raw[i].counter = vl->values[i].counter;
     } break;
 
@@ -374,14 +389,22 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
     case DS_TYPE_DERIVE: {
       derive_t diff = vl->values[i].derive - ce->values_raw[i].derive;
 
-      ce->values_gauge[i] =
-          ((double)diff) / (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
+      if (time_rates) {
+        ce->values_gauge[i] =
+            ((double)diff) / (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
+      } else {
+        ce->values_gauge[i] = ((double)diff);
+      }
       ce->values_raw[i].derive = vl->values[i].derive;
     } break;
 
     case DS_TYPE_ABSOLUTE:
-      ce->values_gauge[i] = ((double)vl->values[i].absolute) /
-                            (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
+      if (time_rates) {
+        ce->values_gauge[i] = ((double)vl->values[i].absolute) /
+                              (CDTIME_T_TO_DOUBLE(vl->time - ce->last_time));
+      } else {
+        ce->values_gauge[i] = (double)vl->values[i].absolute;
+      }
       ce->values_raw[i].absolute = vl->values[i].absolute;
       break;
 
