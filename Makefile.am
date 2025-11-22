@@ -1611,6 +1611,14 @@ nfs_la_SOURCES = src/nfs.c
 nfs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_NFTABLES
+pkglib_LTLIBRARIES += nftables.la
+nftables_la_SOURCES = src/nftables.c
+nftables_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNFTNL_CFLAGS)
+nftables_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+nftables_la_LIBADD = $(BUILD_WITH_LIBNFTNL_LIBS)
+endif
+
 if BUILD_PLUGIN_NGINX
 pkglib_LTLIBRARIES += nginx.la
 nginx_la_SOURCES = src/nginx.c
