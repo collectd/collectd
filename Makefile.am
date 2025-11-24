@@ -1542,6 +1542,12 @@ memory_la_LIBADD += -lperfstat
 endif
 endif
 
+if BUILD_PLUGIN_MESH
+pkglib_LTLIBRARIES += mesh.la
+mesh_la_SOURCES = src/mesh.c
+mesh_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_MIC
 pkglib_LTLIBRARIES += mic.la
 mic_la_SOURCES = src/mic.c
