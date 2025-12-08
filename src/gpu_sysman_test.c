@@ -313,6 +313,10 @@ static ze_result_t metric_args_check(int callbit, const char *name,
 #define TEMP_INIT 10
 #define TEMP_INC 5
 
+#define FAN_MAX 6000
+#define FAN_INIT 3000
+#define FAN_INC 200
+
 /* Arguments:
  * - call bit
  * - metric enumaration function name
@@ -547,7 +551,37 @@ ze_result_t zesFabricPortGetThroughput(zes_fabric_port_handle_t handle,
   return ret;
 }
 
-#define QUERY_CALL_FUNCS 27
+static zes_fan_properties_t fan_props = {.maxRPM = FAN_MAX, .maxPoints = 8};
+
+ADD_METRIC(27, zesDeviceEnumFans, zes_fan_handle_t, zesFanGetProperties,
+           zes_fan_properties_t, fan_props, zesFanGetDummyState, int, dummy,
+           dummy = 0, dummy = 0)
+
+/* needed because there's an extra parameter */
+ze_result_t zesFanGetState(zes_fan_handle_t handle, zes_fan_speed_units_t units,
+                           int32_t *speed) {
+  ze_result_t ret = metric_args_check(29, "zesFanGetState", handle, speed);
+  if (ret == ZE_RESULT_SUCCESS) {
+    if (units != ZES_FAN_SPEED_UNITS_RPM) {
+      return ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;
+    }
+    static uint32_t fan = FAN_INIT;
+    *speed = fan;
+    fan += FAN_INC;
+  }
+  return ret;
+}
+
+ze_result_t zesFanGetConfig(zes_fan_handle_t handle, zes_fan_config_t *config) {
+  ze_result_t ret = metric_args_check(30, "zesFanGetConfig", handle, config);
+  if (ret == ZE_RESULT_SUCCESS) {
+    assert(!config->pNext);
+    memset(config, 0, sizeof(*config));
+  }
+  return ret;
+}
+
+#define QUERY_CALL_FUNCS 31
 #define QUERY_CALL_BITS (((uint64_t)1 << QUERY_CALL_FUNCS) - 1)
 
 /* ------------------------------------------------------------------------- */
@@ -581,9 +615,14 @@ typedef struct {
 #define MEM_RATIO_INIT ((double)MEMORY_INIT / MEMORY_SIZE)
 #define MEM_RATIO_INC ((double)MEMORY_INC / MEMORY_SIZE)
 
+#define FAN_RATIO_INIT ((double)FAN_INIT / FAN_MAX)
+#define FAN_RATIO_INC ((double)FAN_INC / FAN_MAX)
+
 static metrics_validation_t valid_metrics[] = {
     /* gauge value changes */
     {"all_errors", true, false, RAS_INIT, RAS_INC, 0, 0.0},
+    {"fan_speed_ratio", true, false, FAN_RATIO_INIT, FAN_RATIO_INC, 0, 0.0},
+    {"fan_speed_rpms", true, false, FAN_INIT, FAN_INC, 0, 0.0},
     {"frequency_mhz/actual/current/gpu/min", true, true, FREQ_INIT, FREQ_INC, 0,
      0.0},
     {"frequency_mhz/actual/current/gpu/max", true, true, FREQ_INIT, FREQ_INC, 0,
@@ -1038,16 +1077,13 @@ static int get_reset_disabled(gpu_disable_t *disabled, bool value, int *mask,
   struct {
     const char *name;
     bool *flag;
-  } flags[] = {{"engine", &disabled->engine},
-               {"fabric", &disabled->fabric},
-               {"frequency", &disabled->freq},
-               {"memory", &disabled->mem},
-               {"membw", &disabled->membw},
-               {"power", &disabled->power},
-               {"power_ratio", &disabled->power_ratio},
-               {"errors", &disabled->ras},
-               {"temperature", &disabled->temp},
-               {"throttle", &disabled->throttle}};
+  } flags[] = {
+      {"engine", &disabled->engine},    {"fabric", &disabled->fabric},
+      {"fan", &disabled->fan},          {"frequency", &disabled->freq},
+      {"memory", &disabled->mem},       {"membw", &disabled->membw},
+      {"power", &disabled->power},      {"power_ratio", &disabled->power_ratio},
+      {"errors", &disabled->ras},       {"temperature", &disabled->temp},
+      {"throttle", &disabled->throttle}};
   *all = 0;
   int count = 0;
   for (int i = 0; i < (int)STATIC_ARRAY_SIZE(flags); i++) {
