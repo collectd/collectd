@@ -523,8 +523,6 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
   mqtt_client_conf_t *conf;
   char topic[MQTT_MAX_TOPIC_SIZE];
   char payload[MQTT_MAX_MESSAGE_SIZE];
-  size_t offset = 0;
-  size_t bfree = sizeof(payload);
   int status = 0;
 
   if ((user_data == NULL) || (user_data->data == NULL))
@@ -538,6 +536,9 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   if (conf->format == MQTT_FORMAT_JSON) {
+    size_t offset = 0;
+    size_t bfree = sizeof(payload);
+
     format_json_initialize(payload, &offset, &bfree);
     format_json_value_list(payload, &offset, &bfree, ds, vl, conf->store_rates);
     status = format_json_finalize(payload, &offset, &bfree);
@@ -593,18 +594,18 @@ static int format_notification_topic(char *buf, size_t buf_len,
   return 0;
 } /* format_notification_topic */
 
-static int format_plain_notification(char *buffer, size_t buffer_size,
+static int format_plain_notification(char *buf, size_t buf_len,
                                      notification_t const *n) {
   int status = 0;
 
 #define APPEND_VA(format, ...)                                                 \
-  if (buffer_size > 0) {                                                       \
-    status = ssnprintf(buffer, buffer_size, format "\r\n", __VA_ARGS__);       \
+  if (buf_len > 0) {                                                           \
+    status = ssnprintf(buf, buf_len, format "\r\n", __VA_ARGS__);              \
     if (status >= 0) {                                                         \
-      buffer += status;                                                        \
-      buffer_size -= status;                                                   \
+      buf += status;                                                           \
+      buf_len -= status;                                                       \
     } else {                                                                   \
-      ERROR("mqtt plugin: notification buffer too large.");                    \
+      ERROR("mqtt plugin: notification buf too small.");                       \
       return ENOMEM;                                                           \
     }                                                                          \
   }
