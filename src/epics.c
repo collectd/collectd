@@ -23,7 +23,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#include <cadef.h>
+#include <epics/cadef.h>
 
 struct pv {
   char *name;
