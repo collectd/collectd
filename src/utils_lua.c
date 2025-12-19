@@ -169,12 +169,22 @@ value_t luaC_tovalue(lua_State *L, int idx, int ds_type) /* {{{ */
 
   if (ds_type == DS_TYPE_GAUGE)
     v.gauge = (gauge_t)lua_tonumber(L, /* stack pos = */ -1);
-  else if (ds_type == DS_TYPE_DERIVE)
-    v.derive = (derive_t)lua_tointeger(L, /* stack pos = */ -1);
-  else if (ds_type == DS_TYPE_COUNTER)
-    v.counter = (counter_t)lua_tointeger(L, /* stack pos = */ -1);
-  else if (ds_type == DS_TYPE_ABSOLUTE)
-    v.absolute = (absolute_t)lua_tointeger(L, /* stack pos = */ -1);
+  else if (ds_type == DS_TYPE_DERIVE) {
+    if (sizeof(lua_Integer) < sizeof(derive_t))
+      v.derive = (derive_t)lua_tonumber(L, /* stack pos = */ -1);
+    else
+      v.derive = (derive_t)lua_tointeger(L, /* stack pos = */ -1);
+  } else if (ds_type == DS_TYPE_COUNTER) {
+    if (sizeof(lua_Integer) < sizeof(counter_t))
+      v.counter = (counter_t)lua_tonumber(L, /* stack pos = */ -1);
+    else
+      v.counter = (counter_t)lua_tointeger(L, /* stack pos = */ -1);
+  } else if (ds_type == DS_TYPE_ABSOLUTE) {
+    if (sizeof(lua_Integer) < sizeof(absolute_t))
+      v.absolute = (absolute_t)lua_tonumber(L, /* stack pos = */ -1);
+    else
+      v.absolute = (absolute_t)lua_tointeger(L, /* stack pos = */ -1);
+  }
 
   return v;
 } /* }}} value_t luaC_tovalue */
@@ -267,13 +277,22 @@ int luaC_pushvalue(lua_State *L, value_t v, int ds_type) /* {{{ */
 {
   if (ds_type == DS_TYPE_GAUGE)
     lua_pushnumber(L, (lua_Number)v.gauge);
-  else if (ds_type == DS_TYPE_DERIVE)
-    lua_pushinteger(L, (lua_Integer)v.derive);
-  else if (ds_type == DS_TYPE_COUNTER)
-    lua_pushinteger(L, (lua_Integer)v.counter);
-  else if (ds_type == DS_TYPE_ABSOLUTE)
-    lua_pushinteger(L, (lua_Integer)v.absolute);
-  else
+  else if (ds_type == DS_TYPE_DERIVE) {
+    if (sizeof(lua_Integer) < sizeof(derive_t))
+      lua_pushnumber(L, (lua_Number)v.derive);
+    else
+      lua_pushinteger(L, (lua_Integer)v.derive);
+  } else if (ds_type == DS_TYPE_COUNTER) {
+    if (sizeof(lua_Integer) < sizeof(counter_t))
+      lua_pushnumber(L, (lua_Number)v.counter);
+    else
+      lua_pushinteger(L, (lua_Integer)v.counter);
+  } else if (ds_type == DS_TYPE_ABSOLUTE) {
+    if (sizeof(lua_Integer) < sizeof(absolute_t))
+      lua_pushnumber(L, (lua_Number)v.absolute);
+    else
+      lua_pushinteger(L, (lua_Integer)v.absolute);
+  } else
     return -1;
   return 0;
 } /* }}} int luaC_pushvalue */
