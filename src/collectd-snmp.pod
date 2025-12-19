@@ -73,6 +73,13 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       PrivacyPassphrase "too_many_secrets"
       Collect "std_traffic"
     </Host>
+    <Host "more.secure.router.mydomain.org">
+      Address "dtlsudp:192.168.0.7:10161"
+      Version 3
+      LocalCert "router-cert"
+      TrustCert "ca-cert"
+      Collect "std_traffic"
+    </Host>
     <Host "some.ups.mydomain.org">
       Address "tcp:192.168.0.3"
       Version 1
@@ -353,11 +360,11 @@ Pass I<Community> to the host. (Ignored for SNMPv3).
 
 =item B<Username> I<Username>
 
-Sets the I<Username> to use for SNMPv3 security.
+Sets the I<Username> to use for SNMPv3 User-based Security Model (USM) security.
 
 =item B<SecurityLevel> I<authPriv>|I<authNoPriv>|I<noAuthNoPriv>
 
-Selects the security level for SNMPv3 security.
+Selects the security level for SNMPv3 User-based Security Model (USM) security.
 
 =item B<Context> I<Context>
 
@@ -365,19 +372,45 @@ Sets the I<Context> for SNMPv3 security.
 
 =item B<AuthProtocol> I<MD5>|I<SHA>
 
-Selects the authentication protocol for SNMPv3 security.
+Selects the authentication protocol for SNMPv3 User-based Security Model (USM) security.
 
 =item B<AuthPassphrase> I<Passphrase>
 
-Sets the authentication passphrase for SNMPv3 security.
+Sets the authentication passphrase for SNMPv3 User-based Security Model (USM) security.
 
 =item B<PrivacyProtocol> I<AES>|I<DES>
 
-Selects the privacy (encryption) protocol for SNMPv3 security.
+Selects the privacy (encryption) protocol for SNMPv3 User-based Security Model (USM) security.
 
 =item B<PrivacyPassphrase> I<Passphrase>
 
-Sets the privacy (encryption) passphrase for SNMPv3 security.
+Sets the privacy (encryption) passphrase for SNMPv3 User-based Security Model (USM) security.
+
+=item B<LocalCert> I<fingerprint>|I<fileprefix>
+
+Sets the fingerprint or the filename prefix of the local certificate,
+key, and (if supported) intermediate certificates for SNMPv3 Transport
+Security Model (TSM) security.
+
+=item B<PeerCert> I<fingerprint>|I<fileprefix>
+
+Sets the fingerprint or the filename prefix of the self signed remote peer
+certificate to be accepted as presented by the SNMPv3 server for SNMPv3
+Transport Security Model (TSM) security.
+
+=item B<TrustCert> I<fingerprint>|I<fileprefix>
+
+Sets the fingerprint or the filename prefix of the certificate authority
+certificates to be trusted by collectd-snmp for SNMPv3 Transport Security
+Model (TSM) security.
+
+This option can only be specified once. From C<Net-SNMP> v5.10 onwards,
+all certificates in files matching the given filename prefix are trusted.
+
+=item B<PeerHostname> I<Hostname>
+
+If specified, the hostname of the SNMPv3 server will be checked against the
+peer certificate presented by the SNMPv3 server.
 
 =item B<Collect> I<Data> [I<Data> ...]
 
@@ -407,6 +440,71 @@ The C<Net-SNMP> library default is 5.
 Configures the size of SNMP bulk transfers. The default is 0, which disables bulk transfers altogether.
 
 =back
+
+=head1 SECURITY
+
+SNMP provides various security levels, ranging from open SNMPv1 and SNMPv2c,
+to the secure SNMPv3 User-based Security Model (USM) and Transport Security
+Model (TSM) options.
+
+=head2 SNMPv1 / SNMPv2c Security
+
+When B<Version> 1 or 2 is used, anyone with knowledge of the community
+string can connect to the SNMP server.
+
+No authentication or privacy is supported in these modes.
+
+=head2 SNMPv3 User-based Security Model (USM) Security
+
+When B<Address> prefixes such as I<udp:> or I<udp6:> are used along with
+B<Version> 3 and the I<Username> option, USM security is enabled.
+
+Security in this mode is based on shared secrets, and can offer
+optional authentication and privacy.
+
+The digest and encryption algorithms specified by B<AuthProtocol> and
+B<PrivacyProtocol> must match those on the SNMPv3 server.
+
+The user credentials used by the SNMPv3 server are specified by the
+B<Username> option.
+
+=head2 SNMPv3 Transport Security Model (TSM) Security
+
+When TLS/DTLS B<Address> prefixes such as I<dtlsudp:> or I<dtlsudp6:> are
+used along with the B<LocalCert> option, TSM security is enabled.
+
+Security in this mode is based on X509 certificates and public/private keys.
+The SNMPv3 server and collectd-snmp client authenticate and secure the
+connection through server and client certificates. The SNMPv3 server will
+decide the user credentials to be applied based on the attributes of the
+client certificate presented by collectd-snmp in B<LocalCert>.
+
+The certificates and keys are stored in any of the series of certificate
+store paths supported by the C<Net-SNMP> library, and are scanned and indexed
+for performance. The path cannot be specified directly via collectd-snmp.
+
+Certificates are chosen by specifying the fingerprint of the certificate
+or the name prefix of the file the certificate is stored in. The algorithm
+used for the fingerprint matches the algorithm used to sign the certificate.
+
+Files containing keys must have no group or world permissions, otherwise the
+contents of the files will be silently ignored.
+
+If a filename prefix is used, certificates are picked up from files with
+specific prefixes known to C<Net-SNMP> matching the filename prefix. This value
+is not a path. For example, if a filename prefix of "router-cert" is specified,
+files called I<router-cert.pem>, I<router-cert.crt>, I<router-cert.cer>,
+I<router-cert.cert>, I<router-cert.der>, I<router-cert.key> and
+I<router-cert.private> will be scanned for certificates and keys.
+
+The C<Net-SNMP> library v5.9 and older has limited support for certificates
+other than self signed certificates. Intermediate certificates are ignored
+by these older versions of C<Net-SNMP>, and only the first certificate in
+each file is recognised. C<Net-SNMP> v5.10 and higher recognise concatenated
+intermediate certificates in files, as well as multiple CA certificates
+specified in one file, such as the I<tls-ca-bundle.pem> available on many
+platforms. This allows certificates to be used that have been provided by a
+PKI, either privately or through a public certificate authority.
 
 =head1 SEE ALSO
 
