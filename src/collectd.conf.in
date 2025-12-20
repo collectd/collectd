@@ -910,6 +910,8 @@
 #</Plugin>
 
 #<Plugin java>
+# # "-Xrs" is needed in order to avoid JVM to trap "QUIT" and "TERM" 
+#	JVMArg "-Xrs"
 #	JVMArg "-verbose:jni"
 #	JVMArg "-Djava.class.path=@prefix@/share/collectd/java/collectd-api.jar"
 #
