@@ -897,6 +897,38 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "req") == 0)
       return varnish_submit_derive_with_target(
           conf->instance, "vbe", stat_target, "http_requests", "b_reqs", val);
+
+#if HAVE_VARNISH_V6
+    else if (strcmp(name, "fail") == 0)
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "total_bytes", "fail", val);
+    else if (strcmp(name, "fail_eacces") == 0)
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "fail_eacces", val);
+    else if (strcmp(name, "fail_eaddrnotavail") == 0)
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "fail_eaddrnotavail", val);
+    else if (strcmp(name, "fail_econnrefused") == 0)
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "fail_econnrefused", val);
+    else if (strcmp(name, "fail_enetunreach") == 0)
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "fail_enetunreach", val);
+    else if (strcmp(name, "fail_etimedout") == 0)
+      return varnish_submit_derive_with_target(conf->instance, "vbe",
+                                               stat_target, "total_bytes",
+                                               "fail_etimedout", val);
+    else if (strcmp(name, "fail_other") == 0)
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "total_bytes", "fail_other", val);
+    else if (strcmp(name, "helddown") == 0)
+      return varnish_submit_derive_with_target(
+          conf->instance, "vbe", stat_target, "total_bytes", "helddown", val);
+#endif
   }
 
   /* All Stevedores support these counters */
