@@ -69,6 +69,10 @@ int lcc_putval(lcc_connection_t *c, const lcc_value_list_t *vl);
 int lcc_flush(lcc_connection_t *c, const char *plugin, lcc_identifier_t *ident,
               int timeout);
 
+int lcc_evalstate(lcc_connection_t *c, lcc_identifier_t *ident);
+
+int lcc_flushstate(lcc_connection_t *c, lcc_identifier_t *ident);
+
 int lcc_listval(lcc_connection_t *c, lcc_identifier_t **ret_ident,
                 size_t *ret_ident_num);
 
