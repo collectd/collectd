@@ -195,6 +195,7 @@ mysql_bpool_counters    value:DERIVE:0:U
 mysql_bpool_pages       value:GAUGE:0:U
 mysql_commands          value:DERIVE:0:U
 mysql_handler           value:DERIVE:0:U
+mysql_innodb_checkpoint_age value:GAUGE:0:U
 mysql_innodb_data       value:DERIVE:0:U
 mysql_innodb_dblwr      value:DERIVE:0:U
 mysql_innodb_log        value:DERIVE:0:U

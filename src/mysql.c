@@ -852,7 +852,7 @@ static int mysql_read(user_data_t *ud) {
         gauge_submit("mysql_bpool_bytes", "dirty", val, db);
 
       /* data */
-      if (strcmp(key, "Innodb_data_fsyncs") == 0)
+      else if (strcmp(key, "Innodb_data_fsyncs") == 0)
         derive_submit("mysql_innodb_data", "fsyncs", val, db);
       else if (strcmp(key, "Innodb_data_read") == 0)
         derive_submit("mysql_innodb_data", "read", val, db);
@@ -906,6 +906,10 @@ static int mysql_read(user_data_t *ud) {
         derive_submit("mysql_innodb_rows", "read", val, db);
       else if (strcmp(key, "Innodb_rows_updated") == 0)
         derive_submit("mysql_innodb_rows", "updated", val, db);
+
+      /* checkpoint */
+      else if (strcmp(key, "Innodb_checkpoint_age") == 0)
+        gauge_submit("mysql_innodb_checkpoint_age", NULL, val, db);
     } else if (strncmp(key, "Select_", strlen("Select_")) == 0) {
       derive_submit("mysql_select", key + strlen("Select_"), val, db);
     } else if (strncmp(key, "Sort_", strlen("Sort_")) == 0) {
