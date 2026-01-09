@@ -685,6 +685,7 @@
 #	UdevNameAttr "DEVNAME"
 #	ReportDiscard false
 #	ReportFlush false
+#   ReportReq false
 #</Plugin>
 
 #<Plugin dns>
