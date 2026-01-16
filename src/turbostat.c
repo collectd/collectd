@@ -882,6 +882,7 @@ guess:
 static int __attribute__((warn_unused_result)) probe_cpu(void) {
   unsigned int eax, ebx, ecx, edx, max_level;
   unsigned int fms, family, model;
+  unsigned int vendor_id[3];
 
   /* CPUID(0):
    * - EAX: Maximum Input Value for Basic CPUID Information
@@ -890,11 +891,7 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
    * - ECX: "ntel" (0x6c65746e)
    */
   max_level = ebx = ecx = edx = 0;
-  __get_cpuid(0, &max_level, &ebx, &ecx, &edx);
-  if (ebx != 0x756e6547 && edx != 0x49656e69 && ecx != 0x6c65746e) {
-    ERROR("turbostat plugin: Unsupported CPU (not Intel)");
-    return -1;
-  }
+  __get_cpuid(0, &max_level, &vendor_id[0], &vendor_id[2], &vendor_id[1]);
 
   /* CPUID(1):
    * - EAX: Version Information: Type, Family, Model, and Stepping ID
@@ -945,7 +942,10 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
   /*
    * Enable or disable C states depending on the model and family
    */
-  if (family == 6) {
+  if (vendor_id[0] == 0x756e6547 /* "Genu" */ &&
+      vendor_id[1] == 0x49656e69 /* "ineI" */ &&
+      vendor_id[2] == 0x6c65746e /* "ntel" */ &&
+      family == 6) {
     switch (model) {
     /* Atom (partial) */
     case 0x27:
@@ -1057,9 +1057,21 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     default:
       do_rapl = 0;
     }
+  } else if (vendor_id[0] == 0x68747541 /* "Auth" */ &&
+             vendor_id[1] == 0x69746e65 /* "enti" */ &&
+             vendor_id[2] == 0x444d4163 /* "cAMD" */ &&
+             family == 0x17) {
+    /* Zens'll work, they just won't do MSR_SMI_COUNT &c. like Intels. */
+    do_smi = false;
+    do_core_cstate = 0;
+    do_pkg_cstate = 0;
+    do_rapl = 0;
   } else {
-    ERROR("turbostat plugin: Unsupported CPU (family: %#x, "
+    ERROR("turbostat plugin: Unsupported CPU "
+          "(vendor: %.4s%.4s%.4s, "
+          "family: %#x, "
           "model: %#x)",
+          (char*)&vendor_id[0], (char*)&vendor_id[1], (char*)&vendor_id[2],
           family, model);
     return -1;
   }
