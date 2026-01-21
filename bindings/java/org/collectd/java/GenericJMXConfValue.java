@@ -26,7 +26,6 @@
 
 package org.collectd.java;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Collection;
 import java.util.Set;
@@ -38,6 +37,7 @@ import java.util.ArrayList;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import javax.management.Attribute;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.OpenType;
@@ -89,6 +89,9 @@ private
 private
   Number genericObjectToNumber(Object obj, int ds_type) /* {{{ */
   {
+    if (obj instanceof Attribute)
+      obj = ((Attribute)obj).getValue();
+
     if (obj instanceof String) {
       String str = (String)obj;
 
@@ -320,7 +323,7 @@ private
                         ObjectName objName, String attrName) {
     List<String> attrNameList;
     String key;
-    Object value;
+    Object value = null;
     String[] attrNameArray;
 
     attrNameList = new ArrayList<String>();
@@ -331,11 +334,21 @@ private
       attrNameList.add(attrNameArray[i]);
 
     try {
-      try {
-        value = conn.getAttribute(objName, key);
-      } catch (javax.management.AttributeNotFoundException e) {
-        value =
-            conn.invoke(objName, key, /* args = */ null, /* types = */ null);
+      while (value == null) {
+        try {
+          value = conn.getAttribute(objName, key);
+        } catch (javax.management.AttributeNotFoundException e) {
+          value =
+              conn.invoke(objName, key, /* args = */ null, /* types = */ null);
+        }
+        // attribute not found, perhaps attrName contained a '.' that wasn't
+        // meant as a path separator
+        if (value == null) {
+          if (attrNameList.isEmpty())
+            break;
+          else
+            key += "." + attrNameList.remove(0);
+        }
       }
     } catch (Exception e) {
       Collectd.logError("GenericJMXConfValue.query: getAttribute failed: " + e);
