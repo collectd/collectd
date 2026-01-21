@@ -95,6 +95,7 @@
 %define with_ipvs 0%{!?_without_ipvs:1}
 %define with_irq 0%{!?_without_irq:1}
 %define with_java 0%{!?_without_java:1}
+%define with_livestatus 0%{!?_without_livestatus:1}
 %define with_load 0%{!?_without_load:1}
 %define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
@@ -589,6 +590,15 @@ Requires:	java >= 1.6, jpackage-utils >= 1.6
 %description java
 This plugin for collectd allows plugins to be written in Java and executed
 in an embedded JVM.
+%endif
+
+%if %{with_livestatus}
+%package livestatus
+Summary:	Nagios Livestatus plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description livestatus
+This plugin monitors Nagios / Naemon Livestatus internal statistics.
 %endif
 
 %if %{with_log_logstash}
@@ -1492,6 +1502,12 @@ Collectd utilities
 %define _with_java --disable-java
 %endif
 
+%if %{with_livestatus}
+%define _with_livestatus --enable-livestatus
+%else
+%define _with_livestatus --disable-livestatus
+%endif
+
 %if %{with_virt}
 %define _with_virt --enable-virt
 %else
@@ -2201,6 +2217,7 @@ Collectd utilities
 	%{?_with_ipvs} \
 	%{?_with_irq} \
 	%{?_with_java} \
+	%{?_with_livestatus} \
 	%{?_with_load} \
 	%{?_with_log_logstash} \
 	%{?_with_logfile} \
@@ -2828,6 +2845,11 @@ fi
 %{_datadir}/collectd/java/generic-jmx.jar
 %{_libdir}/%{name}/java.so
 %{_mandir}/man5/collectd-java.5*
+%endif
+
+%if %{with_livestatus}
+%files livestatus
+%{_libdir}/%{name}/livestatus.so
 %endif
 
 %if %{with_virt}

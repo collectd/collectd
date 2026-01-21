@@ -1286,6 +1286,19 @@ java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
 java_la_LIBADD = $(JAVA_LIBS)
 endif
 
+if BUILD_PLUGIN_LIVESTATUS
+pkglib_LTLIBRARIES += livestatus.la
+livestatus_la_SOURCES = src/livestatus.c
+livestatus_la_CFLAGS = $(AM_CFLAGS)
+livestatus_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+test_plugin_livestatus_SOURCES = src/livestatus_test.c
+test_plugin_livestatus_CFLAGS = $(AM_CFLAGS)
+test_plugin_livestatus_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_livestatus_LDADD = libplugin_mock.la
+check_PROGRAMS += test_plugin_livestatus
+endif
+
 if BUILD_PLUGIN_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = src/load.c
