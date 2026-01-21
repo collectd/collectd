@@ -1286,6 +1286,14 @@ java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
 java_la_LIBADD = $(JAVA_LIBS)
 endif
 
+if BUILD_PLUGIN_LINUX_DELAY
+pkglib_LTLIBRARIES += linux_delay.la
+linux_delay_la_SOURCES = src/linux_delay.c
+linux_delay_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+linux_delay_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+linux_delay_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
+endif
+
 if BUILD_PLUGIN_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = src/load.c
