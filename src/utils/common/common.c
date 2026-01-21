@@ -990,12 +990,12 @@ int parse_identifier(char *str, char **ret_host, char **ret_plugin,
 
   type = strchr(plugin, '/');
   if (type == NULL) {
-    if (default_host == NULL)
-      return -1;
     /* else: no host specified; use default */
     type = plugin;
     plugin = hostname;
     hostname = default_host;
+    if (hostname == NULL)
+      hostname = hostname_g;
   } else {
     *type = '\0';
     type++;
