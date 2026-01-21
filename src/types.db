@@ -362,6 +362,7 @@ transitions             value:DERIVE:0:U
 uptime                  value:GAUGE:0:4294967295
 uncore_ratio            value:GAUGE:0:U
 users                   value:GAUGE:0:65535
+connected_since         value:GAUGE:0:65535
 vcl                     value:GAUGE:0:65535
 vcpu                    value:GAUGE:0:U
 vf_broadcast            vf_value:DERIVE:0:U
