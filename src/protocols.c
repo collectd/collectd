@@ -22,6 +22,8 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Cosmin Ioiart <cioiart at gmail.com>
+ *   Dagobert Michelsen <dam at opencsw.org>
  **/
 
 #include "collectd.h"
@@ -30,12 +32,21 @@
 #include "utils/common/common.h"
 #include "utils/ignorelist/ignorelist.h"
 
-#if !KERNEL_LINUX
+#if !(KERNEL_LINUX || KERNEL_SOLARIS)
 #error "No applicable input method."
 #endif
 
+#if KERNEL_LINUX
 #define SNMP_FILE "/proc/net/snmp"
 #define NETSTAT_FILE "/proc/net/netstat"
+#endif
+
+/*
+ * On Solaris, all the key/value pairs are read via kstat
+ */
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 
 /*
  * Global variables
@@ -51,18 +62,11 @@ static ignorelist_t *values_list;
 /*
  * Functions
  */
-static void submit(const char *protocol_name, const char *str_key,
-                   const char *str_value) {
-  value_t value;
+static void submit_value(const char *protocol_name, const char *str_key,
+                         value_t *value) {
   value_list_t vl = VALUE_LIST_INIT;
-  int status;
 
-  status = parse_value(str_value, &value, DS_TYPE_DERIVE);
-  if (status != 0) {
-    return;
-  }
-
-  vl.values = &value;
+  vl.values = value;
   vl.values_len = 1;
   sstrncpy(vl.plugin, "protocols", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, protocol_name, sizeof(vl.plugin_instance));
@@ -70,7 +74,21 @@ static void submit(const char *protocol_name, const char *str_key,
   sstrncpy(vl.type_instance, str_key, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
-} /* void submit */
+} /* void submit_value */
+
+static void submit_string(const char *protocol_name, const char *str_key,
+                          const char *str_value) {
+  value_t value;
+
+  int status = parse_value(str_value, &value, DS_TYPE_DERIVE);
+  if (status != 0) {
+    return;
+  }
+
+  submit_value(protocol_name, str_key, &value);
+} /* void submit_string */
+
+#if KERNEL_LINUX
 
 static int read_file(const char *path) {
   FILE *fh;
@@ -162,7 +180,7 @@ static int read_file(const char *path) {
           continue;
       } /* if (values_list != NULL) */
 
-      submit(key_buffer, key_fields[i], value_fields[i]);
+      submit_string(key_buffer, key_fields[i], value_fields[i]);
     } /* for (i = 0; i < key_fields_num; i++) */
   }   /* while (42) */
 
@@ -170,11 +188,72 @@ static int read_file(const char *path) {
 
   return status;
 } /* int read_file */
+#endif
+
+#if KERNEL_SOLARIS && HAVE_KSTAT_H
+/*
+ * Retrieves all available key/value pairs for IP, ICMP, UDP and TCP from kstat
+ * modules ip, icmp, tcp and udp
+ */
+static int read_kstat(const char *mod_name) {
+  extern kstat_ctl_t *kc;
+  kstat_t *ksp_chain = NULL;
+
+  if (mod_name == NULL)
+    return -1;
+
+  if (kc == NULL)
+    return -1;
+
+  for (ksp_chain = kc->kc_chain; ksp_chain != NULL;
+       ksp_chain = ksp_chain->ks_next) {
+    if (strcmp(ksp_chain->ks_module, mod_name) == 0 &&
+        ksp_chain->ks_type == KSTAT_TYPE_NAMED) {
+      kstat_named_t *kn = NULL;
+      kstat_read(kc, ksp_chain, kn);
+      kn = (kstat_named_t *)ksp_chain->ks_data;
+
+      for (int i = 0; (kn != NULL) && (i < ksp_chain->ks_ndata); i++, kn++) {
+        if (strlen(kn->name) == 0) {
+          continue;
+        }
+
+        value_t value;
+
+        switch (kn->data_type) {
+        case KSTAT_DATA_INT32:
+          value.derive = (uint64_t)kn->value.i32;
+          break;
+        case KSTAT_DATA_UINT32:
+          value.derive = (uint64_t)kn->value.ui32;
+          break;
+        case KSTAT_DATA_INT64:
+          value.derive = (uint64_t)kn->value.i64;
+          break;
+        case KSTAT_DATA_UINT64:
+          value.derive = (uint64_t)kn->value.ui64;
+          break;
+        default:
+          WARNING("protocol plugin: unable to read data from module '%s' "
+                  "with name '%s' because type '%d' is unknown.",
+                  mod_name, kn->name, kn->data_type);
+          continue;
+        }
+
+        submit_value(mod_name, kn->name, &value);
+
+      } /* end for */
+    }   /* end if mod_name && KSTAT_TYPE_NAMED */
+  }     /* end main for loop */
+  return 0;
+}
+#endif
 
 static int protocols_read(void) {
   int status;
   int success = 0;
 
+#if KERNEL_LINUX
   status = read_file(SNMP_FILE);
   if (status == 0)
     success++;
@@ -183,6 +262,20 @@ static int protocols_read(void) {
   if (status == 0)
     success++;
 
+#elif KERNEL_SOLARIS
+  status = read_kstat("ip");
+  if (status == 0)
+    success++;
+  status = read_kstat("icmp");
+  if (status == 0)
+    success++;
+  status = read_kstat("udp");
+  if (status == 0)
+    success++;
+  status = read_kstat("tcp");
+  if (status == 0)
+    success++;
+#endif
   if (success == 0)
     return -1;
 
