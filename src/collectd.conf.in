@@ -13,7 +13,7 @@
 #Hostname    "localhost"
 #FQDNLookup   true
 #BaseDir     "@localstatedir@/lib/@PACKAGE_NAME@"
-#PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
+#PIDFile     "@runstatedir@/@PACKAGE_NAME@.pid"
 #PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 
@@ -734,7 +734,7 @@
 #</Plugin>
 
 #<Plugin email>
-#	SocketFile "@localstatedir@/run/@PACKAGE_NAME@-email"
+#	SocketFile "@runstatedir@/@PACKAGE_NAME@-email"
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
