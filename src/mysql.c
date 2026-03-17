@@ -446,7 +446,7 @@ static int mysql_read_replica_stats(mysql_database_t *db, MYSQL *con) {
   const int EXEC_MASTER_LOG_POS_IDX = 21;
   const int SECONDS_BEHIND_MASTER_IDX = 32;
 
-  query = "SHOW SLAVE STATUS";
+  query = "SHOW REPLICA STATUS";
 
   res = exec_query(con, query);
   if (res == NULL)
