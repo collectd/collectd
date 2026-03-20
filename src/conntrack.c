@@ -43,7 +43,8 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static int old_files;
 
-static int conntrack_config(const char *key, const char *value) {
+static int conntrack_config(const char *key,
+                            __attribute__((unused)) const char *value) {
   if (strcmp(key, "OldFiles") == 0)
     old_files = 1;
 

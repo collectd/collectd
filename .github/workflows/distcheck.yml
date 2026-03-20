@@ -1,0 +1,34 @@
+name: Check the Distribution
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  make_distcheck:
+    runs-on: ubuntu-latest
+    container: collectd/ci:debian12
+    env:
+      # this env var picked up by valgrind during make check phase
+      VALGRIND_OPTS: "--errors-for-leak-kinds=definite"
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install bzip2
+      run: apt install -y bzip2
+    - name: Print available packages
+      run: pkg-config --list-all | sort
+    - name: Generate configure script
+      run: ./build.sh
+    - name: Run configure script
+      run: ./configure
+    - name: Run make distcheck
+      run: make $MAKEFLAG distcheck

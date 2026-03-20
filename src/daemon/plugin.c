@@ -1336,6 +1336,7 @@ EXPORT int plugin_register_cache_event(const char *name,
   if (list_cache_event_num >= 32) {
     P_ERROR("plugin_register_cache_event: Too much cache event callbacks tried "
             "to be registered.");
+    free(name_copy);
     free_userdata(ud);
     return ENOMEM;
   }
@@ -1349,6 +1350,7 @@ EXPORT int plugin_register_cache_event(const char *name,
       P_ERROR("plugin_register_cache_event: a callback named `%s' already "
               "registered!",
               name);
+      free(name_copy);
       free_userdata(ud);
       return -1;
     }
@@ -2235,7 +2237,7 @@ static bool check_drop_value(void) /* {{{ */
     return true;
 
   q = cdrand_d();
-  if (q > p)
+  if (p > q)
     return true;
   else
     return false;

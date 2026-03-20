@@ -52,6 +52,7 @@ EXTRA_DIST = \
 	proto/collectd.proto \
 	proto/prometheus.proto \
 	proto/types.proto \
+	README.md \
 	src/collectd-email.pod \
 	src/collectd-exec.pod \
 	src/collectd-java.pod \
@@ -133,6 +134,7 @@ noinst_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
+	libformat_influxdb.la \
 	libformat_graphite.la \
 	libformat_json.la \
 	libheap.la \
@@ -155,6 +157,7 @@ check_PROGRAMS = \
 	test_meta_data \
 	test_utils_avltree \
 	test_utils_cmds \
+	test_utils_cmds_putval \
 	test_utils_heap \
 	test_utils_latency \
 	test_utils_message_parser \
@@ -428,6 +431,10 @@ libplugin_mock_la_SOURCES = \
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libcommon.la libignorelist.la $(COMMON_LIBS)
 
+libformat_influxdb_la_SOURCES = \
+	src/utils/format_influxdb/format_influxdb.c \
+	src/utils/format_influxdb/format_influxdb.h
+
 libformat_graphite_la_SOURCES = \
 	src/utils/format_graphite/format_graphite.c \
 	src/utils/format_graphite/format_graphite.h
@@ -518,6 +525,13 @@ test_utils_cmds_LDADD = \
 	libcmds.la \
 	libplugin_mock.la
 
+test_utils_cmds_putval_SOURCES = \
+	src/utils/cmds/putval_test.c \
+	src/testing.h
+test_utils_cmds_putval_LDADD = \
+	libcmds.la \
+	libplugin_mock.la
+
 liblookup_la_SOURCES = \
 	src/utils/lookup/vl_lookup.c \
 	src/utils/lookup/vl_lookup.h
@@ -567,8 +581,7 @@ libcollectdclient_la_LDFLAGS += -shared -no-undefined
 libcollectdclient_la_LIBADD += -lgnu -lws2_32 -liphlpapi
 endif
 if BUILD_WITH_LIBGCRYPT
-libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
-libcollectdclient_la_LDFLAGS += $(GCRYPT_LDFLAGS)
+libcollectdclient_la_CPPFLAGS += $(GCRYPT_CFLAGS)
 libcollectdclient_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
@@ -580,8 +593,7 @@ test_libcollectd_network_parse_CPPFLAGS = \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient
 if BUILD_WITH_LIBGCRYPT
-test_libcollectd_network_parse_CPPFLAGS += $(GCRYPT_CPPFLAGS)
-test_libcollectd_network_parse_LDFLAGS = $(GCRYPT_LDFLAGS)
+test_libcollectd_network_parse_CPPFLAGS += $(GCRYPT_CFLAGS)
 test_libcollectd_network_parse_LDADD = $(GCRYPT_LIBS)
 endif
 
@@ -1050,6 +1062,14 @@ entropy_la_SOURCES = src/entropy.c
 entropy_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_EPICS
+pkglib_LTLIBRARIES += epics.la
+epics_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_EPICS_BASE_CFLAGS)
+epics_la_SOURCES = src/epics.c
+epics_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+epics_la_LIBADD = -lpthread $(BUILD_WITH_EPICS_BASE_LIBS)
+endif
+
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
 exec_la_SOURCES = src/exec.c
@@ -1344,6 +1364,17 @@ lua_la_SOURCES = \
 lua_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBLUA_CFLAGS)
 lua_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
+
+test_plugin_lua_SOURCES = src/lua_test.c src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_lua_CFLAGS = $(AM_CFLAGS) \
+	$(BUILD_WITH_LIBLUA_CFLAGS)
+test_plugin_lua_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBLUA_LDFLAGS)
+test_plugin_lua_LDADD = liboconfig.la libplugin_mock.la \
+	$(BUILD_WITH_LIBLUA_LIBS)
+check_PROGRAMS += test_plugin_lua
+TESTS += test_plugin_lua
 endif
 
 if BUILD_PLUGIN_MADWIFI
@@ -1486,14 +1517,17 @@ pkglib_LTLIBRARIES += mqtt.la
 mqtt_la_SOURCES = src/mqtt.c
 mqtt_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
 mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMOSQUITTO_LDFLAGS)
-mqtt_la_LIBADD = $(BUILD_WITH_LIBMOSQUITTO_LIBS)
+mqtt_la_LIBADD = \
+	libformat_json.la \
+	$(BUILD_WITH_LIBMOSQUITTO_LIBS)
 endif
 
 if BUILD_PLUGIN_MMC
 pkglib_LTLIBRARIES += mmc.la
 mmc_la_SOURCES = src/mmc.c
-mmc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-mmc_la_LIBADD = libignorelist.la
+mmc_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBUDEV_CPPFLAGS)
+mmc_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBUDEV_LDFLAGS)
+mmc_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBUDEV_LIBS)
 endif
 
 if BUILD_PLUGIN_MULTIMETER
@@ -1553,8 +1587,7 @@ if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
 if BUILD_WITH_LIBGCRYPT
-network_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
-network_la_LDFLAGS += $(GCRYPT_LDFLAGS)
+network_la_CPPFLAGS += $(GCRYPT_CFLAGS)
 network_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
@@ -1563,8 +1596,8 @@ test_plugin_network_SOURCES = \
 	src/utils_fbhash.c \
 	src/daemon/configfile.c \
 	src/daemon/types_list.c
-test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CPPFLAGS)
-test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS) $(GCRYPT_LDFLAGS)
+test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CFLAGS)
+test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_network_LDADD = \
 	libavltree.la \
 	liboconfig.la \
@@ -1744,6 +1777,9 @@ if BUILD_PLUGIN_PF
 pkglib_LTLIBRARIES += pf.la
 pf_la_SOURCES = src/pf.c
 pf_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+if BUILD_WITH_LIBPFCTL
+pf_la_LDFLAGS += -lpfctl
+endif
 endif
 
 if BUILD_PLUGIN_PINBA
@@ -2225,8 +2261,8 @@ virt_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML
 
 test_plugin_virt_SOURCES = src/virt_test.c src/daemon/configfile.c \
 	src/daemon/types_list.c
-test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
-	$(BUILD_WITH_LIBVIRT_CPPFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+test_plugin_virt_CFLAGS = $(AM_CFLAGS) \
+	$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBVIRT_LDFLAGS) $(BUILD_WITH_LIBXML2_LDFLAGS)
 test_plugin_virt_LDADD = liboconfig.la libplugin_mock.la \
@@ -2270,7 +2306,7 @@ write_http_la_SOURCES = \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
+write_http_la_LIBADD = libformat_influxdb.la libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_INFLUXDB_UDP
@@ -2278,8 +2314,9 @@ pkglib_LTLIBRARIES += write_influxdb_udp.la
 write_influxdb_udp_la_SOURCES = src/write_influxdb_udp.c
 write_influxdb_udp_la_CPPFLAGS = $(AM_CPPFLAGS)
 write_influxdb_udp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_influxdb_udp_la_LIBADD = libformat_influxdb.la
 if BUILD_WITH_LIBSOCKET
-write_influxdb_udp_la_LIBADD = -lsocket
+write_influxdb_udp_la_LIBADD += -lsocket
 endif
 endif
 

@@ -132,11 +132,10 @@ static void wg_force_reconnect_check(struct wg_callback *cb) {
   /* here we should close connection on next */
   close(cb->sock_fd);
   cb->sock_fd = -1;
-  cb->last_reconnect_time = now;
-  cb->reconnect_interval_reached = true;
-
   INFO("write_graphite plugin: Connection closed after %.3f seconds.",
        CDTIME_T_TO_DOUBLE(now - cb->last_reconnect_time));
+  cb->last_reconnect_time = now;
+  cb->reconnect_interval_reached = true;
 }
 
 /*

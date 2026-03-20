@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  release:
+    types: [released, prereleased]
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  asset:
+    runs-on: ubuntu-latest
+    container: collectd/ci:debian12
+    steps:
+    - uses: actions/checkout@v4
+    - run: |
+        git config --global --add safe.directory "$(pwd)"
+        git submodule init -- opentelemetry-proto
+        git submodule update -- opentelemetry-proto
+    - name: Generate configure script
+      run: ./build.sh
+    - name: Run configure script
+      run: ./configure
+    - name: Run make distcheck
+      run: make -j $(nproc) distcheck
+    - name: Upload distribution package
+      run: |
+        echo "GITHUB_REF_NAME=\"${GITHUB_REF_NAME}\""
+        [[ -e "${GITHUB_REF_NAME:?}.tar.bz2" ]] && gh release upload "${GITHUB_REF_NAME:?}" "${GITHUB_REF_NAME:?}.tar.bz2"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -313,3 +313,161 @@ int luaC_pushvaluelist(lua_State *L, const data_set_t *ds,
 
   return 0;
 } /* }}} int luaC_pushvaluelist */
+
+static int luaC_pushoconfigvalue(lua_State *L,
+                                 const oconfig_value_t *cv) /* {{{ */
+{
+  int status = 0;
+
+  switch (cv->type) {
+  case OCONFIG_TYPE_STRING:
+    lua_pushstring(L, cv->value.string);
+    DEBUG("Lua plugin: Push ci->value (OCONFIG_TYPE_STRING) '%s'",
+          cv->value.string);
+    break;
+  case OCONFIG_TYPE_NUMBER:
+    lua_pushnumber(L, cv->value.number);
+    DEBUG("Lua plugin: Push ci->value (OCONFIG_TYPE_NUMBER) => '%f'",
+          cv->value.number);
+    break;
+  case OCONFIG_TYPE_BOOLEAN:
+    lua_pushboolean(L, cv->value.boolean);
+    DEBUG("Lua plugin: Push ci->value (OCONFIG_TYPE_BOOLEAN) '%d'",
+          cv->value.boolean);
+    break;
+  default:
+    WARNING("Lua plugin: Unable to push known lua types.");
+    status = 1;
+    break;
+  }
+
+  return status;
+} /* }}} int luaC_pushoconfigvalue */
+
+int luaC_pushoconfigitem(lua_State *L, const oconfig_item_t *ci) /* {{{ */
+{
+  /*
+    oconfig_item_t will be mapped to the following Lua table:
+
+    <Module ...>
+      Key1 Value1
+      ...
+      KeyN ValueN
+    </Module>
+
+    {
+      Key1 => Value1,
+      ...
+      KeyN => ValueN
+    }
+   */
+  {
+    int i = 0;
+    do {
+      oconfig_value_t *cv = ci->values + i;
+      if (ci->children_num == 0) {
+        /* ci->key => child->value */
+        luaC_pushoconfigvalue(L, cv);
+        lua_setfield(L, -2, ci->key);
+      } else {
+        /* ci->key = { ... } */
+        lua_newtable(L);
+        for (int i = 0; i < ci->children_num; i++) {
+          luaC_pushoconfigitem(L, &ci->children[i]);
+        }
+        lua_setfield(L, -2, ci->key);
+      }
+      i++;
+    } while (i < ci->values_num);
+  }
+  return 0;
+} /* }}} int luaC_pushoconfigitem */
+
+static int luaC_pushnotificationmeta(lua_State *L,
+                                     const notification_meta_t *meta) /* {{{ */
+{
+  /*
+    notification_meta_t will be mapped to the following Lua table:
+    {
+      key1 => value1,
+      ...,
+      keyN => valueN
+
+    }
+  */
+  lua_newtable(L);
+  for (; meta != NULL; meta = meta->next) {
+    switch (meta->type) {
+    case NM_TYPE_STRING:
+      lua_pushstring(L, meta->nm_value.nm_string);
+      break;
+    case NM_TYPE_SIGNED_INT:
+      lua_pushnumber(L, meta->nm_value.nm_signed_int);
+      break;
+    case NM_TYPE_UNSIGNED_INT:
+      lua_pushnumber(L, meta->nm_value.nm_unsigned_int);
+      break;
+    case NM_TYPE_DOUBLE:
+      lua_pushnumber(L, meta->nm_value.nm_double);
+      break;
+    case NM_TYPE_BOOLEAN:
+      lua_pushboolean(L, meta->nm_value.nm_boolean);
+      break;
+    }
+    lua_setfield(L, -2, meta->name);
+  }
+  return 0;
+}
+
+int luaC_pushnotification(lua_State *L,
+                          const notification_t *notification) /* {{{ */
+{
+  /*
+    notification_t will be mapped to the following Lua table:
+
+    {
+      severity => ...,
+      time => ...,
+      message => ...,
+      host => ...,
+      plugin => ...,
+      plugin_instance => ...,
+      type => ...,
+      type_instance => ...,
+      meta => luaC_pushnotificationmeta();
+    }
+  */
+
+  lua_newtable(L);
+  switch (notification->severity) {
+  case NOTIF_FAILURE:
+    lua_pushstring(L, "failure");
+    lua_setfield(L, -2, "severity");
+    break;
+  case NOTIF_WARNING:
+    lua_pushstring(L, "warning");
+    lua_setfield(L, -2, "severity");
+    break;
+  case NOTIF_OKAY:
+    lua_pushstring(L, "okay");
+    lua_setfield(L, -2, "severity");
+    break;
+  }
+  luaC_pushcdtime(L, notification->time);
+  lua_setfield(L, -2, "time");
+  lua_pushstring(L, notification->message);
+  lua_setfield(L, -2, "message");
+  lua_pushstring(L, notification->host);
+  lua_setfield(L, -2, "host");
+  lua_pushstring(L, notification->plugin);
+  lua_setfield(L, -2, "plugin");
+  lua_pushstring(L, notification->plugin_instance);
+  lua_setfield(L, -2, "plugin_instance");
+  lua_pushstring(L, notification->type);
+  lua_setfield(L, -2, "type");
+  lua_pushstring(L, notification->type_instance);
+  lua_setfield(L, -2, "type_instance");
+  luaC_pushnotificationmeta(L, notification->meta);
+  lua_setfield(L, -2, "meta");
+  return 0;
+} /* }}} int luaC_pushnotification */

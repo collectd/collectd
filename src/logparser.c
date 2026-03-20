@@ -285,6 +285,10 @@ static int logparser_config_message(const oconfig_item_t *ci, char *filename,
       ret = cf_util_get_string(child, &parser->def_type_inst);
     else if (strcasecmp("DefaultSeverity", child->key) == 0) {
       ret = cf_util_get_string(child, &severity);
+      if (ret != 0) {
+        ERROR(PLUGIN_NAME ": Error getting DefaultSeverity value");
+        goto error;
+      }
       if (strcasecmp(LOGPARSER_SEV_OK_STR, severity) == 0)
         parser->def_severity = NOTIF_OKAY;
       else if (strcasecmp(LOGPARSER_SEV_WARN_STR, severity) == 0)
@@ -401,7 +405,7 @@ static int logparser_validate_config(void) {
       return -1;
     }
 
-    for (int j = 0; j < parser->patterns_len; j++) {
+    for (unsigned j = 0; j < parser->patterns_len; j++) {
       message_pattern_t *pattern = parser->patterns + j;
 
       if (pattern->regex == NULL) {
@@ -562,7 +566,7 @@ static void logparser_process_msg(log_parser_t *parser, message_t *msg,
   if (parser->def_type_inst != NULL)
     sstrncpy(n.type_instance, parser->def_type_inst, sizeof(n.type_instance));
 
-  for (int i = 0; i < max_items; i++) {
+  for (unsigned i = 0; i < max_items; i++) {
     message_item_t *item = msg->message_items + i;
     if (!item->value[0])
       break;

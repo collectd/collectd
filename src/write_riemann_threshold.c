@@ -73,7 +73,7 @@ static int ut_check_one_data_source(
 
   /* XXX: This is an experimental code, not optimized, not fast, not reliable,
    * and probably, do not work as you expect. Enjoy! :D */
-  prev_state = uc_get_state(ds, vl);
+  prev_state = uc_get_state(vl);
   if ((th->hysteresis > 0) && (prev_state != STATE_OKAY) &&
       (prev_state != STATE_UNKNOWN)) {
     switch (prev_state) {
@@ -83,16 +83,16 @@ static int ut_check_one_data_source(
           (!isnan(th->failure_max) &&
            ((th->failure_max - th->hysteresis) > values[ds_index])))
         return STATE_OKAY;
-      else
-        is_failure++;
+      is_failure++;
+      break;
     case STATE_WARNING:
       if ((!isnan(th->warning_min) &&
            ((th->warning_min + th->hysteresis) < values[ds_index])) ||
           (!isnan(th->warning_max) &&
            ((th->warning_max - th->hysteresis) > values[ds_index])))
         return STATE_OKAY;
-      else
-        is_warning++;
+      is_warning++;
+      break;
     }
   } else { /* no hysteresis */
     if ((!isnan(th->failure_min) && (th->failure_min > values[ds_index])) ||

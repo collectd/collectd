@@ -139,7 +139,6 @@ build_cygwin()
       --sysconfdir="${SYSCONFDIR}" \
       --localstatedir="${LOCALSTATEDIR}" \
       --datarootdir="${DATAROOTDIR}" \
-      --datarootdir="${DATADIR}" \
       --disable-all-plugins \
       --host="mingw32" \
       --enable-logfile \

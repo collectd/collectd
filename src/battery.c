@@ -61,6 +61,10 @@
 /* No global variables */
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000) // Before macOS 12 Monterey
+#define kIOMainPortDefault kIOMasterPortDefault
+#endif
+
 #elif KERNEL_LINUX
 #define PROC_PMU_PATH_FORMAT "/proc/pmu/battery_%i"
 #define PROC_ACPI_PATH "/proc/acpi/battery"
@@ -247,7 +251,7 @@ static void get_via_generic_iokit(double *ret_capacity_full, /* {{{ */
   double temp_double;
 
   status = IOServiceGetMatchingServices(
-      kIOMasterPortDefault, IOServiceNameMatching("battery"), &iterator);
+      kIOMainPortDefault, IOServiceNameMatching("battery"), &iterator);
   if (status != kIOReturnSuccess) {
     DEBUG("IOServiceGetMatchingServices failed.");
     return;
@@ -336,7 +340,7 @@ static int battery_read(void) /* {{{ */
 
   return 0;
 } /* }}} int battery_read */
-  /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+/* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
 /* Reads a file which contains only a number (and optionally a trailing

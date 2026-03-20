@@ -205,7 +205,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
     pthread_mutex_unlock(&strerror_r_lock);
   }
-    /* #endif !HAVE_STRERROR_R */
+  /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
   {
@@ -221,7 +221,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
                  buflen);
     }
   }
-    /* #endif STRERROR_R_CHAR_P */
+  /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
@@ -234,6 +234,17 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
   return buf;
 } /* char *sstrerror */
+
+void *scalloc(size_t nmemb, size_t size) {
+  void *r;
+
+  if ((r = calloc(nmemb, size)) == NULL) {
+    ERROR("Not enough memory.");
+    exit(3);
+  }
+
+  return r;
+} /* void *scalloc */
 
 void *smalloc(size_t size) {
   void *r;
@@ -793,8 +804,8 @@ unsigned long long htonll(unsigned long long n) {
 #endif /* HAVE_HTONLL */
 
 #if FP_LAYOUT_NEED_NOTHING
-  /* Well, we need nothing.. */
-  /* #endif FP_LAYOUT_NEED_NOTHING */
+/* Well, we need nothing.. */
+/* #endif FP_LAYOUT_NEED_NOTHING */
 
 #elif FP_LAYOUT_NEED_ENDIANFLIP || FP_LAYOUT_NEED_INTSWAP
 #if FP_LAYOUT_NEED_ENDIANFLIP
@@ -1098,19 +1109,18 @@ int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
   return 0;
 } /* int parse_value */
 
-int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds) {
-  size_t i;
-  char *dummy;
-  char *ptr;
-  char *saveptr;
-
-  if ((buffer == NULL) || (vl == NULL) || (ds == NULL))
+int parse_values(char const *s, value_list_t *vl, const data_set_t *ds) {
+  if ((s == NULL) || (vl == NULL) || (ds == NULL))
     return EINVAL;
 
-  i = 0;
-  dummy = buffer;
-  saveptr = NULL;
+  char *buffer = sstrdup(s);
+
+  size_t i = 0;
+  char *dummy = buffer;
+  char *saveptr = NULL;
   vl->time = 0;
+
+  char *ptr;
   while ((ptr = strtok_r(dummy, ":", &saveptr)) != NULL) {
     dummy = NULL;
 
@@ -1129,11 +1139,13 @@ int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds) {
 
         errno = 0;
         tmp = strtod(ptr, &endptr);
-        if ((errno != 0)        /* Overflow */
-            || (endptr == ptr)  /* Invalid string */
-            || (endptr == NULL) /* This should not happen */
-            || (*endptr != 0))  /* Trailing chars */
+        if ((errno != 0)         /* Overflow */
+            || (endptr == ptr)   /* Invalid string */
+            || (endptr == NULL)  /* This should not happen */
+            || (*endptr != 0)) { /* Trailing chars */
+          sfree(buffer);
           return -1;
+        }
 
         vl->time = DOUBLE_TO_CDTIME_T(tmp);
       }
@@ -1141,16 +1153,20 @@ int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds) {
       continue;
     }
 
-    if ((strcmp("U", ptr) == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
+    if ((strcmp("U", ptr) == 0) && (ds->ds[i].type == DS_TYPE_GAUGE)) {
       vl->values[i].gauge = NAN;
-    else if (0 != parse_value(ptr, &vl->values[i], ds->ds[i].type))
+    } else if (0 != parse_value(ptr, &vl->values[i], ds->ds[i].type)) {
+      sfree(buffer);
       return -1;
+    }
 
     i++;
   } /* while (strtok_r) */
 
-  if ((ptr != NULL) || (i == 0))
+  sfree(buffer);
+  if ((ptr != NULL) || (i == 0)) {
     return -1;
+  }
   return 0;
 } /* int parse_values */
 

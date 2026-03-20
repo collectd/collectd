@@ -677,7 +677,7 @@ static int csnmp_config_add_host_auth_protocol(host_definition_t *hd,
   if (status != 0)
     return status;
 
-#ifdef NETSNMP_USMAUTH_HMACMD5
+#ifndef NETSNMP_DISABLE_MD5
   if (strcasecmp("MD5", buffer) == 0) {
     hd->auth_protocol = usmHMACMD5AuthProtocol;
     hd->auth_protocol_len = sizeof(usmHMACMD5AuthProtocol) / sizeof(oid);
@@ -787,8 +787,7 @@ static int csnmp_config_add_host_priv_protocol(host_definition_t *hd,
     return -1;
   }
 
-  DEBUG("snmp plugin: host = %s; host->priv_protocol = %s;", hd->name,
-        hd->priv_protocol == usmAESPrivProtocol ? "AES" : "DES");
+  DEBUG("snmp plugin: host = %s; host->priv_protocol = AES;", hd->name);
 
   return 0;
 } /* int csnmp_config_add_host_priv_protocol */

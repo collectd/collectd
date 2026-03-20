@@ -346,7 +346,7 @@ static int encqueue(cd_message_t *cdm,
       DEQ_SIZE(out_messages) >= transport->sendq_limit) {
     cd_message_t *evict;
 
-    DEBUG("amqp1 plugin: dropping oldest message because sendq is full");
+    WARNING("amqp1 plugin: dropping oldest message because sendq is full");
     evict = DEQ_HEAD(out_messages);
     DEQ_REMOVE_HEAD(out_messages);
     cd_message_free(evict);

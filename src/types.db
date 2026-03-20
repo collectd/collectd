@@ -57,7 +57,13 @@ df_inodes               value:GAUGE:0:U
 dilution_of_precision   value:GAUGE:0:U
 disk_allocation         value:GAUGE:0:U
 disk_capacity           value:GAUGE:0:U
+disk_discard_ops        value:DERIVE:0:U
+disk_discard_merged     value:DERIVE:0:U
+disk_discard_sectors    value:DERIVE:0:U
+disk_discard_time       value:DERIVE:0:U
 disk_error              value:GAUGE:0:U
+disk_flush_ops          value:DERIVE:0:U
+disk_flush_time         value:DERIVE:0:U
 disk_io_time            io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 disk_latency            read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged             read:DERIVE:0:U, write:DERIVE:0:U
@@ -168,7 +174,20 @@ memory_lua              value:GAUGE:0:281474976710656
 memory_throttle_count   value:DERIVE:0:U
 mmc_power_cycles        value:GAUGE:0:U
 mmc_block_erases        value:GAUGE:0:U
-mmc_bad_blocks          value:GAUGE:0:255
+mmc_erases_mlc_avg      value:GAUGE:0:U
+mmc_erases_mlc_max      value:GAUGE:0:U
+mmc_erases_mlc_min      value:GAUGE:0:U
+mmc_erases_slc_avg      value:GAUGE:0:U
+mmc_erases_slc_max      value:GAUGE:0:U
+mmc_erases_slc_min      value:GAUGE:0:U
+mmc_erases_sys_avg      value:GAUGE:0:U
+mmc_erases_sys_max      value:GAUGE:0:U
+mmc_erases_sys_min      value:GAUGE:0:U
+mmc_bad_blocks          value:GAUGE:0:U
+mmc_spare_blocks        value:GAUGE:0:U
+mmc_life_time_est_typ_a value:GAUGE:1:11
+mmc_life_time_est_typ_b value:GAUGE:1:11
+mmc_pre_eol_info        value:GAUGE:0:4
 multimeter              value:GAUGE:U:U
 mutex_operations        value:DERIVE:0:U
 mysql_bpool_bytes       value:GAUGE:0:U
@@ -190,6 +209,7 @@ mysql_sort              value:DERIVE:0:U
 mysql_sort_merge_passes value:DERIVE:0:U
 mysql_sort_rows         value:DERIVE:0:U
 mysql_slow_queries      value:DERIVE:0:U
+questions               value:GAUGE:0:U
 nfs_procedure           value:DERIVE:0:U
 nginx_connections       value:GAUGE:0:U
 nginx_requests          value:DERIVE:0:U

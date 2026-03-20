@@ -392,7 +392,7 @@ static int tbl_result_dispatch(tbl_t *tbl, tbl_result_t *res, char **fields,
   return 0;
 } /* tbl_result_dispatch */
 
-static int tbl_parse_line(tbl_t *tbl, char *line, size_t len) {
+static int tbl_parse_line(tbl_t *tbl, char *line) {
   char *fields[tbl->max_colnum + 1];
   size_t i = 0;
 
@@ -438,7 +438,7 @@ static int tbl_read_table(tbl_t *tbl) {
       log_warn("Table %s: Truncated line: %s", tbl->file, buf);
     }
 
-    if (tbl_parse_line(tbl, buf, sizeof(buf)) != 0) {
+    if (tbl_parse_line(tbl, buf) != 0) {
       log_warn("Table %s: Failed to parse line: %s", tbl->file, buf);
       continue;
     }

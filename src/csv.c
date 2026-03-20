@@ -30,12 +30,13 @@
 /*
  * Private variables
  */
-static const char *config_keys[] = {"DataDir", "StoreRates"};
+static const char *config_keys[] = {"DataDir", "StoreRates", "FileDate"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static char *datadir;
 static int store_rates;
 static int use_stdio;
+static int file_date = 1;
 
 static int value_list_to_string(char *buffer, int buffer_len,
                                 const data_set_t *ds, const value_list_t *vl) {
@@ -126,6 +127,9 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
   if (use_stdio)
     return 0;
 
+  if (!file_date)
+    return 0;
+
   ptr_size -= strlen(ptr);
   ptr += strlen(ptr);
 
@@ -205,6 +209,11 @@ static int csv_config(const char *key, const char *value) {
       store_rates = 1;
     else
       store_rates = 0;
+  } else if (strcasecmp("FileDate", key) == 0) {
+    if (IS_TRUE(value))
+      file_date = 1;
+    else
+      file_date = 0;
   } else {
     return -1;
   }

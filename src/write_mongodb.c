@@ -94,9 +94,9 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
 
   BSON_APPEND_ARRAY_BEGIN(ret, "values", &subarray); /* {{{ */
   for (size_t i = 0; i < ds->ds_num; i++) {
-    char key[16];
+    char key[32] = {0};
 
-    snprintf(key, sizeof(key), "%" PRIsz, i);
+    ssnprintf(key, sizeof(key), "%" PRIsz, i);
 
     if (ds->ds[i].type == DS_TYPE_GAUGE)
       BSON_APPEND_DOUBLE(&subarray, key, vl->values[i].gauge);
@@ -119,9 +119,9 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
 
   BSON_APPEND_ARRAY_BEGIN(ret, "dstypes", &subarray); /* {{{ */
   for (size_t i = 0; i < ds->ds_num; i++) {
-    char key[16];
+    char key[32] = {0};
 
-    snprintf(key, sizeof(key), "%" PRIsz, i);
+    ssnprintf(key, sizeof(key), "%" PRIsz, i);
 
     if (store_rates)
       BSON_APPEND_UTF8(&subarray, key, "gauge");
@@ -132,9 +132,9 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
 
   BSON_APPEND_ARRAY_BEGIN(ret, "dsnames", &subarray); /* {{{ */
   for (size_t i = 0; i < ds->ds_num; i++) {
-    char key[16];
+    char key[32] = {0};
 
-    snprintf(key, sizeof(key), "%" PRIsz, i);
+    ssnprintf(key, sizeof(key), "%" PRIsz, i);
     BSON_APPEND_UTF8(&subarray, key, ds->ds[i].name);
   }
   bson_append_array_end(ret, &subarray); /* }}} dsnames */

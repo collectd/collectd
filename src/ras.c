@@ -27,13 +27,10 @@
  **/
 
 #include "collectd.h"
-#include "plugin.h"
-#include "sqlite3.h"
+#include "daemon/plugin.h"
 #include "utils/common/common.h"
 
-#include <sys/stat.h>
-#include <sys/sysinfo.h>
-#include <sys/types.h>
+#include <sqlite3.h>
 
 #define RAS_PLUGIN "ras"
 #define DEFAULT_DB_PATH "/var/lib/rasdaemon/ras-mc_event.db"
@@ -82,12 +79,12 @@ static bool check_path_correct(const char *path) {
   struct stat sb;
 
   if (lstat(path, &sb) == -1) {
-    WARNING("Failed stat check for file: %s", path);
+    WARNING("ras plugin: Failed stat check for file: %s", path);
     return false;
   }
 
   if (S_ISREG(sb.st_mode) == 0) {
-    WARNING("Not a regular file: %s", path);
+    WARNING("ras plugin: Not a regular file: %s", path);
     return false;
   }
 
@@ -97,7 +94,7 @@ static bool check_path_correct(const char *path) {
 // checking unsigned long long int overflow
 static void safe_incremented_counter(unsigned long long *value) {
   if (*value == ULLONG_MAX) {
-    WARNING("The counter can't be incremented");
+    WARNING("ras plugin: The counter can't be incremented");
     return;
   }
   *value += 1;
@@ -107,7 +104,8 @@ static void safe_incremented_counter(unsigned long long *value) {
 // checking and validating a string when trying to convert it to an long int
 static bool convert_to_number(char *text, long int *number) {
   if (text == NULL) {
-    WARNING("Error when trying to read a numeric value. NULL value");
+    WARNING(
+        "ras plugin: Error when trying to read a numeric value. NULL value");
     return false;
   }
   *number = strtol(text, NULL, 10);
@@ -115,18 +113,19 @@ static bool convert_to_number(char *text, long int *number) {
     if (sizeof(text) == sizeof(char *) && text[0] == '0') {
       return true;
     } else {
-      WARNING("Number is not an integer. Data read: %s", text);
+      WARNING("ras plugin: Number is not an integer. Data read: %s", text);
       return false;
     }
   }
 
   if (*number < 0) {
-    WARNING("Number can't be negative. Data read: %s", text);
+    WARNING("ras plugin: Number can't be negative. Data read: %s", text);
     return false;
   }
 
   if (errno == ERANGE) {
-    WARNING("Number can't be greater than LONG_MAX. Data read: %s", text);
+    WARNING("ras plugin: Number can't be greater than LONG_MAX. Data read: %s",
+            text);
     return false;
   }
   return true;
@@ -136,7 +135,8 @@ static int ras_config(const char *key, const char *value) {
   if (strcasecmp("DB_Path", key) == 0) {
     sstrncpy(path_database, value, sizeof(path_database));
   } else {
-    DEBUG("DB_Path not provided in config. Using default: %s", DEFAULT_DB_PATH);
+    DEBUG("ras plugin: DB_Path not provided in config. Using default: %s",
+          DEFAULT_DB_PATH);
   }
   return 0;
 } /* int ras_config */
@@ -262,14 +262,17 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName) {
     if (cpu <= nprocs) {
       classify_entries(cpu, argv[2], argv[3]);
     } else {
-      WARNING("CPU number can't be greater than the total number of CPU. CPU: "
+      WARNING("ras plugin: CPU number can't be greater than the total number "
+              "of CPU. CPU: "
               "%ld",
               cpu);
-      WARNING("Can't read data id %s, cpu %s, error_msg %s, mcistatus_msg %s",
+      WARNING("ras plugin: Can't read data id %s, cpu %s, error_msg %s, "
+              "mcistatus_msg %s",
               argv[0], argv[1], argv[2], argv[3]);
     }
   } else {
-    WARNING("Can't read data id %s, cpu %s, error_msg %s, mcistatus_msg %s",
+    WARNING("ras plugin: Can't read data id %s, cpu %s, error_msg %s, "
+            "mcistatus_msg %s",
             argv[0], argv[1], argv[2], argv[3]);
   }
 
@@ -289,7 +292,8 @@ static void ras_submit_all_metrics() {
   for (int i = 0; i < nprocs; i++) {
     cx = snprintf(plugin_inst, PLUGIN_INST_SIZE * sizeof(char), "CPU_%d", i);
     if (cx < 0 || cx >= PLUGIN_INST_SIZE * sizeof(char)) {
-      ERROR("Error encountered during plugin's instance name creation");
+      ERROR("ras plugin: Error encountered during plugin's instance name "
+            "creation");
       return;
     }
 
@@ -354,13 +358,13 @@ static int ras_read(void) {
                 max_id);
 
   if (cx < 0 || cx >= SQL_QUERY_BUFFER_SIZE * sizeof(char)) {
-    ERROR("Error encountered during SQL query creation");
+    ERROR("ras plugin: Error encountered during SQL query creation");
     return -1;
   }
 
   rc = sqlite3_exec(db, sql_query, callback, 0, &err_msg);
   if (rc != 0) {
-    DEBUG("SQL error: %s\n", err_msg);
+    DEBUG("ras plugin: SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
     return -1;
   }
@@ -372,24 +376,34 @@ static int ras_read(void) {
 static int ras_init(void) {
   int rc;
   if (!check_path_correct(path_database)) {
-    ERROR("Incorrect path to Database: %s", path_database);
+    ERROR("ras plugin: Incorrect path to Database: %s", path_database);
     return -1;
   }
   rc = sqlite3_open_v2(path_database, &db, SQLITE_OPEN_READONLY, NULL);
 
   if (rc) {
-    ERROR("Can't open database: %s", sqlite3_errmsg(db));
+    ERROR("ras plugin: Can't open database: %s", sqlite3_errmsg(db));
     return -1;
   } else {
-    INFO("Database opened successfully");
+    INFO("ras plugin: Database opened successfully");
   }
 
-  nprocs = get_nprocs_conf();
+  long n = sysconf(_SC_NPROCESSORS_CONF);
+  if (n == -1) {
+    ERROR("ras plugin: sysconf(_SC_NPROCESSORS_CONF) failed: %s", STRERRNO);
+    return errno;
+  }
+  if (n <= 0) {
+    ERROR("ras plugin: sysconf(_SC_NPROCESSORS_CONF) returned %ld", n);
+    return EINVAL;
+  }
+
+  nprocs = (int)n;
   ras_metrics_server.per_CPU = (struct ras_metrics_per_CPU *)calloc(
       nprocs, sizeof(struct ras_metrics_per_CPU));
   if (ras_metrics_server.per_CPU == NULL) {
-    ERROR("Fail allocated memory");
-    return -1;
+    ERROR("ras plugin: Fail allocated memory");
+    return ENOMEM;
   }
   return 0;
 } /* int ras_init */

@@ -36,6 +36,6 @@ struct cmdline_config {
 
 void stop_collectd(void);
 struct cmdline_config init_config(int argc, char **argv);
-int run_loop(bool test_readall);
+int run_loop(bool test_readall, void (*notify_func)(void));
 
 #endif /* CMD_H */

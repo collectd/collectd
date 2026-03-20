@@ -385,9 +385,11 @@ static int verify_sha256(void *payload, size_t payload_size,
   return !!ret;
 }
 #else /* !HAVE_GCRYPT_H */
-static int verify_sha256(void *payload, size_t payload_size,
-                         char const *username, char const *password,
-                         uint8_t hash_provided[32]) {
+static int verify_sha256(__attribute__((unused)) void *payload,
+                         __attribute__((unused)) size_t payload_size,
+                         __attribute__((unused)) char const *username,
+                         __attribute__((unused)) char const *password,
+                         __attribute__((unused)) uint8_t hash_provided[32]) {
   return ENOTSUP;
 }
 #endif
@@ -502,7 +504,9 @@ static int parse_encrypt_aes256(void *data, size_t data_size,
   return network_parse(b->data, b->len, ENCRYPT, opts);
 }
 #else /* !HAVE_GCRYPT_H */
-static int parse_encrypt_aes256(void *data, size_t data_size,
+static int parse_encrypt_aes256(__attribute__((unused)) void *data,
+                                __attribute__((unused)) size_t data_size,
+                                __attribute__((unused))
                                 lcc_network_parse_options_t const *opts) {
   return ENOTSUP;
 }

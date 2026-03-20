@@ -289,22 +289,22 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
 
   /* Check if hits matched */
   if ((th->hits != 0)) {
-    int hits = uc_get_hits(ds, vl);
+    int hits = uc_get_hits(vl);
     /* STATE_OKAY resets hits unless PERSIST_OK flag is set. Hits resets if
      * threshold is hit. */
     if (((state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0)) ||
         (hits > th->hits)) {
       DEBUG("ut_report_state: reset uc_get_hits = 0");
-      uc_set_hits(ds, vl, 0); /* reset hit counter and notify */
+      uc_set_hits(vl, 0); /* reset hit counter and notify */
     } else {
       DEBUG("ut_report_state: th->hits = %d, uc_get_hits = %d", th->hits,
-            uc_get_hits(ds, vl));
-      (void)uc_inc_hits(ds, vl, 1); /* increase hit counter */
+            uc_get_hits(vl));
+      (void)uc_inc_hits(vl, 1); /* increase hit counter */
       return 0;
     }
   } /* end check hits */
 
-  state_old = uc_get_state(ds, vl);
+  state_old = uc_get_state(vl);
 
   /* If the state didn't change, report if `persistent' is specified. If the
    * state is `okay', then only report if `persist_ok` flag is set. */
@@ -319,7 +319,7 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
   }
 
   if (state != state_old)
-    uc_set_state(ds, vl, state);
+    uc_set_state(vl, state);
 
   NOTIFICATION_INIT_VL(&n, vl);
 
@@ -476,7 +476,7 @@ static int ut_check_one_data_source(
   /* XXX: This is an experimental code, not optimized, not fast, not reliable,
    * and probably, do not work as you expect. Enjoy! :D */
   if (th->hysteresis > 0) {
-    prev_state = uc_get_state(ds, vl);
+    prev_state = uc_get_state(vl);
     /* The purpose of hysteresis is elliminating flapping state when the value
      * oscilates around the thresholds. In other words, what is important is
      * the previous state; if the new value would trigger a transition, make

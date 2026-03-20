@@ -213,25 +213,22 @@ DEF_TEST(ignorelist_test) {
 #ifdef HAVE_IFLA_VF_STATS
 DEF_TEST(vf_submit_test) {
   const char *test_dev = "eth0";
-  vf_stats_t test_stats;
-  struct ifla_vf_mac test_mac;
-  test_mac.mac[0] = 0x01;
-  test_mac.mac[1] = 0x1a;
-  test_mac.mac[2] = 0x2b;
-  test_mac.mac[3] = 0x3c;
-  test_mac.mac[4] = 0x4d;
-  test_mac.mac[5] = 0x5e;
-  test_mac.vf = 2;
-  test_stats.vf_mac = &test_mac;
-  test_stats.vlan = 100;
-  test_stats.spoofcheck = 1;
-  test_stats.link_state = 2;
-  test_stats.broadcast = 1234;
-  test_stats.multicast = 0;
-  test_stats.rx_packets = 21110;
-  test_stats.tx_packets = 31110;
-  test_stats.rx_bytes = 4294967295;
-  test_stats.tx_bytes = 8;
+  vf_stats_t test_stats = {
+      .vf_mac =
+          &(struct ifla_vf_mac){
+              .mac = {0x01, 0x1a, 0x2b, 0x3c, 0x4d, 0x5e},
+              .vf = 2,
+          },
+      .vlan = 100,
+      .spoofcheck = 1,
+      .link_state = 2,
+      .broadcast = 1234,
+      .multicast = 0,
+      .rx_packets = 21110,
+      .tx_packets = 31110,
+      .rx_bytes = 4294967295,
+      .tx_bytes = 8,
+  };
 
   g_instance[0] = '\0';
   vf_info_submit(test_dev, &test_stats);

@@ -33,13 +33,13 @@
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 500
 #endif
-#endif /* STRPTIME_NEEDS_STANDARDS */
-
-#if TIMEGM_NEEDS_BSD
 #ifndef _BSD_SOURCE
-#define _BSD_SOURCE 1
+#define _BSD_SOURCE
 #endif
-#endif /* TIMEGM_NEEDS_BSD */
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+#endif /* STRPTIME_NEEDS_STANDARDS */
 
 #include "collectd.h"
 
@@ -470,7 +470,9 @@ static int bind_parse_generic_name_value(const char *xpath_expression, /* {{{ */
     return -1;
   }
 
+#if COLLECT_DEBUG
   int num_entries = 0;
+#endif
   /* Iterate over all matching nodes. */
   for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
        i++) {
@@ -510,8 +512,10 @@ static int bind_parse_generic_name_value(const char *xpath_expression, /* {{{ */
       }
 
       status = (*list_callback)(name, value, current_time, user_data);
+#if COLLECT_DEBUG
       if (status == 0)
         num_entries++;
+#endif
 
       xmlFree(name);
     }
@@ -549,7 +553,9 @@ static int bind_parse_generic_value_list(const char *xpath_expression, /* {{{ */
     return -1;
   }
 
+#if COLLECT_DEBUG
   int num_entries = 0;
+#endif
   /* Iterate over all matching nodes. */
   for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
        i++) {
@@ -572,8 +578,10 @@ static int bind_parse_generic_value_list(const char *xpath_expression, /* {{{ */
         continue;
 
       status = (*list_callback)(node_name, value, current_time, user_data);
+#if COLLECT_DEBUG
       if (status == 0)
         num_entries++;
+#endif
     }
   }
 
@@ -609,7 +617,9 @@ static int bind_parse_generic_name_attr_value_list(
     return -1;
   }
 
+#if COLLECT_DEBUG
   int num_entries = 0;
+#endif
   /* Iterate over all matching nodes. */
   for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
        i++) {
@@ -641,8 +651,10 @@ static int bind_parse_generic_name_attr_value_list(
       }
 
       status = (*list_callback)(attr_name, value, current_time, user_data);
+#if COLLECT_DEBUG
       if (status == 0)
         num_entries++;
+#endif
 
       xmlFree(attr_name);
     }

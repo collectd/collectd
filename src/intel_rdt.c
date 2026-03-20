@@ -44,6 +44,16 @@
 
 #define RDT_PLUGIN "intel_rdt"
 
+#define RDT_EVENTS_BASE                                                        \
+  (PQOS_MON_EVENT_L3_OCCUP | PQOS_PERF_EVENT_IPC | PQOS_MON_EVENT_LMEM_BW |    \
+   PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_RMEM_BW | PQOS_PERF_EVENT_LLC_MISS)
+
+#if PQOS_VERSION >= 40400
+#define RDT_EVENTS (RDT_EVENTS_BASE | PQOS_PERF_EVENT_LLC_REF)
+#else
+#define RDT_EVENTS RDT_EVENTS_BASE
+#endif
+
 #define RDT_MAX_SOCKETS 8
 #define RDT_MAX_SOCKET_CORES 64
 #define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
@@ -76,6 +86,10 @@ typedef struct rdt_name_group_s rdt_name_group_t;
 
 struct rdt_ctx_s {
   bool mon_ipc_enabled;
+#if PQOS_VERSION >= 40400
+  bool mon_llc_ref_enabled;
+#endif
+  bool mon_llc_miss_enabled;
   core_groups_list_t cores;
   enum pqos_mon_event events[RDT_MAX_CORES];
   struct pqos_mon_data *pcgroups[RDT_MAX_CORES];
@@ -130,65 +144,127 @@ static void rdt_submit_gauge(const char *cgroup, const char *type,
   plugin_dispatch_values(&vl);
 }
 
-static void rdt_submit(const struct pqos_mon_data *group) {
+static int rdt_get_value(const struct pqos_mon_data *group,
+                         const enum pqos_mon_event event_id, uint64_t *value) {
+  int ret;
+
+#if PQOS_VERSION >= 40400
+  ret = pqos_mon_get_value(group, PQOS_PERF_EVENT_LLC_REF, value, NULL);
+
+#else
   const struct pqos_event_values *values = &group->values;
+
+  ret = PQOS_RETVAL_OK;
+
+  switch (event_id) {
+  case PQOS_MON_EVENT_L3_OCCUP:
+    *value = values->llc;
+    break;
+  case PQOS_PERF_EVENT_LLC_MISS:
+    *value = values->llc_misses;
+    break;
+  case PQOS_MON_EVENT_LMEM_BW:
+    *value = values->mbm_local;
+    break;
+  case PQOS_MON_EVENT_TMEM_BW:
+    *value = values->mbm_total;
+    break;
+  case PQOS_MON_EVENT_RMEM_BW:
+#if PQOS_VERSION < 40000
+    if (group->event & (PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_LMEM_BW))
+      *value = values->mbm_total - values->mbm_local;
+#else
+    *value = values->mbm_remote;
+#endif
+  default:
+    ret = PQOS_RETVAL_ERROR;
+    break;
+  }
+#endif
+
+  if (ret != PQOS_RETVAL_OK)
+    return ret;
+
+  // Apply scale factor
+  if (event_id == PQOS_MON_EVENT_LMEM_BW ||
+      event_id == PQOS_MON_EVENT_TMEM_BW ||
+      event_id == PQOS_MON_EVENT_RMEM_BW) {
+    const struct pqos_monitor *mon = NULL;
+
+    ret = pqos_cap_get_event(g_rdt->pqos_cap, event_id, &mon);
+    if (ret == PQOS_RETVAL_OK && mon->scale_factor != 0)
+      *value = *value * mon->scale_factor;
+  }
+
+  return ret;
+}
+
+static void rdt_submit(const struct pqos_mon_data *group) {
   const char *desc = (const char *)group->context;
   const enum pqos_mon_event events = group->event;
 
-  if (events & PQOS_MON_EVENT_L3_OCCUP)
-    rdt_submit_gauge(desc, "bytes", "llc", values->llc);
+  if (events & PQOS_MON_EVENT_L3_OCCUP) {
+    uint64_t value;
 
-  if (events & PQOS_PERF_EVENT_IPC)
-    rdt_submit_gauge(desc, "ipc", NULL, values->ipc);
+    int ret = rdt_get_value(group, PQOS_MON_EVENT_L3_OCCUP, &value);
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_gauge(desc, "bytes", "llc", value);
+  }
+
+  if (events & PQOS_PERF_EVENT_IPC) {
+    double value;
+    int ret = PQOS_RETVAL_OK;
+
+#if PQOS_VERSION >= 40400
+    ret = pqos_mon_get_ipc(group, &value);
+#else
+    value = group->values.ipc;
+#endif
+
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_gauge(desc, "ipc", NULL, value);
+  }
+
+#if PQOS_VERSION >= 40400
+  if (events & PQOS_PERF_EVENT_LLC_REF) {
+    uint64_t value;
+
+    int ret = rdt_get_value(group, PQOS_PERF_EVENT_LLC_REF, &value);
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_derive(desc, "bytes", "llc_ref", value);
+  }
+#endif
+
+  if (events & PQOS_PERF_EVENT_LLC_MISS) {
+    uint64_t value;
+
+    int ret = rdt_get_value(group, PQOS_PERF_EVENT_LLC_MISS, &value);
+    if (ret == PQOS_RETVAL_OK)
+      rdt_submit_derive(desc, "bytes", "llc_miss", value);
+  }
 
   if (events & PQOS_MON_EVENT_LMEM_BW) {
-    const struct pqos_monitor *mon = NULL;
+    uint64_t value;
 
-    int retval =
-        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_LMEM_BW, &mon);
-    if (retval == PQOS_RETVAL_OK) {
-      uint64_t value = values->mbm_local;
-
-      if (mon->scale_factor != 0)
-        value = value * mon->scale_factor;
-
+    int ret = rdt_get_value(group, PQOS_MON_EVENT_LMEM_BW, &value);
+    if (ret == PQOS_RETVAL_OK)
       rdt_submit_derive(desc, "memory_bandwidth", "local", value);
-    }
   }
 
   if (events & PQOS_MON_EVENT_TMEM_BW) {
-    const struct pqos_monitor *mon = NULL;
+    uint64_t value;
 
-    int retval =
-        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_TMEM_BW, &mon);
-    if (retval == PQOS_RETVAL_OK) {
-      uint64_t value = values->mbm_total;
-
-      if (mon->scale_factor != 0)
-        value = value * mon->scale_factor;
-
+    int ret = rdt_get_value(group, PQOS_MON_EVENT_TMEM_BW, &value);
+    if (ret == PQOS_RETVAL_OK)
       rdt_submit_derive(desc, "memory_bandwidth", "total", value);
-    }
   }
 
   if (events & PQOS_MON_EVENT_RMEM_BW) {
-    const struct pqos_monitor *mon = NULL;
+    uint64_t value;
 
-    int retval =
-        pqos_cap_get_event(g_rdt->pqos_cap, PQOS_MON_EVENT_RMEM_BW, &mon);
-    if (retval == PQOS_RETVAL_OK) {
-      uint64_t value = values->mbm_remote;
-
-#if PQOS_VERSION < 40000
-      if (events & (PQOS_MON_EVENT_TMEM_BW | PQOS_MON_EVENT_LMEM_BW))
-        value = values->mbm_total - values->mbm_local;
-#endif
-
-      if (mon->scale_factor != 0)
-        value = value * mon->scale_factor;
-
+    int ret = rdt_get_value(group, PQOS_MON_EVENT_RMEM_BW, &value);
+    if (ret == PQOS_RETVAL_OK)
       rdt_submit_derive(desc, "memory_bandwidth", "remote", value);
-    }
   }
 }
 
@@ -519,7 +595,11 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
       proc_pids_free(rdt->ngroups[i].proc_pids, rdt->ngroups[i].num_names);
 
     rdt->ngroups[i].num_names = 0;
+#if PQOS_VERSION >= 40600
+    /* no op: memory is freed by pqos_mon_stop(). */
+#else
     sfree(rdt->pngroups[i]);
+#endif
   }
   if (rdt->proc_pids)
     sfree(rdt->proc_pids);
@@ -547,12 +627,21 @@ static int rdt_config_events(rdt_ctx_t *rdt) {
   /* Get all available events on this platform */
   for (unsigned i = 0; i < rdt->cap_mon->u.mon->num_events; i++)
     events |= rdt->cap_mon->u.mon->events[i].type;
-
-  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
+  events &= RDT_EVENTS;
 
   /* IPC monitoring is disabled */
   if (!rdt->mon_ipc_enabled)
     events &= ~(PQOS_PERF_EVENT_IPC);
+
+#if PQOS_VERSION >= 40400
+  /* LLC references monitoring is disabled */
+  if (!rdt->mon_llc_ref_enabled)
+    events &= ~(PQOS_PERF_EVENT_LLC_REF);
+#endif
+
+  /* LLC misses monitoring is disabled */
+  if (!rdt->mon_llc_miss_enabled)
+    events &= ~(PQOS_PERF_EVENT_LLC_MISS);
 
   DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
 
@@ -643,6 +732,9 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
       }
     }
 
+#if PQOS_VERSION >= 40600
+    /* no op: memory will be allocated by pqos_mon_start_pids(). */
+#else
     rdt->pngroups[i] = calloc(1, sizeof(*rdt->pngroups[i]));
     if (rdt->pngroups[i] == NULL) {
       rdt_free_ngroups(rdt);
@@ -650,6 +742,7 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
             ": Failed to allocate memory for process name monitoring data.");
       return -ENOMEM;
     }
+#endif
   }
 
   return 0;
@@ -670,7 +763,7 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
  *  0 on success. Negative number on error.
  */
 static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
-                              struct pqos_mon_data *group_mon_data) {
+                              struct pqos_mon_data **group_mon_data) {
 
   int result = 0;
 
@@ -715,9 +808,15 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     /* no pids are monitored for this group yet: start monitoring */
     if (0 == ngroup->monitored_pids_count) {
 
+#if PQOS_VERSION >= 40600
+      int start_result =
+          pqos_mon_start_pids2(added_pids.size, added_pids.pids, ngroup->events,
+                               (void *)ngroup->desc, group_mon_data);
+#else
       int start_result =
           pqos_mon_start_pids(added_pids.size, added_pids.pids, ngroup->events,
-                              (void *)ngroup->desc, group_mon_data);
+                              (void *)ngroup->desc, *group_mon_data);
+#endif
       if (PQOS_RETVAL_OK == start_result) {
         ngroup->monitored_pids_count = added_pids.size;
       } else {
@@ -731,7 +830,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     } else {
 
       int add_result =
-          pqos_mon_add_pids(added_pids.size, added_pids.pids, group_mon_data);
+          pqos_mon_add_pids(added_pids.size, added_pids.pids, *group_mon_data);
       if (PQOS_RETVAL_OK == add_result)
         ngroup->monitored_pids_count += added_pids.size;
       else {
@@ -749,7 +848,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     /* all pids are removed: stop monitoring */
     if (removed_pids.size == ngroup->monitored_pids_count) {
       /* all pids for this group are lost: stop monitoring */
-      int stop_result = pqos_mon_stop(group_mon_data);
+      int stop_result = pqos_mon_stop(*group_mon_data);
       if (PQOS_RETVAL_OK != stop_result) {
         ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Error [%d] while "
                          "STOPPING monitoring",
@@ -760,7 +859,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
       ngroup->monitored_pids_count = 0;
     } else {
       int remove_result = pqos_mon_remove_pids(
-          removed_pids.size, removed_pids.pids, group_mon_data);
+          removed_pids.size, removed_pids.pids, *group_mon_data);
       if (PQOS_RETVAL_OK == remove_result) {
         ngroup->monitored_pids_count -= removed_pids.size;
       } else {
@@ -790,7 +889,7 @@ pqos_error_recovery:
    */
   DEBUG(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\' group RESET after error.",
         ngroup->desc);
-  pqos_mon_stop(group_mon_data);
+  pqos_mon_stop(*group_mon_data);
   for (size_t i = 0; i < ngroup->num_names; ++i)
     if (ngroup->proc_pids[i]->curr)
       ngroup->proc_pids[i]->curr->size = 0;
@@ -869,7 +968,7 @@ groups_refresh:
 
   for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
     int refresh_result =
-        rdt_refresh_ngroup(&(g_rdt->ngroups[i]), g_rdt->pngroups[i]);
+        rdt_refresh_ngroup(&(g_rdt->ngroups[i]), &(g_rdt->pngroups[i]));
 
     if (0 != refresh_result) {
       ERROR(RDT_PLUGIN ": read_pids_data: NGroup %zu refresh failed. Error: %d",
@@ -936,7 +1035,7 @@ static void rdt_init_pids_monitoring() {
 
   for (size_t group_idx = 0; group_idx < g_rdt->num_ngroups; group_idx++) {
     int refresh_result = rdt_refresh_ngroup(&(g_rdt->ngroups[group_idx]),
-                                            g_rdt->pngroups[group_idx]);
+                                            &(g_rdt->pngroups[group_idx]));
     if (0 != refresh_result)
       ERROR(RDT_PLUGIN ": Initial refresh of group %zu failed. Error: %d",
             group_idx, refresh_result);
@@ -952,9 +1051,13 @@ static void rdt_init_pids_monitoring() {
  */
 static void rdt_free_cgroups(void) {
   config_cores_cleanup(&g_rdt->cores);
+#if PQOS_VERSION >= 40600
+  /* no op: memory is freed by pqos_mon_stop(). */
+#else
   for (int i = 0; i < RDT_MAX_CORES; i++) {
     sfree(g_rdt->pcgroups[i]);
   }
+#endif
   g_rdt->cores.num_cgroups = 0;
 }
 
@@ -1056,12 +1159,16 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
       }
     }
 
+#if PQOS_VERSION >= 40600
+    /* no op: memory will be allocated by pqos_mon_start_cores(). */
+#else
     g_rdt->pcgroups[i] = calloc(1, sizeof(*g_rdt->pcgroups[i]));
     if (g_rdt->pcgroups[i] == NULL) {
       rdt_free_cgroups();
       ERROR(RDT_PLUGIN ": Failed to allocate memory for monitoring data.");
       return -ENOMEM;
     }
+#endif
   }
 
   return 0;
@@ -1215,6 +1322,12 @@ static int rdt_config(oconfig_item_t *ci) {
 #endif /* LIBPQOS2 */
     } else if (strcasecmp("MonIPCEnabled", child->key) == 0) {
       cf_util_get_boolean(child, &g_rdt->mon_ipc_enabled);
+#if PQOS_VERSION >= 40400
+    } else if (strcasecmp("MonLLCRefEnabled", child->key) == 0) {
+      cf_util_get_boolean(child, &g_rdt->mon_llc_ref_enabled);
+#endif
+    } else if (strcasecmp("MonLLCMissEnabled", child->key) == 0) {
+      cf_util_get_boolean(child, &g_rdt->mon_llc_miss_enabled);
     } else {
       ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
     }
@@ -1240,8 +1353,7 @@ static int read_cores_data() {
   }
   DEBUG(RDT_PLUGIN ": read_cores_data: Cores data poll");
 
-  int ret =
-      pqos_mon_poll(&g_rdt->pcgroups[0], (unsigned)g_rdt->cores.num_cgroups);
+  int ret = pqos_mon_poll(g_rdt->pcgroups, (unsigned)g_rdt->cores.num_cgroups);
   if (ret != PQOS_RETVAL_OK) {
     ERROR(RDT_PLUGIN ": read_cores_data: Failed to poll monitoring data for "
                      "cores. Error [%d].",
@@ -1288,9 +1400,15 @@ static void rdt_init_cores_monitoring() {
   for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
     core_group_t *cg = g_rdt->cores.cgroups + i;
 
+#if PQOS_VERSION >= 40600
+    int mon_start_result =
+        pqos_mon_start_cores(cg->num_cores, cg->cores, g_rdt->events[i],
+                             (void *)cg->desc, &g_rdt->pcgroups[i]);
+#else
     int mon_start_result =
         pqos_mon_start(cg->num_cores, cg->cores, g_rdt->events[i],
                        (void *)cg->desc, g_rdt->pcgroups[i]);
+#endif
 
     if (mon_start_result != PQOS_RETVAL_OK)
       ERROR(RDT_PLUGIN
@@ -1335,13 +1453,16 @@ static int rdt_shutdown(void) {
 
   /* Stop monitoring cores */
   for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
+    /* In pqos 4.6.0 and later this frees memory */
     pqos_mon_stop(g_rdt->pcgroups[i]);
   }
 
 /* Stop pids monitoring */
 #ifdef LIBPQOS2
-  for (size_t i = 0; i < g_rdt->num_ngroups; i++)
+  for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
+    /* In pqos 4.6.0 and later this frees memory */
     pqos_mon_stop(g_rdt->pngroups[i]);
+  }
 #endif
 
   ret = pqos_fini();

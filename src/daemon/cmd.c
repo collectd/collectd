@@ -83,42 +83,45 @@ static int pidfile_remove(void) {
 #endif /* COLLECT_DAEMON */
 
 #ifdef KERNEL_LINUX
-static int notify_upstart(void) {
+static bool using_upstart(void) {
   char const *upstart_job = getenv("UPSTART_JOB");
-
   if (upstart_job == NULL)
-    return 0;
+    return false;
 
   if (strcmp(upstart_job, "collectd") != 0) {
     WARNING("Environment specifies unexpected UPSTART_JOB=\"%s\", expected "
             "\"collectd\". Ignoring the variable.",
             upstart_job);
-    return 0;
+    return false;
   }
 
+  return true;
+}
+
+static void notify_upstart(void) {
   NOTICE("Upstart detected, stopping now to signal readiness.");
   raise(SIGSTOP);
   unsetenv("UPSTART_JOB");
-
-  return 1;
 }
 
-static int notify_systemd(void) {
-  size_t su_size;
+static bool using_systemd(void) {
   const char *notifysocket = getenv("NOTIFY_SOCKET");
   if (notifysocket == NULL)
-    return 0;
+    return false;
 
   if ((strlen(notifysocket) < 2) ||
       ((notifysocket[0] != '@') && (notifysocket[0] != '/'))) {
     ERROR("invalid notification socket NOTIFY_SOCKET=\"%s\": path must be "
           "absolute",
           notifysocket);
-    return 0;
+    return false;
   }
-  NOTICE("Systemd detected, trying to signal readiness.");
 
-  unsetenv("NOTIFY_SOCKET");
+  return true;
+}
+
+static void notify_systemd(void) {
+  NOTICE("Systemd detected, trying to signal readiness.");
 
   int fd;
 #if defined(SOCK_CLOEXEC)
@@ -128,11 +131,15 @@ static int notify_systemd(void) {
 #endif
   if (fd < 0) {
     ERROR("creating UNIX socket failed: %s", STRERRNO);
-    return 0;
+    return;
   }
 
-  struct sockaddr_un su = {0};
-  su.sun_family = AF_UNIX;
+  struct sockaddr_un su = {
+      .sun_family = AF_UNIX,
+  };
+
+  const char *notifysocket = getenv("NOTIFY_SOCKET");
+  size_t su_size = 0;
   if (notifysocket[0] != '@') {
     /* regular UNIX socket */
     sstrncpy(su.sun_path, notifysocket, sizeof(su.sun_path));
@@ -154,12 +161,11 @@ static int notify_systemd(void) {
              (socklen_t)su_size) < 0) {
     ERROR("sendto(\"%s\") failed: %s", notifysocket, STRERRNO);
     close(fd);
-    return 0;
+    return;
   }
 
   unsetenv("NOTIFY_SOCKET");
   close(fd);
-  return 1;
 }
 #endif /* KERNEL_LINUX */
 
@@ -178,11 +184,13 @@ int main(int argc, char **argv) {
    * Only daemonize if we're not being supervised
    * by upstart or systemd (when using Linux).
    */
-  if (config.daemonize
 #ifdef KERNEL_LINUX
-      && notify_upstart() == 0 && notify_systemd() == 0
+  if (using_upstart() || using_systemd()) {
+    config.daemonize = false;
+  }
 #endif
-  ) {
+
+  if (config.daemonize) {
     pid_t pid;
     if ((pid = fork()) == -1) {
       /* error */
@@ -260,7 +268,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  int exit_status = run_loop(config.test_readall);
+  void (*notify_func)(void) = NULL;
+#ifdef KERNEL_LINUX
+  if (using_upstart()) {
+    notify_func = notify_upstart;
+  } else if (using_systemd()) {
+    notify_func = notify_systemd;
+  }
+#endif
+
+  int exit_status = run_loop(config.test_readall, notify_func);
 
 #if COLLECT_DAEMON
   if (config.daemonize)

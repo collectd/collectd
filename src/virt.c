@@ -736,7 +736,7 @@ static void set_field_from_metadata(value_list_t *vl, virDomainPtr dom,
 
   const char *namespace = NULL;
   if (hm_ns == NULL) {
-    namespace = "http://openstack.org/xmlns/libvirt/nova/1.0";
+    namespace = "http://openstack.org/xmlns/libvirt/nova/1.1";
   } // namespace =hm_ns;
   else {
     namespace = hm_ns;
@@ -2206,8 +2206,9 @@ static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr con_,
   return 0;
 }
 
-static void virt_eventloop_timeout_cb(int timer ATTRIBUTE_UNUSED,
-                                      void *timer_info) {}
+static void
+virt_eventloop_timeout_cb(__attribute__((unused)) int timer,
+                          __attribute__((unused)) void *timer_info) {}
 
 static int register_event_impl(void) {
   if (virEventRegisterDefaultImpl() < 0) {

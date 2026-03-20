@@ -656,7 +656,6 @@ static int swap_read(void) /* {{{ */
     return -1;
   }
 
-  swap_submit_usage(NULL, used, total - used, NULL, NAN);
   /* If the "separate" option was specified (report_by_device == 1), all
    * values have already been dispatched from within the loop. */
   if (!report_by_device)
