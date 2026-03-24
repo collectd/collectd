@@ -4279,6 +4279,34 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<ipnat>
+
+The B<ipnat plugin> monitors IPNAT statistics (a la ipnat -s).
+
+The configuration consists of one or more B<Report>, B<ReportIn> and B<ReportOut> blocks
+specifying which statistics to collect.
+B<Report> enables side-agnostic statistics or side-specific ones for both sides.
+B<ReportIn>/B<ReportOut> enables side-specific statistics for one side only.
+
+The names correspond to the field names in C<struct natstat> (side-agnostic) resp.
+C<struct nat_stat_side> (side-specific) with the C<ns_> prefix omitted.
+
+In detail, the supported side-agnostic names are active, divert_build, expire,
+flush_all, flush_closing, flush_queue, flush_state, flush_timeout, hm_new,
+hm_newfail, hm_addref, hm_nullnp, log_ok, log_fail, hostmap_sz, nattab_sz,
+nattab_max, orphans, rules, rules_map, rules_rdr, rultab_sz, rdrtab_sz
+and wilds.
+
+The side-specific names are added, appr_fail, badnat, badnatnew, badnextaddr,
+bucket_max, clone_nomem, decap_bad, decap_fail, decap_pullup, divert_dup,
+divert_exist, drop, encap_dup, encap_pullup, exhausted, icmp_address,
+icmp_basic, icmp_mbuf, icmp_notfound, icmp_rebuild, icmp_short, icmp_size,
+ifpaddrfail, ignored, insert_fail, inuse, log, lookup_miss, lookup_nowild,
+new_ifpaddr, memfail, table_max, translated, unfinalised, wrap, xlate_null,
+xlate_exists and ipf_proxy_fail.
+
+This plugin has only been tested on NetBSD.
+
 =head2 Plugin C<ipstats>
 
 This plugin collects counts for ipv4 and ipv6 various types of packets passing

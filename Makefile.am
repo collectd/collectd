@@ -1264,6 +1264,12 @@ ipmi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ipmi_la_LIBADD = libignorelist.la $(BUILD_WITH_OPENIPMI_LIBS)
 endif
 
+if BUILD_PLUGIN_IPNAT
+pkglib_LTLIBRARIES += ipnat.la
+ipnat_la_SOURCES = src/ipnat.c
+ipnat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_IPSTATS
 pkglib_LTLIBRARIES += ipstats.la
 ipstats_la_SOURCES = src/ipstats.c
