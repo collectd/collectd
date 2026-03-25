@@ -175,7 +175,13 @@ static int ipfilter_config(const char *key, const char *value) /* {{{ */ {
     return -1;
   }
   if (strcasecmp(key, "Report") == 0) {
-    char *v = strdup(value);
+    char *v;
+
+    if ((v = strdup(value)) == NULL) {
+      ERROR("ipfilter plugin: strdup() failed");
+      return 1;
+    }
+
     for (w = strtok(v, sep); w; w = strtok(NULL, sep)) {
       struct report *r;
       report_mask_t m;
