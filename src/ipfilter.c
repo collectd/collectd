@@ -190,6 +190,7 @@ static int ipfilter_config(const char *key, const char *value) /* {{{ */ {
       for (r = report_tab, m = 1; r->name; r++, m <<= 1) {
         if (m == 0) {
           ERROR("ipfilter plugin: too many reports");
+          free(v);
           return 1;
         }
         if (strcmp(w, r->name) == 0) {
@@ -203,6 +204,7 @@ static int ipfilter_config(const char *key, const char *value) /* {{{ */ {
         WARNING("ipfilter plugin: unknown report %s", w);
       }
     }
+    free(v);
   } else
     return -1;
 
