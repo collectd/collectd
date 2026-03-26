@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "utils/common/common.h"
 
@@ -146,7 +147,9 @@ struct report report_tab[] = {
 struct report report_tab_in[] = REPORT_SIDE(0);
 struct report report_tab_out[] = REPORT_SIDE(1);
 
-static report_mask_t ipnat_findreport(const char *const w, const struct report *const tab) /* {{{ */ {
+static report_mask_t
+ipnat_findreport(const char *const w,
+                 const struct report *const tab) /* {{{ */ {
   const struct report *r;
   report_mask_t m;
 
@@ -325,7 +328,6 @@ static int ipnat_read(void) /* {{{ */ {
 void module_register(void) /* {{{ */ {
   plugin_register_init("ipnat", ipnat_init);
   plugin_register_shutdown("ipnat", ipnat_shutdown);
-  plugin_register_config("ipnat", ipnat_config, config_keys,
-                         config_keys_num);
+  plugin_register_config("ipnat", ipnat_config, config_keys, config_keys_num);
   plugin_register_read("ipnat", ipnat_read);
 } /* }}} void module_register */
