@@ -40,12 +40,7 @@
 #include <netinet/ipl.h>
 /* clang-format on */
 
-static const char *config_keys[] = {"Report", "ReportIn", "ReportOut"};
-static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 typedef uint64_t report_mask_t;
-static report_mask_t report_mask = 0, report_mask_in = 0, report_mask_out = 0;
-static int ipl, ipnat;
-static natstat_t ns;
 
 static void uint_gauge(void *x, value_t *v) { v->gauge = *(u_int *)x; }
 
@@ -65,6 +60,8 @@ struct report {
   char *type;                      /* collectd type name */
   void (*conv)(void *, value_t *); /* conversion function */
 };
+
+static natstat_t ns;
 
 /* formatting will make the table much harder to read */
 /* clang-format off */
@@ -146,6 +143,11 @@ struct report report_tab[] = {
 
 struct report report_tab_in[] = REPORT_SIDE(0);
 struct report report_tab_out[] = REPORT_SIDE(1);
+
+static const char *config_keys[] = {"Report", "ReportIn", "ReportOut"};
+static report_mask_t report_mask = 0, report_mask_in = 0, report_mask_out = 0;
+
+static int ipl, ipnat;
 
 static report_mask_t
 ipnat_findreport(const char *const w,
@@ -328,6 +330,6 @@ static int ipnat_read(void) /* {{{ */ {
 void module_register(void) /* {{{ */ {
   plugin_register_init("ipnat", ipnat_init);
   plugin_register_shutdown("ipnat", ipnat_shutdown);
-  plugin_register_config("ipnat", ipnat_config, config_keys, config_keys_num);
+  plugin_register_config("ipnat", ipnat_config, config_keys, STATIC_ARRAY_SIZE(config_keys));
   plugin_register_read("ipnat", ipnat_read);
 } /* }}} void module_register */
