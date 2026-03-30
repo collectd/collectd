@@ -59,7 +59,8 @@ struct report {
 
 static natstat_t ns;
 
-#if (IPFILTER_VERSION >= 5000000) && (IPFILTER_VERSION < 6000000) /* IPFilter 5.x */
+#if (IPFILTER_VERSION >= 5000000) &&                                           \
+    (IPFILTER_VERSION < 6000000) /* IPFilter 5.x */
 #define IPNAT_SIDES 2
 /* formatting will make the table much harder to read */
 /* clang-format off */
@@ -144,7 +145,8 @@ struct report report_tab_out[] = REPORT_SIDE(1);
 
 static const char *config_keys[] = {"Report", "ReportIn", "ReportOut"};
 static report_mask_t report_mask = 0, report_mask_in = 0, report_mask_out = 0;
-#elif (IPFILTER_VERSION >= 4000000) && (IPFILTER_VERSION < 5000000) /* IPFilter 4.x */
+#elif (IPFILTER_VERSION >= 4000000) &&                                         \
+    (IPFILTER_VERSION < 5000000) /* IPFilter 4.x */
 #define IPNAT_SIDES 0
 /* clang-format off */
 struct report report_tab[] = {
@@ -366,6 +368,7 @@ static int ipnat_read(void) /* {{{ */ {
 void module_register(void) /* {{{ */ {
   plugin_register_init("ipnat", ipnat_init);
   plugin_register_shutdown("ipnat", ipnat_shutdown);
-  plugin_register_config("ipnat", ipnat_config, config_keys, STATIC_ARRAY_SIZE(config_keys));
+  plugin_register_config("ipnat", ipnat_config, config_keys,
+                         STATIC_ARRAY_SIZE(config_keys));
   plugin_register_read("ipnat", ipnat_read);
 } /* }}} void module_register */
