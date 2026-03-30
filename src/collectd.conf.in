@@ -145,6 +145,7 @@
 #@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
 #@BUILD_PLUGIN_IPFILTER_TRUE@LoadPlugin ipfilter
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
+#@BUILD_PLUGIN_IPNAT_TRUE@LoadPlugin ipnat
 #@BUILD_PLUGIN_IPSTATS_TRUE@LoadPlugin ipstats
 #@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
 #@BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
@@ -901,6 +902,12 @@
 #		SELIgnoreSelected false
 #		SELClearEvent false
 #	</Instance>
+#</Plugin>
+
+#<Plugin ipnat>
+#	Report "active inuse"
+#	ReportIn ""
+#	ReportOut "bucket_max table_max"
 #</Plugin>
 
 #<Plugin iptables>
