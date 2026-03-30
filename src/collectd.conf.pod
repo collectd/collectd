@@ -4282,9 +4282,10 @@ Defaults to B<false>.
 =head2 Plugin C<ipnat>
 
 The B<ipnat plugin> monitors IPNAT statistics (a la ipnat -s).
+Mainly, IPFilter 5.x is supported with some limited compatibility for 4.x.
 
-The configuration consists of one or more B<Report>, B<ReportIn> and B<ReportOut> blocks
-specifying which statistics to collect.
+For IPFilter 5.x, the configuration consists of one or more B<Report>, B<ReportIn> 
+and B<ReportOut> blocks specifying which statistics to collect.
 B<Report> enables side-agnostic statistics or side-specific ones for both sides.
 B<ReportIn>/B<ReportOut> enables side-specific statistics for one side only.
 
@@ -4305,7 +4306,14 @@ ifpaddrfail, ignored, insert_fail, inuse, log, lookup_miss, lookup_nowild,
 new_ifpaddr, memfail, table_max, translated, unfinalised, wrap, xlate_null,
 xlate_exists and ipf_proxy_fail.
 
-This plugin has only been tested on NetBSD.
+For IPFilter 4.x (which doesn't have side-specific statistics), the configuration 
+only consists of one or more B<Report> blocks.
+The names correspond to the field names in C<struct natstat> with the C<ns_> prefix omitted.
+
+In detail, the supported names for IPFilter 4.x are added, badnat, expire, hostmap_sz, inuse, 
+logfail, logged, memfail, nattab_max, nattab_sz, orphans, rdrtab_sz, rules, rultab_sz and wilds.
+
+This plugin has only been tested on NetBSD and IPFilter 5.x.
 
 =head2 Plugin C<ipstats>
 
