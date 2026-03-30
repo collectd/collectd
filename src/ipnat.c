@@ -44,13 +44,9 @@ typedef uint64_t report_mask_t;
 
 static void uint_gauge(void *x, value_t *v) { v->gauge = *(u_int *)x; }
 
-#if 0
 static void ulong_gauge(void *x, value_t *v) { v->gauge = *(u_long *)x; }
-#endif
 
-#if 0
 static void uint_derive(void *x, value_t *v) { v->derive = *(u_int *)x; }
-#endif
 
 static void ulong_derive(void *x, value_t *v) { v->derive = *(u_long *)x; }
 
@@ -63,6 +59,8 @@ struct report {
 
 static natstat_t ns;
 
+#if (IPFILTER_VERSION >= 5000000) && (IPFILTER_VERSION < 6000000) /* IPFilter 5.x */
+#define IPNAT_SIDES 2
 /* formatting will make the table much harder to read */
 /* clang-format off */
 struct report report_tab[] = {
@@ -139,13 +137,43 @@ struct report report_tab[] = {
 	/* uncreate[2] */\
 	{ NULL,			NULL,					NULL,		NULL }\
 }
-/* clang-format on */
 
 struct report report_tab_in[] = REPORT_SIDE(0);
 struct report report_tab_out[] = REPORT_SIDE(1);
+/* clang-format on */
 
 static const char *config_keys[] = {"Report", "ReportIn", "ReportOut"};
 static report_mask_t report_mask = 0, report_mask_in = 0, report_mask_out = 0;
+#elif (IPFILTER_VERSION >= 4000000) && (IPFILTER_VERSION < 5000000) /* IPFilter 4.x */
+#define IPNAT_SIDES 0
+/* clang-format off */
+struct report report_tab[] = {
+	{ "rules",		&ns.ns_rules,		"gauge",	ulong_gauge },
+	{ "added",		&ns.ns_added,		"derive",	ulong_derive },
+	{ "expire",		&ns.ns_expire,		"derive",	ulong_derive },
+	{ "inuse",		&ns.ns_inuse,		"derive",	ulong_derive },
+	{ "logged",		&ns.ns_logged,		"packets",	ulong_derive },
+	{ "logfail",		&ns.ns_logfail,		"packets",	ulong_derive },
+	{ "memfail",		&ns.ns_memfail,		"packets",	ulong_derive },
+	{ "badnat",		&ns.ns_badnat,		"packets",	ulong_derive },
+	/* addtrpnt */
+	{ "wilds",		&ns.ns_wilds,		"gauge",	uint_gauge },
+	{ "nattab_sz",		&ns.ns_nattab_sz,	"gauge",	uint_gauge },
+	{ "nattab_max",		&ns.ns_nattab_max,	"gauge",	uint_gauge },
+	{ "rultab_sz",		&ns.ns_rultab_sz,	"gauge",	uint_gauge },
+	{ "rdrtab_sz",		&ns.ns_rdrtab_sz,	"gauge",	uint_gauge },
+	/* trpntab_sz */
+	{ "hostmap_sz",		&ns.ns_hostmap_sz,	"gauge",	uint_gauge },
+	/* ticks */
+	{ "orphans",		&ns.ns_orphans,		"gauge",	uint_gauge },
+};
+/* clang-format on */
+
+static const char *config_keys[] = {"Report"};
+static report_mask_t report_mask = 0;
+#else
+#error "unknown IPFilter version"
+#endif
 
 static int ipl, ipnat;
 
@@ -180,15 +208,18 @@ static int ipnat_config(const char *key, const char *value) /* {{{ */ {
     for (w = strtok(v, sep); w; w = strtok(NULL, sep)) {
       if ((m = ipnat_findreport(w, report_tab)) != 0) {
         report_mask |= m;
+#if IPNAT_SIDES
       } else if ((m = ipnat_findreport(w, report_tab_in)) != 0) {
         report_mask_in |= m;
         report_mask_out |= m;
+#endif
       } else {
         WARNING("ipnat plugin: unknown report %s", w);
       }
     }
     free(v);
     return 0;
+#if IPNAT_SIDES
   } else if (strcasecmp(key, "ReportIn") == 0) {
     for (w = strtok(v, sep); w; w = strtok(NULL, sep)) {
       if ((m = ipnat_findreport(w, report_tab_in)) != 0) {
@@ -209,6 +240,7 @@ static int ipnat_config(const char *key, const char *value) /* {{{ */ {
     }
     free(v);
     return 0;
+#endif
   } else {
     free(v);
     return 1;
@@ -223,10 +255,12 @@ static int ipnat_init(void) /* {{{ */ {
     ERROR("ipnat plugin: report_tab too large (report_mask_t too small)");
     return 1;
   }
+#if IPNAT_SIDES
   if (STATIC_ARRAY_SIZE(report_tab_in) > sizeof(report_mask_t) * CHAR_BIT) {
     ERROR("ipnat plugin: report_tab_in too large (report_mask_t too small)");
     return 1;
   }
+#endif
 
   if ((ipl = open(IPL_NAME, O_RDONLY)) == -1) {
     ERROR("ipnat plugin: open(\"%s\": %s)", IPL_NAME, STRERRNO);
@@ -296,6 +330,7 @@ static int ipnat_read(void) /* {{{ */ {
     }
   }
 
+#if IPNAT_SIDES
   for (r = report_tab_in, m = 1; r->name; r++, m <<= 1) {
     if (m == 0) {
       ERROR("ipnat plugin: internal: too many in reports");
@@ -323,6 +358,7 @@ static int ipnat_read(void) /* {{{ */ {
       plugin_dispatch_values(&vl);
     }
   }
+#endif
 
   return 0;
 } /* }}} int ipnat_read */
