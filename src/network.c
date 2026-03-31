@@ -2036,6 +2036,13 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
         LOG_ERR, &complaint, "network plugin: getaddrinfo (%s, %s) failed: %s",
         (se->node == NULL) ? "(null)" : se->node,
         (se->service == NULL) ? "(null)" : se->service, gai_strerror(status));
+    if (client->fd >= 0) {
+      /* DNS re-resolution failed but the old socket is still usable.
+       * Reschedule the next retry and fall back to the existing connection. */
+      if (client->resolve_interval > 0)
+        client->next_resolve_reconnect = now + client->resolve_interval;
+      return 0;
+    }
     return -1;
   } else {
     c_release(LOG_NOTICE, &complaint,
