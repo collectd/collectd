@@ -2343,11 +2343,15 @@ static int persistent_domains_state_notification(void) {
   } else {
     DEBUG(PLUGIN_NAME " plugin: getting state of %i persistent domains", n);
     /* Fetch each persistent domain's state and notify it */
+#if COLLECT_DEBUG
     int n_notified = n;
+#endif
     for (int i = 0; i < n; ++i) {
       status = get_domain_state_notify(domains[i]);
       if (status != 0) {
+#if COLLECT_DEBUG
         n_notified--;
+#endif
         ERROR(PLUGIN_NAME " plugin: could not notify state of domain %s",
               virDomainGetName(domains[i]));
       }
