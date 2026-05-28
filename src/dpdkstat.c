@@ -310,7 +310,7 @@ int dpdk_helper_command_handler(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd) {
 
 static void dpdk_stats_resolve_cnt_type(char *cnt_type, size_t cnt_type_len,
                                         const char *cnt_name) {
-  char *type_end;
+  const char *type_end;
   type_end = strrchr(cnt_name, '_');
 
   if ((type_end != NULL) && (strncmp(cnt_name, "rx_", strlen("rx_")) == 0)) {
