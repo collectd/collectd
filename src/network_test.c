@@ -239,8 +239,65 @@ DEF_TEST(parse_packet) {
   return 0;
 }
 
+/* Test that sockent_client_connect() falls back to the existing socket when
+ * DNS re-resolution fails (ResolveInterval path). Without the fix, this would
+ * return -1 and leave next_resolve_reconnect stuck at 0, causing all subsequent
+ * sends to fail permanently. */
+DEF_TEST(reconnect_dns_failure_with_valid_fd) {
+  sockent_t *se = sockent_create(SOCKENT_TYPE_CLIENT);
+  OK(se != NULL); /* allocation must succeed */
+
+  se->node = strdup("this.hostname.is.guaranteed.to.not.resolve.invalid");
+
+  /* Open a real UDP socket to simulate an already-connected state. */
+  int orig_fd = socket(AF_INET, SOCK_DGRAM, 0);
+  EXPECT_EQ_INT(1, orig_fd >= 0 ? 1 : 0); /* socket() must succeed */
+  se->data.client.fd = orig_fd;
+
+  /* Provide a dummy addr so the existing socket "looks" fully initialized. */
+  se->data.client.addr = calloc(1, sizeof(*se->data.client.addr));
+  se->data.client.addrlen = sizeof(struct sockaddr_in);
+
+  /* Force a scheduled reconnect: interval = 60s, next reconnect in the past. */
+  se->data.client.resolve_interval = TIME_T_TO_CDTIME_T(60);
+  se->data.client.next_resolve_reconnect = 0;
+
+  /* With the fix: DNS failure on a reconnect must NOT drop the old socket. */
+  int status = sockent_client_connect(se);
+  EXPECT_EQ_INT(0, status);                   /* must succeed (use old fd) */
+  EXPECT_EQ_INT(orig_fd, se->data.client.fd); /* fd must be unchanged */
+  OK(se->data.client.next_resolve_reconnect > 0); /* retry rescheduled */
+
+  close(orig_fd);
+  sfree(se->data.client.addr);
+  sfree(se->node);
+  sfree(se);
+  return 0;
+}
+
+/* Test that sockent_client_connect() returns -1 when DNS fails and there is
+ * no existing socket to fall back to (fd == -1). This is the startup / first-
+ * connect failure path and must remain unchanged. */
+DEF_TEST(reconnect_dns_failure_no_fd) {
+  sockent_t *se = sockent_create(SOCKENT_TYPE_CLIENT);
+  OK(se != NULL);
+
+  se->node = strdup("this.hostname.is.guaranteed.to.not.resolve.invalid");
+  /* fd stays -1 (set by sockent_create), no resolve_interval needed */
+
+  int status = sockent_client_connect(se);
+  EXPECT_EQ_INT(-1, status); /* must fail — nothing to fall back to */
+  EXPECT_EQ_INT(-1, se->data.client.fd); /* fd must stay -1 */
+
+  sfree(se->node);
+  sfree(se);
+  return 0;
+}
+
 int main() {
   RUN_TEST(parse_packet);
+  RUN_TEST(reconnect_dns_failure_with_valid_fd);
+  RUN_TEST(reconnect_dns_failure_no_fd);
 
   END_TEST;
 }
