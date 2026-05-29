@@ -32,6 +32,7 @@
 
 #include "utils/common/common.h"
 #include "utils_subst.h"
+#include <alloca.h>
 
 char *subst(char *buf, size_t buflen, const char *string, size_t off1,
             size_t off2, const char *replacement) {
@@ -102,11 +103,16 @@ char *subst_string(char *buf, size_t buflen, const char *string,
   needle_len = strlen(needle);
   sstrncpy(buf, string, buflen);
 
+  const size_t temp_len = buflen * sizeof(char);
+  char *temp = alloca(temp_len);
+  if (!temp)
+    return NULL;
   /* Limit the loop to prevent endless loops. */
   for (i = 0; i < buflen; i++) {
-    char temp[buflen];
     char *begin_ptr;
     size_t begin;
+
+    memset(temp, 0, temp_len);
 
     /* Find `needle' in `buf'. */
     begin_ptr = strstr(buf, needle);
