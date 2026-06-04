@@ -361,7 +361,7 @@ static void *c_redisCommand(redis_node_t *rn, const char *format, ...) {
 
 static int redis_get_info_value(char const *info_line, char const *field_name,
                                 int ds_type, value_t *val) {
-  char *str = strstr(info_line, field_name);
+  char const *str = strstr(info_line, field_name);
   static char buf[MAX_REDIS_VAL_SIZE];
   if (str) {
     int i;
@@ -484,7 +484,7 @@ static int redis_db_stats(const char *node, char const *info_line) /* {{{ */
     static char field_name[12];
     static char db_id[4];
     value_t val;
-    char *str;
+    char const *str;
     int i;
 
     ssnprintf(field_name, sizeof(field_name), "db%d:keys=", db);
