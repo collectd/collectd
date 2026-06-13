@@ -434,7 +434,12 @@ public:
       if (!status.ok())
         return status;
 
-      if (plugin_dispatch_values(&vl))
+      auto dispatch_status = plugin_dispatch_values(&vl);
+
+      meta_data_destroy(vl.meta);
+      free(vl.values);
+
+      if (dispatch_status)
         return grpc::Status(
             grpc::StatusCode::INTERNAL,
             grpc::string("failed to enqueue values for writing"));
