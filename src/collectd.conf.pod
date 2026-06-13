@@ -3779,6 +3779,8 @@ The B<Server> statement sets the address of a server to which to send metrics
 via the C<DispatchValues> function.
 
 The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+It may also have the special value I<unix>, in which case I<port> will be the
+filesystem path of the unix socket to connect to.
 
 Optionally, B<Server> may be specified as a configuration block which supports
 the following options:
@@ -3807,6 +3809,8 @@ statements are specified, the daemon will bind to all of them. If none are
 specified, it defaults to B<0.0.0.0:50051>.
 
 The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+It may also have the special value I<unix>, in which case I<port> will be the
+filesystem path of the unix socket to listen on.
 
 Optionally, B<Listen> may be specified as a configuration block which
 supports the following options:
