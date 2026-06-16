@@ -6953,6 +6953,7 @@ fi
 if test "x$with_kstat" = "xyes"; then
   plugin_nfs="yes"
   plugin_processes="yes"
+  plugin_protocols="yes"
   plugin_uptime="yes"
   plugin_zfs_arc="yes"
   plugin_zone="yes"
