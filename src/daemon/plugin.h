@@ -185,6 +185,8 @@ struct plugin_ctx_s {
   cdtime_t interval;
   cdtime_t flush_interval;
   cdtime_t flush_timeout;
+  bool align_read;
+  cdtime_t align_read_offset;
 };
 typedef struct plugin_ctx_s plugin_ctx_t;
 

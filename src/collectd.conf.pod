@@ -139,6 +139,17 @@ defined in this plugin. By default, this is disabled.
 
 Specifies the value of the timeout argument of the flush callback.
 
+=item B<AlignRead> B<false>|B<true>
+
+When set to B<true>, calls to read functions of the plugin are time aligned to a
+multiple of B<Interval>. This overrides the global B<AlignRead> setting. 
+
+=item B<AlignReadOffset> I<Seconds>
+
+Specifies an offset, in seconds, the call to time-aligned read functions is 
+delayed. This setting automatically enables B<AlignRead> for the plugin. By 
+default, the offset is 0.
+
 =back
 
 =item B<AutoLoadPlugin> B<false>|B<true>
@@ -320,6 +331,12 @@ to the same value.
 
 Enabling the B<CollectInternalStats> option is of great help to figure out the
 values to set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to.
+
+=item B<AlignRead> B<false>|B<true>
+
+If enabled, the call to read functions is time aligned to a multiple of the read
+interval, which allows round timestamps or the same timestamps across systems 
+to be recorded. This option is disabled by default.
 
 =item B<Hostname> I<Name>
 
