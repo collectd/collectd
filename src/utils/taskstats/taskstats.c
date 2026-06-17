@@ -25,6 +25,7 @@
 
 #include "plugin.h"
 #include "utils/common/common.h"
+#include "utils_complain.h"
 #include "utils_time.h"
 
 #include <libmnl/libmnl.h>
@@ -57,18 +58,28 @@ static int nlmsg_errno(struct nlmsghdr *nlh, size_t sz) {
 
 static int get_taskstats_attr_cb(const struct nlattr *attr, void *data) {
   struct taskstats *ret_taskstats = data;
+  size_t len;
+  static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
   uint16_t type = mnl_attr_get_type(attr);
   switch (type) {
   case TASKSTATS_TYPE_STATS:
-    if (mnl_attr_get_payload_len(attr) != sizeof(*ret_taskstats)) {
-      ERROR("utils_taskstats: mnl_attr_get_payload_len(attr) = %" PRIu32
-            ", want %zu",
-            mnl_attr_get_payload_len(attr), sizeof(*ret_taskstats));
-      return MNL_CB_ERROR;
+    len = mnl_attr_get_payload_len(attr);
+    if (len != sizeof(*ret_taskstats)) {
+
+      c_complain_once(LOG_WARNING, &complaint,
+                      "utils_taskstats: "
+                      "mnl_attr_get_payload_len(attr) = %zu, want %zu",
+                      len, sizeof(*ret_taskstats));
+
+      if (len > sizeof(*ret_taskstats)) {
+        len = sizeof(*ret_taskstats);
+      } else {
+        /* fill missing values with zeroes */
+        memset(ret_taskstats, 0, sizeof(*ret_taskstats));
+      }
     }
-    struct taskstats *ts = mnl_attr_get_payload(attr);
-    memmove(ret_taskstats, ts, sizeof(*ret_taskstats));
+    memmove(ret_taskstats, mnl_attr_get_payload(attr), len);
     return MNL_CB_OK;
 
   case TASKSTATS_TYPE_AGGR_PID: /* fall through */
