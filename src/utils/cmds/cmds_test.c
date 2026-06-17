@@ -55,6 +55,40 @@ static struct {
   cmd_status_t expected_status;
   cmd_type_t expected_type;
 } parse_data[] = {
+    /* Valid EVALSTATE commands. */
+    {
+        "EVALSTATE myhost/magic/MAGIC",
+        NULL,
+        CMD_OK,
+        CMD_EVALSTATE,
+    },
+    {
+        "EVALSTATE magic/MAGIC",
+        &default_host_opts,
+        CMD_OK,
+        CMD_EVALSTATE,
+    },
+
+    /* Invalid EVALSTATE commands. */
+    {
+        "EVALSTATE magic/MAGIC",
+        NULL,
+        CMD_PARSE_ERROR,
+        CMD_UNKNOWN,
+    },
+    {
+        "EVALSTATE",
+        NULL,
+        CMD_PARSE_ERROR,
+        CMD_UNKNOWN,
+    },
+    {
+        "EVALSTATE invalid",
+        NULL,
+        CMD_PARSE_ERROR,
+        CMD_UNKNOWN,
+    },
+
     /* Valid FLUSH commands. */
     {
         "FLUSH",
@@ -112,6 +146,40 @@ static struct {
     {
         /* Invalid option. */
         "FLUSH invalid=option",
+        NULL,
+        CMD_PARSE_ERROR,
+        CMD_UNKNOWN,
+    },
+
+    /* Valid FLUSHSTATE commands. */
+    {
+        "FLUSHSTATE myhost/magic/MAGIC",
+        NULL,
+        CMD_OK,
+        CMD_FLUSHSTATE,
+    },
+    {
+        "FLUSHSTATE magic/MAGIC",
+        &default_host_opts,
+        CMD_OK,
+        CMD_FLUSHSTATE,
+    },
+
+    /* Invalid FLUSHSTATE commands. */
+    {
+        "FLUSHSTATE magic/MAGIC",
+        NULL,
+        CMD_PARSE_ERROR,
+        CMD_UNKNOWN,
+    },
+    {
+        "FLUSHSTATE",
+        NULL,
+        CMD_PARSE_ERROR,
+        CMD_UNKNOWN,
+    },
+    {
+        "FLUSHSTATE invalid",
         NULL,
         CMD_PARSE_ERROR,
         CMD_UNKNOWN,
