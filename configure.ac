@@ -4079,6 +4079,62 @@ AC_SUBST([BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBNETSNMPAGENT_LIBS])
 # }}}
 
+# --with-libnftnl {{{
+AC_ARG_WITH([libnftnl],
+  [AS_HELP_STRING([--with-libnftnl@<:@=PREFIX@:>@], [Path to libnftnl. ])],
+  [
+    if test "x$withval" = "xyes"; then
+      with_libnftnl="yes"
+     else if test "x$withval" = "xno"; then
+       with_libnftnl="no"
+     else
+       if test -d "$withval/include"; then
+         with_libnftnl_cflags="-I$withval/include"
+         with_libnftnl_libs="-L$withval/lib -lnftnl"
+         with_libnftnl="yes"
+       else
+         AC_MSG_ERROR("no such directory: $withval/include")
+       fi
+     fi; fi
+  ],
+  [
+    if test "x$ac_system" = "xLinux"; then
+      with_libnftnl="yes"
+    else
+      with_libnftnl="no (Linux only library)"
+    fi
+  ]
+)
+
+if test "x$with_libnftnl" = "xyes"; then
+  if $PKG_CONFIG --exists libnftnl 2>/dev/null; then
+    with_libnftnl_cflags="$with_libnftnl_ldflags `$PKG_CONFIG --cflags libnftnl`"
+    with_libnftnl_libs="$with_libnftnl_libs `$PKG_CONFIG --libs libnftnl`"
+  fi
+
+  AC_CHECK_HEADERS([libnftnl/expr.h libnftnl/rule.h libnftnl/udata.h],
+    [],
+    [
+      with_libnftnl="no"
+      break
+    ])
+
+  AC_CHECK_LIB([nftnl], [nftnl_nlmsg_build_hdr],
+    [with_libnftnl="yes"],
+    [with_libnftnl="no (symbol 'nftnl_nlmsg_build_hdr' not found)"],
+    [$with_libnftnl_libs]
+  )
+fi
+
+if test "x$with_libnftnl" = "xyes"; then
+  BUILD_WITH_LIBNFTNL_CFLAGS="$with_libnftnl_cflags"
+  BUILD_WITH_LIBNFTNL_LIBS="$with_libnftnl_libs"
+fi
+AC_SUBST([BUILD_WITH_LIBNFTNL_CFLAGS])
+AC_SUBST([BUILD_WITH_LIBNFTNL_LIBS])
+AM_CONDITIONAL([HAVE_LIBNFTNL], [test "x$with_libnftnl" = "xyes"])
+# }}}
+
 # --with-liboping {{{
 AC_ARG_WITH([liboping],
   [AS_HELP_STRING([--with-liboping@<:@=PREFIX@:>@], [Path to liboping.])],
@@ -7300,6 +7356,7 @@ AC_PLUGIN([netlink],             [$with_libmnl],              [Enhanced Linux ne
 AC_PLUGIN([netstat_udp],         [$plugin_netstat_udp],       [UDP network statistics])
 AC_PLUGIN([network],             [yes],                       [Network communication plugin])
 AC_PLUGIN([nfs],                 [$plugin_nfs],               [NFS statistics])
+AC_PLUGIN([nftables],            [$with_libnftnl],            [nftables rules statistics])
 AC_PLUGIN([nginx],               [$with_libcurl],             [nginx statistics])
 AC_PLUGIN([notify_desktop],      [$with_libnotify],           [Desktop notifications])
 AC_PLUGIN([notify_email],        [$with_libesmtp],            [Email notifier])
@@ -7751,6 +7808,7 @@ AC_MSG_RESULT([    netlink . . . . . . . $enable_netlink])
 AC_MSG_RESULT([    netstat_udp . . . . . $enable_netstat_udp])
 AC_MSG_RESULT([    network . . . . . . . $enable_network])
 AC_MSG_RESULT([    nfs . . . . . . . . . $enable_nfs])
+AC_MSG_RESULT([    nftables  . . . . . . $enable_nftables])
 AC_MSG_RESULT([    nginx . . . . . . . . $enable_nginx])
 AC_MSG_RESULT([    notify_desktop  . . . $enable_notify_desktop])
 AC_MSG_RESULT([    notify_email  . . . . $enable_notify_email])

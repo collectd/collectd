@@ -316,6 +316,9 @@ Features
     - nfs
       NFS Procedures: Which NFS command were called how often.
 
+    - nftables
+      Collects nftables counters (bytes and packets).
+
     - nginx
       Collects statistics from `nginx` (speak: engine X), a HTTP and mail
       server/proxy.
@@ -937,6 +940,10 @@ Prerequisites
   * libnetsnmpagent (optional)
     Required for the `snmp_agent` plugin.
     <http://www.net-snmp.org/>
+
+  * libnftnl (optional)
+    Required for the 'nftables' plugin.
+    <https://www.netfilter.org/projects/libnftnl/index.html>
 
   * libnotify (optional)
     For the `notify_desktop` plugin.
