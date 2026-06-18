@@ -118,6 +118,7 @@ typedef unsigned int yajl_len_t;
 #endif
 
 static int cj_read(user_data_t *ud);
+static int cj_init_curl(cj_t *db);
 static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value);
 
 /* cj_submit is a function pointer to cj_submit_impl, allowing the unit-test to
@@ -393,6 +394,9 @@ static void cj_free(void *arg) /* {{{ */
     curl_easy_cleanup(db->curl);
   db->curl = NULL;
 
+  sfree(db->credentials);
+  db->curl_errbuf[0] = '\0';
+
   if (db->tree != NULL)
     cj_tree_free(db->tree);
   db->tree = NULL;
@@ -406,7 +410,6 @@ static void cj_free(void *arg) /* {{{ */
   sfree(db->url);
   sfree(db->user);
   sfree(db->pass);
-  sfree(db->credentials);
   sfree(db->cacert);
   sfree(db->post_body);
   curl_slist_free_all(db->headers);
@@ -568,27 +571,48 @@ static int cj_config_add_key(cj_t *db, /* {{{ */
   return 0;
 } /* }}} int cj_config_add_key */
 
+static int cj_recreate_curl(cj_t *db) /* {{{ */
+{
+  if (db == NULL)
+    return -1;
+
+  if (db->curl != NULL)
+    curl_easy_cleanup(db->curl);
+  db->curl = NULL;
+
+  sfree(db->credentials);
+  db->curl_errbuf[0] = '\0';
+
+  return cj_init_curl(db);
+} /* }}} int cj_recreate_curl */
+
 static int cj_init_curl(cj_t *db) /* {{{ */
 {
-  db->curl = curl_easy_init();
-  if (db->curl == NULL) {
+  CURL *curl = curl_easy_init();
+#ifndef HAVE_CURLOPT_USERNAME
+  char *credentials = NULL;
+#endif
+
+  if (curl == NULL) {
     ERROR("curl_json plugin: curl_easy_init failed.");
     return -1;
   }
 
-  curl_easy_setopt(db->curl, CURLOPT_NOSIGNAL, 1L);
-  curl_easy_setopt(db->curl, CURLOPT_WRITEFUNCTION, cj_curl_callback);
-  curl_easy_setopt(db->curl, CURLOPT_WRITEDATA, db);
-  curl_easy_setopt(db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
-  curl_easy_setopt(db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
-  curl_easy_setopt(db->curl, CURLOPT_FOLLOWLOCATION, 1L);
-  curl_easy_setopt(db->curl, CURLOPT_MAXREDIRS, 50L);
-  curl_easy_setopt(db->curl, CURLOPT_IPRESOLVE, db->address_family);
+  db->curl_errbuf[0] = '\0';
+
+  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, cj_curl_callback);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, db);
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
+  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
+  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
+  curl_easy_setopt(curl, CURLOPT_IPRESOLVE, db->address_family);
 
   if (db->user != NULL) {
 #ifdef HAVE_CURLOPT_USERNAME
-    curl_easy_setopt(db->curl, CURLOPT_USERNAME, db->user);
-    curl_easy_setopt(db->curl, CURLOPT_PASSWORD,
+    curl_easy_setopt(curl, CURLOPT_USERNAME, db->user);
+    curl_easy_setopt(curl, CURLOPT_PASSWORD,
                      (db->pass == NULL) ? "" : db->pass);
 #else
     size_t credentials_size;
@@ -597,36 +621,47 @@ static int cj_init_curl(cj_t *db) /* {{{ */
     if (db->pass != NULL)
       credentials_size += strlen(db->pass);
 
-    db->credentials = malloc(credentials_size);
-    if (db->credentials == NULL) {
+    credentials = malloc(credentials_size);
+    if (credentials == NULL) {
       ERROR("curl_json plugin: malloc failed.");
+      curl_easy_cleanup(curl);
       return -1;
     }
 
-    snprintf(db->credentials, credentials_size, "%s:%s", db->user,
+    snprintf(credentials, credentials_size, "%s:%s", db->user,
              (db->pass == NULL) ? "" : db->pass);
-    curl_easy_setopt(db->curl, CURLOPT_USERPWD, db->credentials);
+    curl_easy_setopt(curl, CURLOPT_USERPWD, credentials);
 #endif
 
     if (db->digest)
-      curl_easy_setopt(db->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
+      curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
   }
 
-  curl_easy_setopt(db->curl, CURLOPT_SSL_VERIFYPEER, (long)db->verify_peer);
-  curl_easy_setopt(db->curl, CURLOPT_SSL_VERIFYHOST, db->verify_host ? 2L : 0L);
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, (long)db->verify_peer);
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, db->verify_host ? 2L : 0L);
   if (db->cacert != NULL)
-    curl_easy_setopt(db->curl, CURLOPT_CAINFO, db->cacert);
+    curl_easy_setopt(curl, CURLOPT_CAINFO, db->cacert);
   if (db->headers != NULL)
-    curl_easy_setopt(db->curl, CURLOPT_HTTPHEADER, db->headers);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, db->headers);
   if (db->post_body != NULL)
-    curl_easy_setopt(db->curl, CURLOPT_POSTFIELDS, db->post_body);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, db->post_body);
 
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
   if (db->timeout >= 0)
-    curl_easy_setopt(db->curl, CURLOPT_TIMEOUT_MS, (long)db->timeout);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, (long)db->timeout);
   else
-    curl_easy_setopt(db->curl, CURLOPT_TIMEOUT_MS,
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,
                      (long)CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
+
+  db->curl = curl;
+
+#ifdef HAVE_CURLOPT_USERNAME
+  sfree(db->credentials);
+  db->credentials = NULL;
+#else
+  sfree(db->credentials);
+  db->credentials = credentials;
 #endif
 
   return 0;
@@ -883,12 +918,24 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
   long rc;
   char *url;
 
+  if (db->curl == NULL) {
+    status = cj_init_curl(db);
+    if (status != 0)
+      return -1;
+  }
+
+  db->curl_errbuf[0] = '\0';
   curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
 
   status = curl_easy_perform(db->curl);
   if (status != CURLE_OK) {
     ERROR("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
           status, db->curl_errbuf, db->url);
+
+    if ((status == CURLE_COULDNT_RESOLVE_HOST) ||
+        (status == CURLE_COULDNT_RESOLVE_PROXY))
+      cj_recreate_curl(db);
+
     return -1;
   }
   if (db->stats != NULL)
