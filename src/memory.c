@@ -97,6 +97,7 @@ static int pagesize;
 /* endif HAVE_LIBSTATGRAB */
 #elif HAVE_PERFSTAT
 static int pagesize;
+static _Bool report_inuse = 0;
 /* endif HAVE_PERFSTAT */
 #else
 #error "No applicable input method."
@@ -117,6 +118,10 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &values_absolute);
     else if (strcasecmp("ValuesPercentage", child->key) == 0)
       cf_util_get_boolean(child, &values_percentage);
+#if HAVE_PERFSTAT
+    else if (strcasecmp("ReportInUse", child->key) == 0)
+      cf_util_get_boolean(child, &report_inuse);
+#endif
     else
       ERROR("memory plugin: Invalid configuration option: "
             "\"%s\".",
@@ -538,19 +543,30 @@ static int memory_read_internal(value_list_t *vl) {
   }
 
   /* Unfortunately, the AIX documentation is not very clear on how these
-   * numbers relate to one another. The only thing is states explcitly
+   * numbers relate to one another. The only thing it states explicitly
    * is:
    *   real_total = real_process + real_free + numperm + real_system
    *
-   * Another segmentation, which would be closer to the numbers reported
-   * by the "svmon" utility, would be:
-   *   real_total = real_free + real_inuse
-   *   real_inuse = "active" + real_pinned + numperm
+   * According to the svmon utility's description, real_inuse is 'the
+   * number of pages in RAM that are in use by a process, plus the number of
+   * persistent pages that belonged to a terminated process that are still
+   * resident in RAM. This value is the total size of memory, minus the free
+   * list'.
+   *
+   * We control which set of metrics we're reporting using the 'report_inuse'
+   * flag (AIX only configuration option). The more detailed summary is the
+   * default, but the 'real_inuse' can be reported instead of 'numperm',
+   * 'real_system', 'real_process' if the summary is desired.
    */
-  MEMORY_SUBMIT("free", (gauge_t)(pmemory.real_free * pagesize), "cached",
-                (gauge_t)(pmemory.numperm * pagesize), "system",
-                (gauge_t)(pmemory.real_system * pagesize), "user",
-                (gauge_t)(pmemory.real_process * pagesize));
+  if (report_inuse)
+    MEMORY_SUBMIT("free", (gauge_t)(pmemory.real_free  * pagesize),
+                  "used", (gauge_t)(pmemory.real_inuse * pagesize));
+  else
+    MEMORY_SUBMIT("free",   (gauge_t)(pmemory.real_free    * pagesize),
+                  "cached", (gauge_t)(pmemory.numperm      * pagesize),
+                  "system", (gauge_t)(pmemory.real_system  * pagesize),
+                  "user",   (gauge_t)(pmemory.real_process * pagesize));
+
 #endif /* HAVE_PERFSTAT */
 
   return 0;
