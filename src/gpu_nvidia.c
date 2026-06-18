@@ -193,10 +193,20 @@ static int nvml_read(void) {
     if (nv_status == NVML_SUCCESS)
       nvml_submit_gauge(ix, dev_name, "fanspeed", NULL, fan_speed);
 
+#if NVML_API_VERSION >= 13
+    nvmlTemperature_t core_temp;
+    memset(&core_temp, 0, sizeof(core_temp));
+    core_temp.version = nvmlTemperature_v1;
+    core_temp.sensorType = NVML_TEMPERATURE_GPU;
+    TRYOPT(nvmlDeviceGetTemperatureV(dev, &core_temp))
+    if (nv_status == NVML_SUCCESS)
+      nvml_submit_gauge(ix, dev_name, "temperature", "core", core_temp.temperature);
+#else
     unsigned int core_temp;
     TRYOPT(nvmlDeviceGetTemperature(dev, NVML_TEMPERATURE_GPU, &core_temp))
     if (nv_status == NVML_SUCCESS)
       nvml_submit_gauge(ix, dev_name, "temperature", "core", core_temp);
+#endif
 
     unsigned int sm_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_SM, &sm_clk_mhz))
