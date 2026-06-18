@@ -1400,7 +1400,11 @@ static void rdt_init_cores_monitoring() {
   for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
     core_group_t *cg = g_rdt->cores.cgroups + i;
 
-#if PQOS_VERSION >= 40600
+#if PQOS_VERSION >= 60001
+    int mon_start_result =
+	pqos_mon_start_cores(cg->num_cores, cg->cores, g_rdt->events[i],
+			     (void *)cg->desc, NULL, &g_rdt->pcgroups[i]);
+#elif PQOS_VERSION >= 40600
     int mon_start_result =
         pqos_mon_start_cores(cg->num_cores, cg->cores, g_rdt->events[i],
                              (void *)cg->desc, &g_rdt->pcgroups[i]);
