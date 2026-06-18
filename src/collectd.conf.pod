@@ -4161,6 +4161,22 @@ This option is only available on Solaris.
 
 =back
 
+=head2 Plugin C<ipfilter>
+
+The B<ipfilter plugin> monitors IPFilter statistics (a la ipfstat -s).
+Mainly, IPFilter 5.x is supported with some limited compatibility for 4.x.
+
+The configuration consists of one or more B<Report> blocks specifying
+which statistics to collect.
+Most names correspond to the field names in C<struct ips_stat> with the
+C<iss_> prefix omitted.
+The names C<tcp>, C<udp> and C<icmp> refer to the corresponding members of the
+C<iss_proto> array.
+
+In detail, the supported names (for IPFilter 5.4) are C<active>, C<add_bad>, C<add_dup>, C<add_locked>, C<add_oow>, C<bucket_full>, C<check_bad>, C<check_miss>, C<check_nattag>, C<check_notag>, C<clone_nomem>, C<cloned>, C<expire>, C<fin>, C<flush_all>, C<flush_closing>, C<flush_queue>, C<flush_state>, C<flush_timeout>, C<hits>, C<icmp6_icmperr>, C<icmp6_miss>, C<icmp6_notinfo>, C<icmp6_notquery>, C<icmp_bad>, C<icmp_banned>, C<icmp_headblock>, C<icmp_hits>, C<icmp_icmperr>, C<icmp_miss>, C<icmp_notquery>, C<icmp_short>, C<icmp_toomany>, C<inuse>, C<log_fail>, C<log_ok>, C<lookup_badifp>, C<lookup_badport>, C<lookup_miss>, C<max>, C<max_ref>, C<max_track>, C<miss_mask>, C<nomem>, C<oow>, C<orphan>, C<tcp>, C<udp>, C<icmp>, C<scan_block>, C<state_max>, C<state_size>, C<tcp_closing>, C<tcp_oow>, C<tcp_rstadd>, C<tcp_toosmall>, C<tcp_badopt>, C<tcp_fsm>, C<tcp_strict>, C<ticks> and C<wild>.
+
+This plugin has only been tested on NetBSD.
+
 =head2 Plugin C<ipmi>
 
 The B<ipmi plugin> allows to monitor server platform status using the Intelligent
@@ -4262,6 +4278,42 @@ subscribed for SEL events will receive an empty event.
 Defaults to B<false>.
 
 =back
+
+=head2 Plugin C<ipnat>
+
+The B<ipnat plugin> monitors IPNAT statistics (a la ipnat -s).
+Mainly, IPFilter 5.x is supported with some limited compatibility for 4.x.
+
+For IPFilter 5.x, the configuration consists of one or more B<Report>, B<ReportIn> 
+and B<ReportOut> blocks specifying which statistics to collect.
+B<Report> enables side-agnostic statistics or side-specific ones for both sides.
+B<ReportIn>/B<ReportOut> enables side-specific statistics for one side only.
+
+The names correspond to the field names in C<struct natstat> (side-agnostic) resp.
+C<struct nat_stat_side> (side-specific) with the C<ns_> prefix omitted.
+
+In detail, the supported side-agnostic names are active, divert_build, expire,
+flush_all, flush_closing, flush_queue, flush_state, flush_timeout, hm_new,
+hm_newfail, hm_addref, hm_nullnp, log_ok, log_fail, hostmap_sz, nattab_sz,
+nattab_max, orphans, rules, rules_map, rules_rdr, rultab_sz, rdrtab_sz
+and wilds.
+
+The side-specific names are added, appr_fail, badnat, badnatnew, badnextaddr,
+bucket_max, clone_nomem, decap_bad, decap_fail, decap_pullup, divert_dup,
+divert_exist, drop, encap_dup, encap_pullup, exhausted, icmp_address,
+icmp_basic, icmp_mbuf, icmp_notfound, icmp_rebuild, icmp_short, icmp_size,
+ifpaddrfail, ignored, insert_fail, inuse, log, lookup_miss, lookup_nowild,
+new_ifpaddr, memfail, table_max, translated, unfinalised, wrap, xlate_null,
+xlate_exists and ipf_proxy_fail.
+
+For IPFilter 4.x (which doesn't have side-specific statistics), the configuration 
+only consists of one or more B<Report> blocks.
+The names correspond to the field names in C<struct natstat> with the C<ns_> prefix omitted.
+
+In detail, the supported names for IPFilter 4.x are added, badnat, expire, hostmap_sz, inuse, 
+logfail, logged, memfail, nattab_max, nattab_sz, orphans, rdrtab_sz, rules, rultab_sz and wilds.
+
+This plugin has only been tested on NetBSD and IPFilter 5.x.
 
 =head2 Plugin C<ipstats>
 

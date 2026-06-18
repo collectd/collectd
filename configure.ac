@@ -255,6 +255,18 @@ AC_CHECK_HEADERS([netinet/ip.h], [], [],
   ]]
 )
 
+AC_CHECK_HEADERS([netinet/ip_fil.h],
+  [have_ipfil_h="yes"],
+  [have_ipfil_h="no (netinet/ip_fil.h not found"],
+  [[
+    #include <unistd.h>
+    #include <sys/time.h>
+    #if HAVE_NETINET_IN_H
+    # include <netinet/in.h>
+    #endif
+  ]]
+)
+
 AC_CHECK_HEADERS([netinet/ip_icmp.h], [], [],
   [[
     #include <stdint.h>
@@ -269,6 +281,21 @@ AC_CHECK_HEADERS([netinet/ip_icmp.h], [], [],
     #endif
     #if HAVE_NETINET_IP_H
     # include <netinet/ip.h>
+    #endif
+  ]]
+)
+
+AC_CHECK_HEADERS([netinet/ip_nat.h],
+  [have_ipnat_h="yes"],
+  [have_ipnat_h="no (netinet/ip_nat.h not found"],
+  [[
+    #include <unistd.h>
+    #include <sys/time.h>
+    #if HAVE_NETINET_IN_H
+    # include <netinet/in.h>
+    #endif
+    #if HAVE_NETINET_IP_FIL_H
+    # include <netinet/ip_fil.h>
     #endif
   ]]
 )
@@ -6780,7 +6807,9 @@ plugin_intel_pmu="no"
 plugin_intel_rdt="no"
 plugin_interface="no"
 plugin_ipc="no"
+plugin_ipfilter="no"
 plugin_ipmi="no"
+plugin_ipnat="no"
 plugin_ipstats="no"
 plugin_ipvs="no"
 plugin_irq="no"
@@ -7083,6 +7112,14 @@ if test "x$have_getifaddrs" = "xyes"; then
   plugin_interface="yes"
 fi
 
+if test "x$have_ipfil_h" = "xyes"; then
+  plugin_ipfilter="yes"
+fi
+
+if test "x$have_ipnat_h" = "xyes"; then
+  plugin_ipnat="yes"
+fi
+
 if test "x$have_getloadavg" = "xyes"; then
   plugin_load="yes"
 fi
@@ -7264,7 +7301,9 @@ AC_PLUGIN([intel_pmu],           [$with_libjevents],          [Intel performance
 AC_PLUGIN([intel_rdt],           [$with_libpqos],             [Intel RDT monitor plugin])
 AC_PLUGIN([interface],           [$plugin_interface],         [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],               [IPC statistics])
+AC_PLUGIN([ipfilter],            [$plugin_ipfilter],          [IPFilter statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],              [IPMI sensor statistics])
+AC_PLUGIN([ipnat],               [$plugin_ipnat],             [IPNAT statistics])
 AC_PLUGIN([iptables],            [$with_libiptc],             [IPTables rule counters])
 AC_PLUGIN([ipstats],             [$plugin_ipstats],           [IP packet statistics])
 AC_PLUGIN([ipvs],                [$plugin_ipvs],              [IPVS connection statistics])
@@ -7715,7 +7754,9 @@ AC_MSG_RESULT([    intel_pmu . . . . . . $enable_intel_pmu])
 AC_MSG_RESULT([    intel_rdt . . . . . . $enable_intel_rdt])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])
 AC_MSG_RESULT([    ipc . . . . . . . . . $enable_ipc])
+AC_MSG_RESULT([    ipfilter  . . . . . . $enable_ipfilter])
 AC_MSG_RESULT([    ipmi  . . . . . . . . $enable_ipmi])
+AC_MSG_RESULT([    ipnat . . . . . . . . $enable_ipnat])
 AC_MSG_RESULT([    iptables  . . . . . . $enable_iptables])
 AC_MSG_RESULT([    ipstats . . . . . . . $enable_ipstats])
 AC_MSG_RESULT([    ipvs  . . . . . . . . $enable_ipvs])

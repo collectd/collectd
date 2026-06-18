@@ -1236,6 +1236,12 @@ interface_la_LIBADD += -lperfstat
 endif
 endif # BUILD_PLUGIN_INTERFACE
 
+if BUILD_PLUGIN_IPFILTER
+pkglib_LTLIBRARIES += ipfilter.la
+ipfilter_la_SOURCES = src/ipfilter.c
+ipfilter_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_IPC
 pkglib_LTLIBRARIES += ipc.la
 ipc_la_SOURCES = src/ipc.c
@@ -1256,6 +1262,12 @@ ipmi_la_SOURCES = src/ipmi.c
 ipmi_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_OPENIPMI_CFLAGS)
 ipmi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ipmi_la_LIBADD = libignorelist.la $(BUILD_WITH_OPENIPMI_LIBS)
+endif
+
+if BUILD_PLUGIN_IPNAT
+pkglib_LTLIBRARIES += ipnat.la
+ipnat_la_SOURCES = src/ipnat.c
+ipnat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_IPSTATS
