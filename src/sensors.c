@@ -241,6 +241,8 @@ static int sensors_load_conf(void) {
     while ((feature = sensors_get_features(chip, &feature_num)) != NULL) {
       const sensors_subfeature *subfeature;
       int subfeature_num = 0;
+      bool have_power_input = false;
+      featurelist_t *fl_power = NULL;
 
       /* Only handle voltage, fanspeeds and temperatures */
       if ((feature->type != SENSORS_FEATURE_IN) &&
@@ -265,6 +267,17 @@ static int sensors_load_conf(void) {
                   chip, feature, &subfeature_num)) != NULL) {
         featurelist_t *fl;
 
+        if ((subfeature->type == SENSORS_SUBFEATURE_POWER_AVERAGE) &&
+            (fl_power == NULL)) {
+          fl_power = calloc(1, sizeof(*fl_power));
+          if (fl_power != NULL) {
+            fl_power->chip = chip;
+            fl_power->feature = feature;
+            fl_power->subfeature = subfeature;
+          }
+          continue;
+        }
+
         if ((subfeature->type != SENSORS_SUBFEATURE_IN_INPUT) &&
             (subfeature->type != SENSORS_SUBFEATURE_FAN_INPUT) &&
             (subfeature->type != SENSORS_SUBFEATURE_TEMP_INPUT) &&
@@ -276,6 +289,9 @@ static int sensors_load_conf(void) {
 #endif
             (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
           continue;
+
+        if (subfeature->type == SENSORS_SUBFEATURE_POWER_INPUT)
+          have_power_input = true;
 
         fl = calloc(1, sizeof(*fl));
         if (fl == NULL) {
@@ -293,8 +309,20 @@ static int sensors_load_conf(void) {
           last_feature->next = fl;
         last_feature = fl;
       } /* while (subfeature) */
-    }   /* while (feature) */
-  }     /* while (chip) */
+
+      if (fl_power != NULL) {
+        if (!have_power_input) {
+          if (first_feature == NULL)
+            first_feature = fl_power;
+          else
+            last_feature->next = fl_power;
+          last_feature = fl_power;
+        } else { /* have_power_input */
+          free(fl_power);
+        }
+      }
+    } /* while (feature) */
+  }   /* while (chip) */
 #endif /* (SENSORS_API_VERSION >= 0x400) */
 
   if (first_feature == NULL) {
