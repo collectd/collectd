@@ -1236,6 +1236,12 @@ interface_la_LIBADD += -lperfstat
 endif
 endif # BUILD_PLUGIN_INTERFACE
 
+if BUILD_PLUGIN_IPFILTER
+pkglib_LTLIBRARIES += ipfilter.la
+ipfilter_la_SOURCES = src/ipfilter.c
+ipfilter_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_IPC
 pkglib_LTLIBRARIES += ipc.la
 ipc_la_SOURCES = src/ipc.c
