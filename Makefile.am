@@ -284,7 +284,7 @@ collectd_SOURCES += src/daemon/cmd.c
 endif
 
 if BUILD_FEATURE_DAEMON
-collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
+collectd_CPPFLAGS += -DPIDFILE='"${runstatedir}/${PACKAGE_NAME}.pid"'
 endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
@@ -2493,7 +2493,7 @@ endif
 endif
 
 install-exec-hook:
-	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/run
+	$(mkinstalldirs) $(DESTDIR)$(runstatedir)
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/lib/$(PACKAGE_NAME)
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/log
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
