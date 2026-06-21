@@ -57,13 +57,8 @@ struct aggregation_s /* {{{ */
 }; /* }}} */
 typedef struct aggregation_s aggregation_t;
 
-struct agg_instance_s;
-typedef struct agg_instance_s agg_instance_t;
-struct agg_instance_s /* {{{ */
+struct agg_ds_s /* {{{ */
 {
-  pthread_mutex_t lock;
-  lookup_identifier_t ident;
-
   int ds_type;
 
   derive_t num;
@@ -72,6 +67,15 @@ struct agg_instance_s /* {{{ */
 
   gauge_t min;
   gauge_t max;
+}; /* }}} */
+typedef struct agg_ds_s agg_ds_t;
+
+struct agg_instance_s;
+typedef struct agg_instance_s agg_instance_t;
+struct agg_instance_s /* {{{ */
+{
+  pthread_mutex_t lock;
+  lookup_identifier_t ident;
 
   rate_to_value_state_t *state_num;
   rate_to_value_state_t *state_sum;
@@ -81,6 +85,9 @@ struct agg_instance_s /* {{{ */
   rate_to_value_state_t *state_stddev;
 
   agg_instance_t *next;
+
+  size_t ds_num;
+  agg_ds_t ds[0];
 }; /* }}} */
 
 static lookup_t *lookup;
@@ -135,9 +142,13 @@ static void agg_instance_destroy(agg_instance_t *inst) /* {{{ */
   sfree(inst->state_stddev);
 
   memset(inst, 0, sizeof(*inst));
-  inst->ds_type = -1;
-  inst->min = NAN;
-  inst->max = NAN;
+  for (int i = 0; i < inst->ds_num; i++) {
+    memset(&inst->ds[i], 0, sizeof(inst->ds[i]));
+    inst->ds[i].ds_type = -1;
+    inst->ds[i].min = NAN;
+    inst->ds[i].max = NAN;
+  }
+
 } /* }}} void agg_instance_destroy */
 
 static int agg_instance_create_name(agg_instance_t *inst, /* {{{ */
@@ -233,25 +244,33 @@ static agg_instance_t *agg_instance_create(data_set_t const *ds, /* {{{ */
                                            aggregation_t *agg) {
   DEBUG("aggregation plugin: Creating new instance.");
 
-  agg_instance_t *inst = calloc(1, sizeof(*inst));
+  if (ds->ds_num < 1) {
+    ERROR("aggregation plugin: invalid number of data sources.");
+    return NULL;
+  }
+
+  agg_instance_t *inst =
+      calloc(1, sizeof(*inst) + ds->ds_num * sizeof(inst->ds[0]));
   if (inst == NULL) {
     ERROR("aggregation plugin: calloc() failed.");
     return NULL;
   }
   pthread_mutex_init(&inst->lock, /* attr = */ NULL);
 
-  inst->ds_type = ds->ds[0].type;
-
   agg_instance_create_name(inst, vl, agg);
 
-  inst->min = NAN;
-  inst->max = NAN;
+  inst->ds_num = ds->ds_num;
+  for (int i = 0; i < ds->ds_num; i++) {
+    inst->ds[i].ds_type = ds->ds[i].type;
+    inst->ds[i].min = NAN;
+    inst->ds[i].max = NAN;
+  }
 
 #define INIT_STATE(field)                                                      \
   do {                                                                         \
     inst->state_##field = NULL;                                                \
     if (agg->calc_##field) {                                                   \
-      inst->state_##field = calloc(1, sizeof(*inst->state_##field));           \
+      inst->state_##field = calloc(ds->ds_num, sizeof(*inst->state_##field));  \
       if (inst->state_##field == NULL) {                                       \
         agg_instance_destroy(inst);                                            \
         free(inst);                                                            \
@@ -284,11 +303,12 @@ static agg_instance_t *agg_instance_create(data_set_t const *ds, /* {{{ */
  * and non-zero otherwise. */
 static int agg_instance_update(agg_instance_t *inst, /* {{{ */
                                data_set_t const *ds, value_list_t const *vl) {
-  if (ds->ds_num != 1) {
-    ERROR("aggregation plugin: The \"%s\" type (data set) has more than one "
-          "data source. This is currently not supported by this plugin. "
-          "Sorry.",
-          ds->type);
+
+  if (ds->ds_num != inst->ds_num) {
+    ERROR(
+        "aggregation plugin: The \"%s\" type (data set) has invalid number of "
+        "data sources. Expecting %zd found %zd.",
+        ds->type, inst->ds_num, ds->ds_num);
     return EINVAL;
   }
 
@@ -301,21 +321,21 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
     return ENOENT;
   }
 
-  if (isnan(rate[0])) {
-    sfree(rate);
-    return 0;
-  }
-
   pthread_mutex_lock(&inst->lock);
 
-  inst->num++;
-  inst->sum += rate[0];
-  inst->squares_sum += (rate[0] * rate[0]);
+  for (int i = 0; i < inst->ds_num; i++) {
+    if (isnan(rate[i]))
+      continue;
 
-  if (isnan(inst->min) || (inst->min > rate[0]))
-    inst->min = rate[0];
-  if (isnan(inst->max) || (inst->max < rate[0]))
-    inst->max = rate[0];
+    inst->ds[i].num++;
+    inst->ds[i].sum += rate[i];
+    inst->ds[i].squares_sum += (rate[i] * rate[i]);
+
+    if (isnan(inst->ds[i].min) || (inst->ds[i].min > rate[i]))
+      inst->ds[i].min = rate[i];
+    if (isnan(inst->ds[i].max) || (inst->ds[i].max < rate[i]))
+      inst->ds[i].max = rate[i];
+  }
 
   pthread_mutex_unlock(&inst->lock);
 
@@ -323,20 +343,30 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
   return 0;
 } /* }}} int agg_instance_update */
 
-static int agg_instance_read_func(agg_instance_t *inst, /* {{{ */
-                                  char const *func, gauge_t rate,
-                                  rate_to_value_state_t *state,
-                                  value_list_t *vl, char const *pi_prefix,
-                                  cdtime_t t) {
+static int agg_instance_read_func(value_list_t *vl, /* {{{ */
+                                  char const *func, char const *pi_prefix,
+                                  value_t *values, int values_len) {
   if (pi_prefix[0] != 0)
     subst_string(vl->plugin_instance, sizeof(vl->plugin_instance), pi_prefix,
                  AGG_FUNC_PLACEHOLDER, func);
   else
     sstrncpy(vl->plugin_instance, func, sizeof(vl->plugin_instance));
 
-  value_t v;
+  vl->values = values;
+  vl->values_len = values_len;
 
-  int status = rate_to_value(&v, rate, state, inst->ds_type, t);
+  plugin_dispatch_values(vl);
+
+  vl->values = NULL;
+  vl->values_len = 0;
+
+  return 0;
+} /* }}} int agg_instance_read_func */
+
+static int agg_instance_read_calc(value_t *value, gauge_t rate, /* {{{ */
+                                  rate_to_value_state_t *state, int ds_type,
+                                  cdtime_t t) {
+  int status = rate_to_value(value, rate, state, ds_type, t);
   if (status != 0) {
     /* If this is the first iteration and rate_to_value() was asked to return a
      * COUNTER or a DERIVE, it will return EAGAIN. Catch this and handle
@@ -348,16 +378,8 @@ static int agg_instance_read_func(agg_instance_t *inst, /* {{{ */
     return -1;
   }
 
-  vl->values = &v;
-  vl->values_len = 1;
-
-  plugin_dispatch_values(vl);
-
-  vl->values = NULL;
-  vl->values_len = 0;
-
   return 0;
-} /* }}} int agg_instance_read_func */
+} /* }}} int agg_instance_read_calc */
 
 static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
 {
@@ -377,6 +399,12 @@ static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
   }
   meta_data_add_boolean(vl.meta, "aggregation:created", 1);
 
+  value_t *values = calloc(inst->ds_num, sizeof(*values));
+  if (values == NULL) {
+    ERROR("aggregation plugin: malloc() failed.");
+    return -1;
+  }
+
   sstrncpy(vl.host, inst->ident.host, sizeof(vl.host));
   sstrncpy(vl.plugin, inst->ident.plugin, sizeof(vl.plugin));
   sstrncpy(vl.type, inst->ident.type, sizeof(vl.type));
@@ -386,38 +414,55 @@ static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
 #define READ_FUNC(func, rate)                                                  \
   do {                                                                         \
     if (inst->state_##func != NULL) {                                          \
-      agg_instance_read_func(inst, #func, rate, inst->state_##func, &vl,       \
-                             inst->ident.plugin_instance, t);                  \
+      int errors = 0;                                                          \
+      for (int i = 0; i < inst->ds_num; i++)                                   \
+        if (agg_instance_read_calc(&values[i], rate, &inst->state_##func[i],   \
+                                   inst->ds[i].ds_type, t) != 0) {             \
+          errors++;                                                            \
+          break;                                                               \
+        }                                                                      \
+      if (!errors)                                                             \
+        agg_instance_read_func(&vl, #func, inst->ident.plugin_instance,        \
+                               values, inst->ds_num);                          \
     }                                                                          \
   } while (0)
 
   pthread_mutex_lock(&inst->lock);
 
-  READ_FUNC(num, (gauge_t)inst->num);
+  READ_FUNC(num, (gauge_t)inst->ds[i].num);
+
+  derive_t total = 0;
+  for (int i = 0; i < inst->ds_num; i++)
+    total += inst->ds[i].num;
 
   /* All other aggregations are only defined when there have been any values
    * at all. */
-  if (inst->num > 0) {
-    READ_FUNC(sum, inst->sum);
-    READ_FUNC(average, (inst->sum / ((gauge_t)inst->num)));
-    READ_FUNC(min, inst->min);
-    READ_FUNC(max, inst->max);
-    READ_FUNC(stddev, sqrt((((gauge_t)inst->num) * inst->squares_sum) -
-                           (inst->sum * inst->sum)) /
-                          ((gauge_t)inst->num));
+  if (total > 0) {
+    READ_FUNC(sum, inst->ds[i].sum);
+    READ_FUNC(average, (inst->ds[i].sum / ((gauge_t)inst->ds[i].num)));
+    READ_FUNC(min, inst->ds[i].min);
+    READ_FUNC(max, inst->ds[i].max);
+    READ_FUNC(stddev,
+              sqrt((((gauge_t)inst->ds[i].num) * inst->ds[i].squares_sum) -
+                   (inst->ds[i].sum * inst->ds[i].sum)) /
+                  ((gauge_t)inst->ds[i].num));
   }
 
-  /* Reset internal state. */
-  inst->num = 0;
-  inst->sum = 0.0;
-  inst->squares_sum = 0.0;
-  inst->min = NAN;
-  inst->max = NAN;
+  for (int i = 0; i < inst->ds_num; i++) {
+    /* Reset internal state. */
+    inst->ds[i].num = 0;
+    inst->ds[i].sum = 0.0;
+    inst->ds[i].squares_sum = 0.0;
+    inst->ds[i].min = NAN;
+    inst->ds[i].max = NAN;
+  }
 
   pthread_mutex_unlock(&inst->lock);
 
   meta_data_destroy(vl.meta);
   vl.meta = NULL;
+
+  sfree(values);
 
   return 0;
 } /* }}} int agg_instance_read */
