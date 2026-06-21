@@ -56,7 +56,7 @@ load_graph_definitions ();
 
 for (qw(action host plugin plugin_instance type type_instance timespan))
 {
-	$Args->{$_} = param ($_);
+	$Args->{$_} = scalar param ($_);
 }
 
 exit (main ());
@@ -192,7 +192,7 @@ sub _get_param_host
 {
   my %all_hosts = map { $_ => 1 } (_find_hosts ());
   my @selected_hosts = ();
-  for (param ('host'))
+  for (multi_param ('host'))
   {
     if (defined ($all_hosts{$_}))
     {
@@ -204,7 +204,7 @@ sub _get_param_host
 
 sub _get_param_timespan
 {
-  my $timespan = param ('timespan');
+  my $timespan = scalar param ('timespan');
 
   $timespan ||= 'day';
   $timespan = lc ($timespan);
@@ -593,7 +593,7 @@ sub action_show_plugin
     _files_union ($all_plugins, $plugins_per_host->{$hosts[$i]});
   }
 
-  for (param ('plugin'))
+  for (multi_param ('plugin'))
   {
     if (defined ($all_plugins->{$_}))
     {
@@ -843,7 +843,7 @@ HTML
   if (keys %selected_hosts)
   {
     my $all_plugins = _find_files_for_hosts (keys %selected_hosts);
-    my %selected_plugins = map { $_ => 1 } (param ('plugin'));
+    my %selected_plugins = map { $_ => 1 } (multi_param ('plugin'));
 
     print qq(\t<select name="plugin" multiple="multiple" size="10">\n);
     for (sort (keys %$all_plugins))
