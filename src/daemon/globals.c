@@ -52,3 +52,37 @@ void hostname_set(char const *hostname) {
   sfree(hostname_g);
   hostname_g = h;
 }
+
+/* sanitize_version copies v into buf and drops the third period and everything
+ * following it, so that "5.11.0.32.g86275a6+" becomes "5.11.0". */
+static void sanitize_version(char *buf, size_t buf_size, char const *v) {
+  sstrncpy(buf, v, buf_size);
+
+  // find the third period.
+  char *ptr = buf;
+  for (int i = 0; i < 3; i++) {
+    if (i != 0) {
+      // point to the character *following* the period.
+      ptr++;
+    }
+    char *chr = strchr(ptr, '.');
+    if (chr == NULL) {
+      return;
+    }
+    ptr = chr;
+  }
+
+  // If we get here, there are at least three period in the version
+  // string. Such a version string may look like this:
+  // "5.11.0.32.g86275a6+". `ptr` is pointing here:
+  //        ^-- ptr
+  *ptr = 0;
+}
+
+static char clean_version[32] = "";
+char const *collectd_version(void) {
+  if (strlen(clean_version) == 0) {
+    sanitize_version(clean_version, sizeof(clean_version), PACKAGE_VERSION);
+  }
+  return clean_version;
+}
