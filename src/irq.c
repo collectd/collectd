@@ -42,10 +42,16 @@
 /*
  * (Module-)Global variables
  */
-static const char *config_keys[] = {"Irq", "IgnoreSelected"};
+static const char *config_keys[] = {"Irq", "IgnoreSelected", "ReportCPU"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist;
+
+#if KERNEL_LINUX
+static bool report_cpu;
+#endif
+
+static int const cpu_sum = -1;
 
 /*
  * Private functions
@@ -61,6 +67,13 @@ static int irq_config(const char *key, const char *value) {
     if (IS_TRUE(value))
       invert = 0;
     ignorelist_set_invert(ignorelist, invert);
+  } else if (strcasecmp(key, "ReportCPU") == 0) {
+#if KERNEL_LINUX
+    report_cpu = IS_TRUE(value);
+#else
+    WARNING("irq plugin: The \"ReportCPU\" option is only supported "
+            "on Linux and will be ignored.");
+#endif
   } else {
     return -1;
   }
@@ -68,7 +81,7 @@ static int irq_config(const char *key, const char *value) {
   return 0;
 }
 
-static void irq_submit(const char *irq_name, derive_t value) {
+static void irq_submit(const char *irq_name, derive_t value, int cpu_num) {
   value_list_t vl = VALUE_LIST_INIT;
 
   if (ignorelist_match(ignorelist, irq_name) != 0)
@@ -79,6 +92,9 @@ static void irq_submit(const char *irq_name, derive_t value) {
   sstrncpy(vl.plugin, "irq", sizeof(vl.plugin));
   sstrncpy(vl.type, "irq", sizeof(vl.type));
   sstrncpy(vl.type_instance, irq_name, sizeof(vl.type_instance));
+
+  if (cpu_num != cpu_sum)
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", cpu_num);
 
   plugin_dispatch_values(&vl);
 } /* void irq_submit */
@@ -160,6 +176,9 @@ static int irq_read(void) {
       if (status != 0)
         break;
 
+      if (report_cpu)
+        irq_submit(irq_name, v.derive, i - 1);
+
       irq_value += v.derive;
     } /* for (i) */
 
@@ -167,7 +186,8 @@ static int irq_read(void) {
     if (i <= 1)
       continue;
 
-    irq_submit(irq_name, irq_value);
+    if (!report_cpu)
+      irq_submit(irq_name, irq_value, cpu_sum);
   }
 
   fclose(fh);
@@ -214,7 +234,7 @@ static int irq_read(void) {
     snprintf(irqname, 80, "%s-%s", evs->ev_strings,
              evs->ev_strings + evs->ev_grouplen + 1);
 
-    irq_submit(irqname, evs->ev_count);
+    irq_submit(irqname, evs->ev_count, cpu_sum);
 
     buflen -= evs->ev_len;
     evs = (const void *)((const uint64_t *)evs + evs->ev_len);
