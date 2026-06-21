@@ -249,6 +249,7 @@ typedef struct procstat_entry_s {
   value_to_rate_state_t delay_blkio;
   value_to_rate_state_t delay_swapin;
   value_to_rate_state_t delay_freepages;
+  value_to_rate_state_t delay_trashing;
 #endif
 
   struct procstat_entry_s *next;
@@ -292,6 +293,7 @@ typedef struct procstat {
   gauge_t delay_blkio;
   gauge_t delay_swapin;
   gauge_t delay_freepages;
+  gauge_t delay_trashing;
 
   bool report_fd_num;
   bool report_maps_num;
@@ -522,6 +524,8 @@ static void ps_update_delay(procstat_t *out, procstat_entry_t *prev,
                       curr->delay.swapin_ns, now);
   ps_update_delay_one(&out->delay_freepages, &prev->delay_freepages,
                       curr->delay.freepages_ns, now);
+  ps_update_delay_one(&out->delay_trashing, &prev->delay_trashing,
+                      curr->delay.trashing_ns, now);
 }
 #endif
 
@@ -639,6 +643,7 @@ static void ps_list_reset(void) {
     ps->delay_blkio = NAN;
     ps->delay_swapin = NAN;
     ps->delay_freepages = NAN;
+    ps->delay_trashing = NAN;
 
     pse_prev = NULL;
     pse = ps->instances;
@@ -966,6 +971,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
       {"delay-blkio", ps->delay_blkio},
       {"delay-swapin", ps->delay_swapin},
       {"delay-freepages", ps->delay_freepages},
+      {"delay-trashing", ps->delay_trashing},
   };
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(delay_metrics); i++) {
     if (isnan(delay_metrics[i].rate_ns)) {
@@ -990,14 +996,14 @@ static void ps_submit_proc_list(procstat_t *ps) {
       "io_diskr = %" PRIi64 "; io_diskw = %" PRIi64 "; "
       "cswitch_vol = %" PRIi64 "; cswitch_invol = %" PRIi64 "; "
       "delay_cpu = %g; delay_blkio = %g; "
-      "delay_swapin = %g; delay_freepages = %g;",
+      "delay_swapin = %g; delay_freepages = %g; delay_trashing = %g;",
       ps->name, ps->num_proc, ps->num_lwp, ps->num_fd, ps->num_maps,
       ps->vmem_size, ps->vmem_rss, ps->vmem_data, ps->vmem_code,
       ps->vmem_minflt_counter, ps->vmem_majflt_counter, ps->cpu_user_counter,
       ps->cpu_system_counter, ps->io_rchar, ps->io_wchar, ps->io_syscr,
       ps->io_syscw, ps->io_diskr, ps->io_diskw, ps->cswitch_vol,
       ps->cswitch_invol, ps->delay_cpu, ps->delay_blkio, ps->delay_swapin,
-      ps->delay_freepages);
+      ps->delay_freepages, ps->delay_trashing);
 
 } /* void ps_submit_proc_list */
 
