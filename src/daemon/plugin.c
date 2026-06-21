@@ -583,12 +583,12 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
      * should be called. */
     rf->rf_next_read += rf->rf_effective_interval;
 
-    /* Check, if `rf_next_read' is in the past. */
-    if (rf->rf_next_read < now) {
-      /* `rf_next_read' is in the past. Insert `now'
-       * so this value doesn't trail off into the
-       * past too much. */
-      rf->rf_next_read = now;
+    /* Check, if `rf_next_read' is on the same second as 'now' or in the past */
+    if (CDTIME_T_TO_TIME_T(rf->rf_next_read) <= CDTIME_T_TO_TIME_T(now)) {
+      /* `rf_next_read' is on the same second as `now' or earlier. it can cause
+       * 'rrdtool plugin: illegal attempt to update...(minimum one second step)'
+       * on server so move it to the next second. */
+      rf->rf_next_read = now + rf->rf_effective_interval;
     }
 
     DEBUG("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
