@@ -54,7 +54,7 @@
  */
 struct hostlist_s {
   char *host;
-
+  bool added;
   uint32_t pkg_sent;
   uint32_t pkg_recv;
   uint32_t pkg_missed;
@@ -209,17 +209,28 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
 
       /* we trigger the resolv simply be removeing and adding the host to our
        * ping object */
-      status = ping_host_remove(pingobj, hl->host);
+      status = ping_host_remove(pingobj, hl->host); 
       if (status != 0) {
         WARNING("ping plugin: ping_host_remove (%s) failed.", hl->host);
       } else {
         status = ping_host_add(pingobj, hl->host);
-        if (status != 0)
+        if (status != 0) {
+          hl->added = false;
           ERROR("ping plugin: ping_host_add (%s) failed.", hl->host);
+        }
       }
     } /* }}} ping_max_missed */
+    
   }   /* }}} for (iter) */
-
+  for (hl = hostlist_head; hl != NULL; hl = hl->next) {
+    if (!(hl->added)) {
+      status = ping_host_add(pingobj, hl->host);
+      if (status == 0) {
+        hl->added = true;
+        INFO("ping plugin: Successfully added host %s after retry.", hl->host);
+      }
+    }
+  }
   return 0;
 } /* }}} int ping_dispatch_all */
 
@@ -271,11 +282,14 @@ static void *ping_thread(void *arg) /* {{{ */
   for (hostlist_t *hl = hostlist_head; hl != NULL; hl = hl->next) {
     int tmp_status;
     tmp_status = ping_host_add(pingobj, hl->host);
-    if (tmp_status != 0)
+    if (tmp_status != 0) {
+      hl->added = false;
       WARNING("ping plugin: ping_host_add (%s) failed: %s", hl->host,
               ping_get_error(pingobj));
-    else
+    } else {
       count++;
+      hl->added = true;
+    }
   }
 
   if (count == 0) {
@@ -298,8 +312,6 @@ static void *ping_thread(void *arg) /* {{{ */
 
   pthread_mutex_lock(&ping_lock);
   while (ping_thread_loop > 0) {
-    bool send_successful = false;
-
     if (gettimeofday(&tv_begin, NULL) < 0) {
       ERROR("ping plugin: gettimeofday failed: %s", STRERRNO);
       ping_thread_error = 1;
@@ -307,6 +319,8 @@ static void *ping_thread(void *arg) /* {{{ */
     }
 
     pthread_mutex_unlock(&ping_lock);
+
+    bool send_successful = false;
 
     int status = ping_send(pingobj);
     if (status < 0) {
@@ -468,6 +482,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     }
 
     hl->host = host;
+    hl->added = false;
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
     hl->pkg_missed = 0;
@@ -586,6 +601,7 @@ static int ping_read(void) /* {{{ */
     stop_thread();
 
     for (hostlist_t *hl = hostlist_head; hl != NULL; hl = hl->next) {
+      hl->added = false;
       hl->pkg_sent = 0;
       hl->pkg_recv = 0;
       hl->latency_total = 0.0;
