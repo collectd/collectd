@@ -209,7 +209,7 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
 
       /* we trigger the resolv simply be removeing and adding the host to our
        * ping object */
-      status = ping_host_remove(pingobj, hl->host); 
+      status = ping_host_remove(pingobj, hl->host);
       if (status != 0) {
         WARNING("ping plugin: ping_host_remove (%s) failed.", hl->host);
       } else {
@@ -220,8 +220,8 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
         }
       }
     } /* }}} ping_max_missed */
-    
-  }   /* }}} for (iter) */
+
+  } /* }}} for (iter) */
   for (hl = hostlist_head; hl != NULL; hl = hl->next) {
     if (!(hl->added)) {
       status = ping_host_add(pingobj, hl->host);
