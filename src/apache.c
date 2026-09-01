@@ -411,8 +411,7 @@ static void submit_scoreboard(char *buf, apache_t *st) {
         starting++;
       else
         response_end++;
-    }
-    else if (buf[i] == 'R')
+    } else if (buf[i] == 'R')
       reading++;
     else if (buf[i] == 'W')
       sending++;
