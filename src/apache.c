@@ -404,8 +404,14 @@ static void submit_scoreboard(char *buf, apache_t *st) {
       open++;
     else if (buf[i] == '_')
       waiting++;
-    else if (buf[i] == 'S')
-      starting++;
+    else if (buf[i] == 'S') {
+      /* Apache uses 'S' for a starting worker, lighttpd for the end of a
+       * response. Without the server type the second meaning is lost. */
+      if (st->server_type == APACHE)
+        starting++;
+      else
+        response_end++;
+    }
     else if (buf[i] == 'R')
       reading++;
     else if (buf[i] == 'W')
@@ -434,8 +440,6 @@ static void submit_scoreboard(char *buf, apache_t *st) {
       request_end++;
     else if (buf[i] == 's')
       response_start++;
-    else if (buf[i] == 'S')
-      response_end++;
   }
 
   if (st->server_type == APACHE) {
