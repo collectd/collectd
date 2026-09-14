@@ -261,7 +261,9 @@
 #    #PluginInstance "unspecified"
 #    Type "cpu"
 #    #TypeInstance "unspecified"
+#    #DataSource "value"
 #
+#    #SetType "derive"
 #    GroupBy "Host"
 #    GroupBy "TypeInstance"
 #

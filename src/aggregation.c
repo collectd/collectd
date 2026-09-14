@@ -46,7 +46,9 @@ struct aggregation_s /* {{{ */
   char *set_host;
   char *set_plugin;
   char *set_plugin_instance;
+  char *set_type;
   char *set_type_instance;
+  char *data_source;
 
   bool calc_num;
   bool calc_sum;
@@ -65,6 +67,7 @@ struct agg_instance_s /* {{{ */
   lookup_identifier_t ident;
 
   int ds_type;
+  size_t ds_index;
 
   derive_t num;
   gauge_t sum;
@@ -105,6 +108,15 @@ static bool agg_is_regex(char const *str) /* {{{ */
 
 static void agg_destroy(aggregation_t *agg) /* {{{ */
 {
+  if (agg == NULL)
+    return;
+
+  sfree(agg->set_host);
+  sfree(agg->set_plugin);
+  sfree(agg->set_plugin_instance);
+  sfree(agg->set_type);
+  sfree(agg->set_type_instance);
+  sfree(agg->data_source);
   sfree(agg);
 } /* }}} void agg_destroy */
 
@@ -216,7 +228,10 @@ static int agg_instance_create_name(agg_instance_t *inst, /* {{{ */
   }
 
   /* Type */
-  sstrncpy(inst->ident.type, agg->ident.type, sizeof(inst->ident.type));
+  if (agg->set_type != NULL)
+    sstrncpy(inst->ident.type, agg->set_type, sizeof(inst->ident.type));
+  else
+    sstrncpy(inst->ident.type, agg->ident.type, sizeof(inst->ident.type));
 
   /* Type instance */
   COPY_FIELD(inst->ident.type_instance, sizeof(inst->ident.type_instance),
@@ -226,6 +241,34 @@ static int agg_instance_create_name(agg_instance_t *inst, /* {{{ */
 
   return 0;
 } /* }}} int agg_instance_create_name */
+
+static int agg_get_data_source(data_set_t const *ds, aggregation_t const *agg,
+                               size_t *ds_index) /* {{{ */ {
+  if (agg->data_source == NULL) {
+    if (ds->ds_num == 1) {
+      *ds_index = 0;
+      return 0;
+    }
+
+    ERROR("aggregation plugin: The \"%s\" type (data set) has more than one "
+          "data source. Please specify which one to aggregate with the "
+          "DataSource option.",
+          ds->type);
+    return EINVAL;
+  }
+
+  for (size_t i = 0; i < (size_t)ds->ds_num; i++) {
+    if (strcmp(ds->ds[i].name, agg->data_source) == 0) {
+      *ds_index = i;
+      return 0;
+    }
+  }
+
+  ERROR("aggregation plugin: DataSource \"%s\" was not found in the \"%s\" "
+        "type (data set).",
+        agg->data_source, ds->type);
+  return ENOENT;
+} /* }}} int agg_get_data_source */
 
 /* Create a new aggregation instance. */
 static agg_instance_t *agg_instance_create(data_set_t const *ds, /* {{{ */
@@ -240,7 +283,44 @@ static agg_instance_t *agg_instance_create(data_set_t const *ds, /* {{{ */
   }
   pthread_mutex_init(&inst->lock, /* attr = */ NULL);
 
-  inst->ds_type = ds->ds[0].type;
+  size_t ds_index = 0;
+  int status = agg_get_data_source(ds, agg, &ds_index);
+  if (status != 0) {
+    agg_instance_destroy(inst);
+    free(inst);
+    return NULL;
+  }
+
+  if ((ds->ds_num > 1) && (agg->set_type == NULL)) {
+    ERROR("aggregation plugin: DataSource \"%s\" selects one value from the "
+          "multi-value type \"%s\", but SetType is not configured.",
+          agg->data_source, ds->type);
+    agg_instance_destroy(inst);
+    free(inst);
+    return NULL;
+  }
+
+  inst->ds_index = ds_index;
+  inst->ds_type = ds->ds[ds_index].type;
+
+  if (agg->set_type != NULL) {
+    data_set_t const *output_ds = plugin_get_ds(agg->set_type);
+    if (output_ds == NULL) {
+      ERROR("aggregation plugin: SetType \"%s\" is not a known data set.",
+            agg->set_type);
+      agg_instance_destroy(inst);
+      free(inst);
+      return NULL;
+    }
+    if ((output_ds->ds_num != 1) || (output_ds->ds[0].type != inst->ds_type)) {
+      ERROR("aggregation plugin: SetType \"%s\" must contain exactly one "
+            "data source with the same type as DataSource \"%s\".",
+            agg->set_type, ds->ds[ds_index].name);
+      agg_instance_destroy(inst);
+      free(inst);
+      return NULL;
+    }
+  }
 
   agg_instance_create_name(inst, vl, agg);
 
@@ -280,18 +360,10 @@ static agg_instance_t *agg_instance_create(data_set_t const *ds, /* {{{ */
 
 /* Update the num, sum, min, max, ... fields of the aggregation instance, if
  * the rate of the value list is available. Value lists with more than one data
- * source are not supported and will return an error. Returns zero on success
- * and non-zero otherwise. */
+ * source require a configured DataSource. Returns zero on success and non-zero
+ * otherwise. */
 static int agg_instance_update(agg_instance_t *inst, /* {{{ */
                                data_set_t const *ds, value_list_t const *vl) {
-  if (ds->ds_num != 1) {
-    ERROR("aggregation plugin: The \"%s\" type (data set) has more than one "
-          "data source. This is currently not supported by this plugin. "
-          "Sorry.",
-          ds->type);
-    return EINVAL;
-  }
-
   gauge_t *rate = uc_get_rate(ds, vl);
   if (rate == NULL) {
     char ident[6 * DATA_MAX_NAME_LEN];
@@ -301,7 +373,8 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
     return ENOENT;
   }
 
-  if (isnan(rate[0])) {
+  gauge_t selected_rate = rate[inst->ds_index];
+  if (isnan(selected_rate)) {
     sfree(rate);
     return 0;
   }
@@ -309,13 +382,13 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
   pthread_mutex_lock(&inst->lock);
 
   inst->num++;
-  inst->sum += rate[0];
-  inst->squares_sum += (rate[0] * rate[0]);
+  inst->sum += selected_rate;
+  inst->squares_sum += (selected_rate * selected_rate);
 
-  if (isnan(inst->min) || (inst->min > rate[0]))
-    inst->min = rate[0];
-  if (isnan(inst->max) || (inst->max < rate[0]))
-    inst->max = rate[0];
+  if (isnan(inst->min) || (inst->min > selected_rate))
+    inst->min = selected_rate;
+  if (isnan(inst->max) || (inst->max < selected_rate))
+    inst->max = selected_rate;
 
   pthread_mutex_unlock(&inst->lock);
 
@@ -539,8 +612,12 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &agg->set_plugin);
     else if (strcasecmp("SetPluginInstance", child->key) == 0)
       status = cf_util_get_string(child, &agg->set_plugin_instance);
+    else if (strcasecmp("SetType", child->key) == 0)
+      status = cf_util_get_string(child, &agg->set_type);
     else if (strcasecmp("SetTypeInstance", child->key) == 0)
       status = cf_util_get_string(child, &agg->set_type_instance);
+    else if (strcasecmp("DataSource", child->key) == 0)
+      status = cf_util_get_string(child, &agg->data_source);
     else if (strcasecmp("GroupBy", child->key) == 0)
       status = agg_config_handle_group_by(child, agg);
     else if (strcasecmp("CalculateNum", child->key) == 0)
@@ -561,7 +638,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
               child->key);
 
     if (status != 0) {
-      sfree(agg);
+      agg_destroy(agg);
       return status;
     }
   } /* for (int i = 0; i < ci->children_num; i++) */
@@ -631,14 +708,14 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
   } /* }}} */
 
   if (!is_valid) { /* {{{ */
-    sfree(agg);
+    agg_destroy(agg);
     return -1;
   } /* }}} */
 
   int status = lookup_add(lookup, &agg->ident, agg->group_by, agg);
   if (status != 0) {
     ERROR("aggregation plugin: lookup_add failed with status %i.", status);
-    sfree(agg);
+    agg_destroy(agg);
     return -1;
   }
 

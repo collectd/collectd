@@ -677,6 +677,18 @@ aggregation_la_SOURCES = \
 	src/utils/lookup/vl_lookup.h
 aggregation_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 aggregation_la_LIBADD = -lm
+
+test_plugin_aggregation_SOURCES = \
+	src/aggregation_test.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c \
+	src/daemon/utils_subst.c
+test_plugin_aggregation_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_aggregation_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_aggregation_LDADD = \
+	liboconfig.la liblookup.la libmetadata.la libplugin_mock.la -lm
+check_PROGRAMS += test_plugin_aggregation
+TESTS += test_plugin_aggregation
 endif
 
 if BUILD_PLUGIN_AMQP
@@ -2591,4 +2603,3 @@ generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 
 jar_DATA = collectd-api.jar generic-jmx.jar
 endif
-

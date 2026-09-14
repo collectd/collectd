@@ -449,6 +449,13 @@ extended regular expressions as described in L<regex(7)>. Example usage:
 
  Host "/^db[0-9]\\.example\\.com$/"
 
+=item B<DataSource> I<Name>
+
+Selects one named data source from the matched type, such as C<rx> from
+C<if_octets>. The name must match a data source in L<types.db(5)> for the
+configured B<Type>. This option is required when B<Type> contains more than
+one data source.
+
 =item B<GroupBy> B<Host>|B<Plugin>|B<PluginInstance>|B<TypeInstance>
 
 Group valued by the specified field. The B<GroupBy> option may be repeated to
@@ -460,6 +467,8 @@ group by multiple fields.
 
 =item B<SetPluginInstance> I<PluginInstance>
 
+=item B<SetType> I<Type>
+
 =item B<SetTypeInstance> I<TypeInstance>
 
 Sets the appropriate part of the identifier to the provided string.
@@ -468,6 +477,11 @@ The I<PluginInstance> should include the placeholder C<%{aggregation}> which
 will be replaced with the aggregation function, e.g. "average". Not including
 the placeholder will result in duplication warnings and/or messed up values if
 more than one aggregation function are enabled.
+
+When B<DataSource> selects one value from a multi-data-source type, B<SetType>
+must name a single-value type used for the aggregated output. Its data source
+must have the same type (C<COUNTER>, C<DERIVE>, C<GAUGE>, or C<ABSOLUTE>) as
+the selected input data source.
 
 The following example calculates the average usage of all "even" CPUs:
 
