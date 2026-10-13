@@ -599,16 +599,15 @@ static int format_plain_notification(char *buf, size_t buf_len,
   int status = 0;
 
 #define APPEND_VA(format, ...)                                                 \
-  if (buf_len > 0) {                                                           \
+  do {                                                                         \
     status = ssnprintf(buf, buf_len, format "\r\n", __VA_ARGS__);              \
-    if (status >= 0) {                                                         \
-      buf += status;                                                           \
-      buf_len -= status;                                                       \
-    } else {                                                                   \
+    if ((status < 0) || (((size_t)status) >= buf_len)) {                       \
       ERROR("mqtt plugin: notification buf too small.");                       \
       return ENOMEM;                                                           \
     }                                                                          \
-  }
+    buf += status;                                                             \
+    buf_len -= (size_t)status;                                                 \
+  } while (0)
 
   APPEND_VA("Time: %.3f", CDTIME_T_TO_DOUBLE(n->time));
   switch (n->severity) {
@@ -652,6 +651,8 @@ static int format_plain_notification(char *buf, size_t buf_len,
   }
 
   APPEND_VA("\r\nMessage: %s", n->message);
+
+#undef APPEND_VA
 
   return 0;
 } /* format_plain_notification */
