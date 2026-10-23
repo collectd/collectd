@@ -93,6 +93,7 @@ const long int MAX_GRBUF_SIZE = 65536;
  */
 static program_list_t *pl_head;
 static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_rwlock_t pl_destroy_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /*
  * Functions
@@ -572,23 +573,42 @@ static void *exec_read_one(void *arg) /* {{{ */
   program_list_t *pl = (program_list_t *)arg;
   int fd, fd_err;
   struct pollfd fds[2] = {{0}};
+  int pid = -1;
   int status;
   char buffer[1200]; /* if not completely read */
   char buffer_err[1024];
   char *pbuffer = buffer;
   char *pbuffer_err = buffer_err;
+  char *exec = NULL;
 
-  status = fork_child(pl, NULL, &fd, &fd_err);
-  if (status < 0) {
-    /* Reset the "running" flag */
-    pthread_mutex_lock(&pl_lock);
-    pl->flags &= ~PL_RUNNING;
-    pthread_mutex_unlock(&pl_lock);
+  pthread_rwlock_rdlock(&pl_destroy_lock);
+
+  if (pl_head != NULL) {
+    exec = strdup(pl->exec);
+
+    if (exec == NULL) {
+      ERROR("exec plugin: strdup failed.");
+    } else {
+      pid = fork_child(pl, NULL, &fd, &fd_err);
+    }
+  }
+
+  if (pid < 0) {
+    if (pl_head != NULL) {
+      /* Reset the "running" flag */
+      pthread_mutex_lock(&pl_lock);
+      pl->flags &= ~PL_RUNNING;
+      pthread_mutex_unlock(&pl_lock);
+    }
+    pthread_rwlock_unlock(&pl_destroy_lock);
+    sfree(exec);
     pthread_exit((void *)1);
   }
-  pl->pid = status;
+  pl->pid = pid;
 
   assert(pl->pid != 0);
+
+  pthread_rwlock_unlock(&pl_destroy_lock);
 
   fds[0].fd = fd;
   fds[0].events = POLLIN;
@@ -639,7 +659,7 @@ static void *exec_read_one(void *arg) /* {{{ */
       } else
         pbuffer = buffer;
     } else if (fds[0].revents & (POLLERR | POLLNVAL)) {
-      ERROR("exec plugin: Failed to read pipe from `%s'.", pl->exec);
+      ERROR("exec plugin: Failed to read pipe from `%s'.", exec);
       break;
     } else if (fds[1].revents & (POLLIN | POLLHUP)) {
       char *pnl;
@@ -653,7 +673,7 @@ static void *exec_read_one(void *arg) /* {{{ */
         break;
       } else if (len == 0) {
         /* We've reached EOF */
-        NOTICE("exec plugin: Program `%s' has closed STDERR.", pl->exec);
+        NOTICE("exec plugin: Program `%s' has closed STDERR.", exec);
 
         /* Clean up file descriptor */
         close(fd_err);
@@ -685,7 +705,7 @@ static void *exec_read_one(void *arg) /* {{{ */
       } else
         pbuffer_err = buffer_err;
     } else if (fds[1].revents & (POLLERR | POLLNVAL)) {
-      WARNING("exec plugin: Ignoring STDERR for program `%s'.", pl->exec);
+      WARNING("exec plugin: Ignoring STDERR for program `%s'.", exec);
       /* Clean up file descriptor */
       if ((fds[1].revents & POLLNVAL) == 0) {
         close(fd_err);
@@ -696,18 +716,27 @@ static void *exec_read_one(void *arg) /* {{{ */
     }
   }
 
-  DEBUG("exec plugin: exec_read_one: Waiting for `%s' to exit.", pl->exec);
-  if (waitpid(pl->pid, &status, 0) > 0)
-    pl->status = status;
+  DEBUG("exec plugin: exec_read_one: Waiting for `%s' to exit.", exec);
+  sfree(exec);
 
-  DEBUG("exec plugin: Child %i exited with status %i.", (int)pl->pid,
-        pl->status);
+  pid = waitpid(pid, &status, 0);
 
-  pl->pid = 0;
+  pthread_rwlock_rdlock(&pl_destroy_lock);
 
-  pthread_mutex_lock(&pl_lock);
-  pl->flags &= ~PL_RUNNING;
-  pthread_mutex_unlock(&pl_lock);
+  if (pl_head != NULL) {
+    if (pid > 0)
+      pl->status = status;
+
+    DEBUG("exec plugin: Child %i exited with status %i.", pl->pid, pl->status);
+
+    pl->pid = 0;
+
+    pthread_mutex_lock(&pl_lock);
+    pl->flags &= ~PL_RUNNING;
+    pthread_mutex_unlock(&pl_lock);
+  }
+
+  pthread_rwlock_unlock(&pl_destroy_lock);
 
   close(fd);
   if (fd_err >= 0)
@@ -722,22 +751,31 @@ static void *exec_notification_one(void *arg) /* {{{ */
   program_list_t *pl = ((program_list_and_notification_t *)arg)->pl;
   notification_t *n = &((program_list_and_notification_t *)arg)->n;
   int fd;
-  FILE *fh;
-  int pid;
+  FILE *fh = NULL;
+  int pid = -1;
   int status;
   const char *severity;
 
-  pid = fork_child(pl, &fd, NULL, NULL);
-  if (pid < 0) {
-    sfree(arg);
-    pthread_exit((void *)1);
-  }
+  pthread_rwlock_rdlock(&pl_destroy_lock);
 
-  fh = fdopen(fd, "w");
+  if (pl_head != NULL)
+    pid = fork_child(pl, &fd, NULL, NULL);
+
+  pthread_rwlock_unlock(&pl_destroy_lock);
+
+  if (pid > 0)
+    fh = fdopen(fd, "w");
+
   if (fh == NULL) {
-    ERROR("exec plugin: fdopen (%i) failed: %s", fd, STRERRNO);
-    kill(pid, SIGTERM);
-    close(fd);
+    if (pid > 0) {
+      ERROR("exec plugin: fdopen (%i) failed: %s", fd, STRERRNO);
+      kill(pid, SIGTERM);
+      close(fd);
+    }
+
+    if (n->meta != NULL)
+      plugin_notification_meta_free(n->meta);
+    n->meta = NULL;
     sfree(arg);
     pthread_exit((void *)1);
   }
@@ -858,6 +896,12 @@ static int exec_notification(const notification_t *n, /* {{{ */
                              user_data_t __attribute__((unused)) * user_data) {
   program_list_and_notification_t *pln;
 
+  /*
+   * exec_notification() can be called from exec_read_one() through:
+   * parse_line() -> handle_putnotif() -> plugin_dispatch_notification()
+   */
+  pthread_rwlock_rdlock(&pl_destroy_lock);
+
   for (program_list_t *pl = pl_head; pl != NULL; pl = pl->next) {
     pthread_t t;
 
@@ -892,6 +936,8 @@ static int exec_notification(const notification_t *n, /* {{{ */
     }
   } /* for (pl) */
 
+  pthread_rwlock_unlock(&pl_destroy_lock);
+
   return 0;
 } /* }}} int exec_notification */
 
@@ -899,8 +945,18 @@ static int exec_shutdown(void) /* {{{ */
 {
   program_list_t *pl;
   program_list_t *next;
+  struct sigaction sa = {.sa_handler = SIG_IGN};
+
+  /** Doesn't fully solve the signal handler issue, but reduces the chances */
+  sigaction(SIGCHLD, &sa, NULL);
+
+  pthread_rwlock_wrlock(&pl_destroy_lock);
 
   pl = pl_head;
+  pl_head = NULL;
+
+  pthread_rwlock_unlock(&pl_destroy_lock);
+
   while (pl != NULL) {
     next = pl->next;
 
@@ -919,7 +975,6 @@ static int exec_shutdown(void) /* {{{ */
 
     pl = next;
   } /* while (pl) */
-  pl_head = NULL;
 
   return 0;
 } /* int exec_shutdown }}} */
