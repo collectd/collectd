@@ -378,7 +378,7 @@ static int olsrd_cb_routes(int lineno, /* {{{ */
 
     etx = NAN;
     if (etx_num > 0)
-      etx = etx_sum / ((double)etx_sum);
+      etx = etx_sum / ((double)etx_num);
     DEBUG("olsrd plugin: Average ETX: %g", etx);
     olsrd_submit(/* p.-inst = */ "routes", /* type = */ "route_etx", "average",
                  etx);
@@ -466,7 +466,7 @@ static int olsrd_cb_topology(int lineno, /* {{{ */
 
     lq = NAN;
     if (lq_num > 0)
-      lq = lq_sum / ((double)lq_sum);
+      lq = lq_sum / ((double)lq_num);
     DEBUG("olsrd plugin: topology: Average link quality: %g", lq);
     olsrd_submit(/* p.-inst = */ "topology", /* type = */ "signal_quality",
                  /* t.-inst = */ "average", lq);
