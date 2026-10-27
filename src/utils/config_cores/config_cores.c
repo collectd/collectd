@@ -152,7 +152,7 @@ static size_t str_list_to_nums(char *s, unsigned *nums, size_t nums_len) {
 static int check_core_grouping(char *out, const char *in, size_t out_size,
                                _Bool *grouped) {
   const char *start = in;
-  char *end;
+  const char *end;
   while (isspace(*start))
     ++start;
   if (start[0] == '[') {
