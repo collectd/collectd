@@ -1478,7 +1478,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   return 0;
 } /* int ps_read_process (...) */
 
-static int procs_running(const char *buffer) {
+static int procs_running(char *buffer) {
   char id[] = "procs_running "; /* white space terminated */
   char *running;
   char *endptr = NULL;
@@ -1490,7 +1490,7 @@ static int procs_running(const char *buffer) {
    * the number of running processes.
    * The parser does include the white-space character.
    */
-  running = strstr(buffer, id);
+  running = (char *)strstr(buffer, id);
   if (!running) {
     WARNING("'procs_running ' not found in /proc/stat");
     return -1;
@@ -1595,7 +1595,7 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   return buf;
 } /* char *ps_get_cmdline (...) */
 
-static int read_fork_rate(const char *buffer) {
+static int read_fork_rate(char *buffer) {
   value_t value;
   char id[] = "processes ";
   char *processes;
@@ -1605,7 +1605,7 @@ static int read_fork_rate(const char *buffer) {
   int fields_num;
   const int expected = STATIC_ARRAY_SIZE(fields);
 
-  processes = strstr(buffer, id);
+  processes = (char *)strstr(buffer, id);
   if (!processes) {
     WARNING("'processes ' not found in /proc/stat");
     return -1;
@@ -1623,7 +1623,7 @@ static int read_fork_rate(const char *buffer) {
   return 0;
 }
 
-static int read_sys_ctxt_switch(const char *buffer) {
+static int read_sys_ctxt_switch(char *buffer) {
   value_t value;
   char id[] = "ctxt ";
   char *ctxt;
@@ -1633,7 +1633,7 @@ static int read_sys_ctxt_switch(const char *buffer) {
   int fields_num;
   const int expected = STATIC_ARRAY_SIZE(fields);
 
-  ctxt = strstr(buffer, id);
+  ctxt = (char *)strstr(buffer, id);
   if (!ctxt) {
     WARNING("'ctxt ' not found in /proc/stat");
     return -1;
